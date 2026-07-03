@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.26.1] - 2026-07-03
+
+A quick fix for logging in: pasting your secret key into the login field no longer sets off the clipboard safety warning meant to stop you from posting it publicly.
+
+### Fixed
+- Pasting a secret key into the login field no longer triggers the accidental-paste warning
+
 ## [2.26.0] - 2026-07-03
 
 Composing on mobile is a whole new experience — a full-screen editor with a slick animated emoji, GIF, and sticker tray. The Development feed now shows the full life of open-source projects: issues, pull requests, and status updates. Posts tagged #nsfw are tucked behind content warnings, and you can exempt people you follow from your muted words. Plus smarter search, a better mention autocomplete, and a proper eulogy for deleted posts.
