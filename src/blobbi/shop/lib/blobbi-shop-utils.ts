@@ -1,6 +1,6 @@
 // src/blobbi/shop/lib/blobbi-shop-utils.ts
 
-import type { ItemEffect } from '../types/shop.types';
+import type { ItemEffect } from '@blobbi-kit/core/types/shop';
 
 /**
  * Get the number of positive and negative effects for an item.

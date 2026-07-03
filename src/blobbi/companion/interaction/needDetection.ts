@@ -11,7 +11,7 @@
  */
 
 import type { BlobbiStats } from '@blobbi-kit/core';
-import type { ShopItemCategory } from '@/blobbi/shop/types/shop.types';
+import type { ShopItemCategory } from '@blobbi-kit/core/types/shop';
 
 // ─── Need Thresholds ──────────────────────────────────────────────────────────
 

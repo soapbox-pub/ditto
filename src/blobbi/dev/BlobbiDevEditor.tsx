@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 import type { BlobbiCompanion, BlobbiStage, BlobbiState, BlobbiStats } from '@blobbi-kit/core/blobbi';
-import { ADULT_FORMS } from '@/blobbi/adult-blobbi/types/adult.types';
+import { ADULT_FORMS } from '@blobbi-kit/core/types/adult';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

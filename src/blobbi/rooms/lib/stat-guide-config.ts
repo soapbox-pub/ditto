@@ -8,8 +8,8 @@
  *   GuideTarget builder
  */
 
-import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
-import type { ShopItemCategory } from '@/blobbi/shop/types/shop.types';
+import type { BlobbiStats } from '@blobbi-kit/core/types/blobbi';
+import type { ShopItemCategory } from '@blobbi-kit/core/types/shop';
 import type { BlobbiRoomId } from './room-config';
 import { DEFAULT_ROOM_ORDER } from './room-config';
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';

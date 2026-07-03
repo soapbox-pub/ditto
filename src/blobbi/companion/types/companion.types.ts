@@ -6,7 +6,7 @@
  */
 
 import type { BlobbiVisualTraits, BlobbiStats } from '@blobbi-kit/core';
-import type { BlobbiState } from '@/blobbi/core/types/blobbi';
+import type { BlobbiState } from '@blobbi-kit/core/types/blobbi';
 
 // ─── Companion State Machine ──────────────────────────────────────────────────
 

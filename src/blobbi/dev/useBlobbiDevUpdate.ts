@@ -18,7 +18,7 @@ import { toast } from '@/hooks/useToast';
 
 import type { BlobbiCompanion, BlobbiStage } from '@blobbi-kit/core';
 import { KIND_BLOBBI_STATE, updateBlobbiTags, getLocalDayString, adjustSeedForAdultType } from '@blobbi-kit/core';
-import type { AdultForm } from '@/blobbi/adult-blobbi/types/adult.types';
+import type { AdultForm } from '@blobbi-kit/core/types/adult';
 import type { BlobbiDevUpdates } from './BlobbiDevEditor';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

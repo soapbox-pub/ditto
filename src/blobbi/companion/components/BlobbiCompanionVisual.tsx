@@ -24,7 +24,7 @@ import { useRecipeFingerprint, useFillLevelUpdate } from '@/blobbi/ui/hooks/useF
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BodyEffectsSpec } from '@/blobbi/ui/lib/bodyEffects';
-import type { Blobbi } from '@/blobbi/core/types/blobbi';
+import type { Blobbi } from '@blobbi-kit/core/types/blobbi';
 import type { BlobbiCompanion } from '@blobbi-kit/core/blobbi';
 import { cn } from '@/lib/utils';
 import type { CompanionData, EyeOffset, CompanionDirection } from '../types/companion.types';

@@ -27,7 +27,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 import type { BlobbiCompanion } from '@blobbi-kit/core/blobbi';
-import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
+import type { BlobbiStats } from '@blobbi-kit/core/types/blobbi';
 
 /** Stat-to-action mapping: each stat has an associated quick action + default item. */
 const STAT_ACTION_MAP: Record<string, { itemId: string; action: InventoryAction } | 'sleep'> = {

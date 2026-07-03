@@ -1,7 +1,7 @@
 // src/blobbi/actions/lib/blobbi-action-utils.ts
 
 import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStage, type BlobbiStats } from '@blobbi-kit/core/blobbi';
-import type { ItemEffect, ShopItemCategory } from '@/blobbi/shop/types/shop.types';
+import type { ItemEffect, ShopItemCategory } from '@blobbi-kit/core/types/shop';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { getBlobbiStatDisplayState, type CareState } from '@blobbi-kit/core/blobbi-segments';
 import type { InventoryAction, DirectAction, BlobbiAction } from '@blobbi-kit/react/lib/blobbi-actions';
