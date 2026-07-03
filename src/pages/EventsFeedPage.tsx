@@ -16,10 +16,9 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useFeed } from "@/hooks/useFeed";
 import { useFeedTab } from "@/hooks/useFeedTab";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
-import { useMuteList } from "@/hooks/useMuteList";
+import { useMuteFilter } from "@/hooks/useMuteFilter";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
 import { getExtraKindDef } from "@/lib/extraKinds";
-import { isEventMuted } from "@/lib/muteHelpers";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 
 type FeedTab = "follows" | "global";
@@ -36,7 +35,7 @@ function getTag(tags: string[][], name: string): string | undefined {
 export function EventsFeedPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
 
   const [activeTab, setActiveTab] = useFeedTab<FeedTab>("events", [
     "follows",
@@ -80,7 +79,7 @@ export function EventsFeedPage() {
       .filter((item) => {
         if (seen.has(item.event.id)) return false;
         seen.add(item.event.id);
-        if (muteItems.length > 0 && isEventMuted(item.event, muteItems))
+        if (isMuted(item.event))
           return false;
         return true;
       });
@@ -95,7 +94,7 @@ export function EventsFeedPage() {
       if (aFuture && bFuture) return aStart - bStart;
       return bStart - aStart;
     });
-  }, [rawData?.pages, muteItems]);
+  }, [rawData?.pages, isMuted]);
 
   const showSkeleton = isPending || (isLoading && !rawData);
 

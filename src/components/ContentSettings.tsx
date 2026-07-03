@@ -962,6 +962,40 @@ export function SensitiveContentSection() {
   );
 }
 
+/**
+ * Toggle for exempting followed accounts from content-based filters
+ * (muted hashtags and words). Explicit user and thread mutes still apply.
+ */
+export function MuteFollowExemptionSection() {
+  const { config, updateConfig } = useAppContext();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
+
+  const exempt = config.exemptFollowsFromFilters === true;
+
+  const handleToggle = async (value: boolean) => {
+    updateConfig((current) => ({ ...current, exemptFollowsFromFilters: value }));
+    if (user) {
+      await updateSettings.mutateAsync({ exemptFollowsFromFilters: value });
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="space-y-0.5">
+        <Label className="text-sm font-medium">Don't filter people you follow</Label>
+        <p className="text-xs text-muted-foreground">
+          Muted hashtags and words won't hide posts from accounts you follow. Muted users and threads still apply.
+        </p>
+      </div>
+      <Switch
+        checked={exempt}
+        onCheckedChange={handleToggle}
+      />
+    </div>
+  );
+}
+
 const MUTE_TYPE_CONFIG = {
   pubkey: {
     icon: <UserX className="size-5" />,
@@ -1106,6 +1140,11 @@ export function MuteSettingsInternals() {
           <Plus className="mr-2 h-4 w-4" />
           Add Mute
         </Button>
+      </div>
+
+      {/* Follow exemption toggle */}
+      <div className="px-3 py-4 border-b border-border">
+        <MuteFollowExemptionSection />
       </div>
 
       {/* Muted items list */}

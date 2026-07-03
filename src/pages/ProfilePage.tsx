@@ -36,7 +36,7 @@ import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useMuteList } from '@/hooks/useMuteList';
-import { isEventMuted } from '@/lib/muteHelpers';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useProfileFeed, useProfileLikes as useProfileLikesInfinite, useTabFeed, filterByTab } from '@/hooks/useProfileFeed';
 import type { ProfileTab as CoreProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
@@ -980,7 +980,7 @@ export function ProfilePage() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { toast } = useToast();
-  const { muteItems } = useMuteList();
+  const { isMuted: isMutedEvent } = useMuteFilter();
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<CoreProfileTab | string>('posts');
@@ -1698,13 +1698,13 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
         if (!seen.has(key)) {
           seen.add(key);
-          if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) continue;
+          if (isMutedEvent(item.event)) continue;
           items.push(item);
         }
       }
     }
     return items;
-  }, [feedData?.pages, muteItems]);
+  }, [feedData?.pages, isMutedEvent]);
 
   // Flatten media pages for the sidebar and media tab
   const mediaEvents = useMemo(() => {
@@ -1752,13 +1752,13 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       for (const comment of page.comments) {
         if (!seen.has(comment.id)) {
           seen.add(comment.id);
-          if (muteItems.length > 0 && isEventMuted(comment, muteItems)) continue;
+          if (isMutedEvent(comment)) continue;
           items.push(comment);
         }
       }
     }
     return items;
-  }, [wallData?.pages, muteItems]);
+  }, [wallData?.pages, isMutedEvent]);
 
   // Pair each wall comment with its first direct sub-reply (same pattern as PostDetailPage replies).
   // useWallComments queries #A (uppercase root tag) which returns all depth levels per NIP-22,

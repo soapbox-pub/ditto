@@ -151,6 +151,7 @@ const hardcodedConfig: AppConfig = {
   linkPreviewUrl: "https://ditto.pub/api/link-preview/{url}",
   corsProxy: "https://proxy.shakespeare.diy/?url={href}",
   contentWarningPolicy: "blur",
+  exemptFollowsFromFilters: false,
   sentryDsn: import.meta.env.VITE_SENTRY_DSN || "",
   sentryEnabled: true,
   plausibleDomain: import.meta.env.VITE_PLAUSIBLE_DOMAIN || "",

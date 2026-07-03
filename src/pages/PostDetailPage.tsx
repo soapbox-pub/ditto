@@ -187,7 +187,7 @@ import { useComments } from "@/hooks/useComments";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEventInteractions, extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
 import { extractOnchainZapClaimedAmount, extractOnchainZapRecipients, useVerifiedOnchainZap } from "@/hooks/useOnchainZaps";
-import { useMuteList } from "@/hooks/useMuteList";
+import { useMuteFilter } from "@/hooks/useMuteFilter";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useReplies } from "@/hooks/useReplies";
 import { useShareOrigin } from "@/hooks/useShareOrigin";
@@ -201,7 +201,6 @@ import { detectCelebration, markCelebrated } from "@/lib/celebrations";
 import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
 import { encodeEventAddress } from "@/lib/encodeEvent";
 import { getDisplayName } from "@/lib/getDisplayName";
-import { isEventMuted } from "@/lib/muteHelpers";
 import { parseAddr } from "@/lib/parseAddr";
 import { getParentEventId, getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
 import { shareOrCopy } from "@/lib/share";
@@ -533,14 +532,12 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
  * provides the comments tree.
  */
 function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);
 
   const orderedReplies = useMemo(() => {
     const topLevel = commentsData?.topLevelComments ?? [];
-    const filtered = muteItems.length > 0
-      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
-      : topLevel;
+    const filtered = topLevel.filter((r) => !isMuted(r));
     return [...filtered]
       .sort((a, b) => a.created_at - b.created_at)
       .map((reply) => {
@@ -550,7 +547,7 @@ function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
           firstSubReply: directReplies[0] as NostrEvent | undefined,
         };
       });
-  }, [commentsData, muteItems]);
+  }, [commentsData, isMuted]);
 
   return (
     <div>
@@ -1069,7 +1066,7 @@ function BookReviewRating({ event }: { event: NostrEvent }) {
 
 
 function PostDetailContent({ event }: { event: NostrEvent }) {
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const queryClient = useQueryClient();
   const shareOrigin = useShareOrigin();
   const location = useLocation();
@@ -1351,9 +1348,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   const replies = useMemo(() => {
     const source = isKind1 ? rawReplies : commentsData?.allComments;
-    if (!source || muteItems.length === 0) return source;
-    return source.filter((r) => !isEventMuted(r, muteItems));
-  }, [isKind1, rawReplies, commentsData?.allComments, muteItems]);
+    if (!source) return source;
+    return source.filter((r) => !isMuted(r));
+  }, [isKind1, rawReplies, commentsData?.allComments, isMuted]);
 
   // Build a full reply tree for recursive threaded rendering.
   const replyTree = useMemo((): ReplyNode[] => {
@@ -1413,19 +1410,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
     if (isComment) {
       const directReplies = commentsData?.getDirectReplies(event.id) ?? [];
-      const filtered = muteItems.length > 0
-        ? directReplies.filter((r) => !isEventMuted(r, muteItems))
-        : directReplies;
+      const filtered = directReplies.filter((r) => !isMuted(r));
       return filtered.map((r) => buildNode(r));
     }
 
     // Non-kind-1 root
     const topLevel = commentsData?.topLevelComments ?? [];
-    const filtered = muteItems.length > 0
-      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
-      : topLevel;
+    const filtered = topLevel.filter((r) => !isMuted(r));
     return [...filtered].sort((a, b) => a.created_at - b.created_at).map((r) => buildNode(r));
-  }, [isKind1, isComment, replies, event.id, commentsData, muteItems]);
+  }, [isKind1, isComment, replies, event.id, commentsData, isMuted]);
 
   // Seed the NIP-85 stats cache with client-side reply counts for each comment
   // in the thread. NIP-85 may not have stats for kind 1111 events, so this

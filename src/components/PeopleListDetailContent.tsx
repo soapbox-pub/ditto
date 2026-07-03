@@ -53,10 +53,9 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { LOVE_LIST_KIND, loveListPubkeys } from '@/hooks/useLoveList';
 import { useTabFeed } from '@/hooks/useProfileFeed';
-import { useMuteList } from '@/hooks/useMuteList';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useUserLists } from '@/hooks/useUserLists';
 
-import { isEventMuted } from '@/lib/muteHelpers';
 import { feedItemKey, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
@@ -76,7 +75,7 @@ type Tab = 'feed' | 'members' | 'comments';
  * @param tabKey - A stable cache namespace, typically the list's naddr.
  */
 export function PeopleListFeedTab({ pubkeys, tabKey }: { pubkeys: string[]; tabKey: string }) {
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { ref: sentinelRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
 
   // Build the TabFeed filter. Scope to kind 1 posts + kind 6/16 reposts so the
@@ -114,7 +113,7 @@ export function PeopleListFeedTab({ pubkeys, tabKey }: { pubkeys: string[]; tabK
         if (seen.has(key)) return false;
         seen.add(key);
         if (shouldHideFeedEvent(item.event)) return false;
-        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
+        if (isMuted(item.event)) return false;
         // Hide replies — this tab should show top-level posts only (reposts of
         // replies are fine, so only check original kind 1 events, not reposts).
         if (item.event.kind === 1 && !item.repostedBy && isReplyEvent(item.event)) {
@@ -122,7 +121,7 @@ export function PeopleListFeedTab({ pubkeys, tabKey }: { pubkeys: string[]; tabK
         }
         return true;
       });
-  }, [data?.pages, muteItems]);
+  }, [data?.pages, isMuted]);
 
   if (pubkeys.length === 0) {
     return (
@@ -335,13 +334,11 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
   const { data: membersMap, isLoading: membersLoading } = useAuthors(pubkeys);
 
   // Comments (NIP-22 kind 1111, indexed by #A for replaceable / addressable roots)
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);
   const orderedReplies = useMemo(() => {
     const topLevel = commentsData?.topLevelComments ?? [];
-    const filtered = muteItems.length > 0
-      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
-      : topLevel;
+    const filtered = topLevel.filter((r) => !isMuted(r));
     return [...filtered]
       .sort((a, b) => b.created_at - a.created_at)
       .map((reply) => {
@@ -351,7 +348,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
           firstSubReply: directReplies[0] as NostrEvent | undefined,
         };
       });
-  }, [commentsData, muteItems]);
+  }, [commentsData, isMuted]);
 
   // Follow state
   const followedPubkeys = useMemo(

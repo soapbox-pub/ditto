@@ -13,12 +13,11 @@ import { TabButton } from '@/components/TabButton';
 import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useComments } from '@/hooks/useComments';
-import { useMuteList } from '@/hooks/useMuteList';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useTabFeed } from '@/hooks/useProfileFeed';
 import { PostDetailShell } from '@/pages/PostDetailPage';
 import { getClientMetricsTags } from '@/lib/appHandlerMetrics';
 import { feedItemKey, shouldHideFeedEvent } from '@/lib/feedUtils';
-import { isEventMuted } from '@/lib/muteHelpers';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { publishedAtAction } from '@/lib/publishedAtAction';
 
@@ -100,7 +99,7 @@ export function AppHandlerDetailPage({ event }: { event: NostrEvent }) {
  * the Ditto relay's NIP-50 `client:<addr>` search extension.
  */
 function AppHandlerFeedTab({ addr }: { addr: string }) {
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { ref: sentinelRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
 
   const filter = useMemo<NostrFilter>(
@@ -136,14 +135,14 @@ function AppHandlerFeedTab({ addr }: { addr: string }) {
         // (the handler-event-identifier sits in the tag's 3rd position).
         if (!hasMatchingClientTag(item.event, addr)) return false;
         if (shouldHideFeedEvent(item.event)) return false;
-        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
+        if (isMuted(item.event)) return false;
         // Hide replies — show top-level posts only.
         if (item.event.kind === 1 && !item.repostedBy && isReplyEvent(item.event)) {
           return false;
         }
         return true;
       });
-  }, [data?.pages, muteItems, addr]);
+  }, [data?.pages, isMuted, addr]);
 
   if (isLoading && feedItems.length === 0) {
     return <FeedSkeleton />;
@@ -205,14 +204,12 @@ function FeedSkeleton() {
 
 /** NIP-22 comments addressed to the handler event (indexed by #A). */
 function AppHandlerCommentsTab({ event }: { event: NostrEvent }) {
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { data: commentsData, isLoading } = useComments(event, 500);
 
   const orderedReplies = useMemo(() => {
     const topLevel = commentsData?.topLevelComments ?? [];
-    const filtered = muteItems.length > 0
-      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
-      : topLevel;
+    const filtered = topLevel.filter((r) => !isMuted(r));
     return [...filtered]
       .sort((a, b) => b.created_at - a.created_at)
       .map((reply) => {
@@ -222,7 +219,7 @@ function AppHandlerCommentsTab({ event }: { event: NostrEvent }) {
           firstSubReply: directReplies[0] as NostrEvent | undefined,
         };
       });
-  }, [commentsData, muteItems]);
+  }, [commentsData, isMuted]);
 
   return (
     <div>

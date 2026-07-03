@@ -1,12 +1,11 @@
 import { useNostr } from '@nostrify/react';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useFeedSettings } from './useFeedSettings';
-import { useMuteList } from './useMuteList';
+import { useMuteFilter } from './useMuteFilter';
 import { useContentFilters } from './useContentFilters';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
-import { isEventMuted } from '@/lib/muteHelpers';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import { nip19 } from 'nostr-tools';
@@ -151,7 +150,7 @@ const PAGE_SIZE = 40;
 export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { shouldFilterEvent } = useContentFilters();
   const [allEvents, setAllEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -504,7 +503,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
   // Shared predicate for client-side filtering (mute, content, search, media, author, etc.)
   const matchesFilters = useCallback((event: NostrEvent) => {
-    if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+    if (isMuted(event)) return false;
     if (shouldFilterEvent(event)) return false;
     if (resolvedAuthorPubkeys) {
       const authorSet = new Set(resolvedAuthorPubkeys);
@@ -512,7 +511,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     }
     return filterEvent(event, options, query);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific options fields instead of the whole object for granular reactivity
-  }, [options.includeReplies, options.mediaType, protocolsKey, query, muteItems, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey, clientTagsKey]);
+  }, [options.includeReplies, options.mediaType, protocolsKey, query, isMuted, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey, clientTagsKey]);
 
   // Apply client-side filters (including mute filtering and content filters) without restarting the stream
   const posts = useMemo(() => {

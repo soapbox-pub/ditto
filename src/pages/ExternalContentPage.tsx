@@ -35,8 +35,7 @@ import { useComments } from '@/hooks/useComments';
 import { useBookReviews } from '@/hooks/useBookReviews';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { useMuteList } from '@/hooks/useMuteList';
-import { isEventMuted } from '@/lib/muteHelpers';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -262,15 +261,13 @@ export function ExternalContentView({ uri, focusedEventId }: ExternalContentView
 
   const commentRoot: URL | `#${string}` | undefined = commentRootUrl ?? commentRootId;
 
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { data: commentsData, isLoading: commentsLoading } = useComments(commentRoot, 500);
 
   // Build a reply tree: direct replies each paired with their first sub-reply.
   const orderedReplies = useMemo(() => {
     const topLevel = commentsData?.topLevelComments ?? [];
-    const filteredTopLevel = muteItems.length > 0
-      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
-      : topLevel;
+    const filteredTopLevel = topLevel.filter((r) => !isMuted(r));
 
     // Country feeds are social feeds (newest-first); other types are threaded conversations (oldest-first)
     const sorted = [...filteredTopLevel].sort((a, b) =>
@@ -286,7 +283,7 @@ export function ExternalContentView({ uri, focusedEventId }: ExternalContentView
         firstSubReply: directReplies[0] as import('@nostrify/nostrify').NostrEvent | undefined,
       };
     });
-  }, [commentsData, muteItems, content?.type]);
+  }, [commentsData, isMuted, content?.type]);
 
   // FAB opens the comment compose dialog
   const [composeOpen, setComposeOpen] = useState(false);

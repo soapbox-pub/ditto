@@ -278,6 +278,12 @@ export interface AppConfig {
   corsProxy: string;
   /** How to handle NIP-36 content-warning events (blur, hide, or show). Default: "blur". */
   contentWarningPolicy: ContentWarningPolicy;
+  /**
+   * Exempt followed accounts from content-based filters (muted hashtags and
+   * muted words). Explicit pubkey and thread mutes still apply. Synced across
+   * devices via encrypted settings. Default: false.
+   */
+  exemptFollowsFromFilters: boolean;
   /** Sentry DSN for error reporting (empty string = disabled). */
   sentryDsn: string;
   /** Whether the user has enabled Sentry error reporting. */

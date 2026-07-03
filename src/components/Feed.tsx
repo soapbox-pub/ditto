@@ -24,7 +24,7 @@ import { getStorageKey } from '@/lib/storageKey';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
 import { useInterests } from '@/hooks/useInterests';
-import { useMuteList } from '@/hooks/useMuteList';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useLoveList } from '@/hooks/useLoveList';
 import { useTabFeed } from '@/hooks/useProfileFeed';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
@@ -35,7 +35,6 @@ import { useStickyFeedItems } from '@/hooks/useStickyFeedItems';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { diversifyFeedPages } from '@/lib/feedDiversity';
 import { isRepostKind, shouldHideFeedEvent, feedItemKey } from '@/lib/feedUtils';
-import { isEventMuted } from '@/lib/muteHelpers';
 import { cn } from '@/lib/utils';
 import { NewPostsPill } from '@/components/NewPostsPill';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
@@ -71,7 +70,7 @@ interface FeedProps {
 export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home', globalFirst }: FeedProps = {}) {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { lovedPubkeys } = useLoveList();
   const { savedFeeds } = useSavedFeeds();
   const { hashtags } = useInterests();
@@ -265,7 +264,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
               if (seen.has(event.id)) return false;
               seen.add(event.id);
               if (shouldHideFeedEvent(event)) return false;
-              if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+              if (isMuted(event)) return false;
               return true;
             })
             .map((event): FeedItem => ({ event, sortTimestamp: event.created_at })),
@@ -284,10 +283,10 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         if (!key || seen.has(key)) return false;
         seen.add(key);
         if (shouldHideFeedEvent(item.event)) return false;
-        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
+        if (isMuted(item.event)) return false;
         return true;
       });
-  }, [rawData?.pages, muteItems, useDittoQuery]);
+  }, [rawData?.pages, isMuted, useDittoQuery]);
 
   // Retain the last non-empty list so a key change / background refetch /
   // settled-empty relay miss never flashes the empty state over a feed the
@@ -497,7 +496,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
   const { user } = useCurrentUser();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
 
   // Resolve variable placeholders ($follows etc.) the same way profile tabs do
   const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(
@@ -556,10 +555,10 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
         if (!key || seen.has(key)) return false;
         seen.add(key);
         if (shouldHideFeedEvent(item.event)) return false;
-        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
+        if (isMuted(item.event)) return false;
         return true;
       });
-  }, [rawData?.pages, muteItems]);
+  }, [rawData?.pages, isMuted]);
 
   // Retain the last non-empty list so a key change / refetch never flashes the
   // empty state over content the user is reading. Resets when the saved feed
@@ -616,7 +615,7 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
 /** Renders a feed of posts tagged with a specific hashtag. */
 function HashtagFeedContent({ tag }: { tag: string }) {
   const { nostr } = useNostr();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { feedSettings } = useFeedSettings();
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
   const kindsKey = [...kinds].sort().join(',');
@@ -637,9 +636,8 @@ function HashtagFeedContent({ tag }: { tag: string }) {
 
   const derivedEvents = useMemo((): NostrEvent[] => {
     if (!events) return [];
-    if (muteItems.length === 0) return events;
-    return events.filter((e) => !isEventMuted(e, muteItems));
-  }, [events, muteItems]);
+    return events.filter((e) => !isMuted(e));
+  }, [events, isMuted]);
 
   // Retain the last non-empty list across key changes / refetches; resets when
   // the viewed hashtag changes (this component is reused across hashtag tabs).
@@ -677,7 +675,7 @@ function HashtagFeedContent({ tag }: { tag: string }) {
 /** Renders a feed of posts tagged with a specific geohash. */
 function GeotagFeedContent({ tag }: { tag: string }) {
   const { nostr } = useNostr();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { feedSettings } = useFeedSettings();
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
   const kindsKey = [...kinds].sort().join(',');
@@ -699,9 +697,8 @@ function GeotagFeedContent({ tag }: { tag: string }) {
 
   const derivedEvents = useMemo((): NostrEvent[] => {
     if (!events) return [];
-    if (muteItems.length === 0) return events;
-    return events.filter((e) => !isEventMuted(e, muteItems));
-  }, [events, muteItems]);
+    return events.filter((e) => !isMuted(e));
+  }, [events, isMuted]);
 
   // Retain the last non-empty list across key changes / refetches; resets when
   // the viewed geotag changes (this component is reused across geotag tabs).
