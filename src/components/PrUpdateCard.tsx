@@ -9,7 +9,6 @@ import {
 	getGitRepoRef,
 	getGitRootRef,
 	getGitTicketSubject,
-	gitRepoNaddr,
 } from "@/lib/gitActivity";
 import { tryNeventEncode } from "@/lib/safeNip19";
 
@@ -55,12 +54,13 @@ export function PrUpdateCard({ event, preview = true }: PrUpdateCardProps) {
 			})
 		: undefined;
 
-	// External sites resolve the PR page from its nevent; fall back to the
-	// repo, then this event itself.
-	const externalNip19 =
-		prNevent ??
-		gitRepoNaddr(repoRef) ??
-		tryNeventEncode({ id: event.id, relays: [NGIT_RELAY] });
+	// External sites get this event's own nevent. Gitworkshop resolves PR
+	// updates by following the E-tag chain to the PR page anyway.
+	const externalNip19 = tryNeventEncode({
+		id: event.id,
+		author: event.pubkey,
+		relays: [NGIT_RELAY],
+	});
 
 	return (
 		<div className="mt-2 rounded-2xl border border-border overflow-hidden">

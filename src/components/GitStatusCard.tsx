@@ -11,7 +11,9 @@ import type { ComponentType } from "react";
 import { Link } from "react-router-dom";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
+import { buildMarkdownComponents } from "@/components/ArticleContent";
 import { GitSiteLinks } from "@/components/GitSiteLinks";
+import { NoteContent } from "@/components/NoteContent";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuthor } from "@/hooks/useAuthor";
 import { useEvent } from "@/hooks/useEvent";
@@ -21,7 +23,6 @@ import {
 	getGitRepoRef,
 	getGitRootRef,
 	getGitTicketSubject,
-	gitRepoNaddr,
 	gitStatusVerb,
 	gitTicketNoun,
 } from "@/lib/gitActivity";
@@ -111,12 +112,13 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 			})
 		: undefined;
 
-	// External sites resolve the root ticket (issue/PR page) far better
-	// than the bare status event — fall back to the repo, then the event.
-	const externalNip19 =
-		rootNevent ??
-		gitRepoNaddr(repoRef) ??
-		tryNeventEncode({ id: event.id, relays: [NGIT_RELAY] });
+	// External sites get this event's own nevent. Gitworkshop resolves
+	// status events by following the e-tag chain to the ticket page anyway.
+	const externalNip19 = tryNeventEncode({
+		id: event.id,
+		author: event.pubkey,
+		relays: [NGIT_RELAY],
+	});
 
 	const comment = event.content.trim();
 
@@ -215,11 +217,17 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 						</div>
 					)}
 
-					{/* Comment preview */}
+					{/* Comment preview — inline-linkified (nostr URIs become
+					    links, not embed cards, so the line clamp stays clean) */}
 					{preview && comment && (
-						<p className="text-[13px] text-muted-foreground line-clamp-3 leading-relaxed whitespace-pre-wrap break-words">
-							{comment}
-						</p>
+						<div className="text-[13px] text-muted-foreground line-clamp-3 leading-relaxed whitespace-pre-wrap break-words">
+							<NoteContent
+								event={event}
+								as="span"
+								disableNoteEmbeds
+								disableMediaEmbeds
+							/>
+						</div>
 					)}
 
 					{/* External site links */}
@@ -231,7 +239,10 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 			{!preview && comment && (
 				<div className="rounded-2xl border border-border overflow-hidden px-4 py-4 sidebar:px-5 sidebar:py-5">
 					<div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-img:rounded-lg prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-[13px] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:font-normal prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border prose-th:text-foreground">
-						<Markdown rehypePlugins={[rehypeSanitize]}>
+						<Markdown
+							rehypePlugins={[rehypeSanitize]}
+							components={buildMarkdownComponents(event)}
+						>
 							{comment}
 						</Markdown>
 					</div>

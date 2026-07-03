@@ -68,9 +68,13 @@ function enrichChildren(
   });
 }
 
-/** Build react-markdown component overrides for this article's event. */
-function buildComponents(event: NostrEvent): Components {
-  // Wrap a text-bearing block/inline element so its string leaves are enriched.
+/**
+ * Build react-markdown component overrides that enrich text leaves with
+ * `NoteContent` (Nostr URI embeds, mentions, hashtags, links, custom emoji)
+ * and sanitize link/image URLs. Shared by article rendering and other
+ * markdown-content kinds (NIP-34 issues, PRs, status comments).
+ */
+export function buildMarkdownComponents(event: NostrEvent): Components {  // Wrap a text-bearing block/inline element so its string leaves are enriched.
   // Uses `createElement` to sidestep TS widening issues when spreading
   // unknown rehype-passed props onto a generic intrinsic tag.
   function wrap(Tag: keyof React.JSX.IntrinsicElements, opts: EnrichOptions = {}) {
@@ -183,7 +187,7 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
     );
   }
 
-  const components = buildComponents(event);
+  const components = buildMarkdownComponents(event);
 
   return (
     <div className={className}>
