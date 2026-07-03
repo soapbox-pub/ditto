@@ -16,6 +16,8 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@blobbi/core": "file:../blobbi-kit/packages/blobbi-core",
+    "@blobbi/react": "file:../blobbi-kit/packages/blobbi-react",
     "@capacitor/app": "^8.0.0",
     "@capacitor/core": "^8.1.0",
     "@capacitor/filesystem": "^8.1.2",
