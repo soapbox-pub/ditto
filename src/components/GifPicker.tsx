@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 
 interface GifPickerProps {
   onSelect: (gif: GifResult) => void;
+  /** Auto-focus the search input on mount (disable on mobile so the virtual keyboard doesn't pop up). */
+  autoFocus?: boolean;
 }
 
 /** A single GIF thumbnail with lazy loading and hover animation. */
@@ -26,7 +28,7 @@ function GifThumbnail({ gif, onClick }: { gif: GifResult; onClick: (gif: GifResu
       onClick={() => onClick(gif)}
       className={cn(
         'relative w-full rounded-lg overflow-hidden cursor-pointer',
-        'transition-all duration-200 hover:ring-2 hover:ring-primary/60 hover:scale-[1.02]',
+        'transition-shadow duration-200 hover:ring-2 hover:ring-primary/60',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
         'group',
       )}
@@ -101,24 +103,28 @@ function GifGrid({ results, onSelect }: { results: GifResult[]; onSelect: (gif: 
   );
 }
 
-export function GifPicker({ onSelect }: GifPickerProps) {
+export function GifPicker({ onSelect, autoFocus = true }: GifPickerProps) {
   const { query, setQuery, clearQuery, results, isLoading, isError, isSearching } = useGifSearch();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-focus the search input on mount
+  // Auto-focus the search input on mount (desktop only — on mobile this
+  // would raise the virtual keyboard over the picker).
   useEffect(() => {
+    if (!autoFocus) return;
     const timer = setTimeout(() => {
       inputRef.current?.focus();
     }, 100);
     return () => clearTimeout(timer);
-  }, []);
+  }, [autoFocus]);
 
   const handleSelect = useCallback((gif: GifResult) => {
     onSelect(gif);
   }, [onSelect]);
 
+  // Transparent background so the picker blends into the compose box,
+  // matching the emoji and sticker tabs.
   return (
-    <div className="flex flex-col w-full h-[280px] bg-popover rounded-lg overflow-hidden">
+    <div className="flex flex-col w-full h-full overflow-hidden">
       {/* Search input */}
       <div className="px-3 pt-3 pb-2">
         <div className="relative">

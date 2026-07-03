@@ -8,8 +8,8 @@ import type { CustomEmoji } from '@/hooks/useCustomEmojis';
 interface StickerPickerProps {
   customEmojis: CustomEmoji[];
   onSelect: (emoji: CustomEmoji) => void;
-  /** Fixed height for the picker. Defaults to 350px. */
-  height?: number;
+  /** Fixed height for the picker (px number or CSS length, e.g. '100%'). Defaults to 350px. */
+  height?: number | string;
   /** Auto-focus the search input on mount (default true on desktop). */
   autoFocus?: boolean;
 }

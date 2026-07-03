@@ -321,17 +321,12 @@ export function ComposeBox({
   }, [content, draftKey, initialContent]);
 
   // On mobile, blur the textarea when the picker opens to dismiss the keyboard.
-  const pickerWasOpen = useRef(false);
+  // Refocusing on close happens synchronously inside the close gesture handlers
+  // (toggle button, GIF/sticker select) — iOS only raises the keyboard for
+  // focus() calls made during a user gesture, so a delayed effect won't work.
   useEffect(() => {
-    if (!isMobile) return;
-    if (pickerOpen) {
+    if (isMobile && pickerOpen) {
       textareaRef.current?.blur();
-      pickerWasOpen.current = true;
-    } else if (pickerWasOpen.current) {
-      // Refocus after picker closes so the user can keep typing
-      pickerWasOpen.current = false;
-      const timer = setTimeout(() => textareaRef.current?.focus(), 150);
-      return () => clearTimeout(timer);
     }
   }, [pickerOpen, isMobile]);
 
@@ -1317,7 +1312,7 @@ export function ComposeBox({
         ) : (
           /* Preview mode - Show how post will look */
           mockEvent && (
-            <div className="pt-2.5 pb-2 min-h-[100px] overflow-hidden">
+            <div className="pt-2.5 pb-2 min-h-[100px] overflow-hidden motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200">
               <div className="text-lg opacity-85">
                 <NoteContent event={mockEvent} className="text-foreground" />
               </div>
@@ -1327,7 +1322,7 @@ export function ComposeBox({
 
         {/* Poll options + settings — shown below the normal textarea/preview */}
         {mode === 'poll' && (
-          <div className="space-y-3 pt-1">
+          <div className="space-y-3 pt-1 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-2 motion-safe:duration-200">
             {/* Back to post link — hidden when poll mode is the only mode */}
             {initialMode !== 'poll' && (
               <button
@@ -1343,7 +1338,7 @@ export function ComposeBox({
             {/* Options */}
             <div className="space-y-1.5">
               {pollOptions.map((opt, idx) => (
-                <div key={opt.id} className="flex items-center gap-2">
+                <div key={opt.id} className="flex items-center gap-2 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-150">
                   <input
                     type="text"
                     value={opt.label}
@@ -1424,7 +1419,7 @@ export function ComposeBox({
 
         {/* Content warning input */}
         {cwEnabled && (
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-200">
             <AlertTriangle className="size-4 text-amber-500 shrink-0" />
             <Input
               value={cwText}
@@ -1464,7 +1459,7 @@ export function ComposeBox({
         {isExpanded && (
           voiceRecorder.isRecording || isPublishingVoice ? (
             /* ── Voice recording UI ─────────────────────────────── */
-            <div className="flex items-center gap-3 mt-3 rounded-xl bg-destructive/5 border border-destructive/20 px-3 py-2.5">
+            <div className="flex items-center gap-3 mt-3 rounded-xl bg-destructive/5 border border-destructive/20 px-3 py-2.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-200">
               {/* Recording indicator */}
               <div className="flex items-center gap-2 min-w-0">
                 <div className="size-2.5 rounded-full bg-destructive animate-pulse shrink-0" />
@@ -1494,7 +1489,7 @@ export function ComposeBox({
                     type="button"
                     onClick={voiceRecorder.cancelRecording}
                     disabled={isPublishingVoice}
-                    className="p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
+                    className="p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all motion-safe:active:scale-90 disabled:opacity-40"
                   >
                     <X className="size-[18px]" />
                   </button>
@@ -1519,7 +1514,7 @@ export function ComposeBox({
             </div>
           ) : (
             /* ── Normal toolbar ──────────────────────────────────── */
-            <div className={cn("flex items-center justify-between mt-3", forceExpanded && "shrink-0")}>
+            <div className={cn("flex items-center justify-between mt-3 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-150", forceExpanded && "shrink-0")}>
               {/* Left: action icons */}
               <div className="flex items-center gap-1">
                 {/* File upload */}
@@ -1529,7 +1524,7 @@ export function ComposeBox({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isUploading || !user}
-                      className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40"
+                      className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all motion-safe:active:scale-90 disabled:opacity-40"
                     >
                       {isUploading ? <Loader2 className="size-[18px] animate-spin" /> : <Paperclip className="size-[18px]" />}
                     </button>
@@ -1560,7 +1555,7 @@ export function ComposeBox({
                         type="button"
                         onClick={handleStartRecording}
                         disabled={!user}
-                        className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40"
+                        className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all motion-safe:active:scale-90 disabled:opacity-40"
                       >
                         <Mic className="size-[18px]" />
                       </button>
@@ -1574,9 +1569,17 @@ export function ComposeBox({
                    <TooltipTrigger asChild>
                      <button
                        type="button"
-                       onClick={() => setPickerOpen((v) => !v)}
+                       disabled={!user}
+                       onClick={() => {
+                         if (pickerOpen) {
+                           // Refocus synchronously within the tap gesture so
+                           // iOS raises the keyboard again.
+                           textareaRef.current?.focus();
+                         }
+                         setPickerOpen(!pickerOpen);
+                       }}
                        className={cn(
-                         'p-2 rounded-full transition-colors',
+                         'p-2 rounded-full transition-all motion-safe:active:scale-90 disabled:opacity-40',
                          pickerOpen
                            ? 'text-primary bg-primary/10'
                            : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
@@ -1597,7 +1600,7 @@ export function ComposeBox({
                           type="button"
                           disabled={!user}
                           className={cn(
-                            'p-2 rounded-full transition-colors disabled:opacity-40',
+                            'p-2 rounded-full transition-all motion-safe:active:scale-90 disabled:opacity-40',
                             (trayOpen || mode === 'poll' || cwEnabled)
                               ? 'text-primary bg-primary/10'
                               : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
@@ -1654,7 +1657,7 @@ export function ComposeBox({
                   <Button
                     onClick={handlePollSubmit}
                     disabled={!isPollValid || isPollPending || !user}
-                    className="rounded-full px-5 font-bold"
+                    className="rounded-full px-5 font-bold transition-all motion-safe:active:scale-95"
                     size="sm"
                   >
                     {isPollPending ? 'Publishing...' : 'Publish poll'}
@@ -1663,7 +1666,7 @@ export function ComposeBox({
                   <Button
                     onClick={handleSubmit}
                     disabled={!content.trim() || isPending || isCommentPending || !user || charCount > MAX_CHARS}
-                    className="rounded-full px-5 font-bold"
+                    className="rounded-full px-5 font-bold transition-all motion-safe:active:scale-95"
                     size="sm"
                   >
                     {isPending || isCommentPending ? 'Posting...' : 'Post!'}
@@ -1674,17 +1677,18 @@ export function ComposeBox({
           )
         )}
 
-      {/* Inline emoji / GIF / sticker picker panel — rendered outside the
-          padded content area so it bleeds edge-to-edge. */}
+      {/* Inline emoji / GIF / sticker picker panel — full-bleed sheet with
+          its own background, rounded top, containing the tab bar and the
+          active picker. */}
       {pickerOpen && (
-        <div className={cn("-mx-4 shrink-0 overflow-hidden animate-in fade-in-0 duration-150", forceExpanded && "rounded-b-2xl")}>
+        <div className={cn("-mx-4 mt-2 shrink-0 overflow-hidden rounded-t-2xl bg-popover motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-200", forceExpanded && "rounded-b-2xl")}>
           {/* Tab bar — pill highlight style for inline mode */}
           <div className="flex gap-1 px-3 pt-2">
               <button
                 type="button"
                 onClick={() => setPickerTab('emoji')}
                 className={cn(
-                  'flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
+                  'flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all motion-safe:active:scale-95',
                   pickerTab === 'emoji'
                     ? 'bg-primary/15 text-primary'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted',
@@ -1697,7 +1701,7 @@ export function ComposeBox({
                 type="button"
                 onClick={() => setPickerTab('gif')}
                 className={cn(
-                  'flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
+                  'flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all motion-safe:active:scale-95',
                   pickerTab === 'gif'
                     ? 'bg-primary/15 text-primary'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted',
@@ -1709,12 +1713,12 @@ export function ComposeBox({
                 </svg>
                 GIF
               </button>
-              {customEmojis.length > 0 && (
+              {customEmojisEnabled && (
                 <button
                   type="button"
                   onClick={() => setPickerTab('stickers')}
                   className={cn(
-                    'flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
+                    'flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all motion-safe:active:scale-95',
                     pickerTab === 'stickers'
                       ? 'bg-primary/15 text-primary'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted',
@@ -1725,38 +1729,54 @@ export function ComposeBox({
                 </button>
               )}
             </div>
-            {/* Picker content */}
-            {pickerTab === 'emoji' ? (
-              <Suspense fallback={<div className="w-full h-[280px] flex items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
-                <LazyEmojiPicker
+            {/* Picker content — capped to a fraction of the *visible* viewport
+                (via --visual-viewport-height, set by the compose modal) so the
+                virtual keyboard (e.g. while searching) never squeezes the
+                composer out of the screen. */}
+            <div className="h-[min(280px,calc(var(--visual-viewport-height,100dvh)*0.4))] min-h-[160px]">
+              {/* Keyed on the active tab so switching cross-fades the content */}
+              <div key={pickerTab} className="h-full motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-150">
+              {pickerTab === 'emoji' ? (
+                <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
+                  <LazyEmojiPicker
+                    customEmojis={customEmojis}
+                    height="100%"
+                    onSelect={(selection) => {
+                      if (selection.type === 'native') {
+                        insertEmoji(selection.emoji);
+                      } else {
+                        insertEmoji(`:${selection.shortcode}:`);
+                      }
+                    }}
+                  />
+                </Suspense>
+              ) : pickerTab === 'stickers' ? (
+                <StickerPicker
                   customEmojis={customEmojis}
-                  onSelect={(selection) => {
-                    if (selection.type === 'native') {
-                      insertEmoji(selection.emoji);
-                    } else {
-                      insertEmoji(`:${selection.shortcode}:`);
-                    }
+                  height="100%"
+                  autoFocus={!isMobile}
+                  onSelect={(emoji) => {
+                    setContent((prev) => (prev ? prev + '\n' + emoji.url : emoji.url));
+                    setPickerOpen(false);
+                    expand();
+                    // Within the tap gesture, so iOS raises the keyboard again.
+                    textareaRef.current?.focus();
                   }}
                 />
-              </Suspense>
-            ) : pickerTab === 'stickers' ? (
-              <StickerPicker
-                customEmojis={customEmojis}
-                height={280}
-                autoFocus={!isMobile}
-                onSelect={(emoji) => {
-                  setContent((prev) => (prev ? prev + '\n' + emoji.url : emoji.url));
-                  setPickerOpen(false);
-                  expand();
-                }}
-              />
-            ) : (
-              <GifPicker onSelect={(gif) => {
-                setContent((prev) => (prev ? prev + '\n' + gif.url : gif.url));
-                setPickerOpen(false);
-                expand();
-              }} />
-            )}
+              ) : (
+                <GifPicker
+                  autoFocus={!isMobile}
+                  onSelect={(gif) => {
+                    setContent((prev) => (prev ? prev + '\n' + gif.url : gif.url));
+                    setPickerOpen(false);
+                    expand();
+                    // Within the tap gesture, so iOS raises the keyboard again.
+                    textareaRef.current?.focus();
+                  }}
+                />
+              )}
+              </div>
+            </div>
           </div>
         )}
 
