@@ -21,10 +21,18 @@ export interface Birthday {
 /** Days in each month (index 0 = January). February allows 29 for leap years. */
 const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const;
 
+/** NIP-24 specifies numbers, but some clients publish numeric strings —
+ *  coerce those rather than dropping the whole birthday. */
+const numericField = (max: number) =>
+  z.preprocess(
+    (v) => (typeof v === 'string' && /^\d+$/.test(v.trim()) ? Number(v.trim()) : v),
+    z.number().int().min(1).max(max).optional(),
+  ).catch(undefined);
+
 const birthdaySchema = z.object({
-  year: z.number().int().min(1).max(9999).optional().catch(undefined),
-  month: z.number().int().min(1).max(12).optional().catch(undefined),
-  day: z.number().int().min(1).max(31).optional().catch(undefined),
+  year: numericField(9999),
+  month: numericField(12),
+  day: numericField(31),
 });
 
 /** Max days for a given 1-based month (29 for February — leap-year tolerant). */

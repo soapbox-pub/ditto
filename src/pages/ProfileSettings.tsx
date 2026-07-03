@@ -31,6 +31,7 @@ import { SortableList, SortableItem } from '@/components/SortableList';
 import { PaymentTargetsEditor, type PaymentTargetsEditorHandle } from '@/components/PaymentTargetsEditor';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { parseAuthorEvent } from '@/hooks/useAuthor';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
 
@@ -970,6 +971,7 @@ function BirthdaySection() {
   const [month, setMonth] = useState<number | undefined>(undefined);
   const [day, setDay] = useState<number | undefined>(undefined);
   const [year, setYear] = useState('');
+  const [yearBlurred, setYearBlurred] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Sync local state whenever the published profile changes.
@@ -982,9 +984,14 @@ function BirthdaySection() {
   const yearTrimmed = year.trim();
   const yearNum = yearTrimmed ? Number(yearTrimmed) : undefined;
   const currentYear = new Date().getFullYear();
+  // Year is entirely optional (NIP-24) — blank is always valid. Only a
+  // non-empty value that isn't a sane 4-digit year blocks saving.
   const yearInvalid = yearTrimmed !== '' && (
     !/^\d{4}$/.test(yearTrimmed) || yearNum! < 1900 || yearNum! > currentYear
   );
+  // Don't flag a half-typed year — only complain once the field has a full
+  // 4 digits or the user has left it.
+  const showYearInvalid = yearInvalid && (yearBlurred || yearTrimmed.length >= 4);
 
   const dirty =
     month !== stored?.month ||
@@ -1016,9 +1023,13 @@ function BirthdaySection() {
         delete data.birthday;
       }
 
-      await publishEvent({ kind: 0, content: JSON.stringify(data), prev: prev ?? undefined });
+      const published = await publishEvent({ kind: 0, content: JSON.stringify(data), prev: prev ?? undefined });
+      // Seed the author cache with the published event instead of
+      // invalidating it — a refetch can race relay propagation and clobber
+      // the cache with the old profile, blanking the birthday we just saved
+      // (same pattern as EditProfileForm).
+      queryClient.setQueryData(['author', user.pubkey], parseAuthorEvent(published));
       queryClient.invalidateQueries({ queryKey: ['logins'] });
-      queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
       toast({ title: birthday ? 'Birthday saved' : 'Birthday removed' });
     } catch {
       toast({ title: 'Error', description: 'Failed to save birthday.', variant: 'destructive' });
@@ -1096,12 +1107,13 @@ function BirthdaySection() {
         <Input
           value={year}
           onChange={(e) => setYear(e.target.value)}
-          placeholder="Year"
+          onBlur={() => setYearBlurred(true)}
+          placeholder="Year (optional)"
           inputMode="numeric"
           maxLength={4}
-          className="h-9 w-24"
+          className="h-9 w-32"
           aria-label="Birthday year (optional)"
-          aria-invalid={yearInvalid}
+          aria-invalid={showYearInvalid}
         />
 
         <Button
@@ -1129,7 +1141,7 @@ function BirthdaySection() {
         )}
       </div>
 
-      {yearInvalid && (
+      {showYearInvalid && (
         <p className="text-xs text-destructive">
           Enter a 4-digit year between 1900 and {currentYear}, or leave it blank.
         </p>
