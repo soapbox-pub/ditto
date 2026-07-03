@@ -8,9 +8,11 @@
  * Styled like a cheerful handheld-RPG town theme (think Pokémon X/Y):
  * a bouncy square-wave chiptune lead with snappy staccato envelopes, a
  * soft "oom-pah" triangle bass keeping the waltz bounce, a feedback echo
- * for that roomy Game Freak sparkle, and a little ascending arpeggio
- * twinkle at the end of each pass. Everything runs through a lowpass at
- * a low master gain so it stays cute, not shrill.
+ * for that roomy Game Freak sparkle, and a turnaround twinkle inside the
+ * final bar. The whole pass sits on a strict 8-bar 3/4 grid, so it loops
+ * gaplessly — the next pickup lands exactly on the final bar's third
+ * beat, like game BGM. Everything runs through a lowpass at a low master
+ * gain so it stays cute, not shrill.
  *
  * Browsers keep `AudioContext`s suspended until a user gesture. `start()`
  * attempts to resume immediately; if the context stays suspended, one-time
@@ -22,8 +24,6 @@
 const MASTER_GAIN = 0.055;
 const TEMPO_BPM = 132;
 const BEAT_SEC = 60 / TEMPO_BPM;
-/** Silence between loop passes, in beats. */
-const LOOP_REST_BEATS = 4;
 /** How far ahead of the current pass ending we schedule the next one. */
 const LOOKAHEAD_SEC = 0.25;
 
@@ -48,24 +48,33 @@ const F5 = 698.46;
 const G5 = 783.99;
 const C6 = 1046.5;
 
-/** [frequency, duration in beats] — the traditional melody in C major. */
+/**
+ * [frequency, duration in beats] — the traditional melody in C major, laid
+ * out on a strict 8-bar 3/4 grid (24 beats) so the loop is seamless: the
+ * song opens with a one-beat pickup ("hap-py") on beat 3 of a bar, and the
+ * final bar's beat 3 is exactly where the next pass's pickup lands. Each
+ * phrase is 6 beats; the staccato envelopes articulate the held notes, so
+ * slot spacing (not ring length) is what keeps the grid true.
+ */
 const MELODY: ReadonlyArray<readonly [number, number]> = [
-  // Happy birthday to you
+  // Happy birthday to you        (pickup + bars 1-2)
   [G4, 0.75], [G4, 0.25], [A4, 1], [G4, 1], [C5, 1], [B4, 2],
-  // Happy birthday to you
+  // Happy birthday to you        (pickup + bars 3-4)
   [G4, 0.75], [G4, 0.25], [A4, 1], [G4, 1], [D5, 1], [C5, 2],
-  // Happy birthday dear friend
-  [G4, 0.75], [G4, 0.25], [G5, 1], [E5, 1], [C5, 1], [B4, 1], [A4, 2],
-  // Happy birthday to you
-  [F5, 0.75], [F5, 0.25], [E5, 1], [C5, 1], [D5, 1], [C5, 3],
+  // Happy birthday dear friend   (pickup + bars 5-6)
+  [G4, 0.75], [G4, 0.25], [G5, 1], [E5, 1], [C5, 1], [B4, 1], [A4, 1],
+  // Happy birthday to you        (pickup + bars 7-8)
+  [F5, 0.75], [F5, 0.25], [E5, 1], [C5, 1], [D5, 1], [C5, 2],
 ];
 
-const MELODY_BEATS = MELODY.reduce((sum, [, beats]) => sum + beats, 0); // 26
+const MELODY_BEATS = MELODY.reduce((sum, [, beats]) => sum + beats, 0); // 24
 
 /**
  * Waltz "oom-pah-pah" bass: [root, chordTones, startBeat] — the root lands
  * on the downbeat ("oom") and the chord tones bounce on beats 2 and 3
  * ("pah-pah"). Follows the traditional I / V7 / IV harmonization in C.
+ * One entry per bar; the final bar's second "pah" doubles the next pass's
+ * pickup, exactly as a looping waltz should.
  */
 const BASS_BARS: ReadonlyArray<readonly [number, readonly number[], number]> = [
   [C3, [E3, G3], 1],   // C      — "birth-day to"
@@ -74,16 +83,21 @@ const BASS_BARS: ReadonlyArray<readonly [number, readonly number[], number]> = [
   [C3, [E3, G3], 10],  // C      — "you"
   [C3, [E3, G3], 13],  // C      — "birth-day dear"
   [F3, [A3, C4], 16],  // F      — "friend"
-  [F3, [A3, C4], 20],  // F      — "birth-day"
-  [G2, [B3, F4], 23],  // G7     — "to you"
+  [G2, [B3, F4], 19],  // G7     — "birth-day to"
+  [C3, [E3, G3], 22],  // C      — "you"
 ];
 
-/** End-of-pass twinkle: a quick ascending sparkle, RPG-fanfare style. */
+/**
+ * Turnaround twinkle: a quick ascending sparkle inside the final bar,
+ * finishing right before the next pass's pickup — a flourish that leads
+ * back into the loop instead of a tail hanging in dead air.
+ */
 const SPARKLE: ReadonlyArray<readonly [number, number]> = [
-  [C5, 26.5], [E5, 26.75], [G5, 27], [C6, 27.25],
+  [E5, 22.5], [G5, 23], [C6, 23.5],
 ];
 
-const PASS_BEATS = MELODY_BEATS + 2 + LOOP_REST_BEATS; // melody + sparkle tail + rest
+/** Pickup-to-pickup: exactly 8 bars of 3/4. The loop is gapless. */
+const PASS_BEATS = MELODY_BEATS;
 const PASS_SEC = PASS_BEATS * BEAT_SEC;
 
 // ─── AudioContext singleton ───────────────────────────────────────────────────
