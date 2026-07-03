@@ -1,12 +1,11 @@
 import { useNostr } from '@nostrify/react';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useFeedSettings } from './useFeedSettings';
-import { useMuteList } from './useMuteList';
+import { useMuteFilter } from './useMuteFilter';
 import { useContentFilters } from './useContentFilters';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
-import { isEventMuted } from '@/lib/muteHelpers';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import { nip19 } from 'nostr-tools';
@@ -28,7 +27,7 @@ interface StreamPostsOptions {
    * Each entry accepts raw hex or npub-encoded pubkeys.
    */
   authorPubkeys?: string[];
-  /** NIP-50 sort preference. 'recent' = default (no sort: term). */
+  /** NIP-50 sort preference. 'recent' (default) sends an explicit `sort:recent` term when a search string is present, since NIP-50 relays otherwise rank by relevance. */
   sort?: 'recent' | 'hot' | 'trending';
   /**
    * When set, limits results to events published with one of these `client`
@@ -151,7 +150,7 @@ const PAGE_SIZE = 40;
 export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { shouldFilterEvent } = useContentFilters();
   const [allEvents, setAllEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -292,11 +291,15 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       }
     }
 
-    // Sort preference (NIP-50 extension)
+    // Sort preference (NIP-50 extension). NIP-50 relays rank text queries by
+    // relevance by default, which surfaces old-but-relevant events — request
+    // explicit recency ordering whenever a search string will be sent.
     if (options.sort === 'hot') {
       searchParts.push('sort:hot');
     } else if (options.sort === 'trending') {
       searchParts.push('sort:trending');
+    } else if (searchParts.length > 0) {
+      searchParts.push('sort:recent');
     }
 
     const searchFilter: NostrFilter = { ...streamFilter };
@@ -500,7 +503,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
   // Shared predicate for client-side filtering (mute, content, search, media, author, etc.)
   const matchesFilters = useCallback((event: NostrEvent) => {
-    if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+    if (isMuted(event)) return false;
     if (shouldFilterEvent(event)) return false;
     if (resolvedAuthorPubkeys) {
       const authorSet = new Set(resolvedAuthorPubkeys);
@@ -508,7 +511,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     }
     return filterEvent(event, options, query);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific options fields instead of the whole object for granular reactivity
-  }, [options.includeReplies, options.mediaType, protocolsKey, query, muteItems, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey, clientTagsKey]);
+  }, [options.includeReplies, options.mediaType, protocolsKey, query, isMuted, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey, clientTagsKey]);
 
   // Apply client-side filters (including mute filtering and content filters) without restarting the stream
   const posts = useMemo(() => {

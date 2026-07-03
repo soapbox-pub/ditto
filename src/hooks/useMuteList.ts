@@ -232,6 +232,12 @@ export function useMuteList() {
       // Update localStorage immediately so it survives page refresh
       setCachedMuteItems(config.appId, user.pubkey, newItems);
 
+      // Optimistically update the in-memory muteItems cache so isMuted()
+      // flips immediately, before the relay round-trip.
+      if (query.data?.id) {
+        queryClient.setQueryData<MuteListItem[]>(['muteItems', query.data.id], newItems);
+      }
+
       await updateMuteList(newItems, prev);
     },
     onSuccess: () => {
@@ -255,6 +261,12 @@ export function useMuteList() {
 
       // Update localStorage immediately so it survives page refresh
       setCachedMuteItems(config.appId, user.pubkey, newItems);
+
+      // Optimistically update the in-memory muteItems cache so isMuted()
+      // flips immediately, before the relay round-trip.
+      if (query.data?.id) {
+        queryClient.setQueryData<MuteListItem[]>(['muteItems', query.data.id], newItems);
+      }
 
       await updateMuteList(newItems, prev);
     },
@@ -299,6 +311,12 @@ export function useMuteList() {
 
       // Update localStorage immediately so mutes apply on refresh
       setCachedMuteItems(config.appId, user.pubkey, newItems);
+
+      // Optimistically update the in-memory muteItems cache so muted posts
+      // disappear immediately, before the relay round-trip.
+      if (query.data?.id) {
+        queryClient.setQueryData<MuteListItem[]>(['muteItems', query.data.id], newItems);
+      }
 
       await updateMuteList(newItems, prev);
 

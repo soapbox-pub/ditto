@@ -150,6 +150,94 @@ export default {
 				'0%': { transform: 'translate(0, 0) scale(0.4)', opacity: '0' },
 				'20%': { opacity: '1' },
 				'100%': { transform: 'translate(var(--spark-x, 0), var(--spark-y, 0)) scale(1)', opacity: '0' }
+			},
+			'celebration-fall': {
+				// Confetti piece: drifts down through the card, swaying and
+				// spinning. Travel distance is measured from the card by
+				// CelebrationOverlay (--celebration-distance) so the pace is
+				// consistent whether the card is short or tall. Per-piece
+				// drift/spin via CSS vars.
+				'0%': { transform: 'translate(0, -12px) rotate(0deg)', opacity: '0' },
+				'8%': { opacity: '1' },
+				'80%': { opacity: '1' },
+				'100%': { transform: 'translate(var(--celebration-sway, 0px), var(--celebration-distance, 240px)) rotate(var(--celebration-spin, 540deg))', opacity: '0' }
+			},
+			'heart-drift': {
+				// Love-list paper background hearts: a gentle side-to-side
+				// drift so the scattered hearts feel alive. Only ~12 per card,
+				// and translate-only so it composites cheaply.
+				'0%, 100%': { transform: 'translateX(-5px)' },
+				'50%': { transform: 'translateX(5px)' }
+			},
+			'heart-float': {
+				// Love-list ambient float: a heart rises from below the sheet up
+				// past its top edge (clipped by overflow-hidden) like a lava-lamp
+				// bubble, swaying and tipping side to side, fading in low and out
+				// high. Vertical travel is driven by `bottom` (% of the sheet) so
+				// it adapts to any card height; sway/tip come from CSS vars.
+				// Loops forever, so only a handful run per card.
+				'0%': { bottom: '-8%', transform: 'translateX(0) rotate(-10deg)', opacity: '0' },
+				'12%': { opacity: 'var(--float-opacity, 0.5)' },
+				'50%': { transform: 'translateX(var(--float-sway, 14px)) rotate(10deg)' },
+				'85%': { opacity: 'var(--float-opacity, 0.5)' },
+				'100%': { bottom: '106%', transform: 'translateX(0) rotate(-6deg)', opacity: '0' }
+			},
+			'heart-fall': {
+				// Love List heart: bursts in near the top, falls fast, then
+				// dissolves in mid-air (fade starts early and finishes well
+				// before the travel end) so hearts never snap off at the
+				// overflow-clipped bottom edge.
+				'0%': { transform: 'translate(0, -12px) rotate(0deg) scale(0.6)', opacity: '0' },
+				'6%': { opacity: '1', transform: 'translate(0, 0) rotate(0deg) scale(1)' },
+				'45%': { opacity: '1' },
+				'85%': { opacity: '0' },
+				'100%': { transform: 'translate(var(--celebration-sway, 0px), var(--celebration-distance, 240px)) rotate(var(--celebration-spin, 90deg)) scale(0.9)', opacity: '0' }
+			},
+			'celebration-rise': {
+				// Birthday balloon: floats up from the bottom of the card.
+				'0%': { transform: 'translate(0, 20px)', opacity: '0' },
+				'12%': { opacity: '1' },
+				'80%': { opacity: '1' },
+				'100%': { transform: 'translate(var(--celebration-sway, 0px), calc(-1 * var(--celebration-distance, 240px)))', opacity: '0' }
+			},
+			'celebration-twinkle': {
+				// Welcome sparkle: a star scales in with a quarter turn, then out.
+				'0%': { transform: 'scale(0) rotate(0deg)', opacity: '0' },
+				'50%': { transform: 'scale(1) rotate(45deg)', opacity: '1' },
+				'100%': { transform: 'scale(0) rotate(90deg)', opacity: '0' }
+			},
+			'celebration-sun': {
+				// gm sunrise: the sun eases up from below the card edge, holds,
+				// and fades.
+				'0%': { transform: 'translate(-50%, 0)', opacity: '0' },
+				'20%': { opacity: '0.9' },
+				'75%': { transform: 'translate(-50%, -105px)', opacity: '0.9' },
+				'100%': { transform: 'translate(-50%, -120px)', opacity: '0' }
+			},
+			'celebration-glow': {
+				// gm sunrise: warm wash that swells and recedes with the sun.
+				'0%': { opacity: '0' },
+				'35%': { opacity: '1' },
+				'75%': { opacity: '0.8' },
+				'100%': { opacity: '0' }
+			},
+			'reaction-pop': {
+				// Reaction burst: squash-and-release. The icon compresses for a
+				// beat (anticipation), then explodes past full size and settles.
+				// The wind-up is what sells the impact.
+				'0%': { transform: 'scale(1)' },
+				'20%': { transform: 'scale(0.8)' },
+				'55%': { transform: 'scale(1.4)' },
+				'100%': { transform: 'scale(1)' }
+			},
+			'reaction-spark': {
+				// Reaction burst particle: ejects violently (most of the travel
+				// happens in the first third via the animation's bezier), then
+				// decays and fades.
+				'0%': { transform: 'translate(0, 0) scale(0)', opacity: '0' },
+				'12%': { transform: 'translate(calc(var(--spark-x, 0px) * 0.4), calc(var(--spark-y, 0px) * 0.4)) scale(1.1)', opacity: '1' },
+				'70%': { opacity: '1' },
+				'100%': { transform: 'translate(var(--spark-x, 0px), var(--spark-y, 0px)) scale(0.5)', opacity: '0' }
 			}
 			},
 			animation: {
@@ -164,7 +252,20 @@ export default {
 				'success-pop': 'success-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both',
 				'success-halo': 'success-halo 0.9s ease-out both',
 				'success-fade-up': 'success-fade-up 0.45s ease-out both',
-				'success-spark': 'success-spark 1.1s ease-out both'
+				'success-spark': 'success-spark 1.1s ease-out both',
+				'celebration-fall': 'celebration-fall 2s linear both',
+				'heart-fall': 'heart-fall 2s ease-in both',
+				'heart-drift': 'heart-drift 4s ease-in-out infinite',
+				'heart-float': 'heart-float var(--float-duration, 7s) ease-in-out infinite',
+				'celebration-rise': 'celebration-rise 2.6s ease-out both',
+				'celebration-twinkle': 'celebration-twinkle 1.2s ease-in-out both',
+				'celebration-sun': 'celebration-sun 3.2s ease-out both',
+				'celebration-glow': 'celebration-glow 3.2s ease-out both',
+				'reaction-pop': 'reaction-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+				// The spark and halo hold for 90ms — they detonate at the moment
+				// the icon releases from its squash, not on the initial press.
+				'reaction-spark': 'reaction-spark 0.6s cubic-bezier(0.16, 1, 0.3, 1) 90ms both',
+				'reaction-halo': 'success-halo 0.5s cubic-bezier(0.16, 1, 0.3, 1) 90ms both'
 			}
 		}
 	},

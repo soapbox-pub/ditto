@@ -5,6 +5,22 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { BADGE_PROFILE_KIND, fetchFreshProfileBadges } from '@/lib/badgeUtils';
+import { optimisticPatchEventTags, rollbackEvent } from '@/lib/optimisticEvent';
+
+/** Remove an `a`+`e` badge pair (and any legacy `d` tag) from profile-badges tags. */
+function removeBadgePair(tags: string[][], aTag: string): string[][] {
+  const newTags: string[][] = [];
+  for (let i = 0; i < tags.length; i++) {
+    const tag = tags[i];
+    if (tag[0] === 'd' && tag[1] === 'profile_badges') continue;
+    if (tag[0] === 'a' && tag[1] === aTag) {
+      if (i + 1 < tags.length && tags[i + 1][0] === 'e') i++;
+      continue;
+    }
+    newTags.push(tag);
+  }
+  return newTags;
+}
 
 /**
  * Mutation to remove a badge from the user's profile — removes the `a` + `e`
@@ -31,28 +47,26 @@ export function useRemoveBadge() {
 
       if (!freshEvent) throw new Error('No profile badges event found');
 
-      const tags = freshEvent.tags;
-      const newTags: string[][] = [];
-
-      for (let i = 0; i < tags.length; i++) {
-        const tag = tags[i];
-        // Strip legacy `d` tag — kind 10008 is replaceable and doesn't need it
-        if (tag[0] === 'd' && tag[1] === 'profile_badges') continue;
-        if (tag[0] === 'a' && tag[1] === aTag) {
-          // Skip this `a` tag and its paired `e` tag
-          if (i + 1 < tags.length && tags[i + 1][0] === 'e') {
-            i++; // skip the `e` tag too
-          }
-          continue;
-        }
-        newTags.push(tag);
-      }
+      const newTags = removeBadgePair(freshEvent.tags, aTag);
 
       await publishEvent({
         kind: BADGE_PROFILE_KIND,
         content: '',
         tags: newTags,
       } as Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>);
+    },
+    // Optimistically drop the badge pair so it disappears from the grid.
+    onMutate: (aTag: string) => {
+      const key = ['profile-badges', user?.pubkey ?? ''];
+      const snapshot = optimisticPatchEventTags(queryClient, key, {
+        kind: BADGE_PROFILE_KIND,
+        pubkey: user?.pubkey ?? '',
+        transform: (tags) => removeBadgePair(tags, aTag),
+      });
+      return { snapshot, key };
+    },
+    onError: (_err, _aTag, ctx) => {
+      if (ctx) rollbackEvent(queryClient, ctx.key, ctx.snapshot);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile-badges', user?.pubkey] });

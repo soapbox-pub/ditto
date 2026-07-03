@@ -41,7 +41,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useFeed } from "@/hooks/useFeed";
 import { useFeedTab } from "@/hooks/useFeedTab";
 import { useFollowList } from "@/hooks/useFollowActions";
-import { useMuteList } from "@/hooks/useMuteList";
+import { useMuteFilter } from "@/hooks/useMuteFilter";
 import { useMutedAuthorFilter } from "@/hooks/useMutedAuthorFilter";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
@@ -52,7 +52,6 @@ import { getContentWarning } from "@/lib/contentWarning";
 import { getExtraKindDef } from "@/lib/extraKinds";
 import type { FeedItem } from "@/lib/feedUtils";
 import { getDisplayName } from "@/lib/getDisplayName";
-import { isEventMuted } from "@/lib/muteHelpers";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { timeAgo } from "@/lib/timeAgo";
@@ -848,7 +847,7 @@ function ShortsSection({
 export function VideosFeedPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
 
   const [feedTab, setFeedTab] = useFeedTab<FeedTab>("videos", [
     "follows",
@@ -903,11 +902,11 @@ export function VideosFeedPage() {
       if (seen.has(event.id)) return false;
       seen.add(event.id);
       if (![21, 22].includes(event.kind)) return false;
-      if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+      if (isMuted(event)) return false;
       if (hideCW && getContentWarning(event) !== undefined) return false;
       return !!parseVideoImeta(event.tags).url;
     });
-  }, [rawData?.pages, muteItems, feedTab, config.contentWarningPolicy]);
+  }, [rawData?.pages, isMuted, feedTab, config.contentWarningPolicy]);
 
   const normalVideos = useMemo(
     () => videoEvents.filter((e) => e.kind === 21),

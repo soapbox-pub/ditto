@@ -8,8 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useTrendingTags, useLatestAccounts, useSortedPosts, useTagSparklines } from '@/hooks/useTrending';
 import { useAuthor } from '@/hooks/useAuthor';
-import { useMuteList } from '@/hooks/useMuteList';
-import { isEventMuted } from '@/lib/muteHelpers';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { formatNumber } from '@/lib/formatNumber';
 import { timeAgo } from '@/lib/timeAgo';
@@ -45,7 +44,7 @@ export function RightSidebar() {
   const { data: trendingTagsResult, isLoading: tagsLoading } = useTrendingTags(isXl);
   const { data: rawHotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, isXl);
   const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts(isXl);
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const [dismissedAccounts, setDismissedAccounts] = useLocalStorage<string[]>('dismissed-new-accounts', []);
 
   const dismissAccount = useCallback((pubkey: string) => {
@@ -61,9 +60,9 @@ export function RightSidebar() {
   const labelCreatedAt = trendingTagsResult?.labelCreatedAt ?? 0;
 
   const hotPosts = useMemo(() => {
-    if (!rawHotPosts || muteItems.length === 0) return rawHotPosts;
-    return rawHotPosts.filter((e) => !isEventMuted(e, muteItems));
-  }, [rawHotPosts, muteItems]);
+    if (!rawHotPosts) return rawHotPosts;
+    return rawHotPosts.filter((e) => !isMuted(e));
+  }, [rawHotPosts, isMuted]);
 
   // Fetch real sparkline data for the visible trending tags
   const visibleTags = useMemo(() => (trendingTags ?? []).slice(0, 5).map((t) => t.tag), [trendingTags]);

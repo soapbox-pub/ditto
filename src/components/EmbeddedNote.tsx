@@ -7,6 +7,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BrokenEventFallback } from '@/components/BrokenEventFallback';
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
+import { EmbeddedGitCard } from '@/components/EmbeddedGitCard';
+import { EMBEDDED_GIT_KINDS } from '@/lib/gitActivity';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { VanishCardCompact } from '@/components/VanishEventContent';
 import { EncryptedMessageCompact } from '@/components/EncryptedMessageContent';
@@ -159,6 +161,14 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
   // the parent poll.
   if (event.kind === 1018) {
     return <EmbeddedPollVoteCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-34 git events (patches, PRs, PR updates, issues, statuses) get a
+  // compact card with kind label + subject + repo. The generic fallback
+  // would show only the `alt` tag — or feed a `git format-patch` diff /
+  // status comment through the kind-1 tokenizer.
+  if (EMBEDDED_GIT_KINDS.has(event.kind)) {
+    return <EmbeddedGitCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // People-list events (kind 3 follow lists) get a dedicated card showing

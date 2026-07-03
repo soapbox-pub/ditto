@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { IntroImage } from '@/components/IntroImage';
 import {
   Users, Download, Loader2, X, Pencil, Home, Globe, MapPin,
-  Palette, Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink, ShieldAlert,
+  Palette, Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -35,14 +37,6 @@ import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 export function ContentSettings() {
   return (
     <div>
-      {/* Intro */}
-      <div className="px-3 pt-2 pb-4">
-        <h2 className="text-sm font-semibold">What You See</h2>
-        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Customize your feed, choose what content appears, and control what you want to hide.
-        </p>
-      </div>
-
       {/* Homepage Section */}
       <HomePageSetting />
 
@@ -60,19 +54,14 @@ export function ContentSettings() {
       {/* Notes Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">Basic Home Feed Options</h2>
+          <h2 className="text-base font-semibold">Post Types</h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
-          <div className="px-3 pt-3 pb-4">
+          <div className="px-3 pt-3 pb-2">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Core content types that appear in your feed.
+              Core content types that appear in your home feed.
             </p>
-          </div>
-
-          {/* Column headers */}
-          <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
-            <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
           </div>
 
           <NotesFeedSettings />
@@ -82,24 +71,19 @@ export function ContentSettings() {
       {/* Other Stuff Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">Show More Content Types in Home Feed</h2>
+          <h2 className="text-base font-semibold">More Content Types</h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
           {/* Intro section for Other Stuff */}
-          <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-            <IntroImage src="/feed-intro.png" />
+          <div className="flex items-center gap-4 px-3 pt-3 pb-2">
+            <IntroImage src="/feed-intro.png" size="w-28" />
             <div className="min-w-0">
               <h3 className="text-sm font-semibold">Other Stuff</h3>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
+                Nostr isn't just text posts — pick what else shows up in your home feed.
               </p>
             </div>
-          </div>
-
-          {/* Column headers */}
-          <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
-            <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
           </div>
 
           {/* Content type rows - reuse the internals from FeedSettingsForm */}
@@ -177,7 +161,10 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
           <div className="min-w-0">
             <span className="text-sm font-medium">{def.label}</span>
             <p className="text-xs text-muted-foreground mt-0.5">
-              <KindBadge kind={def.kind} />{' '}{def.description}
+              {/* Parent rows with subKinds are categories, not a single
+                  kind — the per-kind badges live on the sub rows. */}
+              {!hasSubKinds && <><KindBadge kind={def.kind} />{' '}</>}
+              {def.description}
             </p>
           </div>
         </div>
@@ -219,25 +206,53 @@ function NotesFeedSettings() {
 }
 
 function FeedSettingsFormInternals() {
+  const { feedSettings } = useFeedSettings();
+
   return (
-    <>
+    <Accordion type="multiple">
       {SECTION_ORDER.map((section) => {
         const sectionKinds = EXTRA_KINDS.filter((def) => def.section === section);
         if (sectionKinds.length === 0) return null;
+
+        // Count enabled toggles the same way the row switches read them.
+        let enabled = 0;
+        let total = 0;
+        for (const def of sectionKinds) {
+          if (def.subKinds) {
+            for (const sub of def.subKinds) {
+              total++;
+              if (feedSettings[sub.feedKey]) enabled++;
+            }
+          } else if (def.feedKey) {
+            total++;
+            if (feedSettings[def.feedKey]) enabled++;
+          } else if (def.feedOnly && def.showKey) {
+            total++;
+            if (feedSettings[def.showKey] !== false) enabled++;
+          }
+        }
+
         return (
-          <div key={section}>
-            <div className="px-3 pt-4 pb-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {SECTION_LABELS[section]}
+          <AccordionItem key={section} value={section} className="border-b border-border last:border-b-0">
+            <AccordionTrigger className="px-3 py-3.5 hover:no-underline hover:bg-muted/20 transition-colors">
+              <span className="flex items-center gap-3 min-w-0">
+                <span className="text-sm font-medium">{SECTION_LABELS[section]}</span>
+                <Badge variant="secondary" className="shrink-0 font-normal">
+                  {enabled} of {total} on
+                </Badge>
               </span>
-            </div>
-            {sectionKinds.map((def) => (
-              <ContentTypeRow key={def.id} def={def} />
-            ))}
-          </div>
+            </AccordionTrigger>
+            <AccordionContent className="pb-0">
+              <div className="border-t border-border">
+                {sectionKinds.map((def) => (
+                  <ContentTypeRow key={def.id} def={def} />
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
         );
       })}
-    </>
+    </Accordion>
   );
 }
 
@@ -273,12 +288,6 @@ function FeedTabsSection() {
   const handleToggleDittoFeed = async (checked: boolean) => {
     setShowDittoFeed(checked);
     localStorage.setItem(getStorageKey(config.appId, 'showDittoFeed'), String(checked));
-    toast({
-      title: checked ? `${config.appName} feed enabled` : `${config.appName} feed disabled`,
-      description: checked
-        ? `The ${config.appName} feed tab will appear in your navigation`
-        : `The ${config.appName} feed tab will be hidden`,
-    });
   };
 
   const handleToggleGlobalFeed = async (checked: boolean) => {
@@ -287,12 +296,6 @@ function FeedTabsSection() {
     if (user) {
       await updateSettings.mutateAsync({ showGlobalFeed: checked });
     }
-    toast({
-      title: checked ? 'Global feed enabled' : 'Global feed disabled',
-      description: checked 
-        ? 'The Global feed tab will appear in your navigation'
-        : 'The Global feed tab will be hidden',
-    });
   };
 
   const handleToggleCommunityFeed = async (checked: boolean) => {
@@ -301,12 +304,6 @@ function FeedTabsSection() {
     if (user) {
       await updateSettings.mutateAsync({ showCommunityFeed: checked });
     }
-    toast({
-      title: checked ? 'Community feed enabled' : 'Community feed disabled',
-      description: checked 
-        ? 'The Community feed tab will appear in your navigation'
-        : 'The Community feed tab will be hidden',
-    });
   };
 
   const handleDownloadCommunity = async () => {
@@ -409,12 +406,12 @@ function FeedTabsSection() {
   return (
     <div>
       {/* Intro section for Feed Tabs */}
-      <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-        <IntroImage src="/community-intro.png" />
+      <div className="flex items-center gap-4 px-3 pt-3 pb-2">
+        <IntroImage src="/community-intro.png" size="w-28" />
         <div className="min-w-0">
           <h3 className="text-sm font-semibold">Feed Navigation</h3>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Manage which feed tabs appear in your navigation and follow communities by domain.
+            Choose which tabs appear at the top of your home feed.
           </p>
         </div>
       </div>
@@ -433,12 +430,6 @@ function FeedTabsSection() {
               if (user) {
                 await updateSettings.mutateAsync({ feedSettings: { ...feedSettings, followsFeedShowReplies: checked } });
               }
-              toast({
-                title: checked ? 'Replies shown' : 'Replies hidden',
-                description: checked
-                  ? 'Replies from people you follow will appear in your feed'
-                  : 'Only top-level posts will appear in your follows feed',
-              });
             }}
             className="shrink-0"
           />
@@ -770,7 +761,7 @@ function SavedFeedsSection() {
   return (
     <div className="px-3 py-4 space-y-3 border-t border-border">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Home Feed Tabs</h3>
+        <h3 className="text-sm font-semibold">Custom Tabs</h3>
         <Button
           variant="outline"
           size="sm"
@@ -895,17 +886,17 @@ const CW_POLICY_OPTIONS: { value: ContentWarningPolicy; label: string; descripti
   {
     value: 'blur',
     label: 'Blur until revealed',
-    description: 'Content is hidden behind a warning. Media is not loaded until you choose to view it.',
+    description: 'Hidden behind a warning until you choose to view it.',
   },
   {
     value: 'hide',
     label: 'Hide completely',
-    description: 'Posts with content warnings are removed from your feed entirely.',
+    description: 'Removed from your feeds entirely.',
   },
   {
     value: 'show',
     label: 'Always show',
-    description: 'Ignore content warnings and display everything normally.',
+    description: 'Displayed normally, without a warning.',
   },
 ];
 
@@ -924,18 +915,9 @@ export function SensitiveContentSection() {
 
   return (
     <div>
-      {/* Intro */}
-      <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-        <div className="w-40 shrink-0 flex items-center justify-center">
-          <ShieldAlert className="size-16 text-muted-foreground/40" />
-        </div>
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold">Content Warnings</h3>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Some posts are tagged with content warnings (NIP-36) by their authors. This can include NSFW material, spoilers, or other sensitive content.
-          </p>
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground px-3 pt-3 pb-1">
+        How to display posts their author marked as sensitive (NSFW, spoilers, etc).
+      </p>
 
       {/* Policy options — consistent row style with other settings */}
       <RadioGroup
@@ -962,32 +944,62 @@ export function SensitiveContentSection() {
   );
 }
 
+/**
+ * Toggle for exempting followed accounts from content-based filters
+ * (muted hashtags and words). Explicit user and thread mutes still apply.
+ */
+export function MuteFollowExemptionSection() {
+  const { config, updateConfig } = useAppContext();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
+
+  const exempt = config.exemptFollowsFromFilters === true;
+
+  const handleToggle = async (value: boolean) => {
+    updateConfig((current) => ({ ...current, exemptFollowsFromFilters: value }));
+    if (user) {
+      await updateSettings.mutateAsync({ exemptFollowsFromFilters: value });
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="space-y-0.5">
+        <Label className="text-sm font-medium">Don't filter people you follow</Label>
+        <p className="text-xs text-muted-foreground">
+          Muted hashtags and words won't hide posts from accounts you follow. Muted users and threads still apply.
+        </p>
+      </div>
+      <Switch
+        checked={exempt}
+        onCheckedChange={handleToggle}
+      />
+    </div>
+  );
+}
+
 const MUTE_TYPE_CONFIG = {
   pubkey: {
     icon: <UserX className="size-5" />,
     label: 'Users',
-    description: 'Hide posts from specific users',
     inputLabel: 'Public Key (hex or npub)',
     placeholder: 'npub1... or hex pubkey',
   },
   hashtag: {
     icon: <Hash className="size-5" />,
     label: 'Hashtags',
-    description: 'Hide posts with specific hashtags',
     inputLabel: 'Hashtag (without #)',
-    placeholder: 'bitcoin',
+    placeholder: 'hashtag (without #)',
   },
   word: {
     icon: <MessageSquareOff className="size-5" />,
     label: 'Words',
-    description: 'Hide posts containing specific words or phrases',
     inputLabel: 'Word or Phrase',
-    placeholder: 'spam word',
+    placeholder: 'word or phrase',
   },
   thread: {
     icon: <MessageSquareOff className="size-5" />,
     label: 'Threads',
-    description: 'Hide entire conversation threads',
     inputLabel: 'Event ID (hex or note)',
     placeholder: 'note1... or hex event ID',
   },
@@ -1045,70 +1057,71 @@ export function MuteSettingsInternals() {
   return (
     <div>
 
-      {/* Add mute section */}
-      <div className="px-3 py-4 space-y-3 border-b border-border">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="mute-type" className="text-xs font-medium">Type</Label>
-            <Select value={newMuteType} onValueChange={(value) => setNewMuteType(value as MuteListItem['type'])}>
-              <SelectTrigger id="mute-type" className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pubkey">
-                  <div className="flex items-center gap-2">
-                    <UserX className="h-4 w-4" />
-                    User
-                  </div>
-                </SelectItem>
-                <SelectItem value="hashtag">
-                  <div className="flex items-center gap-2">
-                    <Hash className="h-4 w-4" />
-                    Hashtag
-                  </div>
-                </SelectItem>
-                <SelectItem value="word">
-                  <div className="flex items-center gap-2">
-                    <MessageSquareOff className="h-4 w-4" />
-                    Word/Phrase
-                  </div>
-                </SelectItem>
-                <SelectItem value="thread">
-                  <div className="flex items-center gap-2">
-                    <MessageSquareOff className="h-4 w-4" />
-                    Thread
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      {/* Add mute — single compact row */}
+      <div className="px-3 py-4 border-b border-border">
+        <div className="grid gap-2 sm:grid-cols-[10rem_1fr_auto]">
+          <Select value={newMuteType} onValueChange={(value) => setNewMuteType(value as MuteListItem['type'])}>
+            <SelectTrigger id="mute-type" aria-label="What to mute" className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pubkey">
+                <div className="flex items-center gap-2">
+                  <UserX className="h-4 w-4" />
+                  User
+                </div>
+              </SelectItem>
+              <SelectItem value="hashtag">
+                <div className="flex items-center gap-2">
+                  <Hash className="h-4 w-4" />
+                  Hashtag
+                </div>
+              </SelectItem>
+              <SelectItem value="word">
+                <div className="flex items-center gap-2">
+                  <MessageSquareOff className="h-4 w-4" />
+                  Word/Phrase
+                </div>
+              </SelectItem>
+              <SelectItem value="thread">
+                <div className="flex items-center gap-2">
+                  <MessageSquareOff className="h-4 w-4" />
+                  Thread
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
 
-          <div className="space-y-2">
-            <Label htmlFor="mute-value" className="text-xs font-medium">
-              {MUTE_TYPE_CONFIG[newMuteType].inputLabel}
-            </Label>
-            <Input
-              id="mute-value"
-              value={newMuteValue}
-              onChange={(e) => setNewMuteValue(e.target.value)}
-              placeholder={MUTE_TYPE_CONFIG[newMuteType].placeholder}
-              className="h-9"
-            />
-          </div>
+          <Input
+            id="mute-value"
+            aria-label={MUTE_TYPE_CONFIG[newMuteType].inputLabel}
+            value={newMuteValue}
+            onChange={(e) => setNewMuteValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAddMute();
+            }}
+            placeholder={MUTE_TYPE_CONFIG[newMuteType].placeholder}
+            className="h-9"
+          />
+
+          <Button
+            onClick={handleAddMute}
+            disabled={addMute.isPending}
+            size="sm"
+            className="h-9"
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add
+          </Button>
         </div>
-
-        <Button 
-          onClick={handleAddMute} 
-          disabled={addMute.isPending} 
-          size="sm"
-          className="w-full sm:w-auto"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Mute
-        </Button>
       </div>
 
-      {/* Muted items list */}
+      {/* Follow exemption toggle */}
+      <div className="px-3 py-4 border-b border-border">
+        <MuteFollowExemptionSection />
+      </div>
+
+      {/* Muted items list — grouped into collapsible sections */}
       {isLoading ? (
         <div className="space-y-2 px-3 py-4">
           <Skeleton className="h-12 w-full" />
@@ -1120,11 +1133,11 @@ export function MuteSettingsInternals() {
           No muted items yet
         </p>
       ) : (
-        <>
+        <Accordion type="multiple">
           {Object.entries(groupedMutes).map(([type, items]) => {
             if (items.length === 0) return null;
             const config = MUTE_TYPE_CONFIG[type as MuteListItem['type']];
-            
+
             return (
               <MuteTypeSection
                 key={type}
@@ -1136,7 +1149,7 @@ export function MuteSettingsInternals() {
               />
             );
           })}
-        </>
+        </Accordion>
       )}
     </div>
   );
@@ -1189,7 +1202,7 @@ function MutedThreadLink({ eventId }: { eventId: string }) {
 }
 
 function MuteTypeSection({
-  type: _type,
+  type,
   config,
   items,
   onRemove,
@@ -1202,47 +1215,47 @@ function MuteTypeSection({
   isPending: boolean;
 }) {
   return (
-    <div className="border-b border-border last:border-b-0">
-      <div className="flex items-center gap-3 px-3 py-3.5">
-        <span className="text-muted-foreground shrink-0">{config.icon}</span>
-        <div className="min-w-0">
+    <AccordionItem value={type} className="border-b border-border last:border-b-0">
+      <AccordionTrigger className="px-3 py-3.5 hover:no-underline hover:bg-muted/20 transition-colors">
+        <span className="flex items-center gap-3 min-w-0">
+          <span className="text-muted-foreground shrink-0">{config.icon}</span>
           <span className="text-sm font-medium">{config.label}</span>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {items.length} {items.length === 1 ? 'item' : 'items'} • {config.description}
-          </p>
-        </div>
-      </div>
-      
-      <div className="divide-y divide-border">
-        {items.map((item, index) => (
-          <div
-            key={`${item.type}-${item.value}-${index}`}
-            className="flex items-center justify-between py-2.5 px-3 pl-12 hover:bg-muted/20 transition-colors"
-          >
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              {item.type === 'pubkey' ? (
-                <MutedUserProfile pubkey={item.value} />
-              ) : item.type === 'thread' ? (
-                <MutedThreadLink eventId={item.value} />
-              ) : (
-                <code className="text-xs truncate font-mono bg-muted px-2 py-1 rounded">
-                  {item.value}
-                </code>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onRemove(item)}
-              disabled={isPending}
-              className="shrink-0 h-8 w-8 p-0"
+          <Badge variant="secondary" className="shrink-0 font-normal">{items.length}</Badge>
+        </span>
+      </AccordionTrigger>
+      <AccordionContent className="pb-0">
+        <div className="divide-y divide-border border-t border-border">
+          {items.map((item, index) => (
+            <div
+              key={`${item.type}-${item.value}-${index}`}
+              className="flex items-center justify-between py-2.5 px-3 pl-12 hover:bg-muted/20 transition-colors"
             >
-              <Trash2 className="h-4 w-4 text-destructive" />
-             </Button>
-          </div>
-        ))}
-      </div>
-    </div>
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                {item.type === 'pubkey' ? (
+                  <MutedUserProfile pubkey={item.value} />
+                ) : item.type === 'thread' ? (
+                  <MutedThreadLink eventId={item.value} />
+                ) : (
+                  <code className="text-xs truncate font-mono bg-muted px-2 py-1 rounded">
+                    {item.value}
+                  </code>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onRemove(item)}
+                disabled={isPending}
+                aria-label={`Remove mute for ${item.value}`}
+                className="shrink-0 h-8 w-8 p-0"
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </AccordionContent>
+    </AccordionItem>
   );
 }
 

@@ -374,6 +374,16 @@ export function NostrSync() {
       }
 
       if (
+        encryptedSettings.exemptFollowsFromFilters !== undefined &&
+        encryptedSettings.exemptFollowsFromFilters !==
+          current.exemptFollowsFromFilters
+      ) {
+        updates.exemptFollowsFromFilters =
+          encryptedSettings.exemptFollowsFromFilters;
+        changed = true;
+      }
+
+      if (
         encryptedSettings.sidebarOrder &&
         JSON.stringify(encryptedSettings.sidebarOrder) !==
           JSON.stringify(current.sidebarOrder)

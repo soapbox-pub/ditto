@@ -1,14 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { Capacitor } from '@capacitor/core';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
 import { useFollowList } from './useFollowActions';
 import { LETTER_KIND } from '@/lib/letterTypes';
-import { ALL_NOTIFICATION_KINDS, getEnabledNotificationKinds } from '@/lib/notificationKinds';
+import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
 
 const PAGE_SIZE = 20;
 
@@ -324,7 +323,9 @@ export function useNotifications(): NotificationData {
     initialPageParam: undefined as number | undefined,
     enabled: !!user,
     staleTime: 30_000,
-    refetchInterval: Capacitor.isNativePlatform() ? false : 60_000,
+    // No polling — real-time updates come from the always-mounted
+    // NotificationStream component, which invalidates this query when a new
+    // notification event arrives over the persistent relay subscription.
   });
 
   const {
@@ -335,43 +336,6 @@ export function useNotifications(): NotificationData {
     isFetchingNextPage,
     fetchNextPage,
   } = infiniteQuery;
-
-  // Real-time subscription: open a persistent REQ with `since: now` so new
-  // notifications are detected immediately instead of waiting for the next poll.
-  // When any new event arrives, invalidate the query cache to trigger a refetch.
-  useEffect(() => {
-    if (!user || Capacitor.isNativePlatform()) return;
-
-    const ac = new AbortController();
-    const since = Math.floor(Date.now() / 1000);
-
-    (async () => {
-      try {
-        for await (const msg of nostr.req(
-          [{
-            kinds: [...ALL_NOTIFICATION_KINDS],
-            '#p': [user.pubkey],
-            since,
-          }],
-          { signal: ac.signal },
-        )) {
-          if (msg[0] === 'EVENT') {
-            const ev = msg[2];
-            // Ignore own events
-            if (ev.pubkey === user.pubkey) continue;
-            // New notification arrived — invalidate both the full list and the
-            // unread indicator so the UI updates immediately.
-            queryClient.invalidateQueries({ queryKey: ['notifications', user.pubkey] });
-            queryClient.invalidateQueries({ queryKey: ['notifications-unread', user.pubkey] });
-          }
-        }
-      } catch {
-        // AbortError on cleanup — expected
-      }
-    })();
-
-    return () => ac.abort();
-  }, [nostr, user, queryClient]);
 
   // Flatten and deduplicate across pages
   const items = useMemo(() => {
@@ -442,8 +406,9 @@ export function useNotifications(): NotificationData {
       // propagates). That stale refetch re-queries the relay with the old
       // `since` value, finds the same "unread" events, returns `true`, and
       // overwrites the `false` we just set — causing the dot to reappear.
-      // The 60-second poll (or real-time subscription) will naturally
-      // re-evaluate once the cursor has fully propagated.
+      // The NotificationStream subscription will naturally re-evaluate when
+      // the next notification event arrives, by which point the cursor has
+      // fully propagated.
       queryClient.setQueriesData<boolean>(
         { queryKey: ['notifications-unread', user.pubkey] },
         false,

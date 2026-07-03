@@ -4,9 +4,8 @@ import { useInView } from 'react-intersection-observer';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useMusicFeed } from '@/hooks/useMusicFeed';
 import { useMusicData } from '@/hooks/useMusicData';
-import { useMuteList } from '@/hooks/useMuteList';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { parseMusicTrack } from '@/lib/musicHelpers';
-import { isEventMuted } from '@/lib/muteHelpers';
 import { TagChips } from '@/components/discovery/TagChips';
 import { MusicSortFilterBar, type MusicSort, type MusicScope } from './MusicSortFilterBar';
 import { MusicTrackRow, MusicTrackRowSkeleton } from './MusicTrackRow';
@@ -23,7 +22,7 @@ export function MusicTracksTab() {
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [sort, setSort] = useState<MusicSort>('new');
   const [scope, setScope] = useState<MusicScope>('global');
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
 
   // Base query for genre names only (reuses cached data from Discover tab)
   const { genres } = useMusicData();
@@ -72,10 +71,10 @@ export function MusicTracksTab() {
         seen.add(event.id);
         if (event.kind !== 36787) return false;
         if (parseMusicTrack(event) === null) return false;
-        if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+        if (isMuted(event)) return false;
         return true;
       });
-  }, [rawData?.pages, muteItems]);
+  }, [rawData?.pages, isMuted]);
 
   const showSkeleton = isPending || (isLoading && !rawData);
 

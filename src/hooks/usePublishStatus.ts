@@ -4,6 +4,9 @@ import { useNostr } from '@nostrify/react';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { rollbackQuery } from '@/lib/optimisticEvent';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import type { UserStatus } from '@/hooks/useUserStatus';
 
 interface PublishStatusParams {
   /** The status text. Empty string clears the status. */
@@ -44,6 +47,21 @@ export function usePublishStatus() {
         tags,
         prev: prev ?? undefined,
       });
+    },
+    // Optimistically update the status text/URL so it appears immediately.
+    onMutate: ({ status, url }: PublishStatusParams) => {
+      if (!user?.pubkey) return undefined;
+      const key = ['user-status', user.pubkey];
+      const snapshot = queryClient.getQueryData<UserStatus>(key);
+      const trimmed = status.trim();
+      queryClient.setQueryData<UserStatus>(key, {
+        status: trimmed ? trimmed : null,
+        url: trimmed ? (sanitizeUrl(url) ?? null) : null,
+      });
+      return { snapshot, key };
+    },
+    onError: (_err, _params, ctx) => {
+      if (ctx) rollbackQuery(queryClient, ctx.key, ctx.snapshot);
     },
     onSuccess: () => {
       if (user) {

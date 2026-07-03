@@ -9,11 +9,10 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
-import { useMuteList } from '@/hooks/useMuteList';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
-import { isEventMuted } from '@/lib/muteHelpers';
 import { PageHeader } from '@/components/PageHeader';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -68,7 +67,7 @@ export function DomainFeedPage() {
     description: domain ? `Posts from users on ${domain}` : 'Domain feed',
   });
 
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
 
   const refreshQueryKey = useMemo(
     () => [['domain-pubkeys', domain], ['domain-feed', domain]],
@@ -92,9 +91,9 @@ export function DomainFeedPage() {
   });
 
   const filteredEvents = useMemo(() => {
-    if (!events || muteItems.length === 0) return events;
-    return events.filter((e) => !isEventMuted(e, muteItems));
-  }, [events, muteItems]);
+    if (!events) return events;
+    return events.filter((e) => !isMuted(e));
+  }, [events, isMuted]);
 
   const isLoading = pubkeysLoading || eventsLoading;
 

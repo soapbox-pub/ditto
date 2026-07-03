@@ -1,13 +1,16 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
 import { Search, X, ImageOff } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGifSearch, type GifResult } from '@/hooks/useGifSearch';
 import { cn } from '@/lib/utils';
 
 interface GifPickerProps {
   onSelect: (gif: GifResult) => void;
+  /** Auto-focus the search input on mount (disable on mobile so the virtual keyboard doesn't pop up). */
+  autoFocus?: boolean;
+  /** Reports whether the user is actively searching (input focused or query non-empty). */
+  onSearchActiveChange?: (active: boolean) => void;
 }
 
 /** A single GIF thumbnail with lazy loading and hover animation. */
@@ -26,7 +29,7 @@ function GifThumbnail({ gif, onClick }: { gif: GifResult; onClick: (gif: GifResu
       onClick={() => onClick(gif)}
       className={cn(
         'relative w-full rounded-lg overflow-hidden cursor-pointer',
-        'transition-all duration-200 hover:ring-2 hover:ring-primary/60 hover:scale-[1.02]',
+        'transition-shadow duration-200 hover:ring-2 hover:ring-primary/60',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
         'group',
       )}
@@ -101,24 +104,35 @@ function GifGrid({ results, onSelect }: { results: GifResult[]; onSelect: (gif: 
   );
 }
 
-export function GifPicker({ onSelect }: GifPickerProps) {
+export function GifPicker({ onSelect, autoFocus = true, onSearchActiveChange }: GifPickerProps) {
   const { query, setQuery, clearQuery, results, isLoading, isError, isSearching } = useGifSearch();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [searchFocused, setSearchFocused] = useState(false);
 
-  // Auto-focus the search input on mount
+  // Report search activity so the container can give results more room.
+  const searchActive = searchFocused || query.trim().length > 0;
   useEffect(() => {
+    onSearchActiveChange?.(searchActive);
+  }, [searchActive, onSearchActiveChange]);
+
+  // Auto-focus the search input on mount (desktop only — on mobile this
+  // would raise the virtual keyboard over the picker).
+  useEffect(() => {
+    if (!autoFocus) return;
     const timer = setTimeout(() => {
       inputRef.current?.focus();
     }, 100);
     return () => clearTimeout(timer);
-  }, []);
+  }, [autoFocus]);
 
   const handleSelect = useCallback((gif: GifResult) => {
     onSelect(gif);
   }, [onSelect]);
 
+  // Transparent background so the picker blends into the compose box,
+  // matching the emoji and sticker tabs.
   return (
-    <div className="flex flex-col w-full h-[280px] bg-popover rounded-lg overflow-hidden">
+    <div className="flex flex-col w-full h-full overflow-hidden">
       {/* Search input */}
       <div className="px-3 pt-3 pb-2">
         <div className="relative">
@@ -127,6 +141,8 @@ export function GifPicker({ onSelect }: GifPickerProps) {
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
             placeholder="Search GIFs..."
             className="pl-8 pr-20 h-9 text-base md:text-sm bg-muted/50 border-0 rounded-lg"
           />
@@ -153,8 +169,11 @@ export function GifPicker({ onSelect }: GifPickerProps) {
         </span>
       </div>
 
-      {/* Results area */}
-      <ScrollArea className="flex-1">
+      {/* Results area — a plain native scroller: Radix Dialog's scroll-lock
+          (react-remove-scroll) only permits touch scrolling on real
+          overflow elements it can inspect, which ScrollArea's viewport
+          defeated on mobile. */}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         {isLoading ? (
           <div className="px-2 pb-2">
             <div className="flex gap-2">
@@ -185,7 +204,7 @@ export function GifPicker({ onSelect }: GifPickerProps) {
         ) : (
           <GifGrid results={results} onSelect={handleSelect} />
         )}
-      </ScrollArea>
+      </div>
     </div>
   );
 }

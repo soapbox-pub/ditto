@@ -15,6 +15,9 @@ interface ProfileLoveButtonProps {
   isFollowing: boolean;
   /** Optional extra class names for the button. */
   className?: string;
+  /** Called when the profile is newly added to the Love List (not on
+   *  removal), so the caller can play a celebration. */
+  onLoved?: () => void;
 }
 
 /**
@@ -25,7 +28,7 @@ interface ProfileLoveButtonProps {
  * Only shown for profiles the user already follows — love is a tier above
  * an ordinary follow, so you can't love someone you don't follow.
  */
-export function ProfileLoveButton({ pubkey, displayName, isFollowing, className }: ProfileLoveButtonProps) {
+export function ProfileLoveButton({ pubkey, displayName, isFollowing, className, onLoved }: ProfileLoveButtonProps) {
   const { user } = useCurrentUser();
   const { isLoved, addLove, removeLove } = useLoveList();
   const { toast } = useToast();
@@ -42,6 +45,7 @@ export function ProfileLoveButton({ pubkey, displayName, isFollowing, className 
     const mutation = loved ? removeLove : addLove;
     mutation.mutate(pubkey, {
       onSuccess: () => {
+        if (!loved) onLoved?.();
         toast({
           title: loved ? `Removed @${displayName} from your Love List` : `@${displayName} is on your Love List ❤️`,
           description: loved ? undefined : 'Find their posts in the Loved tab of your feed.',

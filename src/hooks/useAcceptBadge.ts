@@ -4,6 +4,7 @@ import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { BADGE_PROFILE_KIND, fetchFreshProfileBadges } from '@/lib/badgeUtils';
+import { optimisticPatchEventTags, rollbackEvent } from '@/lib/optimisticEvent';
 
 /**
  * Mutation to accept a badge — adds the `a` + `e` tag pair to the user's
@@ -49,6 +50,27 @@ export function useAcceptBadge() {
         tags: newTags,
         prev: prev ?? undefined,
       });
+    },
+    // Optimistically append the badge pair so it shows in the profile grid
+    // immediately. Snapshot for rollback on error.
+    onMutate: ({ aTag, awardEventId }: { aTag: string; awardEventId: string }) => {
+      const key = ['profile-badges', user?.pubkey ?? ''];
+      const snapshot = optimisticPatchEventTags(queryClient, key, {
+        kind: BADGE_PROFILE_KIND,
+        pubkey: user?.pubkey ?? '',
+        transform: (tags) => {
+          const alreadyHas = tags.some(
+            ([n, v], i) => n === 'a' && v === aTag && tags[i + 1]?.[0] === 'e' && tags[i + 1]?.[1] === awardEventId,
+          );
+          if (alreadyHas) return tags;
+          const withoutDTag = tags.filter(([n, v]) => !(n === 'd' && v === 'profile_badges'));
+          return [...withoutDTag, ['a', aTag], ['e', awardEventId]];
+        },
+      });
+      return { snapshot, key };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx) rollbackEvent(queryClient, ctx.key, ctx.snapshot);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile-badges', user?.pubkey] });

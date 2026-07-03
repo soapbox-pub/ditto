@@ -12,9 +12,56 @@ import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
 /** Interface for the native DittoNotification Capacitor plugin. */
 interface DittoNotificationPlugin {
   configure(options: { userPubkey?: string; relayUrls?: string[]; enabledKinds?: number[]; authors?: string[]; notificationStyle?: string }): Promise<void>;
+  /** Android: whether the app is exempt from battery optimizations (Doze). */
+  isIgnoringBatteryOptimizations(): Promise<{ ignoring: boolean }>;
+  /**
+   * Android: show the one-tap system dialog to grant the exemption.
+   * Resolves when the dialog closes, with the fresh exemption state.
+   */
+  requestIgnoreBatteryOptimizations(): Promise<{ ignoring: boolean }>;
 }
 
 const DittoNotification = registerPlugin<DittoNotificationPlugin>('DittoNotification');
+
+/**
+ * Check whether Ditto is exempt from Android battery optimizations.
+ *
+ * Battery optimization delays the background fetch alarms that drive
+ * "persistent" notification mode, and on Android 15+ the exemption is also
+ * required to restart the foreground service after a reboot.
+ *
+ * Returns `true` (exempt / nothing to do) on non-Android platforms or when
+ * the native method is unavailable (older app binary), so callers never show
+ * a false warning.
+ */
+export async function isIgnoringBatteryOptimizations(): Promise<boolean> {
+  if (Capacitor.getPlatform() !== 'android') return true;
+  try {
+    const { ignoring } = await DittoNotification.isIgnoringBatteryOptimizations();
+    return ignoring;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Open the one-tap system dialog asking the user to exempt Ditto from
+ * battery optimizations. Resolves once the dialog closes, returning the
+ * fresh exemption state (`true` = exempt) so callers can update their UI
+ * immediately — the dialog overlays the WebView without hiding it, so no
+ * visibilitychange event fires when it closes. No-op outside Android.
+ */
+export async function requestIgnoreBatteryOptimizations(): Promise<boolean> {
+  if (Capacitor.getPlatform() !== 'android') return true;
+  try {
+    const { ignoring } = await DittoNotification.requestIgnoreBatteryOptimizations();
+    return ignoring;
+  } catch (err) {
+    console.error('[notifications] Failed to request battery optimization exemption:', err);
+    // The request may still have opened a settings screen — re-check.
+    return isIgnoringBatteryOptimizations();
+  }
+}
 
 /**
  * Manages the native Android notification service via Capacitor.

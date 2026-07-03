@@ -10,6 +10,7 @@ import { InitialSyncGate } from "@/components/InitialSyncGate";
 import { NativeNotifications } from "@/components/NativeNotifications";
 import NostrProvider from "@/components/NostrProvider";
 import { NostrSync } from "@/components/NostrSync";
+import { NotificationStream } from "@/components/NotificationStream";
 import { PlausibleProvider } from "@/components/PlausibleProvider";
 import { SentryProvider } from "@/components/SentryProvider";
 
@@ -110,7 +111,24 @@ const hardcodedConfig: AppConfig = {
     feedIncludePodcastEpisodes: true,
     feedIncludePodcastTrailers: true,
     showDevelopment: true,
-    feedIncludeDevelopment: true,
+    feedIncludeGitRepos: true,
+    // Per-push / per-transition machine-generated git events default off in
+    // the mixed home feed (they still always show on /development).
+    feedIncludeGitPushes: false,
+    feedIncludeGitPatches: true,
+    feedIncludeGitPullRequests: true,
+    feedIncludeGitPrUpdates: false,
+    feedIncludeGitIssues: true,
+    feedIncludeGitStatusReopened: false,
+    feedIncludeGitStatusResolved: false,
+    feedIncludeGitStatusClosed: false,
+    feedIncludeGitStatusDraft: false,
+    feedIncludeCustomNips: true,
+    feedIncludeNsiteRoots: true,
+    feedIncludeNsiteNamed: true,
+    feedIncludeZapstoreApps: true,
+    feedIncludeZapstoreReleases: true,
+    feedIncludeAppHandlers: true,
     showBadges: true,
     showBadgeDefinitions: true,
     showProfileBadges: true,
@@ -150,6 +168,7 @@ const hardcodedConfig: AppConfig = {
   linkPreviewUrl: "https://ditto.pub/api/link-preview/{url}",
   corsProxy: "https://proxy.shakespeare.diy/?url={href}",
   contentWarningPolicy: "blur",
+  exemptFollowsFromFilters: false,
   sentryDsn: import.meta.env.VITE_SENTRY_DSN || "",
   sentryEnabled: true,
   plausibleDomain: import.meta.env.VITE_PLAUSIBLE_DOMAIN || "",
@@ -205,6 +224,7 @@ export function App() {
                 <NostrProvider>
                   <NostrSync />
                   <NativeNotifications />
+                  <NotificationStream />
 
                     <NWCProvider>
                       <EmotionDevProvider>

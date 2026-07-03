@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button.tsx';
-import LoginDialog from './LoginDialog';
+import { LoginFlow } from './LoginFlow';
 import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
 import { AccountSwitcher } from './AccountSwitcher';
 import { useOnboarding } from '@/hooks/useOnboarding';
@@ -43,7 +43,7 @@ export function LoginArea({ className }: LoginAreaProps) {
         </div>
       )}
 
-      <LoginDialog
+      <LoginFlow
         isOpen={loginDialogOpen}
         onClose={() => setLoginDialogOpen(false)}
         onLogin={handleLogin}

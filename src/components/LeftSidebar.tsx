@@ -14,7 +14,7 @@ import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { SidebarNavList } from '@/components/SidebarNavItem';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
 
-import LoginDialog from '@/components/auth/LoginDialog';
+import { LoginFlow } from '@/components/auth/LoginFlow';
 import { FollowQRDialog } from '@/components/FollowQRDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -312,7 +312,7 @@ export function LeftSidebar() {
         </div>
       )}
 
-      <LoginDialog isOpen={loginDialogOpen} onClose={() => setLoginDialogOpen(false)} onLogin={() => setLoginDialogOpen(false)} onSignupClick={startSignup} />
+      <LoginFlow isOpen={loginDialogOpen} onClose={() => setLoginDialogOpen(false)} onLogin={() => setLoginDialogOpen(false)} onSignupClick={startSignup} />
       <FollowQRDialog open={followQROpen} onOpenChange={setFollowQROpen} />
     </aside>
   );

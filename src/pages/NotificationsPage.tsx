@@ -18,8 +18,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useEvent } from '@/hooks/useEvent';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNotifications, type GroupedNotificationItem, type NotificationItem } from '@/hooks/useNotifications';
-import { useMuteList } from '@/hooks/useMuteList';
-import { isEventMuted } from '@/lib/muteHelpers';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { nip19 } from 'nostr-tools';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { getAvatarShape, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -72,6 +71,12 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   1222: 'voice message',
   1617: 'patch',
   1618: 'pull request',
+  1619: 'pull request update',
+  1621: 'issue',
+  1630: 'status update',
+  1631: 'status update',
+  1632: 'status update',
+  1633: 'status update',
   9802: 'highlight',
   15683: 'Love List',
   2473: 'bird detection',
@@ -97,6 +102,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   30311: 'stream',
   30315: 'status',
   30617: 'repository',
+  30618: 'repository update',
   30817: 'custom NIP',
   31922: 'calendar event',
   31923: 'calendar event',
@@ -168,7 +174,7 @@ export function NotificationsPage() {
     isFetchingNextPage,
     fetchNextPage,
   } = useNotifications();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['notifications', user?.pubkey ?? ''] });
@@ -207,11 +213,9 @@ export function NotificationsPage() {
   const filteredGroups = useMemo(() => {
     let filtered = groupedItems;
     // Filter out notifications from muted users/content
-    if (muteItems.length > 0) {
-      filtered = filtered.filter((group) =>
-        group.actors.every((item) => !isEventMuted(item.event, muteItems)),
-      );
-    }
+    filtered = filtered.filter((group) =>
+      group.actors.every((item) => !isMuted(item.event)),
+    );
     if (activeTab === 'mentions') {
       filtered = filtered.filter((group) => {
         if (group.kind !== 1 && group.kind !== 1111) return false;
@@ -220,7 +224,7 @@ export function NotificationsPage() {
       });
     }
     return filtered;
-  }, [groupedItems, activeTab, muteItems, user]);
+  }, [groupedItems, activeTab, isMuted, user]);
 
   const tabs: { key: NotificationTab; label: string }[] = [
     { key: 'all', label: 'All' },

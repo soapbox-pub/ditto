@@ -8,21 +8,20 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { timeAgo } from '@/lib/timeAgo';
-import { isEventMuted } from '@/lib/muteHelpers';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useOpenPost } from '@/hooks/useOpenPost';
 import { useSortedPosts } from '@/hooks/useTrending';
-import { useMuteList } from '@/hooks/useMuteList';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 
 /** Hot posts widget for the right sidebar. */
 export function HotPostsWidget() {
   const { data: rawPosts, isLoading } = useSortedPosts('hot', 5);
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
 
   const posts = useMemo(() => {
-    if (!rawPosts || muteItems.length === 0) return rawPosts;
-    return rawPosts.filter((e) => !isEventMuted(e, muteItems));
-  }, [rawPosts, muteItems]);
+    if (!rawPosts) return rawPosts;
+    return rawPosts.filter((e) => !isMuted(e));
+  }, [rawPosts, isMuted]);
 
   if (isLoading) {
     return (

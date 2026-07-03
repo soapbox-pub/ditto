@@ -1,10 +1,23 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { MuteListItem } from '@/hooks/useMuteList';
 
+export interface MuteCheckOptions {
+  /**
+   * Skip content-based mute checks (muted hashtags and muted words).
+   * Explicit pubkey and thread mutes always apply.
+   * Used to exempt followed accounts when `exemptFollowsFromFilters` is on.
+   */
+  skipContentMutes?: boolean;
+}
+
 /**
  * Check if an event should be muted based on mute list items
  */
-export function isEventMuted(event: NostrEvent, muteItems: MuteListItem[]): boolean {
+export function isEventMuted(
+  event: NostrEvent,
+  muteItems: MuteListItem[],
+  options?: MuteCheckOptions,
+): boolean {
   // Check if author is muted
   const mutedPubkeys = muteItems
     .filter((item) => item.type === 'pubkey')
@@ -27,6 +40,11 @@ export function isEventMuted(event: NostrEvent, muteItems: MuteListItem[]): bool
   // Check if event itself is muted as a thread
   if (mutedThreads.includes(event.id)) {
     return true;
+  }
+
+  // Content-based mutes (hashtags, words) can be skipped, e.g. for follows.
+  if (options?.skipContentMutes) {
+    return false;
   }
 
   // Check if any hashtags are muted

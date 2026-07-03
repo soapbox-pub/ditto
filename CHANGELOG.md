@@ -1,5 +1,84 @@
 # Changelog
 
+## [2.26.1] - 2026-07-03
+
+A quick fix for logging in: pasting your secret key into the login field no longer sets off the clipboard safety warning meant to stop you from posting it publicly.
+
+### Fixed
+- Pasting a secret key into the login field no longer triggers the accidental-paste warning
+
+## [2.26.0] - 2026-07-03
+
+Composing on mobile is a whole new experience — a full-screen editor with a slick animated emoji, GIF, and sticker tray. The Development feed now shows the full life of open-source projects: issues, pull requests, and status updates. Posts tagged #nsfw are tucked behind content warnings, and you can exempt people you follow from your muted words. Plus smarter search, a better mention autocomplete, and a proper eulogy for deleted posts.
+
+### Added
+- The Development feed now shows the full life of open-source projects — issues, pull requests, and status updates — with quick links to NostrHub and Gitworkshop and a feed toggle for each activity type
+- Posts tagged with sensitive hashtags like #nsfw are now hidden behind a content warning
+- A new synced setting to exempt people you follow from your muted words and hashtags
+- When a post no longer exists, Ditto now tells you it was deleted by its author (and why, if they said) instead of offering futile retries — with a fitting word from Sartre
+- Geocache found logs and comments now show the treasure they belong to at the top of the thread
+
+### Changed
+- Composing on mobile is now a full-screen, keyboard-aware experience
+- The emoji, GIF, and sticker pickers open in a smoothly animated tray, and search results expand to fill the composer
+- The home feed and content settings pages are cleaner and load instantly
+
+### Fixed
+- Search results now show recent posts first instead of old ones
+- The mention autocomplete no longer closes while scrolling it, and picking a suggestion works reliably on touch screens
+- Mentioning someone via a profile link now properly notifies them
+- The sidebar's More menu no longer hides under the status bar on mobile
+
+## [2.25.2] - 2026-07-02
+
+A small fix so that "GM" notes wrapped in quotation marks now correctly trigger the sunrise celebration.
+
+### Fixed
+- GM sunrise animation now fires when note content is wrapped in quotes (e.g. "GM")
+
+## [2.25.1] - 2026-07-02
+
+A fresh login screen with a playful animated key that unlocks the Ditto planet, a one-tap login for browser extension users, and fixes for profile media galleries not showing Blossom-hosted content and a lag on Android taps.
+
+### Added
+- The login screen now greets you with an animated key unlocking Ditto
+- If you have a Nostr browser extension installed, logging in is now a single tap — your account is detected and confirmed automatically
+
+### Fixed
+- Profile media galleries and the Photos feed now correctly display Blossom-hosted images and videos
+- Tapping items on Android no longer feels sluggish due to an overly heavy haptic sequence
+
+## [2.25.0] - 2026-07-02
+
+Ditto feels instant now. Your posts pop into the feed the moment you hit publish, and bookmarking, pinning, muting, liking, and following all land right away instead of waiting on the network. Love a profile and hearts rain down over their header, with the love letter card getting its own gentle drift of floating hearts. Plus you can now unmute a conversation straight from the note menu, and a batch of little fixes and polish.
+
+### Added
+- Your new posts appear in the feed instantly when you publish, no waiting for the network
+- Bookmarks, pins, mutes, likes, follows, and more now update the moment you tap, with a graceful undo if a publish fails
+- Loving a profile now showers hearts across their header
+- The love letter card comes alive with hearts that gently drift and float upward
+- Unmute a conversation right from the note menu
+
+### Changed
+- Opening a note always plays its celebration now, even after a busy morning feed has used up the session's animations
+
+### Fixed
+- Selection haptics now work on Android
+- Bookmarking a post now confirms with a toast and tells you if it failed
+
+## [2.24.0] - 2026-07-01
+
+Something wonderful happens on the feed now. Notifications are instant on every platform. Sharing into Ditto works when installed as a web app. Android users on persistent notifications can fix battery issues with one tap.
+
+### Added
+- Feed cards come alive with particle effects — confetti, balloons, sunrises, and more
+- Reacting to a post sends a satisfying burst of particles from the heart
+- Notifications are now instant on web and Android, powered by a live relay connection instead of polling
+- Sharing from other apps now works when Ditto is installed as a web app
+- iOS visitors to the web app see a native App Store banner
+- Android: the persistent notification service now survives reboots
+- Android: a one-tap button in notification settings to fix battery optimization issues
+
 ## [2.23.5] - 2026-07-01
 
 Your feed now keeps up with the conversation in real time — a tappable pill appears when new posts arrive, so you never have to guess when to refresh. Search gains a "Ditto users only" filter, articles show a reading-time estimate and render as tidy preview cards in the feed, and editing your published articles is smoother than ever. Posts can now embed content-addressed images, video, and audio that stay reachable even if a server goes down. Plus a big speed-up to app startup and a batch of fixes.

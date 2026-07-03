@@ -64,14 +64,23 @@ export function usePortalDropdown({
 
   // Dismiss the dropdown when any ancestor scrolls or the window resizes,
   // since fixed positioning would cause the dropdown to become misaligned.
+  // Scrolling *inside* the dropdown itself (e.g. paging through a long list)
+  // must not dismiss it, so ignore scroll events that originate within it.
   useEffect(() => {
     if (!isOpen) return;
-    const handleDismiss = () => onClose();
-    window.addEventListener('scroll', handleDismiss, true);
-    window.addEventListener('resize', handleDismiss);
+    const handleScroll = (e: Event) => {
+      const target = e.target as Node | null;
+      if (target instanceof Element && target.closest('[data-autocomplete-dropdown]')) {
+        return;
+      }
+      onClose();
+    };
+    const handleResize = () => onClose();
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleResize);
     return () => {
-      window.removeEventListener('scroll', handleDismiss, true);
-      window.removeEventListener('resize', handleDismiss);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleResize);
     };
   }, [isOpen, onClose]);
 

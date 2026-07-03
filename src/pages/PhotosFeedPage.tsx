@@ -28,12 +28,12 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useFeed } from "@/hooks/useFeed";
 import { useFeedTab } from "@/hooks/useFeedTab";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
-import { useMuteList } from "@/hooks/useMuteList";
+import { useMuteFilter } from "@/hooks/useMuteFilter";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
 import { useInfiniteHotFeed } from "@/hooks/useTrending";
+import { getEffectiveBlossomServers } from "@/lib/appBlossom";
 import { getExtraKindDef } from "@/lib/extraKinds";
 import type { FeedItem } from "@/lib/feedUtils";
-import { isEventMuted } from "@/lib/muteHelpers";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 
 const PhotoComposeModal = lazy(() => import('@/components/PhotoComposeModal').then(m => ({ default: m.PhotoComposeModal })));
@@ -48,7 +48,7 @@ type FeedTab = "follows" | "global";
 export function PhotosFeedPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const [composeOpen, setComposeOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useFeedTab<FeedTab>("photos", [
@@ -96,6 +96,12 @@ export function PhotosFeedPage() {
     if (!rawData?.pages) return [];
     const seen = new Set<string>();
 
+    // Needed to resolve BUD-10 blossom: URIs when checking for displayable media.
+    const blossomServers = getEffectiveBlossomServers(
+      config.blossomServerMetadata,
+      config.useAppBlossomServers,
+    );
+
     const events: NostrEvent[] =
       activeTab === "follows"
         ? (rawData.pages as unknown as { items: FeedItem[] }[])
@@ -107,10 +113,10 @@ export function PhotosFeedPage() {
       if (seen.has(event.id)) return false;
       seen.add(event.id);
       if (event.kind !== PHOTO_KIND) return false;
-      if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
-      return eventToMediaItem(event) !== null;
+      if (isMuted(event)) return false;
+      return eventToMediaItem(event, blossomServers) !== null;
     });
-  }, [rawData?.pages, muteItems, activeTab]);
+  }, [rawData?.pages, isMuted, activeTab, config.blossomServerMetadata, config.useAppBlossomServers]);
 
   const showSkeleton = isPending || (isLoading && !rawData);
 

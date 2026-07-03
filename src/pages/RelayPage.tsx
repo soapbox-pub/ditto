@@ -13,11 +13,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
-import { useMuteList } from '@/hooks/useMuteList';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useRelayInfo, type RelayInfoDocument } from '@/hooks/useRelayInfo';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
-import { isEventMuted } from '@/lib/muteHelpers';
 import type { NostrEvent } from '@nostrify/nostrify';
 import NotFound from './NotFound';
 
@@ -44,7 +43,7 @@ export function RelayPage() {
   const { config } = useAppContext();
   const { '*': rawParam } = useParams();
   const { feedSettings } = useFeedSettings();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const [infoOpen, setInfoOpen] = useState(false);
 
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
@@ -76,9 +75,9 @@ export function RelayPage() {
   const { data: events, isLoading: eventsLoading } = useRelayFeed(relayUrl, kinds);
 
   const filteredEvents = useMemo(() => {
-    if (!events || muteItems.length === 0) return events;
-    return events.filter((e) => !isEventMuted(e, muteItems));
-  }, [events, muteItems]);
+    if (!events) return events;
+    return events.filter((e) => !isMuted(e));
+  }, [events, isMuted]);
 
   useSeoMeta({
     title: info?.name
