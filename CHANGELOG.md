@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.27.1] - 2026-07-03
+
+Birthday polish: the celebration tune now starts on its own when you open someone's birthday profile instead of waiting for a tap, saved birthdays stick around after a refresh, and party hats now show up everywhere they should — on the composer as you write and on the post you're viewing in a thread.
+
+### Fixed
+- Birthday music now plays automatically on mobile instead of only starting after your first tap
+- Your saved birthday no longer disappears from the profile editor after a refresh
+- Party hats now appear on your avatar in the composer and on the author's avatar in the post you're viewing
+
 ## [2.27.0] - 2026-07-03
 
 Birthdays are here! Add yours in the profile editor and, when your big day rolls around, Ditto throws a party — confetti and balloons rain across your profile, a little party hat perches on your avatar, and a cheery tune plays to celebrate. You'll spot party hats on other people's birthdays too. Also fixed the avatar-shape picker so it no longer freezes the page, tidied up the GM sunrise animation, and Ditto now starts up noticeably faster.
