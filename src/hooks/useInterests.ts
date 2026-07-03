@@ -6,8 +6,10 @@
  */
 import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
+import { useCacheFirstSeed } from './useCacheFirstSeed';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { optimisticPatchEventTags, rollbackEvent } from '@/lib/optimisticEvent';
 
@@ -16,6 +18,16 @@ export function useInterests(tagName: 't' | 'g' = 't') {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
+
+  // Seed from the locally cached kind 10015 so interests render immediately
+  // without waiting for the relay round-trip. The network query below stays
+  // authoritative and overwrites this once it resolves.
+  useCacheFirstSeed<NostrEvent | null>({
+    queryKey: user ? ['interests', user.pubkey] : undefined,
+    filter: { kinds: [10015], authors: user ? [user.pubkey] : [] },
+    toData: (event) => event,
+    getEvent: (data) => data ?? undefined,
+  });
 
   const interestsQuery = useQuery({
     queryKey: ['interests', user?.pubkey],
