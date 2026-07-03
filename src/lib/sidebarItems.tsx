@@ -16,6 +16,9 @@ import {
   Earth,
   FileCode,
   Film,
+  Ghost,
+  HandHeart,
+  Heart,
   HelpCircle,
 
   MessageSquare,
@@ -229,6 +232,9 @@ export const CONTENT_KIND_ICONS: Record<string, IconComponent> = {
   nsites: Rocket,
   zapstore: Package,
   "app-handlers": Blocks,
+  vanish: Ghost,
+  "love-lists": Heart,
+  campaigns: HandHeart,
   ...Object.fromEntries(
     SIDEBAR_ITEMS.filter((s) => s.icon).map((s) => [s.id, s.icon]),
   ),
