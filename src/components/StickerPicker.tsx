@@ -11,11 +11,20 @@ interface StickerPickerProps {
   height?: number | string;
   /** Auto-focus the search input on mount (default true on desktop). */
   autoFocus?: boolean;
+  /** Reports whether the user is actively searching (input focused or query non-empty). */
+  onSearchActiveChange?: (active: boolean) => void;
 }
 
-export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus = true }: StickerPickerProps) {
+export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus = true, onSearchActiveChange }: StickerPickerProps) {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  // Report search activity so the container can give results more room.
+  const searchActive = searchFocused || query.trim().length > 0;
+  useEffect(() => {
+    onSearchActiveChange?.(searchActive);
+  }, [searchActive, onSearchActiveChange]);
 
   useEffect(() => {
     if (autoFocus) {
@@ -50,6 +59,8 @@ export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus 
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
             placeholder="Search stickers..."
             className="pl-8 pr-8 h-9 text-base md:text-sm bg-muted/50 border-0 rounded-lg"
           />

@@ -235,9 +235,10 @@ export function ComposeBox({
   const [cwText, setCwText] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerTab, setPickerTab] = useState<'emoji' | 'gif' | 'stickers'>('emoji');
-  // While the user is actively searching GIFs, the results grid dominates the
-  // available height instead of the idle textarea.
+  // While the user is actively searching GIFs or stickers, the results grid
+  // dominates the available height instead of the idle textarea.
   const [gifSearchActive, setGifSearchActive] = useState(false);
+  const [stickerSearchActive, setStickerSearchActive] = useState(false);
   const [trayOpen, setTrayOpen] = useState(false);
   const [internalPreviewMode, setInternalPreviewMode] = useState(false);
 
@@ -1213,7 +1214,10 @@ export function ComposeBox({
   const isPollValid = content.trim().length > 0 && pollFilledCount >= 2;
 
   const isExpanded = forceExpanded || expanded || content.length > 0 || !compact;
-  const gifSearchDominant = pickerOpen && pickerTab === 'gif' && gifSearchActive;
+  const searchDominant = pickerOpen && (
+    (pickerTab === 'gif' && gifSearchActive) ||
+    (pickerTab === 'stickers' && stickerSearchActive)
+  );
 
   // Early return after all hooks to avoid violating Rules of Hooks
   if (!user && compact) return null;
@@ -1690,12 +1694,12 @@ export function ComposeBox({
         <div className={cn(
           "-mx-4 mt-2 shrink-0 overflow-hidden rounded-t-2xl bg-popover motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200",
           forceExpanded && "rounded-b-2xl",
-          // While searching GIFs in the modal, grow to claim nearly all free
-          // space. basis-0 + shrink are critical: with the default
-          // `shrink-0 basis-auto` the tray sizes to the GIF grid's content
-          // height and silently overflows the modal, leaving the scroller
-          // with nothing to scroll.
-          gifSearchDominant && forceExpanded && "flex flex-col grow-[999] shrink basis-0 min-h-0",
+          // While searching GIFs or stickers in the modal, grow to claim
+          // nearly all free space. basis-0 + shrink are critical: with the
+          // default `shrink-0 basis-auto` the tray sizes to the grid's
+          // content height and silently overflows the modal, leaving the
+          // scroller with nothing to scroll.
+          searchDominant && forceExpanded && "flex flex-col grow-[999] shrink basis-0 min-h-0",
         )}>
           {/* Tab bar — pill highlight style for inline mode */}
           <div className="flex gap-1 px-3 pt-2 shrink-0">
@@ -1747,12 +1751,12 @@ export function ComposeBox({
             {/* Picker content — capped to a fraction of the *visible* viewport
                 (via --visual-viewport-height, set by the compose modal) so the
                 virtual keyboard (e.g. while searching) never squeezes the
-                composer out of the screen. During an active GIF search the
-                results dominate: fill the tray in the modal, or take half the
-                viewport inline. */}
+                composer out of the screen. During an active GIF/sticker search
+                the results dominate: fill the tray in the modal, or take half
+                the viewport inline. */}
             <div className={cn(
               "min-h-[160px]",
-              gifSearchDominant
+              searchDominant
                 ? (forceExpanded ? "flex-1" : "h-[min(420px,50dvh)]")
                 : "h-[min(280px,calc(var(--visual-viewport-height,100dvh)*0.4))]",
             )}>
@@ -1777,6 +1781,7 @@ export function ComposeBox({
                   customEmojis={customEmojis}
                   height="100%"
                   autoFocus={!isMobile}
+                  onSearchActiveChange={setStickerSearchActive}
                   onSelect={(emoji) => {
                     setContent((prev) => (prev ? prev + '\n' + emoji.url : emoji.url));
                     setPickerOpen(false);
