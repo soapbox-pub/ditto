@@ -2,9 +2,8 @@ import { useMemo } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { BlobbiStageVisual, type BlobbiLookMode } from '@/blobbi/ui/BlobbiStageVisual';
-import { parseBlobbiEvent } from '@blobbi/core/blobbi';
-import { calculateProjectedDecay } from '@blobbi/react/hooks/useProjectedBlobbiState';
-import { useBlobbiInteractions } from '@blobbi/react/hooks/useBlobbiInteractions';
+import { parseBlobbiEvent } from '@blobbi/core';
+import { calculateProjectedDecay, useBlobbiInteractions } from '@blobbi/react';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { resolveStatusRecipe, attenuateRecipeForFeed, EMPTY_RECIPE } from '@/blobbi/ui/lib/status-reactions';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';

@@ -23,7 +23,7 @@ import {
   type BlobbiSpecialMark,
   type BlobbiStage,
   getTagValue,
-} from '@blobbi/core/blobbi';
+} from '@blobbi/core';
 
 // ─── Egg Module Types (derived from EggVisualBlobbi) ──────────────────────────
 
