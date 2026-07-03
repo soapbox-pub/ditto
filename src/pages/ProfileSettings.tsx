@@ -33,6 +33,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { parseAuthorEvent } from '@/hooks/useAuthor';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { useUploadFile } from '@/hooks/useUploadFile';
 
 import { useToast } from '@/hooks/useToast';
@@ -962,6 +963,7 @@ const MONTH_NAMES = [
 function BirthdaySection() {
   const { user, event } = useCurrentUser();
   const { nostr } = useNostr();
+  const { store } = useNostrStorage();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -1029,6 +1031,11 @@ function BirthdaySection() {
       // the cache with the old profile, blanking the birthday we just saved
       // (same pattern as EditProfileForm).
       queryClient.setQueryData(['author', user.pubkey], parseAuthorEvent(published));
+      // Persist to the local event store too, so a full page refresh reseeds
+      // the fresh profile from IndexedDB (via useCacheFirstSeed) instead of a
+      // stale relay copy that hasn't caught up yet — otherwise the birthday
+      // blanks out on reload.
+      void store.event(published);
       queryClient.invalidateQueries({ queryKey: ['logins'] });
       toast({ title: birthday ? 'Birthday saved' : 'Birthday removed' });
     } catch {
