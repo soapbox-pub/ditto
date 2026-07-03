@@ -7,6 +7,8 @@ import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { PartyHat } from '@/components/BirthdayRain';
+import { isBirthdayToday, parseBirthdayFromContent } from '@/lib/birthday';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -195,9 +197,14 @@ export function ComposeBox({
   initialContent = '',
   initialMode = 'post',
 }: ComposeBoxProps) {
-  const { user, metadata, isLoading: isProfileLoading } = useCurrentUser();
+  const { user, metadata, event: userEvent, isLoading: isProfileLoading } = useCurrentUser();
   const avatarShape = getAvatarShape(metadata);
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
+  // NIP-24 birthday — the current user's own avatar wears a party hat all day.
+  const isUserBirthday = useMemo(
+    () => isBirthdayToday(parseBirthdayFromContent(userEvent?.content)),
+    [userEvent?.content],
+  );
   const { nostr } = useNostr();
   const { mutateAsync: createEvent, isPending, isPending: isPollPending } = useNostrPublish();
   const { mutateAsync: postComment, isPending: isCommentPending } = usePostComment();
@@ -1266,13 +1273,20 @@ export function ComposeBox({
           isProfileLoading ? (
             <Skeleton className="size-12 shrink-0 mt-0.5 rounded-full" />
           ) : (
-            <Link to={userProfileUrl} className="shrink-0">
-              <Avatar shape={avatarShape} className="size-12 shrink-0 mt-0.5">
+            <Link to={userProfileUrl} className="relative shrink-0 mt-0.5">
+              <Avatar shape={avatarShape} className="size-12">
                 <AvatarImage src={metadata?.picture} alt={metadata?.name} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
                   {(metadata?.name || metadata?.display_name || 'Anonymous')[0]?.toUpperCase() ?? '?'}
                 </AvatarFallback>
               </Avatar>
+              {/* Birthday party hat — perched on the current user's avatar
+                  all day. Nothing clips it here, so it sits up on the head. */}
+              {isUserBirthday && (
+                <div className="pointer-events-none absolute -top-3 -right-1.5 z-10 rotate-[18deg]">
+                  <PartyHat className="size-8 drop-shadow-sm" pomScale={1.15} />
+                </div>
+              )}
             </Link>
           )
         )}
