@@ -13,6 +13,7 @@ import { useUploadFile } from '@/hooks/useUploadFile';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useQueryClient } from '@tanstack/react-query';
+import { prependEventToFeeds } from '@/lib/feedUtils';
 import { extractWebxdcMeta } from '@/lib/webxdcMeta';
 import { toast } from '@/hooks/useToast';
 
@@ -125,7 +126,7 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
       // App icon thumbnail
       if (iconUrl) tags.push(['image', iconUrl]);
 
-      await createEvent({
+      const published = await createEvent({
         kind: 1063,
         content: description || (appName ? `${appName}` : ''),
         tags,
@@ -133,7 +134,8 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
       });
 
       toast({ title: 'Published', description: `${appName ?? 'Webxdc app'} shared successfully.` });
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      // Optimistically show the new app in cached feeds.
+      prependEventToFeeds(queryClient, published);
       handleOpenChange(false);
     } catch {
       toast({ title: 'Publish failed', description: 'Could not publish the webxdc app.', variant: 'destructive' });

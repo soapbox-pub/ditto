@@ -31,8 +31,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { usePostComment } from '@/hooks/usePostComment';
 import { useUploadFile } from '@/hooks/useUploadFile';
-import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
-import type { FeedItem } from '@/lib/feedUtils';
+import { useQueryClient } from '@tanstack/react-query';
+import { prependEventToFeeds } from '@/lib/feedUtils';
 import { useToast } from '@/hooks/useToast';
 import { ToastAction } from '@/components/ui/toast';
 import { tryNeventEncode } from '@/lib/safeNip19';
@@ -811,16 +811,21 @@ export function ComposeBox({
         });
       } else {
         // Root voice message (kind 1222)
-        await createEvent({
+        const published = await createEvent({
           kind: 1222,
           content: audioUrl,
           tags: [imetaTag],
         });
+        // Optimistically show the new voice post in cached feeds.
+        prependEventToFeeds(queryClient, published);
       }
 
       // Reset state
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (replyTo) {
+        // Voice replies aren't injected into feeds; just mark them stale for
+        // the next natural refetch (see prependEventToFeeds for why there's
+        // no immediate refetch).
+        queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
         // Rebroadcast the original event alongside the voice reply (best-effort).
         if (!isExternalRoot(replyTo)) {
           rebroadcastEvent(nostr, replyTo);
@@ -1108,37 +1113,13 @@ export function ComposeBox({
       // Only inject for top-level posts (not replies) — replies are handled by
       // the replies list and the reply-count bump above.
       if (!replyTo) {
-        /** A minimal FeedItem wrapping the freshly signed event. */
-        const optimisticItem: FeedItem = {
-          event: published,
-          sortTimestamp: published.created_at,
-        };
-        // Seed the event cache so embedded previews also resolve instantly.
-        queryClient.setQueryData(['event', published.id], published);
-
-        type FeedPage = { items: FeedItem[]; oldestQueryTimestamp: number; rawCount: number };
-        queryClient.setQueriesData<InfiniteData<FeedPage>>(
-          { queryKey: ['feed'], type: 'active' },
-          (prev) => {
-            if (!prev) return prev;
-            const [firstPage, ...rest] = prev.pages;
-            if (!firstPage) return prev;
-            // Guard against double-insertion if the relay echoes back quickly.
-            if (firstPage.items.some((item) => item.event.id === published.id)) return prev;
-            return {
-              ...prev,
-              pages: [{ ...firstPage, items: [optimisticItem, ...firstPage.items] }, ...rest],
-            };
-          },
-        );
+        prependEventToFeeds(queryClient, published);
+      } else {
+        // Replies aren't injected into feeds, but mark them stale (without an
+        // immediate refetch — see prependEventToFeeds) for the next natural
+        // refetch in case "show replies" is enabled.
+        queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
       }
-
-      // Mark feeds stale WITHOUT refetching: an immediate refetch races the
-      // relay's write→read indexing and its result wholesale-replaces the
-      // cached pages, swallowing the optimistic item that was just prepended
-      // above. The next natural refetch (pull-to-refresh, remount) happens
-      // after the relay has indexed the note.
-      queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
       if (replyTo) {
         if (isExternalRoot(replyTo)) {
           queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
@@ -1213,9 +1194,10 @@ export function ComposeBox({
     tags.push(['alt', `Poll: ${finalContent}`]);
 
     try {
-      await createEvent({ kind: 1068, content: finalContent, tags });
+      const published = await createEvent({ kind: 1068, content: finalContent, tags });
       resetComposeState();
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      // Optimistically show the new poll in cached feeds.
+      prependEventToFeeds(queryClient, published);
       notificationSuccess();
       toast({ title: 'Poll published!' });
       onSuccess?.();

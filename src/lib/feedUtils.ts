@@ -1,4 +1,5 @@
 import type { NostrEvent, NPool } from '@nostrify/nostrify';
+import type { InfiniteData, QueryClient } from '@tanstack/react-query';
 import { getGitRootRef } from '@/lib/gitActivity';
 import { getZapAmountSats, getZapSenderPubkey, getTargetEventId } from '@/lib/zapHelpers';
 
@@ -121,6 +122,51 @@ export interface FeedItem {
   profileZapRecipient?: string;
   /** Sort timestamp — uses the wrapper event's timestamp when present for correct ordering. */
   sortTimestamp: number;
+}
+
+/** Shape of one page of the `['feed']` infinite query — must match `useFeed`'s `FeedPage`. */
+interface FeedPage {
+  items: FeedItem[];
+  oldestQueryTimestamp: number;
+  rawCount: number;
+}
+
+/**
+ * Optimistically prepend a freshly published event to every active cached
+ * feed, so it appears immediately without waiting for a relay round-trip.
+ *
+ * Also seeds the `['event', id]` cache (so embedded previews and the detail
+ * page resolve instantly) and marks `['feed']` queries stale WITHOUT
+ * refetching: an immediate refetch races the relay's write→read indexing and
+ * its result wholesale-replaces the cached pages, swallowing the optimistic
+ * item. The next natural refetch (pull-to-refresh, remount) happens after
+ * the relay has indexed the event.
+ */
+export function prependEventToFeeds(queryClient: QueryClient, event: NostrEvent): void {
+  /** A minimal FeedItem wrapping the freshly signed event. */
+  const optimisticItem: FeedItem = {
+    event,
+    sortTimestamp: event.created_at,
+  };
+
+  queryClient.setQueryData(['event', event.id], event);
+
+  queryClient.setQueriesData<InfiniteData<FeedPage>>(
+    { queryKey: ['feed'], type: 'active' },
+    (prev) => {
+      if (!prev) return prev;
+      const [firstPage, ...rest] = prev.pages;
+      if (!firstPage) return prev;
+      // Guard against double-insertion if the relay echoes back quickly.
+      if (firstPage.items.some((item) => item.event.id === event.id)) return prev;
+      return {
+        ...prev,
+        pages: [{ ...firstPage, items: [optimisticItem, ...firstPage.items] }, ...rest],
+      };
+    },
+  );
+
+  queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
 }
 
 /**

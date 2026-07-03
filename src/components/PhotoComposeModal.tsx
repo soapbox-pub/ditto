@@ -13,6 +13,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
+import { prependEventToFeeds } from '@/lib/feedUtils';
 import { useToast } from '@/hooks/useToast';
 import { useAppContext } from '@/hooks/useAppContext';
 import { resizeImage } from '@/lib/resizeImage';
@@ -243,14 +244,14 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
       // NIP-31 alt tag for clients that don't support kind 20
       tags.push(['alt', `Photo: ${title.trim()}`]);
 
-      await createEvent({
+      const published = await createEvent({
         kind: 20,
         content: captionText,
         tags,
       });
 
-      // Invalidate feeds to show the new photo
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      // Optimistically show the new photo in cached feeds.
+      prependEventToFeeds(queryClient, published);
       queryClient.invalidateQueries({ queryKey: ['trending'] });
 
       toast({ title: 'Photo published!', description: 'Your photo has been shared.' });
