@@ -4,19 +4,24 @@ import {
 	CircleDashed,
 	CircleDot,
 	CircleX,
+	GitCommitHorizontal,
 	GitMerge,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { Link } from "react-router-dom";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
+import { GitSiteLinks } from "@/components/GitSiteLinks";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuthor } from "@/hooks/useAuthor";
 import { useEvent } from "@/hooks/useEvent";
 import { NGIT_RELAY } from "@/lib/appRelays";
+import { getDisplayName } from "@/lib/getDisplayName";
 import {
 	getGitRepoRef,
 	getGitRootRef,
 	getGitTicketSubject,
+	gitRepoNaddr,
 	gitStatusVerb,
 	gitTicketNoun,
 } from "@/lib/gitActivity";
@@ -60,11 +65,18 @@ function statusMeta(
 	}
 }
 
+/** Root ticket author attribution ("by Alice"), rendered once the root loads. */
+function TicketAuthorByline({ pubkey }: { pubkey: string }) {
+	const author = useAuthor(pubkey);
+	const name = getDisplayName(author.data?.metadata, pubkey);
+	return <span className="text-muted-foreground"> by {name}</span>;
+}
+
 /**
  * Renders a NIP-34 status event (kind 1630-1633) as an activity card:
- * "Resolved issue: <subject> on <repo>". The referenced root ticket is
- * fetched to disambiguate the verb (1631 = resolved for issues, applied
- * for patches, merged for PRs) and to show its subject.
+ * "[Merged] Fix relay reconnect · on <repo>". The referenced root ticket
+ * is fetched to disambiguate the badge (1631 = resolved for issues,
+ * applied for patches, merged for PRs) and to show its subject and author.
  */
 export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 	const rootRef = getGitRootRef(event);
@@ -94,53 +106,68 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 	const rootNevent = rootRef
 		? tryNeventEncode({
 				id: rootRef.id,
-				relays: rootRef.relay ? [rootRef.relay] : undefined,
+				relays: rootRef.relay ? [rootRef.relay] : [NGIT_RELAY],
 				author: root?.pubkey,
 			})
 		: undefined;
 
+	// External sites resolve the root ticket (issue/PR page) far better
+	// than the bare status event — fall back to the repo, then the event.
+	const externalNip19 =
+		rootNevent ??
+		gitRepoNaddr(repoRef) ??
+		tryNeventEncode({ id: event.id, relays: [NGIT_RELAY] });
+
 	const comment = event.content.trim();
 
-	const titleText = subject ?? (rootRef ? `#${rootRef.id.slice(0, 8)}` : undefined);
+	// Merged/applied metadata (kind 1631). ngit emits the non-spec
+	// "merge-commit-id" name alongside NIP-34's "merge-commit".
+	const mergeCommit = event.tags.find(
+		([n]) => n === "merge-commit" || n === "merge-commit-id",
+	)?.[1];
+	const appliedCommits =
+		event.tags.find(([n]) => n === "applied-as-commits")?.slice(1) ?? [];
+
+	const titleText =
+		subject ?? (rootRef ? `#${rootRef.id.slice(0, 8)}` : undefined);
 
 	return (
 		<div className="mt-2 space-y-3">
 			{/* Card container */}
 			<div className="rounded-2xl border border-border overflow-hidden">
-				<div className="px-3.5 py-3 space-y-2">
-					{/* Status badge + ticket subject */}
-					<div className="flex items-start gap-2.5">
+				<div className="px-3.5 py-3 space-y-2.5">
+					{/* Status badge + noun */}
+					<div className="flex items-center gap-2 flex-wrap">
 						<span
 							className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize shrink-0 ${badgeClass}`}
 						>
 							<StatusIcon className="size-3" />
 							{verb}
 						</span>
-						<div className="min-w-0 flex-1">
-							{rootLoading && !titleText ? (
-								<Skeleton className="h-4 w-3/4" />
+						{noun && (
+							<span className="text-xs text-muted-foreground">
+								{noun}
+								{root && <TicketAuthorByline pubkey={root.pubkey} />}
+							</span>
+						)}
+					</div>
+
+					{/* Ticket subject */}
+					{rootLoading && !titleText ? (
+						<Skeleton className="h-4 w-3/4" />
+					) : titleText ? (
+						<div className="min-w-0">
+							{rootNevent ? (
+								<Link
+									to={`/${rootNevent}`}
+									className="font-semibold text-sm leading-snug hover:underline break-words line-clamp-2"
+									onClick={(e) => e.stopPropagation()}
+								>
+									{titleText}
+								</Link>
 							) : (
-								<span className="text-sm leading-snug">
-									{noun && (
-										<>
-											<span className="text-muted-foreground">
-												{noun}
-											</span>{" "}
-										</>
-									)}
-									{rootNevent ? (
-										<Link
-											to={`/${rootNevent}`}
-											className="font-semibold hover:underline break-words"
-											onClick={(e) => e.stopPropagation()}
-										>
-											{titleText}
-										</Link>
-									) : (
-										<span className="font-semibold break-words">
-											{titleText}
-										</span>
-									)}
+								<span className="font-semibold text-sm leading-snug break-words line-clamp-2">
+									{titleText}
 								</span>
 							)}
 							{repoName && (
@@ -149,7 +176,44 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 								</p>
 							)}
 						</div>
-					</div>
+					) : (
+						repoName && (
+							<p className="text-xs text-muted-foreground font-mono">
+								{repoName}
+							</p>
+						)
+					)}
+
+					{/* Merge/apply commit metadata */}
+					{mergeCommit && (
+						<div className="flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
+							<GitMerge className="size-3.5 text-muted-foreground shrink-0" />
+							<span className="text-[11px] text-muted-foreground">
+								Merge commit
+							</span>
+							<code className="ml-auto text-[11px] font-mono text-muted-foreground">
+								{mergeCommit.slice(0, 12)}
+							</code>
+						</div>
+					)}
+					{!preview && appliedCommits.length > 0 && (
+						<div className="rounded-lg bg-muted/50 divide-y divide-border/50 overflow-hidden">
+							{appliedCommits.map((commit) => (
+								<div
+									key={commit}
+									className="flex items-center gap-2 px-2.5 py-1.5"
+								>
+									<GitCommitHorizontal className="size-3.5 text-muted-foreground shrink-0" />
+									<span className="text-[11px] text-muted-foreground">
+										Applied as
+									</span>
+									<code className="ml-auto text-[11px] font-mono text-muted-foreground">
+										{commit.slice(0, 12)}
+									</code>
+								</div>
+							))}
+						</div>
+					)}
 
 					{/* Comment preview */}
 					{preview && comment && (
@@ -157,6 +221,9 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 							{comment}
 						</p>
 					)}
+
+					{/* External site links */}
+					<GitSiteLinks nip19={externalNip19} className="pt-0.5" />
 				</div>
 			</div>
 

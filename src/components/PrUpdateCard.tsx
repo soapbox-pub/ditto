@@ -1,6 +1,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { GitCommitHorizontal, GitPullRequestArrow } from "lucide-react";
 import { Link } from "react-router-dom";
+import { GitSiteLinks } from "@/components/GitSiteLinks";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEvent } from "@/hooks/useEvent";
 import { NGIT_RELAY } from "@/lib/appRelays";
@@ -8,6 +9,7 @@ import {
 	getGitRepoRef,
 	getGitRootRef,
 	getGitTicketSubject,
+	gitRepoNaddr,
 } from "@/lib/gitActivity";
 import { tryNeventEncode } from "@/lib/safeNip19";
 
@@ -48,10 +50,17 @@ export function PrUpdateCard({ event, preview = true }: PrUpdateCardProps) {
 	const prNevent = prRef
 		? tryNeventEncode({
 				id: prRef.id,
-				relays: prRef.relay ? [prRef.relay] : undefined,
+				relays: prRef.relay ? [prRef.relay] : [NGIT_RELAY],
 				author: pr?.pubkey,
 			})
 		: undefined;
+
+	// External sites resolve the PR page from its nevent; fall back to the
+	// repo, then this event itself.
+	const externalNip19 =
+		prNevent ??
+		gitRepoNaddr(repoRef) ??
+		tryNeventEncode({ id: event.id, relays: [NGIT_RELAY] });
 
 	return (
 		<div className="mt-2 rounded-2xl border border-border overflow-hidden">
@@ -115,6 +124,9 @@ export function PrUpdateCard({ event, preview = true }: PrUpdateCardProps) {
 						</code>
 					</div>
 				)}
+
+				{/* External site links */}
+				<GitSiteLinks nip19={externalNip19} className="pt-0.5" />
 			</div>
 		</div>
 	);

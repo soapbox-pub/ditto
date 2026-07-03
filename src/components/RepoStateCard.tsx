@@ -1,6 +1,9 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { GitBranch, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { GitSiteLinks } from "@/components/GitSiteLinks";
+import { NGIT_RELAY } from "@/lib/appRelays";
+import { tryNaddrEncode } from "@/lib/safeNip19";
 
 interface RepoStateCardProps {
 	event: NostrEvent;
@@ -48,6 +51,18 @@ function parseRepoState(event: NostrEvent): {
 export function RepoStateCard({ event, preview = true }: RepoStateCardProps) {
 	const repoId = event.tags.find(([n]) => n === "d")?.[1] ?? "";
 	const { branches, tags, headBranch } = parseRepoState(event);
+
+	// Kind 30618 shares its d-tag (and, canonically, its author) with the
+	// kind 30617 announcement, so external sites resolve the repo page
+	// from the announcement's naddr.
+	const repoNaddr = repoId
+		? tryNaddrEncode({
+				kind: 30617,
+				pubkey: event.pubkey,
+				identifier: repoId,
+				relays: [NGIT_RELAY],
+			})
+		: undefined;
 
 	const maxRows = preview ? 4 : Infinity;
 	const shownBranches = branches.slice(0, maxRows);
@@ -119,6 +134,9 @@ export function RepoStateCard({ event, preview = true }: RepoStateCardProps) {
 						)}
 					</div>
 				)}
+
+				{/* External site links */}
+				<GitSiteLinks nip19={repoNaddr} className="pt-0.5" />
 			</div>
 		</div>
 	);

@@ -2,7 +2,10 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import { CircleDot } from "lucide-react";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
+import { GitSiteLinks } from "@/components/GitSiteLinks";
+import { NGIT_RELAY } from "@/lib/appRelays";
 import { getGitRepoRef, getGitTicketSubject } from "@/lib/gitActivity";
+import { tryNeventEncode } from "@/lib/safeNip19";
 
 interface IssueCardProps {
 	event: NostrEvent;
@@ -23,6 +26,12 @@ export function IssueCard({ event, preview = true }: IssueCardProps) {
 	const body = subject
 		? event.content.trim()
 		: event.content.split("\n").slice(1).join("\n").trim();
+
+	const nevent = tryNeventEncode({
+		id: event.id,
+		author: event.pubkey,
+		relays: [NGIT_RELAY],
+	});
 
 	return (
 		<div className="mt-2 space-y-3">
@@ -71,6 +80,9 @@ export function IssueCard({ event, preview = true }: IssueCardProps) {
 							{body}
 						</p>
 					)}
+
+					{/* External site links */}
+					<GitSiteLinks nip19={nevent} className="pt-0.5" />
 				</div>
 			</div>
 

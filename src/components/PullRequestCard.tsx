@@ -11,7 +11,10 @@ import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { GitSiteLinks } from "@/components/GitSiteLinks";
+import { NGIT_RELAY } from "@/lib/appRelays";
 import { openUrl } from "@/lib/downloadFile";
+import { tryNeventEncode } from "@/lib/safeNip19";
 
 interface PullRequestCardProps {
 	event: NostrEvent;
@@ -56,6 +59,12 @@ export function PullRequestCard({
 	const shakespeareUrl = cloneUrls[0]
 		? `https://shakespeare.diy/clone?url=${encodeURIComponent(cloneUrls[0])}`
 		: "https://shakespeare.diy";
+
+	const nevent = tryNeventEncode({
+		id: event.id,
+		author: event.pubkey,
+		relays: [NGIT_RELAY],
+	});
 
 	return (
 		<div className="mt-2 space-y-3">
@@ -162,6 +171,7 @@ export function PullRequestCard({
 								{copied ? "Copied!" : "Copy Clone URL"}
 							</button>
 						)}
+						<GitSiteLinks nip19={nevent} />
 					</div>
 				</div>
 			</div>

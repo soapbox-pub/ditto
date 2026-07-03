@@ -1,5 +1,6 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { isNostrId } from '@/lib/nostrId';
+import { tryNaddrEncode } from '@/lib/safeNip19';
 
 /** NIP-34 status event kinds: Open, Applied/Merged/Resolved, Closed, Draft. */
 export const GIT_STATUS_KINDS = [1630, 1631, 1632, 1633] as const;
@@ -39,6 +40,20 @@ export function getGitRepoRef(event: NostrEvent): GitRepoRef | undefined {
     return { pubkey, identifier, relay: relay || undefined };
   }
   return undefined;
+}
+
+/**
+ * Encode a repository reference as a kind 30617 naddr for linking to the
+ * repo announcement (internally or on external NIP-34 sites).
+ */
+export function gitRepoNaddr(ref: GitRepoRef | undefined): string | undefined {
+  if (!ref) return undefined;
+  return tryNaddrEncode({
+    kind: 30617,
+    pubkey: ref.pubkey,
+    identifier: ref.identifier,
+    relays: ref.relay ? [ref.relay] : undefined,
+  });
 }
 
 /** A validated reference to another event via an `e`/`E` tag. */
@@ -119,6 +134,11 @@ export function getGitTicketSubject(event: NostrEvent): string | undefined {
     }
   }
 
-  const firstLine = lines.find((l) => l.trim().length > 0)?.trim();
+  const firstLine = lines.find((l) => {
+    const t = l.trim();
+    // Skip blank lines and leading markdown images (issue bots often start
+    // the body with a header image) — neither makes a usable title.
+    return t.length > 0 && !t.startsWith('![');
+  })?.trim();
   return firstLine || undefined;
 }
