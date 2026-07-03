@@ -19,6 +19,7 @@ import {
   Share2,
   Star,
   Stars,
+  Trash2,
   Zap,
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -112,9 +113,10 @@ import { AppHandlerDetailPage } from "@/pages/AppHandlerDetailPage";
 import { ExternalContentView } from "@/pages/ExternalContentPage";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
+import { useEventDeletion } from "@/hooks/useEventDeletion";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { formatNumber } from "@/lib/formatNumber";
-import { KIND_LABELS } from "@/lib/kindLabels";
+import { getKindLabel, KIND_LABELS } from "@/lib/kindLabels";
 
 /** Kinds that get the full people-list detail view (follow list / set / pack / love list). */
 const PEOPLE_LIST_KINDS = new Set([3, 30000, 39089, LOVE_LIST_KIND]);
@@ -687,6 +689,16 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
   );
 }
 
+/** Human noun for a deleted event's kind, suitable mid-sentence ("this short text note"). */
+function deletedKindNoun(kind: number | undefined): string {
+  if (kind === undefined) return "event";
+  const label = getKindLabel(kind);
+  // Lowercase the first letter unless the label starts with an acronym ("DM relay list").
+  return /^[A-Z][a-z]/.test(label)
+    ? label.charAt(0).toLowerCase() + label.slice(1)
+    : label;
+}
+
 /** Shows a "not found" state with contextual event info and a collapsible relay retry option. */
 function EventNotFound({
   context,
@@ -708,6 +720,15 @@ function EventNotFound({
   // Extract author pubkey from context if available
   const authorPubkey =
     context.type === "event" ? context.authorHint : context.addr.pubkey;
+
+  // The event couldn't be loaded — check whether the author published a
+  // kind 5 (NIP-09) deletion request for it, so we can say *why* it's gone.
+  const { data: deletionInfo } = useEventDeletion(
+    context.type === "event"
+      ? { type: "event", eventId: context.eventId, authorHint: context.authorHint }
+      : { type: "addr", addr: context.addr },
+    true,
+  );
 
   const handleRetry = useCallback(
     async (targetUrl: string) => {
@@ -762,14 +783,35 @@ function EventNotFound({
         {/* Not found message */}
         <div className="text-center space-y-3">
           <div className="inline-flex items-center justify-center size-14 rounded-full bg-muted/60 mb-2">
-            <AlertCircle className="size-7 text-muted-foreground" />
+            {deletionInfo ? (
+              <Trash2 className="size-7 text-muted-foreground" />
+            ) : (
+              <AlertCircle className="size-7 text-muted-foreground" />
+            )}
           </div>
-          <h2 className="text-xl font-bold">Event not found</h2>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {authorPubkey
-              ? "This event couldn't be loaded from your connected relays or the author's outbox relays. It may exist on a relay neither of you are connected to."
-              : "This event couldn't be loaded from your connected relays. It may exist on a relay you're not connected to."}
-          </p>
+          <h2 className="text-xl font-bold">
+            {deletionInfo ? "Event deleted" : "Event not found"}
+          </h2>
+          {deletionInfo ? (
+            <>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {deletionInfo.verified
+                  ? `This ${deletedKindNoun(deletionInfo.deletedKind)} was deleted by its author on ${formatFullDate(deletionInfo.deletion.created_at)}.`
+                  : `A deletion request for this ${deletedKindNoun(deletionInfo.deletedKind)} was published on ${formatFullDate(deletionInfo.deletion.created_at)}, so it was likely removed by its author.`}
+              </p>
+              {deletionInfo.reason && (
+                <p className="text-sm text-muted-foreground italic break-words">
+                  “{deletionInfo.reason}”
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {authorPubkey
+                ? "This event couldn't be loaded from your connected relays or the author's outbox relays. It may exist on a relay neither of you are connected to."
+                : "This event couldn't be loaded from your connected relays. It may exist on a relay you're not connected to."}
+            </p>
+          )}
         </div>
 
         {/* Primary retry action */}
