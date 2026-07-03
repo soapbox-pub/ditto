@@ -403,6 +403,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                   }}
                   placeholder='nsec1… or bunker://…'
                   autoComplete='off'
+                  data-nsec-allowed
                   className={`pr-12 ${
                     loginError ? 'border-destructive focus-visible:ring-destructive' : ''
                   }`}
