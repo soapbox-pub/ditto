@@ -28,7 +28,7 @@ interface StreamPostsOptions {
    * Each entry accepts raw hex or npub-encoded pubkeys.
    */
   authorPubkeys?: string[];
-  /** NIP-50 sort preference. 'recent' = default (no sort: term). */
+  /** NIP-50 sort preference. 'recent' (default) sends an explicit `sort:recent` term when a search string is present, since NIP-50 relays otherwise rank by relevance. */
   sort?: 'recent' | 'hot' | 'trending';
   /**
    * When set, limits results to events published with one of these `client`
@@ -292,11 +292,15 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       }
     }
 
-    // Sort preference (NIP-50 extension)
+    // Sort preference (NIP-50 extension). NIP-50 relays rank text queries by
+    // relevance by default, which surfaces old-but-relevant events — request
+    // explicit recency ordering whenever a search string will be sent.
     if (options.sort === 'hot') {
       searchParts.push('sort:hot');
     } else if (options.sort === 'trending') {
       searchParts.push('sort:trending');
+    } else if (searchParts.length > 0) {
+      searchParts.push('sort:recent');
     }
 
     const searchFilter: NostrFilter = { ...streamFilter };
