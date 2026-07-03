@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { IntroImage } from '@/components/IntroImage';
 import {
   Users, Download, Loader2, X, Pencil, Home, Globe, MapPin,
-  Palette, Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink, ShieldAlert,
+  Palette, Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -895,17 +897,17 @@ const CW_POLICY_OPTIONS: { value: ContentWarningPolicy; label: string; descripti
   {
     value: 'blur',
     label: 'Blur until revealed',
-    description: 'Content is hidden behind a warning. Media is not loaded until you choose to view it.',
+    description: 'Hidden behind a warning until you choose to view it.',
   },
   {
     value: 'hide',
     label: 'Hide completely',
-    description: 'Posts with content warnings are removed from your feed entirely.',
+    description: 'Removed from your feeds entirely.',
   },
   {
     value: 'show',
     label: 'Always show',
-    description: 'Ignore content warnings and display everything normally.',
+    description: 'Displayed normally, without a warning.',
   },
 ];
 
@@ -924,18 +926,9 @@ export function SensitiveContentSection() {
 
   return (
     <div>
-      {/* Intro */}
-      <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-        <div className="w-40 shrink-0 flex items-center justify-center">
-          <ShieldAlert className="size-16 text-muted-foreground/40" />
-        </div>
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold">Content Warnings</h3>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Some posts are tagged with content warnings (NIP-36) by their authors. This can include NSFW material, spoilers, or other sensitive content.
-          </p>
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground px-3 pt-3 pb-1">
+        How to display posts their author marked as sensitive (NSFW, spoilers, etc).
+      </p>
 
       {/* Policy options — consistent row style with other settings */}
       <RadioGroup
@@ -1000,28 +993,24 @@ const MUTE_TYPE_CONFIG = {
   pubkey: {
     icon: <UserX className="size-5" />,
     label: 'Users',
-    description: 'Hide posts from specific users',
     inputLabel: 'Public Key (hex or npub)',
     placeholder: 'npub1... or hex pubkey',
   },
   hashtag: {
     icon: <Hash className="size-5" />,
     label: 'Hashtags',
-    description: 'Hide posts with specific hashtags',
     inputLabel: 'Hashtag (without #)',
-    placeholder: 'bitcoin',
+    placeholder: 'hashtag (without #)',
   },
   word: {
     icon: <MessageSquareOff className="size-5" />,
     label: 'Words',
-    description: 'Hide posts containing specific words or phrases',
     inputLabel: 'Word or Phrase',
-    placeholder: 'spam word',
+    placeholder: 'word or phrase',
   },
   thread: {
     icon: <MessageSquareOff className="size-5" />,
     label: 'Threads',
-    description: 'Hide entire conversation threads',
     inputLabel: 'Event ID (hex or note)',
     placeholder: 'note1... or hex event ID',
   },
@@ -1079,67 +1068,63 @@ export function MuteSettingsInternals() {
   return (
     <div>
 
-      {/* Add mute section */}
-      <div className="px-3 py-4 space-y-3 border-b border-border">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="mute-type" className="text-xs font-medium">Type</Label>
-            <Select value={newMuteType} onValueChange={(value) => setNewMuteType(value as MuteListItem['type'])}>
-              <SelectTrigger id="mute-type" className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pubkey">
-                  <div className="flex items-center gap-2">
-                    <UserX className="h-4 w-4" />
-                    User
-                  </div>
-                </SelectItem>
-                <SelectItem value="hashtag">
-                  <div className="flex items-center gap-2">
-                    <Hash className="h-4 w-4" />
-                    Hashtag
-                  </div>
-                </SelectItem>
-                <SelectItem value="word">
-                  <div className="flex items-center gap-2">
-                    <MessageSquareOff className="h-4 w-4" />
-                    Word/Phrase
-                  </div>
-                </SelectItem>
-                <SelectItem value="thread">
-                  <div className="flex items-center gap-2">
-                    <MessageSquareOff className="h-4 w-4" />
-                    Thread
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      {/* Add mute — single compact row */}
+      <div className="px-3 py-4 border-b border-border">
+        <div className="grid gap-2 sm:grid-cols-[10rem_1fr_auto]">
+          <Select value={newMuteType} onValueChange={(value) => setNewMuteType(value as MuteListItem['type'])}>
+            <SelectTrigger id="mute-type" aria-label="What to mute" className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pubkey">
+                <div className="flex items-center gap-2">
+                  <UserX className="h-4 w-4" />
+                  User
+                </div>
+              </SelectItem>
+              <SelectItem value="hashtag">
+                <div className="flex items-center gap-2">
+                  <Hash className="h-4 w-4" />
+                  Hashtag
+                </div>
+              </SelectItem>
+              <SelectItem value="word">
+                <div className="flex items-center gap-2">
+                  <MessageSquareOff className="h-4 w-4" />
+                  Word/Phrase
+                </div>
+              </SelectItem>
+              <SelectItem value="thread">
+                <div className="flex items-center gap-2">
+                  <MessageSquareOff className="h-4 w-4" />
+                  Thread
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
 
-          <div className="space-y-2">
-            <Label htmlFor="mute-value" className="text-xs font-medium">
-              {MUTE_TYPE_CONFIG[newMuteType].inputLabel}
-            </Label>
-            <Input
-              id="mute-value"
-              value={newMuteValue}
-              onChange={(e) => setNewMuteValue(e.target.value)}
-              placeholder={MUTE_TYPE_CONFIG[newMuteType].placeholder}
-              className="h-9"
-            />
-          </div>
+          <Input
+            id="mute-value"
+            aria-label={MUTE_TYPE_CONFIG[newMuteType].inputLabel}
+            value={newMuteValue}
+            onChange={(e) => setNewMuteValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAddMute();
+            }}
+            placeholder={MUTE_TYPE_CONFIG[newMuteType].placeholder}
+            className="h-9"
+          />
+
+          <Button
+            onClick={handleAddMute}
+            disabled={addMute.isPending}
+            size="sm"
+            className="h-9"
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add
+          </Button>
         </div>
-
-        <Button 
-          onClick={handleAddMute} 
-          disabled={addMute.isPending} 
-          size="sm"
-          className="w-full sm:w-auto"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Mute
-        </Button>
       </div>
 
       {/* Follow exemption toggle */}
@@ -1147,7 +1132,7 @@ export function MuteSettingsInternals() {
         <MuteFollowExemptionSection />
       </div>
 
-      {/* Muted items list */}
+      {/* Muted items list — grouped into collapsible sections */}
       {isLoading ? (
         <div className="space-y-2 px-3 py-4">
           <Skeleton className="h-12 w-full" />
@@ -1159,11 +1144,11 @@ export function MuteSettingsInternals() {
           No muted items yet
         </p>
       ) : (
-        <>
+        <Accordion type="multiple">
           {Object.entries(groupedMutes).map(([type, items]) => {
             if (items.length === 0) return null;
             const config = MUTE_TYPE_CONFIG[type as MuteListItem['type']];
-            
+
             return (
               <MuteTypeSection
                 key={type}
@@ -1175,7 +1160,7 @@ export function MuteSettingsInternals() {
               />
             );
           })}
-        </>
+        </Accordion>
       )}
     </div>
   );
@@ -1228,7 +1213,7 @@ function MutedThreadLink({ eventId }: { eventId: string }) {
 }
 
 function MuteTypeSection({
-  type: _type,
+  type,
   config,
   items,
   onRemove,
@@ -1241,47 +1226,47 @@ function MuteTypeSection({
   isPending: boolean;
 }) {
   return (
-    <div className="border-b border-border last:border-b-0">
-      <div className="flex items-center gap-3 px-3 py-3.5">
-        <span className="text-muted-foreground shrink-0">{config.icon}</span>
-        <div className="min-w-0">
+    <AccordionItem value={type} className="border-b border-border last:border-b-0">
+      <AccordionTrigger className="px-3 py-3.5 hover:no-underline hover:bg-muted/20 transition-colors">
+        <span className="flex items-center gap-3 min-w-0">
+          <span className="text-muted-foreground shrink-0">{config.icon}</span>
           <span className="text-sm font-medium">{config.label}</span>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {items.length} {items.length === 1 ? 'item' : 'items'} • {config.description}
-          </p>
-        </div>
-      </div>
-      
-      <div className="divide-y divide-border">
-        {items.map((item, index) => (
-          <div
-            key={`${item.type}-${item.value}-${index}`}
-            className="flex items-center justify-between py-2.5 px-3 pl-12 hover:bg-muted/20 transition-colors"
-          >
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              {item.type === 'pubkey' ? (
-                <MutedUserProfile pubkey={item.value} />
-              ) : item.type === 'thread' ? (
-                <MutedThreadLink eventId={item.value} />
-              ) : (
-                <code className="text-xs truncate font-mono bg-muted px-2 py-1 rounded">
-                  {item.value}
-                </code>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onRemove(item)}
-              disabled={isPending}
-              className="shrink-0 h-8 w-8 p-0"
+          <Badge variant="secondary" className="shrink-0 font-normal">{items.length}</Badge>
+        </span>
+      </AccordionTrigger>
+      <AccordionContent className="pb-0">
+        <div className="divide-y divide-border border-t border-border">
+          {items.map((item, index) => (
+            <div
+              key={`${item.type}-${item.value}-${index}`}
+              className="flex items-center justify-between py-2.5 px-3 pl-12 hover:bg-muted/20 transition-colors"
             >
-              <Trash2 className="h-4 w-4 text-destructive" />
-             </Button>
-          </div>
-        ))}
-      </div>
-    </div>
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                {item.type === 'pubkey' ? (
+                  <MutedUserProfile pubkey={item.value} />
+                ) : item.type === 'thread' ? (
+                  <MutedThreadLink eventId={item.value} />
+                ) : (
+                  <code className="text-xs truncate font-mono bg-muted px-2 py-1 rounded">
+                    {item.value}
+                  </code>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onRemove(item)}
+                disabled={isPending}
+                aria-label={`Remove mute for ${item.value}`}
+                className="shrink-0 h-8 w-8 p-0"
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </AccordionContent>
+    </AccordionItem>
   );
 }
 

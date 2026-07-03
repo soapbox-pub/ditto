@@ -30,24 +30,24 @@ export function ContentPage() {
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold">Content</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Control what you see. Mute users, hashtags, or words, and choose how content warnings are handled. Mutes are encrypted and private.
+              Mute users, hashtags, or words, and choose how sensitive content is shown. Mutes are encrypted and private.
             </p>
           </div>
         }
       />
 
-      {/* Lead image — Muted Content */}
-      <div className="flex items-center gap-4 px-7 py-5">
+      {/* Lead image — Content Control */}
+      <div className="flex items-center gap-4 px-7 py-2">
         <IntroImage src="/mute-intro.png" size="w-28" />
         <div className="min-w-0">
           <h2 className="text-base font-semibold">Content Control</h2>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Hide posts from specific users, hashtags, words, or entire threads. All mutes are encrypted and private.
+            You decide what shows up in your feeds.
           </p>
         </div>
       </div>
 
-      <div className="p-4 space-y-0">
+      <div className="px-4 pb-4 space-y-0">
 
         {/* Muted Content Section */}
         <div>
@@ -89,24 +89,14 @@ export function ContentPage() {
           </div>
         </div>
 
-        {/* Video Playback Section */}
+        {/* Viewing Preferences Section */}
         <div>
           <div className="relative px-3 py-3.5">
-            <h2 className="text-base font-semibold">Video Playback</h2>
+            <h2 className="text-base font-semibold">Viewing Preferences</h2>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
           </div>
-          <div className="px-3 py-4">
+          <div className="px-3 py-4 space-y-5">
             <VideoAutoplaySection />
-          </div>
-        </div>
-
-        {/* Theme Preferences Section */}
-        <div>
-          <div className="relative px-3 py-3.5">
-            <h2 className="text-base font-semibold">Theme Preferences</h2>
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-          </div>
-          <div className="px-3 py-4">
             <ThemePreferencesSection />
           </div>
         </div>
