@@ -161,7 +161,10 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
           <div className="min-w-0">
             <span className="text-sm font-medium">{def.label}</span>
             <p className="text-xs text-muted-foreground mt-0.5">
-              <KindBadge kind={def.kind} />{' '}{def.description}
+              {/* Parent rows with subKinds are categories, not a single
+                  kind — the per-kind badges live on the sub rows. */}
+              {!hasSubKinds && <><KindBadge kind={def.kind} />{' '}</>}
+              {def.description}
             </p>
           </div>
         </div>

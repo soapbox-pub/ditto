@@ -14,7 +14,7 @@ import { ScrollToTop } from "./components/ScrollToTop";
 import { VersionCheck } from "./components/VersionCheck";
 import { useCurrentUser } from "./hooks/useCurrentUser";
 import { useProfileUrl } from "./hooks/useProfileUrl";
-import { getExtraKindDef } from "./lib/extraKinds";
+import { getExtraKindDef, getSectionKinds } from "./lib/extraKinds";
 
 // Critical-path pages: eagerly loaded (landing + fallback)
 import Index from "./pages/Index";
@@ -91,7 +91,6 @@ const packsDef = getExtraKindDef("packs")!;
 const articlesDef = getExtraKindDef("articles")!;
 const decksDef = getExtraKindDef("decks")!;
 const emojisDef = getExtraKindDef("emojis")!;
-const developmentDef = getExtraKindDef("development")!;
 const highlightsDef = getExtraKindDef("highlights")!;
 
 /** Polls feed page with a FAB that opens the compose modal (poll mode via + menu). */
@@ -263,11 +262,8 @@ export function AppRouter() {
               path="/development"
               element={
                 <KindFeedPage
-                  kind={[
-                    developmentDef.kind,
-                    ...(developmentDef.extraFeedKinds ?? []),
-                  ]}
-                  title={developmentDef.label}
+                  kind={getSectionKinds("development")}
+                  title="Development"
                   icon={sidebarItemIcon("development", "size-5")}
                   showFAB={false}
                 />

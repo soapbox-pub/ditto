@@ -152,10 +152,40 @@ export interface FeedSettings {
   feedIncludePodcastEpisodes: boolean;
   /** Include podcast trailers (kind 30055) in the follows/global feed */
   feedIncludePodcastTrailers: boolean;
-  /** Show Development (NIP-34 repos, patches, PRs, custom NIPs, app submissions) link in sidebar */
+  /** Show Development (NIP-34 git, custom NIPs, nsites, apps) link in sidebar */
   showDevelopment: boolean;
-  /** Include Development content in the follows/global feed */
-  feedIncludeDevelopment: boolean;
+  /** Include git repository announcements (kind 30617) in the follows/global feed */
+  feedIncludeGitRepos: boolean;
+  /** Include git pushes / repository state updates (kind 30618) in the follows/global feed */
+  feedIncludeGitPushes: boolean;
+  /** Include git patches (kind 1617) in the follows/global feed */
+  feedIncludeGitPatches: boolean;
+  /** Include git pull requests (kind 1618) in the follows/global feed */
+  feedIncludeGitPullRequests: boolean;
+  /** Include git pull request updates (kind 1619) in the follows/global feed */
+  feedIncludeGitPrUpdates: boolean;
+  /** Include git issues (kind 1621) in the follows/global feed */
+  feedIncludeGitIssues: boolean;
+  /** Include git reopened statuses (kind 1630) in the follows/global feed */
+  feedIncludeGitStatusReopened: boolean;
+  /** Include git resolved/applied/merged statuses (kind 1631) in the follows/global feed */
+  feedIncludeGitStatusResolved: boolean;
+  /** Include git closed statuses (kind 1632) in the follows/global feed */
+  feedIncludeGitStatusClosed: boolean;
+  /** Include git draft statuses (kind 1633) in the follows/global feed */
+  feedIncludeGitStatusDraft: boolean;
+  /** Include custom NIP proposals (kind 30817) in the follows/global feed */
+  feedIncludeCustomNips: boolean;
+  /** Include root nsite deployments (kind 15128) in the follows/global feed */
+  feedIncludeNsiteRoots: boolean;
+  /** Include named nsite deployments (kind 35128) in the follows/global feed */
+  feedIncludeNsiteNamed: boolean;
+  /** Include Zapstore app listings (kind 32267) in the follows/global feed */
+  feedIncludeZapstoreApps: boolean;
+  /** Include Zapstore release announcements (kind 30063) in the follows/global feed */
+  feedIncludeZapstoreReleases: boolean;
+  /** Include NIP-89 app handler announcements (kind 31990) in the follows/global feed */
+  feedIncludeAppHandlers: boolean;
   /** Show Badges (NIP-58 kind 30009) link in sidebar */
   showBadges: boolean;
   /** Show badge definitions (kind 30009) on the Badges page */
