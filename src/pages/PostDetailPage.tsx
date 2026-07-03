@@ -700,18 +700,76 @@ function deletedKindNoun(kind: number | undefined): string {
 }
 
 /**
- * Meditations on nonexistence, from Jean-Paul Sartre's "Being and Nothingness".
+ * Meditations on nonexistence, absence, and impermanence — fitting company
+ * for an event that may be deleted, lost, or simply on a relay we can't see.
  * Same system as ProfilePage's NO_TABS_QUOTES: one random pick per mount.
  */
-const NONEXISTENCE_QUOTES = [
-  "Nothingness lies coiled in the heart of being — like a worm.",
-  "Nothingness haunts being.",
-  "Man is the being through whom nothingness comes to the world.",
-  "The being by which nothingness comes to the world must be its own nothingness.",
-  "Being is. Being is in-itself. Being is what it is.",
-  "Non-being always appears within the limits of a human expectation.",
-  "Nothingness is not, nothingness is 'made-to-be.'",
-  "Nothingness can be nihilated only on the foundation of being.",
+const NONEXISTENCE_QUOTES: { text: string; author: string; source: string }[] = [
+  {
+    text: "Nothingness lies coiled in the heart of being — like a worm.",
+    author: "Jean-Paul Sartre",
+    source: "Being and Nothingness",
+  },
+  {
+    text: "Nothing happens, nobody comes, nobody goes, it's awful!",
+    author: "Samuel Beckett",
+    source: "Waiting for Godot",
+  },
+  {
+    text: "I only wish I had such eyes — to be able to see Nobody! And at that distance too!",
+    author: "Lewis Carroll",
+    source: "Through the Looking-Glass",
+  },
+  {
+    text: "It cannot be seen, cannot be felt, cannot be heard, cannot be smelt. It lies behind stars and under hills, and empty holes it fills.",
+    author: "J. R. R. Tolkien",
+    source: "The Hobbit",
+  },
+  {
+    text: "We are such stuff as dreams are made on, and our little life is rounded with a sleep.",
+    author: "William Shakespeare",
+    source: "The Tempest",
+  },
+  {
+    text: "Loss is nothing else but change, and change is Nature's delight.",
+    author: "Marcus Aurelius",
+    source: "Meditations",
+  },
+  {
+    text: "It was all a nothing and a man was nothing too.",
+    author: "Ernest Hemingway",
+    source: "A Clean, Well-Lighted Place",
+  },
+  {
+    text: "Only in silence the word, only in dark the light, only in dying life: bright the hawk's flight on the empty sky.",
+    author: "Ursula K. Le Guin",
+    source: "A Wizard of Earthsea",
+  },
+  {
+    text: "We shape clay into a pot, but it is the emptiness inside that holds whatever we want.",
+    author: "Laozi",
+    source: "Tao Te Ching",
+  },
+  {
+    text: "And if you gaze long into an abyss, the abyss also gazes into you.",
+    author: "Friedrich Nietzsche",
+    source: "Beyond Good and Evil",
+  },
+  {
+    text: "All that we see or seem is but a dream within a dream.",
+    author: "Edgar Allan Poe",
+    source: "A Dream Within a Dream",
+  },
+  {
+    text: "It is not down in any map; true places never are.",
+    author: "Herman Melville",
+    source: "Moby-Dick",
+  },
+  {
+    text: "Nobody is my name. My father and mother call me Nobody.",
+    author: "Homer",
+    source: "The Odyssey",
+  },
 ];
 
 /** A small epigraph on nonexistence, shown beneath the details of an event that isn't. */
@@ -724,8 +782,11 @@ function NonexistenceQuote() {
     <div className="pt-2 px-4 flex flex-col items-center">
       <p className="max-w-sm font-serif text-sm italic leading-6 text-foreground/60 tracking-wide text-center">
         <span className="text-2xl leading-none align-bottom text-muted-foreground/25 font-serif mr-1" aria-hidden>&ldquo;</span>
-        {quote}
+        {quote.text}
         <span className="text-2xl leading-none align-bottom text-muted-foreground/25 font-serif ml-1" aria-hidden>&rdquo;</span>
+      </p>
+      <p className="mt-2 font-serif text-xs text-muted-foreground/70 tracking-wide text-center">
+        &mdash; {quote.author}, <cite>{quote.source}</cite>
       </p>
     </div>
   );
@@ -755,7 +816,7 @@ function EventNotFound({
 
   // The event couldn't be loaded — check whether the author published a
   // kind 5 (NIP-09) deletion request for it, so we can say *why* it's gone.
-  const { data: deletionInfo } = useEventDeletion(
+  const { data: deletionInfo, isLoading: isDeletionCheckLoading } = useEventDeletion(
     context.type === "event"
       ? { type: "event", eventId: context.eventId, authorHint: context.authorHint }
       : { type: "addr", addr: context.addr },
@@ -812,44 +873,57 @@ function EventNotFound({
   return (
     <div className="px-4 py-12">
       <div className="max-w-md mx-auto space-y-6">
-        {/* Not found message */}
-        <div className="text-center space-y-3">
-          <div className="inline-flex items-center justify-center size-14 rounded-full bg-muted/60 mb-2">
+        {/* Not found message — skeleton until the deletion check resolves, so
+            we never flash "Event not found" before flipping to "Event deleted". */}
+        {isDeletionCheckLoading ? (
+          <div className="text-center space-y-3">
+            <Skeleton className="size-14 rounded-full mx-auto mb-2" />
+            <Skeleton className="h-6 w-40 mx-auto" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-full max-w-xs mx-auto" />
+              <Skeleton className="h-4 w-3/4 max-w-56 mx-auto" />
+            </div>
+          </div>
+        ) : (
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center justify-center size-14 rounded-full bg-muted/60 mb-2">
+              {deletionInfo ? (
+                <Trash2 className="size-7 text-muted-foreground" />
+              ) : (
+                <AlertCircle className="size-7 text-muted-foreground" />
+              )}
+            </div>
+            <h2 className="text-xl font-bold">
+              {deletionInfo ? "Event deleted" : "Event not found"}
+            </h2>
             {deletionInfo ? (
-              <Trash2 className="size-7 text-muted-foreground" />
+              <>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {deletionInfo.verified
+                    ? `This ${deletedKindNoun(deletionInfo.deletedKind)} was deleted by its author on ${formatFullDate(deletionInfo.deletion.created_at)}.`
+                    : `A deletion request for this ${deletedKindNoun(deletionInfo.deletedKind)} was published on ${formatFullDate(deletionInfo.deletion.created_at)}, so it was likely removed by its author.`}
+                </p>
+                {deletionInfo.reason && (
+                  <p className="text-sm text-muted-foreground italic break-words">
+                    “{deletionInfo.reason}”
+                  </p>
+                )}
+              </>
             ) : (
-              <AlertCircle className="size-7 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {authorPubkey
+                  ? "This event couldn't be loaded from your connected relays or the author's outbox relays. It may exist on a relay neither of you are connected to."
+                  : "This event couldn't be loaded from your connected relays. It may exist on a relay you're not connected to."}
+              </p>
             )}
           </div>
-          <h2 className="text-xl font-bold">
-            {deletionInfo ? "Event deleted" : "Event not found"}
-          </h2>
-          {deletionInfo ? (
-            <>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {deletionInfo.verified
-                  ? `This ${deletedKindNoun(deletionInfo.deletedKind)} was deleted by its author on ${formatFullDate(deletionInfo.deletion.created_at)}.`
-                  : `A deletion request for this ${deletedKindNoun(deletionInfo.deletedKind)} was published on ${formatFullDate(deletionInfo.deletion.created_at)}, so it was likely removed by its author.`}
-              </p>
-              {deletionInfo.reason && (
-                <p className="text-sm text-muted-foreground italic break-words">
-                  “{deletionInfo.reason}”
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {authorPubkey
-                ? "This event couldn't be loaded from your connected relays or the author's outbox relays. It may exist on a relay neither of you are connected to."
-                : "This event couldn't be loaded from your connected relays. It may exist on a relay you're not connected to."}
-            </p>
-          )}
-        </div>
+        )}
 
         {/* Retrying makes no sense for a verified deletion — the author
             removed it on purpose. An unverified kind 5 is just a claim, so
-            keep the retry affordances in that case. */}
-        {onRetry && !deletionInfo?.verified && (
+            keep the retry affordances in that case. Held back while the
+            deletion check is pending so they don't flash in and out. */}
+        {!isDeletionCheckLoading && onRetry && !deletionInfo?.verified && (
           <Button
             className="rounded-full w-full"
             onClick={onRetry}
@@ -913,8 +987,9 @@ function EventNotFound({
 
         <NonexistenceQuote />
 
-        {/* Collapsible relay retry — hidden for verified deletions */}
-        {!deletionInfo?.verified && (
+        {/* Collapsible relay retry — hidden for verified deletions and while
+            the deletion check is pending */}
+        {!isDeletionCheckLoading && !deletionInfo?.verified && (
           <Collapsible open={retryOpen} onOpenChange={setRetryOpen}>
             <CollapsibleTrigger asChild>
               <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full">
