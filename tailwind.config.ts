@@ -200,6 +200,17 @@ export default {
 				'80%': { opacity: '1' },
 				'100%': { transform: 'translate(var(--celebration-sway, 0px), calc(-1 * var(--celebration-distance, 240px)))', opacity: '0' }
 			},
+			'birthday-rain': {
+				// Continuous birthday rain (BirthdayRain): a piece falls from
+				// above the region to past its clipped bottom edge, swaying and
+				// spinning, fading out near the end so nothing snaps off. Runs
+				// with `infinite` and negative delays so the sky is already
+				// full at mount and the rain never pauses between cycles.
+				'0%': { transform: 'translate(0, -28px) rotate(0deg)', opacity: '0' },
+				'5%': { opacity: '1' },
+				'85%': { opacity: '1' },
+				'100%': { transform: 'translate(var(--rain-sway, 0px), var(--rain-distance, 320px)) rotate(var(--rain-spin, 540deg))', opacity: '0' }
+			},
 			'celebration-twinkle': {
 				// Welcome sparkle: a star scales in with a quarter turn, then out.
 				'0%': { transform: 'scale(0) rotate(0deg)', opacity: '0' },
@@ -258,6 +269,7 @@ export default {
 				'heart-drift': 'heart-drift 4s ease-in-out infinite',
 				'heart-float': 'heart-float var(--float-duration, 7s) ease-in-out infinite',
 				'celebration-rise': 'celebration-rise 2.6s ease-out both',
+				'birthday-rain': 'birthday-rain var(--rain-duration, 5s) linear infinite',
 				'celebration-twinkle': 'celebration-twinkle 1.2s ease-in-out both',
 				'celebration-sun': 'celebration-sun 3.2s ease-out both',
 				'celebration-glow': 'celebration-glow 3.2s ease-out both',

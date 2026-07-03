@@ -25,6 +25,7 @@ import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ProfileLoveButton } from '@/components/ProfileLoveButton';
 import { CelebrationOverlay, CELEBRATION_DURATION_MS } from '@/components/CelebrationOverlay';
+import { BirthdayRain } from '@/components/BirthdayRain';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Nip05Badge, VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -990,9 +991,7 @@ export function ProfilePage() {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   // Hearts sprinkle over the header when this profile is added to the Love List.
   const [lovedCelebrating, setLovedCelebrating] = useState(false);
-  // NIP-24 birthday celebration — wave counter remounts the confetti overlay
-  // so it keeps raining while viewing the profile; muted silences the jingle.
-  const [birthdayWave, setBirthdayWave] = useState(0);
+  // NIP-24 birthday — mutes the looping jingle while viewing a birthday profile.
   const [jingleMuted, setJingleMuted] = useState(false);
   const [followQROpen, setFollowQROpen] = useState(false);
   const [followersModalOpen, setFollowersModalOpen] = useState(false);
@@ -1360,16 +1359,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     [metadataEvent?.content],
   );
   const isBirthday = isBirthdayToday(birthday);
-
-  // Keep the confetti + balloons raining: remount the one-shot overlay each
-  // time a wave finishes. Skipped under prefers-reduced-motion (the overlay
-  // is also CSS-hidden as defense-in-depth).
-  useEffect(() => {
-    if (!isBirthday) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const interval = setInterval(() => setBirthdayWave((w) => w + 1), CELEBRATION_DURATION_MS);
-    return () => clearInterval(interval);
-  }, [isBirthday]);
 
   // Loop the birthday jingle while viewing the profile; stops on navigation
   // away (unmount), profile change, or mute.
@@ -1960,12 +1949,12 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
           <CelebrationOverlay variant="hearts" />
         </div>
       )}
-      {/* Birthday rain — confetti and balloons fall over the header all day
-          on the profile owner's NIP-24 birthday. The wave key remounts the
-          one-shot overlay so the rain never stops while viewing. */}
+      {/* Birthday rain — its own persistent weather effect (not the one-shot
+          post celebration): confetti and balloons fall continuously from the
+          top of the header for as long as the profile is open. */}
       {isBirthday && (
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[40vh] z-20 overflow-hidden">
-          <CelebrationOverlay key={birthdayWave} variant="birthday" />
+          <BirthdayRain />
         </div>
       )}
       <PullToRefresh onRefresh={handleRefresh}>
