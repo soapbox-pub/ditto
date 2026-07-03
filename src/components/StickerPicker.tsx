@@ -42,7 +42,20 @@ export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus 
   }
 
   return (
-    <div className="flex flex-col" style={{ height }}>
+    <div
+      className="flex flex-col"
+      style={{ height }}
+      onWheel={(e) => {
+        // Prevent scroll from bubbling to the page
+        e.stopPropagation();
+      }}
+      onTouchMove={(e) => {
+        // Prevent Radix Dialog's scroll-lock from blocking touch scrolling
+        // inside the sticker grid on mobile devices (same workaround as
+        // EmojiPicker).
+        e.stopPropagation();
+      }}
+    >
       {/* Search input */}
       <div className="px-3 pt-3 pb-2 shrink-0">
         <div className="relative">

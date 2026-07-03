@@ -133,7 +133,19 @@ export function GifPicker({ onSelect, autoFocus = true, onSearchActiveChange }: 
   // Transparent background so the picker blends into the compose box,
   // matching the emoji and sticker tabs.
   return (
-    <div className="flex flex-col w-full h-full overflow-hidden">
+    <div
+      className="flex flex-col w-full h-full overflow-hidden"
+      onWheel={(e) => {
+        // Prevent scroll from bubbling to the page
+        e.stopPropagation();
+      }}
+      onTouchMove={(e) => {
+        // Prevent Radix Dialog's scroll-lock from blocking touch scrolling
+        // inside the results grid on mobile devices (same workaround as
+        // EmojiPicker).
+        e.stopPropagation();
+      }}
+    >
       {/* Search input */}
       <div className="px-3 pt-3 pb-2">
         <div className="relative">
