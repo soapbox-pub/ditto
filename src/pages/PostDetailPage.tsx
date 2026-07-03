@@ -61,6 +61,7 @@ import {
   type InteractionTab,
 } from "@/components/InteractionsModal";
 import { RepostIcon } from "@/components/icons/RepostIcon";
+import { ChestIcon } from "@/components/icons/ChestIcon";
 import { LiveStreamPage } from "@/components/LiveStreamPage";
 import { MagicDeckContent } from "@/components/MagicDeckContent";
 import { MusicDetailContent } from "@/components/MusicDetailContent";
@@ -1305,12 +1306,18 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const rootKind = K ? parseInt(K, 10) : 0;
     const rootPubkey = P ?? "";
 
-    if (A) {
-      const dValue = parseAddr(A)?.identifier ?? "";
+    // Root coordinates: prefer the uppercase A tag, but fall back to the
+    // lowercase a parent tag — some clients omit A and reference an
+    // addressable root only via E + a (identical for top-level comments).
+    const addrValue = A ?? event.tags.find(([n]) => n === "a")?.[1];
+
+    if (addrValue) {
+      const parsedAddr = parseAddr(addrValue);
+      const dValue = parsedAddr?.identifier ?? "";
       return {
         id: E ?? "",
-        kind: rootKind,
-        pubkey: rootPubkey,
+        kind: rootKind || (parsedAddr?.kind ?? 0),
+        pubkey: rootPubkey || (parsedAddr?.pubkey ?? ""),
         content: "",
         created_at: 0,
         sig: "",
@@ -1332,9 +1339,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const { data: rawReplies, isLoading: kind1RepliesLoading } = useReplies(
     isKind1 ? event.id : undefined,
   );
+  // Geocache listings thread their kind 7516 found logs (NIP-GC) alongside
+  // NIP-22 comment logs — both reference the cache with a lowercase `a` tag.
   const { data: commentsData, isLoading: commentsLoading } = useComments(
     commentRoot,
     500,
+    event.kind === 37516 ? [7516] : undefined,
   );
 
   const repliesLoading = isKind1 ? kind1RepliesLoading : commentsLoading;
@@ -1496,7 +1506,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     if (!isComment) return undefined;
     const kTag = event.tags.find(([n]) => n === "K")?.[1];
     if (kTag !== "0") return undefined;
-    const aTag = event.tags.find(([n]) => n === "A")?.[1];
+    // Some clients omit the uppercase A root tag; for top-level comments the
+    // lowercase a parent tag carries the same coordinates.
+    const aTag = (event.tags.find(([n]) => n === "A") ?? event.tags.find(([n]) => n === "a"))?.[1];
     return parseAddr(aTag)?.pubkey;
   }, [event, isComment]);
 
@@ -1505,13 +1517,26 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     if (!isComment) return undefined;
     const kTag = event.tags.find(([n]) => n === "K")?.[1];
     if (kTag !== "34550") return undefined;
-    const aTag = event.tags.find(([n]) => n === "A")?.[1];
+    const aTag = (event.tags.find(([n]) => n === "A") ?? event.tags.find(([n]) => n === "a"))?.[1];
     return parseAddr(aTag);
   }, [event, isComment]);
 
   // For kind 1111 comments on any other addressable event (vines, music, etc.),
   // extract the addr for a generic preview — only if not already handled above.
+  // Kind 7516 found logs (NIP-GC) get the same treatment: they reference the
+  // geocache they log with a lowercase `a` tag.
   const addrRoot = useMemo(() => {
+    if (isFoundLog) {
+      const aTagFull = event.tags.find(([n]) => n === "a");
+      const parsed = parseAddr(aTagFull?.[1]);
+      if (!parsed) return undefined;
+      return {
+        kind: parsed.kind,
+        pubkey: parsed.pubkey,
+        identifier: parsed.identifier,
+        relayHint: aTagFull?.[2] || undefined,
+      };
+    }
     if (
       !isComment ||
       externalIdentifier ||
@@ -1519,20 +1544,34 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       communityRootAddr
     )
       return undefined;
-    const kTag = event.tags.find(([n]) => n === "K")?.[1];
-    if (!kTag) return undefined;
-    const kind = parseInt(kTag, 10);
-    if (isNaN(kind)) return undefined;
-    const aTag = event.tags.find(([n]) => n === "A")?.[1];
-    const parsed = parseAddr(aTag);
+    // NIP-22 uppercase A holds the addressable root, but some clients omit it
+    // and reference the root only via uppercase E + the lowercase a parent tag
+    // (identical to the root for top-level comments). Fall back to lowercase.
+    const aTagFull = event.tags.find(([n]) => n === "A") ?? event.tags.find(([n]) => n === "a");
+    const parsed = parseAddr(aTagFull?.[1]);
     if (!parsed) return undefined;
-    // K tag is the authoritative root kind — the A tag's first segment must
-    // match, but if it doesn't (or the A tag references a different kind by
-    // mistake), prefer K so the addressable-event preview still resolves.
-    return { kind, pubkey: parsed.pubkey, identifier: parsed.identifier };
+    // The kind tag matching the used coordinate tag (K for A, k for a) is
+    // authoritative — the coordinate's first segment must match, but if it
+    // doesn't (or the tag references a different kind by mistake), prefer
+    // K/k so the addressable-event preview still resolves. When no kind tag
+    // is present, trust the coordinate.
+    const kTag = aTagFull?.[0] === "A"
+      ? event.tags.find(([n]) => n === "K")?.[1]
+      : event.tags.find(([n]) => n === "k")?.[1];
+    const kind = kTag ? parseInt(kTag, 10) : parsed.kind;
+    if (isNaN(kind)) return undefined;
+    return {
+      kind,
+      pubkey: parsed.pubkey,
+      identifier: parsed.identifier,
+      // A/a tags may carry a relay hint at position [2] — needed when the
+      // root lives outside the user's configured relays.
+      relayHint: aTagFull?.[2] || undefined,
+    };
   }, [
     event,
     isComment,
+    isFoundLog,
     externalIdentifier,
     profileRootPubkey,
     communityRootAddr,
@@ -1699,7 +1738,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       )}
       {profileRootPubkey && <ProfilePreview pubkey={profileRootPubkey} />}
       {communityRootAddr && <CommunityPreview addr={communityRootAddr} />}
-      {addrRoot && <AddrAncestor addr={addrRoot} />}
+      {/* For nested replies (parentEventId) the ancestor chain below pulls the
+          root itself via the top-most comment's A/a tags — rendering addrRoot
+          here too would show the root twice. */}
+      {addrRoot && !parentEventId && (
+        <AddrAncestor
+          addr={addrRoot}
+          relays={addrRoot.relayHint ? [addrRoot.relayHint] : undefined}
+        />
+      )}
 
       {/* Book context for reviews (kind 31985) and posts that tag a book */}
       {bookIsbn && <ExternalContentPreview identifier={`isbn:${bookIsbn}`} />}
@@ -2281,6 +2328,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           {isConstellation && (
             <EventActionHeader pubkey={event.pubkey} icon={Stars} action={publishedAtAction(event, { created: "drew a", updated: "redrew a", fallback: "drew a" })} noun="constellation" />
           )}
+          {isFoundLog && (
+            <EventActionHeader pubkey={event.pubkey} icon={ChestIcon} action="found a" noun="treasure" nounRoute="/treasures" />
+          )}
 
           {/* Author row */}
           <div className="flex items-center gap-3">
@@ -2527,8 +2577,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
  * Renders a parent event fetched by addr coordinates as a threaded NoteCard.
  * Used when a kind 1111 comment references its root via an `a` tag (no event ID).
  */
-function AddrAncestor({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
-  const { data: event, isLoading } = useAddrEvent(addr);
+function AddrAncestor({ addr, relays }: { addr: { kind: number; pubkey: string; identifier: string }; relays?: string[] }) {
+  const { data: event, isLoading } = useAddrEvent(addr, relays);
 
   if (isLoading) {
     return (
@@ -2586,6 +2636,21 @@ function AncestorThread({
   );
   const parentId = parentHints?.id;
 
+  // Kind 1111 comments at the top of the chain (no lowercase-e parent) sit
+  // directly on their root. When that root is an addressable event, pull it
+  // from the comment's A (or legacy lowercase a) tag so the thread renders
+  // root → comments → focused reply. Kind 0 profiles and kind 34550
+  // communities are excluded — they get dedicated preview banners rendered
+  // by PostDetailContent instead.
+  const addrRootRef = useMemo(() => {
+    if (!event || event.kind !== 1111 || parentId) return undefined;
+    const aTagFull = event.tags.find(([n]) => n === "A") ??
+      event.tags.find(([n]) => n === "a");
+    const parsed = parseAddr(aTagFull?.[1]);
+    if (!parsed || parsed.kind === 0 || parsed.kind === 34550) return undefined;
+    return { addr: parsed, relayHint: aTagFull?.[2] || undefined };
+  }, [event, parentId]);
+
   // Cap recursion to avoid runaway chains
   const MAX_DEPTH = 20;
 
@@ -2623,6 +2688,13 @@ function AncestorThread({
 
   return (
     <>
+      {/* Addressable root above the top-most comment of the chain */}
+      {addrRootRef && (
+        <AddrAncestor
+          addr={addrRootRef.addr}
+          relays={addrRootRef.relayHint ? [addrRootRef.relayHint] : undefined}
+        />
+      )}
       {/* Render this event's parent first (if any), so ancestors appear top-down */}
       {parentId &&
         depth < MAX_DEPTH &&

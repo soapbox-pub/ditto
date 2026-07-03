@@ -1032,13 +1032,21 @@ export function ComposeBox({
             const rootKind = K ? parseInt(K, 10) : 0;
             const rootPubkey = P ?? '';
 
-            if (A) {
+            // Root coordinates: prefer the uppercase A tag, but fall back to
+            // the lowercase a parent tag — some clients omit A and reference
+            // an addressable root only via E + a. Without this fallback the
+            // reconstructed root loses its d-tag and we'd publish a malformed
+            // `A` value like "37516:<pubkey>:".
+            const addrValue = A ?? replyTo.tags.find(([n]) => n === 'a')?.[1];
+
+            if (addrValue) {
               // Addressable/replaceable root: extract d-tag from the A value
-              const dValue = parseAddr(A)?.identifier ?? '';
+              const parsedAddr = parseAddr(addrValue);
+              const dValue = parsedAddr?.identifier ?? '';
               root = {
                 id: E ?? '',
-                kind: rootKind,
-                pubkey: rootPubkey,
+                kind: rootKind || (parsedAddr?.kind ?? 0),
+                pubkey: rootPubkey || (parsedAddr?.pubkey ?? ''),
                 content: '',
                 created_at: 0,
                 sig: '',
