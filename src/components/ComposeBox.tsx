@@ -1133,7 +1133,12 @@ export function ComposeBox({
         );
       }
 
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      // Mark feeds stale WITHOUT refetching: an immediate refetch races the
+      // relay's write→read indexing and its result wholesale-replaces the
+      // cached pages, swallowing the optimistic item that was just prepended
+      // above. The next natural refetch (pull-to-refresh, remount) happens
+      // after the relay has indexed the note.
+      queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
       if (replyTo) {
         if (isExternalRoot(replyTo)) {
           queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
