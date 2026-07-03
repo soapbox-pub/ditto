@@ -57,6 +57,7 @@ import { BadgeContent } from "@/components/BadgeContent";
 import { BadgeSetContent } from "@/components/BadgeSetContent";
 import { CalendarEventContent } from "@/components/CalendarEventContent";
 import { CelebrationOverlay, CELEBRATION_DURATION_MS } from "@/components/CelebrationOverlay";
+import { PartyHat } from "@/components/BirthdayRain";
 import {
   ColorMomentContent,
   ColorMomentEyeButton,
@@ -117,6 +118,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { isBadgeSetEvent, isProfileBadgesEvent } from "@/lib/badgeUtils";
 import { canCelebrate, detectCelebration, markCelebrated } from "@/lib/celebrations";
+import { parseBirthdayFromContent, isBirthdayToday } from "@/lib/birthday";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VideoPlayer } from "@/components/VideoPlayer";
@@ -444,6 +446,12 @@ export const NoteCard = memo(function NoteCard({
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
+  // NIP-24 birthday — the author's avatar wears a party hat all day.
+  const authorEventContent = author.data?.event?.content;
+  const isAuthorBirthday = useMemo(
+    () => isBirthdayToday(parseBirthdayFromContent(authorEventContent)),
+    [authorEventContent],
+  );
   const nip05 = metadata?.nip05;
   const { data: nip05Verified, isPending: nip05Pending } = useNip05Verify(
     nip05,
@@ -927,7 +935,7 @@ export const NoteCard = memo(function NoteCard({
     <ProfileHoverCard pubkey={event.pubkey} asChild>
       <Link
         to={profileUrl}
-        className="shrink-0"
+        className="relative shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
         <Avatar shape={avatarShape} className={threaded || threadedLast ? "size-10" : "size-11"}>
@@ -936,6 +944,15 @@ export const NoteCard = memo(function NoteCard({
             {displayName[0]?.toUpperCase()}
           </AvatarFallback>
         </Avatar>
+        {/* Birthday party hat — perched on the author's avatar all day.
+            Seated well onto the head (not floating above it) because the
+            card wrapper is overflow-hidden with only ~12px of top padding —
+            anything poking further up gets clipped. */}
+        {isAuthorBirthday && (
+          <div className="pointer-events-none absolute -top-4 -right-2 z-10 rotate-[18deg]">
+            <PartyHat className="size-8 drop-shadow-sm" pomScale={1.15} />
+          </div>
+        )}
       </Link>
     </ProfileHoverCard>
   );

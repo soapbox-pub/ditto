@@ -25,7 +25,7 @@ import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ProfileLoveButton } from '@/components/ProfileLoveButton';
 import { CelebrationOverlay, CELEBRATION_DURATION_MS } from '@/components/CelebrationOverlay';
-import { BirthdayRain } from '@/components/BirthdayRain';
+import { BirthdayRain, PartyHat } from '@/components/BirthdayRain';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Nip05Badge, VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -2178,6 +2178,14 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       </Avatar>
                     </div>
                   </button>
+
+                  {/* Birthday party hat — perched on the avatar's head,
+                      tilted like it was pulled on in a hurry. */}
+                  {isBirthday && (
+                    <div className="pointer-events-none absolute -top-5 right-0 md:-top-7 md:right-1 z-10 rotate-[18deg]">
+                      <PartyHat className="size-12 md:size-16 drop-shadow-md" />
+                    </div>
+                  )}
 
                   {/* NIP-38 thought bubble — floats beside the avatar over the banner */}
                   {feedSettings.showUserStatuses !== false && profileStatus.status && (

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * Continuous birthday rain for profile pages (NIP-24 birthday).
@@ -172,5 +172,47 @@ export function BirthdayRain() {
         );
       })}
     </div>
+  );
+}
+
+/**
+ * A striped party hat with a pom-pom, for perching on avatars during
+ * birthday celebrations. Colors come from the same festive palette as the
+ * confetti rain. Decorative only (`aria-hidden`) — position and tilt it
+ * from the caller (e.g. absolutely over an avatar's top edge, rotated).
+ *
+ * `pomScale` grows the pom-pom relative to the cone — useful at small
+ * rendered sizes (note card avatars) where the default pom reads as a dot.
+ */
+export function PartyHat({ className, pomScale = 1 }: { className?: string; pomScale?: number }) {
+  // The cone stripes are painted inside a clipPath; useId keeps the clip
+  // reference unique if more than one hat is ever on screen.
+  const clipId = useId();
+
+  const pomRadius = 5.5 * pomScale;
+  // Keep the pom inside the viewBox: slide it down the tip as it grows.
+  const pomY = Math.max(7, pomRadius + 1.5);
+
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
+      <defs>
+        <clipPath id={clipId}>
+          {/* The cone. */}
+          <path d="M32 7 L53 55 L11 55 Z" />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`}>
+        {/* Base coat + gently curved stripes so the cone reads as rounded. */}
+        <rect x="0" y="0" width="64" height="64" fill="#a78bfa" />
+        <path d="M2 45 Q32 36 62 45 L62 58 Q32 49 2 58 Z" fill="#f472b6" />
+        <path d="M8 28 Q32 21 56 28 L56 37 Q32 30 8 37 Z" fill="#fbbf24" />
+        <path d="M20 12 Q32 9 44 12 L44 19 Q32 16 20 19 Z" fill="#38bdf8" />
+      </g>
+      {/* Brim — a soft curve that sits on the head. */}
+      <path d="M11 55 Q32 48 53 55 Q32 62 11 55 Z" fill="#8b5cf6" />
+      {/* Pom-pom. */}
+      <circle cx="32" cy={pomY} r={pomRadius} fill="#fbbf24" />
+      <circle cx={32 - 1.8 * pomScale} cy={pomY - 1.6 * pomScale} r={1.8 * pomScale} fill="#fde68a" />
+    </svg>
   );
 }
