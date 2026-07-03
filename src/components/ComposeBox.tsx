@@ -235,6 +235,33 @@ export function ComposeBox({
   const [cwText, setCwText] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerTab, setPickerTab] = useState<'emoji' | 'gif' | 'stickers'>('emoji');
+  // Drives the picker tray's pull-up/pull-down height transition:
+  // `pickerMounted` keeps the tray in the DOM while it collapses, and
+  // `pickerExpanded` toggles the grid-rows 0fr↔1fr transition.
+  const [pickerMounted, setPickerMounted] = useState(false);
+  const [pickerExpanded, setPickerExpanded] = useState(false);
+
+  useEffect(() => {
+    if (pickerOpen) {
+      setPickerMounted(true);
+      // Double rAF so the collapsed (0fr) state paints before expanding —
+      // otherwise the browser skips the opening transition entirely.
+      let raf2: number | undefined;
+      const raf1 = requestAnimationFrame(() => {
+        raf2 = requestAnimationFrame(() => setPickerExpanded(true));
+      });
+      return () => {
+        cancelAnimationFrame(raf1);
+        if (raf2 !== undefined) cancelAnimationFrame(raf2);
+      };
+    } else {
+      setPickerExpanded(false);
+      // Unmount after the collapse transition finishes (duration-300).
+      const timer = setTimeout(() => setPickerMounted(false), 350);
+      return () => clearTimeout(timer);
+    }
+  }, [pickerOpen]);
+
   const [trayOpen, setTrayOpen] = useState(false);
   const [internalPreviewMode, setInternalPreviewMode] = useState(false);
 
@@ -1218,7 +1245,7 @@ export function ComposeBox({
     <div className={cn(
       "px-4 pt-3 bg-background/85 flex flex-col",
       forceExpanded ? "flex-1 min-h-0 rounded-2xl" : "",
-      pickerOpen ? "pb-0" : "pb-3",
+      pickerMounted ? "pb-0" : "pb-3",
       !forceExpanded && !hideBorder && "border-b border-border",
     )}>
       {/* Preview toggle at top when not controlled and has previewable content */}
@@ -1601,6 +1628,7 @@ export function ComposeBox({
                           disabled={!user}
                           className={cn(
                             'p-2 rounded-full transition-all motion-safe:active:scale-90 disabled:opacity-40',
+                            trayOpen && 'motion-safe:rotate-45',
                             (trayOpen || mode === 'poll' || cwEnabled)
                               ? 'text-primary bg-primary/10'
                               : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
@@ -1679,9 +1707,17 @@ export function ComposeBox({
 
       {/* Inline emoji / GIF / sticker picker panel — full-bleed sheet with
           its own background, rounded top, containing the tab bar and the
-          active picker. */}
-      {pickerOpen && (
-        <div className={cn("-mx-4 mt-2 shrink-0 overflow-hidden rounded-t-2xl bg-popover motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-200", forceExpanded && "rounded-b-2xl")}>
+          active picker. The grid-rows 0fr↔1fr wrapper smoothly pulls the
+          sheet up on open and down on close. */}
+      {pickerMounted && (
+        <div
+          className={cn(
+            "-mx-4 shrink-0 grid motion-safe:transition-[grid-template-rows,opacity] motion-safe:duration-300 motion-safe:ease-out",
+            pickerExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+          )}
+        >
+          <div className="min-h-0 overflow-hidden">
+          <div className={cn("mt-2 overflow-hidden rounded-t-2xl bg-popover", forceExpanded && "rounded-b-2xl")}>
           {/* Tab bar — pill highlight style for inline mode */}
           <div className="flex gap-1 px-3 pt-2">
               <button
@@ -1775,10 +1811,12 @@ export function ComposeBox({
                   }}
                 />
               )}
-              </div>
-            </div>
-          </div>
-        )}
+              </div>{/* end keyed tab content */}
+            </div>{/* end viewport-capped height */}
+          </div>{/* end bg-popover sheet */}
+          </div>{/* end overflow clipper */}
+        </div>
+      )}
 
     </div>
   );
