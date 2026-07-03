@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import type { EmojiSelection } from '@/components/EmojiPicker';
 import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
@@ -228,83 +228,101 @@ export function ProfileCard({
         {/* Avatar */}
         <div className="flex justify-between items-start -mt-12 mb-3">
           {editable ? (
-            <>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button type="button" className="relative shrink-0 cursor-pointer group outline-none">
-                    <div style={hasCustomShape ? shapedAvatarBorderStyle : undefined}>
-                      <Avatar shape={shape} className={cn("shadow-sm", hasCustomShape ? "size-[88px]" : "size-24 border-4 border-background")}>
-                        <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
-                        <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
-                          {metadata.picture ? initial : <Plus className="size-8 text-muted-foreground" strokeWidth={4} />}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                    <div
-                      className={cn(
-                        'absolute inset-0 bg-black/0 group-hover:bg-black/45 transition-colors flex items-center justify-center',
-                        !hasCustomShape && 'rounded-full',
+            <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
+              <PopoverAnchor asChild>
+                <div className="shrink-0">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button type="button" className="relative shrink-0 cursor-pointer group outline-none">
+                        <div style={hasCustomShape ? shapedAvatarBorderStyle : undefined}>
+                          <Avatar shape={shape} className={cn("shadow-sm", hasCustomShape ? "size-[88px]" : "size-24 border-4 border-background")}>
+                            <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
+                            <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
+                              {metadata.picture ? initial : <Plus className="size-8 text-muted-foreground" strokeWidth={4} />}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                        <div
+                          className={cn(
+                            'absolute inset-0 bg-black/0 group-hover:bg-black/45 transition-colors flex items-center justify-center',
+                            !hasCustomShape && 'rounded-full',
+                          )}
+                          style={overlayMaskStyle}
+                        >
+                          <Pencil className="size-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                        </div>
+                        {metadata.picture && (
+                          <div className="absolute bottom-0 right-0 size-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center transition-opacity">
+                            <Pencil className="size-3.5 text-muted-foreground" />
+                          </div>
+                        )}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" sideOffset={6}>
+                      <DropdownMenuItem onClick={() => onPickImage?.('picture')}>
+                        <ImagePlus className="size-4 mr-2" />
+                        Change avatar
+                      </DropdownMenuItem>
+                      {/*
+                       * Defer opening the popover until after the menu has
+                       * fully closed. The menu restores focus to its trigger
+                       * on close — if the popover is already open, its
+                       * dismissable layer sees that as focus moving outside
+                       * and instantly closes it. A microtask is too early;
+                       * a macrotask runs after the menu's cleanup.
+                       */}
+                      <DropdownMenuItem onClick={() => setTimeout(() => setEmojiPickerOpen(true), 0)}>
+                        <SmilePlus className="size-4 mr-2" />
+                        Set avatar shape
+                      </DropdownMenuItem>
+                      {metadata.picture && (
+                        <DropdownMenuItem onClick={() => onRemoveAvatar?.()} className="text-destructive focus:text-destructive">
+                          <XIcon className="size-4 mr-2" />
+                          Remove avatar
+                        </DropdownMenuItem>
                       )}
-                      style={overlayMaskStyle}
-                    >
-                      <Pencil className="size-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
-                    </div>
-                    {metadata.picture && (
-                      <div className="absolute bottom-0 right-0 size-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center transition-opacity">
-                        <Pencil className="size-3.5 text-muted-foreground" />
-                      </div>
-                    )}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" sideOffset={6}>
-                  <DropdownMenuItem onClick={() => onPickImage?.('picture')}>
-                    <ImagePlus className="size-4 mr-2" />
-                    Change avatar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setEmojiPickerOpen(true)}>
-                    <SmilePlus className="size-4 mr-2" />
-                    Set avatar shape
-                  </DropdownMenuItem>
-                  {metadata.picture && (
-                    <DropdownMenuItem onClick={() => onRemoveAvatar?.()} className="text-destructive focus:text-destructive">
-                      <XIcon className="size-4 mr-2" />
-                      Remove avatar
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </PopoverAnchor>
 
-              <Dialog open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
-                <DialogContent className="w-fit max-w-[calc(100vw-2rem)] p-0 gap-0 overflow-hidden">
-                  <DialogHeader className="px-4 pt-4 pb-2">
-                    <DialogTitle className="text-base">Set avatar shape</DialogTitle>
-                    <DialogDescription>Pick an emoji to mask your avatar</DialogDescription>
-                  </DialogHeader>
-                  <Suspense fallback={<div className="w-[352px] max-w-[90vw] h-[400px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>}>
-                    <EmojiPicker onSelect={(selection: EmojiSelection) => {
-                      if (selection.type === 'native') {
-                        onAvatarShape?.(selection.emoji);
-                        setEmojiPickerOpen(false);
-                      }
-                    }} />
-                  </Suspense>
-                  {hasCustomShape && (
-                    <div className="px-4 pb-4 pt-2 border-t">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-destructive hover:text-destructive"
-                        onClick={() => { onAvatarShape?.(''); setEmojiPickerOpen(false); }}
-                      >
-                        <XIcon className="size-3.5 mr-1.5" />
-                        Remove avatar shape
-                      </Button>
-                    </div>
-                  )}
-                </DialogContent>
-              </Dialog>
-            </>
+              {/* Shape picker — a lightweight popup anchored to the avatar,
+                  not a modal dialog. Explicit width because the picker fills
+                  its container (dynamicWidth + height prop). */}
+              <PopoverContent
+                align="start"
+                sideOffset={8}
+                className="w-[340px] max-w-[calc(100vw-2rem)] p-0 overflow-hidden"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                // Focus bouncing back from the closing dropdown menu (or the
+                // picker's internal shadow-DOM focus juggling) must not
+                // dismiss the popover — only Escape / click outside should.
+                onFocusOutside={(e) => e.preventDefault()}
+              >
+                <Suspense fallback={<div className="h-[360px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>}>
+                  <EmojiPicker height={360} onSelect={(selection: EmojiSelection) => {
+                    if (selection.type === 'native') {
+                      onAvatarShape?.(selection.emoji);
+                      setEmojiPickerOpen(false);
+                    }
+                  }} />
+                </Suspense>
+                {hasCustomShape && (
+                  <div className="p-2 border-t">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-destructive hover:text-destructive"
+                      onClick={() => { onAvatarShape?.(''); setEmojiPickerOpen(false); }}
+                    >
+                      <XIcon className="size-3.5 mr-1.5" />
+                      Remove avatar shape
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
           ) : (
             <div className="relative shrink-0" style={hasCustomShape ? shapedAvatarBorderStyle : undefined}>
               <Avatar shape={shape} className={cn("shadow-sm", hasCustomShape ? "size-[88px]" : "size-24 border-4 border-background")}>
