@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { type AvatarShape, isValidAvatarShape, isEmoji, getAvatarMaskUrlAsync, shapedAvatarBorderStyle } from '@/lib/avatarShape';
@@ -12,12 +12,16 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { EmojiPicker, type EmojiSelection } from '@/components/EmojiPicker';
+import type { EmojiSelection } from '@/components/EmojiPicker';
 import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BadgeShowcaseGrid } from '@/components/BadgeShowcaseGrid';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+
+// The emoji picker (data + UI) is ~500 kB raw; lazy-load it so it only
+// downloads when the avatar-shape dialog is actually opened.
+const EmojiPicker = lazy(() => import('@/components/EmojiPicker').then(m => ({ default: m.EmojiPicker })));
 
 /** Shared classes for all editable fields — static muted bg when idle, border on hover/focus */
 const editableBase = [
@@ -276,12 +280,14 @@ export function ProfileCard({
                     <DialogTitle className="text-base">Set avatar shape</DialogTitle>
                     <DialogDescription>Pick an emoji to mask your avatar</DialogDescription>
                   </DialogHeader>
-                  <EmojiPicker onSelect={(selection: EmojiSelection) => {
-                    if (selection.type === 'native') {
-                      onAvatarShape?.(selection.emoji);
-                      setEmojiPickerOpen(false);
-                    }
-                  }} />
+                  <Suspense fallback={<div className="w-[352px] max-w-[90vw] h-[400px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>}>
+                    <EmojiPicker onSelect={(selection: EmojiSelection) => {
+                      if (selection.type === 'native') {
+                        onAvatarShape?.(selection.emoji);
+                        setEmojiPickerOpen(false);
+                      }
+                    }} />
+                  </Suspense>
                   {hasCustomShape && (
                     <div className="px-4 pb-4 pt-2 border-t">
                       <Button

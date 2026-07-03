@@ -1,11 +1,15 @@
-import { useState, useCallback, useMemo } from 'react';
+import { lazy, Suspense, useState, useCallback, useMemo } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { CustomEmojiImg } from '@/components/CustomEmoji';
-import { EmojiPicker, type EmojiSelection } from '@/components/EmojiPicker';
+import type { EmojiSelection } from '@/components/EmojiPicker';
+
+// The emoji picker (data + UI) is ~500 kB raw; lazy-load it so it only
+// downloads when someone actually expands the full picker.
+const EmojiPicker = lazy(() => import('@/components/EmojiPicker').then(m => ({ default: m.EmojiPicker })));
 import { isCustomEmoji } from '@/lib/customEmoji';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
@@ -208,7 +212,9 @@ export function QuickReactMenu({
         className={cn('rounded-xl shadow-xl overflow-hidden bg-popover border border-border', className)}
         onClick={(e) => e.stopPropagation()}
       >
-        <EmojiPicker customEmojis={customEmojis} onSelect={handlePickerSelect} />
+        <Suspense fallback={<div className="w-[352px] max-w-[90vw] h-[400px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>}>
+          <EmojiPicker customEmojis={customEmojis} onSelect={handlePickerSelect} />
+        </Suspense>
       </div>
     );
   }

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import data from '@emoji-mart/data';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { cn } from '@/lib/utils';
 import { useCustomEmojis, type CustomEmoji } from '@/hooks/useCustomEmojis';
@@ -88,7 +87,9 @@ interface EmojiResult {
 }
 
 /** Build a flat searchable list of emojis from emoji-mart data. */
-function buildEmojiIndex(): Array<{ id: string; name: string; native: string; keywords: string[] }> {
+function buildEmojiIndex(
+  data: unknown,
+): Array<{ id: string; name: string; native: string; keywords: string[] }> {
   const emojis = (data as { emojis: Record<string, EmojiData>; aliases: Record<string, string> }).emojis;
   const aliases = (data as { aliases: Record<string, string> }).aliases;
 
@@ -117,13 +118,21 @@ function buildEmojiIndex(): Array<{ id: string; name: string; native: string; ke
   return results;
 }
 
-/** Lazily initialized emoji index. */
+/**
+ * Lazily initialized emoji index.
+ *
+ * `@emoji-mart/data` is ~450 kB raw, so it stays out of the entry bundle:
+ * the data module is dynamically imported the first time an autocomplete
+ * query actually starts, and the built index is cached for the session.
+ */
 let emojiIndex: ReturnType<typeof buildEmojiIndex> | null = null;
-function getEmojiIndex() {
-  if (!emojiIndex) {
-    emojiIndex = buildEmojiIndex();
-  }
-  return emojiIndex;
+let emojiIndexPromise: Promise<void> | null = null;
+
+function loadEmojiIndex(): Promise<void> {
+  emojiIndexPromise ??= import('@emoji-mart/data').then((m) => {
+    emojiIndex = buildEmojiIndex(m.default);
+  });
+  return emojiIndexPromise;
 }
 
 /** Search emojis by shortcode query (includes both native and custom emojis). */
@@ -144,8 +153,9 @@ function searchEmojis(query: string, customEmojis: CustomEmoji[]): EmojiResult[]
     }
   }
 
-  // Search native emojis
-  const index = getEmojiIndex();
+  // Search native emojis. Until the lazily-loaded index arrives the list is
+  // empty — the component re-renders when it finishes loading.
+  const index = emojiIndex ?? [];
   for (const emoji of index) {
     if (emoji.id === q) {
       results.push({ id: emoji.id, name: emoji.name, native: emoji.native, score: 2 });
@@ -195,7 +205,25 @@ export function EmojiShortcodeAutocomplete({
     dropdownHeight: 280, // must match max-h-[280px] below
   });
 
-  const results = useMemo(() => searchEmojis(query, customEmojis), [query, customEmojis]);
+  // Kick off the emoji-data load the first time a query starts, and
+  // re-render once the index is ready so native results appear.
+  const [indexReady, setIndexReady] = useState(() => emojiIndex !== null);
+  useEffect(() => {
+    if (!query || indexReady) return;
+    let cancelled = false;
+    loadEmojiIndex().then(() => {
+      if (!cancelled) setIndexReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [query, indexReady]);
+
+  const results = useMemo(
+    () => searchEmojis(query, customEmojis),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- indexReady re-runs the search once the lazy emoji index lands
+    [query, customEmojis, indexReady],
+  );
 
   // Detect :shortcode query at cursor
   const detectShortcode = useCallback((text?: string, cursorPos?: number) => {

@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { useAppContext } from '@/hooks/useAppContext';
-import { fetchAddressData, fetchBtcPrice } from '@/lib/bitcoin';
+import { fetchAddressData } from '@/lib/esploraApi';
+import { fetchBtcPrice } from '@/lib/bitcoinMoney';
 import type { ParsedCampaign } from '@/lib/campaign';
 
 interface CampaignDonationsResult {

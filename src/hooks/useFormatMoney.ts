@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { useAppContext } from '@/hooks/useAppContext';
-import { fetchBtcPrice, satsToUSD } from '@/lib/bitcoin';
+import { fetchBtcPrice, satsToUSD } from '@/lib/bitcoinMoney';
 import { formatNumber } from '@/lib/formatNumber';
 import type { CurrencyDisplay } from '@/contexts/AppContext';
 

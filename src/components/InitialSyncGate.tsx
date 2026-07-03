@@ -15,7 +15,9 @@ import { saveNsec } from "@/lib/credentialManager";
 import { openUrl } from "@/lib/downloadFile";
 import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
 import {
+  lazy,
   type ReactNode,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -23,10 +25,8 @@ import {
   useState,
 } from "react";
 import { DittoLogo } from "@/components/DittoLogo";
-import { ImageCropDialog } from "@/components/ImageCropDialog";
 import { IntroImage } from "@/components/IntroImage";
 import { ProfileCard } from "@/components/ProfileCard";
-import { ThemeGrid } from "@/components/ThemeSelector";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,16 @@ import { useUploadFile } from "@/hooks/useUploadFile";
 import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
 import { resolveTheme, resolveThemeConfig } from "@/themes";
 import { cn } from "@/lib/utils";
+
+// Onboarding-only heavyweights: the avatar cropper (react-easy-crop) and the
+// theme grid (font/color pickers). Lazy-loaded so the app shell doesn't pay
+// for them on every startup — they only render inside the signup wizard.
+const ImageCropDialog = lazy(() =>
+  import("@/components/ImageCropDialog").then((m) => ({ default: m.ImageCropDialog })),
+);
+const ThemeGrid = lazy(() =>
+  import("@/components/ThemeSelector").then((m) => ({ default: m.ThemeGrid })),
+);
 
 // ---------------------------------------------------------------------------
 // InitialSyncGate
@@ -738,18 +748,20 @@ function ProfileStep({
         onChange={handleFileChosen}
       />
       {cropState && (
-        <ImageCropDialog
-          open
-          imageSrc={cropState.imageSrc}
-          aspect={cropState.aspect}
-          title={
-            cropState.field === "picture"
-              ? "Crop Profile Picture"
-              : "Crop Banner"
-          }
-          onCancel={handleCropCancel}
-          onCrop={handleCropConfirm}
-        />
+        <Suspense fallback={null}>
+          <ImageCropDialog
+            open
+            imageSrc={cropState.imageSrc}
+            aspect={cropState.aspect}
+            title={
+              cropState.field === "picture"
+                ? "Crop Profile Picture"
+                : "Crop Banner"
+            }
+            onCancel={handleCropCancel}
+            onCrop={handleCropConfirm}
+          />
+        </Suspense>
       )}
 
       <div className={cn(isPublishing && "opacity-50 pointer-events-none")}>
@@ -840,7 +852,9 @@ function ThemeStep({
           </p>
         </div>
 
-        <ThemeGrid columns="scroll" limit={9} />
+        <Suspense fallback={<Skeleton className="h-24 w-full rounded-xl" />}>
+          <ThemeGrid columns="scroll" limit={9} />
+        </Suspense>
 
         {isFirst ? (
           <Button
