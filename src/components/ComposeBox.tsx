@@ -844,14 +844,16 @@ export function ComposeBox({
       const hashtags = extractHashtags(content);
       const tags: string[][] = hashtags.map((t) => ['t', t]);
 
-      // NIP-27 mention p tags — extract nostr:npub1... from content
-      const mentionMatches = content.matchAll(/nostr:(npub1[023456789acdefghjklmnpqrstuvwxyz]+)/g);
+      // NIP-27 mention p tags — extract nostr:npub1/nprofile1 from content
+      const mentionMatches = content.matchAll(/nostr:((?:npub1|nprofile1)[023456789acdefghjklmnpqrstuvwxyz]+)/g);
       const mentionedPubkeys = new Set<string>();
       for (const match of mentionMatches) {
         try {
           const decoded = nip19.decode(match[1]);
           if (decoded.type === 'npub') {
             mentionedPubkeys.add(decoded.data);
+          } else if (decoded.type === 'nprofile') {
+            mentionedPubkeys.add(decoded.data.pubkey);
           }
         } catch {
           // Invalid bech32, skip
