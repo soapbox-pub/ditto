@@ -89,6 +89,8 @@ import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
 import { ThreadedReplyList, FlatThreadedReplyList, type ReplyNode } from "@/components/ThreadedReplyList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PartyHat } from "@/components/BirthdayRain";
+import { isBirthdayToday, parseBirthdayFromContent } from "@/lib/birthday";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { Button } from "@/components/ui/button";
 import {
@@ -1234,8 +1236,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
-
-  // Auto-play nsite when navigated from a pinned nsite sidebar item.
+  // NIP-24 birthday — the author's avatar wears a party hat all day.
+  const authorEventContent = author.data?.event?.content;
+  const isAuthorBirthday = useMemo(
+    () => isBirthdayToday(parseBirthdayFromContent(authorEventContent)),
+    [authorEventContent],
+  );
   // Uses React Router state (not URL params) so external URLs cannot trigger auto-launch.
   // The state includes a timestamp so each sidebar click produces a distinct key,
   // allowing the player to re-open even when already on the same page.
@@ -2501,13 +2507,19 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             ) : (
               <>
                 <ProfileHoverCard pubkey={event.pubkey} asChild>
-                  <Link to={profileUrl}>
+                  <Link to={profileUrl} className="relative shrink-0">
                     <Avatar shape={avatarShape} className="size-11">
                       <AvatarImage src={metadata?.picture} alt={displayName} />
                       <AvatarFallback className="bg-primary/20 text-primary text-sm">
                         {displayName[0].toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
+                    {/* Birthday party hat — perched on the author's avatar all day. */}
+                    {isAuthorBirthday && (
+                      <div className="pointer-events-none absolute -top-3 -right-1.5 z-10 rotate-[18deg]">
+                        <PartyHat className="size-8 drop-shadow-sm" pomScale={1.15} />
+                      </div>
+                    )}
                   </Link>
                 </ProfileHoverCard>
 
