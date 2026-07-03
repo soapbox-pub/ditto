@@ -37,14 +37,6 @@ import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 export function ContentSettings() {
   return (
     <div>
-      {/* Intro */}
-      <div className="px-3 pt-2 pb-4">
-        <h2 className="text-sm font-semibold">What You See</h2>
-        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Customize your feed, choose what content appears, and control what you want to hide.
-        </p>
-      </div>
-
       {/* Homepage Section */}
       <HomePageSetting />
 
@@ -62,19 +54,14 @@ export function ContentSettings() {
       {/* Notes Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">Basic Home Feed Options</h2>
+          <h2 className="text-base font-semibold">Post Types</h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
-          <div className="px-3 pt-3 pb-4">
+          <div className="px-3 pt-3 pb-2">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Core content types that appear in your feed.
+              Core content types that appear in your home feed.
             </p>
-          </div>
-
-          {/* Column headers */}
-          <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
-            <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
           </div>
 
           <NotesFeedSettings />
@@ -84,24 +71,19 @@ export function ContentSettings() {
       {/* Other Stuff Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">Show More Content Types in Home Feed</h2>
+          <h2 className="text-base font-semibold">More Content Types</h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
           {/* Intro section for Other Stuff */}
-          <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-            <IntroImage src="/feed-intro.png" />
+          <div className="flex items-center gap-4 px-3 pt-3 pb-2">
+            <IntroImage src="/feed-intro.png" size="w-28" />
             <div className="min-w-0">
               <h3 className="text-sm font-semibold">Other Stuff</h3>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
+                Nostr isn't just text posts — pick what else shows up in your home feed.
               </p>
             </div>
-          </div>
-
-          {/* Column headers */}
-          <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
-            <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
           </div>
 
           {/* Content type rows - reuse the internals from FeedSettingsForm */}
@@ -221,25 +203,53 @@ function NotesFeedSettings() {
 }
 
 function FeedSettingsFormInternals() {
+  const { feedSettings } = useFeedSettings();
+
   return (
-    <>
+    <Accordion type="multiple">
       {SECTION_ORDER.map((section) => {
         const sectionKinds = EXTRA_KINDS.filter((def) => def.section === section);
         if (sectionKinds.length === 0) return null;
+
+        // Count enabled toggles the same way the row switches read them.
+        let enabled = 0;
+        let total = 0;
+        for (const def of sectionKinds) {
+          if (def.subKinds) {
+            for (const sub of def.subKinds) {
+              total++;
+              if (feedSettings[sub.feedKey]) enabled++;
+            }
+          } else if (def.feedKey) {
+            total++;
+            if (feedSettings[def.feedKey]) enabled++;
+          } else if (def.feedOnly && def.showKey) {
+            total++;
+            if (feedSettings[def.showKey] !== false) enabled++;
+          }
+        }
+
         return (
-          <div key={section}>
-            <div className="px-3 pt-4 pb-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {SECTION_LABELS[section]}
+          <AccordionItem key={section} value={section} className="border-b border-border last:border-b-0">
+            <AccordionTrigger className="px-3 py-3.5 hover:no-underline hover:bg-muted/20 transition-colors">
+              <span className="flex items-center gap-3 min-w-0">
+                <span className="text-sm font-medium">{SECTION_LABELS[section]}</span>
+                <Badge variant="secondary" className="shrink-0 font-normal">
+                  {enabled} of {total} on
+                </Badge>
               </span>
-            </div>
-            {sectionKinds.map((def) => (
-              <ContentTypeRow key={def.id} def={def} />
-            ))}
-          </div>
+            </AccordionTrigger>
+            <AccordionContent className="pb-0">
+              <div className="border-t border-border">
+                {sectionKinds.map((def) => (
+                  <ContentTypeRow key={def.id} def={def} />
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
         );
       })}
-    </>
+    </Accordion>
   );
 }
 
@@ -275,12 +285,6 @@ function FeedTabsSection() {
   const handleToggleDittoFeed = async (checked: boolean) => {
     setShowDittoFeed(checked);
     localStorage.setItem(getStorageKey(config.appId, 'showDittoFeed'), String(checked));
-    toast({
-      title: checked ? `${config.appName} feed enabled` : `${config.appName} feed disabled`,
-      description: checked
-        ? `The ${config.appName} feed tab will appear in your navigation`
-        : `The ${config.appName} feed tab will be hidden`,
-    });
   };
 
   const handleToggleGlobalFeed = async (checked: boolean) => {
@@ -289,12 +293,6 @@ function FeedTabsSection() {
     if (user) {
       await updateSettings.mutateAsync({ showGlobalFeed: checked });
     }
-    toast({
-      title: checked ? 'Global feed enabled' : 'Global feed disabled',
-      description: checked 
-        ? 'The Global feed tab will appear in your navigation'
-        : 'The Global feed tab will be hidden',
-    });
   };
 
   const handleToggleCommunityFeed = async (checked: boolean) => {
@@ -303,12 +301,6 @@ function FeedTabsSection() {
     if (user) {
       await updateSettings.mutateAsync({ showCommunityFeed: checked });
     }
-    toast({
-      title: checked ? 'Community feed enabled' : 'Community feed disabled',
-      description: checked 
-        ? 'The Community feed tab will appear in your navigation'
-        : 'The Community feed tab will be hidden',
-    });
   };
 
   const handleDownloadCommunity = async () => {
@@ -411,12 +403,12 @@ function FeedTabsSection() {
   return (
     <div>
       {/* Intro section for Feed Tabs */}
-      <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-        <IntroImage src="/community-intro.png" />
+      <div className="flex items-center gap-4 px-3 pt-3 pb-2">
+        <IntroImage src="/community-intro.png" size="w-28" />
         <div className="min-w-0">
           <h3 className="text-sm font-semibold">Feed Navigation</h3>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Manage which feed tabs appear in your navigation and follow communities by domain.
+            Choose which tabs appear at the top of your home feed.
           </p>
         </div>
       </div>
@@ -435,12 +427,6 @@ function FeedTabsSection() {
               if (user) {
                 await updateSettings.mutateAsync({ feedSettings: { ...feedSettings, followsFeedShowReplies: checked } });
               }
-              toast({
-                title: checked ? 'Replies shown' : 'Replies hidden',
-                description: checked
-                  ? 'Replies from people you follow will appear in your feed'
-                  : 'Only top-level posts will appear in your follows feed',
-              });
             }}
             className="shrink-0"
           />
@@ -772,7 +758,7 @@ function SavedFeedsSection() {
   return (
     <div className="px-3 py-4 space-y-3 border-t border-border">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Home Feed Tabs</h3>
+        <h3 className="text-sm font-semibold">Custom Tabs</h3>
         <Button
           variant="outline"
           size="sm"
