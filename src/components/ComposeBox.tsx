@@ -258,7 +258,7 @@ export function ComposeBox({
   /** Maps .xdc URLs to extracted metadata (name + icon URL). */
   const [webxdcMetas, setWebxdcMetas] = useState<Map<string, { name?: string; iconUrl?: string }>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { insertAtCursor, insertEmoji: insertEmojiAtCursor } = useInsertText(textareaRef, content, setContent);
+  const { insertAtCursor, insertEmoji: insertEmojiAtCursor } = useInsertText(textareaRef, setContent);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Voice recording

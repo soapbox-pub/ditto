@@ -16,16 +16,23 @@ interface InsertAtCursorParams {
  *   (used by the EmojiPicker GUI button).
  *
  * Both restore focus and cursor position after the insertion.
+ *
+ * The current text is read live from `textareaRef.current.value` (not React
+ * state) so the returned callbacks are STABLE across keystrokes. This matters:
+ * these callbacks are passed as props to the autocomplete children, and a
+ * fresh identity every keystroke would churn their event listeners and re-run
+ * their effects, causing typing jank. `setContent` keeps React state
+ * authoritative after the splice.
  */
 export function useInsertText(
   textareaRef: React.RefObject<HTMLTextAreaElement | null>,
-  content: string,
-  setContent: (value: string) => void,
+  setContent: React.Dispatch<React.SetStateAction<string>>,
 ) {
   /** Insert a replacement between explicit `start` and `end` offsets. */
   const insertAtCursor = useCallback(
     ({ start, end, replacement }: InsertAtCursorParams) => {
-      const newContent = content.slice(0, start) + replacement + content.slice(end);
+      const current = textareaRef.current?.value ?? '';
+      const newContent = current.slice(0, start) + replacement + current.slice(end);
       setContent(newContent);
       requestAnimationFrame(() => {
         const textarea = textareaRef.current;
@@ -36,7 +43,7 @@ export function useInsertText(
         }
       });
     },
-    [content, setContent, textareaRef],
+    [setContent, textareaRef],
   );
 
   /** Insert text at the textarea's current selection (or append if no ref). */
@@ -44,9 +51,10 @@ export function useInsertText(
     (emoji: string) => {
       const textarea = textareaRef.current;
       if (textarea) {
+        const current = textarea.value;
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
-        const newContent = content.slice(0, start) + emoji + content.slice(end);
+        const newContent = current.slice(0, start) + emoji + current.slice(end);
         setContent(newContent);
         requestAnimationFrame(() => {
           textarea.focus();
@@ -54,10 +62,10 @@ export function useInsertText(
           textarea.setSelectionRange(pos, pos);
         });
       } else {
-        setContent(content + emoji);
+        setContent((prev) => prev + emoji);
       }
     },
-    [content, setContent, textareaRef],
+    [setContent, textareaRef],
   );
 
   return { insertAtCursor, insertEmoji };
