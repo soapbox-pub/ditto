@@ -16,7 +16,7 @@ import {
   getLocalDayString,
   type BlobbiVisualTraits,
   type BlobbiStats,
-} from '@blobbi/core';
+} from '@blobbi-kit/core';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

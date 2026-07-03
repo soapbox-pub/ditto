@@ -15,7 +15,7 @@ import {
   parseBlobbonautEvent,
   type BlobbiBootCache,
   type BlobbonautProfile,
-} from '@blobbi/core/blobbi';
+} from '@blobbi-kit/core/blobbi';
 
 /**
  * Hook to fetch and manage the Blobbonaut Profile for the logged-in user.

@@ -1,7 +1,7 @@
 /**
- * useRerollMission - Ditto wrapper around the headless @blobbi/react hook.
+ * useRerollMission - Ditto wrapper around the headless @blobbi-kit/react hook.
  *
- * The reroll logic lives in `@blobbi/react/hooks/useRerollMission` (app-agnostic,
+ * The reroll logic lives in `@blobbi-kit/react/hooks/useRerollMission` (app-agnostic,
  * UI-free). This wrapper injects the current user's pubkey and re-adds Ditto's
  * user-facing toast feedback, preserving the previous public API (`useRerollMission()`).
  */
@@ -13,7 +13,7 @@ import {
   useRerollMission as useRerollMissionBase,
   type RerollMissionRequest,
   type RerollMissionResult,
-} from '@blobbi/react/hooks/useRerollMission';
+} from '@blobbi-kit/react/hooks/useRerollMission';
 
 // Re-export the package types so existing import paths keep working.
 export type { RerollMissionRequest, RerollMissionResult };

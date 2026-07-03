@@ -14,7 +14,7 @@ import { notificationSuccess } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
-import type { BlobbiCompanion } from '@blobbi/core/blobbi';
+import type { BlobbiCompanion } from '@blobbi-kit/core/blobbi';
 
 import { useTypewriter } from '../hooks/useTypewriter';
 import { hexToRgb, buildRevealGradient } from '../lib/ceremony-colors';

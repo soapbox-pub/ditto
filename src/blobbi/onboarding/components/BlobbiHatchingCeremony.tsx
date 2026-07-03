@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { fetchFreshBlobbonautProfile } from '@blobbi/core/fetchFreshBlobbonautProfile';
+import { fetchFreshBlobbonautProfile } from '@blobbi-kit/core/fetchFreshBlobbonautProfile';
 
 import {
   KIND_BLOBBI_STATE,
@@ -37,12 +37,12 @@ import {
   updateBlobbiTags,
   type BlobbonautProfile,
   type BlobbiCompanion,
-} from '@blobbi/core/blobbi';
-import { validateAndRepairBlobbiTags } from '@blobbi/core/blobbi-tag-schema';
-import { serializeEvolutionContent } from '@blobbi/core/missions';
-import { createEvolveMissions } from '@blobbi/react/lib/evolution-missions';
-import { writeEvolutionToStorage } from '@blobbi/react/lib/daily-mission-tracker';
-import { getStreakTagUpdates } from '@blobbi/react/lib/blobbi-streak';
+} from '@blobbi-kit/core/blobbi';
+import { validateAndRepairBlobbiTags } from '@blobbi-kit/core/blobbi-tag-schema';
+import { serializeEvolutionContent } from '@blobbi-kit/core/missions';
+import { createEvolveMissions } from '@blobbi-kit/react/lib/evolution-missions';
+import { writeEvolutionToStorage } from '@blobbi-kit/react/lib/daily-mission-tracker';
+import { getStreakTagUpdates } from '@blobbi-kit/react/lib/blobbi-streak';
 
 import {
   generateEggPreview,

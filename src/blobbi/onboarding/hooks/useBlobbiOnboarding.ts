@@ -23,7 +23,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import { fetchFreshBlobbonautProfile } from '@blobbi/core/fetchFreshBlobbonautProfile';
+import { fetchFreshBlobbonautProfile } from '@blobbi-kit/core/fetchFreshBlobbonautProfile';
 
 import {
   KIND_BLOBBI_STATE,
@@ -35,7 +35,7 @@ import {
   updateBlobbonautTags,
   mergeHasForAdoption,
   type BlobbonautProfile,
-} from '@blobbi/core/blobbi';
+} from '@blobbi-kit/core/blobbi';
 
 import {
   generateEggPreview,

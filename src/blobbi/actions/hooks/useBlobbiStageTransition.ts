@@ -2,9 +2,9 @@
 
 /**
  * Blobbi stage-transition hooks — Ditto wrapper around the headless
- * @blobbi/react hook.
+ * @blobbi-kit/react hook.
  *
- * The evolve transition logic lives in `@blobbi/react/hooks/useBlobbiEvolve`
+ * The evolve transition logic lives in `@blobbi-kit/react/hooks/useBlobbiEvolve`
  * (app-agnostic, UI-free). This wrapper injects the current user's pubkey and
  * the host `publish` function, and re-adds Ditto's user-facing toast feedback —
  * preserving the previous public API (`useBlobbiEvolve({ companion, profile,
@@ -20,13 +20,13 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
 import type { NostrEvent } from '@nostrify/nostrify';
-import type { BlobbiCompanion, BlobbonautProfile } from '@blobbi/core/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile } from '@blobbi-kit/core/blobbi';
 
 import {
   useBlobbiEvolve as useBlobbiEvolveBase,
   type CanonicalActionResult,
   type StageTransitionResult,
-} from '@blobbi/react/hooks/useBlobbiEvolve';
+} from '@blobbi-kit/react/hooks/useBlobbiEvolve';
 
 // ─── Re-exported Types (preserve existing import paths) ─────────────────────────
 

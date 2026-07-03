@@ -24,7 +24,7 @@ import {
   isValidBlobbiEvent,
   parseBlobbiEvent,
   type BlobbiStats,
-} from '@blobbi/core/blobbi';
+} from '@blobbi-kit/core/blobbi';
 import { checkItemCategoryNeed, type NeedCheckResult } from '../interaction/needDetection';
 import type { ShopItemCategory } from '@/blobbi/shop/types/shop.types';
 import type { Position } from '../types/companion.types';

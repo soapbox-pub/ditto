@@ -13,8 +13,8 @@ import { useMemo } from 'react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
-import { useBlobbisCollection } from '@blobbi/react/hooks/useBlobbisCollection';
-import { useProjectedBlobbiState } from '@blobbi/react/hooks/useProjectedBlobbiState';
+import { useBlobbisCollection } from '@blobbi-kit/react/hooks/useBlobbisCollection';
+import { useProjectedBlobbiState } from '@blobbi-kit/react/hooks/useProjectedBlobbiState';
 import type { CompanionData } from '../types/companion.types';
 
 interface UseBlobbiCompanionDataResult {

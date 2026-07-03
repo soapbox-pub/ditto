@@ -11,10 +11,10 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import App from './App.tsx';
 import './index.css';
 
-// In development, route @blobbi/core diagnostics to the console. The package
+// In development, route @blobbi-kit/core diagnostics to the console. The package
 // logger is a no-op by default, so production behavior is unchanged. Gated by
 // import.meta.env.DEV here so the Vite-only flag never leaks into core files.
-import { setBlobbiLogger } from '@blobbi/core/logger';
+import { setBlobbiLogger } from '@blobbi-kit/core/logger';
 if (import.meta.env.DEV) {
   setBlobbiLogger({
     debug: (...args) => console.log(...args),

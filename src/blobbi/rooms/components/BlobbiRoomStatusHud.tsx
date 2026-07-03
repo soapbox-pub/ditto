@@ -12,13 +12,13 @@ import {
 } from 'lucide-react';
 
 import { SegmentedRing } from '@/blobbi/ui/StatIndicator';
-import { getVisibleStats } from '@blobbi/core/blobbi-decay';
-import { getBlobbiStatDisplayState } from '@blobbi/core/blobbi-segments';
+import { getVisibleStats } from '@blobbi-kit/core/blobbi-decay';
+import { getBlobbiStatDisplayState } from '@blobbi-kit/core/blobbi-segments';
 import { cn } from '@/lib/utils';
 import { ROOM_CONTROL_SURFACE_SUBTLE } from '../lib/room-layout';
 
-import type { CareState } from '@blobbi/core/blobbi-segments';
-import type { BlobbiCompanion, BlobbiStats } from '@blobbi/core/blobbi';
+import type { CareState } from '@blobbi-kit/core/blobbi-segments';
+import type { BlobbiCompanion, BlobbiStats } from '@blobbi-kit/core/blobbi';
 
 // ─── Colour maps ──────────────────────────────────────────────────────────────
 

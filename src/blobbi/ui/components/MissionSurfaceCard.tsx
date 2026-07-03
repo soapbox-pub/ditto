@@ -27,8 +27,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
-import type { HatchTask } from '@blobbi/react/hooks/useHatchTasks';
-import type { DailyMissionView } from '@blobbi/react/hooks/useDailyMissions';
+import type { HatchTask } from '@blobbi-kit/react/hooks/useHatchTasks';
+import type { DailyMissionView } from '@blobbi-kit/react/hooks/useDailyMissions';
 
 // ─── Card Item Types ──────────────────────────────────────────────────────────
 

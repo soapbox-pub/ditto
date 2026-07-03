@@ -16,7 +16,7 @@ import { useMemo } from 'react';
 import { EggGraphic, type EggReactionState, type EggStatusEffects, type EggTourVisualState } from '@/blobbi/egg';
 import { toEggGraphicVisualBlobbi } from '@/blobbi/core/lib/blobbi-egg-adapter';
 import { cn } from '@/lib/utils';
-import type { BlobbiCompanion } from '@blobbi/core';
+import type { BlobbiCompanion } from '@blobbi-kit/core';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

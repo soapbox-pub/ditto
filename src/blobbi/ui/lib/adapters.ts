@@ -10,7 +10,7 @@
  */
 
 import type { Blobbi } from '@/blobbi/core/types/blobbi';
-import type { BlobbiCompanion } from '@blobbi/core';
+import type { BlobbiCompanion } from '@blobbi-kit/core';
 import type { CompanionData } from '@/blobbi/companion/types/companion.types';
 
 /**

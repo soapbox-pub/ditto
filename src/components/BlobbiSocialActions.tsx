@@ -27,13 +27,13 @@ import { cn } from '@/lib/utils';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
-import { parseBlobbiEvent, buildBlobbiAddress } from '@blobbi/core/blobbi';
+import { parseBlobbiEvent, buildBlobbiAddress } from '@blobbi-kit/core/blobbi';
 import {
   buildInteractionEventTemplate,
   type InteractionAction,
-} from '@blobbi/core/blobbi-interaction';
-import { useBlobbiInteractions } from '@blobbi/react/hooks/useBlobbiInteractions';
-import { calculateProjectedDecay } from '@blobbi/react/hooks/useProjectedBlobbiState';
+} from '@blobbi-kit/core/blobbi-interaction';
+import { useBlobbiInteractions } from '@blobbi-kit/react/hooks/useBlobbiInteractions';
+import { calculateProjectedDecay } from '@blobbi-kit/react/hooks/useProjectedBlobbiState';
 import { SEVERITY_THRESHOLDS } from '@/blobbi/ui/lib/status-reactions';
 import {
   ACTION_METADATA,
@@ -46,7 +46,7 @@ import {
 } from '@/blobbi/actions/lib/blobbi-action-utils';
 import { getLiveShopItems, getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { ItemCarousel, type CarouselEntry } from '@/blobbi/rooms/components/ItemCarousel';
-import type { BlobbiStats } from '@blobbi/core/blobbi';
+import type { BlobbiStats } from '@blobbi-kit/core/blobbi';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

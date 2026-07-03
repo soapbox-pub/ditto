@@ -1,14 +1,14 @@
 // src/blobbi/actions/lib/blobbi-action-utils.ts
 
-import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStage, type BlobbiStats } from '@blobbi/core/blobbi';
+import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStage, type BlobbiStats } from '@blobbi-kit/core/blobbi';
 import type { ItemEffect, ShopItemCategory } from '@/blobbi/shop/types/shop.types';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
-import { getBlobbiStatDisplayState, type CareState } from '@blobbi/core/blobbi-segments';
-import type { InventoryAction, DirectAction, BlobbiAction } from '@blobbi/react/lib/blobbi-actions';
+import { getBlobbiStatDisplayState, type CareState } from '@blobbi-kit/core/blobbi-segments';
+import type { InventoryAction, DirectAction, BlobbiAction } from '@blobbi-kit/react/lib/blobbi-actions';
 
 // ─── Action Types ─────────────────────────────────────────────────────────────
 
-// Action taxonomy now lives in @blobbi/react/lib/blobbi-actions (app-agnostic).
+// Action taxonomy now lives in @blobbi-kit/react/lib/blobbi-actions (app-agnostic).
 // Re-exported here so existing Ditto import paths keep working.
 export type { InventoryAction, DirectAction, BlobbiAction };
 

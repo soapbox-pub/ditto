@@ -1,7 +1,7 @@
 /**
- * useAwardDailyXp - Ditto wrapper around the headless @blobbi/react hook.
+ * useAwardDailyXp - Ditto wrapper around the headless @blobbi-kit/react hook.
  *
- * The XP-award logic lives in `@blobbi/react/hooks/useAwardDailyXp`
+ * The XP-award logic lives in `@blobbi-kit/react/hooks/useAwardDailyXp`
  * (app-agnostic, UI-free). This wrapper injects the current user's pubkey and
  * the host `publish` function, and re-adds Ditto's user-facing toast feedback
  * plus the `blobbonaut-profile` query invalidation — preserving the previous
@@ -19,7 +19,7 @@ import {
   useAwardDailyXp as useAwardDailyXpBase,
   type AwardDailyXpRequest,
   type AwardDailyXpResult,
-} from '@blobbi/react/hooks/useAwardDailyXp';
+} from '@blobbi-kit/react/hooks/useAwardDailyXp';
 
 // Re-export the package types so existing import paths keep working.
 export type { AwardDailyXpRequest, AwardDailyXpResult };

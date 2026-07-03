@@ -14,7 +14,7 @@ import { memo } from 'react';
 import { Footprints, Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import type { BlobbiCompanion } from '@blobbi/core/blobbi';
+import type { BlobbiCompanion } from '@blobbi-kit/core/blobbi';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 

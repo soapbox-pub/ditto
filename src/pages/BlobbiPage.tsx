@@ -7,20 +7,20 @@ import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, The
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
-import { useProjectedBlobbiState } from '@blobbi/react/hooks/useProjectedBlobbiState';
-import { useBlobbiInteractions } from '@blobbi/react/hooks/useBlobbiInteractions';
-import { useBlobbiActivityHistory } from '@blobbi/react/hooks/useBlobbiActivityHistory';
-import { useCanonicalSync } from '@blobbi/react/hooks/useCanonicalSync';
+import { useProjectedBlobbiState } from '@blobbi-kit/react/hooks/useProjectedBlobbiState';
+import { useBlobbiInteractions } from '@blobbi-kit/react/hooks/useBlobbiInteractions';
+import { useBlobbiActivityHistory } from '@blobbi-kit/react/hooks/useBlobbiActivityHistory';
+import { useCanonicalSync } from '@blobbi-kit/react/hooks/useCanonicalSync';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { timeAgo } from '@/lib/timeAgo';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbonautProfileNormalization } from '@/hooks/useBlobbonautProfileNormalization';
-import { useBlobbisCollection } from '@blobbi/react/hooks/useBlobbisCollection';
+import { useBlobbisCollection } from '@blobbi-kit/react/hooks/useBlobbisCollection';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostr } from '@nostrify/react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { useFreshBlobbiBeforeAction } from '@blobbi/react/hooks/useFreshBlobbiBeforeAction';
+import { useFreshBlobbiBeforeAction } from '@blobbi-kit/react/hooks/useFreshBlobbiBeforeAction';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { toast } from '@/hooks/useToast';
 
@@ -56,10 +56,10 @@ import {
   type BlobbiStats,
   type BlobbonautProfile,
   type StorageItem,
-} from '@blobbi/core/blobbi';
+} from '@blobbi-kit/core/blobbi';
 
-import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
-import { getBlobbiStatDisplayState } from '@blobbi/core/blobbi-segments';
+import { applyBlobbiDecay } from '@blobbi-kit/core/blobbi-decay';
+import { getBlobbiStatDisplayState } from '@blobbi-kit/core/blobbi-segments';
 
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 
@@ -129,8 +129,8 @@ import { type RoomLayout, type RoomLayoutsContent, parseRoomLayoutsContent, getE
 import { parseRoomFurnitureContent, type FurniturePlacement, type RoomFurnitureContent } from '@/blobbi/rooms/lib/room-furniture-schema';
 import { getEffectiveRoomFurniture } from '@/blobbi/rooms/lib/room-furniture-effective';
 import { RoomFurnitureEditor, RoomFurnitureEditorTrigger } from '@/blobbi/rooms/components/RoomFurnitureEditor';
-import { serializeProfileContent } from '@blobbi/core/missions';
-import { fetchFreshBlobbonautProfile } from '@blobbi/core/fetchFreshBlobbonautProfile';
+import { serializeProfileContent } from '@blobbi-kit/core/missions';
+import { fetchFreshBlobbonautProfile } from '@blobbi-kit/core/fetchFreshBlobbonautProfile';
 import { buildGuideTarget, getGuideRoomDirection, type GuideTarget } from '@/blobbi/rooms/lib/stat-guide-config';
 import { getActionEmotion, SEVERITY_THRESHOLDS } from '@/blobbi/ui/lib/status-reactions';
 import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';

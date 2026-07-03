@@ -27,15 +27,15 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
 import type { NostrEvent } from '@nostrify/nostrify';
-import type { BlobbiCompanion, BlobbonautProfile } from '@blobbi/core/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile } from '@blobbi-kit/core/blobbi';
 import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
   parseBlobbiEvent,
   isValidBlobbiEvent,
   buildBlobbiAddress,
-} from '@blobbi/core/blobbi';
-import { applyBlobbiDecay } from '@blobbi/core/blobbi-decay';
+} from '@blobbi-kit/core/blobbi';
+import { applyBlobbiDecay } from '@blobbi-kit/core/blobbi-decay';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import {
   applyItemEffects,
@@ -49,10 +49,10 @@ import {
   type InventoryAction,
   ACTION_METADATA,
 } from '@/blobbi/actions/lib/blobbi-action-utils';
-import { trackEvolutionMissionTally, readEvolutionFromStorage, trackInventoryDailyActions } from '@blobbi/react/lib/daily-mission-tracker';
-import { serializeEvolutionContent } from '@blobbi/core/missions';
-import { getStreakTagUpdates } from '@blobbi/react/lib/blobbi-streak';
-import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@blobbi/core/blobbi-interaction';
+import { trackEvolutionMissionTally, readEvolutionFromStorage, trackInventoryDailyActions } from '@blobbi-kit/react/lib/daily-mission-tracker';
+import { serializeEvolutionContent } from '@blobbi-kit/core/missions';
+import { getStreakTagUpdates } from '@blobbi-kit/react/lib/blobbi-streak';
+import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@blobbi-kit/core/blobbi-interaction';
 
 import type { UseItemFunction } from './BlobbiActionsContextDef';
 

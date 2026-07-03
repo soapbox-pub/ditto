@@ -22,7 +22,7 @@ import { FloatingSocialHearts } from '@/blobbi/ui/FloatingSocialHearts';
 import { ROOM_FLOOR_RATIO, getBlobbiBodyBottomInset } from '../lib/room-layout-schema';
 import { cn } from '@/lib/utils';
 
-import type { BlobbiCompanion } from '@blobbi/core/blobbi';
+import type { BlobbiCompanion } from '@blobbi-kit/core/blobbi';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BlobbiReactionState } from '@/blobbi/actions';

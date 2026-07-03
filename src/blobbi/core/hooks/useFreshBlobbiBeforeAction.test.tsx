@@ -12,8 +12,8 @@ import {
   getCanonicalBlobbiD,
   type BlobbiCompanion,
   type BlobbonautProfile,
-} from '@blobbi/core/blobbi';
-import { useFreshBlobbiBeforeAction } from '@blobbi/react/hooks/useFreshBlobbiBeforeAction';
+} from '@blobbi-kit/core/blobbi';
+import { useFreshBlobbiBeforeAction } from '@blobbi-kit/react/hooks/useFreshBlobbiBeforeAction';
 
 // ─── Mocks ─────────────────────────────────────────────────────────────────
 // Control the relay response per-test.

@@ -7,12 +7,12 @@ import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { toast } from '@/hooks/useToast';
 
 import type { PurchaseRequest } from '../types/shop.types';
-import type { BlobbonautProfile, StorageItem } from '@blobbi/core/blobbi';
+import type { BlobbonautProfile, StorageItem } from '@blobbi-kit/core/blobbi';
 import {
   KIND_BLOBBONAUT_PROFILE,
   updateBlobbonautTags,
   createStorageTags,
-} from '@blobbi/core/blobbi';
+} from '@blobbi-kit/core/blobbi';
 import { getShopItemById } from '../lib/blobbi-shop-items';
 
 /**

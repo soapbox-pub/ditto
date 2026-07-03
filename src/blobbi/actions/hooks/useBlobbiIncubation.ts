@@ -1,8 +1,8 @@
 /**
- * Blobbi incubation hooks - Ditto wrappers around the headless @blobbi/react hooks.
+ * Blobbi incubation hooks - Ditto wrappers around the headless @blobbi-kit/react hooks.
  *
  * The incubation/evolution progression logic lives in
- * `@blobbi/react/hooks/useBlobbiIncubation` (app-agnostic, UI-free). These
+ * `@blobbi-kit/react/hooks/useBlobbiIncubation` (app-agnostic, UI-free). These
  * wrappers inject the current user's pubkey and the host `publish` function, and
  * re-add Ditto's user-facing toast feedback — preserving the previous public API
  * (`useStartIncubation({ companion, profile, ensureCanonicalBeforeAction,
@@ -15,7 +15,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { StorageItem } from '@blobbi/core/blobbi';
+import type { StorageItem } from '@blobbi-kit/core/blobbi';
 import {
   useStartIncubation as useStartIncubationBase,
   useStopIncubation as useStopIncubationBase,
@@ -27,7 +27,7 @@ import {
   type StopIncubationResult,
   type StartEvolutionResult,
   type StopEvolutionResult,
-} from '@blobbi/react/hooks/useBlobbiIncubation';
+} from '@blobbi-kit/react/hooks/useBlobbiIncubation';
 
 // ─── Re-exported Types (preserve existing import paths) ─────────────────────────
 
@@ -42,7 +42,7 @@ export type {
 
 /** Shared canonical-result shape returned by `ensureCanonicalBeforeAction`. */
 interface CanonicalActionResult {
-  companion: import('@blobbi/core/blobbi').BlobbiCompanion;
+  companion: import('@blobbi-kit/core/blobbi').BlobbiCompanion;
   content: string;
   allTags: string[][];
   profileAllTags: string[][];
@@ -51,8 +51,8 @@ interface CanonicalActionResult {
 
 /** Parameters for start incubation hook (Ditto public API). */
 export interface UseStartIncubationParams {
-  companion: import('@blobbi/core/blobbi').BlobbiCompanion | null;
-  profile: import('@blobbi/core/blobbi').BlobbonautProfile | null;
+  companion: import('@blobbi-kit/core/blobbi').BlobbiCompanion | null;
+  profile: import('@blobbi-kit/core/blobbi').BlobbonautProfile | null;
   /** Called to fetch fresh companion + profile data before acting */
   ensureCanonicalBeforeAction: () => Promise<CanonicalActionResult | null>;
   /** Update companion event in local cache */
@@ -61,7 +61,7 @@ export interface UseStartIncubationParams {
 
 /** Parameters for stop incubation hook (Ditto public API). */
 export interface UseStopIncubationParams {
-  companion: import('@blobbi/core/blobbi').BlobbiCompanion | null;
+  companion: import('@blobbi-kit/core/blobbi').BlobbiCompanion | null;
   /** Called to fetch fresh companion + profile data before acting */
   ensureCanonicalBeforeAction: () => Promise<CanonicalActionResult | null>;
   /** Update companion event in local cache */
@@ -70,7 +70,7 @@ export interface UseStopIncubationParams {
 
 /** Parameters for start evolution hook (Ditto public API). */
 export interface UseStartEvolutionParams {
-  companion: import('@blobbi/core/blobbi').BlobbiCompanion | null;
+  companion: import('@blobbi-kit/core/blobbi').BlobbiCompanion | null;
   /** Called to fetch fresh companion + profile data before acting */
   ensureCanonicalBeforeAction: () => Promise<CanonicalActionResult | null>;
   /** Update companion event in local cache */
@@ -79,7 +79,7 @@ export interface UseStartEvolutionParams {
 
 /** Parameters for stop evolution hook (Ditto public API). */
 export interface UseStopEvolutionParams {
-  companion: import('@blobbi/core/blobbi').BlobbiCompanion | null;
+  companion: import('@blobbi-kit/core/blobbi').BlobbiCompanion | null;
   /** Called to fetch fresh companion + profile data before acting */
   ensureCanonicalBeforeAction: () => Promise<CanonicalActionResult | null>;
   /** Update companion event in local cache */

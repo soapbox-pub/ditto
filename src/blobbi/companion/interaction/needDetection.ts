@@ -10,7 +10,7 @@
  * - Returns both boolean need and priority level for potential future use
  */
 
-import type { BlobbiStats } from '@blobbi/core';
+import type { BlobbiStats } from '@blobbi-kit/core';
 import type { ShopItemCategory } from '@/blobbi/shop/types/shop.types';
 
 // ─── Need Thresholds ──────────────────────────────────────────────────────────

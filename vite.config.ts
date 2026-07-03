@@ -162,11 +162,25 @@ export default defineConfig(({ mode }) => {
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
+    // Only run Ditto's own tests. The in-repo packages/blobbi-* directories are
+    // kept as source history / fallback and are no longer consumed (Ditto now
+    // depends on the published @blobbi-kit/* packages); their internal tests
+    // still import the old @blobbi/* names, which no longer resolve here.
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
     onConsoleLog(log) {
       return !log.includes("React Router Future Flag Warning");
     },
     env: {
       DEBUG_PRINT_LIMIT: '0', // Suppress DOM output that exceeds AI context windows
+    },
+    server: {
+      deps: {
+        // Inline the published @blobbi-kit packages so Vitest transforms them
+        // through its pipeline. Without this they resolve as externalized
+        // node_modules, and `vi.mock()` calls in tests (e.g. mocking
+        // '@nostrify/react') never intercept the imports made inside them.
+        inline: [/@blobbi-kit\//],
+      },
     },
   },
   build: {
@@ -200,13 +214,12 @@ export default defineConfig(({ mode }) => {
   },
   resolve: {
     alias: [
-      // @blobbi/core and @blobbi/react resolve through their installed package
-      // exports in node_modules (file: deps on ../blobbi-kit), not source aliases.
+      // @blobbi-kit/core and @blobbi-kit/react resolve through their installed
+      // package exports in node_modules (published npm packages), not source aliases.
       { find: "@", replacement: path.resolve(__dirname, "./src") },
     ],
-    // The @blobbi/* packages are file: deps symlinked from ../blobbi-kit, which
-    // has its own node_modules. Dedupe the React-context-bearing singletons so a
-    // symlinked package can't pull in a second copy (which breaks useContext).
+    // Dedupe the React-context-bearing singletons so a dependency can't pull in a
+    // second copy of them (which breaks useContext).
     dedupe: [
       'react',
       'react-dom',
