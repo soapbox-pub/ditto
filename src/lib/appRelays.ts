@@ -15,6 +15,9 @@ export const DIVINE_RELAY = 'wss://divine.video/';
 /** Relay used for Zapstore app metadata (kind 32267) and releases (kind 30063). */
 export const ZAPSTORE_RELAY = 'wss://relay.zapstore.dev/';
 
+/** Relay where NIP-34 git events (repos, patches, PRs, issues, statuses) are concentrated. */
+export const NGIT_RELAY = 'wss://relay.ngit.dev/';
+
 /** Normalize a relay URL for deduplication (lowercase, strip trailing slash). */
 function normalizeUrl(url: string): string {
   return url.toLowerCase().replace(/\/+$/, '');

@@ -1,4 +1,5 @@
 import type { NostrEvent, NPool } from '@nostrify/nostrify';
+import { getGitRootRef } from '@/lib/gitActivity';
 import { getZapAmountSats, getZapSenderPubkey, getTargetEventId } from '@/lib/zapHelpers';
 
 /**
@@ -212,6 +213,21 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
   // Love Lists (kind 15683, see NIP.md) with no `p` tags — an emptied list
   // has no hearts to show on its paper card.
   if (event.kind === 15683 && !event.tags.some(([n, v]) => n === 'p' && v)) return true;
+  // NIP-34 issues (kind 1621) with no subject and no content have nothing
+  // to render.
+  if (event.kind === 1621) {
+    const hasSubject = event.tags.some(([n, v]) => n === 'subject' && v?.trim());
+    if (!hasSubject && !event.content.trim()) return true;
+  }
+  // NIP-34 status events (1630-1633) and PR updates (1619) must reference
+  // a root ticket / PR via an `e`/`E` tag — without one there is nothing
+  // the status applies to.
+  if (event.kind === 1619 || (event.kind >= 1630 && event.kind <= 1633)) {
+    if (!getGitRootRef(event)) return true;
+  }
+  // NIP-34 repository state (kind 30618) with no refs — an empty push
+  // announcement has no branches or tags to show.
+  if (event.kind === 30618 && !event.tags.some(([n, v]) => n.startsWith('refs/') && v)) return true;
   return false;
 }
 

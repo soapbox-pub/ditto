@@ -4,7 +4,8 @@ import { NostrContext } from '@nostrify/react';
 import { NUser, useNostrLogin } from '@nostrify/react/login';
 import type { NostrSigner } from '@nostrify/types';
 import { useAppContext } from '@/hooks/useAppContext';
-import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
+import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
+import { GIT_ACTIVITY_KINDS } from '@/lib/gitActivity';
 import { AppPool } from '@/lib/AppPool';
 import { NIndexedDB } from '@nostrify/indexeddb';
 import { NostrStorageContext } from '@/contexts/NostrStorageContext';
@@ -143,10 +144,21 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
           .filter(r => r.read)
           .map(r => r.url);
 
-        // Include zapstore relay for kind 32267 (apps), 30063 (releases), and 3063 (assets)
+        // Development kinds live on specialized relays the user's read
+        // relays rarely carry: Zapstore kinds (apps/releases/assets) on the
+        // Zapstore relay and NIP-34 git kinds on the ngit relay. When a
+        // query asks *only* for development kinds (e.g. the /development
+        // feed or a git root-event lookup), fan out to the matching special
+        // relays in addition to the read relays. Mixed feeds that include
+        // kind 1 etc. never match, so ordinary traffic doesn't hit them.
         const ZAPSTORE_KINDS = [32267, 30063, 3063];
-        if (filters.every((f) => f?.kinds?.every((k) => ZAPSTORE_KINDS.includes(k)))) {
-          return new Map([ZAPSTORE_RELAY, ...readRelays].map(url => [url, filters]));
+        const DEV_KINDS = [...ZAPSTORE_KINDS, ...GIT_ACTIVITY_KINDS, 30817, 15128, 35128, 31990];
+        if (filters.every((f) => f?.kinds?.length && f.kinds.every((k) => DEV_KINDS.includes(k)))) {
+          const urls = new Set<string>();
+          if (filters.some((f) => f.kinds?.some((k) => ZAPSTORE_KINDS.includes(k)))) urls.add(ZAPSTORE_RELAY);
+          if (filters.some((f) => f.kinds?.some((k) => GIT_ACTIVITY_KINDS.includes(k)))) urls.add(NGIT_RELAY);
+          for (const url of readRelays) urls.add(url);
+          return new Map([...urls].map((url) => [url, filters]));
         }
 
         for (const url of readRelays) {

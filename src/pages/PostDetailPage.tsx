@@ -55,6 +55,10 @@ import { BirdDetectionContent } from "@/components/BirdDetectionContent";
 import { BirdexContent } from "@/components/BirdexContent";
 import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
+const GitStatusCard = lazy(() => import("@/components/GitStatusCard").then(m => ({ default: m.GitStatusCard })));
+const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ default: m.IssueCard })));
+import { PrUpdateCard } from "@/components/PrUpdateCard";
+import { RepoStateCard } from "@/components/RepoStateCard";
 import { ImageGallery } from "@/components/ImageGallery";
 import {
   InteractionsModal,
@@ -1172,8 +1176,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isVideo = event.kind === 21 || event.kind === 22;
   const isCommunity = event.kind === 34550;
   const isGitRepo = event.kind === 30617;
+  const isRepoState = event.kind === 30618;
   const isPatch = event.kind === 1617;
   const isPullRequest = event.kind === 1618;
+  const isPrUpdate = event.kind === 1619;
+  const isIssue = event.kind === 1621;
+  const isGitStatus = event.kind >= 1630 && event.kind <= 1633;
   const isCustomNip = event.kind === 30817;
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
@@ -1191,7 +1199,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isProfile = event.kind === 0;
   const isBlobbiState = event.kind === 31124;
   const isBadgeAward = event.kind === BADGE_AWARD_KIND;
-  const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
+  const isDevKind = isGitRepo || isRepoState || isPatch || isPullRequest || isPrUpdate || isIssue || isGitStatus || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
     !isPoll &&
@@ -2430,6 +2438,26 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   <PullRequestCard event={event} preview={false} />
                 </div>
               </Suspense>
+            ) : isIssue ? (
+              <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
+                <div className="mt-3">
+                  <IssueCard event={event} preview={false} />
+                </div>
+              </Suspense>
+            ) : isPrUpdate ? (
+              <div className="mt-3">
+                <PrUpdateCard event={event} preview={false} />
+              </div>
+            ) : isGitStatus ? (
+              <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
+                <div className="mt-3">
+                  <GitStatusCard event={event} preview={false} />
+                </div>
+              </Suspense>
+            ) : isRepoState ? (
+              <div className="mt-3">
+                <RepoStateCard event={event} preview={false} />
+              </div>
             ) : isCustomNip ? (
               <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
                 <div className="mt-3">

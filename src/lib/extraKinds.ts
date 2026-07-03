@@ -1,7 +1,7 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
-import { Bird, Globe, GitPullRequestArrow, Heart, MessageSquareMore, CircleAlert, Stars, UserCheck, Users } from 'lucide-react';
+import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, Stars, UserCheck, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -591,13 +591,13 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'development',
     showKey: 'showDevelopment',
     feedKey: 'feedIncludeDevelopment',
-    extraFeedKinds: [1617, 1618, 30817, 15128, 35128, 32267, 30063, 31990],
+    extraFeedKinds: [1617, 1618, 1619, 1621, 1630, 1631, 1632, 1633, 30618, 30817, 15128, 35128, 32267, 30063, 31990],
     label: 'Development',
-    description: 'Git repos, patches, PRs, nsites, apps, and custom NIPs',
+    description: 'Git repos, patches, PRs, issues, pushes, nsites, apps, and custom NIPs',
     route: 'development',
     addressable: true,
     section: 'development',
-    blurb: 'Nostr-native git repositories, patches, pull requests, nsite deployments, custom NIPs, and published applications.',
+    blurb: 'Nostr-native git activity — repositories, pushes, patches, pull requests, issues, and status changes — plus nsite deployments, custom NIPs, and published applications.',
     sites: [{ url: 'https://gitworkshop.dev', name: 'Gitworkshop' }, { url: 'https://nostrhub.io', name: 'NostrHub' }],
   },
 ];
@@ -656,7 +656,14 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   16: 'repost',
   30000: 'follow set',
   1617: 'patch',
-  1618: 'patch comment',
+  1618: 'pull request',
+  1619: 'pull request update',
+  1621: 'issue',
+  1630: 'status update',
+  1631: 'status update',
+  1632: 'status update',
+  1633: 'status update',
+  30618: 'repository update',
   15128: 'nsite',
   35128: 'nsite',
   30008: 'badge set',
@@ -676,7 +683,14 @@ const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: st
   16: RepostIcon,
   30000: Users,
   1617: GitPullRequestArrow,
-  1618: MessageSquareMore,
+  1618: GitPullRequest,
+  1619: GitPullRequestArrow,
+  1621: CircleDot,
+  1630: CircleDot,
+  1631: CircleCheck,
+  1632: CircleX,
+  1633: CircleDashed,
+  30618: GitBranch,
   15128: Globe,
   15683: Heart,
   35128: Globe,
