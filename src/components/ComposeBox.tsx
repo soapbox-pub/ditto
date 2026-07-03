@@ -1691,8 +1691,11 @@ export function ComposeBox({
           "-mx-4 mt-2 shrink-0 overflow-hidden rounded-t-2xl bg-popover motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200",
           forceExpanded && "rounded-b-2xl",
           // While searching GIFs in the modal, grow to claim nearly all free
-          // space (the textarea column keeps only its content height).
-          gifSearchDominant && forceExpanded && "flex flex-col grow-[999] min-h-0",
+          // space. basis-0 + shrink are critical: with the default
+          // `shrink-0 basis-auto` the tray sizes to the GIF grid's content
+          // height and silently overflows the modal, leaving the scroller
+          // with nothing to scroll.
+          gifSearchDominant && forceExpanded && "flex flex-col grow-[999] shrink basis-0 min-h-0",
         )}>
           {/* Tab bar — pill highlight style for inline mode */}
           <div className="flex gap-1 px-3 pt-2 shrink-0">
