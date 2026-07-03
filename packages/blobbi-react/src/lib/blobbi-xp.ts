@@ -120,13 +120,13 @@ export function formatXPGain(xpGained: number): string {
 /**
  * Get a descriptive message about XP gain.
  * 
- * @param action - The action that earned XP
+ * @param _action - The action that earned XP (reserved for future messaging; currently unused)
  * @param xpGained - Amount of XP gained
  * @param newTotal - New total XP (optional, for "You now have X XP" message)
  * @returns Formatted message for user feedback
  */
 export function getXPGainMessage(
-  action: BlobbiAction,
+  _action: BlobbiAction,
   xpGained: number,
   newTotal?: number
 ): string {
