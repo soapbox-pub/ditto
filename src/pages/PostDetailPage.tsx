@@ -814,8 +814,10 @@ function EventNotFound({
           )}
         </div>
 
-        {/* Primary retry action */}
-        {onRetry && (
+        {/* Retrying makes no sense for a verified deletion — the author
+            removed it on purpose. An unverified kind 5 is just a claim, so
+            keep the retry affordances in that case. */}
+        {onRetry && !deletionInfo?.verified && (
           <Button
             className="rounded-full w-full"
             onClick={onRetry}
@@ -877,51 +879,53 @@ function EventNotFound({
           {authorPubkey && <AuthorHintRow pubkey={authorPubkey} />}
         </div>
 
-        {/* Collapsible relay retry */}
-        <Collapsible open={retryOpen} onOpenChange={setRetryOpen}>
-          <CollapsibleTrigger asChild>
-            <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full">
-              <ChevronRight
-                className={`size-4 transition-transform duration-200 ${retryOpen ? "rotate-90" : ""}`}
-              />
-              <span>Try another relay</span>
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-3 space-y-3">
-            <div className="flex gap-2">
-              <Input
-                value={relayUrl}
-                onChange={(e) => setRelayUrl(e.target.value)}
-                placeholder="wss://relay.example.com"
-                className="flex-1 font-mono text-base md:text-xs h-9 rounded-full"
-                disabled={isRetrying}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleRetry(relayUrl);
-                }}
-              />
-              <Button
-                size="sm"
-                onClick={() => handleRetry(relayUrl)}
-                disabled={isRetrying || !relayUrl.trim()}
-                className="shrink-0 h-9 rounded-full"
-              >
-                {isRetrying ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Radio className="size-4" />
-                )}
-                <span className="ml-1.5">Try</span>
-              </Button>
-            </div>
+        {/* Collapsible relay retry — hidden for verified deletions */}
+        {!deletionInfo?.verified && (
+          <Collapsible open={retryOpen} onOpenChange={setRetryOpen}>
+            <CollapsibleTrigger asChild>
+              <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full">
+                <ChevronRight
+                  className={`size-4 transition-transform duration-200 ${retryOpen ? "rotate-90" : ""}`}
+                />
+                <span>Try another relay</span>
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-3 space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  value={relayUrl}
+                  onChange={(e) => setRelayUrl(e.target.value)}
+                  placeholder="wss://relay.example.com"
+                  className="flex-1 font-mono text-base md:text-xs h-9 rounded-full"
+                  disabled={isRetrying}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleRetry(relayUrl);
+                  }}
+                />
+                <Button
+                  size="sm"
+                  onClick={() => handleRetry(relayUrl)}
+                  disabled={isRetrying || !relayUrl.trim()}
+                  className="shrink-0 h-9 rounded-full"
+                >
+                  {isRetrying ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Radio className="size-4" />
+                  )}
+                  <span className="ml-1.5">Try</span>
+                </Button>
+              </div>
 
-            {retryError && (
-              <p className="text-xs text-destructive flex items-center gap-1.5">
-                <AlertCircle className="size-3 shrink-0" />
-                {retryError}
-              </p>
-            )}
-          </CollapsibleContent>
-        </Collapsible>
+              {retryError && (
+                <p className="text-xs text-destructive flex items-center gap-1.5">
+                  <AlertCircle className="size-3 shrink-0" />
+                  {retryError}
+                </p>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        )}
       </div>
     </div>
   );
