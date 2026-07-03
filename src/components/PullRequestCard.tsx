@@ -159,19 +159,6 @@ export function PullRequestCard({
 								Edit with Shakespeare
 							</button>
 						)}
-						{!hasShakespeare && cloneUrls[0] && (
-							<button
-								type="button"
-								className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
-								onClick={(e) => {
-									e.stopPropagation();
-									handleCopy(cloneUrls[0]);
-								}}
-							>
-								<Copy className="size-3" />
-								{copied ? "Copied!" : "Copy Clone URL"}
-							</button>
-						)}
 						<GitSiteLinks nip19={nevent} />
 					</div>
 				</div>

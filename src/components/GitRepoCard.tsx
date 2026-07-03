@@ -1,5 +1,5 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import { BookMarked, Copy, Check, ExternalLink, Globe, Wand2 } from "lucide-react";
+import { BookMarked, Copy, Check, ExternalLink, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { GitSiteLinks } from "@/components/GitSiteLinks";
@@ -125,7 +125,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 							Edit with Shakespeare
 						</button>
 					)}
-					{isApp ? (
+					{isApp && (
 						<button
 							type="button"
 							className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
@@ -137,19 +137,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 							<ExternalLink className="size-3" />
 							Open App
 						</button>
-					) : webUrls[0] ? (
-						<button
-							type="button"
-							className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
-							onClick={(e) => {
-								e.stopPropagation();
-								openUrl(webUrls[0]);
-							}}
-						>
-							<Globe className="size-3" />
-							Browse Repository
-						</button>
-					) : null}
+					)}
 					<GitSiteLinks nip19={repoNaddr} />
 				</div>
 			</div>
