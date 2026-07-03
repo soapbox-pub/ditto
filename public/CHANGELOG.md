@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.26.0] - 2026-07-03
+
+Composing on mobile is a whole new experience — a full-screen editor with a slick animated emoji, GIF, and sticker tray. The Development feed now shows the full life of open-source projects: issues, pull requests, and status updates. Posts tagged #nsfw are tucked behind content warnings, and you can exempt people you follow from your muted words. Plus smarter search, a better mention autocomplete, and a proper eulogy for deleted posts.
+
+### Added
+- The Development feed now shows the full life of open-source projects — issues, pull requests, and status updates — with quick links to NostrHub and Gitworkshop and a feed toggle for each activity type
+- Posts tagged with sensitive hashtags like #nsfw are now hidden behind a content warning
+- A new synced setting to exempt people you follow from your muted words and hashtags
+- When a post no longer exists, Ditto now tells you it was deleted by its author (and why, if they said) instead of offering futile retries — with a fitting word from Sartre
+- Geocache found logs and comments now show the treasure they belong to at the top of the thread
+
+### Changed
+- Composing on mobile is now a full-screen, keyboard-aware experience
+- The emoji, GIF, and sticker pickers open in a smoothly animated tray, and search results expand to fill the composer
+- The home feed and content settings pages are cleaner and load instantly
+
+### Fixed
+- Search results now show recent posts first instead of old ones
+- The mention autocomplete no longer closes while scrolling it, and picking a suggestion works reliably on touch screens
+- Mentioning someone via a profile link now properly notifies them
+- The sidebar's More menu no longer hides under the status bar on mobile
+
 ## [2.25.2] - 2026-07-02
 
 A small fix so that "GM" notes wrapped in quotation marks now correctly trigger the sunrise celebration.
