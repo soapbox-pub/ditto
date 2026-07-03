@@ -68,6 +68,8 @@ export interface FeedSettings {
   feedIncludeHighlights: boolean;
   /** Include Agora Fundraisers (kind 33863) in the follows/global feed */
   feedIncludeCampaigns: boolean;
+  /** Include Attestations (kind 31871) in the follows/global feed */
+  feedIncludeAttestations: boolean;
   /** Show Events (kind 31922/31923) link in sidebar */
   showEvents: boolean;
   /** Include calendar events in the follows/global feed */

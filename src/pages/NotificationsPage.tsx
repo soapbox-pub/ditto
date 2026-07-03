@@ -79,6 +79,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   1633: 'status update',
   9802: 'highlight',
   15683: 'Love List',
+  31871: 'attestation',
   2473: 'bird detection',
   12473: 'Birdex',
   3367: 'color moment',

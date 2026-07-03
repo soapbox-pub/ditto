@@ -144,6 +144,7 @@ export const FeedSettingsSchema = z.looseObject({
   showHighlights: z.boolean().optional(),
   feedIncludeHighlights: z.boolean().optional(),
   feedIncludeCampaigns: z.boolean().optional(),
+  feedIncludeAttestations: z.boolean().optional(),
   showEvents: z.boolean().optional(),
   feedIncludeEvents: z.boolean().optional(),
   showVines: z.boolean().optional(),

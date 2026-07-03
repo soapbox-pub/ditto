@@ -16,6 +16,8 @@ import { EncryptedLetterCompact } from '@/components/EncryptedLetterContent';
 import { LoveListCompact } from '@/components/LoveListContent';
 import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
 import { EmbeddedProfileBadgesCard } from '@/components/EmbeddedNaddr';
+import { EmbeddedAttestationCard } from '@/components/EmbeddedAttestationCard';
+import { ATTESTATION_KIND } from '@/lib/attestation';
 import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
 import { ARTICLE_KINDS } from '@/lib/articleHelpers';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
@@ -145,6 +147,13 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
   // highlight author's post).
   if (event.kind === 9802) {
     return <EmbeddedHighlightCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Kind 31871 attestations get a compact status card. The generic fallback
+  // would show only the description text with no state pill — and feed it
+  // through the kind-1 tokenizer.
+  if (event.kind === ATTESTATION_KIND) {
+    return <EmbeddedAttestationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Kind 1068 NIP-88 polls get a compact card showing the question + a

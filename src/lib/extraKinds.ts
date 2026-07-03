@@ -531,6 +531,21 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'social',
     blurb: "Highlights are excerpts people find valuable — a paragraph from an article, a passage from a blog post, or a quote from anywhere on the web. Browse what people are reading and what's resonating.",
   },
+  // Attestations — kind 31871 (addressable). Feed-only: opening an
+  // attestation's naddr lands on PostDetailPage, which renders via
+  // AttestationContent. Attestations are truthfulness claims about other
+  // Nostr events ("Attestations" draft NIP).
+  {
+    kind: 31871,
+    id: 'attestations',
+    feedKey: 'feedIncludeAttestations',
+    label: 'Attestations',
+    description: 'Truthfulness claims about other Nostr events (kind 31871)',
+    addressable: true,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'Attestations are signed truthfulness claims about other Nostr events — an attestor verifies a claim and publishes whether it is valid, invalid, still being verified, or revoked. They enable a web of trust for notes.',
+  },
   // Fundraisers — kind 33863 (addressable). Feed-only: opening a
   // campaign's naddr lands on PostDetailPage, which knows how to render
   // kind 33863 via CampaignContent. We don't host campaign creation or
@@ -856,6 +871,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   35128: 'nsite',
   30008: 'badge set',
   30817: 'custom NIP',
+  31871: 'attestation',
   32267: 'Zapstore app',
   31990: 'app',
   30063: 'Zapstore release',

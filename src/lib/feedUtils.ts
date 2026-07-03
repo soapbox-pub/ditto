@@ -199,6 +199,12 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
     const hasSource = event.tags.some(([n]) => n === 'a' || n === 'e' || n === 'r');
     if (!hasContent && !hasSource) return true;
   }
+  // Attestations (kind 31871) without a valid `s` state tag have nothing
+  // trustworthy to render — the state pill is the whole point of the card.
+  if (event.kind === 31871) {
+    const state = event.tags.find(([n]) => n === 's')?.[1]?.trim().toLowerCase();
+    if (state !== 'verifying' && state !== 'valid' && state !== 'invalid' && state !== 'revoked') return true;
+  }
   // Fundraisers (kind 33863) without a title, `d`, or any `w` wallet
   // tag have nothing to render and nothing to donate to. We skip the
   // full bech32(m) check here (parseCampaign does that at the render

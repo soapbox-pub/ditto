@@ -25,6 +25,7 @@ import {
   Package,
   Play,
   Radio,
+  ShieldCheck,
   SmilePlus,
   PartyPopper,
   Sparkles,
@@ -83,6 +84,8 @@ const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ defau
 import { PrUpdateCard } from "@/components/PrUpdateCard";
 import { RepoStateCard } from "@/components/RepoStateCard";
 import { HighlightContent } from "@/components/HighlightContent";
+import { AttestationContent } from "@/components/AttestationContent";
+import { ATTESTATION_KIND } from "@/lib/attestation";
 import { CampaignContent } from "@/components/CampaignContent";
 import { ZapContent } from "@/components/ZapContent";
 import { NsiteCard } from "@/components/NsiteCard";
@@ -563,6 +566,7 @@ export const NoteCard = memo(function NoteCard({
   const isLetter = event.kind === 8211;
   const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
+  const isAttestation = event.kind === ATTESTATION_KIND;
   const isCampaign = event.kind === 33863;
   const isVanish = event.kind === 62;
   const isZap = event.kind === 9735 || event.kind === 8333;
@@ -617,6 +621,7 @@ export const NoteCard = memo(function NoteCard({
     !isLetter &&
     !isLoveList &&
     !isHighlight &&
+    !isAttestation &&
     !isCampaign &&
     !isVanish &&
     !isZap &&
@@ -849,6 +854,8 @@ export const NoteCard = memo(function NoteCard({
           <LoveListContent event={event} compact />
         ) : isHighlight ? (
           <HighlightContent event={event} />
+        ) : isAttestation ? (
+          <AttestationContent event={event} />
         ) : isCampaign ? (
           <CampaignContent event={event} />
         ) : isProfile ? (
@@ -2358,6 +2365,11 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: "shared a",
     noun: "highlight",
     nounRoute: "/highlights",
+  },
+  31871: {
+    icon: ShieldCheck,
+    action: (event) => publishedAtAction(event, { created: "published an", updated: "updated an", fallback: "published an" }),
+    noun: "attestation",
   },
   33863: {
     icon: HandHeart,

@@ -47,6 +47,8 @@ import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { HighlightContent } from "@/components/HighlightContent";
+import { AttestationContent } from "@/components/AttestationContent";
+import { ATTESTATION_KIND } from "@/lib/attestation";
 import { CampaignContent } from "@/components/CampaignContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
 import { PeopleListDetailContent } from "@/components/PeopleListDetailContent";
@@ -1353,6 +1355,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isLetter = event.kind === 8211;
   const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
+  const isAttestation = event.kind === ATTESTATION_KIND;
   const isCampaign = event.kind === 33863;
   const isVanish = event.kind === VANISH_KIND;
   const isZap = event.kind === 9735;
@@ -1391,6 +1394,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isLetter &&
     !isLoveList &&
     !isHighlight &&
+    !isAttestation &&
     !isCampaign &&
     !isVanish &&
     !isZap &&
@@ -2661,6 +2665,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <LoveListContent event={event} />
             ) : isHighlight ? (
               <HighlightContent event={event} expanded />
+            ) : isAttestation ? (
+              <AttestationContent event={event} expanded />
             ) : isCampaign ? (
               <CampaignContent event={event} expanded />
             ) : isBlobbiState ? (

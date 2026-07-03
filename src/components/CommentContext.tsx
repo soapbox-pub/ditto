@@ -5,7 +5,7 @@ import { nip19 } from 'nostr-tools';
 import {
   Award, BarChart3, Bird, Bitcoin, BookOpen, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, Egg, FileText, Film,
   GitBranch, GitPullRequest, HandHeart, Heart, Mail, MapPin, MessageSquare, Mic, Music,
-  Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, SmilePlus, Sparkles,
+  Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, ShieldCheck, SmilePlus, Sparkles,
   Stars, UserCheck, Users, Vote, Zap,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -180,6 +180,7 @@ const KIND_LABELS: Record<number, string> = {
   9802: 'a highlight',
   8333: 'a zap',
   31124: 'a Blobbi',
+  31871: 'an attestation',
   33863: 'a fundraiser',
 };
 
@@ -243,6 +244,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   2473: Bird,
   12473: Bird,
   30621: Stars,
+  31871: ShieldCheck,
   33863: HandHeart,
 };
 

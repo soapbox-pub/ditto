@@ -20,6 +20,8 @@ import { parseProfileBadges } from '@/lib/parseProfileBadges';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
 import { isPeopleListKind } from '@/lib/packUtils';
 import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
+import { EmbeddedAttestationCard } from '@/components/EmbeddedAttestationCard';
+import { ATTESTATION_KIND } from '@/lib/attestation';
 import { ExternalSourceLink } from '@/components/ExternalSourceLink';
 import { ARTICLE_KINDS } from '@/lib/articleHelpers';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
@@ -148,6 +150,12 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
   // dedicated card showing title + avatar stack + member count.
   if (isPeopleListKind(event.kind)) {
     return <EmbeddedPeopleListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Kind 31871 attestations get a compact status card showing the state
+  // pill + description instead of the generic title/description fallback.
+  if (event.kind === ATTESTATION_KIND) {
+    return <EmbeddedAttestationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Long-form articles (NIP-23) get a rich link-preview-style card: cover

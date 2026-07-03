@@ -37,6 +37,7 @@ import {
   ScrollText,
   Search,
   Settings,
+  ShieldCheck,
   Smile,
   SmilePlus,
   Wallet,
@@ -235,6 +236,7 @@ export const CONTENT_KIND_ICONS: Record<string, IconComponent> = {
   vanish: Ghost,
   "love-lists": Heart,
   campaigns: HandHeart,
+  attestations: ShieldCheck,
   ...Object.fromEntries(
     SIDEBAR_ITEMS.filter((s) => s.icon).map((s) => [s.id, s.icon]),
   ),

@@ -344,6 +344,8 @@ export const KIND_LABELS: Record<number, string> = {
   31234: 'Draft event',
   // Corny Chat
   31388: 'Link set',
+  // Attestations
+  31871: 'Attestation',
   // Custom Feeds
   31890: 'Feed',
   // NIP-52 Calendar
