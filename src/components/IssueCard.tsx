@@ -2,7 +2,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import { CircleDot } from "lucide-react";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
-import { buildMarkdownComponents } from "@/components/ArticleContent";
+import { buildMarkdownComponents } from "@/components/markdownComponents";
 import { GitSiteLinks } from "@/components/GitSiteLinks";
 import { NoteContent } from "@/components/NoteContent";
 import { NGIT_RELAY } from "@/lib/appRelays";

@@ -14,9 +14,6 @@ import { nip19 } from "nostr-tools";
 import { EmbeddedCardShell } from "@/components/EmbeddedCardShell";
 import { getGitRepoRef, getGitTicketSubject, gitStatusVerb } from "@/lib/gitActivity";
 
-/** Kinds this compact card can render. */
-export const EMBEDDED_GIT_KINDS = new Set([1617, 1618, 1619, 1621, 1630, 1631, 1632, 1633]);
-
 interface KindMeta {
 	icon: ComponentType<{ className?: string }>;
 	label: string;

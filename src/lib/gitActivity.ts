@@ -12,6 +12,9 @@ export const GIT_STATUS_KINDS = [1630, 1631, 1632, 1633] as const;
  */
 export const GIT_ACTIVITY_KINDS: number[] = [30617, 30618, 1617, 1618, 1619, 1621, ...GIT_STATUS_KINDS];
 
+/** NIP-34 kinds the compact `EmbeddedGitCard` can render when quoted via nevent. */
+export const EMBEDDED_GIT_KINDS = new Set([1617, 1618, 1619, 1621, 1630, 1631, 1632, 1633]);
+
 /** A reference to a kind 30617 repository announcement parsed from an `a` tag. */
 export interface GitRepoRef {
   /** Repository owner pubkey (validated 64-char hex). */

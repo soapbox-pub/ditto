@@ -11,7 +11,7 @@ import type { ComponentType } from "react";
 import { Link } from "react-router-dom";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
-import { buildMarkdownComponents } from "@/components/ArticleContent";
+import { buildMarkdownComponents } from "@/components/markdownComponents";
 import { GitSiteLinks } from "@/components/GitSiteLinks";
 import { NoteContent } from "@/components/NoteContent";
 import { Skeleton } from "@/components/ui/skeleton";

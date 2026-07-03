@@ -11,7 +11,7 @@ import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { buildMarkdownComponents } from "@/components/ArticleContent";
+import { buildMarkdownComponents } from "@/components/markdownComponents";
 import { GitSiteLinks } from "@/components/GitSiteLinks";
 import { NGIT_RELAY } from "@/lib/appRelays";
 import { openUrl } from "@/lib/downloadFile";
