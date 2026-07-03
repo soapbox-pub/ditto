@@ -110,7 +110,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
     "d3-celestial": "^0.7.35",
-    "date-fns": "^3.6.0",
+    "date-fns": "^4.4.0",
     "dompurify": "^3.3.3",
     "embla-carousel-react": "^8.3.0",
     "emoji-mart": "^5.6.0",
