@@ -4,9 +4,9 @@ import { encode as blurhashEncode } from 'blurhash';
 
 import {
   Dialog,
-  DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ComposeDialogContent } from '@/components/ComposeDialogContent';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -264,8 +264,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-w-[520px] max-h-[85vh] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden flex flex-col"
+      <ComposeDialogContent
         onPaste={handlePaste}
       >
         {/* Header */}
@@ -485,7 +484,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
             )}
           </Button>
         </div>
-      </DialogContent>
+      </ComposeDialogContent>
     </Dialog>
   );
 }
