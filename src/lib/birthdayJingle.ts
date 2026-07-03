@@ -115,6 +115,55 @@ function getContext(): AudioContext | null {
   return ctx;
 }
 
+// ─── Global audio unlock ────────────────────────────────────────────────────
+//
+// Mobile browsers (iOS Safari / WKWebView especially) start every
+// AudioContext suspended and only let resume() take effect *during* a user
+// gesture. The birthday jingle is kicked off from a React effect that runs
+// long after the tap that navigated to the profile — so on mobile the context
+// stays suspended and nothing plays until the user taps *again*.
+//
+// Fix: arm a one-time, app-wide gesture listener as soon as this module is
+// imported. The first tap/key/touch anywhere in the app creates and resumes
+// the shared AudioContext, so it is already `running` by the time the birthday
+// effect fires. Idempotent and self-removing.
+
+let unlockArmed = false;
+
+function unlockOnGesture(): void {
+  const ac = getContext();
+  if (ac && ac.state === 'suspended') {
+    void ac.resume().catch(() => {});
+  }
+}
+
+/**
+ * Install a one-time global gesture handler that warms up the AudioContext on
+ * the first user interaction. Safe to call repeatedly; only arms once. Called
+ * on module import so the unlock happens on the earliest possible gesture,
+ * independent of when the birthday jingle is requested.
+ */
+export function installAudioUnlock(): void {
+  if (unlockArmed || typeof window === 'undefined') return;
+  unlockArmed = true;
+
+  const handler = () => {
+    unlockOnGesture();
+    window.removeEventListener('pointerdown', handler);
+    window.removeEventListener('touchend', handler);
+    window.removeEventListener('keydown', handler);
+    window.removeEventListener('click', handler);
+  };
+
+  window.addEventListener('pointerdown', handler);
+  window.addEventListener('touchend', handler);
+  window.addEventListener('keydown', handler);
+  window.addEventListener('click', handler);
+}
+
+// Arm the unlock as soon as the module loads.
+installAudioUnlock();
+
 // ─── Scheduling ───────────────────────────────────────────────────────────────
 
 interface JingleSession {
@@ -375,11 +424,15 @@ export function startBirthdayJingle(): void {
       };
       const cleanup = () => {
         window.removeEventListener('pointerdown', onGesture);
+        window.removeEventListener('touchend', onGesture);
         window.removeEventListener('keydown', onGesture);
+        window.removeEventListener('click', onGesture);
         s.gestureCleanup = null;
       };
       window.addEventListener('pointerdown', onGesture);
+      window.addEventListener('touchend', onGesture);
       window.addEventListener('keydown', onGesture);
+      window.addEventListener('click', onGesture);
       s.gestureCleanup = cleanup;
 
       // Try to resume right away — this succeeds when a gesture already
