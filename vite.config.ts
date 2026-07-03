@@ -162,10 +162,8 @@ export default defineConfig(({ mode }) => {
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
-    // Only run Ditto's own tests. The in-repo packages/blobbi-* directories are
-    // kept as source history / fallback and are no longer consumed (Ditto now
-    // depends on the published @blobbi-kit/* packages); their internal tests
-    // still import the old @blobbi/* names, which no longer resolve here.
+    // Only run Ditto's own tests. Blobbi lives in the published @blobbi-kit/*
+    // packages (node_modules), whose internal tests are not part of this run.
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     onConsoleLog(log) {
       return !log.includes("React Router Future Flag Warning");
