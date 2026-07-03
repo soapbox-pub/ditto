@@ -2,12 +2,15 @@ import { useSeoMeta } from '@unhead/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Loader2, Plus, Trash2, ChevronDown,
-  Wallet, Upload, Music, ImageIcon, Film, Mail, Link2, Pencil, Eye, EyeOff, Copy, Check, Download, KeyRound, AlertTriangle, CloudSun,
+  Wallet, Upload, Music, ImageIcon, Film, Mail, Link2, Pencil, Eye, EyeOff, Copy, Check, Download, KeyRound, AlertTriangle, CloudSun, Cake,
 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
+import { useNostr } from '@nostrify/react';
 import { useNostrLogin } from '@nostrify/react/login';
 
 import { saveNsec } from '@/lib/credentialManager';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { parseBirthdayFromContent, daysInMonth, type Birthday } from '@/lib/birthday';
 import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
 import { cn } from '@/lib/utils';
 import { Navigate } from 'react-router-dom';
@@ -884,6 +887,14 @@ export function ProfileSettings() {
             </Collapsible>
           </div>
 
+          {/* Birthday — NIP-24 birthday field. Self-contained: publishes its
+              own atomic kind-0 update (read-modify-write against the freshest
+              profile) with its own save button, independent of the main form
+              above so a birthday change never drags along unsaved edits. */}
+          <div className="border-t pt-5">
+            <BirthdaySection />
+          </div>
+
           {/* Accept Donations — NIP-A3 payment targets (kind 10133). Self-
               contained: publishes its own event with its own save button,
               independent of the kind-0 profile form above. */}
@@ -926,6 +937,204 @@ export function ProfileSettings() {
         </form>
       </Form>
     </main>
+  );
+}
+
+// ── Birthday section ──────────────────────────────────────────────────────────
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+] as const;
+
+/**
+ * Standalone NIP-24 birthday editor.
+ *
+ * Saves atomically: fetches the freshest kind 0 from relays, patches only the
+ * `birthday` key in its content JSON, and republishes — so it can never
+ * clobber profile edits made elsewhere, and the main form's Save can never
+ * lose a birthday (the whole-form save merges over parsed metadata, which
+ * passes unknown keys through).
+ *
+ * Per NIP-24 every field is optional — month/day without a year is fine.
+ */
+function BirthdaySection() {
+  const { user, event } = useCurrentUser();
+  const { nostr } = useNostr();
+  const { mutateAsync: publishEvent } = useNostrPublish();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const stored = useMemo(() => parseBirthdayFromContent(event?.content), [event?.content]);
+
+  const [month, setMonth] = useState<number | undefined>(undefined);
+  const [day, setDay] = useState<number | undefined>(undefined);
+  const [year, setYear] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Sync local state whenever the published profile changes.
+  useEffect(() => {
+    setMonth(stored?.month);
+    setDay(stored?.day);
+    setYear(stored?.year !== undefined ? String(stored.year) : '');
+  }, [stored]);
+
+  const yearTrimmed = year.trim();
+  const yearNum = yearTrimmed ? Number(yearTrimmed) : undefined;
+  const currentYear = new Date().getFullYear();
+  const yearInvalid = yearTrimmed !== '' && (
+    !/^\d{4}$/.test(yearTrimmed) || yearNum! < 1900 || yearNum! > currentYear
+  );
+
+  const dirty =
+    month !== stored?.month ||
+    day !== stored?.day ||
+    (yearInvalid ? false : yearNum !== stored?.year);
+
+  const isEmpty = month === undefined && day === undefined && yearTrimmed === '';
+  const hasStored = stored !== undefined;
+
+  const publishBirthday = async (birthday: Birthday | undefined) => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      // Read-modify-write against the freshest kind 0, falling back to the
+      // locally cached event so a relay miss can't wipe the profile.
+      const prev = await fetchFreshEvent(nostr, { kinds: [0], authors: [user.pubkey] }) ?? event ?? null;
+
+      let data: Record<string, unknown> = {};
+      try {
+        const parsed: unknown = JSON.parse(prev?.content ?? '{}');
+        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+          data = parsed as Record<string, unknown>;
+        }
+      } catch { /* corrupt content — rebuild birthday onto an empty object */ }
+
+      if (birthday) {
+        data.birthday = birthday;
+      } else {
+        delete data.birthday;
+      }
+
+      await publishEvent({ kind: 0, content: JSON.stringify(data), prev: prev ?? undefined });
+      queryClient.invalidateQueries({ queryKey: ['logins'] });
+      queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
+      toast({ title: birthday ? 'Birthday saved' : 'Birthday removed' });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save birthday.', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSave = () => {
+    if (isEmpty) {
+      void publishBirthday(undefined);
+      return;
+    }
+    const birthday: Birthday = {};
+    if (yearNum !== undefined && !yearInvalid) birthday.year = yearNum;
+    if (month !== undefined) birthday.month = month;
+    if (day !== undefined) birthday.day = day;
+    void publishBirthday(birthday);
+  };
+
+  const handleRemove = () => {
+    setMonth(undefined);
+    setDay(undefined);
+    setYear('');
+    void publishBirthday(undefined);
+  };
+
+  const dayCount = daysInMonth(month);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 pb-1">
+        <Cake className="size-4 text-primary/70" />
+        <h2 className="text-sm font-semibold">Birthday</h2>
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        Shown on your profile — friends get confetti and a birthday tune when they visit on the day.
+        Every field is optional; skip the year if you'd rather keep your age private.
+      </p>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Select
+          value={month !== undefined ? String(month) : ''}
+          onValueChange={(v) => {
+            const m = Number(v);
+            setMonth(m);
+            // Clamp the day if the new month is shorter (e.g. May 31 → June).
+            if (day !== undefined && day > daysInMonth(m)) setDay(daysInMonth(m));
+          }}
+        >
+          <SelectTrigger className="h-9 w-36" aria-label="Birthday month">
+            <SelectValue placeholder="Month" />
+          </SelectTrigger>
+          <SelectContent>
+            {MONTH_NAMES.map((name, i) => (
+              <SelectItem key={name} value={String(i + 1)}>{name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={day !== undefined ? String(day) : ''}
+          onValueChange={(v) => setDay(Number(v))}
+        >
+          <SelectTrigger className="h-9 w-20" aria-label="Birthday day">
+            <SelectValue placeholder="Day" />
+          </SelectTrigger>
+          <SelectContent>
+            {Array.from({ length: dayCount }, (_, i) => (
+              <SelectItem key={i + 1} value={String(i + 1)}>{i + 1}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Input
+          value={year}
+          onChange={(e) => setYear(e.target.value)}
+          placeholder="Year"
+          inputMode="numeric"
+          maxLength={4}
+          className="h-9 w-24"
+          aria-label="Birthday year (optional)"
+          aria-invalid={yearInvalid}
+        />
+
+        <Button
+          type="button"
+          size="sm"
+          className="h-9 rounded-full px-4 font-bold"
+          onClick={handleSave}
+          disabled={!dirty || yearInvalid || saving || !user}
+        >
+          {saving ? <Loader2 className="size-3.5 animate-spin" /> : 'Save'}
+        </Button>
+
+        {hasStored && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 text-destructive hover:text-destructive"
+            onClick={handleRemove}
+            disabled={saving}
+            aria-label="Remove birthday"
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        )}
+      </div>
+
+      {yearInvalid && (
+        <p className="text-xs text-destructive">
+          Enter a 4-digit year between 1900 and {currentYear}, or leave it blank.
+        </p>
+      )}
+    </div>
   );
 }
 

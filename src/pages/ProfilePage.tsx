@@ -6,7 +6,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
+import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -104,6 +104,8 @@ import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import type { AddrCoords } from '@/hooks/useEvent';
 import { isNostrId } from '@/lib/nostrId';
+import { parseBirthdayFromContent, isBirthdayToday } from '@/lib/birthday';
+import { startBirthdayJingle, stopBirthdayJingle } from '@/lib/birthdayJingle';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { parseAddr } from '@/lib/parseAddr';
 import { impactMedium } from '@/lib/haptics';
@@ -988,6 +990,10 @@ export function ProfilePage() {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   // Hearts sprinkle over the header when this profile is added to the Love List.
   const [lovedCelebrating, setLovedCelebrating] = useState(false);
+  // NIP-24 birthday celebration — wave counter remounts the confetti overlay
+  // so it keeps raining while viewing the profile; muted silences the jingle.
+  const [birthdayWave, setBirthdayWave] = useState(0);
+  const [jingleMuted, setJingleMuted] = useState(false);
   const [followQROpen, setFollowQROpen] = useState(false);
   const [followersModalOpen, setFollowersModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -1346,6 +1352,32 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   }, [pubkey, queryClient]);
   const metadataEvent = author.data?.event;
   const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+
+  // NIP-24 birthday — parse from the raw kind 0 content and celebrate all day
+  // when the profile's month/day match today (year is optional and unused).
+  const birthday = useMemo(
+    () => parseBirthdayFromContent(metadataEvent?.content),
+    [metadataEvent?.content],
+  );
+  const isBirthday = isBirthdayToday(birthday);
+
+  // Keep the confetti + balloons raining: remount the one-shot overlay each
+  // time a wave finishes. Skipped under prefers-reduced-motion (the overlay
+  // is also CSS-hidden as defense-in-depth).
+  useEffect(() => {
+    if (!isBirthday) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const interval = setInterval(() => setBirthdayWave((w) => w + 1), CELEBRATION_DURATION_MS);
+    return () => clearInterval(interval);
+  }, [isBirthday]);
+
+  // Loop the birthday jingle while viewing the profile; stops on navigation
+  // away (unmount), profile change, or mute.
+  useEffect(() => {
+    if (!isBirthday || jingleMuted) return;
+    startBirthdayJingle();
+    return () => stopBirthdayJingle();
+  }, [isBirthday, jingleMuted, pubkey]);
 
   // Kind 3 + 10001 — fetched separately so the large contact list
   // doesn't block the profile header or feed from rendering.
@@ -1928,6 +1960,14 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
           <CelebrationOverlay variant="hearts" />
         </div>
       )}
+      {/* Birthday rain — confetti and balloons fall over the header all day
+          on the profile owner's NIP-24 birthday. The wave key remounts the
+          one-shot overlay so the rain never stops while viewing. */}
+      {isBirthday && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[40vh] z-20 overflow-hidden">
+          <CelebrationOverlay key={birthdayWave} variant="birthday" />
+        </div>
+      )}
       <PullToRefresh onRefresh={handleRefresh}>
         {/* Banner */}
           <div className="h-36 md:h-48 bg-secondary relative">
@@ -2227,6 +2267,27 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     <EmojifiedText tags={metadataEvent.tags}>{displayName}</EmojifiedText>
                   ) : displayName}
                 </h2>
+                {isBirthday && (
+                  <span
+                    className="shrink-0 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400/20 to-pink-400/20 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400"
+                    title={isOwnProfile ? 'Happy birthday!' : `It's ${displayName}'s birthday today!`}
+                  >
+                    <Cake className="size-3" aria-hidden="true" />
+                    Birthday
+                  </span>
+                )}
+                {isBirthday && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-6 shrink-0 rounded-full text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300"
+                    onClick={() => setJingleMuted((m) => !m)}
+                    aria-label={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
+                    title={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
+                  >
+                    {jingleMuted ? <VolumeX className="size-3.5" /> : <Volume2 className="size-3.5" />}
+                  </Button>
+                )}
                 {lovesYou ? (
                   <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-pink-500/10 px-2 py-0.5 text-xs font-medium text-pink-600 dark:text-pink-400">
                     <Heart className="size-3 fill-current" aria-hidden="true" />
