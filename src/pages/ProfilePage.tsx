@@ -1950,10 +1950,11 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         </div>
       )}
       {/* Birthday rain — its own persistent weather effect (not the one-shot
-          post celebration): confetti and balloons fall continuously from the
-          top of the header for as long as the profile is open. */}
+          post celebration): confetti and balloons fall continuously through
+          the full height of the content area for as long as the profile is
+          open. Density scales with the measured height inside BirthdayRain. */}
       {isBirthday && (
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-[40vh] z-20 overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
           <BirthdayRain />
         </div>
       )}
