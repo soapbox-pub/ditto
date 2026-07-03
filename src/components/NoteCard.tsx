@@ -949,7 +949,7 @@ export const NoteCard = memo(function NoteCard({
             card wrapper is overflow-hidden with only ~12px of top padding —
             anything poking further up gets clipped. */}
         {isAuthorBirthday && (
-          <div className="pointer-events-none absolute -top-4 -right-2 z-10 rotate-[18deg]">
+          <div className="pointer-events-none absolute -top-3.5 -right-2 z-10 rotate-[18deg]">
             <PartyHat className="size-8 drop-shadow-sm" pomScale={1.15} />
           </div>
         )}
