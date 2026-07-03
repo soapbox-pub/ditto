@@ -699,6 +699,38 @@ function deletedKindNoun(kind: number | undefined): string {
     : label;
 }
 
+/**
+ * Meditations on nonexistence, from Jean-Paul Sartre's "Being and Nothingness".
+ * Same system as ProfilePage's NO_TABS_QUOTES: one random pick per mount.
+ */
+const NONEXISTENCE_QUOTES = [
+  "Nothingness lies coiled in the heart of being — like a worm.",
+  "Nothingness haunts being.",
+  "Man is the being through whom nothingness comes to the world.",
+  "The being by which nothingness comes to the world must be its own nothingness.",
+  "Being is. Being is in-itself. Being is what it is.",
+  "Non-being always appears within the limits of a human expectation.",
+  "Nothingness is not, nothingness is 'made-to-be.'",
+  "Nothingness can be nihilated only on the foundation of being.",
+];
+
+/** A small epigraph on nonexistence, shown beneath the details of an event that isn't. */
+function NonexistenceQuote() {
+  const quote = useMemo(
+    () => NONEXISTENCE_QUOTES[Math.floor(Math.random() * NONEXISTENCE_QUOTES.length)],
+    [],
+  );
+  return (
+    <div className="pt-2 px-4 flex flex-col items-center">
+      <p className="max-w-sm font-serif text-sm italic leading-6 text-foreground/60 tracking-wide text-center">
+        <span className="text-2xl leading-none align-bottom text-muted-foreground/25 font-serif mr-1" aria-hidden>&ldquo;</span>
+        {quote}
+        <span className="text-2xl leading-none align-bottom text-muted-foreground/25 font-serif ml-1" aria-hidden>&rdquo;</span>
+      </p>
+    </div>
+  );
+}
+
 /** Shows a "not found" state with contextual event info and a collapsible relay retry option. */
 function EventNotFound({
   context,
@@ -878,6 +910,8 @@ function EventNotFound({
           )}
           {authorPubkey && <AuthorHintRow pubkey={authorPubkey} />}
         </div>
+
+        <NonexistenceQuote />
 
         {/* Collapsible relay retry — hidden for verified deletions */}
         {!deletionInfo?.verified && (
