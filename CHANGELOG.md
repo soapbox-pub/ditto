@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.27.0] - 2026-07-03
+
+Birthdays are here! Add yours in the profile editor and, when your big day rolls around, Ditto throws a party — confetti and balloons rain across your profile, a little party hat perches on your avatar, and a cheery tune plays to celebrate. You'll spot party hats on other people's birthdays too. Also fixed the avatar-shape picker so it no longer freezes the page, tidied up the GM sunrise animation, and Ditto now starts up noticeably faster.
+
+### Added
+- Set your birthday in the profile editor and celebrate it with confetti, balloons, a party hat on your avatar, and a festive jingle — party hats also appear on other people's birthdays in profiles and posts
+
+### Changed
+- Ditto now loads faster on first open
+
+### Fixed
+- Choosing an avatar shape no longer freezes the page or opens an empty picker
+- The GM sunrise now animates above post media instead of hiding behind images
+
 ## [2.26.1] - 2026-07-03
 
 A quick fix for logging in: pasting your secret key into the login field no longer sets off the clipboard safety warning meant to stop you from posting it publicly.
