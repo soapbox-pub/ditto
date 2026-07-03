@@ -1,7 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, X, Sticker } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import type { CustomEmoji } from '@/hooks/useCustomEmojis';
 
@@ -42,20 +41,7 @@ export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus 
   }
 
   return (
-    <div
-      className="flex flex-col"
-      style={{ height }}
-      onWheel={(e) => {
-        // Prevent scroll from bubbling to the page
-        e.stopPropagation();
-      }}
-      onTouchMove={(e) => {
-        // Prevent Radix Dialog's scroll-lock from blocking touch scrolling
-        // inside the sticker grid on mobile devices (same workaround as
-        // EmojiPicker).
-        e.stopPropagation();
-      }}
-    >
+    <div className="flex flex-col" style={{ height }}>
       {/* Search input */}
       <div className="px-3 pt-3 pb-2 shrink-0">
         <div className="relative">
@@ -79,8 +65,8 @@ export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus 
         </div>
       </div>
 
-      {/* Results */}
-      <ScrollArea className="flex-1 min-h-0">
+      {/* Results — native scroller so the dialog's scroll-lock allows touch scrolling */}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <p className="text-sm">No stickers found</p>
@@ -105,7 +91,7 @@ export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus 
             ))}
           </div>
         )}
-      </ScrollArea>
+      </div>
     </div>
   );
 }

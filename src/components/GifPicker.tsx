@@ -1,7 +1,6 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
 import { Search, X, ImageOff } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGifSearch, type GifResult } from '@/hooks/useGifSearch';
 import { cn } from '@/lib/utils';
@@ -133,19 +132,7 @@ export function GifPicker({ onSelect, autoFocus = true, onSearchActiveChange }: 
   // Transparent background so the picker blends into the compose box,
   // matching the emoji and sticker tabs.
   return (
-    <div
-      className="flex flex-col w-full h-full overflow-hidden"
-      onWheel={(e) => {
-        // Prevent scroll from bubbling to the page
-        e.stopPropagation();
-      }}
-      onTouchMove={(e) => {
-        // Prevent Radix Dialog's scroll-lock from blocking touch scrolling
-        // inside the results grid on mobile devices (same workaround as
-        // EmojiPicker).
-        e.stopPropagation();
-      }}
-    >
+    <div className="flex flex-col w-full h-full overflow-hidden">
       {/* Search input */}
       <div className="px-3 pt-3 pb-2">
         <div className="relative">
@@ -182,8 +169,11 @@ export function GifPicker({ onSelect, autoFocus = true, onSearchActiveChange }: 
         </span>
       </div>
 
-      {/* Results area */}
-      <ScrollArea className="flex-1">
+      {/* Results area — a plain native scroller: Radix Dialog's scroll-lock
+          (react-remove-scroll) only permits touch scrolling on real
+          overflow elements it can inspect, which ScrollArea's viewport
+          defeated on mobile. */}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         {isLoading ? (
           <div className="px-2 pb-2">
             <div className="flex gap-2">
@@ -214,7 +204,7 @@ export function GifPicker({ onSelect, autoFocus = true, onSearchActiveChange }: 
         ) : (
           <GifGrid results={results} onSelect={handleSelect} />
         )}
-      </ScrollArea>
+      </div>
     </div>
   );
 }
