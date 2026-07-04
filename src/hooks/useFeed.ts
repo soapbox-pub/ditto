@@ -71,7 +71,12 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
   const { store } = useNostrStorage();
 
   // Build the full kinds list from user settings, or use the override.
-  const allKinds = options?.kinds ?? getEnabledFeedKinds(feedSettings);
+  // When replies are hidden, NIP-22 comment kinds (1111 / 1244) are dropped
+  // from settings-derived queries entirely — every comment is a reply, so
+  // fetching them only wastes bandwidth on events the filter discards.
+  const settingsKinds = getEnabledFeedKinds(feedSettings);
+  const allKinds = options?.kinds ??
+    (feedSettings.followsFeedShowReplies ? settingsKinds : settingsKinds.filter((k) => k !== 1111 && k !== 1244));
 
   const tagFilters = options?.tagFilters;
 
