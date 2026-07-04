@@ -4,11 +4,12 @@ import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
  * Continuous birthday rain for profile pages (NIP-24 birthday).
  *
  * Unlike {@link CelebrationOverlay} — a one-shot burst sized for feed cards —
- * this is a persistent weather effect: confetti pieces *and* 🎈 balloons all
- * fall steadily from the top of the region for as long as it's mounted.
- * Every piece loops with `animation-iteration-count: infinite` and a random
- * negative delay, so the sky is already full of confetti on the first frame
- * and there are no waves, gaps, or remount stutters.
+ * this is a persistent weather effect: confetti pieces fall steadily from the
+ * top of the region while 🎈 balloons rise buoyantly from the bottom, for as
+ * long as it's mounted. Every piece loops with
+ * `animation-iteration-count: infinite` and a random negative delay, so the
+ * sky is already full of confetti on the first frame and there are no waves,
+ * gaps, or remount stutters.
  *
  * Fill the region to rain over (e.g. an absolutely-positioned,
  * `overflow-hidden` band over the whole content column) — travel distance is
@@ -30,14 +31,14 @@ const COLORS = ['#a78bfa', '#f472b6', '#fbbf24', '#38bdf8', '#34d399', '#fb7185'
  *  region reads as a proper celebration and caps to bound DOM/compositor
  *  cost on very long feeds. */
 const CONFETTI_PER_1000PX = 45;
-const BALLOONS_PER_1000PX = 12;
+const BALLOONS_PER_1000PX = 16;
 const MIN_CONFETTI = 24;
-const MIN_BALLOONS = 7;
+const MIN_BALLOONS = 10;
 const MAX_CONFETTI = 140;
-const MAX_BALLOONS = 36;
+const MAX_BALLOONS = 44;
 
-/** Gentle drift speeds (px/s). Balloons are heavier-looking, so they drift
- *  down a touch slower than the confetti around them. */
+/** Gentle drift speeds (px/s). Balloons are buoyant, so they float up a
+ *  touch slower than the confetti falls around them. */
 const CONFETTI_MIN_SPEED = 50;
 const CONFETTI_MAX_SPEED = 95;
 const BALLOON_MIN_SPEED = 38;
@@ -75,7 +76,7 @@ function generateRain(): { confetti: RainPiece[]; balloons: RainPiece[] } {
     left: 5 + Math.random() * 90,
     speed: BALLOON_MIN_SPEED + Math.random() * (BALLOON_MAX_SPEED - BALLOON_MIN_SPEED),
     phase: Math.random(),
-    size: 15 + Math.random() * 7,
+    size: 28 + Math.random() * 14,
     color: '',
     sway: (Math.random() - 0.5) * 50,
     // Balloons tip gently instead of tumbling.
@@ -154,9 +155,10 @@ export function BirthdayRain() {
         return (
           <span
             key={`b-${i}`}
-            className="absolute animate-birthday-rain select-none"
+            className="absolute animate-birthday-float select-none"
             style={{
-              top: -28,
+              // Starts fully below the clipped bottom edge and floats up.
+              bottom: -48,
               left: `${p.left}%`,
               fontSize: p.size,
               lineHeight: 1,

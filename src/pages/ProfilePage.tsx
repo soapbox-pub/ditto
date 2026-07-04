@@ -2343,27 +2343,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     <EmojifiedText tags={metadataEvent.tags}>{displayName}</EmojifiedText>
                   ) : displayName}
                 </h2>
-                {isBirthday && (
-                  <span
-                    className="shrink-0 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400/20 to-pink-400/20 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400"
-                    title={isOwnProfile ? 'Happy birthday!' : `It's ${displayName}'s birthday today!`}
-                  >
-                    <Cake className="size-3" aria-hidden="true" />
-                    Birthday
-                  </span>
-                )}
-                {isBirthday && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-6 shrink-0 rounded-full text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300"
-                    onClick={() => setJingleMuted((m) => !m)}
-                    aria-label={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
-                    title={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
-                  >
-                    {jingleMuted ? <VolumeX className="size-3.5" /> : <Volume2 className="size-3.5" />}
-                  </Button>
-                )}
                 {lovesYou ? (
                   <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-pink-500/10 px-2 py-0.5 text-xs font-medium text-pink-600 dark:text-pink-400">
                     <Heart className="size-3 fill-current" aria-hidden="true" />
@@ -2472,6 +2451,42 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             </>
           )}
         </div>
+
+        {/* Birthday banner — a single large pill above the profile tabs with a
+            calendar-page date tile and the jingle mute toggle. */}
+        {isBirthday && birthday?.month !== undefined && birthday?.day !== undefined && (
+          <div className="px-4 pb-3">
+            <div
+              className="inline-flex w-fit items-center gap-2.5 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-400/20 via-pink-400/20 to-purple-400/20 py-1.5 pl-4 pr-1.5 text-amber-700 dark:text-amber-400"
+              title={isOwnProfile ? 'Happy birthday!' : `It's ${displayName}'s birthday today!`}
+            >
+              <Cake className="size-5 shrink-0" aria-hidden="true" />
+              <span className="text-sm font-bold uppercase tracking-wider">
+                Birthday today
+              </span>
+              {/* Mini calendar page: month header bar over the day number */}
+              <span
+                className="flex w-9 shrink-0 flex-col items-stretch overflow-hidden rounded-md border border-amber-400/50 bg-background/70 text-center leading-none shadow-sm"
+                aria-hidden="true"
+              >
+                <span className="bg-amber-400/40 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-800 dark:bg-amber-400/25 dark:text-amber-300">
+                  {new Date(2000, birthday.month - 1, 1).toLocaleString(undefined, { month: 'short' })}
+                </span>
+                <span className="py-0.5 text-sm font-bold tabular-nums text-foreground">{birthday.day}</span>
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0 rounded-full text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300"
+                onClick={() => setJingleMuted((m) => !m)}
+                aria-label={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
+                title={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
+              >
+                {jingleMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <SubHeaderBar pinned>
