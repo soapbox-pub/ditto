@@ -27,13 +27,13 @@ import { cn } from '@/lib/utils';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
-import { parseBlobbiEvent } from '@/blobbi/core/lib/blobbi';
+import { parseBlobbiEvent, buildBlobbiAddress } from '@blobbi-kit/core/blobbi';
 import {
   buildInteractionEventTemplate,
   type InteractionAction,
-} from '@/blobbi/core/lib/blobbi-interaction';
-import { useBlobbiInteractions } from '@/blobbi/core/hooks/useBlobbiInteractions';
-import { calculateProjectedDecay } from '@/blobbi/core/hooks/useProjectedBlobbiState';
+} from '@blobbi-kit/core/blobbi-interaction';
+import { useBlobbiInteractions } from '@blobbi-kit/react/hooks/useBlobbiInteractions';
+import { calculateProjectedDecay } from '@blobbi-kit/react/hooks/useProjectedBlobbiState';
 import { SEVERITY_THRESHOLDS } from '@/blobbi/ui/lib/status-reactions';
 import {
   ACTION_METADATA,
@@ -44,11 +44,14 @@ import {
   hasHappinessEffectForEgg,
   type InventoryAction,
 } from '@/blobbi/actions/lib/blobbi-action-utils';
-import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
+import { getLiveShopItems, getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { ItemCarousel, type CarouselEntry } from '@/blobbi/rooms/components/ItemCarousel';
-import type { BlobbiStats } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiStats } from '@blobbi-kit/core/blobbi';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
+/** Ditto's care-item effect resolver, backed by the shop catalog. */
+const resolveCareItemEffect = (itemId: string) => getShopItemById(itemId)?.effect;
 
 /** Default source tag value when the component is used on the Blobbi detail/naddr page. */
 const DEFAULT_SOURCE = 'blobbi-view';
@@ -136,7 +139,7 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
   const projectedStats = useMemo(() => {
     if (!companion) return undefined;
     const pending = interactions.length > 0 ? interactions : undefined;
-    return calculateProjectedDecay(companion, undefined, pending).stats;
+    return calculateProjectedDecay(companion, undefined, pending, resolveCareItemEffect).stats;
   }, [companion, interactions]);
 
   // Filter social actions to only those the Blobbi currently needs.
@@ -239,7 +242,7 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
 
         // Invalidate interaction queries so the projected social status
         // and activity history both reflect the just-published event.
-        const coordinate = `31124:${companion.event.pubkey}:${companion.d}`;
+        const coordinate = buildBlobbiAddress(companion.event.pubkey, companion.d);
         queryClient.invalidateQueries({
           queryKey: ['blobbi-interactions', coordinate],
         });

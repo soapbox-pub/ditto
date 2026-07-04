@@ -7,7 +7,7 @@
 
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import type { ItemEffect } from '../types/shop.types';
+import type { ItemEffect } from '@blobbi-kit/core/types/shop';
 
 // ─── Display Order Configuration ──────────────────────────────────────────────
 

@@ -8,7 +8,7 @@
  * Used to position the vomit drop spawn point at the actual mouth.
  */
 
-import { ADULT_FORMS, type AdultForm } from '@/blobbi/adult-blobbi/types/adult.types';
+import { ADULT_FORMS, type AdultForm } from '@blobbi-kit/core/types/adult';
 
 // ─── Internal visual wrapper shift (BlobbiCompanionVisual translateY) ────────
 const VISUAL_Y_OFFSET = 0.12;

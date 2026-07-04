@@ -1,6 +1,6 @@
 // src/blobbi/shop/lib/blobbi-shop-items.ts
 
-import type { ShopItem, ShopItemCategory } from '../types/shop.types';
+import type { ShopItem, ShopItemCategory } from '@blobbi-kit/core/types/shop';
 
 /**
  * Complete shop item catalog for the Blobbi Shop.

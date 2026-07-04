@@ -1,7 +1,7 @@
 // Auto-generated: inlined SVG content for adult Blobbi assets.
 // Source: src/blobbi/adult-blobbi/assets/
 
-import type { AdultForm } from '../types/adult.types';
+import type { AdultForm } from '@blobbi-kit/core/types/adult';
 
 const BLOOMI_BASE = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
   <!-- Grupo das pétalas com rotação -->
