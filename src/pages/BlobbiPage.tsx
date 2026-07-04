@@ -35,6 +35,7 @@ import { TabButton } from '@/components/TabButton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiHatchingCeremony } from '@/blobbi/onboarding/components/BlobbiHatchingCeremony';
+import { decideFirstHatch } from '@/blobbi/onboarding/lib/first-hatch-decision';
 import { BlobbiEvolveCeremony } from '@/blobbi/onboarding/components/BlobbiEvolveCeremony';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 
@@ -566,37 +567,42 @@ function BlobbiContent() {
   // doesn't switch to a different egg or create a new one.
   const ceremonyEggRef = useRef<BlobbiCompanion | null>(null);
   
-  // Cases that definitely need ceremony (no need to wait for companions)
-  const definitelyNeedsCeremony = !profile;
-  // Whether we've finished loading enough data to make the decision
+  // Whether we've finished loading enough data to make the decision.
+  // The ceremony decision is ALWAYS gated on the kind 31124 collection (the
+  // authoritative source of Blobbi ownership) — never on the profile alone.
+  // Otherwise a missing/stale kind 11125 profile would trigger a duplicate
+  // first hatch even when the user already owns a valid Blobbi (e.g. one
+  // created directly by Blobbi Island).
   const companionDataReady = !collectionLoading && (!collectionFetching || companions.length > 0);
-  // Cases where we must inspect actual companion stages before deciding.
-  // This fires for ALL users with a profile — regardless of onboardingDone —
-  // so that accounts with onboardingDone=true but only eggs still get
-  // the ceremony.
-  const pendingCeremonyCheck = !definitelyNeedsCeremony && !!profile && !ceremonyCheckDone;
+  // We must inspect the actual companion collection before deciding whether to
+  // run the ceremony. This fires for ALL users — with or without a profile,
+  // regardless of onboardingDone — so an Island-created Blobbi (which may have
+  // no matching Ditto profile yet) still suppresses the first-hatch flow.
+  const pendingCeremonyCheck = !ceremonyCheckDone;
   
-  // Auto-start ceremony for definite cases (no profile / no pets)
-  useEffect(() => {
-    if (definitelyNeedsCeremony && !profileLoading && !ceremonyInProgress) {
-      setCeremonyInProgress(true);
-    }
-  }, [definitelyNeedsCeremony, profileLoading, ceremonyInProgress]);
-  
-  // Resolve pending ceremony check once companions are loaded
+  // Resolve the ceremony decision once the companion collection has loaded.
   useEffect(() => {
     if (!pendingCeremonyCheck || !companionDataReady || ceremonyInProgress) return;
-    
-    const eggs = companions.filter(c => c.stage === 'egg');
-    const hasHatchedBlobbi = companions.some(c => c.stage === 'baby' || c.stage === 'adult');
     
     // Mark check as done so this effect doesn't re-fire.
     setCeremonyCheckDone(true);
     
-    if (hasHatchedBlobbi) {
-      // User already has a hatched blobbi — skip ceremony entirely.
-      // Auto-fix the onboardingDone flag if it was missing.
-      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Skipping ceremony: user has hatched blobbi');
+    // Ownership is derived purely from the parsed, validated 31124 collection.
+    // An Island-created baby (stage=baby, empty content, no Ditto-specific
+    // tags) is already a valid entry here and counts as an existing Blobbi.
+    const decision = decideFirstHatch({
+      companions,
+      currentCompanionD: profile?.currentCompanion,
+    });
+    
+    if (decision.kind === 'has-blobbi') {
+      // User already owns a hatched Blobbi — never create/hatch another.
+      // Prefer the profile's current_companion selection when possible.
+      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Skipping ceremony: user has a Blobbi', decision.selected.d);
+      if (profile?.currentCompanion) {
+        setStoredSelectedD(decision.selected.d);
+      }
+      // Auto-fix the onboardingDone flag if a profile exists and it was missing.
       if (profile && !profile.onboardingDone && user?.pubkey) {
         fetchFreshEvent(nostr, {
           kinds: [KIND_BLOBBONAUT_PROFILE],
@@ -619,16 +625,14 @@ function BlobbiContent() {
           }
         }).catch(err => console.error('[BlobbiPage] Failed to auto-fix onboardingDone:', err));
       }
-    } else if (eggs.length > 0) {
+    } else if (decision.kind === 'reuse-egg') {
       // User has only eggs — reuse one for the ceremony (don't create a new one).
-      // Pick a random egg if multiple exist.
-      const egg = eggs.length === 1 ? eggs[0] : eggs[Math.floor(Math.random() * eggs.length)];
-      ceremonyEggRef.current = egg;
-      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony with existing egg:', egg.d);
+      ceremonyEggRef.current = decision.egg;
+      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony with existing egg:', decision.egg.d);
       setCeremonyInProgress(true);
     } else {
-      // No blobbi events found on relays — treat as new user
-      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony: no companions found');
+      // No valid Blobbi found on relays — treat as new user and allow hatch.
+      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony: no existing Blobbi found');
       setCeremonyInProgress(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
