@@ -83,6 +83,9 @@ type CeremonyPhase =
 // Tracks pubkeys that have already started setup in this browser session.
 const setupInFlightFor = new Set<string>();
 
+/** Enable debug logging in development only. */
+const DEBUG_BLOBBI = import.meta.env.DEV;
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface BlobbiHatchingCeremonyProps {
@@ -121,7 +124,8 @@ export function BlobbiHatchingCeremony({
   onExistingBlobbiFound,
 }: BlobbiHatchingCeremonyProps) {
   const isExistingEgg = !!existingCompanion;
-  const { user } = useCurrentUser();  const { nostr } = useNostr();
+  const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { data: authorData } = useAuthor(user?.pubkey);
 
@@ -241,21 +245,22 @@ export function BlobbiHatchingCeremony({
         // Island-created babies (stage=baby, empty content, no Ditto-specific
         // tags, no prior egg) that a stale/strict UI query may have missed.
         const ownership = await preflightBlobbiOwnership(nostr, user.pubkey);
-        console.info('[HatchingCeremony] Preflight ownership check:', {
-          pubkey: user.pubkey,
-          hasProfile: !!profileRef.current,
-          rawCount: ownership.rawCount,
-          ownedCount: ownership.ownedCount,
-          hasBlobbi: ownership.hasBlobbi,
-          existing: ownership.existing
-            ? { d: ownership.existing.d, stage: ownership.existing.stage, name: ownership.existing.name }
-            : undefined,
-        });
+        if (DEBUG_BLOBBI) {
+          console.info('[HatchingCeremony] Preflight ownership check:', {
+            hasProfile: !!profileRef.current,
+            rawCount: ownership.rawCount,
+            ownedCount: ownership.ownedCount,
+            hasBlobbi: ownership.hasBlobbi,
+            existing: ownership.existing
+              ? { stage: ownership.existing.stage }
+              : undefined,
+          });
+        }
 
         if (ownership.hasBlobbi) {
           // Abort the new hatch — the user already owns a Blobbi. Select/reuse
           // it and hand control back to the parent to dismiss the ceremony.
-          console.info('[HatchingCeremony] Aborting new hatch: user already owns a Blobbi');
+          if (DEBUG_BLOBBI) console.info('[HatchingCeremony] Aborting new hatch: user already owns a Blobbi');
           invalidateProfile();
           invalidateCompanion();
           if (ownership.existing) {
