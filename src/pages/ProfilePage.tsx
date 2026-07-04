@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
@@ -6,7 +6,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake, Sparkles } from 'lucide-react';
+import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake, HeartHandshake } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -44,6 +44,7 @@ import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { MediaCollage, MediaCollageSkeleton } from '@/components/MediaCollage';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useInterests } from '@/hooks/useInterests';
+import { normalizeTagValue } from '@/lib/hashtag';
 import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
 import { useWallComments } from '@/hooks/useWallComments';
 import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
@@ -1090,6 +1091,50 @@ interface FollowersListModalProps {
   displayName: string;
 }
 
+/**
+ * Quiet "You both like art, music and 3 more" line shown on profiles whose
+ * interests list (kind 10015) overlaps the viewer's — a conversation starter
+ * for making friends. Reads as prose (no boxes, no `#`); each interest links
+ * to its tag feed. Tags are pre-validated by useProfileSupplementary.
+ */
+function SharedInterests({ tags }: { tags: string[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? tags : tags.slice(0, 3);
+  const hidden = tags.length - shown.length;
+
+  return (
+    <div className="flex items-start gap-1.5 mt-2 text-sm text-muted-foreground">
+      <HeartHandshake className="size-3.5 shrink-0 mt-0.5 text-primary" aria-hidden="true" />
+      <p className="min-w-0 break-words">
+        You both like{' '}
+        {shown.map((tag, i) => (
+          <Fragment key={tag}>
+            {i > 0 && (i === shown.length - 1 && hidden === 0 ? ' and ' : ', ')}
+            <Link
+              to={`/t/${encodeURIComponent(tag)}`}
+              className="font-medium text-foreground hover:text-primary hover:underline"
+            >
+              {tag}
+            </Link>
+          </Fragment>
+        ))}
+        {hidden > 0 && (
+          <>
+            {' '}and{' '}
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="font-medium underline decoration-dotted underline-offset-2 hover:text-foreground transition-colors"
+            >
+              {hidden} more
+            </button>
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
 function FollowersListModal({ pubkey, open, onOpenChange, displayName }: FollowersListModalProps) {
   const handleNavigate = useCallback(() => onOpenChange(false), [onOpenChange]);
   const { nostr } = useNostr();
@@ -1465,12 +1510,13 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const lovesYou = !isOwnProfile && !!user && (supplementary?.loved.includes(user.pubkey) ?? false);
 
   // Hashtag interests (kind 10015) the viewer shares with this profile.
-  // The profile's interests come from the supplementary fetch; the viewer's
-  // from their own cached interests list.
+  // The profile's interests come from the supplementary fetch (already
+  // normalized); the viewer's own list is normalized the same way here so
+  // stray `#` prefixes or whitespace don't break the match.
   const { hashtags: viewerInterests } = useInterests();
   const sharedInterests = useMemo(() => {
     if (isOwnProfile || !user || viewerInterests.length === 0) return [];
-    const mine = new Set(viewerInterests);
+    const mine = new Set(viewerInterests.map((tag) => normalizeTagValue(tag)).filter(Boolean));
     return (supplementary?.interests ?? []).filter((tag) => mine.has(tag)).sort();
   }, [isOwnProfile, user, viewerInterests, supplementary?.interests]);
 
@@ -2387,31 +2433,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               )}
 
               {/* Interests (kind 10015) shared with the viewer */}
-              {sharedInterests.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 mt-3">
-                  <span
-                    className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground"
-                    title={`You and ${displayName} share ${sharedInterests.length} interest${sharedInterests.length === 1 ? '' : 's'}`}
-                  >
-                    <Sparkles className="size-3" aria-hidden="true" />
-                    Shared interests:
-                  </span>
-                  {sharedInterests.slice(0, 6).map((tag) => (
-                    <Link
-                      key={tag}
-                      to={`/t/${encodeURIComponent(tag)}`}
-                      className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
-                    >
-                      #{tag}
-                    </Link>
-                  ))}
-                  {sharedInterests.length > 6 && (
-                    <span className="text-xs font-medium text-muted-foreground">
-                      +{sharedInterests.length - 6} more
-                    </span>
-                  )}
-                </div>
-              )}
+              {sharedInterests.length > 0 && <SharedInterests tags={sharedInterests} />}
 
               {/* Badge preview */}
               {badgeRefs.length > 0 && (

@@ -3,6 +3,18 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { LOVE_LIST_KIND, loveListPubkeys } from '@/hooks/useLoveList';
+import { normalizeTagValue } from '@/lib/hashtag';
+
+/**
+ * Pick the newest event of a kind. The pool queries multiple relays, so a
+ * replaceable kind can come back in several (stale) versions — `find()` would
+ * return whichever relay answered first.
+ */
+function latest(events: NostrEvent[], kind: number): NostrEvent | undefined {
+  return events
+    .filter((e) => e.kind === kind)
+    .reduce<NostrEvent | undefined>((a, b) => (a && a.created_at > b.created_at ? a : b), undefined);
+}
 
 export interface ProfileSupplementary {
   /** Pubkeys the profile follows (from kind 3). */
@@ -48,10 +60,10 @@ export function useProfileSupplementary(pubkey: string | undefined) {
         { signal: AbortSignal.timeout(8000) },
       );
 
-      const kind3 = events.find((e) => e.kind === 3);
-      const kind10001 = events.find((e) => e.kind === 10001);
-      const loveListEvent = events.find((e) => e.kind === LOVE_LIST_KIND);
-      const interestsEvent = events.find((e) => e.kind === 10015);
+      const kind3 = latest(events, 3);
+      const kind10001 = latest(events, 10001);
+      const loveListEvent = latest(events, LOVE_LIST_KIND);
+      const interestsEvent = latest(events, 10015);
 
       // Seed pinned notes cache so usePinnedNotes doesn't re-fetch
       queryClient.setQueryData(['pinned-notes', pubkey], kind10001 ?? null);
@@ -66,12 +78,14 @@ export function useProfileSupplementary(pubkey: string | undefined) {
 
       const loved = loveListPubkeys(loveListEvent);
 
-      const interests = interestsEvent
-        ? interestsEvent.tags
-          .filter(([name]) => name === 't')
-          .map(([, value]) => value.toLowerCase())
-          .filter((v, i, arr) => v && arr.indexOf(v) === i)
-        : [];
+      // t-tag values are untrusted — validate against the hashtag alphabet,
+      // dedupe, and cap the count so a malicious 10015 can't flood the UI.
+      const interests = (interestsEvent?.tags ?? [])
+        .filter(([name]) => name === 't')
+        .map(([, value]) => normalizeTagValue(value))
+        .filter((v): v is string => !!v)
+        .filter((v, i, arr) => arr.indexOf(v) === i)
+        .slice(0, 200);
 
       return {
         following,
