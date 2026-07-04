@@ -99,6 +99,13 @@
             </intent-filter>
         </receiver>
 
+        <!-- Resets the combined notification's accumulated messages when the
+             user dismisses it. Not exported: only fired by our own
+             deleteIntent PendingIntent. -->
+        <receiver
+            android:name=".NotificationDismissReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

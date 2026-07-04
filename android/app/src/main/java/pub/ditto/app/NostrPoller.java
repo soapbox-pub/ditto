@@ -25,8 +25,12 @@ import androidx.core.graphics.drawable.IconCompat;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -56,24 +60,27 @@ import okhttp3.Response;
  * the notification icon in the shade (the status-bar small icon stays the
  * monochrome Ditto glyph, which Android requires to be an alpha mask).
  *
- * All notifications join a single group with a summary, so pile-ups collapse
- * into one expandable shade entry and alert once instead of buzzing per event.
+ * All events accumulate into ONE MessagingStyle notification (id
+ * {@link #EVENTS_NOTIFICATION_ID}), each event a message from its author.
+ * Modern Android promotes MessagingStyle notifications into the
+ * Conversations section where custom groups are ignored, so posting
+ * per-event notifications can never collapse — a single accumulating
+ * conversation is the only reliable way to combine them. The notification
+ * alerts when first posted and updates silently until the user opens or
+ * dismisses it ({@link NotificationDismissReceiver} resets the
+ * accumulator).
  */
 public class NostrPoller {
 
     private static final String PREFS_NAME = "ditto_notifications";
     private static final String KEY_LAST_SEEN = "nostr:notification-last-seen";
     private static final String CHANNEL_ID = "ditto_notifications";
-    private static final int MAX_NOTIFICATION_ID = 2147483646;
 
-    /** Group key so event notifications stack into one shade entry. */
-    private static final String GROUP_KEY = "pub.ditto.app.EVENTS";
+    /** Fixed id for the single combined notification (the foreground service owns 1). */
+    private static final int EVENTS_NOTIFICATION_ID = 2;
 
-    /**
-     * Fixed id for the group summary. {@link #hashId} never returns less than
-     * 2 and the foreground service owns id 1, so 0 is free.
-     */
-    private static final int GROUP_SUMMARY_ID = 0;
+    /** Max messages retained in the combined notification (newest win). */
+    private static final int MAX_MESSAGES = 10;
 
     /** Max characters of quoted content shown in a notification body. */
     private static final int SNIPPET_CAP = 120;
@@ -95,6 +102,36 @@ public class NostrPoller {
 
     /** emoji → glyph alpha-mask bitmap (AVATAR_PX²). */
     private final Map<String, Bitmap> emojiMaskCache = new HashMap<>();
+
+    /** One message line in the combined notification. */
+    private static final class Entry {
+        final String senderKey;
+        final String senderName;
+        final String text;
+        final long when;
+        Bitmap avatar; // filled in asynchronously
+
+        Entry(String senderKey, String senderName, String text, long when) {
+            this.senderKey = senderKey;
+            this.senderName = senderName;
+            this.text = text;
+            this.when = when;
+        }
+    }
+
+    /**
+     * Messages accumulated since the user last opened or dismissed the
+     * notification. Static so {@link NotificationDismissReceiver} can reset
+     * it without a service reference.
+     */
+    private static final List<Entry> MESSAGES = new ArrayList<>();
+
+    /** Called when the user dismisses the combined notification. */
+    public static void clearAccumulatedMessages() {
+        synchronized (MESSAGES) {
+            MESSAGES.clear();
+        }
+    }
 
     public NostrPoller(Context context) {
         this.context = context;
@@ -125,35 +162,45 @@ public class NostrPoller {
     ) {
         String title = (authorName != null && !authorName.isEmpty()) ? authorName : "Someone";
         String body = buildBody(event, referencedEvent);
-        int notifId = hashId(event.optString("id"));
         String senderKey = getSenderPubkey(event);
         long createdAt = event.optLong("created_at", 0);
         long whenMs = createdAt > 0 ? createdAt * 1000L : System.currentTimeMillis();
 
+        Entry entry = new Entry(senderKey, title, body, whenMs);
+        addEntry(entry);
+
         // Post immediately without the avatar — never block a notification on
         // an image fetch. Re-posts silently in place once the avatar loads.
-        showNotification(notifId, title, body, null, senderKey, whenMs, false);
+        postCombinedNotification(false);
 
         if (authorPicture != null && !authorPicture.isEmpty()) {
             loadAvatar(authorPicture, authorShape, httpClient, bitmap -> {
                 if (bitmap != null) {
-                    showNotification(notifId, title, body, bitmap, senderKey, whenMs, true);
+                    entry.avatar = bitmap;
+                    postCombinedNotification(true);
                 }
             });
         }
     }
 
-    /** Show a single summary notification for a large backfill batch. */
+    /** Fold a large backfill batch into the combined notification. */
     public void showSummaryNotification(int count) {
-        showNotification(
-                hashId("summary"),
+        addEntry(new Entry(
+                "ditto",
                 "Ditto",
                 "You have " + count + " new notifications",
-                null,
-                null,
-                System.currentTimeMillis(),
-                false
-        );
+                System.currentTimeMillis()
+        ));
+        postCombinedNotification(false);
+    }
+
+    private static void addEntry(Entry entry) {
+        synchronized (MESSAGES) {
+            MESSAGES.add(entry);
+            while (MESSAGES.size() > MAX_MESSAGES) {
+                MESSAGES.remove(0);
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -591,87 +638,82 @@ public class NostrPoller {
      * MessagingStyle so the system shows the sender's avatar (or a monogram
      * fallback while it loads) as the shade icon instead of the app logo.
      */
-    private void showNotification(int id, String title, String body, Bitmap avatar,
-                                  String senderKey, long whenMs, boolean silentUpdate) {
+    /**
+     * Build and post the single combined notification from the accumulated
+     * messages. Each message renders with its author's name and (shaped)
+     * avatar via MessagingStyle. {@code setOnlyAlertOnce} makes the first
+     * post buzz and pile-ons update quietly; once the user opens or
+     * dismisses it, the accumulator resets and the next event alerts again.
+     */
+    private void postCombinedNotification(boolean silentUpdate) {
         NotificationManager manager = (NotificationManager)
                 context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-                .setContentTitle(title)
-                .setContentText(body)
-                .setSmallIcon(R.drawable.ic_stat_ditto)
-                .setWhen(whenMs)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setContentIntent(notificationsIntent(id))
-                .setAutoCancel(true)
-                // Stack into one group entry; only the group summary alerts,
-                // so a burst of events buzzes once instead of once per event.
-                .setGroup(GROUP_KEY)
-                .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY);
-
-        if (senderKey != null) {
-            // Conversation-style rendering: the Person icon (the author's
-            // avatar) replaces the app logo as the notification icon.
-            Person.Builder sender = new Person.Builder()
-                    .setName(title)
-                    .setKey(senderKey);
-            if (avatar != null) {
-                sender.setIcon(IconCompat.createWithBitmap(avatar));
-            }
-            Person senderPerson = sender.build();
-            NotificationCompat.MessagingStyle style = new NotificationCompat.MessagingStyle(
-                    new Person.Builder().setName("You").setKey("self").build());
-            style.addMessage(body, whenMs, senderPerson);
-            builder.setStyle(style);
-        } else {
-            builder.setStyle(new NotificationCompat.BigTextStyle().bigText(body));
+        List<Entry> snapshot;
+        synchronized (MESSAGES) {
+            if (MESSAGES.isEmpty()) return;
+            snapshot = new ArrayList<>(MESSAGES);
         }
 
-        if (avatar != null) {
-            // Fallback for OS versions that don't surface the Person icon.
-            builder.setLargeIcon(avatar);
+        Person self = new Person.Builder().setName("You").setKey("self").build();
+        NotificationCompat.MessagingStyle style = new NotificationCompat.MessagingStyle(self);
+
+        Set<String> senders = new HashSet<>();
+        Entry newest = snapshot.get(snapshot.size() - 1);
+        for (Entry entry : snapshot) {
+            senders.add(entry.senderKey);
+            Person.Builder person = new Person.Builder()
+                    .setName(entry.senderName)
+                    .setKey(entry.senderKey);
+            if (entry.avatar != null) {
+                person.setIcon(IconCompat.createWithBitmap(entry.avatar));
+            }
+            style.addMessage(entry.text, entry.when, person.build());
+        }
+        if (senders.size() > 1) {
+            style.setConversationTitle("Notifications").setGroupConversation(true);
+        }
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
+                .setStyle(style)
+                .setSmallIcon(R.drawable.ic_stat_ditto)
+                .setWhen(newest.when)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentIntent(notificationsIntent())
+                .setDeleteIntent(dismissIntent())
+                .setAutoCancel(true)
+                .setOnlyAlertOnce(true)
+                .setNumber(snapshot.size());
+
+        if (newest.avatar != null) {
+            // Fallback for renderers that don't surface the Person icons.
+            builder.setLargeIcon(newest.avatar);
         }
         if (silentUpdate) {
-            // Avatar re-post: replace in place without a second buzz.
-            builder.setOnlyAlertOnce(true).setSilent(true);
+            // Avatar re-post: replace in place without any chance of a buzz.
+            builder.setSilent(true);
         }
 
-        manager.notify(id, builder.build());
-
-        if (!silentUpdate) {
-            showGroupSummary(manager);
-        }
-    }
-
-    /**
-     * Post (or refresh) the collapsed group summary. {@code setOnlyAlertOnce}
-     * means the group buzzes on its first notification and pile-ons arrive
-     * quietly until the user opens or dismisses the stack.
-     */
-    private void showGroupSummary(NotificationManager manager) {
-        NotificationCompat.Builder summary = new NotificationCompat.Builder(context, CHANNEL_ID)
-                .setContentTitle("Ditto")
-                .setContentText("New notifications")
-                .setSmallIcon(R.drawable.ic_stat_ditto)
-                .setStyle(new NotificationCompat.InboxStyle())
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setContentIntent(notificationsIntent(GROUP_SUMMARY_ID))
-                .setAutoCancel(true)
-                .setGroup(GROUP_KEY)
-                .setGroupSummary(true)
-                .setOnlyAlertOnce(true);
-
-        manager.notify(GROUP_SUMMARY_ID, summary.build());
+        manager.notify(EVENTS_NOTIFICATION_ID, builder.build());
     }
 
     /** Tap intent deep-linking to the in-app notifications page. */
-    private PendingIntent notificationsIntent(int requestCode) {
+    private PendingIntent notificationsIntent() {
         Intent intent = new Intent(context, MainActivity.class);
         intent.setData(Uri.parse("https://ditto.pub/notifications"));
         intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         return PendingIntent.getActivity(
-                context, requestCode, intent,
+                context, EVENTS_NOTIFICATION_ID, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+    }
+
+    /** Fired on dismissal (swipe / clear-all / tap with autoCancel). */
+    private PendingIntent dismissIntent() {
+        Intent intent = new Intent(context, NotificationDismissReceiver.class);
+        return PendingIntent.getBroadcast(
+                context, EVENTS_NOTIFICATION_ID, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
     }
@@ -684,14 +726,6 @@ public class NostrPoller {
     public void setLastSeenTimestamp(long timestamp) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         prefs.edit().putLong(KEY_LAST_SEEN, timestamp).apply();
-    }
-
-    private int hashId(String id) {
-        int hash = 0;
-        for (int i = 0; i < Math.min(id.length(), 16); i++) {
-            hash = ((hash << 5) - hash) + id.charAt(i);
-        }
-        return (Math.abs(hash) % MAX_NOTIFICATION_ID) + 2;
     }
 
     private void createNotificationChannel() {
