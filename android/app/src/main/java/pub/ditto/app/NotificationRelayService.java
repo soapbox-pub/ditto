@@ -180,7 +180,18 @@ public class NotificationRelayService extends Service {
 
         httpClient = new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
-                .pingInterval(30, TimeUnit.SECONDS) // keep sockets alive + detect drops
+                // Keepalive pings serve two purposes: refreshing NAT mappings
+                // (idle entries get silently evicted, zombifying the socket)
+                // and dead-peer detection (a receive-only socket never learns
+                // the other side vanished; a missed pong fails the connection
+                // and triggers reconnect + since-cursor backfill).
+                //
+                // 3 minutes sits well inside typical carrier NAT TCP timeouts
+                // (15-30 min) while waking the radio ~6x less than the
+                // conventional 30s. Worst case a socket dies right after a
+                // pong and detection lags one interval — notifications arrive
+                // a few minutes late, never lost.
+                .pingInterval(3, TimeUnit.MINUTES)
                 .build();
 
         poller = new NostrPoller(this);
