@@ -34,6 +34,18 @@ const OVER_FETCH_MULTIPLIER = 3;
 // Re-export FeedItem for backwards compatibility
 export type { FeedItem };
 
+/**
+ * Drop reply items when the user has disabled "Show replies in feed".
+ * Applies to the target event regardless of wrapper — a repost, reaction,
+ * or zap of a reply still surfaces the reply, so those are filtered too.
+ * Profile-zap fallback cards are kept: `item.event` there is the zap
+ * receipt itself (whose `e` tag would trip isReplyEvent), and the card
+ * renders the zap activity, not the unresolved target.
+ */
+function excludeReplies(items: FeedItem[]): FeedItem[] {
+  return items.filter((item) => item.profileZapRecipient || !isReplyEvent(item.event));
+}
+
 /** Extended FeedItem with pagination metadata. */
 interface FeedPage {
   items: FeedItem[];
@@ -232,9 +244,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
 
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {
-          dedupedItems = dedupedItems.filter(
-            (item) => item.repostedBy || item.reactedBy || item.zappedBy || item.profileZapRecipient || !isReplyEvent(item.event),
-          );
+          dedupedItems = excludeReplies(dedupedItems);
         }
 
         // Seed event cache so embedded note previews resolve instantly.
@@ -279,9 +289,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
 
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {
-          dedupedItems = dedupedItems.filter(
-            (item) => item.repostedBy || item.reactedBy || item.zappedBy || item.profileZapRecipient || !isReplyEvent(item.event),
-          );
+          dedupedItems = excludeReplies(dedupedItems);
         }
 
         // Seed event cache so embedded note previews resolve instantly.
@@ -318,9 +326,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
 
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {
-          dedupedItems = dedupedItems.filter(
-            (item) => item.repostedBy || item.reactedBy || item.zappedBy || item.profileZapRecipient || !isReplyEvent(item.event),
-          );
+          dedupedItems = excludeReplies(dedupedItems);
         }
 
         // Seed event cache so embedded note previews resolve instantly.
