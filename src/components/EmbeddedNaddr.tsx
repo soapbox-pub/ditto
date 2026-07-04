@@ -18,6 +18,8 @@ import { parseBadgeDefinition, type BadgeData } from '@/lib/parseBadgeDefinition
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { parseProfileBadges } from '@/lib/parseProfileBadges';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
+import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
+import { MEMORY_CARD_KIND } from '@/lib/memorycard';
 import { isPeopleListKind } from '@/lib/packUtils';
 import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
 import { EmbeddedPublicationCard } from '@/components/EmbeddedPublicationCard';
@@ -168,6 +170,12 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
   // pill prominent.
   if (event.kind === CAMPAIGN_KIND) {
     return <EmbeddedCampaignCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Memory-card blocks (kind 38192) decode to a save icon + title instead of
+  // dumping the 16 KB hex content as text.
+  if (event.kind === MEMORY_CARD_KIND) {
+    return <EmbeddedMemoryCardCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // People-list events (kind 30000 follow sets, 39089 follow packs) get a

@@ -24,6 +24,8 @@ import { EmbeddedPublicationCard } from '@/components/EmbeddedPublicationCard';
 import { ARTICLE_KINDS } from '@/lib/articleHelpers';
 import { PUBLICATION_KINDS } from '@/lib/publications';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
+import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
+import { MEMORY_CARD_KIND } from '@/lib/memorycard';
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
 import { isPeopleListKind } from '@/lib/packUtils';
 import { EmojifiedText } from '@/components/CustomEmoji';
@@ -197,6 +199,12 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
   // status comment through the kind-1 tokenizer.
   if (EMBEDDED_GIT_KINDS.has(event.kind)) {
     return <EmbeddedGitCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Memory-card blocks (kind 38192) decode to a save icon + title instead of
+  // dumping the 16 KB hex content as text.
+  if (event.kind === MEMORY_CARD_KIND) {
+    return <EmbeddedMemoryCardCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // People-list events (kind 3 follow lists) get a dedicated card showing

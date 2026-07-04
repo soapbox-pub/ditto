@@ -68,6 +68,7 @@ import {
   ColorMomentContent,
   ColorMomentEyeButton,
 } from "@/components/ColorMomentContent";
+import { MemoryCardContent } from "@/components/MemoryCardContent";
 import { BrokenEventFallback } from "@/components/BrokenEventFallback";
 import { CommentContext } from "@/components/CommentContext";
 import { LiveChatContext } from "@/components/LiveChatContext";
@@ -531,6 +532,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isGeocache = event.kind === 37516;
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
+  const isMemoryCard = event.kind === 38192;
   const isBirdDetection = event.kind === 2473;
   const isBirdex = event.kind === 12473;
   const isConstellation = event.kind === 30621;
@@ -611,6 +613,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     !isGeocache &&
     !isFoundLog &&
     !isColor &&
+    !isMemoryCard &&
     !isBirdDetection &&
     !isBirdex &&
     !isConstellation &&
@@ -790,6 +793,8 @@ const NoteCardImpl = memo(function NoteCardImpl({
           <FoundLogContent event={event} />
         ) : isColor ? (
           <ColorMomentContent event={event} />
+        ) : isMemoryCard ? (
+          <MemoryCardContent event={event} />
         ) : isBirdDetection ? (
           <BirdDetectionContent event={event} />
         ) : isBirdex ? (

@@ -96,6 +96,8 @@ export interface FeedSettings {
   feedIncludeQuizResults: boolean;
   /** Show Colors (kind 3367) link in sidebar */
   showColors: boolean;
+  /** Show Memory Cards (kind 38192) link in sidebar */
+  showMemoryCards: boolean;
   /** Show People Lists (kind 39089 follow packs, kind 30000 people sets) link in sidebar */
   showPeopleLists: boolean;
   /** Include Vines in the follows/global feed */
@@ -108,6 +110,8 @@ export interface FeedSettings {
   feedIncludeTreasureFoundLogs: boolean;
   /** Include Colors in the follows/global feed */
   feedIncludeColors: boolean;
+  /** Include Memory Cards (kind 38192) in the follows/global feed */
+  feedIncludeMemoryCards: boolean;
   /** Include People Lists (kind 3 follow lists, kind 30000 people sets, kind 39089 follow packs) in the follows/global feed */
   feedIncludePeopleLists: boolean;
   /** Show Magic Decks (kind 37381) link in sidebar */

@@ -506,6 +506,18 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
       },
     ],
   },
+  {
+    kind: 38192,
+    id: 'cards',
+    showKey: 'showMemoryCards',
+    feedKey: 'feedIncludeMemoryCards',
+    label: 'Memory Cards',
+    description: 'PlayStation 1 memory cards shared over Nostr (NIP-XX kind 38192)',
+    route: 'ps1',
+    addressable: true,
+    section: 'whimsy',
+    blurb: 'PlayStation 1 memory cards, published block-by-block to Nostr. Browse cards shared by others, watch their animated save icons, and open a card to see all 16 blocks — titles, regions and icons decoded straight from the raw save bytes.',
+  },
   // Blobbi (feed-only — dedicated page at /blobbi)
   {
     kind: 31124,

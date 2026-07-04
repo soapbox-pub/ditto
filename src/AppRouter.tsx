@@ -56,6 +56,7 @@ const LetterComposePage = lazy(() => import("./pages/LetterComposePage").then(m 
 const LetterPreferencesPage = lazy(() => import("./pages/LetterPreferencesPage").then(m => ({ default: m.LetterPreferencesPage })));
 const LettersPage = lazy(() => import("./pages/LettersPage").then(m => ({ default: m.LettersPage })));
 const MagicSettingsPage = lazy(() => import("./pages/MagicSettingsPage").then(m => ({ default: m.MagicSettingsPage })));
+const MemoryCardsPage = lazy(() => import("./pages/MemoryCardsPage").then(m => ({ default: m.MemoryCardsPage })));
 const MusicPage = lazy(() => import("./pages/MusicPage").then(m => ({ default: m.MusicPage })));
 const NetworkSettingsPage = lazy(() => import("./pages/NetworkSettingsPage").then(m => ({ default: m.NetworkSettingsPage })));
 const NIP19Page = lazy(() => import("./pages/NIP19Page").then(m => ({ default: m.NIP19Page })));
@@ -205,6 +206,9 @@ export function AppRouter() {
             <Route path="/treasures" element={<TreasuresPage />} />
             <Route path="/quizzes" element={<QuizzesPage />} />
             <Route path="/quizzes/new" element={<CreateQuizPage />} />
+            <Route path="/ps1" element={<MemoryCardsPage />} />
+            <Route path="/ps1/:npub" element={<MemoryCardsPage />} />
+            <Route path="/ps1/:npub/:cardId" element={<MemoryCardsPage />} />
             <Route
               path="/colors"
               element={
