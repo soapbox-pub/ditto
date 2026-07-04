@@ -10,6 +10,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { CenterColumnContext, DrawerContext, LayoutStore, LayoutStoreContext, NavHiddenContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { NsitePlayerContext, type NsitePlayerState } from '@/contexts/NsitePlayerContext';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { cn } from '@/lib/utils';
 
@@ -42,6 +43,10 @@ function MainLayoutInner() {
   const { config } = useAppContext();
   const { hidden: navHidden } = useScrollDirection(scrollContainer);
   const location = useLocation();
+  // WidgetSidebar hides itself with CSS below Tailwind's `lg` breakpoint
+  // (1024px, see WidgetSidebar.tsx). Skip *mounting* it entirely there so
+  // phones don't pay for its lazy chunks, relay queries, and render work.
+  const showWidgetSidebar = useMediaQuery('(min-width: 1024px)');
   return (
     <CenterColumnContext.Provider value={centerColumnEl}>
     <DrawerContext.Provider value={openDrawer}>
@@ -93,8 +98,10 @@ function MainLayoutInner() {
               </div>
             )}
           </div>
-          {/* Right sidebar — render page-provided sidebar, or the widget sidebar */}
-          {rightSidebar ?? <Suspense fallback={<div className="w-1/4 max-w-[300px] shrink-0 hidden lg:block" />}><WidgetSidebar /></Suspense>}
+          {/* Right sidebar — render page-provided sidebar, or the widget sidebar
+              (desktop only; below `lg` it would be CSS-hidden anyway, so don't
+              mount it and let it burn bandwidth/CPU on phones). */}
+          {rightSidebar ?? (showWidgetSidebar && <Suspense fallback={<div className="w-1/4 max-w-[300px] shrink-0 hidden lg:block" />}><WidgetSidebar /></Suspense>)}
         </Suspense>
       </div>
 
