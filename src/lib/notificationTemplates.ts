@@ -20,36 +20,41 @@ export interface NotificationTemplate {
 /**
  * Notification subscriptions to register with nostr-push.
  * Each entry becomes a separate subscription with its own filter and template.
+ *
+ * Text follows the Twitter convention: the title says WHO did WHAT to WHAT
+ * ("Alice reacted to your post"), the body carries the content when the
+ * event's content is human-readable.
  */
 export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
   {
     id: 'reactions',
     kinds: [7],
-    title: '{{author_name}} Reacted!',
+    title: '{{author_name}} reacted to your post',
     body: '{{content}}',
   },
   {
     id: 'reposts',
     kinds: [6, 16],
-    title: '{{author_name}} Reposted!',
-    body: '{{content}}',
+    // Kind 6 content is the reposted event's raw JSON — never show it.
+    title: '{{author_name}} reposted your post',
+    body: '',
   },
   {
     id: 'zaps',
     kinds: [9735],
-    title: '{{amount}} sats!',
-    body: '{{author_name}} zapped you',
+    title: '{{author_name}} zapped you {{amount}} sats!',
+    body: '',
   },
   {
     id: 'mentions',
     kinds: [1],
-    title: '{{author_name}} Mentioned You!',
+    title: '{{author_name}} mentioned you',
     body: '{{content}}',
   },
   {
     id: 'comments',
     kinds: [1111],
-    title: '{{author_name}} Commented!',
+    title: '{{author_name}} commented on your post',
     body: '{{content}}',
   },
   {
@@ -67,7 +72,7 @@ export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
   {
     id: 'highlights',
     kinds: [9802],
-    title: '{{author_name}} highlighted your post!',
+    title: '{{author_name}} highlighted your post',
     body: '{{content}}',
   },
 ];
