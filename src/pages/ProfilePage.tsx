@@ -2150,6 +2150,21 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+
+            {/* Wish happy birthday — lower right of the banner (someone else's birthday only) */}
+            {!isOwnProfile && birthdayNpub && (
+              <Button
+                variant="outline"
+                className="absolute bottom-3 right-3 z-10 max-w-[calc(100%-1.5rem)] rounded-full font-bold backdrop-blur-sm border-amber-400/60 bg-background/70 text-amber-700 hover:bg-background/85 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
+                onClick={() => setBirthdayComposeOpen(true)}
+                disabled={!user}
+                title={user ? undefined : 'Log in to wish a happy birthday'}
+                aria-label={`Wish ${displayName} a Happy Birthday!`}
+              >
+                <Cake className="size-4 mr-2 shrink-0" aria-hidden="true" />
+                <span className="truncate">Wish {displayName} a Happy Birthday!</span>
+              </Button>
+            )}
           </div>
 
           {/* Profile info */}
@@ -2303,21 +2318,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                   </span>
                 ) : null}
               </div>
-
-              {/* Wish happy birthday (someone else's birthday only) */}
-              {!isOwnProfile && birthdayNpub && (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="mt-2 mb-1 w-full sm:w-auto max-w-full rounded-full font-bold border-amber-400/50 bg-gradient-to-r from-amber-400/15 to-pink-400/15 text-amber-700 hover:from-amber-400/25 hover:to-pink-400/25 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
-                  onClick={() => setBirthdayComposeOpen(true)}
-                  disabled={!user}
-                  title={user ? undefined : 'Log in to wish a happy birthday'}
-                >
-                  <Cake className="size-5 mr-2 shrink-0" aria-hidden="true" />
-                  <span className="truncate">Wish {displayName} a happy birthday</span>
-                </Button>
-              )}
               {metadata?.nip05 && (
                 <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" />
               )}
