@@ -53,19 +53,26 @@ export function NativeNotifications(): null {
       localStorage.setItem(BATTERY_NUDGE_KEY, '1');
       toast({
         title: 'Notifications may be unreliable',
-        description:
-          'Battery optimization can cut Ditto\u2019s background connection. Allow background usage for dependable notifications.',
-        duration: 15_000,
-        action: (
-          <ToastAction
-            altText="Allow background usage"
-            onClick={() => {
-              requestIgnoreBatteryOptimizations().catch(() => {});
-            }}
-          >
-            Allow
-          </ToastAction>
+        description: (
+          <div className="space-y-3">
+            <p>
+              Battery optimization can cut Ditto&rsquo;s background connection.
+              Allow background usage for dependable notifications.
+            </p>
+            {/* Rendered below the text instead of in the side action slot,
+                styled as a Ditto pill. ToastAction still auto-dismisses. */}
+            <ToastAction
+              altText="Allow background usage"
+              onClick={() => {
+                requestIgnoreBatteryOptimizations().catch(() => {});
+              }}
+              className="rounded-full px-5 h-9 border-transparent bg-primary text-primary-foreground font-medium transition-colors hover:bg-primary/90"
+            >
+              Allow background usage
+            </ToastAction>
+          </div>
         ),
+        duration: 15_000,
       });
     })();
 
