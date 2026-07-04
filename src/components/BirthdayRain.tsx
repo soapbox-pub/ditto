@@ -14,11 +14,11 @@ import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
  * Fill the region to rain over (e.g. an absolutely-positioned,
  * `overflow-hidden` band over the whole content column) — travel distance is
  * measured from the container so pieces always cross the full region at a
- * constant px/s pace, and piece density scales with the measured height so a
- * tall profile feed rains top to bottom instead of thinning out. The piece
- * pool is generated once and only a height-scaled prefix renders, so the
- * region growing (feed pages loading in) adds pieces without restarting the
- * ones already falling.
+ * constant px/s pace, and confetti density scales with the measured height so
+ * a tall profile feed rains top to bottom instead of thinning out (balloons
+ * stay a fixed handful). The confetti pool is generated once and only a
+ * height-scaled prefix renders, so the region growing (feed pages loading in)
+ * adds pieces without restarting the ones already falling.
  *
  * Purely decorative: `aria-hidden`, `pointer-events-none`, hidden under
  * `prefers-reduced-motion`.
@@ -27,15 +27,14 @@ import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 /** Festive palette that reads well on both light and dark themes. */
 const COLORS = ['#a78bfa', '#f472b6', '#fbbf24', '#38bdf8', '#34d399', '#fb7185'];
 
-/** Piece density per 1000px of region height, with floors so even a short
- *  region reads as a proper celebration and caps to bound DOM/compositor
- *  cost on very long feeds. */
+/** Confetti density per 1000px of region height, with a floor so even a
+ *  short region reads as a proper celebration and a cap to bound
+ *  DOM/compositor cost on very long feeds. Balloons don't scale — always
+ *  exactly a few big ones, regardless of region height. */
 const CONFETTI_PER_1000PX = 45;
-const BALLOONS_PER_1000PX = 16;
 const MIN_CONFETTI = 24;
-const MIN_BALLOONS = 10;
 const MAX_CONFETTI = 140;
-const MAX_BALLOONS = 44;
+const BALLOON_COUNT = 4;
 
 /** Gentle drift speeds (px/s). Balloons are buoyant, so they float up a
  *  touch slower than the confetti falls around them. */
@@ -71,12 +70,12 @@ function generateRain(): { confetti: RainPiece[]; balloons: RainPiece[] } {
     round: i % 3 === 0,
   }));
 
-  const balloons: RainPiece[] = Array.from({ length: MAX_BALLOONS }, () => ({
+  const balloons: RainPiece[] = Array.from({ length: BALLOON_COUNT }, () => ({
     kind: 'balloon',
     left: 5 + Math.random() * 90,
     speed: BALLOON_MIN_SPEED + Math.random() * (BALLOON_MAX_SPEED - BALLOON_MIN_SPEED),
     phase: Math.random(),
-    size: 28 + Math.random() * 14,
+    size: 44 + Math.random() * 20,
     color: '',
     sway: (Math.random() - 0.5) * 50,
     // Balloons tip gently instead of tumbling.
@@ -109,16 +108,14 @@ export function BirthdayRain() {
   // pieces already in flight never regenerate or restart.
   const { confetti, balloons } = useMemo(generateRain, []);
 
-  // Scale visible pieces to the region height so tall feeds rain top to
-  // bottom at the same density as a short profile.
+  // Scale visible confetti to the region height so tall feeds rain top to
+  // bottom at the same density as a short profile. Balloons are a fixed
+  // handful.
   const confettiCount = distance === undefined ? 0 : Math.min(
     Math.max(Math.round((distance / 1000) * CONFETTI_PER_1000PX), MIN_CONFETTI),
     MAX_CONFETTI,
   );
-  const balloonCount = distance === undefined ? 0 : Math.min(
-    Math.max(Math.round((distance / 1000) * BALLOONS_PER_1000PX), MIN_BALLOONS),
-    MAX_BALLOONS,
-  );
+  const balloonCount = distance === undefined ? 0 : BALLOON_COUNT;
 
   return (
     <div
@@ -158,7 +155,7 @@ export function BirthdayRain() {
             className="absolute animate-birthday-float select-none"
             style={{
               // Starts fully below the clipped bottom edge and floats up.
-              bottom: -48,
+              bottom: -72,
               left: `${p.left}%`,
               fontSize: p.size,
               lineHeight: 1,
