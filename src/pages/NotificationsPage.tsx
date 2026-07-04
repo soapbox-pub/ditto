@@ -167,7 +167,7 @@ export function NotificationsPage() {
   const queryClient = useQueryClient();
   const {
     groupedItems,
-    newNotificationIds,
+    hasUnread,
     isLoading,
     hasFetched,
     markAsRead,
@@ -181,16 +181,19 @@ export function NotificationsPage() {
     await queryClient.invalidateQueries({ queryKey: ['notifications', user?.pubkey ?? ''] });
   }, [queryClient, user?.pubkey]);
 
-  // Mark notifications as read when user visits the page
+  // Mark notifications as read when user visits the page. Gate on hasUnread
+  // (raw, relay-level) rather than newNotificationIds (visible items only):
+  // an unread event that was filtered out of the list still lights the nav
+  // dot and must advance the cursor, or the dot never clears.
   useEffect(() => {
-    if (!user || newNotificationIds.size === 0) return;
+    if (!user || !hasUnread) return;
 
     const timer = setTimeout(() => {
       markAsRead();
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [user, newNotificationIds.size, markAsRead]);
+  }, [user, hasUnread, markAsRead]);
 
   // Intersection observer for infinite scroll
   const { ref: scrollRef, inView } = useInView({
