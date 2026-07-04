@@ -68,14 +68,19 @@ public class BootReceiver extends BroadcastReceiver {
                 // Retry once shortly via an alarm; succeeds when the app is
                 // exempt from battery optimizations.
                 Log.w(TAG, "FGS start not allowed from " + action + ", scheduling retry");
-                scheduleRetry(context);
+                scheduleRetry(context, RETRY_DELAY_MS);
             } else {
                 Log.w(TAG, "Failed to start NotificationRelayService on " + action, e);
             }
         }
     }
 
-    private void scheduleRetry(Context context) {
+    /**
+     * Schedule a one-shot alarm that re-runs this receiver with ACTION_RETRY,
+     * which restarts NotificationRelayService. Also used by the service itself
+     * when Android's dataSync foreground-service time budget runs out.
+     */
+    static void scheduleRetry(Context context, long delayMs) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager == null) return;
 
@@ -88,7 +93,7 @@ public class BootReceiver extends BroadcastReceiver {
 
         alarmManager.setAndAllowWhileIdle(
                 AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                SystemClock.elapsedRealtime() + RETRY_DELAY_MS,
+                SystemClock.elapsedRealtime() + delayMs,
                 pending);
     }
 }

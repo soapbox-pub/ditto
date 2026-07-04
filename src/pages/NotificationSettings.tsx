@@ -179,9 +179,9 @@ export function NotificationSettings() {
 
   const isAndroid = Capacitor.getPlatform() === 'android';
 
-  // Battery optimization gets in the way of persistent mode: Android delays
-  // the background fetch alarms and (on Android 15+) blocks the service from
-  // restarting after a reboot. When persistent mode is active, detect the
+  // Battery optimization gets in the way of persistent mode: Android may cut
+  // the background relay connection and (on Android 15+) blocks the service
+  // from restarting after a reboot. When persistent mode is active, detect the
   // condition and offer a one-tap exemption request.
   const [batteryOptimized, setBatteryOptimized] = useState(false);
 
@@ -378,7 +378,7 @@ export function NotificationSettings() {
                       <span className="text-sm font-medium">Persistent</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Polls relays directly in the background for new notifications. Use this for reliable delivery on devices without push notification support.
+                      Keeps a live relay connection open in the background so notifications arrive instantly. Use this for reliable delivery on devices without push notification support.
                     </p>
                   </Label>
                 </div>
@@ -392,8 +392,8 @@ export function NotificationSettings() {
                     <AlertTriangle className="size-4 shrink-0 text-amber-500 mt-0.5" />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs">
-                        Battery optimization is enabled for Ditto. Android may delay or stop
-                        background notification checks and prevent them from resuming after a
+                        Battery optimization is enabled for Ditto. Android may cut the
+                        background relay connection and prevent it from resuming after a
                         reboot.
                       </p>
                       <Button

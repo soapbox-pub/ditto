@@ -6,27 +6,50 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.core.app.NotificationCompat;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
+import okhttp3.Call;
+import okhttp3.Callback;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 /**
- * Handles notification dispatch for Nostr events.
+ * Builds and dispatches rich Android notifications for Nostr events.
+ *
+ * Text style follows the Twitter convention: the title is WHO (the resolved
+ * author display name), the body is WHAT and HOW — the action verb plus a
+ * snippet of the relevant content, e.g.:
+ *
+ *   Alice
+ *   Reacted ❤️ to your post: “Just shipped the new release…”
+ *
+ *   Bob
+ *   Replied: “Totally agree with this take”
+ *
+ * The caller (NotificationRelayService) resolves the author's kind-0 profile
+ * and the referenced event before invoking {@link #showEventNotification}, so
+ * this class is purely synchronous text generation + dispatch. Avatars load
+ * asynchronously: the notification posts immediately name-only, then silently
+ * re-posts in place once the picture is fetched.
  */
 public class NostrPoller {
 
@@ -35,115 +58,211 @@ public class NostrPoller {
     private static final String CHANNEL_ID = "ditto_notifications";
     private static final int MAX_NOTIFICATION_ID = 2147483646;
 
+    /** Max characters of quoted content shown in a notification body. */
+    private static final int SNIPPET_CAP = 120;
+
+    /** Avatar bitmap size (px) for the notification large icon. */
+    private static final int AVATAR_PX = 128;
+
     private final Context context;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+
+    /** picture URL → circle-cropped bitmap, decoded once per service lifetime. */
+    private final Map<String, Bitmap> avatarCache = new HashMap<>();
 
     public NostrPoller(Context context) {
         this.context = context;
         createNotificationChannel();
     }
 
+    // -------------------------------------------------------------------------
+    // Public API
+    // -------------------------------------------------------------------------
+
     /**
-     * Process a single incoming event and dispatch a native notification.
+     * Show a rich notification for a single event.
+     *
+     * @param event           the notification event (kind 1, 6, 7, …)
+     * @param authorName      resolved display name of the acting user (may be null)
+     * @param authorPicture   resolved profile picture URL (may be null)
+     * @param referencedEvent the user's own post being acted on (may be null)
+     * @param httpClient      client used to fetch the avatar bitmap
      */
-    public void handleEvent(JSONObject event, String userPubkey, String relayUrl, OkHttpClient httpClient) {
-        String pubkey = event.optString("pubkey");
-        if (pubkey.equals(userPubkey)) return; // Skip self-interactions
+    public void showEventNotification(
+            JSONObject event,
+            String authorName,
+            String authorPicture,
+            JSONObject referencedEvent,
+            OkHttpClient httpClient
+    ) {
+        String title = (authorName != null && !authorName.isEmpty()) ? authorName : "Someone";
+        String body = buildBody(event, referencedEvent);
+        int notifId = hashId(event.optString("id"));
 
-        String action = kindToAction(event);
+        // Post immediately without the avatar — never block a notification on
+        // an image fetch. Re-posts silently in place once the avatar loads.
+        showNotification(notifId, title, body, null, false);
+
+        if (authorPicture != null && !authorPicture.isEmpty()) {
+            loadAvatar(authorPicture, httpClient, bitmap -> {
+                if (bitmap != null) {
+                    showNotification(notifId, title, body, bitmap, true);
+                }
+            });
+        }
+    }
+
+    /** Show a single summary notification for a large backfill batch. */
+    public void showSummaryNotification(int count) {
         showNotification(
-                hashId(event.optString("id")),
+                hashId("summary"),
                 "Ditto",
-                "Someone " + action
+                "You have " + count + " new notifications",
+                null,
+                false
         );
+    }
 
-        long ts = event.optLong("created_at", 0);
-        long currentLastSeen = getLastSeenTimestamp();
-        if (ts > currentLastSeen) {
-            setLastSeenTimestamp(ts);
+    // -------------------------------------------------------------------------
+    // Text generation
+    // -------------------------------------------------------------------------
+
+    /** Build the descriptive body line for an event. */
+    private String buildBody(JSONObject event, JSONObject referencedEvent) {
+        int kind = event.optInt("kind");
+        String refSnippet = referencedEvent != null
+                ? snippet(referencedEvent.optString("content"))
+                : null;
+        String refNoun = kindNoun(referencedEvent);
+
+        switch (kind) {
+            case 7: {
+                String base = "Reacted " + reactionEmoji(event) + " to your " + refNoun;
+                return appendQuote(base, refSnippet);
+            }
+            case 6:
+            case 16: {
+                String base = "Reposted your " + refNoun;
+                return appendQuote(base, refSnippet);
+            }
+            case 9735: {
+                long sats = getZapAmount(event);
+                String base = sats > 0
+                        ? "Zapped you " + formatSats(sats) + " sats"
+                        : "Zapped you";
+                return appendQuote(base, refSnippet);
+            }
+            case 1: {
+                String content = snippet(event.optString("content"));
+                if (hasTag(event, "e")) {
+                    return content != null ? "Replied: “" + content + "”" : "Replied to your post";
+                }
+                return content != null ? "Mentioned you: “" + content + "”" : "Mentioned you";
+            }
+            case 1111: {
+                String content = snippet(event.optString("content"));
+                boolean isCommentReply = "1111".equals(tagValue(event, "k"));
+                String base = isCommentReply ? "Replied to your comment" : "Commented on your " + refNoun;
+                return content != null ? base + ": “" + content + "”" : base;
+            }
+            case 9802: {
+                // The highlight's own content IS the excerpt of the user's post.
+                String excerpt = snippet(event.optString("content"));
+                String base = "Highlighted your " + refNoun;
+                return excerpt != null ? base + ": “" + excerpt + "”" : base;
+            }
+            case 1222:
+                return "Sent you a voice message";
+            case 1244:
+                return "Replied with a voice message";
+            case 8:
+                return "Awarded you a badge";
+            case 8211:
+                return "Sent you a letter";
+            default: {
+                String content = snippet(event.optString("content"));
+                return content != null ? "Mentioned you: “" + content + "”" : "Mentioned you";
+            }
+        }
+    }
+
+    private static String appendQuote(String base, String snippet) {
+        return snippet != null ? base + ": “" + snippet + "”" : base;
+    }
+
+    /** Noun for the referenced (acted-upon) event, mirroring the in-app labels. */
+    private static String kindNoun(JSONObject referencedEvent) {
+        if (referencedEvent == null) return "post";
+        switch (referencedEvent.optInt("kind", 1)) {
+            case 0: return "profile";
+            case 20: return "photo";
+            case 21:
+            case 22: return "video";
+            case 1063: return "file";
+            case 1068: return "poll";
+            case 1111: return "comment";
+            case 1222:
+            case 1244: return "voice message";
+            case 9802: return "highlight";
+            case 30023: return "article";
+            default: return "post";
         }
     }
 
     /**
-     * Process a batch of events (used after EOSE to handle the initial backfill).
+     * Normalize a kind-7 reaction into a display emoji, mirroring the web
+     * client: "+"/empty → 👍, "-" → 👎, ":shortcode:" → bare shortcode,
+     * anything else verbatim.
      */
-    public void handleEventBatch(List<JSONObject> events, String userPubkey, String relayUrl, OkHttpClient httpClient) {
-        if (events.isEmpty()) return;
+    private static String reactionEmoji(JSONObject event) {
+        String c = event.optString("content", "").trim();
+        if (c.isEmpty() || c.equals("+")) return "👍";
+        if (c.equals("-")) return "👎";
+        if (c.length() >= 2 && c.startsWith(":") && c.endsWith(":")) {
+            return c.substring(1, c.length() - 1);
+        }
+        return c;
+    }
 
-        // Deduplicate and filter self-interactions
-        Set<String> seenIds = new HashSet<>();
-        List<JSONObject> filtered = new ArrayList<>();
-        for (JSONObject event : events) {
-            String id = event.optString("id");
-            String pubkey = event.optString("pubkey");
-            if (!pubkey.equals(userPubkey) && !seenIds.contains(id)) {
-                seenIds.add(id);
-                filtered.add(event);
+    /**
+     * Collapse whitespace and cap the string for inline quoting.
+     * Returns null when there is nothing quotable.
+     */
+    private static String snippet(String content) {
+        if (content == null) return null;
+        String collapsed = content.replaceAll("\\s+", " ").trim();
+        if (collapsed.isEmpty()) return null;
+        if (collapsed.length() > SNIPPET_CAP) {
+            return collapsed.substring(0, SNIPPET_CAP - 1).trim() + "…";
+        }
+        return collapsed;
+    }
+
+    /** Returns the first value of the given tag, or null. */
+    private static String tagValue(JSONObject event, String name) {
+        JSONArray tags = event.optJSONArray("tags");
+        if (tags == null) return null;
+        for (int i = 0; i < tags.length(); i++) {
+            JSONArray tag = tags.optJSONArray(i);
+            if (tag != null && name.equals(tag.optString(0)) && tag.length() > 1) {
+                return tag.optString(1);
             }
         }
+        return null;
+    }
 
-        if (filtered.isEmpty()) return;
-
-        // Collect referenced event IDs for reactions, reposts, and zaps so we
-        // can verify the referenced post was authored by the current user.
-        Set<String> refIdsNeeded = new HashSet<>();
-        for (JSONObject event : filtered) {
-            int kind = event.optInt("kind");
-            if (kind == 7 || kind == 6 || kind == 16 || kind == 9735) {
-                String refId = getReferencedEventId(event);
-                if (refId != null) refIdsNeeded.add(refId);
-            }
+    private static boolean hasTag(JSONObject event, String name) {
+        JSONArray tags = event.optJSONArray("tags");
+        if (tags == null) return false;
+        for (int i = 0; i < tags.length(); i++) {
+            JSONArray tag = tags.optJSONArray(i);
+            if (tag != null && name.equals(tag.optString(0))) return true;
         }
-
-        // Fetch referenced events synchronously so we can filter before notifying.
-        Map<String, JSONObject> referencedMap = refIdsNeeded.isEmpty()
-                ? new HashMap<>()
-                : fetchEventsByIds(new ArrayList<>(refIdsNeeded), relayUrl, httpClient);
-
-        // Filter out reactions/reposts/zaps on posts the user didn't author.
-        List<JSONObject> notifiable = new ArrayList<>();
-        for (JSONObject event : filtered) {
-            int kind = event.optInt("kind");
-            if (kind == 7 || kind == 6 || kind == 16 || kind == 9735) {
-                String refId = getReferencedEventId(event);
-                if (refId == null) continue;
-                JSONObject refEvent = referencedMap.get(refId);
-                if (refEvent == null || !userPubkey.equals(refEvent.optString("pubkey"))) continue;
-            }
-            notifiable.add(event);
-        }
-
-        if (notifiable.isEmpty()) return;
-
-        // Dispatch notifications
-        if (notifiable.size() > 3) {
-            showNotification(
-                    hashId(notifiable.get(0).optString("id") + "-summary"),
-                    "Ditto",
-                    "You have " + notifiable.size() + " new notifications"
-            );
-        } else {
-            for (JSONObject event : notifiable) {
-                String action = kindToAction(event);
-                showNotification(
-                        hashId(event.optString("id")),
-                        "Ditto",
-                        "Someone " + action
-                );
-            }
-        }
-
-        // Update last-seen to newest event (use full filtered list, not just
-        // notifiable, so we don't re-fetch already-seen events on next cycle).
-        long newestTs = getLastSeenTimestamp();
-        for (JSONObject event : filtered) {
-            long ts = event.optLong("created_at", 0);
-            if (ts > newestTs) newestTs = ts;
-        }
-        setLastSeenTimestamp(newestTs);
+        return false;
     }
 
     /** Returns the last `e` tag value from the event, or null if absent. */
-    private String getReferencedEventId(JSONObject event) {
+    public static String getReferencedEventId(JSONObject event) {
         JSONArray tags = event.optJSONArray("tags");
         if (tags == null) return null;
         String last = null;
@@ -157,117 +276,35 @@ public class NostrPoller {
     }
 
     /**
-     * Synchronously fetch a set of events by ID from the relay.
-     * Uses a CountDownLatch so the caller blocks until EOSE or timeout (5 s).
+     * The pubkey of the acting user. For kind 9735 zap receipts the event is
+     * signed by the LNURL provider, not the sender — mirror the web client's
+     * resolution order: uppercase `P` tag → `description` zap-request pubkey →
+     * event pubkey.
      */
-    private Map<String, JSONObject> fetchEventsByIds(List<String> ids, String relayUrl, OkHttpClient httpClient) {
-        Map<String, JSONObject> result = new HashMap<>();
-        if (ids.isEmpty()) return result;
+    public static String getSenderPubkey(JSONObject event) {
+        if (event.optInt("kind") != 9735) return event.optString("pubkey");
 
-        CountDownLatch latch = new CountDownLatch(1);
-        String subId = "ref-" + Long.toHexString(System.nanoTime());
-
-        try {
-            JSONArray idsArr = new JSONArray();
-            for (String id : ids) idsArr.put(id);
-
-            JSONObject filter = new JSONObject();
-            filter.put("ids", idsArr);
-            filter.put("limit", ids.size());
-
-            JSONArray req = new JSONArray();
-            req.put("REQ");
-            req.put(subId);
-            req.put(filter);
-            String reqStr = req.toString();
-
-            okhttp3.Request request = new okhttp3.Request.Builder().url(relayUrl).build();
-            httpClient.newWebSocket(request, new okhttp3.WebSocketListener() {
-                @Override
-                public void onOpen(okhttp3.WebSocket webSocket, okhttp3.Response response) {
-                    webSocket.send(reqStr);
+        JSONArray tags = event.optJSONArray("tags");
+        if (tags != null) {
+            for (int i = 0; i < tags.length(); i++) {
+                JSONArray tag = tags.optJSONArray(i);
+                if (tag != null && "P".equals(tag.optString(0)) && tag.length() > 1) {
+                    String p = tag.optString(1);
+                    if (!p.isEmpty()) return p;
                 }
-
-                @Override
-                public void onMessage(okhttp3.WebSocket webSocket, String text) {
+            }
+            for (int i = 0; i < tags.length(); i++) {
+                JSONArray tag = tags.optJSONArray(i);
+                if (tag != null && "description".equals(tag.optString(0))) {
                     try {
-                        JSONArray msg = new JSONArray(text);
-                        String type = msg.optString(0);
-                        if ("EVENT".equals(type) && subId.equals(msg.optString(1))) {
-                            JSONObject ev = msg.getJSONObject(2);
-                            result.put(ev.optString("id"), ev);
-                        } else if ("EOSE".equals(type) || "CLOSED".equals(type)) {
-                            JSONArray close = new JSONArray();
-                            close.put("CLOSE");
-                            close.put(subId);
-                            webSocket.send(close.toString());
-                            webSocket.close(1000, "done");
-                            latch.countDown();
-                        }
+                        JSONObject zapReq = new JSONObject(tag.optString(1));
+                        String p = zapReq.optString("pubkey", "");
+                        if (!p.isEmpty()) return p;
                     } catch (Exception ignored) {}
                 }
-
-                @Override
-                public void onFailure(okhttp3.WebSocket webSocket, Throwable t, okhttp3.Response response) {
-                    latch.countDown();
-                }
-
-                @Override
-                public void onClosed(okhttp3.WebSocket webSocket, int code, String reason) {
-                    latch.countDown();
-                }
-            });
-
-            latch.await(5, TimeUnit.SECONDS);
-        } catch (Exception ignored) {}
-
-        return result;
-    }
-
-    // --- Event helpers ---
-
-    private String kindToAction(JSONObject event) {
-        int kind = event.optInt("kind");
-        switch (kind) {
-            case 7: return "reacted to your post";
-            case 6: // fall-through
-            case 16: return "reposted your note";
-            case 9735: {
-                long sats = getZapAmount(event);
-                if (sats > 0) {
-                    return "zapped you " + formatSats(sats) + " sats";
-                }
-                return "zapped you";
             }
-            case 1: {
-                JSONArray tags = event.optJSONArray("tags");
-                if (tags != null) {
-                    for (int i = 0; i < tags.length(); i++) {
-                        JSONArray tag = tags.optJSONArray(i);
-                        if (tag != null && "e".equals(tag.optString(0))) {
-                            return "replied to you";
-                        }
-                    }
-                }
-                return "mentioned you";
-            }
-            case 1111: {
-                // NIP-22 comment. If the lowercase k tag is "1111", the parent is another
-                // comment — this is a reply. Otherwise it's a top-level comment on content.
-                JSONArray tags = event.optJSONArray("tags");
-                if (tags != null) {
-                    for (int i = 0; i < tags.length(); i++) {
-                        JSONArray tag = tags.optJSONArray(i);
-                        if (tag != null && "k".equals(tag.optString(0)) && "1111".equals(tag.optString(1))) {
-                            return "replied to your comment";
-                        }
-                    }
-                }
-                return "commented on your post";
-            }
-            case 8211: return "sent you a letter";
-            default: return "mentioned you";
         }
+        return event.optString("pubkey");
     }
 
     /**
@@ -331,7 +368,79 @@ public class NostrPoller {
         return String.valueOf(sats);
     }
 
-    private void showNotification(int id, String title, String body) {
+    // -------------------------------------------------------------------------
+    // Avatar loading
+    // -------------------------------------------------------------------------
+
+    private interface BitmapCallback {
+        void onBitmap(Bitmap bitmap);
+    }
+
+    /** Fetch + circle-crop an avatar, served from cache when possible. */
+    private void loadAvatar(String url, OkHttpClient httpClient, BitmapCallback cb) {
+        Bitmap cached = avatarCache.get(url);
+        if (cached != null) {
+            cb.onBitmap(cached);
+            return;
+        }
+        try {
+            Request request = new Request.Builder().url(url).build();
+            httpClient.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, java.io.IOException e) {
+                    handler.post(() -> cb.onBitmap(null));
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) {
+                    Bitmap result = null;
+                    try {
+                        if (response.isSuccessful() && response.body() != null) {
+                            byte[] bytes = response.body().bytes();
+                            Bitmap raw = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                            if (raw != null) {
+                                result = circleCrop(raw);
+                            }
+                        }
+                    } catch (Exception ignored) {
+                    } finally {
+                        response.close();
+                    }
+                    final Bitmap finalResult = result;
+                    handler.post(() -> {
+                        if (finalResult != null) avatarCache.put(url, finalResult);
+                        cb.onBitmap(finalResult);
+                    });
+                }
+            });
+        } catch (Exception e) {
+            // Malformed URL etc.
+            cb.onBitmap(null);
+        }
+    }
+
+    /** Scale to AVATAR_PX and crop to a circle for the large icon slot. */
+    private static Bitmap circleCrop(Bitmap src) {
+        int size = Math.min(src.getWidth(), src.getHeight());
+        int x = (src.getWidth() - size) / 2;
+        int y = (src.getHeight() - size) / 2;
+        Bitmap square = Bitmap.createBitmap(src, x, y, size, size);
+        Bitmap scaled = Bitmap.createScaledBitmap(square, AVATAR_PX, AVATAR_PX, true);
+
+        Bitmap output = Bitmap.createBitmap(AVATAR_PX, AVATAR_PX, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(output);
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        canvas.drawCircle(AVATAR_PX / 2f, AVATAR_PX / 2f, AVATAR_PX / 2f, paint);
+        paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
+        canvas.drawBitmap(scaled, new Rect(0, 0, AVATAR_PX, AVATAR_PX), new Rect(0, 0, AVATAR_PX, AVATAR_PX), paint);
+        return output;
+    }
+
+    // -------------------------------------------------------------------------
+    // Dispatch
+    // -------------------------------------------------------------------------
+
+    private void showNotification(int id, String title, String body, Bitmap largeIcon, boolean silentUpdate) {
         NotificationManager manager = (NotificationManager)
                 context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
@@ -347,10 +456,19 @@ public class NostrPoller {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(body)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
                 .setSmallIcon(R.drawable.ic_stat_ditto)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
+
+        if (largeIcon != null) {
+            builder.setLargeIcon(largeIcon);
+        }
+        if (silentUpdate) {
+            // Avatar re-post: replace in place without a second buzz.
+            builder.setOnlyAlertOnce(true).setSilent(true);
+        }
 
         manager.notify(id, builder.build());
     }

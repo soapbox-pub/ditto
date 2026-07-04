@@ -23,11 +23,12 @@ import org.json.JSONArray;
 
 /**
  * Capacitor plugin that allows the JS layer to configure the native
- * notification polling service with the user's pubkey and relay URLs.
+ * notification service with the user's pubkey and relay URLs.
  *
  * Supports two notification styles:
  * - "push" (default): no foreground service, relies on push notifications
  * - "persistent": starts NotificationRelayService as a foreground service
+ *   that holds live WebSocket subscriptions for instant notifications
  */
 @CapacitorPlugin(name = "DittoNotification")
 public class DittoNotificationPlugin extends Plugin {
@@ -102,10 +103,11 @@ public class DittoNotificationPlugin extends Plugin {
     /**
      * Check whether the app is exempt from battery optimizations (Doze).
      *
-     * Battery optimization delays the AlarmManager fetch cycles that drive
-     * "persistent" mode, and on Android 15+ an exemption is also what permits
-     * restarting the foreground service from the boot-retry alarm. The
-     * settings UI uses this to decide whether to show the exemption prompt.
+     * Battery optimization can cut the background relay connection that
+     * drives "persistent" mode, and on Android 15+ an exemption is also what
+     * permits restarting the foreground service from the boot-retry alarm.
+     * The settings UI uses this to decide whether to show the exemption
+     * prompt.
      */
     @PluginMethod
     public void isIgnoringBatteryOptimizations(PluginCall call) {

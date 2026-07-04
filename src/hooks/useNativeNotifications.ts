@@ -26,7 +26,7 @@ const DittoNotification = registerPlugin<DittoNotificationPlugin>('DittoNotifica
 /**
  * Check whether Ditto is exempt from Android battery optimizations.
  *
- * Battery optimization delays the background fetch alarms that drive
+ * Battery optimization can cut the background relay connection that drives
  * "persistent" notification mode, and on Android 15+ the exemption is also
  * required to restart the foreground service after a reboot.
  *
@@ -67,10 +67,11 @@ export async function requestIgnoreBatteryOptimizations(): Promise<boolean> {
  * Manages the native Android notification service via Capacitor.
  *
  * Passes user pubkey + relay URLs + enabled notification kinds + optional
- * authors filter to the DittoNotification plugin so it can poll for events
- * in the background. Respects the NIP-78 notificationsEnabled setting
- * (defaults to on), per-type notification preferences, and the "only from
- * people I follow" setting.
+ * authors filter to the DittoNotification plugin. In "persistent" mode the
+ * native service holds live WebSocket subscriptions to those relays and
+ * shows notifications the moment events arrive. Respects the NIP-78
+ * notificationsEnabled setting (defaults to on), per-type notification
+ * preferences, and the "only from people I follow" setting.
  *
  * Web Push (nostr-push) is handled separately by usePushNotifications +
  * NotificationSettings — this hook is Capacitor-only.
