@@ -50,6 +50,7 @@ import {
   previewToBlobbiCompanion,
   type BlobbiEggPreview,
 } from '../lib/blobbi-preview';
+import { preflightBlobbiOwnership } from '../lib/preflight-ownership';
 
 import { useTypewriter } from '../hooks/useTypewriter';
 import { buildRevealGradient } from '../lib/ceremony-colors';
@@ -96,6 +97,13 @@ interface BlobbiHatchingCeremonyProps {
   existingCompanion?: BlobbiCompanion | null;
   /** If true, only create the egg and skip the hatching ceremony. The egg stays an egg. */
   eggOnly?: boolean;
+  /**
+   * Called when the hard preflight guard discovers the user already owns a
+   * Blobbi (e.g. one created by Blobbi Island) right before a new egg would be
+   * created. The parent should select/store the existing Blobbi and dismiss the
+   * ceremony instead of minting a duplicate.
+   */
+  onExistingBlobbiFound?: (companion: BlobbiCompanion) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -110,10 +118,10 @@ export function BlobbiHatchingCeremony({
   onComplete,
   existingCompanion,
   eggOnly = false,
+  onExistingBlobbiFound,
 }: BlobbiHatchingCeremonyProps) {
   const isExistingEgg = !!existingCompanion;
-  const { user } = useCurrentUser();
-  const { nostr } = useNostr();
+  const { user } = useCurrentUser();  const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { data: authorData } = useAuthor(user?.pubkey);
 
@@ -148,6 +156,8 @@ export function BlobbiHatchingCeremony({
   const eggTagsRef = useRef<string[][] | null>(null);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+  const onExistingBlobbiFoundRef = useRef(onExistingBlobbiFound);
+  onExistingBlobbiFoundRef.current = onExistingBlobbiFound;
 
   // ── Companion visuals ──
   const eggCompanion = useMemo(
@@ -223,6 +233,46 @@ export function BlobbiHatchingCeremony({
       setupStarted.current = true;
 
       try {
+        // ── HARD PREFLIGHT GUARD ──────────────────────────────────────────
+        // The UI-level ceremony decision reads from cached/racy query state and
+        // uses a strict `#b` display filter. Before we mint a brand-new first
+        // Blobbi, do a FRESH relay query (no `#b`, lenient validation) for any
+        // authored kind 31124 Blobbi the user already owns. This catches
+        // Island-created babies (stage=baby, empty content, no Ditto-specific
+        // tags, no prior egg) that a stale/strict UI query may have missed.
+        const ownership = await preflightBlobbiOwnership(nostr, user.pubkey);
+        console.info('[HatchingCeremony] Preflight ownership check:', {
+          pubkey: user.pubkey,
+          hasProfile: !!profileRef.current,
+          rawCount: ownership.rawCount,
+          ownedCount: ownership.ownedCount,
+          hasBlobbi: ownership.hasBlobbi,
+          existing: ownership.existing
+            ? { d: ownership.existing.d, stage: ownership.existing.stage, name: ownership.existing.name }
+            : undefined,
+        });
+
+        if (ownership.hasBlobbi) {
+          // Abort the new hatch — the user already owns a Blobbi. Select/reuse
+          // it and hand control back to the parent to dismiss the ceremony.
+          console.info('[HatchingCeremony] Aborting new hatch: user already owns a Blobbi');
+          invalidateProfile();
+          invalidateCompanion();
+          if (ownership.existing) {
+            setStoredSelectedD(ownership.existing.d);
+            if (onExistingBlobbiFoundRef.current) {
+              onExistingBlobbiFoundRef.current(ownership.existing);
+            } else {
+              onCompleteRef.current?.();
+            }
+          } else {
+            // Ownership confirmed but the event couldn't be parsed for reuse.
+            // Still never mint a duplicate — just leave the creation flow.
+            onCompleteRef.current?.();
+          }
+          return;
+        }
+
         const currentProfile = profileRef.current;
         let latestProfileTags: string[][] | null = currentProfile?.allTags ?? null;
 

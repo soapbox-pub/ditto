@@ -595,6 +595,20 @@ function BlobbiContent() {
       currentCompanionD: profile?.currentCompanion,
     });
     
+    if (DEBUG_BLOBBI) {
+      console.log('[BlobbiPage] First-hatch decision:', {
+        pubkey: user?.pubkey,
+        hasProfile: !!profile,
+        currentCompanion: profile?.currentCompanion,
+        onboardingDone: profile?.onboardingDone,
+        collectionLoading,
+        collectionFetching,
+        companionsLength: companions.length,
+        companions: companions.map(c => ({ d: c.d, stage: c.stage, name: c.name })),
+        decision: decision.kind,
+      });
+    }
+    
     if (decision.kind === 'has-blobbi') {
       // User already owns a hatched Blobbi — never create/hatch another.
       // Prefer the profile's current_companion selection when possible.
@@ -667,6 +681,15 @@ function BlobbiContent() {
           invalidateCompanion={invalidateCompanion}
           setStoredSelectedD={setStoredSelectedD}
           existingCompanion={ceremonyEggRef.current}
+          onExistingBlobbiFound={(companion) => {
+            // Hard preflight guard found an existing Blobbi (e.g. Island-created)
+            // right before a duplicate would have been minted. Select it and
+            // leave the ceremony without creating anything.
+            if (DEBUG_BLOBBI) console.log('[BlobbiPage] Preflight found existing Blobbi, aborting hatch:', companion.d);
+            setStoredSelectedD(companion.d);
+            invalidateCollection();
+            setCeremonyInProgress(false);
+          }}
           onComplete={() => setCeremonyInProgress(false)}
         />
       </div>,
