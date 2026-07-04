@@ -81,11 +81,20 @@ public class NostrPoller {
     /** Avatar bitmap size (px) for the notification large icon. */
     private static final int AVATAR_PX = 128;
 
+    /** Font size (px) used to rasterize emoji avatar-shape masks. */
+    private static final int MASK_FONT_PX = 256;
+
+    /** Alpha threshold (~10%) so shadows/AA fringes don't inflate the mask box. */
+    private static final int MASK_ALPHA_THRESHOLD = 25;
+
     private final Context context;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
-    /** picture URL → circle-cropped bitmap, decoded once per service lifetime. */
+    /** picture URL + shape → shaped bitmap, decoded once per service lifetime. */
     private final Map<String, Bitmap> avatarCache = new HashMap<>();
+
+    /** emoji → glyph alpha-mask bitmap (AVATAR_PX²). */
+    private final Map<String, Bitmap> emojiMaskCache = new HashMap<>();
 
     public NostrPoller(Context context) {
         this.context = context;
@@ -102,6 +111,7 @@ public class NostrPoller {
      * @param event           the notification event (kind 1, 6, 7, …)
      * @param authorName      resolved display name of the acting user (may be null)
      * @param authorPicture   resolved profile picture URL (may be null)
+     * @param authorShape     emoji avatar shape from kind-0 metadata (may be null)
      * @param referencedEvent the user's own post being acted on (may be null)
      * @param httpClient      client used to fetch the avatar bitmap
      */
@@ -109,6 +119,7 @@ public class NostrPoller {
             JSONObject event,
             String authorName,
             String authorPicture,
+            String authorShape,
             JSONObject referencedEvent,
             OkHttpClient httpClient
     ) {
@@ -124,7 +135,7 @@ public class NostrPoller {
         showNotification(notifId, title, body, null, senderKey, whenMs, false);
 
         if (authorPicture != null && !authorPicture.isEmpty()) {
-            loadAvatar(authorPicture, httpClient, bitmap -> {
+            loadAvatar(authorPicture, authorShape, httpClient, bitmap -> {
                 if (bitmap != null) {
                     showNotification(notifId, title, body, bitmap, senderKey, whenMs, true);
                 }
@@ -398,9 +409,15 @@ public class NostrPoller {
         void onBitmap(Bitmap bitmap);
     }
 
-    /** Fetch + circle-crop an avatar, served from cache when possible. */
-    private void loadAvatar(String url, OkHttpClient httpClient, BitmapCallback cb) {
-        Bitmap cached = avatarCache.get(url);
+    /**
+     * Fetch an avatar and crop it to the author's shape (emoji mask from the
+     * kind-0 `shape` property, mirroring the web client's avatar shapes) or a
+     * circle by default. Served from cache when possible.
+     */
+    private void loadAvatar(String url, String shape, OkHttpClient httpClient, BitmapCallback cb) {
+        String maskShape = isEmojiShape(shape) ? shape : null;
+        String cacheKey = url + "\n" + (maskShape != null ? maskShape : "");
+        Bitmap cached = avatarCache.get(cacheKey);
         if (cached != null) {
             cb.onBitmap(cached);
             return;
@@ -421,7 +438,7 @@ public class NostrPoller {
                             byte[] bytes = response.body().bytes();
                             Bitmap raw = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
                             if (raw != null) {
-                                result = circleCrop(raw);
+                                result = shapeCrop(raw, maskShape);
                             }
                         }
                     } catch (Exception ignored) {
@@ -430,7 +447,7 @@ public class NostrPoller {
                     }
                     final Bitmap finalResult = result;
                     handler.post(() -> {
-                        if (finalResult != null) avatarCache.put(url, finalResult);
+                        if (finalResult != null) avatarCache.put(cacheKey, finalResult);
                         cb.onBitmap(finalResult);
                     });
                 }
@@ -441,13 +458,118 @@ public class NostrPoller {
         }
     }
 
-    /** Scale to AVATAR_PX and crop to a circle for the large icon slot. */
-    private static Bitmap circleCrop(Bitmap src) {
+    /**
+     * Mirrors the web client's `isEmoji()` check: an avatar shape is a short
+     * non-ASCII string (specific Unicode emoji matching is fragile and would
+     * exclude flags, keycaps, and ZWJ families).
+     */
+    public static boolean isEmojiShape(String value) {
+        if (value == null || value.isEmpty() || value.length() > 20) return false;
+        for (int i = 0; i < value.length(); i++) {
+            if (value.charAt(i) > 127) return true;
+        }
+        return false;
+    }
+
+    /** Crop to the emoji shape when set (circle fallback on any failure). */
+    private Bitmap shapeCrop(Bitmap src, String shape) {
+        if (shape != null) {
+            Bitmap mask = emojiMask(shape);
+            if (mask != null) {
+                return maskCrop(src, mask);
+            }
+        }
+        return circleCrop(src);
+    }
+
+    /** Center-crop {@code src} square, scale to AVATAR_PX, keep only mask alpha. */
+    private static Bitmap maskCrop(Bitmap src, Bitmap mask) {
+        Bitmap scaled = squareScale(src);
+        Bitmap output = Bitmap.createBitmap(AVATAR_PX, AVATAR_PX, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(output);
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        canvas.drawBitmap(mask, 0, 0, paint);
+        paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
+        canvas.drawBitmap(scaled, new Rect(0, 0, AVATAR_PX, AVATAR_PX), new Rect(0, 0, AVATAR_PX, AVATAR_PX), paint);
+        return output;
+    }
+
+    /**
+     * Rasterize an emoji glyph into an AVATAR_PX² alpha mask, mirroring the
+     * web client's `getEmojiMaskUrl()`: draw large, find the tight alpha
+     * bounding box (ignoring faint shadow pixels), square the crop, and
+     * scale so the glyph fills the mask edge-to-edge. Returns null when the
+     * glyph can't be rendered (tofu/empty), which falls back to a circle.
+     */
+    private Bitmap emojiMask(String emoji) {
+        Bitmap cached = emojiMaskCache.get(emoji);
+        if (cached != null) return cached;
+
+        try {
+            // Pass 1: draw the emoji on an oversized scratch bitmap.
+            int scratch = MASK_FONT_PX * 3 / 2;
+            Bitmap scratchBmp = Bitmap.createBitmap(scratch, scratch, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(scratchBmp);
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            paint.setTextSize(MASK_FONT_PX);
+            paint.setTextAlign(Paint.Align.CENTER);
+            float x = scratch / 2f;
+            float y = scratch / 2f - (paint.ascent() + paint.descent()) / 2f;
+            canvas.drawText(emoji, x, y, paint);
+
+            // Pass 2: tight bounding box of pixels above the alpha threshold.
+            int[] px = new int[scratch * scratch];
+            scratchBmp.getPixels(px, 0, scratch, 0, 0, scratch, scratch);
+            int top = scratch, bottom = -1, left = scratch, right = -1;
+            for (int row = 0; row < scratch; row++) {
+                for (int col = 0; col < scratch; col++) {
+                    if ((px[row * scratch + col] >>> 24) > MASK_ALPHA_THRESHOLD) {
+                        if (row < top) top = row;
+                        if (row > bottom) bottom = row;
+                        if (col < left) left = col;
+                        if (col > right) right = col;
+                    }
+                }
+            }
+            if (bottom < top || right < left) return null; // nothing drawn
+
+            // Pass 3: square the bounding box (centered on the shorter axis).
+            int cropW = right - left + 1;
+            int cropH = bottom - top + 1;
+            if (cropW > cropH) {
+                top -= (cropW - cropH) / 2;
+                cropH = cropW;
+            } else if (cropH > cropW) {
+                left -= (cropH - cropW) / 2;
+                cropW = cropH;
+            }
+            if (top < 0) top = 0;
+            if (left < 0) left = 0;
+            if (top + cropH > scratch) cropH = scratch - top;
+            if (left + cropW > scratch) cropW = scratch - left;
+
+            // Pass 4: scale the crop to the mask size. Only alpha is used.
+            Bitmap cropped = Bitmap.createBitmap(scratchBmp, left, top, cropW, cropH);
+            Bitmap mask = Bitmap.createScaledBitmap(cropped, AVATAR_PX, AVATAR_PX, true);
+            emojiMaskCache.put(emoji, mask);
+            return mask;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Center-crop to a square and scale to AVATAR_PX. */
+    private static Bitmap squareScale(Bitmap src) {
         int size = Math.min(src.getWidth(), src.getHeight());
         int x = (src.getWidth() - size) / 2;
         int y = (src.getHeight() - size) / 2;
         Bitmap square = Bitmap.createBitmap(src, x, y, size, size);
-        Bitmap scaled = Bitmap.createScaledBitmap(square, AVATAR_PX, AVATAR_PX, true);
+        return Bitmap.createScaledBitmap(square, AVATAR_PX, AVATAR_PX, true);
+    }
+
+    /** Scale to AVATAR_PX and crop to a circle for the large icon slot. */
+    private static Bitmap circleCrop(Bitmap src) {
+        Bitmap scaled = squareScale(src);
 
         Bitmap output = Bitmap.createBitmap(AVATAR_PX, AVATAR_PX, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(output);

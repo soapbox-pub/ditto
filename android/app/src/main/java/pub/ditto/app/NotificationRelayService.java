@@ -129,11 +129,13 @@ public class NotificationRelayService extends Service {
     private static final class Profile {
         final String name;    // display_name > name, possibly null
         final String picture; // possibly null
+        final String shape;   // emoji avatar shape, validated, possibly null
         final long ts;        // created_at, newest wins across relays
 
-        Profile(String name, String picture, long ts) {
+        Profile(String name, String picture, String shape, long ts) {
             this.name = name;
             this.picture = picture;
+            this.shape = shape;
             this.ts = ts;
         }
     }
@@ -581,6 +583,7 @@ public class NotificationRelayService extends Service {
                         event,
                         profile != null ? profile.name : null,
                         profile != null ? profile.picture : null,
+                        profile != null ? profile.shape : null,
                         ref,
                         httpClient
                 ));
@@ -732,13 +735,15 @@ public class NotificationRelayService extends Service {
             String name = meta.optString("display_name", "");
             if (name.isEmpty()) name = meta.optString("name", "");
             String picture = meta.optString("picture", "");
+            String shape = meta.optString("shape", "");
             return new Profile(
                     name.isEmpty() ? null : name,
                     picture.isEmpty() ? null : picture,
+                    NostrPoller.isEmojiShape(shape) ? shape : null,
                     ts
             );
         } catch (JSONException e) {
-            return new Profile(null, null, ts);
+            return new Profile(null, null, null, ts);
         }
     }
 
