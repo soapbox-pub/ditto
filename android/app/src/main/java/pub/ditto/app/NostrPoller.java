@@ -19,6 +19,8 @@ import android.os.Handler;
 import android.os.Looper;
 
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.Person;
+import androidx.core.graphics.drawable.IconCompat;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -49,7 +51,10 @@ import okhttp3.Response;
  * and the referenced event before invoking {@link #showEventNotification}, so
  * this class is purely synchronous text generation + dispatch. Avatars load
  * asynchronously: the notification posts immediately name-only, then silently
- * re-posts in place once the picture is fetched.
+ * re-posts in place once the picture is fetched. Event notifications use
+ * MessagingStyle so the sender's avatar — not the Ditto logo — is rendered as
+ * the notification icon in the shade (the status-bar small icon stays the
+ * monochrome Ditto glyph, which Android requires to be an alpha mask).
  */
 public class NostrPoller {
 
@@ -98,15 +103,18 @@ public class NostrPoller {
         String title = (authorName != null && !authorName.isEmpty()) ? authorName : "Someone";
         String body = buildBody(event, referencedEvent);
         int notifId = hashId(event.optString("id"));
+        String senderKey = getSenderPubkey(event);
+        long createdAt = event.optLong("created_at", 0);
+        long whenMs = createdAt > 0 ? createdAt * 1000L : System.currentTimeMillis();
 
         // Post immediately without the avatar — never block a notification on
         // an image fetch. Re-posts silently in place once the avatar loads.
-        showNotification(notifId, title, body, null, false);
+        showNotification(notifId, title, body, null, senderKey, whenMs, false);
 
         if (authorPicture != null && !authorPicture.isEmpty()) {
             loadAvatar(authorPicture, httpClient, bitmap -> {
                 if (bitmap != null) {
-                    showNotification(notifId, title, body, bitmap, true);
+                    showNotification(notifId, title, body, bitmap, senderKey, whenMs, true);
                 }
             });
         }
@@ -119,6 +127,8 @@ public class NostrPoller {
                 "Ditto",
                 "You have " + count + " new notifications",
                 null,
+                null,
+                System.currentTimeMillis(),
                 false
         );
     }
@@ -440,7 +450,15 @@ public class NostrPoller {
     // Dispatch
     // -------------------------------------------------------------------------
 
-    private void showNotification(int id, String title, String body, Bitmap largeIcon, boolean silentUpdate) {
+    /**
+     * Build and post a notification.
+     *
+     * When {@code senderKey} is non-null the notification is rendered with
+     * MessagingStyle so the system shows the sender's avatar (or a monogram
+     * fallback while it loads) as the shade icon instead of the app logo.
+     */
+    private void showNotification(int id, String title, String body, Bitmap avatar,
+                                  String senderKey, long whenMs, boolean silentUpdate) {
         NotificationManager manager = (NotificationManager)
                 context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
@@ -456,14 +474,33 @@ public class NostrPoller {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(body)
-                .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
                 .setSmallIcon(R.drawable.ic_stat_ditto)
+                .setWhen(whenMs)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
 
-        if (largeIcon != null) {
-            builder.setLargeIcon(largeIcon);
+        if (senderKey != null) {
+            // Conversation-style rendering: the Person icon (the author's
+            // avatar) replaces the app logo as the notification icon.
+            Person.Builder sender = new Person.Builder()
+                    .setName(title)
+                    .setKey(senderKey);
+            if (avatar != null) {
+                sender.setIcon(IconCompat.createWithBitmap(avatar));
+            }
+            Person senderPerson = sender.build();
+            NotificationCompat.MessagingStyle style = new NotificationCompat.MessagingStyle(
+                    new Person.Builder().setName("You").setKey("self").build());
+            style.addMessage(body, whenMs, senderPerson);
+            builder.setStyle(style);
+        } else {
+            builder.setStyle(new NotificationCompat.BigTextStyle().bigText(body));
+        }
+
+        if (avatar != null) {
+            // Fallback for OS versions that don't surface the Person icon.
+            builder.setLargeIcon(avatar);
         }
         if (silentUpdate) {
             // Avatar re-post: replace in place without a second buzz.
