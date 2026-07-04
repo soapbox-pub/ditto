@@ -6,7 +6,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake } from 'lucide-react';
+import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake, Sparkles } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -43,6 +43,7 @@ import type { ProfileTab as CoreProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { MediaCollage, MediaCollageSkeleton } from '@/components/MediaCollage';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
+import { useInterests } from '@/hooks/useInterests';
 import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
 import { useWallComments } from '@/hooks/useWallComments';
 import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
@@ -1463,6 +1464,16 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   // No extra query — the love list is already part of the supplementary fetch.
   const lovesYou = !isOwnProfile && !!user && (supplementary?.loved.includes(user.pubkey) ?? false);
 
+  // Hashtag interests (kind 10015) the viewer shares with this profile.
+  // The profile's interests come from the supplementary fetch; the viewer's
+  // from their own cached interests list.
+  const { hashtags: viewerInterests } = useInterests();
+  const sharedInterests = useMemo(() => {
+    if (isOwnProfile || !user || viewerInterests.length === 0) return [];
+    const mine = new Set(viewerInterests);
+    return (supplementary?.interests ?? []).filter((tag) => mine.has(tag)).sort();
+  }, [isOwnProfile, user, viewerInterests, supplementary?.interests]);
+
   // Does the profile owner follow the current user?
   // Wall posts are only visible to people the profile owner follows,
   // so we hide the compose box if the profile owner doesn't follow us.
@@ -2373,6 +2384,33 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 <p className="mt-3 text-sm whitespace-pre-wrap break-words overflow-hidden">
                   <BioContent tags={metadataEvent?.tags}>{metadata.about}</BioContent>
                 </p>
+              )}
+
+              {/* Interests (kind 10015) shared with the viewer */}
+              {sharedInterests.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 mt-3">
+                  <span
+                    className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground"
+                    title={`You and ${displayName} share ${sharedInterests.length} interest${sharedInterests.length === 1 ? '' : 's'}`}
+                  >
+                    <Sparkles className="size-3" aria-hidden="true" />
+                    Shared interests:
+                  </span>
+                  {sharedInterests.slice(0, 6).map((tag) => (
+                    <Link
+                      key={tag}
+                      to={`/t/${encodeURIComponent(tag)}`}
+                      className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                    >
+                      #{tag}
+                    </Link>
+                  ))}
+                  {sharedInterests.length > 6 && (
+                    <span className="text-xs font-medium text-muted-foreground">
+                      +{sharedInterests.length - 6} more
+                    </span>
+                  )}
+                </div>
               )}
 
               {/* Badge preview */}
