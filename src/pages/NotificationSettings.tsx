@@ -280,6 +280,22 @@ export function NotificationSettings() {
     updateSettings.mutateAsync({ notificationStyle: style }).catch(() => {
       setNotificationStyle(prev); // roll back on failure
     });
+
+    // Surface the battery-optimization requirement up front: persistent mode
+    // is unreliable without the exemption, so ask with the one-tap system
+    // dialog the moment the user opts in (we're in a click handler, so the
+    // gesture context is valid). Declining leaves the inline warning below
+    // as the recovery path.
+    if (style === 'persistent' && isAndroid) {
+      isIgnoringBatteryOptimizations()
+        .then((ignoring) => {
+          if (ignoring) return;
+          return requestIgnoreBatteryOptimizations().then((nowIgnoring) => {
+            setBatteryOptimized(!nowIgnoring);
+          });
+        })
+        .catch(() => {});
+    }
   };
 
   const handleToggleOnlyFollowing = (enabled: boolean) => {

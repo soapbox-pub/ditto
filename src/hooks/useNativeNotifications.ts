@@ -100,9 +100,12 @@ export function useNativeNotifications(): void {
     ? followedPubkeys
     : undefined;
 
-  // Request native notification permission on first mount.
+  // Request native notification permission once the user logs in. Asking at
+  // app launch (before login) wastes the one system prompt on a moment with
+  // no context — the user hasn't done anything notifiable yet, so denial is
+  // the likely outcome and Android remembers it.
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!Capacitor.isNativePlatform() || !user) return;
 
     (async () => {
       try {
@@ -114,7 +117,7 @@ export function useNativeNotifications(): void {
         // Permission check failed — ignore
       }
     })();
-  }, []);
+  }, [user]);
 
   // Configure / deconfigure the native polling service.
   useEffect(() => {
