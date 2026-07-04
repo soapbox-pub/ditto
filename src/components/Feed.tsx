@@ -447,15 +447,16 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
           {feedItems.length > 0 ? (
             <div>
               {feedItems.map((item: FeedItem) => (
-                <NoteCard
-                  key={feedItemKey(item)}
-                  event={item.event}
-                  repostedBy={item.repostedBy}
-                  repostEvent={item.repostEvent}
-                  reactedBy={item.reactedBy}
-                  zappedBy={item.zappedBy}
-                  profileZapRecipient={item.profileZapRecipient}
-                />
+                <div key={feedItemKey(item)} className="cv-feed-item">
+                  <NoteCard
+                    event={item.event}
+                    repostedBy={item.repostedBy}
+                    repostEvent={item.repostEvent}
+                    reactedBy={item.reactedBy}
+                    zappedBy={item.zappedBy}
+                    profileZapRecipient={item.profileZapRecipient}
+                  />
+                </div>
               ))}
               {hasNextPage && (
                 <div ref={scrollRef} className="py-4">
@@ -587,15 +588,16 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
         {feedItems.map((item) => (
-          <NoteCard
-            key={feedItemKey(item)}
-            event={item.event}
-            repostedBy={item.repostedBy}
-            repostEvent={item.repostEvent}
-            reactedBy={item.reactedBy}
-            zappedBy={item.zappedBy}
-            profileZapRecipient={item.profileZapRecipient}
-          />
+          <div key={feedItemKey(item)} className="cv-feed-item">
+            <NoteCard
+              event={item.event}
+              repostedBy={item.repostedBy}
+              repostEvent={item.repostEvent}
+              reactedBy={item.reactedBy}
+              zappedBy={item.zappedBy}
+              profileZapRecipient={item.profileZapRecipient}
+            />
+          </div>
         ))}
         {hasNextPage && (
           <div ref={scrollRef} className="py-4">
@@ -665,7 +667,9 @@ function HashtagFeedContent({ tag }: { tag: string }) {
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
         {filteredEvents.map((event) => (
-          <NoteCard key={event.id} event={event} />
+          <div key={event.id} className="cv-feed-item">
+            <NoteCard event={event} />
+          </div>
         ))}
       </div>
     </PullToRefresh>
@@ -726,7 +730,9 @@ function GeotagFeedContent({ tag }: { tag: string }) {
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
         {filteredEvents.map((event) => (
-          <NoteCard key={event.id} event={event} />
+          <div key={event.id} className="cv-feed-item">
+            <NoteCard event={event} />
+          </div>
         ))}
       </div>
     </PullToRefresh>
