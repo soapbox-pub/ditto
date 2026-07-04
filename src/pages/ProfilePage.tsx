@@ -2452,32 +2452,52 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
           )}
         </div>
 
-        {/* Birthday — simple stacked heading above the profile tabs with the
+        {/* Birthday — a centered page-a-day calendar leaf (spiral binding on
+            top, BIRTHDAY TODAY band, month over a big day number) with the
             jingle mute toggle. */}
         {isBirthday && birthday?.month !== undefined && birthday?.day !== undefined && (
-          <div
-            className="flex items-center gap-2.5 px-4 pb-3 text-amber-700 dark:text-amber-400"
-            title={isOwnProfile ? 'Happy birthday!' : `It's ${displayName}'s birthday today!`}
-          >
-            <Cake className="size-5 shrink-0" aria-hidden="true" />
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-bold uppercase tracking-wider">
-                Birthday today
-              </span>
-              <span className="text-xs font-medium text-muted-foreground">
-                {new Date(2000, birthday.month - 1, birthday.day).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 shrink-0 rounded-full text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300"
-              onClick={() => setJingleMuted((m) => !m)}
-              aria-label={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
-              title={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
+          <div className="flex justify-center px-4 pb-4">
+            <div
+              className="relative w-40 pt-3"
+              title={isOwnProfile ? 'Happy birthday!' : `It's ${displayName}'s birthday today!`}
             >
-              {jingleMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
-            </Button>
+              {/* Spiral binding rings punched through the page's top edge */}
+              <div className="absolute inset-x-0 top-0 z-10 flex justify-center gap-2.5" aria-hidden="true">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <span
+                    key={i}
+                    className="h-6 w-1.5 rounded-full bg-gradient-to-b from-zinc-300 via-zinc-500 to-zinc-400 shadow-sm dark:from-zinc-400 dark:via-zinc-600 dark:to-zinc-500"
+                  />
+                ))}
+              </div>
+              {/* The page */}
+              <div className="overflow-hidden rounded-xl border bg-card text-center shadow-md">
+                <div className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-400/25 via-pink-400/25 to-purple-400/25 px-3 pb-1.5 pt-4 text-amber-700 dark:text-amber-400">
+                  <Cake className="size-3.5 shrink-0" aria-hidden="true" />
+                  <span className="text-[11px] font-bold uppercase tracking-widest">
+                    Birthday today
+                  </span>
+                </div>
+                <div className="px-3 pt-2">
+                  <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    {new Date(2000, birthday.month - 1, 1).toLocaleDateString(undefined, { month: 'long' })}
+                  </div>
+                  <div className="text-4xl font-extrabold leading-none tabular-nums">
+                    {birthday.day}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="mb-1 mt-0.5 size-7 rounded-full text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300"
+                  onClick={() => setJingleMuted((m) => !m)}
+                  aria-label={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
+                  title={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
+                >
+                  {jingleMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+                </Button>
+              </div>
+            </div>
           </div>
         )}
 
