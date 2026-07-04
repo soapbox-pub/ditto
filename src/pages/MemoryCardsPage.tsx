@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
-import { Gamepad2, ChevronRight } from 'lucide-react';
+import { Gamepad2, ChevronRight, Copy, Download, Files, Loader2 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -9,11 +9,24 @@ import { PageHeader } from '@/components/PageHeader';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { MemoryCardIcon } from '@/components/MemoryCardIcon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useMemoryCard, useMemoryCardGallery, type ResolvedCard } from '@/hooks/useMemoryCards';
+import { useMemoryCardActions } from '@/hooks/useMemoryCardActions';
+import { toast } from '@/hooks/useToast';
 import { getExtraKindDef } from '@/lib/extraKinds';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { isNostrId } from '@/lib/nostrId';
@@ -26,6 +39,7 @@ import {
   hexToBytes,
   regionFlag,
   tagVal,
+  validateCardId,
 } from '@/lib/memorycard';
 
 const cardsDef = getExtraKindDef('cards')!;
@@ -157,7 +171,58 @@ function GalleryView() {
   );
 }
 
-function BlockSlot({ index, event }: { index: number; event: NostrEvent | undefined }) {
+interface BlockSlotProps {
+  index: number;
+  event: NostrEvent | undefined;
+  /** Copy this filled block into the user's card. Omit to hide (logged out). */
+  onCopy?: (index: number, event: NostrEvent) => void;
+  /** Download this filled block's raw 8 KB `.bin`. */
+  onDownload?: (index: number, event: NostrEvent) => void;
+}
+
+/** Hover/focus action row for a filled block. */
+function BlockActions({
+  index,
+  event,
+  onCopy,
+  onDownload,
+}: {
+  index: number;
+  event: NostrEvent;
+  onCopy?: (index: number, event: NostrEvent) => void;
+  onDownload: (index: number, event: NostrEvent) => void;
+}) {
+  const btn =
+    'inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-secondary';
+  return (
+    <div className="mt-auto flex gap-1 pt-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+      <button
+        type="button"
+        className={btn}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDownload(index, event);
+        }}
+      >
+        <Download className="size-3" /> .bin
+      </button>
+      {onCopy && (
+        <button
+          type="button"
+          className={btn}
+          onClick={(e) => {
+            e.stopPropagation();
+            onCopy(index, event);
+          }}
+        >
+          <Copy className="size-3" /> copy
+        </button>
+      )}
+    </div>
+  );
+}
+
+function BlockSlot({ index, event, onCopy, onDownload }: BlockSlotProps) {
   const visual = useMemo(() => {
     if (!event) return null;
     try {
@@ -182,9 +247,10 @@ function BlockSlot({ index, event }: { index: number; event: NostrEvent | undefi
 
   if (isContinuation || !visual) {
     return (
-      <div className="relative flex min-h-[132px] flex-col justify-center rounded-xl border border-border bg-secondary/20 p-3">
+      <div className="group relative flex min-h-[132px] flex-col rounded-xl border border-border bg-secondary/20 p-3">
         <span className="absolute right-2.5 top-2 font-mono text-[11px] text-muted-foreground/70">#{index}</span>
         <p className="text-sm text-muted-foreground">↳ continuation</p>
+        {onDownload && <BlockActions index={index} event={event} onCopy={onCopy} onDownload={onDownload} />}
       </div>
     );
   }
@@ -195,7 +261,7 @@ function BlockSlot({ index, event }: { index: number; event: NostrEvent | undefi
   const title = visual.title || tagVal(event, 'title') || '(untitled save)';
 
   return (
-    <div className="relative flex min-h-[132px] flex-col rounded-xl border border-border bg-card p-3">
+    <div className="group relative flex min-h-[132px] flex-col rounded-xl border border-border bg-card p-3">
       <span className="absolute right-2.5 top-2 font-mono text-[11px] text-muted-foreground/70">#{index}</span>
       <div className="flex gap-2.5">
         <MemoryCardIcon frames={visual.frames} size={48} />
@@ -210,6 +276,7 @@ function BlockSlot({ index, event }: { index: number; event: NostrEvent | undefi
           )}
         </div>
       </div>
+      {onDownload && <BlockActions index={index} event={event} onCopy={onCopy} onDownload={onDownload} />}
     </div>
   );
 }
@@ -245,6 +312,35 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
   const used = Object.keys(card.blocks).filter((n) => Number(n) >= 1).length;
   const hasHeader = !!card.blocks[0];
 
+  const { canManage, myPubkey, publishBlock, cloneCard, downloadCard, downloadBlock } =
+    useMemoryCardActions();
+  const mine = canManage && myPubkey === pubkey;
+
+  const [cloneOpen, setCloneOpen] = useState(false);
+  const [copyTarget, setCopyTarget] = useState<{ index: number; event: NostrEvent } | null>(null);
+
+  const handleDownloadCard = async () => {
+    try {
+      const { present, hasHeader: header } = await downloadCard(card.cardId, card.blocks);
+      toast({
+        title: `Downloaded ${card.cardId}.mcd`,
+        description: header
+          ? `${present}/16 blocks written.`
+          : `${present}/16 blocks — block 0 missing, so emulators may reject it.`,
+      });
+    } catch (e) {
+      toast({ title: 'Download failed', description: String(e), variant: 'destructive' });
+    }
+  };
+
+  const handleDownloadBlock = async (index: number, event: NostrEvent) => {
+    try {
+      await downloadBlock(card.cardId, index, event);
+    } catch (e) {
+      toast({ title: 'Download failed', description: String(e), variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="space-y-5">
       {/* Banner */}
@@ -255,6 +351,11 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
         <div className="min-w-0 flex-1">
           <h2 className="flex items-center gap-2 text-lg font-bold">
             <span className="font-mono">{card.cardId}</span>
+            {mine && (
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
+                your card
+              </span>
+            )}
           </h2>
           <div className="mt-1">
             <AuthorRow pubkey={pubkey} size="md" />
@@ -269,6 +370,20 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
             <p className="mt-1 text-xs text-muted-foreground">{used} of 15 save blocks used</p>
           </div>
         </div>
+      </div>
+
+      {/* Card-level actions — their own row so they never crowd the banner meta */}
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={handleDownloadCard}>
+          <Download className="mr-1.5 size-4" />
+          Download .mcd
+        </Button>
+        {canManage && (
+          <Button variant="secondary" size="sm" onClick={() => setCloneOpen(true)}>
+            <Files className="mr-1.5 size-4" />
+            {mine ? 'Duplicate card' : 'Clone to my card'}
+          </Button>
+        )}
       </div>
 
       {/* Other cards by this author */}
@@ -304,10 +419,207 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
           Ditto's narrow center column (2 cols on phones). */}
       <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 15 }, (_, i) => i + 1).map((n) => (
-          <BlockSlot key={n} index={n} event={card.blocks[n]} />
+          <BlockSlot
+            key={n}
+            index={n}
+            event={card.blocks[n]}
+            onDownload={handleDownloadBlock}
+            onCopy={canManage ? (index, event) => setCopyTarget({ index, event }) : undefined}
+          />
         ))}
       </div>
+
+      {cloneOpen && (
+        <CloneCardDialog
+          card={card}
+          mine={mine}
+          myPubkey={myPubkey}
+          cloneCard={cloneCard}
+          onClose={() => setCloneOpen(false)}
+        />
+      )}
+      {copyTarget && (
+        <CopyBlockDialog
+          source={copyTarget.event}
+          defaultBlock={copyTarget.index}
+          defaultCardId={mine ? card.cardId : 'main'}
+          myPubkey={myPubkey}
+          publishBlock={publishBlock}
+          onClose={() => setCopyTarget(null)}
+        />
+      )}
     </div>
+  );
+}
+
+/** Dialog: copy a single block into one of the user's cards. */
+function CopyBlockDialog({
+  source,
+  defaultBlock,
+  defaultCardId,
+  myPubkey,
+  publishBlock,
+  onClose,
+}: {
+  source: NostrEvent;
+  defaultBlock: number;
+  defaultCardId: string;
+  myPubkey: string | undefined;
+  publishBlock: (source: NostrEvent, cardId: string, block: number) => Promise<void>;
+  onClose: () => void;
+}) {
+  const navigate = useNavigate();
+  const [cardId, setCardId] = useState(defaultCardId);
+  const [block, setBlock] = useState(String(defaultBlock));
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    const id = cardId.trim();
+    const err = validateCardId(id);
+    if (err) {
+      toast({ title: err, variant: 'destructive' });
+      return;
+    }
+    setBusy(true);
+    try {
+      await publishBlock(source, id, Number(block));
+      toast({ title: 'Block copied', description: `Published to “${id}” at block #${block}.` });
+      const npub = tryNpubEncode(myPubkey ?? '');
+      onClose();
+      if (npub) navigate(`/ps1/${npub}/${encodeURIComponent(id)}`);
+    } catch (e) {
+      toast({ title: 'Copy failed', description: String(e), variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Copy save block to your card</DialogTitle>
+          <DialogDescription>
+            Publishes this block under your key. The save bytes stay identical, so its integrity tag
+            remains valid.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="mc-copy-card">Write to card id</Label>
+            <Input
+              id="mc-copy-card"
+              value={cardId}
+              onChange={(e) => setCardId(e.target.value)}
+              placeholder="e.g. main"
+              autoComplete="off"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="mc-copy-block">Target block</Label>
+            <select
+              id="mc-copy-block"
+              value={block}
+              onChange={(e) => setBlock(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              {Array.from({ length: 15 }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  Block #{n}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={busy}>
+            {busy && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+            Copy block
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Dialog: clone every block of a card into a card under the user's key. */
+function CloneCardDialog({
+  card,
+  mine,
+  myPubkey,
+  cloneCard,
+  onClose,
+}: {
+  card: ResolvedCard;
+  mine: boolean;
+  myPubkey: string | undefined;
+  cloneCard: (blocks: Record<number, NostrEvent>, cardId: string) => Promise<number>;
+  onClose: () => void;
+}) {
+  const navigate = useNavigate();
+  const blockCount = Object.keys(card.blocks).length;
+  const [cardId, setCardId] = useState(mine ? `${card.cardId}-copy` : card.cardId);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    const id = cardId.trim();
+    const err = validateCardId(id);
+    if (err) {
+      toast({ title: err, variant: 'destructive' });
+      return;
+    }
+    setBusy(true);
+    try {
+      const ok = await cloneCard(card.blocks, id);
+      toast({
+        title: 'Card cloned',
+        description: `Published ${ok} block${ok === 1 ? '' : 's'} to “${id}”.`,
+      });
+      const npub = tryNpubEncode(myPubkey ?? '');
+      onClose();
+      if (npub) navigate(`/ps1/${npub}/${encodeURIComponent(id)}`);
+    } catch (e) {
+      toast({ title: 'Clone failed', description: String(e), variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{mine ? 'Duplicate this card' : 'Clone to your card'}</DialogTitle>
+          <DialogDescription>
+            Re-publishes all {blockCount} block{blockCount === 1 ? '' : 's'} under your key. Your
+            signer prompts once per block. Publishing to a card id you already use overwrites its
+            blocks.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-1.5 py-2">
+          <Label htmlFor="mc-clone-card">Write to card id</Label>
+          <Input
+            id="mc-clone-card"
+            value={cardId}
+            onChange={(e) => setCardId(e.target.value)}
+            placeholder="e.g. main"
+            autoComplete="off"
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={busy}>
+            {busy && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+            {`Publish ${blockCount} block${blockCount === 1 ? '' : 's'}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
