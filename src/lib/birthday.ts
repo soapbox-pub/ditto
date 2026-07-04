@@ -85,8 +85,27 @@ export function parseBirthdayFromContent(content: string | undefined): Birthday 
   }
 }
 
+/** How long the celebration lingers past midnight into the next day. */
+const CELEBRATION_OVERHANG_MS = 6 * 60 * 60 * 1000;
+
+/** Whether the birthday's month/day fall on the given (local) date. */
+function matchesDate(month: number, day: number, date: Date): boolean {
+  // Feb 29 birthdays celebrate on Feb 28 in non-leap years.
+  if (month === 2 && day === 29) {
+    const year = date.getFullYear();
+    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    if (!isLeap) day = 28;
+  }
+
+  return date.getMonth() + 1 === month && date.getDate() === day;
+}
+
 /**
- * Whether the given birthday falls on today's (local) date.
+ * Whether the given birthday is being celebrated right now (local time).
+ *
+ * True for the whole birthday itself, plus a 6-hour overhang past midnight
+ * so the party doesn't cut off abruptly for night owls and stragglers in
+ * earlier timezones.
  *
  * Requires both `month` and `day` — a year alone isn't enough to celebrate.
  */
@@ -95,15 +114,10 @@ export function isBirthdayToday(birthday: Birthday | undefined, now: Date = new 
     return false;
   }
 
-  const { month } = birthday;
-  let { day } = birthday;
+  const { month, day } = birthday;
 
-  // Feb 29 birthdays celebrate on Feb 28 in non-leap years.
-  if (month === 2 && day === 29) {
-    const year = now.getFullYear();
-    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-    if (!isLeap) day = 28;
-  }
-
-  return now.getMonth() + 1 === month && now.getDate() === day;
+  // Match today, or the day 6 hours ago — the latter keeps the celebration
+  // going through the first 6 hours of the following day.
+  return matchesDate(month, day, now) ||
+    matchesDate(month, day, new Date(now.getTime() - CELEBRATION_OVERHANG_MS));
 }
