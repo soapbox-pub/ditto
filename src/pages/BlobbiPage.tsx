@@ -36,6 +36,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiHatchingCeremony } from '@/blobbi/onboarding/components/BlobbiHatchingCeremony';
 import { decideFirstHatch } from '@/blobbi/onboarding/lib/first-hatch-decision';
+import { useRecoveredBlobbis } from '@/blobbi/onboarding/hooks/useRecoveredBlobbis';
 import { BlobbiEvolveCeremony } from '@/blobbi/onboarding/components/BlobbiEvolveCeremony';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 
@@ -241,12 +242,31 @@ function BlobbiContent() {
   // No dList needed — useBlobbisCollection() without args queries by author + ecosystem tag.
   // This ensures blobbis are never invisible due to a stale profile.has[] list.
   const {
-    companions,
+    companions: strictCompanions,
     isLoading: collectionLoading,
     isFetching: collectionFetching,
     invalidate: invalidateCollection,
     updateCompanionEvent,
   } = useBlobbisCollection(undefined, user?.pubkey);
+
+  // INTEROP RECOVERY: the strict collection drops externally-created Blobbis
+  // (e.g. Blobbi Island) that trip blobbi-kit's `client`/`t == "blobbi"` legacy
+  // heuristic, even though they are well-formed and owned — the user would
+  // otherwise see "Pet Data Not Found". When the strict collection has loaded
+  // and is empty, recover displayable interop Blobbis so they can be shown and
+  // selected. This never resurrects genuine old-app events (see
+  // `isDisplayableInteropBlobbi`) and adds no round-trip on the common path.
+  const recoveryEnabled = !collectionLoading && !collectionFetching && strictCompanions.length === 0;
+  const {
+    companions: recoveredCompanions,
+    isFetching: recoveryFetching,
+  } = useRecoveredBlobbis(user?.pubkey, recoveryEnabled);
+
+  // Effective collection: strict results when present, otherwise recovered ones.
+  const companions = useMemo(
+    () => (strictCompanions.length > 0 ? strictCompanions : recoveredCompanions),
+    [strictCompanions, recoveredCompanions],
+  );
   
   // STEP 2: Companions list (deduplicated by d-tag, newest wins, inside
   // useBlobbisCollection). The collection is already legacy-free — old-format
@@ -572,8 +592,12 @@ function BlobbiContent() {
   // authoritative source of Blobbi ownership) — never on the profile alone.
   // Otherwise a missing/stale kind 11125 profile would trigger a duplicate
   // first hatch even when the user already owns a valid Blobbi (e.g. one
-  // created directly by Blobbi Island).
-  const companionDataReady = !collectionLoading && (!collectionFetching || companions.length > 0);
+  // created directly by Blobbi Island). We also wait for the interop recovery
+  // fetch to settle so a recoverable Island Blobbi is considered before we
+  // decide the user has none.
+  const strictReady = !collectionLoading && (!collectionFetching || strictCompanions.length > 0);
+  const recoveryReady = !recoveryEnabled || !recoveryFetching || recoveredCompanions.length > 0;
+  const companionDataReady = strictReady && recoveryReady;
   // We must inspect the actual companion collection before deciding whether to
   // run the ceremony. This fires for ALL users — with or without a profile,
   // regardless of onboardingDone — so an Island-created Blobbi (which may have
@@ -709,7 +733,9 @@ function BlobbiContent() {
   }
   
   // ─── CASE E: Companions not yet resolved (fetching) ───
-  if (collectionFetching && companions.length === 0) {
+  // Also wait while the interop recovery fetch is still in flight, so we don't
+  // flash "Pet Data Not Found" before a recoverable Island Blobbi arrives.
+  if ((collectionFetching || (recoveryEnabled && recoveryFetching)) && companions.length === 0) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: syncing pets from relays');
     return (
       <DashboardShell>
