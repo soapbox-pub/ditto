@@ -94,7 +94,7 @@ import {
 import { CSS as DndCSS } from '@dnd-kit/utilities';
 import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
-import { resolveCssFamily } from '@/lib/fonts';
+import { resolveCssFamily, loadBundledFont } from '@/lib/fonts';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontSection } from '@/components/FontPicker';
@@ -1420,6 +1420,12 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     return () => stopBirthdayJingle();
   }, [isBirthday, jingleMuted, pubkey]);
 
+  // Script display font for the birthday heading — lazy-loaded only on
+  // someone's birthday.
+  useEffect(() => {
+    if (isBirthday) loadBundledFont('Pacifico');
+  }, [isBirthday]);
+
   // Kind 3 + 10001 — fetched separately so the large contact list
   // doesn't block the profile header or feed from rendering.
   const { data: supplementary } = useProfileSupplementary(pubkey);
@@ -2460,7 +2466,10 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             className="flex flex-col items-center px-4 pb-6 pt-2 text-center"
             title={isOwnProfile ? 'Happy birthday!' : `It's ${displayName}'s birthday today!`}
           >
-            <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-700 dark:text-amber-400">
+            <span
+              className="text-2xl leading-relaxed text-amber-700 dark:text-amber-400"
+              style={{ fontFamily: "'Pacifico', cursive" }}
+            >
               Birthday today
             </span>
             <span className="my-3 h-px w-12 bg-border" aria-hidden="true" />
@@ -2471,9 +2480,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               {birthday.day}
             </span>
             <Button
-              variant="ghost"
+              variant="outline"
               size="icon"
-              className="mt-3 size-7 rounded-full text-muted-foreground hover:text-foreground"
+              className="mt-3 size-8 rounded-full text-muted-foreground hover:text-foreground"
               onClick={() => setJingleMuted((m) => !m)}
               aria-label={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
               title={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
