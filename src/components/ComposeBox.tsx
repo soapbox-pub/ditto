@@ -1701,8 +1701,11 @@ export function ComposeBox({
           // nearly all free space. basis-0 + shrink are critical: with the
           // default `shrink-0 basis-auto` the tray sizes to the grid's
           // content height and silently overflows the modal, leaving the
-          // scroller with nothing to scroll.
-          searchDominant && forceExpanded && "flex flex-col grow-[999] shrink basis-0 min-h-0",
+          // scroller with nothing to scroll. This only applies on mobile,
+          // where the dialog has a fixed (visual-viewport) height; on desktop
+          // the dialog is `h-auto` and the inner content carries an explicit
+          // height instead, so reset to the default sizing there.
+          searchDominant && forceExpanded && "flex flex-col grow-[999] shrink basis-0 min-h-0 sm:grow-0 sm:shrink-0 sm:basis-auto",
         )}>
           {/* Tab bar — pill highlight style for inline mode */}
           <div className="flex gap-1 px-3 pt-2 shrink-0">
@@ -1729,7 +1732,7 @@ export function ComposeBox({
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted',
                 )}
               >
-                <svg width="14" height="14" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <svg className="block size-3.5 shrink-0" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                   <rect x="1" y="1" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.5" fill="none"/>
                   <text x="9" y="9" textAnchor="middle" dominantBaseline="central" fontSize="7" fontWeight="700" fontFamily="system-ui,sans-serif" fill="currentColor" letterSpacing="0.5">GIF</text>
                 </svg>
@@ -1760,7 +1763,13 @@ export function ComposeBox({
             <div className={cn(
               "min-h-[160px]",
               searchDominant
-                ? (forceExpanded ? "flex-1" : "h-[min(420px,50dvh)]")
+                // In the modal, fill the fixed-height sheet with `flex-1`. That
+                // only works on mobile, where the dialog is sized to the visual
+                // viewport; on desktop the dialog is `h-auto` (capped at 85dvh),
+                // so a `flex-1`/`basis-0` child has no free space to claim and
+                // collapses to `min-h-[160px]` — the "clicking search collapses
+                // the section" bug. Give desktop an explicit tall height.
+                ? (forceExpanded ? "flex-1 sm:flex-none sm:h-[min(420px,50dvh)]" : "h-[min(420px,50dvh)]")
                 : "h-[min(280px,calc(var(--visual-viewport-height,100dvh)*0.4))]",
             )}>
               {/* Keyed on the active tab so switching cross-fades the content */}
