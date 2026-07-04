@@ -55,6 +55,9 @@ import okhttp3.Response;
  * MessagingStyle so the sender's avatar — not the Ditto logo — is rendered as
  * the notification icon in the shade (the status-bar small icon stays the
  * monochrome Ditto glyph, which Android requires to be an alpha mask).
+ *
+ * All notifications join a single group with a summary, so pile-ups collapse
+ * into one expandable shade entry and alert once instead of buzzing per event.
  */
 public class NostrPoller {
 
@@ -62,6 +65,15 @@ public class NostrPoller {
     private static final String KEY_LAST_SEEN = "nostr:notification-last-seen";
     private static final String CHANNEL_ID = "ditto_notifications";
     private static final int MAX_NOTIFICATION_ID = 2147483646;
+
+    /** Group key so event notifications stack into one shade entry. */
+    private static final String GROUP_KEY = "pub.ditto.app.EVENTS";
+
+    /**
+     * Fixed id for the group summary. {@link #hashId} never returns less than
+     * 2 and the foreground service owns id 1, so 0 is free.
+     */
+    private static final int GROUP_SUMMARY_ID = 0;
 
     /** Max characters of quoted content shown in a notification body. */
     private static final int SNIPPET_CAP = 120;
@@ -463,22 +475,18 @@ public class NostrPoller {
                 context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
 
-        Intent intent = new Intent(context, MainActivity.class);
-        intent.setData(Uri.parse("https://ditto.pub/notifications"));
-        intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent pendingIntent = PendingIntent.getActivity(
-                context, id, intent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
-
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(body)
                 .setSmallIcon(R.drawable.ic_stat_ditto)
                 .setWhen(whenMs)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setContentIntent(pendingIntent)
-                .setAutoCancel(true);
+                .setContentIntent(notificationsIntent(id))
+                .setAutoCancel(true)
+                // Stack into one group entry; only the group summary alerts,
+                // so a burst of events buzzes once instead of once per event.
+                .setGroup(GROUP_KEY)
+                .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY);
 
         if (senderKey != null) {
             // Conversation-style rendering: the Person icon (the author's
@@ -508,6 +516,42 @@ public class NostrPoller {
         }
 
         manager.notify(id, builder.build());
+
+        if (!silentUpdate) {
+            showGroupSummary(manager);
+        }
+    }
+
+    /**
+     * Post (or refresh) the collapsed group summary. {@code setOnlyAlertOnce}
+     * means the group buzzes on its first notification and pile-ons arrive
+     * quietly until the user opens or dismisses the stack.
+     */
+    private void showGroupSummary(NotificationManager manager) {
+        NotificationCompat.Builder summary = new NotificationCompat.Builder(context, CHANNEL_ID)
+                .setContentTitle("Ditto")
+                .setContentText("New notifications")
+                .setSmallIcon(R.drawable.ic_stat_ditto)
+                .setStyle(new NotificationCompat.InboxStyle())
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentIntent(notificationsIntent(GROUP_SUMMARY_ID))
+                .setAutoCancel(true)
+                .setGroup(GROUP_KEY)
+                .setGroupSummary(true)
+                .setOnlyAlertOnce(true);
+
+        manager.notify(GROUP_SUMMARY_ID, summary.build());
+    }
+
+    /** Tap intent deep-linking to the in-app notifications page. */
+    private PendingIntent notificationsIntent(int requestCode) {
+        Intent intent = new Intent(context, MainActivity.class);
+        intent.setData(Uri.parse("https://ditto.pub/notifications"));
+        intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        return PendingIntent.getActivity(
+                context, requestCode, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
     }
 
     public long getLastSeenTimestamp() {
