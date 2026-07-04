@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.28.1] - 2026-07-04
+
+A small patch to keep the party going: birthday celebrations now linger six hours past midnight, so night owls and friends in earlier timezones don't miss the balloons. Also fixes Blobbi hatching so your freshly hatched Blobbi gets its evolution missions right away, hatching counts toward your care streak, and naming your new friend no longer wipes its missions.
+
+### Changed
+- Birthday celebrations now last six hours past midnight, so the party doesn't cut off abruptly for night owls and well-wishers in earlier timezones
+
+### Fixed
+- Hatching a Blobbi now starts its evolution missions immediately and counts toward your care streak, and naming your new Blobbi no longer wipes those missions
+
 ## [2.28.0] - 2026-07-03
 
 Android notifications get a major upgrade: they now arrive instantly, show the sender's picture, and stack neatly into a single conversation as they pile up — and Ditto helps you keep them flowing with a one-tap battery setting. Profiles now show the interests you have in common with whoever you're visiting. Plus clearer notification text that says exactly who did what, and a prettier birthday celebration with big balloons that float up the page.
