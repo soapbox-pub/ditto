@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.28.0] - 2026-07-03
+
+Android notifications get a major upgrade: they now arrive instantly, show the sender's picture, and stack neatly into a single conversation as they pile up — and Ditto helps you keep them flowing with a one-tap battery setting. Profiles now show the interests you have in common with whoever you're visiting. Plus clearer notification text that says exactly who did what, and a prettier birthday celebration with big balloons that float up the page.
+
+### Added
+- See the interests you have in common with someone right on their profile
+- Android notifications now arrive instantly and show the sender's picture, stacking into a single conversation-style notification as they pile up
+- Ditto now asks to enable notifications right after you log in, with a one-tap option to keep them arriving reliably in the background
+
+### Changed
+- Notification text now tells you exactly who did what — like "Alice reacted to your post" — instead of generic exclamations
+- Birthday celebrations got a makeover: a festive script heading styled like a calendar page, and a handful of big balloons that float up the profile
+
+### Fixed
+- Repost notifications no longer show raw technical data as the message body
+
 ## [2.27.2] - 2026-07-03
 
 Feeds now feel instant: voice notes, polls, photos, and mini-app posts show up the moment you share them, and new posts no longer flicker and vanish before the feed catches up. There's a new one-tap button to wish someone a happy birthday when you land on their profile, plus an opt-in content type for signed truthfulness claims. Also fixed the GIF and sticker search collapsing in the composer and the birthday dropdowns in the profile editor.
