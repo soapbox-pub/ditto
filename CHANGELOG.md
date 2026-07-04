@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.27.2] - 2026-07-03
+
+Feeds now feel instant: voice notes, polls, photos, and mini-app posts show up the moment you share them, and new posts no longer flicker and vanish before the feed catches up. There's a new one-tap button to wish someone a happy birthday when you land on their profile, plus an opt-in content type for signed truthfulness claims. Also fixed the GIF and sticker search collapsing in the composer and the birthday dropdowns in the profile editor.
+
+### Added
+- A one-tap button on birthday profiles to send someone a happy-birthday post
+- Optional support for signed truthfulness claims — turn it on in content settings to see them in your feed
+
+### Changed
+- Voice notes, polls, photos, and mini-app posts now appear in your feed instantly when you share them, instead of waiting for a refresh
+
+### Fixed
+- New posts no longer briefly appear and then vanish from the feed after sharing
+- The GIF and sticker search in the post composer no longer collapses when you tap the search box on desktop
+- The month and day dropdowns in the profile editor now show your saved birthday instead of staying blank
+
 ## [2.27.1] - 2026-07-03
 
 Birthday polish: the celebration tune now starts on its own when you open someone's birthday profile instead of waiting for a tap, saved birthdays stick around after a refresh, and party hats now show up everywhere they should — on the composer as you write and on the post you're viewing in a thread.
