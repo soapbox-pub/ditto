@@ -5,7 +5,6 @@ import { nip19 } from 'nostr-tools';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { getAvatarShape } from '@/lib/avatarShape';
-import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { LinkEmbed } from '@/components/LinkEmbed';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
@@ -14,8 +13,8 @@ import { VideoPlayer } from '@/components/VideoPlayer';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { Lightbox, ImageGallery } from '@/components/ImageGallery';
-import { ProfileHoverCard } from '@/components/ProfileHoverCard';
-import { EmojifiedText, CustomEmojiImg } from '@/components/CustomEmoji';
+import { NostrMention } from '@/components/NostrMention';
+import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { buildEmojiMap } from '@/lib/customEmoji';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
@@ -1103,28 +1102,3 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`;
 }
 
-function NostrMention({ pubkey }: { pubkey: string }) {
-  const author = useAuthor(pubkey);
-  const hasRealName = !!(author.data?.metadata?.name || author.data?.metadata?.display_name);
-  const displayName = author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? 'Anonymous';
-  const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
-
-  return (
-    <ProfileHoverCard pubkey={pubkey} asChild>
-      <Link
-        to={profileUrl}
-        className={cn(
-          'font-medium hover:underline',
-          hasRealName
-            ? 'text-primary'
-            : 'text-muted-foreground hover:text-foreground',
-        )}
-        onClick={(e) => e.stopPropagation()}
-      >
-        @{author.data?.event ? (
-          <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-        ) : displayName}
-      </Link>
-    </ProfileHoverCard>
-  );
-}
