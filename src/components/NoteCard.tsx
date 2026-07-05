@@ -44,7 +44,6 @@ import { Link } from "react-router-dom";
 const EmbeddedArticleCard = lazy(() => import("@/components/EmbeddedArticleCard").then(m => ({ default: m.EmbeddedArticleCard })));
 const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const BlobbiSocialActions = lazy(() => import("@/components/BlobbiSocialActions").then(m => ({ default: m.BlobbiSocialActions })));
-import { parseBlobbiEvent } from "@blobbi-kit/core/blobbi";
 import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
 import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 import {
@@ -581,12 +580,14 @@ export const NoteCard = memo(function NoteCard({
   );
   const isProfile = event.kind === 0;
   const isBlobbiState = event.kind === 31124;
-  const blobbiCompanion = useMemo(() => isBlobbiState ? parseBlobbiEvent(event) : null, [event, isBlobbiState]);
+  // Read the two tags needed for the interact gate directly instead of importing
+  // @blobbi-kit/core's parseBlobbiEvent here — that would drag ~48K of the kit
+  // into the eager bundle. BlobbiSocialActions (lazy) does the full parse itself.
   const showBlobbiInteract = isBlobbiState
     && !!user
     && user.pubkey !== event.pubkey
-    && !!blobbiCompanion?.socialOpen
-    && blobbiCompanion?.stage !== 'egg';
+    && event.tags.some((t) => t[0] === 'social' && t[1] === 'open')
+    && event.tags.find((t) => t[0] === 'stage')?.[1] !== 'egg';
   const isDevKind = isGitRepo || isRepoState || isPatch || isPullRequest || isPrUpdate || isIssue || isGitStatus || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
@@ -1025,7 +1026,7 @@ export const NoteCard = memo(function NoteCard({
 
         {showBlobbiInteract && (
           <Suspense fallback={null}>
-            <BlobbiSocialActions event={t} source="blobbi-feed" companion={blobbiCompanion} onInteractionSuccess={handleBlobbiInteractionSuccess} />
+            <BlobbiSocialActions event={t} source="blobbi-feed" onInteractionSuccess={handleBlobbiInteractionSuccess} />
           </Suspense>
         )}
 

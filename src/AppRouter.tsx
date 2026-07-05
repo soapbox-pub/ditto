@@ -19,9 +19,7 @@ import { getExtraKindDef, getSectionKinds } from "./lib/extraKinds";
 // Critical-path pages: eagerly loaded (landing + fallback)
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-
-// Lazy-loaded companion layer (~450K code-split)
-const BlobbiCompanionLayer = lazy(() => import("@/blobbi/companion").then(m => ({ default: m.BlobbiCompanionLayer })));
+import { BlobbiCompanionGate } from "@/components/BlobbiCompanionGate";
 
 // Lazy-loaded compose modal (pulls in emoji-mart ~620K)
 const ReplyComposeModal = lazy(() => import("@/components/ReplyComposeModal").then(m => ({ default: m.ReplyComposeModal })));
@@ -154,9 +152,7 @@ export function AppRouter() {
         <ScrollToTop />
         <HighlightSelectionButton />
         <BlobbiActionsProvider>
-          <Suspense fallback={null}>
-            <BlobbiCompanionLayer />
-          </Suspense>
+          <BlobbiCompanionGate />
           <Routes>
           {/* Auto-follow deep link: fullscreen immersive (no sidebars/nav) */}
           <Route path="/follow/:npub" element={<FollowPage />} />
