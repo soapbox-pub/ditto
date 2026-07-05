@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { useInView } from 'react-intersection-observer';
+import { useInView } from '@/hooks/useInView';
 import { useMusicFeed } from '@/hooks/useMusicFeed';
 import { MusicPlaylistCard, MusicPlaylistCardSkeleton } from './MusicPlaylistCard';
 import { MusicSortFilterBar, type MusicSort, type MusicScope } from './MusicSortFilterBar';

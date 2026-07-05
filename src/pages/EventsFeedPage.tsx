@@ -1,5 +1,5 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import { useSeoMeta } from "@unhead/react";
+import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { CalendarDays, Loader2 } from "lucide-react";
 import { useMemo } from "react";
 import { FeedEmptyState } from "@/components/FeedEmptyState";

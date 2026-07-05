@@ -1,4 +1,4 @@
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { PageHeader } from '@/components/PageHeader';
 import { IntroImage } from '@/components/IntroImage';
 import { AdvancedSettings } from '@/components/AdvancedSettings';

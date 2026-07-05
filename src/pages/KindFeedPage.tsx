@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Feed } from '@/components/Feed';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { PageHeader } from '@/components/PageHeader';

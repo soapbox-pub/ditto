@@ -1,4 +1,4 @@
-import { useSeoMeta } from "@unhead/react";
+import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { useAppContext } from "@/hooks/useAppContext";

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useInView } from 'react-intersection-observer';
-import { useSeoMeta } from '@unhead/react';
+import { useInView } from '@/hooks/useInView';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useQueryClient } from '@tanstack/react-query';
 import { Zap, AtSign, MessageCircle, Quote, Loader2, Award, Mail } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';

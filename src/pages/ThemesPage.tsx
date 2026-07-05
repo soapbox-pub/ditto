@@ -1,5 +1,5 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import { useSeoMeta } from "@unhead/react";
+import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { Loader2, Pencil, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
 import { ARC_OVERHANG_PX } from "@/components/ArcBackground";

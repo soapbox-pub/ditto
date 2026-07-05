@@ -16,7 +16,7 @@
  */
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
+import { useInView } from '@/hooks/useInView';
 import {
   Users,
   UserPlus,

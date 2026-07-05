@@ -1,7 +1,7 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { Loader2, MessageCircle, Package } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useInView } from 'react-intersection-observer';
+import { useInView } from '@/hooks/useInView';
 
 import { AppHandlerContent } from '@/components/AppHandlerContent';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';

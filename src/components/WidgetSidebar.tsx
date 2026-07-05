@@ -6,15 +6,13 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
   SortableContext,
   verticalListSortingStrategy,
   useSortable,
   arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+  CSS,
+  type DragEndEvent,
+} from '@/lib/sortable';
 import { Plus } from 'lucide-react';
 
 import { WidgetCard } from '@/components/WidgetCard';

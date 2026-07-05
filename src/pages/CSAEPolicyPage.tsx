@@ -1,4 +1,4 @@
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { ShieldAlert } from 'lucide-react';
 
 import { PageHeader } from '@/components/PageHeader';

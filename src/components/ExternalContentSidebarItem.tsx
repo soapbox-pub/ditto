@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { GripVertical, X, Globe, BookOpen } from 'lucide-react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { useSortable, CSS } from '@/lib/sortable';
 import { useMemo } from 'react';
 
 import { cn } from '@/lib/utils';

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Globe, Info, Mail, Shield, Zap, Server, Hash } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
+import { useInView } from '@/hooks/useInView';
 import { nip19 } from 'nostr-tools';
 import { UserPlus, Loader2, CheckCircle2, Copy, Check } from 'lucide-react';
 

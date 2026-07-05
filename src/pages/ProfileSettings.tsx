@@ -1,4 +1,4 @@
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Loader2, Plus, Trash2, ChevronDown,

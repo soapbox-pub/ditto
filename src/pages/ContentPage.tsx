@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { RotateCcw } from 'lucide-react';
 import { MuteSettingsInternals, SensitiveContentSection, ThemePreferencesSection, VideoAutoplaySection } from '@/components/ContentSettings';
 import { MuteListRecoveryDialog } from '@/components/MuteListRecoveryDialog';

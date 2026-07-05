@@ -7,7 +7,7 @@
  */
 
 import type { NostrEvent } from "@nostrify/nostrify";
-import { useSeoMeta } from "@unhead/react";
+import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { Camera } from "lucide-react";
 import { lazy, Suspense, useMemo, useCallback, useState } from "react";
 import { FeedEmptyState } from "@/components/FeedEmptyState";

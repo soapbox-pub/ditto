@@ -2,12 +2,9 @@ import { Link } from 'react-router-dom';
 import { GripVertical, X } from 'lucide-react';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+  SortableContext, verticalListSortingStrategy, useSortable, arrayMove, CSS,
   type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+} from '@/lib/sortable';
 import { sidebarItemIcon, itemLabel, itemPath, isSidebarDivider, isNostrUri, isExternalUri, isNsiteUri } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 import { useCallback } from 'react';

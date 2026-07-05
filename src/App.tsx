@@ -3,8 +3,6 @@
 
 import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { InferSeoMetaPlugin } from "@unhead/addons";
-import { createHead, UnheadProvider } from "@unhead/react/client";
 import { AppProvider } from "@/components/AppProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
 import { NativeNotifications } from "@/components/NativeNotifications";
@@ -25,10 +23,6 @@ import { DEFAULT_ESPLORA_APIS } from "@/lib/esplora";
 import { DEFAULT_SIDEBAR_WIDGETS } from "@/lib/sidebarWidgets";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
 import AppRouter from "./AppRouter";
-
-const head = createHead({
-  plugins: [InferSeoMetaPlugin()],
-});
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -216,33 +210,31 @@ export function App() {
 
 
   return (
-    <UnheadProvider head={head}>
-      <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
-        <SentryProvider>
-          <PlausibleProvider>
-            <QueryClientProvider client={queryClient}>
-              <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
-                <NostrProvider>
-                  <NostrSync />
-                  <NativeNotifications />
-                  <NotificationStream />
+    <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
+      <SentryProvider>
+        <PlausibleProvider>
+          <QueryClientProvider client={queryClient}>
+            <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
+              <NostrProvider>
+                <NostrSync />
+                <NativeNotifications />
+                <NotificationStream />
 
-                    <NWCProvider>
-                      <EmotionDevProvider>
-                        <TooltipProvider>
-                          <InitialSyncGate>
-                            <AppRouter />
-                          </InitialSyncGate>
-                        </TooltipProvider>
-                      </EmotionDevProvider>
-                    </NWCProvider>
-                </NostrProvider>
-              </NostrLoginProvider>
-            </QueryClientProvider>
-          </PlausibleProvider>
-        </SentryProvider>
-      </AppProvider>
-    </UnheadProvider>
+                  <NWCProvider>
+                    <EmotionDevProvider>
+                      <TooltipProvider>
+                        <InitialSyncGate>
+                          <AppRouter />
+                        </InitialSyncGate>
+                      </TooltipProvider>
+                    </EmotionDevProvider>
+                  </NWCProvider>
+              </NostrProvider>
+            </NostrLoginProvider>
+          </QueryClientProvider>
+        </PlausibleProvider>
+      </SentryProvider>
+    </AppProvider>
   );
 }
 
