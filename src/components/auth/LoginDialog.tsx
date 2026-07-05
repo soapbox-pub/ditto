@@ -25,6 +25,8 @@ import { DialogTitle } from '@radix-ui/react-dialog';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
+import { usePomegranateLogin } from '@/hooks/usePomegranateLogin';
+import { GoogleLoginButton, PomegranateStatusView } from '@/components/auth/GoogleLogin';
 
 interface LoginDialogProps {
   isOpen: boolean;
@@ -92,6 +94,19 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
   useEffect(() => { onLoginRef.current = onLogin; }, [onLogin]);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
   useEffect(() => { loginRef.current = login; }, [login]);
+
+  // Pomegranate "Log in with Google" (FROST-sharded NIP-46 signing). Only
+  // rendered when a central server is configured — see usePomegranateLogin.
+  const pomegranate = usePomegranateLogin({
+    onSuccess: () => {
+      onLoginRef.current();
+      onCloseRef.current();
+    },
+  });
+  // Stable ref so the isOpen cleanup effect below doesn't need pomegranate
+  // in its dependency array.
+  const pomegranateCancelRef = useRef(pomegranate.cancel);
+  useEffect(() => { pomegranateCancelRef.current = pomegranate.cancel; }, [pomegranate.cancel]);
 
   // Check if on mobile device
   const isMobile = useIsMobile();
@@ -174,6 +189,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+      pomegranateCancelRef.current();
     }
   }, [isOpen]);
 
@@ -322,7 +338,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
         <LoginHero />
 
         <div className='px-6 pb-6 space-y-4 overflow-y-auto'>
-          {onSignupClick && !connectError && !showProgressView && !showQr && (
+          {onSignupClick && !connectError && !showProgressView && !showQr && pomegranate.status.step === 'idle' && (
             <p className="text-center text-sm text-muted-foreground">
               New here?{' '}
               <button
@@ -335,7 +351,15 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
             </p>
           )}
 
-          {connectError ? (
+          {pomegranate.status.step !== 'idle' ? (
+            // Pomegranate Google login in progress — progress, confirmation,
+            // and error views all live in PomegranateStatusView.
+            <PomegranateStatusView
+              status={pomegranate.status}
+              onCancel={pomegranate.cancel}
+              onContinue={pomegranate.start}
+            />
+          ) : connectError ? (
             <div className='flex flex-col items-center space-y-3 py-4'>
               <p className='text-sm text-destructive text-center'>{connectError}</p>
               <Button variant='outline' onClick={handleConnectCancel} className='rounded-full'>
@@ -465,6 +489,23 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
               >
                 {isLoggingIn ? 'Logging in…' : 'Log in'}
               </Button>
+
+              {pomegranate.available && (
+                <>
+                  <div className='flex items-center gap-3' aria-hidden='true'>
+                    <div className='h-px flex-1 bg-border' />
+                    <span className='text-xs text-muted-foreground uppercase'>or</span>
+                    <div className='h-px flex-1 bg-border' />
+                  </div>
+                  <GoogleLoginButton
+                    onClick={() => {
+                      setLoginError('');
+                      pomegranate.start();
+                    }}
+                    disabled={isLoggingIn}
+                  />
+                </>
+              )}
             </form>
           )}
         </div>

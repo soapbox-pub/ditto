@@ -332,6 +332,28 @@ export interface AppConfig {
   imageQuality: 'compressed' | 'original';
   /** Hex pubkey of the curator whose follow list defines the Ditto feed. */
   curatorPubkey?: string;
+  /**
+   * Pomegranate `central` server URL for "Log in with Google" (FROST-sharded
+   * NIP-46 signing — see https://github.com/fiatjaf/pomegranate). The origin
+   * only, no trailing slash. When unset, the Google login button is hidden.
+   * Default: "https://auth.njump.me".
+   */
+  pomegranateCentralUrl?: string;
+  /**
+   * Pomegranate operator server URLs used when creating a new account
+   * (the user's key is FROST-sharded across these servers). At least 2 are
+   * required for signup; existing accounts can still log in without this.
+   * Default: po.jumble.social, po.njump.me, po.f7z.io, po.nostrver.se,
+   * po.coracle.social.
+   */
+  pomegranateOperators?: string[];
+  /**
+   * Signing threshold for new Pomegranate accounts (how many operators must
+   * cooperate to sign, e.g. 2 for 2-of-3). Must be at least 2 and at most
+   * the number of operators. Falls back to a majority of the operators.
+   * Default: 3 (3-of-5).
+   */
+  pomegranateThreshold?: number;
   /** Wildcard domain used for iframe sandboxing (e.g. "iframe.diy"). Default: "iframe.diy". */
   sandboxDomain: string;
   /**
