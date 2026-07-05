@@ -979,7 +979,44 @@ const TAB_DISPLAY_LABELS: Record<string, string> = {
 
 const tabDisplayLabel = (label: string): string => TAB_DISPLAY_LABELS[label] ?? label;
 
+/**
+ * Commit a cheap static skeleton first, then mount the heavy body from an
+ * effect. The lazy route reveal is an interruptible concurrent render, and on
+ * slow devices query-cache updates restart it faster than a full pass over
+ * this tree can finish — livelocking the route on its Suspense fallback. The
+ * effect-driven render is sync priority and can't be restarted.
+ */
 export function ProfilePage() {
+  const [bodyMounted, setBodyMounted] = useState(false);
+
+  useEffect(() => {
+    setBodyMounted(true);
+  }, []);
+
+  if (!bodyMounted) {
+    return (
+      <main className="flex-1 min-w-0 relative">
+        <div className="h-36 md:h-48 bg-secondary relative">
+          <Skeleton className="w-full h-full rounded-none" />
+        </div>
+        <div className="px-4 pb-4">
+          <div className="relative -mt-12 mb-3">
+            <Skeleton className="size-24 rounded-full border-4 border-background" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  return <ProfilePageInner />;
+}
+
+function ProfilePageInner() {
   const { config } = useAppContext();
   const params = useParams();
   const npub = params.npub ?? params.nip19;
