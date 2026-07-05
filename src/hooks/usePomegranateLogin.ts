@@ -108,18 +108,22 @@ export function usePomegranateLogin(options: UsePomegranateLoginOptions = {}) {
 
       const token = await tokenPromise;
       signal.throwIfAborted();
+      console.info('[pomegranate] received auth token');
 
       const email = getTokenEmail(token);
       if (!email) throw new Error('The server returned an invalid login token.');
 
       setStatus({ step: 'checking-account' });
       let account = await fetchAccount(centralUrl, token, signal);
+      console.info('[pomegranate] existing account?', Boolean(account));
 
       if (!account) {
         // No account on this central — check the public announcements in
         // case this email already set up on a different central server.
+        console.info('[pomegranate] searching setup announcements (argon2id)…');
         const announcedCentral = await searchSetupAnnouncement(nostr, email, signal);
         signal.throwIfAborted();
+        console.info('[pomegranate] announced central:', announcedCentral);
 
         if (announcedCentral && announcedCentral !== centralUrl) {
           // Pause for explicit user confirmation (see PomegranateStatus).
@@ -149,11 +153,14 @@ export function usePomegranateLogin(options: UsePomegranateLoginOptions = {}) {
             secretKey,
             signal,
             onProgress: (completed) => {
+              console.info(`[pomegranate] registration progress ${completed}/${total}`);
               if (!signal.aborted) setStatus({ step: 'creating-account', completed, total });
             },
           });
 
+          console.info('[pomegranate] waiting for account to become operational…');
           account = await waitForAccount(centralUrl, token, signal);
+          console.info('[pomegranate] account operational', account.pubkey);
 
           // Announce the setup so other clients can find this central server.
           if (getPublicKey(secretKey) === account.pubkey) {
@@ -172,7 +179,17 @@ export function usePomegranateLogin(options: UsePomegranateLoginOptions = {}) {
       }
       signal.throwIfAborted();
 
-      await loginRef.current.bunker(buildBunkerUri(handlerPubkey, centralUrl));
+      const bunkerUri = buildBunkerUri(handlerPubkey, centralUrl);
+      console.info('[pomegranate] connecting to bunker', { handlerPubkey, bunkerUri });
+      try {
+        await loginRef.current.bunker(bunkerUri);
+      } catch (error) {
+        console.error('[pomegranate] bunker handshake failed', error);
+        throw new Error(
+          'Could not reach your signer. Please try again in a moment.',
+        );
+      }
+      console.info('[pomegranate] bunker login established');
 
       setStatus({ step: 'idle' });
       onSuccessRef.current?.();

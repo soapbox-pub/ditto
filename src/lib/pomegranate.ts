@@ -94,6 +94,12 @@ export function massagePomegranateUrl(url: string): string {
  * Opens the Google OAuth popup against `central` and resolves with the auth
  * token it posts back. MUST be called synchronously from a user gesture
  * (click handler) or the popup will be blocked.
+ *
+ * Note: Google's OAuth page sets `Cross-Origin-Opener-Policy`, which severs
+ * our handle to the popup — `popup.closed` and `popup.close()` become no-ops
+ * and log COOP warnings. We therefore never poll the popup; the token always
+ * arrives via `postMessage` from central's own callback page, and we fall
+ * back to a timeout so a genuinely abandoned popup doesn't hang forever.
  */
 export function authenticateWithGoogle(centralUrl: string, signal?: AbortSignal): Promise<string> {
   return new Promise<string>((resolve, reject) => {
@@ -106,30 +112,38 @@ export function authenticateWithGoogle(centralUrl: string, signal?: AbortSignal)
     const cleanup = () => {
       window.removeEventListener('message', onMessage);
       signal?.removeEventListener('abort', onAbort);
-      clearInterval(closedPoll);
+      clearTimeout(timeout);
+    };
+
+    // Best-effort popup close; a no-op (and COOP-guarded) once Google's COOP
+    // header has severed the handle, so ignore any failure.
+    const tryClosePopup = () => {
+      try {
+        popup.close();
+      } catch {
+        // COOP — popup can't be closed programmatically. Harmless.
+      }
     };
 
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== centralUrl || typeof event.data?.token !== 'string') return;
       cleanup();
-      popup.close();
+      tryClosePopup();
       resolve(event.data.token);
     };
 
     const onAbort = () => {
       cleanup();
-      popup.close();
+      tryClosePopup();
       reject(new DOMException('Login canceled', 'AbortError'));
     };
 
-    // The popup posts no message when the user just closes it — poll so the
-    // caller isn't stuck on a forever-pending promise.
-    const closedPoll = setInterval(() => {
-      if (popup.closed) {
-        cleanup();
-        reject(new Error('Google sign-in was canceled.'));
-      }
-    }, 500);
+    // Give the user a few minutes to complete Google's flow, then give up so
+    // the promise can't stay pending forever.
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error('Google sign-in timed out. Please try again.'));
+    }, 5 * 60 * 1000);
 
     window.addEventListener('message', onMessage);
     signal?.addEventListener('abort', onAbort);
