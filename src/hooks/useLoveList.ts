@@ -1,4 +1,5 @@
 import { useNostr } from '@nostrify/react';
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from './useAppContext';
 import { useCurrentUser } from './useCurrentUser';
@@ -99,7 +100,20 @@ export function useLoveList() {
 
   // Placeholder from localStorage so the Loved tab (and heart markers) render
   // immediately on page load instead of waiting on the relay round-trip.
-  const cachedPubkeys = user ? getCachedLovedPubkeys(cacheKey, user.pubkey) : undefined;
+  // Memoized — this hook runs in every NoteCard, and an unmemoized read would
+  // JSON.parse the cached list on every render of every card.
+  const userPubkey = user?.pubkey;
+  const cachedPubkeys = useMemo(
+    () => userPubkey ? getCachedLovedPubkeys(cacheKey, userPubkey) : undefined,
+    [cacheKey, userPubkey],
+  );
+
+  // Stable placeholder identity so `data` doesn't churn while the initial
+  // fetch is in flight (consumers memoize on it).
+  const placeholderData = useMemo<LoveListData | undefined>(
+    () => cachedPubkeys ? { event: null, pubkeys: cachedPubkeys } : undefined,
+    [cachedPubkeys],
+  );
 
   const loveListQuery = useQuery<LoveListData>({
     queryKey: ['love-list', user?.pubkey ?? ''],
@@ -125,7 +139,7 @@ export function useLoveList() {
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
-    placeholderData: cachedPubkeys ? { event: null, pubkeys: cachedPubkeys } : undefined,
+    placeholderData,
   });
 
   /** Loved pubkeys; `undefined` while the initial fetch is in flight. */

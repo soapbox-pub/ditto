@@ -2,6 +2,24 @@ import { nip19 } from 'nostr-tools';
 import type { NostrMetadata } from '@nostrify/nostrify';
 
 /**
+ * Memoized npub encodings. `getProfileUrl` runs several times per NoteCard
+ * render and bech32 encoding is pure but not free — cache it so repeated
+ * renders of the same authors don't re-encode.
+ */
+const npubCache = new Map<string, string>();
+
+function cachedNpubEncode(pubkey: string): string {
+  let npub = npubCache.get(pubkey);
+  if (!npub) {
+    npub = nip19.npubEncode(pubkey);
+    // Bound the cache to avoid unbounded growth in long sessions.
+    if (npubCache.size >= 2000) npubCache.clear();
+    npubCache.set(pubkey, npub);
+  }
+  return npub;
+}
+
+/**
  * Generates the profile URL for a user.
  *
  * Only uses the NIP-05 identifier as the URL path when `nip05Verified` is
@@ -33,5 +51,5 @@ export function getProfileUrl(
     // user@domain.com → /user@domain.com
     return `/${nip05}`;
   }
-  return `/${nip19.npubEncode(pubkey)}`;
+  return `/${cachedNpubEncode(pubkey)}`;
 }
