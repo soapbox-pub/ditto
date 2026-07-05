@@ -1,5 +1,5 @@
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
@@ -65,49 +65,79 @@ async function queryAuthorRelays(
 export function useEvent(eventId: string | undefined, relays?: string[], authorHint?: string) {
   const { nostr } = useNostr();
   const { store } = useNostrStorage();
+  const queryClient = useQueryClient();
 
   return useQuery<NostrEvent | null>({
+    // The hints are part of the key so calls with different hints aren't
+    // served a stale *null* from a hint-less attempt that missed. Found
+    // events, however, are immutable for a given id and shared across hint
+    // variants via the hint-less ['event', id] seed key (see below).
     queryKey: ['event', eventId ?? '', relays ?? [], authorHint ?? ''],
     queryFn: async () => {
       if (!eventId) return null;
       const filter: NostrFilter[] = [{ ids: [eventId], limit: 1 }];
 
-      // 0. Cache-first: an event is immutable for a given id, so a local cache
-      //    hit is authoritative — return it and skip the network entirely.
-      const [cached] = await store.query(filter);
-      if (cached) return cached;
+      // 0. Feeds and notifications seed the events they render under the
+      //    hint-less ['event', id] key. An event is immutable for a given id,
+      //    so a seeded copy is authoritative — clicking a note that's already
+      //    on screen must never trigger a relay round-trip for it.
+      const seeded = queryClient.getQueryData<NostrEvent>(['event', eventId]);
+      if (seeded) return seeded;
 
-      // 1. Query the user's configured relays first (batched automatically).
-      //    Batched results are mirrored into the cache by the AppPool.
-      const events = await nostr.query(filter, { signal: AbortSignal.timeout(5000) });
-      if (events.length > 0) return events[0];
+      const fetchById = async (): Promise<NostrEvent | null> => {
+        // 1. Cache-first: an event is immutable for a given id, so a local
+        //    cache hit is authoritative — return it and skip the network.
+        const [cached] = await store.query(filter);
+        if (cached) return cached;
 
-      // 2. If not found and we have relay hints, try those relays directly
-      if (relays && relays.length > 0) {
-        try {
-          const hintEvents = await nostr.group(relays).query(filter, { signal: AbortSignal.timeout(5000) });
-          if (hintEvents.length > 0) {
-            // group() bypasses the batcher's cache tap — persist explicitly.
-            void store.event(hintEvents[0]);
-            return hintEvents[0];
+        // 2. Query the user's configured relays first (batched automatically).
+        //    Batched results are mirrored into the cache by the AppPool.
+        const events = await nostr.query(filter, { signal: AbortSignal.timeout(5000) });
+        if (events.length > 0) return events[0];
+
+        // 3. If not found and we have relay hints, try those relays directly
+        if (relays && relays.length > 0) {
+          try {
+            const hintEvents = await nostr.group(relays).query(filter, { signal: AbortSignal.timeout(5000) });
+            if (hintEvents.length > 0) {
+              // group() bypasses the batcher's cache tap — persist explicitly.
+              void store.event(hintEvents[0]);
+              return hintEvents[0];
+            }
+          } catch {
+            // relay hint query failed — fall through
           }
-        } catch {
-          // relay hint query failed — fall through
         }
+
+        // 4. Last resort: if we have the author's pubkey, fetch their NIP-65
+        //    relay list and try their write relays (where they publish content)
+        if (authorHint) {
+          const found = await queryAuthorRelays(nostr, authorHint, filter, AbortSignal.timeout(10000));
+          if (found) {
+            void store.event(found);
+            return found;
+          }
+        }
+
+        return null;
+      };
+
+      const event = await fetchById();
+
+      // Mirror the result into the hint-less seed key so other lookups of the
+      // same id (embedded quotes, ancestor threads with different hints)
+      // resolve from memory instead of another round-trip.
+      if (event && !queryClient.getQueryData(['event', eventId])) {
+        queryClient.setQueryData(['event', eventId], event);
       }
 
-      // 3. Last resort: if we have the author's pubkey, fetch their NIP-65 relay
-      //    list and try their write relays (where they publish content)
-      if (authorHint) {
-        const found = await queryAuthorRelays(nostr, authorHint, filter, AbortSignal.timeout(10000));
-        if (found) {
-          void store.event(found);
-          return found;
-        }
-      }
-
-      return null;
+      return event;
     },
+    // Resolve instantly (no loading state, no fetch while fresh) when the
+    // event was seeded by a feed. `initialDataUpdatedAt` carries the seed's
+    // age so staleness is judged against when it was actually cached.
+    initialData: () => queryClient.getQueryData<NostrEvent>(['event', eventId ?? '']),
+    initialDataUpdatedAt: () => queryClient.getQueryState(['event', eventId ?? ''])?.dataUpdatedAt,
     enabled: !!eventId,
     staleTime: 5 * 60 * 1000,
   });

@@ -63,7 +63,7 @@ function HotPostCard({ event }: { event: NostrEvent }) {
   const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
-  const { onClick: openPost, onAuxClick } = useOpenPost(`/${encodedId}`);
+  const { onClick: openPost, onAuxClick } = useOpenPost(`/${encodedId}`, event);
 
   const snippet = useMemo(() => {
     const clean = event.content.replace(/https?:\/\/\S+/g, '').trim();

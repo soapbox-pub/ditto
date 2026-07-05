@@ -77,7 +77,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
     return `/${encodeEventId(event)}`;
   }, [event, isComment, isbn]);
 
-  const { onClick: openPost, onAuxClick: auxOpenPost } = useOpenPost(postPath);
+  const { onClick: openPost, onAuxClick: auxOpenPost } = useOpenPost(postPath, event);
 
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;

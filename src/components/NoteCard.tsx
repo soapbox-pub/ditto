@@ -496,6 +496,7 @@ export const NoteCard = memo(function NoteCard({
 
   const { onClick: openPost, onAuxClick: auxOpenPost } = useOpenPost(
     `/${encodedId}`,
+    event,
   );
 
   // Profile-zap card click target: the recipient's profile, not the zap event.
