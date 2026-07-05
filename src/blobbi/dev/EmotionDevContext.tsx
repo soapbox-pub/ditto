@@ -12,7 +12,7 @@
 
 import { useState, useCallback, type ReactNode } from 'react';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
-import { isLocalhostDev } from './index';
+import { isLocalhostDev } from './isLocalhostDev';
 import { EmotionDevContext, type EmotionDevContextValue } from './useEmotionDev';
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
