@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Share2, ShieldCheck, UsersRound } from 'lucide-react';
+import { Share2, UsersRound } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 
 import { PageHeader } from '@/components/PageHeader';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
+import { TabButton } from '@/components/TabButton';
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import NotFound from '@/pages/NotFound';
-import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { CommunityEmptyState } from '@/components/community/CommunityEmptyState';
 import { CommunityPostCard } from '@/components/community/CommunityPostCard';
 import { useAddrEvent } from '@/hooks/useEvent';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -37,16 +39,32 @@ interface CommunityPageProps {
 
 function CommunityPageSkeleton() {
   return (
-    <div className="px-4 space-y-4">
-      <Skeleton className="h-36 w-full rounded-xl" />
-      <div className="space-y-2">
-        <Skeleton className="h-5 w-48" />
+    <div>
+      <Skeleton className="h-36 md:h-48 w-full rounded-none" />
+      <div className="px-4 pb-4">
+        <div className="flex justify-between items-start -mt-12 mb-3">
+          <Skeleton className="size-24 rounded-full border-4 border-background" />
+        </div>
+        <Skeleton className="h-6 w-48 mb-2" />
         <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-4/5" />
       </div>
-      {Array.from({ length: 3 }).map((_, i) => (
-        <Skeleton key={i} className="h-28 w-full rounded-xl" />
-      ))}
+      <div className="divide-y divide-border border-t border-border">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="px-4 py-3">
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-11 rounded-full" />
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            </div>
+            <div className="mt-3 space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-4/5" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -64,11 +82,12 @@ export function CommunityPage({ addr, relays }: CommunityPageProps) {
 
   const { isJoined, toggleJoin } = useJoinedCommunities();
   const postsQuery = useCommunityPosts(community);
-  const approveMutation = useApproveCommunityPost(community);
+  const approveMutation = useApproveCommunityPost();
   const { mutateAsync: postComment, isPending: isPosting } = usePostComment();
 
   const [draft, setDraft] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
+  const [tab, setTab] = useState<'posts' | 'pending'>('posts');
 
   useSeoMeta({
     title: community ? `${community.name} | ${config.appName}` : `Community | ${config.appName}`,
@@ -77,10 +96,10 @@ export function CommunityPage({ addr, relays }: CommunityPageProps) {
 
   if (isLoading) {
     return (
-      <>
+      <main className="flex-1 min-w-0 min-h-dvh">
         <PageHeader title="Community" icon={<UsersRound className="size-5" />} backTo="/communities" />
         <CommunityPageSkeleton />
-      </>
+      </main>
     );
   }
 
@@ -118,47 +137,58 @@ export function CommunityPage({ addr, relays }: CommunityPageProps) {
       setComposerOpen(false);
       toast({
         title: 'Posted to community',
-        description: isModerator ? undefined : 'Your post will appear once a moderator approves it.',
+        description: isModerator ? undefined : 'Others will see your post once a moderator approves it.',
       });
-      queryClient.invalidateQueries({ queryKey: ['community-posts', community.coord] });
+      queryClient.invalidateQueries({ queryKey: ['community-posts'] });
     } catch {
       toast({ title: 'Failed to publish post', variant: 'destructive' });
     }
   };
 
   const handleApprove = (post: CommunityPost) => {
-    approveMutation.mutate(post.event, {
+    approveMutation.mutate(post, {
       onSuccess: () => toast({ title: 'Post approved' }),
       onError: () => toast({ title: 'Failed to approve post', variant: 'destructive' }),
     });
   };
 
+  // Approved posts plus the viewer's own pending posts (badged), so a fresh
+  // submission never silently vanishes from the Posts tab.
+  const allPosts = postsQuery.data ?? [];
+  const visiblePosts = allPosts.filter((p) => p.approved || p.event.pubkey === user?.pubkey);
+  const pendingPosts = allPosts.filter((p) => !p.approved);
+
   const renderPosts = (posts: CommunityPost[], emptyMessage: string) => {
     if (postsQuery.isLoading) {
       return (
-        <div className="space-y-3">
+        <div className="divide-y divide-border">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-xl" />
+            <div key={i} className="px-4 py-3">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-11 rounded-full" />
+                <div className="space-y-1.5">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+              <div className="mt-3 space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+              </div>
+            </div>
           ))}
         </div>
       );
     }
     if (posts.length === 0) {
-      return (
-        <Card className="border-dashed">
-          <CardContent className="py-12 px-8 text-center">
-            <p className="text-muted-foreground max-w-sm mx-auto">{emptyMessage}</p>
-          </CardContent>
-        </Card>
-      );
+      return <CommunityEmptyState message={emptyMessage} />;
     }
     return (
-      <div className="space-y-3">
+      <div>
         {posts.map((post) => (
           <CommunityPostCard
             key={post.event.id}
             post={post}
-            isModerator={isModerator}
             onApprove={handleApprove}
             isApproving={approveMutation.isPending}
           />
@@ -167,136 +197,135 @@ export function CommunityPage({ addr, relays }: CommunityPageProps) {
     );
   };
 
-  const pendingCount = postsQuery.data?.pending.length ?? 0;
-
   return (
-    <>
+    <main className="flex-1 min-w-0 min-h-dvh">
       <PageHeader title={community.name} icon={<UsersRound className="size-5" />} backTo="/communities" />
 
-      <div className="px-4 pb-8 space-y-4">
-        {/* Banner */}
-        <div className="relative rounded-xl overflow-hidden">
-          {image ? (
-            <img src={image} alt="" className="w-full aspect-[3/1] object-cover" />
-          ) : (
-            <div className="w-full aspect-[3/1] bg-gradient-to-br from-primary/20 via-primary/5 to-transparent flex items-center justify-center">
-              <UsersRound className="size-12 text-primary/25" />
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between gap-3 p-4">
-            <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold text-white drop-shadow-lg truncate">
-                {community.name}
-              </h1>
-              <p className="text-xs text-white/85 drop-shadow">
-                {modCount} moderator{modCount !== 1 ? 's' : ''}
-                {isModerator && ' · You moderate this community'}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
+      {/* Banner */}
+      <div className="h-36 md:h-48 bg-secondary relative">
+        {image ? (
+          <img src={image} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />
+        )}
+      </div>
+
+      {/* Info block */}
+      <div className="px-4 pb-4">
+        <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
+          <Avatar className="size-24 md:size-32 border-4 border-background">
+            <AvatarImage src={image} />
+            <AvatarFallback className="bg-primary/20 text-primary">
+              <UsersRound className="size-10" />
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex items-center gap-2 mt-14 md:mt-20">
+            <Button
+              variant="outline"
+              size="icon"
+              className="rounded-full size-10"
+              onClick={handleShare}
+              aria-label="Share community"
+            >
+              <Share2 className="size-4" />
+            </Button>
+            {user && (
               <Button
-                size="icon"
-                variant="secondary"
-                className="size-8 bg-white/15 hover:bg-white/25 text-white border-0 backdrop-blur"
-                onClick={handleShare}
-                aria-label="Share community"
+                variant={joined ? 'outline' : 'default'}
+                className="rounded-full font-bold"
+                disabled={toggleJoin.isPending}
+                onClick={() => toggleJoin.mutate(community.coord)}
               >
-                <Share2 className="size-3.5" />
+                {joined ? 'Joined' : 'Join'}
               </Button>
-              {user && (
-                <Button
-                  size="sm"
-                  variant={joined ? 'secondary' : 'default'}
-                  disabled={toggleJoin.isPending}
-                  onClick={() => toggleJoin.mutate(community.coord)}
-                >
-                  {joined ? 'Joined' : 'Join'}
-                </Button>
-              )}
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Description */}
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className="text-xl font-bold truncate">c/{community.name}</h2>
+          {isModerator && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground shrink-0">
+              Moderator
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-4 mt-1">
+          <p className="text-sm">
+            <span className="font-bold tabular-nums text-primary">{modCount}</span>{' '}
+            <span className="text-muted-foreground">moderator{modCount !== 1 ? 's' : ''}</span>
+          </p>
+          <p className="text-sm">
+            <span className="font-bold tabular-nums text-primary">{allPosts.length}</span>{' '}
+            <span className="text-muted-foreground">post{allPosts.length !== 1 ? 's' : ''}</span>
+          </p>
+        </div>
+
         {community.description && (
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+          <p className="text-[15px] leading-relaxed mt-3 whitespace-pre-wrap break-words">
             {community.description}
           </p>
         )}
-
-        {/* Composer */}
-        {user && (
-          <Card>
-            <CardContent className="p-3">
-              {composerOpen ? (
-                <form onSubmit={handleSubmitPost} className="space-y-2">
-                  <Textarea
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    placeholder={`Share something with ${community.name}…`}
-                    rows={4}
-                    autoFocus
-                    maxLength={5000}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setComposerOpen(false);
-                        setDraft('');
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit" size="sm" disabled={isPosting || !draft.trim()}>
-                      {isPosting ? 'Posting…' : 'Post'}
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setComposerOpen(true)}
-                  className="w-full text-left text-sm text-muted-foreground rounded-md border border-input bg-background px-3 py-2.5 hover:bg-secondary/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  Create a post…
-                </button>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Posts */}
-        <Tabs defaultValue="posts">
-          <TabsList>
-            <TabsTrigger value="posts">Posts</TabsTrigger>
-            <TabsTrigger value="pending" className="gap-1.5">
-              {isModerator && <ShieldCheck className="size-3.5" />}
-              Pending
-              {pendingCount > 0 && (
-                <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
-                  {pendingCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="posts" className="mt-3">
-            {renderPosts(
-              postsQuery.data?.approved ?? [],
-              'No approved posts yet. Be the first to post!',
-            )}
-          </TabsContent>
-          <TabsContent value="pending" className="mt-3">
-            {renderPosts(
-              postsQuery.data?.pending ?? [],
-              'No posts awaiting approval.',
-            )}
-          </TabsContent>
-        </Tabs>
       </div>
-    </>
+
+      {/* Composer */}
+      {user && (
+        <div className="px-4 pb-3">
+          {composerOpen ? (
+            <form onSubmit={handleSubmitPost} className="space-y-2">
+              <Textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder={`Share something with c/${community.name}…`}
+                rows={4}
+                autoFocus
+                maxLength={5000}
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={() => {
+                    setComposerOpen(false);
+                    setDraft('');
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" className="rounded-full font-bold" disabled={isPosting || !draft.trim()}>
+                  {isPosting ? 'Posting…' : 'Post'}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setComposerOpen(true)}
+              className="w-full text-left text-sm text-muted-foreground rounded-full border border-border bg-secondary/30 px-4 py-2.5 hover:bg-secondary/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Create a post…
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Posts */}
+      <SubHeaderBar>
+        <TabButton label="Posts" active={tab === 'posts'} onClick={() => setTab('posts')} />
+        <TabButton
+          label={pendingPosts.length > 0 ? `Pending (${pendingPosts.length})` : 'Pending'}
+          active={tab === 'pending'}
+          onClick={() => setTab('pending')}
+        />
+      </SubHeaderBar>
+      <div style={{ height: ARC_OVERHANG_PX }} />
+
+      {tab === 'posts'
+        ? renderPosts(visiblePosts, 'No approved posts yet. Be the first to post!')
+        : renderPosts(pendingPosts, 'No posts awaiting approval.')}
+    </main>
   );
 }

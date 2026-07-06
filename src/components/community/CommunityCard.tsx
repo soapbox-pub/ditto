@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Users } from 'lucide-react';
+import { UsersRound } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
@@ -20,7 +20,10 @@ interface CommunityCardProps {
   className?: string;
 }
 
-/** Compact community card for discovery lists, linking to the community page. */
+/**
+ * Community directory row: avatar, name, description, and a Join button —
+ * a full-bleed feed row matching Ditto's list styling.
+ */
 export function CommunityCard({ community, joined, onToggleJoin, isToggling, className }: CommunityCardProps) {
   const { user } = useCurrentUser();
   const image = sanitizeUrl(community.image);
@@ -33,44 +36,37 @@ export function CommunityCard({ community, joined, onToggleJoin, isToggling, cla
   });
 
   return (
-    <Card className={cn('overflow-hidden transition-colors hover:border-primary/30', className)}>
-      <Link to={`/${naddr}`} className="block">
-        {image ? (
-          <div className="h-20 overflow-hidden">
-            <img src={image} alt="" className="w-full h-full object-cover" loading="lazy" />
-          </div>
-        ) : (
-          <div className="h-20 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent flex items-center justify-center">
-            <Users className="size-8 text-primary/25" />
-          </div>
-        )}
+    <div
+      className={cn(
+        'flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors',
+        className,
+      )}
+    >
+      <Link to={`/${naddr}`} className="shrink-0">
+        <Avatar className="size-11">
+          <AvatarImage src={image} />
+          <AvatarFallback className="bg-primary/20 text-primary">
+            <UsersRound className="size-5" />
+          </AvatarFallback>
+        </Avatar>
       </Link>
-      <CardContent className="p-4 space-y-2">
-        <div className="flex items-start justify-between gap-3">
-          <Link to={`/${naddr}`} className="min-w-0">
-            <h3 className="font-semibold truncate hover:underline">{community.name}</h3>
-            <p className="text-xs text-muted-foreground">
-              {modCount} moderator{modCount !== 1 ? 's' : ''}
-            </p>
-          </Link>
-          {user && onToggleJoin && (
-            <Button
-              size="sm"
-              variant={joined ? 'secondary' : 'default'}
-              className="h-7 shrink-0 text-xs"
-              disabled={isToggling}
-              onClick={() => onToggleJoin(community.coord)}
-            >
-              {joined ? 'Joined' : 'Join'}
-            </Button>
-          )}
-        </div>
-        {community.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2 break-words">
-            {community.description}
-          </p>
-        )}
-      </CardContent>
-    </Card>
+      <Link to={`/${naddr}`} className="flex-1 min-w-0">
+        <p className="font-bold text-[15px] truncate hover:underline">c/{community.name}</p>
+        <p className="text-sm text-muted-foreground line-clamp-1 break-all">
+          {community.description || `${modCount} moderator${modCount !== 1 ? 's' : ''}`}
+        </p>
+      </Link>
+      {user && onToggleJoin && (
+        <Button
+          size="sm"
+          variant={joined ? 'outline' : 'default'}
+          className="rounded-full font-bold shrink-0"
+          disabled={isToggling}
+          onClick={() => onToggleJoin(community.coord)}
+        >
+          {joined ? 'Joined' : 'Join'}
+        </Button>
+      )}
+    </div>
   );
 }

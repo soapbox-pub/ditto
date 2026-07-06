@@ -9,16 +9,14 @@ import { cn } from '@/lib/utils';
 
 interface VoteButtonsProps {
   event: NostrEvent;
-  /** Layout direction (default: vertical, Reddit-style left rail). */
-  orientation?: 'vertical' | 'horizontal';
   className?: string;
 }
 
 /**
  * Reddit-style up/down vote control backed by NIP-25 reactions
- * (`+` upvote, `-` downvote).
+ * (`+` upvote, `-` downvote), styled like Ditto's post action buttons.
  */
-export function VoteButtons({ event, orientation = 'vertical', className }: VoteButtonsProps) {
+export function VoteButtons({ event, className }: VoteButtonsProps) {
   const { user } = useCurrentUser();
   const { toast } = useToast();
   const { score, myVote, vote, isLoading } = usePostVotes(event);
@@ -34,43 +32,38 @@ export function VoteButtons({ event, orientation = 'vertical', className }: Vote
   };
 
   return (
-    <div
-      className={cn(
-        'flex items-center gap-0.5',
-        orientation === 'vertical' ? 'flex-col' : 'flex-row',
-        className,
-      )}
-    >
+    <div className={cn('flex items-center', className)}>
       <button
         type="button"
         onClick={(e) => handleVote(e, '+')}
         aria-label="Upvote"
         aria-pressed={myVote === '+'}
         className={cn(
-          'p-1 rounded-md transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          myVote === '+' ? 'text-orange-500' : 'text-muted-foreground hover:text-foreground',
+          'flex items-center gap-1.5 p-2 rounded-full text-muted-foreground transition-colors',
+          'hover:text-orange-500 hover:bg-orange-500/10',
+          myVote === '+' && 'text-orange-500',
         )}
       >
         <ArrowBigUp className={cn('size-5', myVote === '+' && 'fill-current')} />
+        <span
+          className={cn(
+            'text-sm tabular-nums',
+            myVote === '-' && 'text-indigo-500',
+          )}
+          aria-label={`Score: ${score}`}
+        >
+          {isLoading ? '' : formatNumber(score)}
+        </span>
       </button>
-      <span
-        className={cn(
-          'text-xs font-semibold tabular-nums min-w-6 text-center',
-          myVote === '+' && 'text-orange-500',
-          myVote === '-' && 'text-indigo-500',
-        )}
-        aria-label={`Score: ${score}`}
-      >
-        {isLoading ? '·' : formatNumber(score)}
-      </span>
       <button
         type="button"
         onClick={(e) => handleVote(e, '-')}
         aria-label="Downvote"
         aria-pressed={myVote === '-'}
         className={cn(
-          'p-1 rounded-md transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          myVote === '-' ? 'text-indigo-500' : 'text-muted-foreground hover:text-foreground',
+          'flex items-center p-2 rounded-full text-muted-foreground transition-colors',
+          'hover:text-indigo-500 hover:bg-indigo-500/10',
+          myVote === '-' && 'text-indigo-500',
         )}
       >
         <ArrowBigDown className={cn('size-5', myVote === '-' && 'fill-current')} />
