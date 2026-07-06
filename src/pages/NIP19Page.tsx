@@ -4,7 +4,9 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import NotFound from './NotFound';
 import { ProfilePage } from './ProfilePage';
+import { CommunityPage } from './CommunityPage';
 import { PostDetailPage, AddrPostDetailPage, PostDetailShell, PostDetailSkeleton } from './PostDetailPage';
+import { COMMUNITY_KIND } from '@/lib/community';
 import type { AddressPointer } from 'nostr-tools/nip19';
 
 const HEX_64_RE = /^[0-9a-f]{64}$/;
@@ -112,6 +114,15 @@ export function NIP19Page() {
 
     case 'naddr': {
       const addr = decoded.data as AddressPointer;
+      // NIP-72 communities get a dedicated Reddit-style page.
+      if (addr.kind === COMMUNITY_KIND) {
+        return (
+          <CommunityPage
+            addr={{ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier }}
+            relays={addr.relays}
+          />
+        );
+      }
       return <AddrPostDetailPage addr={{ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier }} relays={addr.relays} />;
     }
 

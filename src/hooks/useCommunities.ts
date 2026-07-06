@@ -1,0 +1,158 @@
+import { useNostr } from '@nostrify/react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { optimisticPatchEventTags, rollbackEvent, toggleTag } from '@/lib/optimisticEvent';
+import {
+  COMMUNITY_KIND,
+  COMMUNITY_LIST_KIND,
+  parseCommunity,
+  type Community,
+} from '@/lib/community';
+import { parseAddr } from '@/lib/parseAddr';
+
+/** Dedupe kind 34550 events to the latest version per coordinate, then parse. */
+function toCommunities(events: NostrEvent[]): Community[] {
+  const latest = new Map<string, NostrEvent>();
+  for (const event of events) {
+    const parsed = parseCommunity(event);
+    const existing = latest.get(parsed.coord);
+    if (!existing || event.created_at > existing.created_at) {
+      latest.set(parsed.coord, event);
+    }
+  }
+  return [...latest.values()]
+    .sort((a, b) => b.created_at - a.created_at)
+    .map(parseCommunity);
+}
+
+/** Discover NIP-72 communities (kind 34550) from the connected relays. */
+export function useCommunities() {
+  const { nostr } = useNostr();
+
+  return useQuery({
+    queryKey: ['communities', 'discover'],
+    queryFn: async (c) => {
+      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(8000)]);
+      const events = await nostr.query(
+        [{ kinds: [COMMUNITY_KIND], limit: 100 }],
+        { signal },
+      );
+      return toCommunities(events);
+    },
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * The user's joined communities (NIP-51 kind 10004 list), with join/leave.
+ *
+ * Joined communities are stored as `a` tags with `34550:<pubkey>:<d>`
+ * coordinates. Mutations follow the read-modify-write pattern via
+ * `fetchFreshEvent` + `prev`.
+ */
+export function useJoinedCommunities() {
+  const { nostr } = useNostr();
+  const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
+  const { mutateAsync: publishEvent } = useNostrPublish();
+
+  const listQuery = useQuery({
+    queryKey: ['communities', 'joined-list', user?.pubkey],
+    queryFn: async (c) => {
+      if (!user) return null;
+      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(8000)]);
+      const events = await nostr.query(
+        [{ kinds: [COMMUNITY_LIST_KIND], authors: [user.pubkey], limit: 1 }],
+        { signal },
+      );
+      return events[0] ?? null;
+    },
+    enabled: !!user,
+  });
+
+  // Validated community coordinates from the list's `a` tags.
+  const joinedCoords: string[] = (listQuery.data?.tags ?? [])
+    .filter(([name]) => name === 'a')
+    .map(([, coord]) => coord)
+    .filter((coord) => parseAddr(coord)?.kind === COMMUNITY_KIND);
+
+  // Fetch the community definitions for the joined coordinates.
+  const communitiesQuery = useQuery({
+    queryKey: ['communities', 'joined-events', joinedCoords],
+    queryFn: async (c) => {
+      const addrs = joinedCoords
+        .map((coord) => parseAddr(coord))
+        .filter((addr): addr is NonNullable<typeof addr> => !!addr);
+      if (addrs.length === 0) return [];
+
+      // One filter batching all authors + identifiers, matched exactly after.
+      const filter: NostrFilter = {
+        kinds: [COMMUNITY_KIND],
+        authors: [...new Set(addrs.map((a) => a.pubkey))],
+        '#d': [...new Set(addrs.map((a) => a.identifier))],
+        limit: addrs.length * 2,
+      };
+      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(8000)]);
+      const events = await nostr.query([filter], { signal });
+      const wanted = new Set(joinedCoords);
+      return toCommunities(events).filter((community) => wanted.has(community.coord));
+    },
+    enabled: joinedCoords.length > 0,
+  });
+
+  const isJoined = (coord: string): boolean => joinedCoords.includes(coord);
+
+  const toggleJoin = useMutation({
+    mutationFn: async (coord: string) => {
+      if (!user) throw new Error('User is not logged in');
+
+      const prev = await fetchFreshEvent(nostr, {
+        kinds: [COMMUNITY_LIST_KIND],
+        authors: [user.pubkey],
+      });
+
+      const currentTags = prev?.tags ?? [];
+      const newTags = toggleTag(currentTags, 'a', coord);
+
+      await publishEvent({
+        kind: COMMUNITY_LIST_KIND,
+        content: prev?.content ?? '',
+        tags: newTags,
+        created_at: Math.floor(Date.now() / 1000),
+        prev: prev ?? undefined,
+      });
+    },
+    onMutate: (coord: string) => {
+      const key = ['communities', 'joined-list', user?.pubkey];
+      const snapshot = optimisticPatchEventTags(queryClient, key, {
+        kind: COMMUNITY_LIST_KIND,
+        pubkey: user?.pubkey ?? '',
+        transform: (tags) => toggleTag(tags, 'a', coord),
+      });
+      return { snapshot, key };
+    },
+    onError: (_err, _coord, ctx) => {
+      if (ctx) rollbackEvent(queryClient, ctx.key, ctx.snapshot);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['communities', 'joined-list', user?.pubkey] });
+      queryClient.invalidateQueries({ queryKey: ['communities', 'joined-events'] });
+    },
+  });
+
+  return {
+    /** Coordinates (`34550:<pubkey>:<d>`) of joined communities. */
+    joinedCoords,
+    /** Parsed community definitions for joined communities. */
+    communities: communitiesQuery.data ?? [],
+    isLoading: listQuery.isLoading || communitiesQuery.isLoading,
+    /** Whether a community coordinate is in the joined list. */
+    isJoined,
+    /** Toggle membership of a community coordinate in the kind 10004 list. */
+    toggleJoin,
+  };
+}

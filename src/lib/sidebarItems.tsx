@@ -45,6 +45,7 @@ import {
   Stars,
   TrendingUp,
   User,
+  UsersRound,
   Zap,
 } from "lucide-react";
 import { CardsIcon } from "@/components/icons/CardsIcon";
@@ -181,6 +182,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'blobbi', label: 'Blobbi', path: '/blobbi', icon: Egg, requiresAuth: true },
   { id: "help", label: "Help", path: "/help", icon: HelpCircle },
   // Content types
+  { id: "communities", label: "Communities", path: "/communities", icon: UsersRound },
   { id: "events", label: "Events", path: "/events", icon: CalendarDays },
   { id: "photos", label: "Photos", path: "/photos", icon: Camera },
   { id: "videos", label: "Videos", path: "/videos", icon: Film },

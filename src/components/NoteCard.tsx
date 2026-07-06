@@ -2181,6 +2181,18 @@ interface KindHeaderConfig {
 }
 
 const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
+  34550: {
+    icon: Users,
+    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "created a" }),
+    noun: "community",
+    nounRoute: "/communities",
+  },
+  4550: {
+    icon: ShieldCheck,
+    action: "approved a",
+    noun: "community post",
+    nounRoute: "/communities",
+  },
   20: {
     icon: Camera,
     action: "shared a",
