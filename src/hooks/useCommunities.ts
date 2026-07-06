@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { optimisticPatchEventTags, rollbackEvent, toggleTag } from '@/lib/optimisticEvent';
@@ -44,6 +45,47 @@ export function useCommunities() {
       return toCommunities(events);
     },
     staleTime: 60_000,
+  });
+}
+
+/**
+ * NIP-50 search for communities (kind 34550) by name/description.
+ *
+ * Mirrors `useSearchEvents`: internal 300ms debounce, the `autocomplete:true`
+ * and `sort:top` NIP-50 extension tokens, and `placeholderData` so results
+ * don't flicker between keystrokes. Relevance order from the relay is
+ * preserved (deduped to the latest version per coordinate).
+ */
+export function useSearchCommunities(query: string) {
+  const { nostr } = useNostr();
+  const debouncedQuery = useDebounce(query, 300);
+
+  return useQuery<Community[]>({
+    queryKey: ['communities', 'search', debouncedQuery],
+    queryFn: async (c) => {
+      const search = debouncedQuery.trim();
+      if (!search) return [];
+
+      const events = await nostr.query(
+        [{ kinds: [COMMUNITY_KIND], search: `${search} autocomplete:true sort:top`, limit: 30 }],
+        { signal: AbortSignal.any([c.signal, AbortSignal.timeout(5000)]) },
+      );
+
+      // Dedupe to the latest version per coordinate while preserving the
+      // relay's relevance ordering (Map keeps first-insertion position).
+      const seen = new Map<string, Community>();
+      for (const event of events) {
+        const parsed = parseCommunity(event);
+        const existing = seen.get(parsed.coord);
+        if (!existing || event.created_at > existing.event.created_at) {
+          seen.set(parsed.coord, parsed);
+        }
+      }
+      return [...seen.values()];
+    },
+    enabled: debouncedQuery.trim().length >= 1,
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
   });
 }
 

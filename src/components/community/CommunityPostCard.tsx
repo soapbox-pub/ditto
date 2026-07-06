@@ -87,7 +87,7 @@ export function CommunityPostCard({ post, showCommunity, onApprove, isApproving,
                 className="flex items-center gap-1 font-bold text-[15px] hover:underline truncate"
               >
                 <UsersRound className="size-4 shrink-0" />
-                c/{community.name}
+                {community.name}
               </Link>
             ) : (
               <Link

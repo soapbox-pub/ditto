@@ -51,7 +51,7 @@ export function CommunityCard({ community, joined, onToggleJoin, isToggling, cla
         </Avatar>
       </Link>
       <Link to={`/${naddr}`} className="flex-1 min-w-0">
-        <p className="font-bold text-[15px] truncate hover:underline">c/{community.name}</p>
+        <p className="font-bold text-[15px] truncate hover:underline">{community.name}</p>
         <p className="text-sm text-muted-foreground line-clamp-1 break-all">
           {community.description || `${modCount} moderator${modCount !== 1 ? 's' : ''}`}
         </p>

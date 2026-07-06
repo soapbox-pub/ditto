@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Compass, Plus, UsersRound } from 'lucide-react';
+import { Compass, Plus, Search as SearchIcon, UsersRound } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 
 import { PageHeader } from '@/components/PageHeader';
@@ -8,13 +8,14 @@ import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CommunityCard } from '@/components/community/CommunityCard';
 import { CommunityEmptyState } from '@/components/community/CommunityEmptyState';
 import { CommunityPostCard } from '@/components/community/CommunityPostCard';
 import { CreateCommunityDialog } from '@/components/community/CreateCommunityDialog';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useCommunities, useJoinedCommunities } from '@/hooks/useCommunities';
+import { useCommunities, useJoinedCommunities, useSearchCommunities } from '@/hooks/useCommunities';
 import { useApproveCommunityPost, useCommunitiesFeed, type CommunityPost } from '@/hooks/useCommunityPosts';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
@@ -80,7 +81,7 @@ function JoinedCommunitiesStrip({ communities }: { communities: Community[] }) {
                 <UsersRound className="size-3.5 text-primary" />
               </span>
             )}
-            <span className="truncate max-w-36">c/{community.name}</span>
+            <span className="truncate max-w-36">{community.name}</span>
           </Link>
         );
       })}
@@ -95,10 +96,12 @@ export function CommunitiesPage() {
   const { toast } = useToast();
   const [createOpen, setCreateOpen] = useState(false);
   const [tab, setTab] = useState<'feed' | 'discover'>(user ? 'feed' : 'discover');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const discover = useCommunities();
   const joined = useJoinedCommunities();
   const feed = useCommunitiesFeed(joined.communities);
+  const search = useSearchCommunities(searchQuery);
   const approveMutation = useApproveCommunityPost();
 
   useSeoMeta({
@@ -178,31 +181,54 @@ export function CommunitiesPage() {
   };
 
   const renderDiscoverTab = () => {
-    if (discover.isLoading) {
-      return (
-        <div className="divide-y divide-border">
-          {Array.from({ length: 6 }).map((_, i) => <RowSkeleton key={i} />)}
-        </div>
-      );
-    }
-    const communities = discover.data ?? [];
-    if (communities.length === 0) {
-      return (
-        <CommunityEmptyState message="No communities found. Try checking your relay connections, or create the first one!" />
-      );
-    }
+    const isSearching = searchQuery.trim().length > 0;
+    const communities = isSearching ? (search.data ?? []) : (discover.data ?? []);
+    // While searching, `data` is undefined until the first (debounced) query
+    // resolves; `placeholderData` keeps prior results between keystrokes.
+    const isListLoading = isSearching ? search.data === undefined : discover.isLoading;
+
     return (
-      <div>
-        {communities.map((community) => (
-          <CommunityCard
-            key={community.coord}
-            community={community}
-            joined={joined.isJoined(community.coord)}
-            onToggleJoin={(coord) => joined.toggleJoin.mutate(coord)}
-            isToggling={joined.toggleJoin.isPending}
+      <>
+        {/* NIP-50 community search */}
+        <div className="px-4 py-3 border-b border-border">
+          <div className="relative">
+            <Input
+              type="text"
+              placeholder="Search communities"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
+              aria-label="Search communities"
+            />
+            <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+          </div>
+        </div>
+
+        {isListLoading ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 6 }).map((_, i) => <RowSkeleton key={i} />)}
+          </div>
+        ) : communities.length === 0 ? (
+          <CommunityEmptyState
+            icon={isSearching ? SearchIcon : UsersRound}
+            message={isSearching
+              ? `No communities match "${searchQuery.trim()}".`
+              : 'No communities found. Try checking your relay connections, or create the first one!'}
           />
-        ))}
-      </div>
+        ) : (
+          <div>
+            {communities.map((community) => (
+              <CommunityCard
+                key={community.coord}
+                community={community}
+                joined={joined.isJoined(community.coord)}
+                onToggleJoin={(coord) => joined.toggleJoin.mutate(coord)}
+                isToggling={joined.toggleJoin.isPending}
+              />
+            ))}
+          </div>
+        )}
+      </>
     );
   };
 

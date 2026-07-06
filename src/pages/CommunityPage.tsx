@@ -243,7 +243,7 @@ export function CommunityPage({ addr, relays }: CommunityPageProps) {
         </div>
 
         <div className="flex items-center gap-2 min-w-0">
-          <h2 className="text-xl font-bold truncate">c/{community.name}</h2>
+          <h2 className="text-xl font-bold truncate">{community.name}</h2>
           {isModerator && (
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground shrink-0">
               Moderator
@@ -277,7 +277,7 @@ export function CommunityPage({ addr, relays }: CommunityPageProps) {
               <Textarea
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder={`Share something with c/${community.name}…`}
+                placeholder={`Share something with ${community.name}…`}
                 rows={4}
                 autoFocus
                 maxLength={5000}
