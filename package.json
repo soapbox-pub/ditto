@@ -175,6 +175,12 @@
   },
   "overrides": {
     "react": "$react",
-    "react-dom": "$react-dom"
+    "react-dom": "$react-dom",
+    "@blobbi-kit/core": {
+      "@nostrify/nostrify": "$@nostrify/nostrify"
+    },
+    "@blobbi-kit/react": {
+      "@nostrify/nostrify": "$@nostrify/nostrify"
+    }
   }
 }
