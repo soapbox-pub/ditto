@@ -10,6 +10,7 @@ import { optimisticPatchEventTags, rollbackEvent, toggleTag } from '@/lib/optimi
 import {
   COMMUNITY_KIND,
   COMMUNITY_LIST_KIND,
+  isRelayUrl,
   parseCommunity,
   type Community,
 } from '@/lib/community';
@@ -116,13 +117,18 @@ export function useJoinedCommunities() {
     enabled: !!user,
   });
 
-  // Validated community coordinates from the list's `a` tags.
-  const joinedCoords: string[] = (listQuery.data?.tags ?? [])
+  // Validated community coordinates from the list's `a` tags, with any
+  // relay hints (`['a', coord, relayHint]`) other clients may have stored.
+  const joinedRefs: { coord: string; hint?: string }[] = (listQuery.data?.tags ?? [])
     .filter(([name]) => name === 'a')
-    .map(([, coord]) => coord)
-    .filter((coord) => parseAddr(coord)?.kind === COMMUNITY_KIND);
+    .map(([, coord, hint]) => ({ coord, hint }))
+    .filter(({ coord }) => parseAddr(coord)?.kind === COMMUNITY_KIND);
 
-  // Fetch the community definitions for the joined coordinates.
+  const joinedCoords: string[] = joinedRefs.map((r) => r.coord);
+
+  // Fetch the community definitions for the joined coordinates. Besides the
+  // app pool, also try the relay hints from the list — joined communities
+  // often live on relays outside the app's defaults.
   const communitiesQuery = useQuery({
     queryKey: ['communities', 'joined-events', joinedCoords],
     queryFn: async (c) => {
@@ -136,12 +142,21 @@ export function useJoinedCommunities() {
         kinds: [COMMUNITY_KIND],
         authors: [...new Set(addrs.map((a) => a.pubkey))],
         '#d': [...new Set(addrs.map((a) => a.identifier))],
-        limit: addrs.length * 2,
+        limit: Math.max(addrs.length * 2, 20),
       };
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(8000)]);
-      const events = await nostr.query([filter], { signal });
+
+      const hintUrls = [...new Set(joinedRefs.map((r) => r.hint).filter(isRelayUrl))].slice(0, 10);
+      const [poolEvents, hintEvents] = await Promise.all([
+        nostr.query([filter], { signal }),
+        hintUrls.length > 0
+          ? nostr.group(hintUrls).query([filter], { signal }).catch(() => [] as NostrEvent[])
+          : Promise.resolve([] as NostrEvent[]),
+      ]);
+
       const wanted = new Set(joinedCoords);
-      return toCommunities(events).filter((community) => wanted.has(community.coord));
+      return toCommunities([...poolEvents, ...hintEvents])
+        .filter((community) => wanted.has(community.coord));
     },
     enabled: joinedCoords.length > 0,
   });

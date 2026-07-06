@@ -91,6 +91,35 @@ export function isCommunityModerator(community: Community, pubkey: string | unde
   return communityModerators(community).includes(pubkey);
 }
 
+/** Whether a string is a well-formed websocket relay URL. */
+export function isRelayUrl(url: string | undefined): url is string {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'wss:' || parsed.protocol === 'ws:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The relay URLs where a community's posts and approvals live, from the
+ * definition's `relay` tags (NIP-72). The `author` marker is excluded —
+ * that relay only hosts the owner's kind 0. Capped to avoid fanning out
+ * to an unbounded set of attacker-supplied relays.
+ */
+export function communityRelayUrls(communities: Community | Community[], cap = 10): string[] {
+  const list = Array.isArray(communities) ? communities : [communities];
+  const urls = new Set<string>();
+  for (const community of list) {
+    for (const { url, marker } of community.relays) {
+      if (marker === 'author') continue;
+      if (isRelayUrl(url)) urls.add(url);
+    }
+  }
+  return [...urls].slice(0, cap);
+}
+
 /**
  * Slugify a community name into a `d` tag identifier
  * (lowercase, hyphen-separated, alphanumerics only).

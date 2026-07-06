@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNostr } from '@nostrify/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Share2, UsersRound } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -26,6 +27,7 @@ import { useToast } from '@/hooks/useToast';
 import {
   COMMUNITY_KIND,
   communityModerators,
+  communityRelayUrls,
   isCommunityModerator,
   parseCommunity,
 } from '@/lib/community';
@@ -72,6 +74,7 @@ function CommunityPageSkeleton() {
 /** Reddit-style community page: banner, join, post composer, and moderated feed. */
 export function CommunityPage({ addr, relays }: CommunityPageProps) {
   const { config } = useAppContext();
+  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { toast } = useToast();
   const shareOrigin = useShareOrigin();
@@ -132,12 +135,21 @@ export function CommunityPage({ addr, relays }: CommunityPageProps) {
     const content = draft.trim();
     if (!content) return;
     try {
-      await postComment({ root: event, content });
+      const published = await postComment({ root: event, content });
+      // Best-effort delivery to the community's preferred relays (NIP-72).
+      const relayUrls = communityRelayUrls(community);
+      if (relayUrls.length > 0 && published) {
+        nostr.group(relayUrls).event(published).catch(() => {});
+      }
       setDraft('');
       setComposerOpen(false);
+      // Only warn about the approval queue if this community actually uses it.
+      const usesApprovals = (postsQuery.data ?? []).some((p) => p.approvals.length > 0);
       toast({
         title: 'Posted to community',
-        description: isModerator ? undefined : 'Others will see your post once a moderator approves it.',
+        description: isModerator || !usesApprovals
+          ? undefined
+          : 'Others will see your post once a moderator approves it.',
       });
       queryClient.invalidateQueries({ queryKey: ['community-posts'] });
     } catch {

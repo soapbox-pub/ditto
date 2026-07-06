@@ -7,6 +7,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import {
   COMMUNITY_APPROVAL_KIND,
   communityModerators,
+  communityRelayUrls,
   isCommunityModerator,
   type Community,
 } from '@/lib/community';
@@ -20,8 +21,9 @@ export interface CommunityPost {
   /** Moderator approval events (kind 4550) referencing this post. */
   approvals: NostrEvent[];
   /**
-   * Whether the post is approved: it carries a moderator approval, or was
-   * authored by the community owner / a moderator (implicitly approved).
+   * Whether the post is visible in the community: it carries a moderator
+   * approval, was authored by the owner / a moderator, or belongs to a
+   * community that doesn't use kind 4550 approvals at all.
    */
   approved: boolean;
   /** Number of comments (all descendants) under this post. */
@@ -41,6 +43,9 @@ function getTagValue(event: NostrEvent, name: string): string | undefined {
  * - Kind 4550 approvals are filtered by the union of all moderators at the
  *   relay, then validated per-community here — an approval only counts if
  *   its author moderates the specific community it approves for.
+ * - Queries hit the app's relay pool AND the communities' own `relay`-tagged
+ *   relays (NIP-72 communities usually live on specific relays, not the
+ *   app's defaults).
  */
 async function fetchCommunityPosts(
   nostr: NPool,
@@ -51,7 +56,7 @@ async function fetchCommunityPosts(
   const coords = [...byCoord.keys()];
   const allModerators = [...new Set(communities.flatMap(communityModerators))];
 
-  const rawEvents = await nostr.query([
+  const filters = [
     // NIP-72 posts and their nested replies (root-scoped uppercase A)
     { kinds: [1111], '#A': coords, limit: 200 },
     // Some clients only tag top-level posts with lowercase `a`
@@ -60,22 +65,40 @@ async function fetchCommunityPosts(
     { kinds: [1], '#a': coords, limit: 50 },
     // Approvals — pre-filtered to moderator authors, validated per-community below
     { kinds: [COMMUNITY_APPROVAL_KIND], '#a': coords, authors: allModerators, limit: 500 },
-  ], { signal });
+  ];
 
-  const events = [...new Map(rawEvents.map((e) => [e.id, e])).values()];
+  // Query the app pool and the communities' preferred relays in parallel.
+  // Community relays are best-effort — they may be offline or unreachable.
+  const relayUrls = communityRelayUrls(communities);
+  const [poolEvents, communityRelayEvents] = await Promise.all([
+    nostr.query(filters, { signal }),
+    relayUrls.length > 0
+      ? nostr.group(relayUrls).query(filters, { signal }).catch(() => [] as NostrEvent[])
+      : Promise.resolve([] as NostrEvent[]),
+  ]);
+
+  const events = [...new Map(
+    [...poolEvents, ...communityRelayEvents].map((e) => [e.id, e]),
+  ).values()];
 
   const approvalEvents = events.filter((e) => e.kind === COMMUNITY_APPROVAL_KIND);
   const contentEvents = events.filter((e) => e.kind !== COMMUNITY_APPROVAL_KIND);
 
   // Approvals keyed by post id, only where the approver moderates the
-  // community named in the approval's own `a` tag.
+  // community named in the approval's own `a` tag. Also track which
+  // communities actively use approvals at all.
   const approvalsByPostId = new Map<string, NostrEvent[]>();
+  const moderatedCoords = new Set<string>();
   for (const approval of approvalEvents) {
-    const trusted = approval.tags.some(([name, value]) => {
-      if (name !== 'a' || !value) return false;
+    let trusted = false;
+    for (const [name, value] of approval.tags) {
+      if (name !== 'a' || !value) continue;
       const community = byCoord.get(value);
-      return !!community && isCommunityModerator(community, approval.pubkey);
-    });
+      if (community && isCommunityModerator(community, approval.pubkey)) {
+        trusted = true;
+        moderatedCoords.add(value);
+      }
+    }
     if (!trusted) continue;
     for (const [name, value] of approval.tags) {
       if (name === 'e' && value) {
@@ -94,12 +117,15 @@ async function fetchCommunityPosts(
     return undefined;
   };
 
-  // Top-level posts: kind 1111 whose lowercase `a` (parent) is a community
-  // itself, or legacy kind 1 posts that aren't replies.
+  // Top-level posts: kind 1111 with any `a` tag pointing at a community
+  // (not just the first) and no parent `e` tag, or legacy kind 1 posts
+  // that aren't replies.
   const topLevel = contentEvents.filter((event) => {
     if (event.kind === 1111) {
-      const parent = getTagValue(event, 'a');
-      return !!parent && byCoord.has(parent) && !getTagValue(event, 'e');
+      const hasCommunityParent = event.tags.some(
+        ([n, v]) => n === 'a' && !!v && byCoord.has(v),
+      );
+      return hasCommunityParent && !getTagValue(event, 'e');
     }
     return !event.tags.some(([n]) => n === 'e');
   });
@@ -124,11 +150,19 @@ async function fetchCommunityPosts(
       const community = communityOf(event);
       if (!community) return [];
       const approvals = approvalsByPostId.get(event.id) ?? [];
+      // A post is visible when a moderator approved it, a moderator wrote
+      // it, or the community doesn't use approvals at all (no kind 4550
+      // from any moderator was found) — most real-world NIP-72 communities
+      // never publish approvals, and hiding everything would make them
+      // look permanently empty.
+      const approved = approvals.length > 0 ||
+        isCommunityModerator(community, event.pubkey) ||
+        !moderatedCoords.has(community.coord);
       return [{
         event,
         community,
         approvals,
-        approved: approvals.length > 0 || isCommunityModerator(community, event.pubkey),
+        approved,
         commentCount: countDescendants(event.id),
       }];
     })
@@ -174,9 +208,12 @@ export function useCommunitiesFeed(communities: Community[]) {
  * Publish a NIP-72 kind 4550 approval for a community post.
  *
  * The approval embeds the full approved event as JSON in `content` so the
- * post survives even if the author's relays drop it.
+ * post survives even if the author's relays drop it. Besides the app's
+ * write relays, the approval is also delivered to the community's own
+ * `relay`-tagged relays (best-effort).
  */
 export function useApproveCommunityPost() {
+  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
@@ -188,7 +225,7 @@ export function useApproveCommunityPost() {
         throw new Error('Only moderators can approve posts');
       }
 
-      await publishEvent({
+      const approval = await publishEvent({
         kind: COMMUNITY_APPROVAL_KIND,
         content: JSON.stringify(post.event),
         tags: [
@@ -199,6 +236,12 @@ export function useApproveCommunityPost() {
         ],
         created_at: Math.floor(Date.now() / 1000),
       });
+
+      // Best-effort delivery to the community's preferred relays.
+      const relayUrls = communityRelayUrls(post.community);
+      if (relayUrls.length > 0) {
+        nostr.group(relayUrls).event(approval).catch(() => {});
+      }
     },
     onSuccess: () => {
       // Covers both single-community keys and the aggregated feed key.
