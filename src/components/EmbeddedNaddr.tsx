@@ -20,10 +20,12 @@ import { parseProfileBadges } from '@/lib/parseProfileBadges';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
 import { isPeopleListKind } from '@/lib/packUtils';
 import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
+import { EmbeddedPublicationCard } from '@/components/EmbeddedPublicationCard';
 import { EmbeddedAttestationCard } from '@/components/EmbeddedAttestationCard';
 import { ATTESTATION_KIND } from '@/lib/attestation';
 import { ExternalSourceLink } from '@/components/ExternalSourceLink';
 import { ARTICLE_KINDS } from '@/lib/articleHelpers';
+import { PUBLICATION_KINDS } from '@/lib/publications';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -162,6 +164,11 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
   // image on top, title + summary, author byline at the bottom.
   if (ARTICLE_KINDS.has(event.kind)) {
     return <EmbeddedArticleCard event={event} className={className} disableHoverCards={disableHoverCards} sourceUrl={sourceUrl} />;
+  }
+
+  // Magazines, magazine issues, and ebooks get a compact cover + title card.
+  if (PUBLICATION_KINDS.has(event.kind)) {
+    return <EmbeddedPublicationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   return <EmbeddedNaddrCard event={event} className={className} disableHoverCards={disableHoverCards} sourceUrl={sourceUrl} />;

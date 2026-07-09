@@ -37,6 +37,9 @@ These event kinds were created by community contributors and are supported by Di
 | 36787 | Music Track            | Addressable event for a music audio file with metadata           | See [Music Tracks & Playlists](#music-tracks--playlists) below                            |
 | 34139 | Music Playlist         | Ordered list of music track references (also used for albums)    | See [Music Tracks & Playlists](#music-tracks--playlists) below                            |
 | 30621 | Custom Constellation   | User-drawn star figure with Hipparcos-numbered edges             | [NIP](https://gitlab.com/alexgleason/birdstar/-/blob/main/NIP.md)                         |
+| 34609 | Magazine               | Parent record grouping issues of a magazine/periodical           | [PressStr NIP](https://pressstr.shakespeare.wtf)                                          |
+| 39731 | Magazine Issue         | A single PDF issue of a magazine (kind 34609)                    | [PressStr NIP](https://pressstr.shakespeare.wtf)                                          |
+| 33953 | Ebook                  | A standalone ebook distributed as PDF or EPUB                    | [PressStr NIP](https://pressstr.shakespeare.wtf)                                          |
 
 ---
 

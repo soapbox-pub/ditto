@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
   Award, BarChart3, Bird, Bitcoin, BookOpen, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, Egg, FileText, Film,
-  GitBranch, GitPullRequest, HandHeart, Heart, Mail, MapPin, MessageSquare, Mic, Music,
+  GitBranch, GitPullRequest, HandHeart, Heart, Mail, MapPin, MessageSquare, Mic, Music, Newspaper,
   Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, ShieldCheck, SmilePlus, Sparkles,
   Stars, UserCheck, Users, Vote, Zap,
 } from 'lucide-react';
@@ -151,6 +151,9 @@ const KIND_LABELS: Record<number, string> = {
   30008: 'a badge set',
   30009: 'a badge',
   30023: 'an article',
+  33953: 'an ebook',
+  34609: 'a magazine',
+  39731: 'a magazine issue',
   30030: 'an emoji pack',
   30054: 'a podcast episode',
   30055: 'a podcast trailer',
@@ -215,6 +218,9 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   30008: Award,
   30009: Award,
   30023: BookOpen,
+  33953: BookOpen,
+  34609: Newspaper,
+  39731: Newspaper,
   30030: SmilePlus,
   30054: Podcast,
   30055: Podcast,

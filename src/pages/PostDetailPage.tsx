@@ -49,7 +49,7 @@ import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { HighlightContent } from "@/components/HighlightContent";
 import { AttestationContent } from "@/components/AttestationContent";
 import { ATTESTATION_KIND } from "@/lib/attestation";
-import { CampaignContent } from "@/components/CampaignContent";
+import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
 import { PeopleListDetailContent } from "@/components/PeopleListDetailContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
@@ -83,6 +83,7 @@ import { PostActionBar } from "@/components/PostActionBar";
 import { PeopleAvatarStack } from "@/components/PeopleAvatarStack";
 import { PatchCard } from "@/components/PatchCard";
 import { PodcastDetailContent } from "@/components/PodcastDetailContent";
+import { PublicationContent } from "@/components/PublicationContent";
 import { PollContent } from "@/components/PollContent";
 const PullRequestCard = lazy(() => import("@/components/PullRequestCard").then(m => ({ default: m.PullRequestCard })));
 import { ReactionButton } from "@/components/ReactionButton";
@@ -165,6 +166,9 @@ function shellTitleForKind(kind?: number): string {
   if (PODCAST_KINDS.has(kind)) return "Episode Details";
   if (CALENDAR_EVENT_KINDS.has(kind)) return "Event Details";
   if (kind === LIVE_STREAM_KIND) return "Live Stream";
+  if (kind === MAGAZINE_KIND) return "Magazine";
+  if (kind === MAGAZINE_ISSUE_KIND) return "Magazine Issue";
+  if (kind === EBOOK_KIND) return "Ebook";
   // Composite labels that differ from the raw kind name
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
   // Kind 10008 is unambiguously profile badges (NIP-51 standard list).
@@ -1329,6 +1333,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isEmojiPack = event.kind === 30030;
   const isArticle = event.kind === 30023;
+  const isPublication = PUBLICATION_KINDS.has(event.kind);
   const isMagicDeck = event.kind === 37381;
   const isFileMetadata = event.kind === 1063;
   const isTheme = event.kind === 36767 || event.kind === 16767;
@@ -1376,6 +1381,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isPeopleList &&
     !isEmojiPack &&
     !isArticle &&
+    !isPublication &&
     !isMagicDeck &&
     !isFileMetadata &&
     !isTheme &&
@@ -2585,6 +2591,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
                 <ArticleContent event={event} className="mt-3" />
               </Suspense>
+            ) : isPublication ? (
+              <PublicationContent event={event} />
             ) : isMagicDeck ? (
               <MagicDeckContent event={event} />
             ) : isFileMetadata ? (

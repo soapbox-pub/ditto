@@ -35,6 +35,8 @@ import {
   Volume2,
   VolumeX,
   Zap,
+  Newspaper,
+  BookOpen,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import { type ReactNode, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -42,7 +44,7 @@ import { useInView } from "@/hooks/useInView";
 import { Link } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
 const EmbeddedArticleCard = lazy(() => import("@/components/EmbeddedArticleCard").then(m => ({ default: m.EmbeddedArticleCard })));
-const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
+const EmbeddedPublicationCard = lazy(() => import("@/components/EmbeddedPublicationCard").then(m => ({ default: m.EmbeddedPublicationCard })));const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const BlobbiSocialActions = lazy(() => import("@/components/BlobbiSocialActions").then(m => ({ default: m.BlobbiSocialActions })));
 import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
 import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
@@ -85,7 +87,7 @@ import { RepoStateCard } from "@/components/RepoStateCard";
 import { HighlightContent } from "@/components/HighlightContent";
 import { AttestationContent } from "@/components/AttestationContent";
 import { ATTESTATION_KIND } from "@/lib/attestation";
-import { CampaignContent } from "@/components/CampaignContent";
+import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { ZapContent } from "@/components/ZapContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { ImageGallery } from "@/components/ImageGallery";
@@ -524,6 +526,7 @@ export const NoteCard = memo(function NoteCard({
   const isConstellation = event.kind === 30621;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isArticle = event.kind === 30023;
+  const isPublication = PUBLICATION_KINDS.has(event.kind);
   const isMagicDeck = event.kind === 37381;
   const isStream = event.kind === 30311;
   const isFileMetadata = event.kind === 1063;
@@ -600,6 +603,7 @@ export const NoteCard = memo(function NoteCard({
     !isConstellation &&
     !isPeopleList &&
     !isArticle &&
+    !isPublication &&
     !isMagicDeck &&
     !isStream &&
     !isFileMetadata &&
@@ -771,6 +775,10 @@ export const NoteCard = memo(function NoteCard({
         ) : isArticle ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <EmbeddedArticleCard event={event} className="mt-2" />
+          </Suspense>
+        ) : isPublication ? (
+          <Suspense fallback={<Skeleton className="h-28 w-full rounded-lg" />}>
+            <EmbeddedPublicationCard event={event} className="mt-2" hideAuthor />
           </Suspense>
         ) : isMagicDeck ? (
           <MagicDeckContent event={event} />
@@ -2186,6 +2194,21 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: "shared a",
     noun: "photo",
     nounRoute: "/photos",
+  },
+  [MAGAZINE_KIND]: {
+    icon: Newspaper,
+    action: (event) => publishedAtAction(event, { created: "published a", updated: "updated a", fallback: "published a" }),
+    noun: "magazine",
+  },
+  [MAGAZINE_ISSUE_KIND]: {
+    icon: Newspaper,
+    action: (event) => publishedAtAction(event, { created: "published a", updated: "updated a", fallback: "published a" }),
+    noun: "magazine issue",
+  },
+  [EBOOK_KIND]: {
+    icon: BookOpen,
+    action: (event) => publishedAtAction(event, { created: "published an", updated: "updated an", fallback: "published an" }),
+    noun: "ebook",
   },
   4: {
     icon: Mail,

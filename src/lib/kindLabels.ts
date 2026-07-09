@@ -367,6 +367,10 @@ export const KIND_LABELS: Record<number, string> = {
   33388: 'High scores',
   // Fundraisers
   33863: 'Fundraiser',
+  // Publications (PressStr)
+  33953: 'Ebook',
+  34609: 'Magazine',
+  39731: 'Magazine issue',
   // NIP-71
   34235: 'Addressable video',
   34236: 'Addressable short video',

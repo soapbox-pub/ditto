@@ -19,7 +19,9 @@ import { EmbeddedProfileBadgesCard } from '@/components/EmbeddedNaddr';
 import { EmbeddedAttestationCard } from '@/components/EmbeddedAttestationCard';
 import { ATTESTATION_KIND } from '@/lib/attestation';
 import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
+import { EmbeddedPublicationCard } from '@/components/EmbeddedPublicationCard';
 import { ARTICLE_KINDS } from '@/lib/articleHelpers';
+import { PUBLICATION_KINDS } from '@/lib/publications';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
 import { isPeopleListKind } from '@/lib/packUtils';
@@ -192,6 +194,11 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
   // author byline.
   if (ARTICLE_KINDS.has(event.kind)) {
     return <EmbeddedArticleCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Magazines, magazine issues, and ebooks get a compact cover + title card.
+  if (PUBLICATION_KINDS.has(event.kind)) {
+    return <EmbeddedPublicationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} highlightText={highlightText} />;
