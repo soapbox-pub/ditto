@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.28.2] - 2026-07-07
+
+A speed and stability tune-up. Ditto now launches lighter and scrolls smoother, feeds render more efficiently, and profiles load reliably even on slower phones. GIF search moves to a new provider, mentions in profile bios now link to the person, and a handful of annoyances are gone — a battery-draining background loop, an untappable search box on mobile, and a notification dot that wouldn't clear.
+
+### Added
+- Mentions in profile bios now link straight to the person's profile
+
+### Changed
+- GIF search now runs on a new provider for better results
+- The app launches lighter and feels snappier — faster startup, smoother scrolling, and less stutter while your feed loads
+
+### Fixed
+- Fixed a background loop that could quietly drain your battery
+- Profiles now load reliably on slower phones instead of getting stuck
+- The search box in the mobile "More" menu is tappable again
+- The notification dot now clears properly instead of lingering
+- Reposts, reactions, and zaps of replies no longer show up when replies are hidden, and replies are now consistently treated as replies in your feed
+
 ## [2.28.1] - 2026-07-04
 
 A small patch to keep the party going: birthday celebrations now linger six hours past midnight, so night owls and friends in earlier timezones don't miss the balloons. Also fixes Blobbi hatching so your freshly hatched Blobbi gets its evolution missions right away, hatching counts toward your care streak, and naming your new friend no longer wipes its missions.
