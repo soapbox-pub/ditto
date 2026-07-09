@@ -29,15 +29,34 @@ interface PdfViewerProps {
 
 /** The actual embedded PDF frame. Kept as a component so it can be reused in the dialog. */
 function PdfFrame({ url, title, className }: { url: string; title: string; className?: string }) {
-  // `#view=FitH` asks the built-in viewer to fit the page width; harmless if ignored.
+  // Render via <object type="application/pdf"> rather than an <iframe>. Unlike an
+  // iframe (which loads whatever the server returns — arbitrary HTML/JS if a
+  // malicious publisher swaps the file), <object> is gated by the declared MIME:
+  // browsers only instantiate the built-in PDF viewer, and non-PDF responses fall
+  // back to the child content below instead of executing as a document.
+  // Allowed by the app CSP's `object-src https:` (see index.html). `url` is
+  // already https-only via sanitizeUrl().
   return (
-    <iframe
-      src={`${url}#view=FitH`}
+    <object
+      data={url}
+      type="application/pdf"
       title={title}
+      aria-label={title}
       className={cn('w-full border-0 bg-muted', className)}
-      // Allow the built-in viewer's controls; disallow scripts/same-origin escalation.
-      sandbox="allow-scripts allow-same-origin allow-popups allow-downloads"
-    />
+    >
+      <div className="flex h-full flex-col items-center justify-center gap-4 bg-muted/30 p-6 text-center">
+        <FileText className="size-10 text-muted-foreground" aria-hidden="true" />
+        <p className="max-w-xs text-sm text-muted-foreground">
+          This PDF can't be displayed inline.
+        </p>
+        <Button asChild variant="outline">
+          <a href={url} download target="_blank" rel="noopener noreferrer">
+            <Download className="mr-2 size-4" />
+            Download PDF
+          </a>
+        </Button>
+      </div>
+    </object>
   );
 }
 
