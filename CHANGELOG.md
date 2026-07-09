@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.29.0] - 2026-07-09
+
+Ditto now reads like a newsstand: magazines, magazine issues, and ebooks show up in your feed with their covers and details, and you can flip through them right inside the app. Tap to open a publication and read the PDF page by page in a clean, distraction-free viewer — no downloads or extra apps required.
+
+### Added
+- Magazines, magazine issues, and ebooks now appear in your feed with cover art and details, and you can read their PDFs inline in a full-screen viewer
+
 ## [2.28.2] - 2026-07-07
 
 A speed and stability tune-up. Ditto now launches lighter and scrolls smoother, feeds render more efficiently, and profiles load reliably even on slower phones. GIF search moves to a new provider, mentions in profile bios now link to the person, and a handful of annoyances are gone — a battery-draining background loop, an untappable search box on mobile, and a notification dot that wouldn't clear.
