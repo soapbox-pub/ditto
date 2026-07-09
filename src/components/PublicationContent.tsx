@@ -144,25 +144,31 @@ function PublicationFileContent({ event, className }: PublicationContentProps) {
 
           {pub.fileUrl && (
             <div className="flex flex-wrap gap-2">
-              <Button asChild variant="outline">
-                <a href={pub.fileUrl} download target="_blank" rel="noopener noreferrer">
-                  <Download className="mr-2 size-4" />
-                  Download {pub.format}
-                </a>
-              </Button>
-              <Button variant="outline" onClick={() => void openUrl(pub.fileUrl!)}>
-                <ExternalLink className="mr-2 size-4" />
-                Open in browser
-              </Button>
+              {isPdf ? (
+                <PdfViewer
+                  url={pub.fileUrl}
+                  title={pub.title}
+                  label={isEbook ? 'Read eBook' : 'Read Issue'}
+                />
+              ) : (
+                <>
+                  {/* Non-PDF (EPUB) can't render inline — offer download / open. */}
+                  <Button asChild>
+                    <a href={pub.fileUrl} download target="_blank" rel="noopener noreferrer">
+                      <Download className="mr-2 size-4" />
+                      Download {pub.format}
+                    </a>
+                  </Button>
+                  <Button variant="outline" onClick={() => void openUrl(pub.fileUrl!)}>
+                    <ExternalLink className="mr-2 size-4" />
+                    Open in browser
+                  </Button>
+                </>
+              )}
             </div>
           )}
         </div>
       </div>
-
-      {/* Inline PDF viewer */}
-      {isPdf && pub.fileUrl && (
-        <PdfViewer url={pub.fileUrl} title={pub.title} />
-      )}
 
       {/* Freeform description */}
       {pub.content.trim() && (

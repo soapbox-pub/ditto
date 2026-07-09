@@ -1,21 +1,22 @@
 /**
- * Inline PDF viewer with a fullscreen "expand" mode.
+ * PDF reader launched from a "Read" button. Clicking opens a full-screen dialog
+ * containing the reader: a toolbar (open externally, download) above the
+ * embedded PDF.
  *
- * Renders the PDF using the browser's built-in viewer via an `<iframe>`
- * (which works in WKWebView / Android WebView and under Apple Lockdown Mode,
- * where `navigator.pdfViewerEnabled` is `true`). A toolbar offers fullscreen
- * expansion (a Dialog covering the viewport), opening in a new tab / share
- * sheet, and downloading.
+ * Renders the PDF via `<object type="application/pdf">` — the browser's built-in
+ * viewer, gated by the declared MIME so a swapped-in non-PDF response can't
+ * execute as a document (see `PdfFrame`). Works in WKWebView / Android WebView
+ * and under Apple Lockdown Mode, where `navigator.pdfViewerEnabled` is `true`.
  *
  * The `url` passed here MUST already be sanitized (https-only) by the caller —
  * see `parsePublication()` / `sanitizeUrl()`.
  */
 
 import { useState } from 'react';
-import { Expand, ExternalLink, Download, FileText } from 'lucide-react';
+import { ExternalLink, Download, FileText, BookOpen } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +25,8 @@ interface PdfViewerProps {
   url: string;
   /** Accessible title / filename base for the document. */
   title: string;
+  /** Text for the launch button (e.g. "Read eBook", "Read Issue"). */
+  label?: string;
   className?: string;
 }
 
@@ -60,8 +63,8 @@ function PdfFrame({ url, title, className }: { url: string; title: string; class
   );
 }
 
-export function PdfViewer({ url, title, className }: PdfViewerProps) {
-  const [expanded, setExpanded] = useState(false);
+export function PdfViewer({ url, title, label = 'Read', className }: PdfViewerProps) {
+  const [open, setOpen] = useState(false);
   // On native the inline WebView PDF experience is inconsistent; prefer the
   // native open/share sheet there instead of an embedded frame.
   const isNative = Capacitor.isNativePlatform();
@@ -72,89 +75,51 @@ export function PdfViewer({ url, title, className }: PdfViewerProps) {
     void openUrl(url);
   };
 
+  // Native: the "Read" button opens the PDF in the device's viewer directly.
   if (isNative) {
     return (
-      <div
-        className={cn(
-          'flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed bg-muted/30 px-6 py-12 text-center',
-          className,
-        )}
-      >
-        <FileText className="size-10 text-muted-foreground" aria-hidden="true" />
-        <p className="max-w-xs text-sm text-muted-foreground">
-          Open the PDF to read it in your device's viewer.
-        </p>
-        <Button onClick={openExternally}>
-          <ExternalLink className="mr-2 size-4" />
-          Open PDF
-        </Button>
-      </div>
+      <Button className={className} onClick={openExternally}>
+        <BookOpen className="mr-2 size-4" />
+        {label}
+      </Button>
     );
   }
 
   return (
-    <div className={cn('overflow-hidden rounded-xl border bg-card', className)}>
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
-        <FileText className="size-4 text-muted-foreground" aria-hidden="true" />
-        <span className="truncate text-sm font-medium text-muted-foreground">{title}</span>
-        <div className="ml-auto flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setExpanded(true)}
-            aria-label="Expand PDF to fullscreen"
-          >
-            <Expand className="size-4" />
-            <span className="ml-1.5 hidden sm:inline">Expand</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={openExternally}
-            aria-label="Open PDF in new tab"
-          >
-            <ExternalLink className="size-4" />
-          </Button>
-          <Button asChild variant="ghost" size="icon" aria-label="Download PDF">
-            <a href={url} download={filename} target="_blank" rel="noopener noreferrer">
-              <Download className="size-4" />
-            </a>
-          </Button>
-        </div>
-      </div>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className={className}>
+          <BookOpen className="mr-2 size-4" />
+          {label}
+        </Button>
+      </DialogTrigger>
 
-      {/* Inline viewer */}
-      <PdfFrame url={url} title={title} className="h-[70vh] max-h-[900px] min-h-[480px]" />
-
-      {/* Fullscreen dialog */}
-      <Dialog open={expanded} onOpenChange={setExpanded}>
-        <DialogContent
-          className="h-[100dvh] w-screen max-w-none gap-0 rounded-none border-0 p-0 sm:h-[95vh] sm:w-[95vw] sm:max-w-[95vw] sm:rounded-xl"
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          <div className="flex items-center gap-2 border-b bg-background px-4 py-3 pr-14">
-            <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <DialogTitle className="truncate text-base">{title}</DialogTitle>
-            <div className="ml-auto flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={openExternally}
-                aria-label="Open PDF in new tab"
-              >
-                <ExternalLink className="size-4" />
-              </Button>
-              <Button asChild variant="ghost" size="icon" aria-label="Download PDF">
-                <a href={url} download={filename} target="_blank" rel="noopener noreferrer">
-                  <Download className="size-4" />
-                </a>
-              </Button>
-            </div>
+      {/* Reader dialog */}
+      <DialogContent
+        className="flex h-[95dvh] w-screen max-w-none flex-col gap-0 rounded-none border-0 p-0 sm:h-[95vh] sm:w-[95vw] sm:max-w-[95vw] sm:rounded-xl"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="flex items-center gap-2 border-b bg-background px-4 py-3 pr-14">
+          <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <DialogTitle className="truncate text-base">{title}</DialogTitle>
+          <div className="ml-auto flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={openExternally}
+              aria-label="Open PDF in new tab"
+            >
+              <ExternalLink className="size-4" />
+            </Button>
+            <Button asChild variant="ghost" size="icon" aria-label="Download PDF">
+              <a href={url} download={filename} target="_blank" rel="noopener noreferrer">
+                <Download className="size-4" />
+              </a>
+            </Button>
           </div>
-          <PdfFrame url={url} title={title} className="h-full flex-1" />
-        </DialogContent>
-      </Dialog>
-    </div>
+        </div>
+        <PdfFrame url={url} title={title} className="min-h-0 flex-1" />
+      </DialogContent>
+    </Dialog>
   );
 }
