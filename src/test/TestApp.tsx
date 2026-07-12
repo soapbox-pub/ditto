@@ -39,6 +39,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeReactions: false,
       feedIncludeZaps: false,
       feedIncludeArticles: false,
+      feedIncludeTiles: false,
       showArticles: false,
       showHighlights: false,
       feedIncludeHighlights: false,

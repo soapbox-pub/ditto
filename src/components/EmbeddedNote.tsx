@@ -52,6 +52,7 @@ import { ImageGallery } from '@/components/ImageGallery';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { getKindLabel, getKindIcon, getEventFallbackText } from '@/lib/extraKinds';
 import { usePollVoteLabel } from '@/hooks/usePollVoteLabel';
+import { TilePublishCard } from '@/components/TilePublishCard';
 
 const BlobbiStateCard = lazy(() => import('@/components/BlobbiStateCard').then(m => ({ default: m.BlobbiStateCard })));
 
@@ -224,6 +225,10 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
   // Magazines, magazine issues, and ebooks get a compact cover + title card.
   if (PUBLICATION_KINDS.has(event.kind)) {
     return <EmbeddedPublicationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  if (event.kind === 30207) {
+    return <div className={className}><TilePublishCard event={event} /></div>;
   }
 
   return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} highlightText={highlightText} />;

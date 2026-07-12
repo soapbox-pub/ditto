@@ -121,6 +121,7 @@ import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
+import { TilePublishCard } from "@/components/TilePublishCard";
 import { UnknownKindContent } from "@/components/UnknownKindContent";
 import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
@@ -594,6 +595,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isZapstoreRelease = event.kind === 30063;
   const isZapstoreAsset = event.kind === 3063;
   const isAppHandler = event.kind === 31990;
+  const isTileDefinition = event.kind === 30207;
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
   const isLoveList = event.kind === LOVE_LIST_KIND;
@@ -657,6 +659,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     !isZapstoreRelease &&
     !isZapstoreAsset &&
     !isAppHandler &&
+    !isTileDefinition &&
     !isEncryptedDM &&
     !isLetter &&
     !isLoveList &&
@@ -792,6 +795,8 @@ const NoteCardImpl = memo(function NoteCardImpl({
         <ContentWarningGuard event={event}>
         {isPhoto ? (
           <PhotoContent event={event} />
+        ) : isTileDefinition ? (
+          <TilePublishCard event={event} />
         ) : isVideo ? (
           <VideoContent event={event} />
         ) : isVine ? (
@@ -2565,6 +2570,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: (event) => publishedAtAction(event, { created: "proposed a", updated: "updated a", fallback: "proposed a" }),
     noun: "NIP",
     nounRoute: "/development",
+  },
+  30207: {
+    icon: FileCode,
+    action: (event) => publishedAtAction(event, { created: "published a", updated: "updated a", fallback: "published a" }),
+    noun: "tile",
+    nounRoute: "/tiles",
   },
   15128: {
     icon: Rocket,

@@ -60,6 +60,8 @@ export interface FeedSettings {
   feedIncludeZaps: boolean;
   /** Include long-form articles (kind 30023) in the feed */
   feedIncludeArticles: boolean;
+  /** Include Nostr Canvas tile definitions (kind 30207) in the feed */
+  feedIncludeTiles: boolean;
   /** Show Articles (kind 30023) link in sidebar */
   showArticles: boolean;
   /** Show Highlights (kind 9802) link in sidebar */

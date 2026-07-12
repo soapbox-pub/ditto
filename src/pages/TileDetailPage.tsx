@@ -1,0 +1,57 @@
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
+import { LayoutGrid } from 'lucide-react';
+import { nip19 } from 'nostr-tools';
+import { useParams } from 'react-router-dom';
+import Markdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
+import { PageHeader } from '@/components/PageHeader';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { parseTileDefinition } from '@/tiles/definition';
+
+export function TileDetailPage() {
+  const { naddr } = useParams<{ naddr: string }>();
+  const { nostr } = useNostr();
+  const address = useMemo(() => {
+    try {
+      const decoded = nip19.decode(naddr ?? '');
+      return decoded.type === 'naddr' && decoded.data.kind === 30207 ? decoded.data : undefined;
+    } catch {
+      return undefined;
+    }
+  }, [naddr]);
+  const eventQuery = useQuery({
+    queryKey: ['nostr-canvas', 'tile', address?.pubkey, address?.identifier],
+    enabled: !!address,
+    queryFn: ({ signal }) => nostr.query([{ kinds: [30207], authors: [address!.pubkey], '#d': [address!.identifier], limit: 1 }], { signal }),
+  });
+  const tile = eventQuery.data?.map(parseTileDefinition).find(Boolean);
+
+  return (
+    <main className="mx-auto w-full max-w-3xl">
+      <PageHeader title={tile?.name ?? 'Tile'} icon={<LayoutGrid className="size-5" />} backTo="/tiles" />
+      <div className="space-y-5 px-4 pb-8">
+        {eventQuery.isLoading ? <Skeleton className="h-72 rounded-xl" /> : !tile ? (
+          <Card className="border-dashed"><CardContent className="py-12 text-center text-muted-foreground">This tile is unavailable or invalid.</CardContent></Card>
+        ) : (
+          <>
+            <Card><CardContent className="space-y-4 p-5">
+              <div className="flex gap-4">
+                <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-primary">
+                  {tile.image ? <img src={tile.image} alt="" className="size-full object-cover" /> : <LayoutGrid className="size-8" />}
+                </div>
+                <div className="min-w-0"><h1 className="text-2xl font-bold">{tile.name}</h1><p className="mt-1 text-sm text-muted-foreground">{tile.identifier} · v{tile.version}</p>{tile.summary && <p className="mt-3">{tile.summary}</p>}</div>
+              </div>
+              <div className="flex flex-wrap gap-2">{tile.perms.map((permission) => <Badge key={permission} variant="outline">{permission}</Badge>)}{tile.widget && <Badge variant="secondary">Widget: {tile.widget.label}</Badge>}</div>
+            </CardContent></Card>
+            {tile.description && <Card><CardContent className="prose prose-sm max-w-none p-5 dark:prose-invert"><Markdown rehypePlugins={[rehypeSanitize]}>{tile.description}</Markdown></CardContent></Card>}
+            <Card><CardContent className="p-0"><pre className="max-h-[32rem] overflow-auto p-5 text-xs leading-relaxed"><code>{tile.script}</code></pre></CardContent></Card>
+          </>
+        )}
+      </div>
+    </main>
+  );
+}

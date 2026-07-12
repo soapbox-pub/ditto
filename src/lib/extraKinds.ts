@@ -163,6 +163,16 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'feed',
     blurb: 'Blog posts, essays, and guides. Write and publish long-form articles.',
   },
+  {
+    kind: 30207,
+    id: 'tiles',
+    feedKey: 'feedIncludeTiles',
+    label: 'Tiles',
+    description: 'Nostr Canvas programmable tiles',
+    addressable: true,
+    section: 'feed',
+    feedOnly: true,
+  },
   // Media
   {
     kind: 20,
@@ -930,6 +940,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   31990: 'app',
   30063: 'Zapstore release',
   3063: 'Zapstore asset',
+  30207: 'tile',
 };
 
 /**

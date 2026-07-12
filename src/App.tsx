@@ -59,6 +59,7 @@ const hardcodedConfig: AppConfig = {
     feedIncludeReactions: true,
     feedIncludeZaps: true,
     feedIncludeArticles: true,
+    feedIncludeTiles: true,
     showArticles: true,
     showHighlights: true,
     feedIncludeHighlights: true,
