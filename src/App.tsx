@@ -23,6 +23,7 @@ import { secureStorage } from "@/lib/secureStorage";
 import { DEFAULT_ESPLORA_APIS } from "@/lib/esplora";
 import { DEFAULT_SIDEBAR_WIDGETS } from "@/lib/sidebarWidgets";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
+import { CanvasRuntimeProvider } from "@/components/CanvasRuntimeProvider";
 import AppRouter from "./AppRouter";
 
 const queryClient = new QueryClient({
@@ -226,19 +227,20 @@ export function App() {
             <QueryClientProvider client={queryClient}>
               <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
                 <NostrProvider>
-                  <NostrSync />
-                  <NativeNotifications />
-                  <NotificationStream />
-
-                  <NWCProvider>
-                    <EmotionDevProvider>
-                      <TooltipProvider>
-                        <InitialSyncGate>
-                          <AppRouter />
-                        </InitialSyncGate>
-                      </TooltipProvider>
-                    </EmotionDevProvider>
-                  </NWCProvider>
+                  <CanvasRuntimeProvider>
+                    <NostrSync />
+                    <NativeNotifications />
+                    <NotificationStream />
+                    <NWCProvider>
+                      <EmotionDevProvider>
+                        <TooltipProvider>
+                          <InitialSyncGate>
+                            <AppRouter />
+                          </InitialSyncGate>
+                        </TooltipProvider>
+                      </EmotionDevProvider>
+                    </NWCProvider>
+                  </CanvasRuntimeProvider>
                 </NostrProvider>
               </NostrLoginProvider>
             </QueryClientProvider>

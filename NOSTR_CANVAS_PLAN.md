@@ -77,59 +77,30 @@ Do not reuse its patch-based rendering, legacy script lifecycle, old schema
 assumptions, dynamic feed renderer takeover, automatic navigation entries, or
 raw event persistence model.
 
-## Phase 1: Marketplace Foundation
+## Phase 1: Marketplace Foundation (Complete)
 
-### Red tests
+Installed the exact `@soapbox.pub/nostr-canvas@0.11.0` dependency and added a
+small `src/tiles/` boundary around the upstream parser. `parseTileDefinition()`
+uses `parseTileDefEvent()` and sanitizes optional event-provided image URLs.
 
-1. Add parser tests for valid schema-3 kind-30207 events and rejection of
-   malformed, unsupported-language, unsupported-schema, and missing-tag cases.
-   Test that an unsafe optional image URL is omitted from Ditto's presentation
-   model without rejecting an otherwise valid tile definition.
-2. Add marketplace reducer/hook tests proving that the newest valid definition
-   wins per identifier and that discovered tiles require a NIP-05 identifier
-   matching the author before they are eligible for installation.
-3. Add tests for the marketplace presentation model: deterministic search,
-   installed/update state, capability labels, and no raw HTML rendering path.
-4. Add red component tests for kind-30207 feed dispatch: valid tiles render the
-   native publication card, malformed definitions are hidden, the event content
-   is never treated as a text note, and card navigation uses the tile detail
-   route.
+The `/tiles` marketplace now discovers schema-3, `nostr-canvas-tile` tagged
+kind-30207 events through Nostrify, retains the newest valid definition per
+identifier, and only displays tiles after their NIP-05 identifier namespace
+verifies to the event author. It includes deterministic search and installation
+status helpers. The `/tiles/:naddr` detail page fetches the exact author-bound
+addressable event and safely renders sanitized markdown metadata plus escaped
+Lua source.
 
-### Implementation
+Ditto now renders valid kind-30207 publications with a native
+`TilePublishCard` in feeds and embedded previews. Invalid definitions are
+hidden, and event Lua is never rendered as a text note. Kind labels, feed
+registration, action-header grammar, comment context, the `feedIncludeTiles`
+setting (default `true`), and the upstream NIP link in `NIP.md` were also
+registered. Tile publishing does not create notifications.
 
-1. Install the exact `@soapbox.pub/nostr-canvas@0.11.0` package using npm.
-2. Add a small `src/canvas/` boundary for tile parsing, marketplace state, and
-   safe presentation helpers. Keep library types inside that boundary where
-   possible.
-3. Query kind `30207` with `#t=nostr-canvas-tile` and `#s=3` through Ditto's
-   standard Nostrify query layer. Deduplicate by full `d` identifier and newest
-   `created_at`; do not trust a tile only because it shares an identifier.
-4. Verify the identifier's NIP-05 namespace resolves to the tile event pubkey
-   before displaying an entry in the discovery UI. Hide unverified results from
-   discovery and prevent their installation.
-5. Create a responsive `/tiles` marketplace route using existing dialog/card,
-   input, skeleton, badge, and button primitives. It provides search, loading,
-   empty/error states, thumbnails with safe fallbacks, author identity,
-   permissions/placement badges, a detail view, sanitized description, and
-   escaped Lua source. Do not add a separate global navigation item yet.
-6. Add a native `TilePublishCard` for kind `30207`, modeled visually on the
-   earlier branch's compact card. Register it through the existing kind-rendering
-   dispatch points needed for home/follow feeds, post detail, embedded previews,
-   kind labels, header grammar, comment context, and feed filtering. This is a
-   friend publishing a tile, not the runtime executing it.
-7. Add the minimal feed registration needed to surface tile publications from
-   follows. Default it on for the social feed only if it matches the prior
-   branch's `feedIncludeTiles: true` behavior; otherwise make the default an
-   explicit review decision before implementation. Do not add notifications:
-   publishing a tile does not target another user's content.
-8. Add kind 30207 and the upstream tiles NIP link to this repository's
-   `NIP.md`; do not duplicate the upstream specification.
-
-### Review checkpoint
-
-Stop with the tests red, review their assertions and the planned public data
-shape, then implement. Run focused tests while iterating and `npm run test`
-before committing this phase.
+Parser, marketplace, and publication-card coverage was added. Focused tests and
+the complete `npm run test` suite passed before commit `c32a2a3e Add Nostr
+Canvas tile marketplace foundation`.
 
 ## Phase 2: Runtime Host and Safe Tile Rendering
 
