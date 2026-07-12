@@ -186,6 +186,8 @@ const hardcodedConfig: AppConfig = {
   esploraApis: [...DEFAULT_ESPLORA_APIS],
   currencyDisplay: 'usd',
   sidebarWidgets: DEFAULT_SIDEBAR_WIDGETS,
+  installedCanvasTiles: [],
+  canvasTileSettings: [],
   maxCachedEventAge: 604800,
 };
 

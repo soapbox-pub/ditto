@@ -152,6 +152,8 @@ export function TestApp({ children }: TestAppProps) {
     esploraApis: ['https://mempool.space/api'],
     currencyDisplay: 'usd',
     sidebarWidgets: [],
+    installedCanvasTiles: [],
+    canvasTileSettings: [],
     maxCachedEventAge: 604800,
   };
 

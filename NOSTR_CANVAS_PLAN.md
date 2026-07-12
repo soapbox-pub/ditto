@@ -51,13 +51,16 @@ widget semantics:
   unlike an installed tile selection that can sync with the account.
 - Existing `sidebarWidgets` stores canvas widgets as namespaced IDs (for example
   `canvas:<identifier>`). Native widget IDs remain unchanged.
-- Tile settings persist in the runtime's per-user tile store. Their cross-device
-  sync is deferred: the initial scope does not expose tile settings UI, so
-  silently syncing an incomplete setting model would be misleading.
+- `canvasTileSettings`: declared tile-setting values, keyed by the same
+  author-bound coordinate and synced with encrypted settings. Values are
+  validated against the installed definition before they hydrate the runtime.
+  Capability grants remain local per device and must never be derived from this
+  synced data.
 
 `AppContext`, `AppConfigSchema`, `EncryptedSettingsSchema`, and `TestApp` must
-be updated together for the synced `installedCanvasTiles` config field. The raw
-event is validated with the library parser before it is cached or registered.
+be updated together for the synced `installedCanvasTiles` and
+`canvasTileSettings` config fields. The raw event is validated with the library
+parser before it is cached or registered.
 
 ## Reusable Prior Work
 
@@ -151,14 +154,15 @@ and commit the isolated runtime-host change.
    account switches. In particular, no previously approved capability may bleed
    into another account or an anonymous session.
 3. Test all AppConfig/encrypted-settings schema handling for malformed synced
-   records and backward compatibility with accounts that have no canvas data.
+   coordinates and setting records, setting-field synchronization, and backward
+   compatibility with accounts that have no canvas data.
 
 ### Implementation
 
-1. Add the `installedCanvasTiles` config triple and synchronise it using the
-   existing encrypted-settings flow. Persist full raw definitions only in a
-   local cache; on another device, restore them by fetching the coordinate with
-   the addressable event's author constraint.
+1. Add the `installedCanvasTiles` and `canvasTileSettings` config triples and
+   synchronise them using the existing encrypted-settings flow. Persist full raw
+   definitions only in a local cache; on another device, restore them by
+   fetching the coordinate with the addressable event's author constraint.
 2. Add an install permission dialog that lists all declared capabilities in
    clear language, defaults to no selection, and allows per-capability approval.
    Show the verified author and the exact tile identifier in the dialog.
@@ -168,7 +172,9 @@ and commit the isolated runtime-host change.
    re-evaluates declared capabilities and prompts again when the requested set
    grows.
 5. Forward login/logout and scope changes to the runtime; restore only validated
-   installed definitions and destroy them on removal.
+   installed definitions and declared setting fields, and destroy them on
+   removal. Capability grants stay device-local and scoped to the current
+   pubkey.
 
 ### Review checkpoint
 

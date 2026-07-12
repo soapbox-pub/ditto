@@ -384,6 +384,10 @@ export interface AppConfig {
   currencyDisplay: CurrencyDisplay;
   /** Ordered list of right sidebar widget configs. Each entry is a widget type ID with optional display settings. */
   sidebarWidgets: WidgetConfig[];
+  /** Installed Canvas tiles, synchronized as author-bound coordinates through encrypted settings. */
+  installedCanvasTiles: InstalledCanvasTile[];
+  /** Values for declared Canvas tile settings, synchronized through encrypted settings. */
+  canvasTileSettings: CanvasTileSettings[];
   /**
    * Maximum age, in seconds, of events kept in the local IndexedDB event
    * cache. After each write flush, events older than this are pruned based on
@@ -403,6 +407,17 @@ export interface WidgetConfig {
   id: string;
   /** User-configured height in pixels. Overrides the widget's default height. */
   height?: number;
+}
+
+/** An installed Canvas tile, identified by its author-bound addressable coordinate. */
+export interface InstalledCanvasTile {
+  pubkey: string;
+  identifier: string;
+}
+
+/** Persisted values for settings declared by an installed Canvas tile. */
+export interface CanvasTileSettings extends InstalledCanvasTile {
+  values: Record<string, string>;
 }
 
 export interface AppContextType {

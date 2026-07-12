@@ -237,6 +237,25 @@ export const SavedFeedSchema = z.object({
   createdAt: z.number(),
 });
 
+const CanvasTileCoordinateSchema = z.object({
+  pubkey: z.string().regex(/^[0-9a-f]{64}$/),
+  identifier: z.string().refine((value) => value.includes('@') && value.includes(':'), 'Must be a tile identifier'),
+});
+
+const InstalledCanvasTilesSchema = z.array(z.unknown()).transform((items) =>
+  items.flatMap((item) => {
+    const result = CanvasTileCoordinateSchema.safeParse(item);
+    return result.success ? [result.data] : [];
+  }),
+);
+
+const CanvasTileSettingsSchema = z.array(z.unknown()).transform((items) =>
+  items.flatMap((item) => {
+    const result = CanvasTileCoordinateSchema.extend({ values: z.record(z.string(), z.string()) }).safeParse(item);
+    return result.success ? [result.data] : [];
+  }),
+);
+
 // ─── AppConfigSchema ─────────────────────────────────────────────────
 
 /**
@@ -297,6 +316,8 @@ export const AppConfigSchema = z.object({
     id: z.string(),
     height: z.number().optional(),
   })).optional(),
+  installedCanvasTiles: InstalledCanvasTilesSchema.optional(),
+  canvasTileSettings: CanvasTileSettingsSchema.optional(),
   maxCachedEventAge: z.number().int().nonnegative().optional(),
 });
 
@@ -373,6 +394,8 @@ export const EncryptedSettingsSchema = z.looseObject({
     id: z.string(),
     height: z.number().optional(),
   })).optional(),
+  installedCanvasTiles: InstalledCanvasTilesSchema.optional(),
+  canvasTileSettings: CanvasTileSettingsSchema.optional(),
   homePage: z.string().optional(),
   showGlobalFeed: z.boolean().optional(),
   showCommunityFeed: z.boolean().optional(),

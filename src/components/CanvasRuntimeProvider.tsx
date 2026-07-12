@@ -3,7 +3,9 @@ import { RustWorkerPool } from '@soapbox.pub/nostr-canvas';
 import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useEffect, useRef, type ReactNode } from 'react';
+import type { Capability } from '@soapbox.pub/nostr-canvas';
 import { createCanvasAdapter, type CanvasAdapterServices } from '@/tiles/adapter';
+import { CanvasTileInstallationsProvider } from '@/components/CanvasTileInstallationsProvider';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
@@ -16,6 +18,8 @@ export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
   const servicesRef = useRef<CanvasAdapterServices | undefined>(undefined);
   const adapterRef = useRef<ReturnType<typeof createCanvasAdapter> | undefined>(undefined);
   const poolRef = useRef<RustWorkerPool | undefined>(undefined);
+  const grantDecisionRef = useRef<(identifier: string, declared: Capability[]) => Capability[]>(() => []);
+  const storageRef = useRef<Storage | undefined>(undefined);
 
   servicesRef.current = {
     subscribe: (filter, onEvent) => {
@@ -71,10 +75,23 @@ export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
     });
   }
   if (!poolRef.current) poolRef.current = RustWorkerPool.createPool();
+  if (!storageRef.current) storageRef.current = withoutDefinitionStorage(localStorage);
 
   useEffect(() => () => poolRef.current?.terminate(), []);
 
-  return <NostrCanvasProvider adapter={adapterRef.current} workerPool={poolRef.current}><CanvasNotifications notify={toast}>{children}</CanvasNotifications></NostrCanvasProvider>;
+  return <NostrCanvasProvider adapter={adapterRef.current} workerPool={poolRef.current} options={{ storage: storageRef.current, onGrantDecision: (identifier, declared) => grantDecisionRef.current(identifier, declared) }}><CanvasTileInstallationsProvider grantDecisionRef={grantDecisionRef}><CanvasNotifications notify={toast}>{children}</CanvasNotifications></CanvasTileInstallationsProvider></NostrCanvasProvider>;
+}
+
+function withoutDefinitionStorage(storage: Storage): Storage {
+  const definitionsKey = 'nostr-canvas:tile-defs';
+  return {
+    get length() { return storage.length; },
+    clear: () => storage.clear(),
+    key: (index) => storage.key(index),
+    getItem: (key) => key === definitionsKey ? null : storage.getItem(key),
+    setItem: (key, value) => { if (key !== definitionsKey) storage.setItem(key, value); },
+    removeItem: (key) => { if (key !== definitionsKey) storage.removeItem(key); },
+  };
 }
 
 function CanvasNotifications({ children, notify }: { children: ReactNode; notify: ReturnType<typeof useToast>['toast'] }) {

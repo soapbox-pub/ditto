@@ -241,6 +241,14 @@ export function NostrSync() {
               updates.sidebarWidgets = DEFAULT_SIDEBAR_WIDGETS;
               changed = true;
             }
+            if ((current.installedCanvasTiles ?? []).length > 0) {
+              updates.installedCanvasTiles = [];
+              changed = true;
+            }
+            if ((current.canvasTileSettings ?? []).length > 0) {
+              updates.canvasTileSettings = [];
+              changed = true;
+            }
             if (current.homePage !== "feed") {
               updates.homePage = "feed";
               changed = true;
@@ -408,6 +416,28 @@ export function NostrSync() {
         // The new user never saved widgets — reset to app defaults so the
         // previous account's widgets don't bleed through.
         updates.sidebarWidgets = DEFAULT_SIDEBAR_WIDGETS;
+        changed = true;
+      }
+
+      if (
+        encryptedSettings.installedCanvasTiles &&
+        JSON.stringify(encryptedSettings.installedCanvasTiles) !== JSON.stringify(current.installedCanvasTiles)
+      ) {
+        updates.installedCanvasTiles = encryptedSettings.installedCanvasTiles;
+        changed = true;
+      } else if (isSwitch && !encryptedSettings.installedCanvasTiles && (current.installedCanvasTiles ?? []).length > 0) {
+        updates.installedCanvasTiles = [];
+        changed = true;
+      }
+
+      if (
+        encryptedSettings.canvasTileSettings &&
+        JSON.stringify(encryptedSettings.canvasTileSettings) !== JSON.stringify(current.canvasTileSettings)
+      ) {
+        updates.canvasTileSettings = encryptedSettings.canvasTileSettings;
+        changed = true;
+      } else if (isSwitch && !encryptedSettings.canvasTileSettings && (current.canvasTileSettings ?? []).length > 0) {
+        updates.canvasTileSettings = [];
         changed = true;
       }
 

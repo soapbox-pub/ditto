@@ -1,5 +1,5 @@
 import type { NostrEvent } from '@nostrify/nostrify';
-import { parseTileDefEvent } from '@soapbox.pub/nostr-canvas';
+import { parseTileDefEvent, type Capability } from '@soapbox.pub/nostr-canvas';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 export interface TileDefinition {
@@ -14,7 +14,7 @@ export interface TileDefinition {
   image?: string;
   summary?: string;
   description?: string;
-  perms: string[];
+  perms: Capability[];
   widget?: {
     label: string;
     icon?: string;
