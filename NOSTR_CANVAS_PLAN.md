@@ -82,8 +82,9 @@ raw event persistence model.
 ### Red tests
 
 1. Add parser tests for valid schema-3 kind-30207 events and rejection of
-   malformed, unsupported-language, unsupported-schema, missing-tag, and unsafe
-   image cases.
+   malformed, unsupported-language, unsupported-schema, and missing-tag cases.
+   Test that an unsafe optional image URL is omitted from Ditto's presentation
+   model without rejecting an otherwise valid tile definition.
 2. Add marketplace reducer/hook tests proving that the newest valid definition
    wins per identifier and that discovered tiles require a NIP-05 identifier
    matching the author before they are eligible for installation.
@@ -104,9 +105,8 @@ raw event persistence model.
    standard Nostrify query layer. Deduplicate by full `d` identifier and newest
    `created_at`; do not trust a tile only because it shares an identifier.
 4. Verify the identifier's NIP-05 namespace resolves to the tile event pubkey
-   before displaying an entry as installable. Unverified results may be shown
-   only as explicitly unverified discovery entries and cannot be installed in
-   this initial release.
+   before displaying an entry in the discovery UI. Hide unverified results from
+   discovery and prevent their installation.
 5. Create a responsive `/tiles` marketplace route using existing dialog/card,
    input, skeleton, badge, and button primitives. It provides search, loading,
    empty/error states, thumbnails with safe fallbacks, author identity,
