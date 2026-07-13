@@ -374,7 +374,7 @@ export function ZapAllOnchainDialog({
           </button>
         </div>
 
-        <div className="overflow-y-auto">
+        <div className="overflow-y-auto max-h-[calc(95vh-3rem)]">
           {success ? (
             <ZapAllSuccessView
               txid={success.txid}
