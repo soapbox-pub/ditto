@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LandingHero } from '@/components/LandingHero';
+import { LazyFeedItem } from '@/components/LazyFeedItem';
 import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
@@ -446,8 +447,8 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
           <NewPostsPill count={newPostCount} onClick={handleShowNewPosts} />
           {feedItems.length > 0 ? (
             <div>
-              {feedItems.map((item: FeedItem) => (
-                <div key={feedItemKey(item)} className="cv-feed-item">
+              {feedItems.map((item: FeedItem, index: number) => (
+                <LazyFeedItem key={feedItemKey(item)} className="cv-feed-item" initialInView={index < 10}>
                   <NoteCard
                     event={item.event}
                     repostedBy={item.repostedBy}
@@ -456,7 +457,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
                     zappedBy={item.zappedBy}
                     profileZapRecipient={item.profileZapRecipient}
                   />
-                </div>
+                </LazyFeedItem>
               ))}
               {hasNextPage && (
                 <div ref={scrollRef} className="py-4">
@@ -587,8 +588,8 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
-        {feedItems.map((item) => (
-          <div key={feedItemKey(item)} className="cv-feed-item">
+        {feedItems.map((item, index) => (
+          <LazyFeedItem key={feedItemKey(item)} className="cv-feed-item" initialInView={index < 10}>
             <NoteCard
               event={item.event}
               repostedBy={item.repostedBy}
@@ -597,7 +598,7 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
               zappedBy={item.zappedBy}
               profileZapRecipient={item.profileZapRecipient}
             />
-          </div>
+          </LazyFeedItem>
         ))}
         {hasNextPage && (
           <div ref={scrollRef} className="py-4">
@@ -666,10 +667,10 @@ function HashtagFeedContent({ tag }: { tag: string }) {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
-        {filteredEvents.map((event) => (
-          <div key={event.id} className="cv-feed-item">
+        {filteredEvents.map((event, index) => (
+          <LazyFeedItem key={event.id} className="cv-feed-item" initialInView={index < 10}>
             <NoteCard event={event} />
-          </div>
+          </LazyFeedItem>
         ))}
       </div>
     </PullToRefresh>
@@ -729,10 +730,10 @@ function GeotagFeedContent({ tag }: { tag: string }) {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
-        {filteredEvents.map((event) => (
-          <div key={event.id} className="cv-feed-item">
+        {filteredEvents.map((event, index) => (
+          <LazyFeedItem key={event.id} className="cv-feed-item" initialInView={index < 10}>
             <NoteCard event={event} />
-          </div>
+          </LazyFeedItem>
         ))}
       </div>
     </PullToRefresh>
