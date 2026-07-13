@@ -558,6 +558,16 @@ export function useBlobbiEyes(
 
     // ─── Animation Loop ─────────────────────────────────────────────────
 
+    // Serializing the SVG subtree with innerHTML is expensive — doing it at
+    // 60fps burned significant CPU just to detect the rare SVG swap (e.g. a
+    // sleeping-state change). Check at most every 500ms instead; a recache
+    // landing up to half a second late is imperceptible for eye targeting.
+    const SVG_CHANGE_CHECK_INTERVAL_MS = 500;
+    let lastSvgCheckTime = 0;
+    // Skip redundant per-frame DOM writes: remember the last applied values.
+    let lastTrackingTransform: string | null = null;
+    let lastBlinkProgress: number | null = null;
+
     const animate = (timestamp: number) => {
       // Try to cache elements if not done yet
       if (leftGazeRef.current.length === 0 || rightGazeRef.current.length === 0) {
@@ -568,11 +578,15 @@ export function useBlobbiEyes(
         }
       }
 
-      // Check if SVG content changed (e.g., sleeping state change)
-      if (containerRef.current) {
+      // Check if SVG content changed (e.g., sleeping state change) — throttled.
+      if (containerRef.current && timestamp - lastSvgCheckTime >= SVG_CHANGE_CHECK_INTERVAL_MS) {
+        lastSvgCheckTime = timestamp;
         const currentContent = containerRef.current.innerHTML;
         if (currentContent !== lastSvgContentRef.current) {
           cacheEyeElements();
+          // New elements: force re-application of transforms and blink clip.
+          lastTrackingTransform = null;
+          lastBlinkProgress = null;
         }
       }
 
@@ -632,13 +646,19 @@ export function useBlobbiEyes(
         // so we can safely apply transforms without conflicting with emotion animations.
         const trackingTransform = `translate(${eyeX} ${eyeY})`;
 
-        leftGazeRef.current.forEach((el) => {
-          el.setAttribute('transform', trackingTransform);
-        });
+        // In 'forward' mode (and whenever the pointer is still) the transform
+        // is identical frame after frame — skip the redundant DOM writes.
+        if (trackingTransform !== lastTrackingTransform) {
+          lastTrackingTransform = trackingTransform;
 
-        rightGazeRef.current.forEach((el) => {
-          el.setAttribute('transform', trackingTransform);
-        });
+          leftGazeRef.current.forEach((el) => {
+            el.setAttribute('transform', trackingTransform);
+          });
+
+          rightGazeRef.current.forEach((el) => {
+            el.setAttribute('transform', trackingTransform);
+          });
+        }
       }
       // If disableTracking is true, external system handles eye position
 
@@ -684,8 +704,13 @@ export function useBlobbiEyes(
         }
       };
 
-      leftBlinkRef.current.forEach(applyBlinkClip);
-      rightBlinkRef.current.forEach(applyBlinkClip);
+      // Between blinks the progress sits at 0 for seconds at a time; skip the
+      // per-eye clip-rect querySelector + attribute writes until it changes.
+      if (blinkProgress !== lastBlinkProgress) {
+        lastBlinkProgress = blinkProgress;
+        leftBlinkRef.current.forEach(applyBlinkClip);
+        rightBlinkRef.current.forEach(applyBlinkClip);
+      }
 
       // Continue animation loop
       animationRef.current = requestAnimationFrame(animate);

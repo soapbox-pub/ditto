@@ -114,6 +114,9 @@ export function BlobbiCompanion({
   const config = DEFAULT_COMPANION_CONFIG;
   const containerRef = useRef<HTMLDivElement>(null);
   const [animationTime, setAnimationTime] = useState(0);
+  // Mount-relative clock for the float animation, so pausing/resuming the
+  // loop below doesn't reset the float phase.
+  const floatStartRef = useRef<number>(performance.now());
 
   // Click detection - distinguishes click from drag.
   // When overstimulation blocks clicks, suppress the onClick callback.
@@ -122,20 +125,6 @@ export function BlobbiCompanion({
     onClick: effectiveOnClick,
     onDragStart: onStartDrag,
   });
-  
-  // Animation loop for bob/bounce
-  useEffect(() => {
-    let animationId: number;
-    const startTime = performance.now();
-    
-    const animate = (time: number) => {
-      setAnimationTime(time - startTime);
-      animationId = requestAnimationFrame(animate);
-    };
-    
-    animationId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationId);
-  }, []);
   
   // Vertical entry config (derived from main config)
   const verticalEntryConfig: VerticalEntryConfig = {
@@ -207,7 +196,34 @@ export function BlobbiCompanion({
   // Calculate floating animation offset (gentle sway/float)
   // Skip during entry animation, dragging, debug mode, or sleeping
   const isSleeping = companion.state === 'sleeping';
-  const floatOffset = (!useEntryPosition && !motion.isDragging && !debugMode && !isSleeping)
+  const floatActive = !useEntryPosition && !motion.isDragging && !debugMode && !isSleeping;
+
+  // Animation loop for bob/bounce. Only runs while the float offset is
+  // actually applied (see floatActive above), is capped at ~30fps (the float
+  // sines are ≤1.2Hz, so higher rates are invisible), and is skipped entirely
+  // for prefers-reduced-motion. The unthrottled version of this loop forced a
+  // React re-render of the whole companion tree at 60fps, even while the
+  // Blobbi stood still — a constant CPU/battery drain on mobile.
+  useEffect(() => {
+    if (!floatActive) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    let animationId: number;
+    let lastUpdate = 0;
+
+    const animate = (time: number) => {
+      if (time - lastUpdate >= 33) {
+        lastUpdate = time;
+        setAnimationTime(time - floatStartRef.current);
+      }
+      animationId = requestAnimationFrame(animate);
+    };
+
+    animationId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationId);
+  }, [floatActive]);
+
+  const floatOffset = floatActive
     ? calculateFloatAnimation(animationTime, state === 'walking')
     : { x: 0, y: 0, rotation: 0 };
   
