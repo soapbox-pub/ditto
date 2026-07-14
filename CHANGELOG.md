@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.30.0] - 2026-07-14
+
+Take charge of your follow packs and lists. Owners can now edit the title, description, and cover image of their follow packs and lists right from the detail page, and manage members — adding or removing people — all from one place. Under the hood, Ditto is lighter on your battery and memory too: your Blobbi companion sips power while idle, and long scrolling feeds stay smooth without bogging down your phone.
+
+### Added
+- Owners can edit their follow packs and lists — title, description, cover image, and members — directly from the detail page
+
+### Changed
+- Long feeds use less memory while scrolling, keeping the app smooth over long sessions
+- Your Blobbi companion now uses far less power while idle
+
+### Fixed
+- Zap dialogs can now scroll on short screens, so the on-chain payment details are always reachable
+- Games and apps can now capture your mouse pointer when they need to
+
 ## [2.29.0] - 2026-07-09
 
 Ditto now reads like a newsstand: magazines, magazine issues, and ebooks show up in your feed with their covers and details, and you can flip through them right inside the app. Tap to open a publication and read the PDF page by page in a clean, distraction-free viewer — no downloads or extra apps required.
