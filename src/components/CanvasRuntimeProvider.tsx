@@ -58,7 +58,7 @@ export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
       if (!user?.signer.nip44) throw new Error('NIP-44 decryption is unavailable.');
       return user.signer.nip44.decrypt(sender, ciphertext);
     },
-    fetch: globalThis.fetch,
+    fetch: (input, init) => globalThis.fetch(input, init),
     corsProxy: () => config.corsProxy,
     notify: (message, variant) => toast({ title: message, variant: variant === 'danger' ? 'destructive' : 'default' }),
   };

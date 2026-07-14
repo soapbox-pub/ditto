@@ -68,7 +68,7 @@ function createSafeFetch(fetcher: typeof globalThis.fetch, getCorsProxy?: () => 
     );
 
     try {
-      const response = await fetcher(endpoint, {
+      const response = await fetcher.call(globalThis, endpoint, {
         method: request.method,
         headers,
         body: request.body,

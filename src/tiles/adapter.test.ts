@@ -92,6 +92,20 @@ describe('createCanvasAdapter', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it('calls the host fetch with the browser global as its receiver', async () => {
+    const fetch = vi.fn(function(this: typeof globalThis) {
+      expect(this).toBe(globalThis);
+      return Promise.resolve(new Response('safe response', { status: 200 }));
+    });
+    const adapter = createCanvasAdapter({
+      subscribe: () => () => {},
+      fetch,
+      corsProxy: () => 'https://proxy.example/?url={href}',
+    });
+
+    await expect(adapter.fetch?.({ url: 'https://weather.example/api' })).resolves.toMatchObject({ ok: true });
+  });
+
   it('routes tile notifications through Ditto and rejects navigation', async () => {
     const notify = vi.fn();
     const adapter = createCanvasAdapter({ subscribe: () => () => {}, notify });
