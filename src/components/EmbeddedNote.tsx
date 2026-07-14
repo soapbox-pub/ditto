@@ -2,7 +2,7 @@ import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useRef
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { Award, BarChart3, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Quote, Zap, Clock } from 'lucide-react';
+import { Award, BarChart3, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Quote, Zap, Clock, ClipboardCheck } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BrokenEventFallback } from '@/components/BrokenEventFallback';
@@ -18,6 +18,7 @@ import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
 import { EmbeddedProfileBadgesCard } from '@/components/EmbeddedNaddr';
 import { EmbeddedAttestationCard } from '@/components/EmbeddedAttestationCard';
 import { ATTESTATION_KIND } from '@/lib/attestation';
+import { QUIZ_RESULT_KIND, parseQuizResult } from '@/lib/quiz';
 import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
 import { EmbeddedPublicationCard } from '@/components/EmbeddedPublicationCard';
 import { ARTICLE_KINDS } from '@/lib/articleHelpers';
@@ -158,6 +159,14 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
     return <EmbeddedAttestationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
+  // Kind 7849 quiz results (see NIP.md) get a compact card showing the
+  // taker's outcome. The generic fallback would render only the comment
+  // (or the `alt` tag) with no result — and feed it through the kind-1
+  // tokenizer.
+  if (event.kind === QUIZ_RESULT_KIND) {
+    return <EmbeddedQuizResultCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   // Kind 1068 NIP-88 polls get a compact card showing the question + a
   // preview of the options. Without this branch, polls fall through to
   // `EmbeddedNoteCard`, which has no concept of `option` tags and would
@@ -242,6 +251,70 @@ function EmbeddedHighlightCard({
         </blockquote>
       ) : (
         <p className="text-xs italic text-muted-foreground">Highlighted media</p>
+      )}
+    </EmbeddedCardShell>
+  );
+}
+
+/**
+ * Compact inline card for kind 7849 quiz results (see NIP.md).
+ * Shows the taker's comment (plain text — not the kind-1 tokenizer, since a
+ * result's content is short prose) and the denormalized outcome labels.
+ */
+function EmbeddedQuizResultCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+
+  const result = useMemo(() => parseQuizResult(event), [event]);
+
+  const summary = result
+    ? result.outcomes.length > 0
+      ? result.outcomes.map((o) => o.label).join(', ')
+      : result.scores.map((s) => `${s.label ?? s.dimension}: ${s.value}`).join(' · ')
+    : undefined;
+
+  const image = result?.outcomes.find((o) => o.image)?.image;
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={neventId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <ClipboardCheck className="size-3" />
+        Quiz result
+      </div>
+      {result?.comment && (
+        <p className="text-sm whitespace-pre-wrap break-words line-clamp-2 text-foreground">
+          {result.comment}
+        </p>
+      )}
+      {image && (
+        <img
+          src={image}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="max-h-32 w-full rounded-lg border object-cover"
+        />
+      )}
+      {summary ? (
+        <p className="text-base font-bold text-foreground line-clamp-2">{summary}</p>
+      ) : (
+        <p className="text-xs italic text-muted-foreground">Took a quiz</p>
       )}
     </EmbeddedCardShell>
   );

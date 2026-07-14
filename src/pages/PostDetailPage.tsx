@@ -47,6 +47,9 @@ import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { HighlightContent } from "@/components/HighlightContent";
+import { QuizContent } from "@/components/quiz/QuizContent";
+import { QuizResultContent } from "@/components/quiz/QuizResultContent";
+import { QUIZ_KIND, QUIZ_RESULT_KIND } from "@/lib/quiz";
 import { AttestationContent } from "@/components/AttestationContent";
 import { ATTESTATION_KIND } from "@/lib/attestation";
 import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
@@ -1362,6 +1365,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isHighlight = event.kind === 9802;
   const isAttestation = event.kind === ATTESTATION_KIND;
   const isCampaign = event.kind === 33863;
+  const isQuiz = event.kind === QUIZ_KIND;
+  const isQuizResult = event.kind === QUIZ_RESULT_KIND;
   const isVanish = event.kind === VANISH_KIND;
   const isZap = event.kind === 9735;
   const isOnchainZap = event.kind === 8333;
@@ -1402,6 +1407,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isHighlight &&
     !isAttestation &&
     !isCampaign &&
+    !isQuiz &&
+    !isQuizResult &&
     !isVanish &&
     !isZap &&
     !isOnchainZap &&
@@ -2677,6 +2684,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <AttestationContent event={event} expanded />
             ) : isCampaign ? (
               <CampaignContent event={event} expanded />
+            ) : isQuiz ? (
+              <QuizContent event={event} expanded />
+            ) : isQuizResult ? (
+              <QuizResultContent event={event} expanded />
             ) : isBlobbiState ? (
               <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
                 <BlobbiStateCard event={event} lookMode="follow-pointer" interactionReaction={blobbiReactionState} />

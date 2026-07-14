@@ -1,7 +1,7 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
-import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, Stars, UserCheck, Users } from 'lucide-react';
+import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, Stars, UserCheck, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -518,6 +518,37 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedOnly: true,
     blurb: 'Virtual pet companions living on Nostr. Care for them, watch them grow, and share their journey.',
   },
+  // Quizzes — kind 37849 quiz definitions (addressable) + kind 7849 quiz
+  // results (regular). See NIP.md.
+  {
+    kind: 37849,
+    id: 'quizzes',
+    showKey: 'showQuizzes',
+    label: 'Quizzes',
+    description: 'Quizzes & quiz results',
+    route: 'quizzes',
+    addressable: true,
+    section: 'whimsy',
+    blurb: 'Personality tests, trivia, sorting quizzes — create one, share it, and see which results your friends got. All scoring is transparent and declared in the event itself.',
+    subKinds: [
+      {
+        kind: 37849,
+        showKey: 'showQuizDefinitions',
+        feedKey: 'feedIncludeQuizzes',
+        label: 'Quizzes',
+        description: 'Quiz definitions',
+        addressable: true,
+      },
+      {
+        kind: 7849,
+        showKey: 'showQuizResults',
+        feedKey: 'feedIncludeQuizResults',
+        label: 'Quiz Results',
+        description: 'Results people shared after taking a quiz',
+        addressable: false,
+      },
+    ],
+  },
   // NIP-84 Highlights — kind 9802 (regular)
   {
     kind: 9802,
@@ -902,6 +933,7 @@ const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: st
   2473: Bird,
   12473: Bird,
   30621: Stars,
+  7849: ClipboardCheck,
 };
 
 /**

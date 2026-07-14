@@ -101,7 +101,8 @@ function getReferencedEventId(event: NostrEvent): string | undefined {
  * Returns a stable "group key" for a notification item.
  * Events that share the same group key will be condensed into one row.
  *
- * Reactions, reposts, zaps, and highlights group by (kind-bucket, referencedEventId).
+ * Reactions, reposts, zaps, highlights, and quiz results group by
+ * (kind-bucket, referencedEventId).
  * Lightning (9735) and on-chain (8333) zaps share a single "zap" bucket.
  * Mentions and comments each stand alone (group key == event id).
  */
@@ -109,7 +110,7 @@ function groupKey(item: NotificationItem): string {
   const { event } = item;
   const refId = item.referencedEvent?.id ?? getReferencedEventId(event);
 
-  if ((event.kind === 7 || event.kind === 6 || event.kind === 16 || event.kind === 9735 || event.kind === 8333 || event.kind === 9802) && refId) {
+  if ((event.kind === 7 || event.kind === 6 || event.kind === 16 || event.kind === 9735 || event.kind === 8333 || event.kind === 9802 || event.kind === 7849) && refId) {
     // Profile reactions (kind 7 on kind 0) are standalone — users can react
     // to a profile multiple times, so each reaction gets its own notification.
     const isProfileReaction = event.kind === 7 && (
@@ -319,7 +320,10 @@ export function useNotifications(): NotificationData {
         //
         // Highlights (9802) follow the same rule: only notify when the
         // highlighted source was authored by the current user.
-        if (ev.kind === 7 || ev.kind === 6 || ev.kind === 16 || ev.kind === 9802) {
+        //
+        // Quiz results (7849) reference the quiz through their `e` tag: only
+        // notify when the quiz being taken was authored by the current user.
+        if (ev.kind === 7 || ev.kind === 6 || ev.kind === 16 || ev.kind === 9802 || ev.kind === 7849) {
           if (referencedEvent && referencedEvent.pubkey !== user.pubkey) return [];
         }
 
