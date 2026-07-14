@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.30.1] - 2026-07-14
+
+Fixes a frustrating snag when tidying up your follow packs: editing a pack's details or members no longer leaves the page frozen and unclickable once you're done.
+
+### Fixed
+- Editing a follow pack's details or members no longer leaves the page unresponsive after the dialog closes
+
 ## [2.30.0] - 2026-07-14
 
 Take charge of your follow packs and lists. Owners can now edit the title, description, and cover image of their follow packs and lists right from the detail page, and manage members — adding or removing people — all from one place. Under the hood, Ditto is lighter on your battery and memory too: your Blobbi companion sips power while idle, and long scrolling feeds stay smooth without bogging down your phone.
