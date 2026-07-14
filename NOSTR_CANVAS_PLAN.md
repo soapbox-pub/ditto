@@ -181,7 +181,31 @@ and commit the isolated runtime-host change.
 Stop with red tests for permission and account-scope behavior. Review before
 implementation, then validate with the full suite and commit this phase.
 
-## Phase 4: Existing Sidebar Widget Integration
+## Phase 4: Existing Sidebar Widget Integration (Complete)
+
+Canvas widgets will remain a runtime-derived catalog. `WIDGET_DEFINITIONS` and
+`DEFAULT_SIDEBAR_WIDGETS` continue to describe native widgets only. The sidebar
+will derive `canvas:<identifier>` definitions only from installed, registered
+tiles that declare a `widget` tag, merge them with the native catalog for
+lookup and picking, and render their output through `useTile(identifier,
+{ placement: "widget" })` plus Ditto's `TileOutputView`. This hook owns the
+per-mount tile lifecycle, including destruction on removal and unmount.
+
+An installed coordinate whose definition cannot be resolved locally is kept as
+an existing sidebar configuration so it remains removable, but renders a
+compact recovery state rather than creating a runtime instance. It must not
+appear in the selectable widget catalog until its definition is restored.
+
+The widget picker now merges this runtime-derived Canvas catalog with the
+unchanged native registry. `CanvasTileWidget` uses the upstream `useTile` hook
+with `placement: "widget"`, sends interactions through Ditto's runtime, and
+lets the hook tear down the fresh instance when its widget is removed or the
+sidebar unmounts. Existing installed widgets with a missing local definition
+render a `/tiles` recovery link; uninstalled or stale widget IDs remain hidden
+using the existing unknown-widget behavior.
+
+Focused catalog and widget-host coverage was added. The complete `npm run
+test` suite passed before this phase's commit.
 
 ### Red tests
 

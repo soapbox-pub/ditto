@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { WIDGET_DEFINITIONS, WIDGET_CATEGORIES, widgetI18nStem } from '@/lib/sidebarWidgets';
+import { WIDGET_CATEGORIES, widgetI18nStem, type WidgetDefinition } from '@/lib/sidebarWidgets';
 import type { WidgetConfig } from '@/contexts/AppContext';
 import { cn } from '@/lib/utils';
 
@@ -19,20 +19,21 @@ interface WidgetPickerDialogProps {
   currentWidgets: WidgetConfig[];
   onAdd: (id: string) => void;
   onRemove: (id: string) => void;
+  definitions: WidgetDefinition[];
 }
 
 /** Dialog for adding/removing widgets from the sidebar. */
-export function WidgetPickerDialog({ open, onOpenChange, currentWidgets, onAdd, onRemove }: WidgetPickerDialogProps) {
+export function WidgetPickerDialog({ open, onOpenChange, currentWidgets, onAdd, onRemove, definitions }: WidgetPickerDialogProps) {
   const activeIds = useMemo(() => new Set(currentWidgets.map((w) => w.id)), [currentWidgets]);
 
   // Group widgets by category
   const grouped = useMemo(() => {
-    const groups: Record<string, typeof WIDGET_DEFINITIONS> = {};
-    for (const w of WIDGET_DEFINITIONS) {
+    const groups: Record<string, WidgetDefinition[]> = {};
+    for (const w of definitions) {
       (groups[w.category] ??= []).push(w);
     }
     return groups;
-  }, []);
+  }, [definitions]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
