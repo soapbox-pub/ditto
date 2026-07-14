@@ -132,6 +132,14 @@ export class CanvasTileInstallations {
     }
   }
 
+  setGrantedCapabilities(coordinate: InstalledCanvasTile, grants: Capability[]): void {
+    const event = this.getCachedDefinition(coordinate);
+    const parsed = event && parseTileDefEvent(event);
+    if (!parsed || !this.coordinates.has(coordinateKey(coordinate))) return;
+    this.writeGrants(parsed.identifier, parsed.perms.filter((permission) => grants.includes(permission)));
+    this.runtime.registerFromEvent(event);
+  }
+
   private applySettings(entry: CanvasTileSettings): void {
     const event = this.getCachedDefinition(entry);
     const parsed = event && parseTileDefEvent(event);

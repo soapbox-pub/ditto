@@ -1,5 +1,6 @@
 import type { FetchResult, NostrAdapter, NotifyVariant } from '@soapbox.pub/nostr-canvas';
 import type { NostrEvent, UnsignedEvent } from 'nostr-tools';
+import { proxyUrl } from '@/lib/proxyUrl';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 export interface CanvasAdapter extends NostrAdapter {
@@ -20,6 +21,7 @@ export interface CanvasAdapterServices {
   nip44Encrypt?: NonNullable<NostrAdapter['nip44Encrypt']>;
   nip44Decrypt?: NonNullable<NostrAdapter['nip44Decrypt']>;
   fetch?: typeof globalThis.fetch;
+  corsProxy?: () => string;
   notify?: (message: string, variant: NotifyVariant) => void;
 }
 
@@ -40,26 +42,39 @@ export function createCanvasAdapter(services: CanvasAdapterServices): CanvasAdap
   if (services.notify) adapter.notify = services.notify;
 
   adapter.navigate = async () => ({ ok: false, reason: 'not_implemented' });
-  if (services.fetch) adapter.fetch = createSafeFetch(services.fetch);
+  if (services.fetch) adapter.fetch = createSafeFetch(services.fetch, services.corsProxy);
 
   return adapter;
 }
 
-function createSafeFetch(fetcher: typeof globalThis.fetch): NonNullable<NostrAdapter['fetch']> {
+function createSafeFetch(fetcher: typeof globalThis.fetch, getCorsProxy?: () => string): NonNullable<NostrAdapter['fetch']> {
   return async (request, options): Promise<FetchResult> => {
     const url = sanitizeUrl(request.url);
     if (!url) return { ok: false, error: 'Only HTTPS URLs are allowed.' };
 
+    let endpoint: string;
+    try {
+      endpoint = sanitizeUrl(proxyUrl({ template: getCorsProxy?.() ?? '', url })) ?? '';
+    } catch {
+      endpoint = '';
+    }
+    if (!endpoint) return { ok: false, error: 'A secure CORS proxy is required for tile requests.' };
+
     const headers = Object.fromEntries(
-      Object.entries(request.headers ?? {}).filter(([name]) => !['authorization', 'cookie', 'proxy-authorization'].includes(name.toLowerCase())),
+      Object.entries(request.headers ?? {}).filter(([name]) => {
+        const lowerName = name.toLowerCase();
+        return !['authorization', 'cookie', 'proxy-authorization', 'x-csrf-token'].includes(lowerName) && !lowerName.startsWith('sec-') && !lowerName.startsWith('proxy-');
+      }),
     );
 
     try {
-      const response = await fetcher(url, {
+      const response = await fetcher(endpoint, {
         method: request.method,
         headers,
         body: request.body,
         credentials: 'omit',
+        mode: 'cors',
+        redirect: 'follow',
         signal: options?.signal,
       });
       return {

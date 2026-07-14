@@ -8,11 +8,13 @@ import { createCanvasAdapter, type CanvasAdapterServices } from '@/tiles/adapter
 import { CanvasTileInstallationsProvider } from '@/components/CanvasTileInstallationsProvider';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
 
 export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
   const servicesRef = useRef<CanvasAdapterServices | undefined>(undefined);
@@ -57,6 +59,7 @@ export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
       return user.signer.nip44.decrypt(sender, ciphertext);
     },
     fetch: globalThis.fetch,
+    corsProxy: () => config.corsProxy,
     notify: (message, variant) => toast({ title: message, variant: variant === 'danger' ? 'destructive' : 'default' }),
   };
 
@@ -71,6 +74,7 @@ export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
       nip44Encrypt: (recipient, plaintext, options) => servicesRef.current!.nip44Encrypt!(recipient, plaintext, options),
       nip44Decrypt: (sender, ciphertext, options) => servicesRef.current!.nip44Decrypt!(sender, ciphertext, options),
       fetch: (input, init) => servicesRef.current!.fetch!(input, init),
+      corsProxy: () => servicesRef.current!.corsProxy!(),
       notify: (message, variant) => servicesRef.current!.notify!(message, variant),
     });
   }

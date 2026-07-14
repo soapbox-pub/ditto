@@ -69,9 +69,13 @@ describe('createCanvasAdapter', () => {
     await expect(adapter.getContacts?.()).resolves.toEqual(['b'.repeat(64)]);
   });
 
-  it('only fetches HTTPS URLs without credentials or sensitive request headers', async () => {
+  it('proxies HTTPS requests without credentials or sensitive request headers', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response('safe response', { status: 200, headers: { 'content-type': 'text/plain' } }));
-    const adapter = createCanvasAdapter({ subscribe: () => () => {}, fetch });
+    const adapter = createCanvasAdapter({
+      subscribe: () => () => {},
+      fetch,
+      corsProxy: () => 'https://proxy.example/?url={href}',
+    });
 
     await expect(adapter.fetch?.({
       url: 'https://weather.example/api',
@@ -81,8 +85,8 @@ describe('createCanvasAdapter', () => {
     })).resolves.toMatchObject({ ok: true, status: 200, body: 'safe response' });
 
     expect(fetch).toHaveBeenCalledWith(
-      'https://weather.example/api',
-      expect.objectContaining({ credentials: 'omit', headers: { 'X-Trace': 'ok' } }),
+      'https://proxy.example/?url=https%3A%2F%2Fweather.example%2Fapi',
+      expect.objectContaining({ credentials: 'omit', headers: { 'X-Trace': 'ok' }, mode: 'cors' }),
     );
     await expect(adapter.fetch?.({ url: 'http://insecure.example' })).resolves.toMatchObject({ ok: false });
     expect(fetch).toHaveBeenCalledTimes(1);

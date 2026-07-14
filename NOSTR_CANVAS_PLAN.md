@@ -273,6 +273,12 @@ detail-page layout at narrow widths, keyboard drag/resize controls for sidebar
 widgets, visible keyboard focus rings, and reduced-motion-safe widget
 transitions.
 
+The settings area now includes a signed-in-only Tiles section for installed
+tiles. It exposes declared text, boolean, and dropdown settings through the
+encrypted settings backup, and lets users grant or revoke declared capabilities
+locally per account and device. Canvas fetches now use Ditto's configured CORS
+proxy while preserving HTTPS-only targets and stripped credentials.
+
 1. Perform keyboard, screen-reader, mobile, and reduced-motion checks on the
    marketplace, permission dialog, detail view, and sidebar widgets.
 2. Re-check bundle output and worker loading in Vite and Capacitor webviews.
