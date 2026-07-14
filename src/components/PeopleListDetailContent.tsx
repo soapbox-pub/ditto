@@ -528,11 +528,24 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem className="gap-2" onSelect={() => setEditOpen(true)}>
+                {/*
+                  Defer opening the dialog until the dropdown has fully closed.
+                  Radix locks `pointer-events: none` on <body> while a menu is
+                  open and only restores it on close; opening a Dialog
+                  synchronously in onSelect races that cleanup and leaves the
+                  lock stuck, which disables all clicks on the page.
+                */}
+                <DropdownMenuItem
+                  className="gap-2"
+                  onSelect={() => setTimeout(() => setEditOpen(true), 0)}
+                >
                   <Pencil className="size-4" />
                   Edit details
                 </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2" onSelect={() => setEditMembersOpen(true)}>
+                <DropdownMenuItem
+                  className="gap-2"
+                  onSelect={() => setTimeout(() => setEditMembersOpen(true), 0)}
+                >
                   <Users className="size-4" />
                   Edit members
                 </DropdownMenuItem>
