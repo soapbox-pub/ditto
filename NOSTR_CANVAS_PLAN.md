@@ -105,7 +105,18 @@ Parser, marketplace, and publication-card coverage was added. Focused tests and
 the complete `npm run test` suite passed before commit `c32a2a3e Add Nostr
 Canvas tile marketplace foundation`.
 
-## Phase 2: Runtime Host and Safe Tile Rendering
+## Phase 2: Runtime Host and Safe Tile Rendering (Complete)
+
+Added `CanvasRuntimeProvider` with a stable Rust worker pool, a Ditto-owned
+adapter for Nostrify queries, signing, profiles, NIP-44, notifications, and
+safe HTTPS-only fetches. The adapter strips credentials and sensitive headers,
+and `ctx.navigate()` remains an explicit no-op.
+
+`TileOutputView` renders the supported declarative output nodes through Ditto
+UI primitives, sanitizes event-provided URLs and markdown, and fails closed for
+`feed`, `comments`, and `nevent` nodes without fetching or routing. Focused
+adapter/output tests and the complete suite passed before commit `718335f7 Add
+Nostr Canvas runtime host`.
 
 ### Red tests
 
@@ -142,7 +153,18 @@ Stop with this phase's tests red before implementation. After approval, make
 them green, run `npm run test`, inspect the diff for security-boundary mistakes,
 and commit the isolated runtime-host change.
 
-## Phase 3: Installation, Permissions, and Persistence
+## Phase 3: Installation, Permissions, and Persistence (Complete)
+
+Added author-bound installed-tile coordinates and declared setting values to
+the encrypted kind-30078 settings backup. Raw kind-30207 definitions remain in
+local-only storage and are restored through author-constrained coordinate
+queries when absent on a new device.
+
+Installations now require an explicit per-capability decision, with grants kept
+local to the active account and device. Tile detail pages support install,
+update, and removal; invalid synced records and undeclared setting values are
+discarded. Focused persistence/schema tests and the complete suite passed
+before commit `b4e83445 Add Canvas tile installation persistence`.
 
 ### Red tests
 
@@ -205,7 +227,7 @@ render a `/tiles` recovery link; uninstalled or stale widget IDs remain hidden
 using the existing unknown-widget behavior.
 
 Focused catalog and widget-host coverage was added. The complete `npm run
-test` suite passed before this phase's commit.
+test` suite passed before commit `ac3c5d38 Add Canvas sidebar widgets`.
 
 ### Red tests
 
@@ -241,7 +263,9 @@ run `npm run test`, and commit.
 Canvas discovery remains available in Capacitor apps, but tile installation and
 Lua worker execution are browser-only until the native WebView path is verified.
 Native install/update actions show a clear availability dialog, and native
-sidebar widgets never mount a tile instance.
+sidebar widgets never mount a tile instance. Platform and execution-gate tests
+plus the complete suite passed before commit `9d36d14c Gate Canvas tiles to
+browsers`.
 
 1. Perform keyboard, screen-reader, mobile, and reduced-motion checks on the
    marketplace, permission dialog, detail view, and sidebar widgets.
