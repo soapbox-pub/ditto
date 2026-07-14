@@ -22,8 +22,8 @@
  */
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { validateBitcoinAddress } from '@/lib/bitcoin';
-import { isSilentPaymentAddress, validateSilentPaymentAddress } from '@/lib/silentPayments';
+import { validateBitcoinAddress } from '@/lib/bitcoinAddress';
+import { isSilentPaymentAddress, validateSilentPaymentAddress } from '@/lib/silentPaymentsCore';
 
 /** Replaceable kind for NIP-A3 payment targets. */
 export const PAYMENT_TARGETS_KIND = 10133;

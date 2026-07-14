@@ -1,7 +1,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { useNostr } from "@nostrify/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSeoMeta } from "@unhead/react";
+import { useSeoMeta } from "@/hooks/useSeoMeta";
 import {
 	ArrowLeft,
 	Clapperboard,

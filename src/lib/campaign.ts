@@ -1,6 +1,6 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { validateBitcoinAddress } from '@/lib/bitcoin';
+import { validateBitcoinAddress } from '@/lib/bitcoinAddress';
 import { getCountryInfo } from '@/lib/countries';
 
 /**

@@ -104,6 +104,8 @@ const AvatarImage = React.forwardRef<
 
   return (
     <img
+      loading="lazy"
+      decoding="async"
       {...props}
       ref={ref}
       alt=""

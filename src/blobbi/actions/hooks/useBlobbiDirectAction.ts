@@ -6,24 +6,25 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiCompanion } from '@blobbi-kit/core/blobbi';
 import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
-} from '@/blobbi/core/lib/blobbi';
-import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
+  buildBlobbiAddress,
+} from '@blobbi-kit/core/blobbi';
+import { applyBlobbiDecay } from '@blobbi-kit/core/blobbi-decay';
 import {
   clampStat,
   applyStat,
   DIRECT_ACTION_METADATA,
   type DirectAction,
 } from '../lib/blobbi-action-utils';
-import { trackMultipleDailyMissionActions, trackEvolutionMissionTally, readEvolutionFromStorage } from '../lib/daily-mission-tracker';
-import type { DailyMissionAction } from '../lib/daily-missions';
-import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
-import { getStreakTagUpdates } from '../lib/blobbi-streak';
-import { calculateActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
-import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@/blobbi/core/lib/blobbi-interaction';
+import { trackMultipleDailyMissionActions, trackEvolutionMissionTally, readEvolutionFromStorage } from '@blobbi-kit/react/lib/daily-mission-tracker';
+import type { DailyMissionAction } from '@blobbi-kit/react/lib/daily-missions';
+import { serializeEvolutionContent } from '@blobbi-kit/core/missions';
+import { getStreakTagUpdates } from '@blobbi-kit/react/lib/blobbi-streak';
+import { calculateActionXP, applyXPGain, formatXPGain } from '@blobbi-kit/react/lib/blobbi-xp';
+import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@blobbi-kit/core/blobbi-interaction';
 
 // Import NostrEvent type
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -212,7 +213,7 @@ export function useBlobbiDirectAction({
         // relay may not have it yet — but the 31124 was already updated
         // above, so the owner's UI is already correct via canonical state.
         // This invalidation ensures eventual consistency for the projection.
-        const coordinate = `31124:${canonical.companion.event.pubkey}:${canonical.companion.d}`;
+        const coordinate = buildBlobbiAddress(canonical.companion.event.pubkey, canonical.companion.d);
         queryClient.invalidateQueries({
           queryKey: ['blobbi-interactions', coordinate],
         });

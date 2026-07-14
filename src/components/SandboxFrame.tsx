@@ -200,6 +200,7 @@ const SANDBOX_ALLOW = [
   'microphone',
   'midi',
   'picture-in-picture',
+  'pointer-lock',
   'screen-wake-lock',
   'speaker-selection',
   'storage-access',
@@ -392,10 +393,13 @@ export const SandboxFrame = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
         //   allow-downloads: normal web-app affordances (form submission,
         //   alert/confirm/prompt, opening links in new tabs, exporting files)
         //   that webxdc/nsite content may legitimately rely on.
+        // - allow-pointer-lock: lets games (e.g. webxdc first-person shooters)
+        //   capture the mouse via requestPointerLock(). Escapable with Esc and
+        //   gated on a user gesture, so it's safe to delegate.
         // Notably omitted: allow-top-navigation (prevents window.top.location
-        // phishing redirects) and allow-pointer-lock / allow-presentation /
-        // allow-orientation-lock (unused niche capabilities).
-        sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads"
+        // phishing redirects) and allow-presentation / allow-orientation-lock
+        // (unused niche capabilities).
+        sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads allow-pointer-lock"
         {...iframeProps}
       />
     );

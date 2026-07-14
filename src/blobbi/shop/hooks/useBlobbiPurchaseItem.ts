@@ -6,13 +6,13 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { toast } from '@/hooks/useToast';
 
-import type { PurchaseRequest } from '../types/shop.types';
-import type { BlobbonautProfile, StorageItem } from '@/blobbi/core/lib/blobbi';
+import type { PurchaseRequest } from '@blobbi-kit/core/types/shop';
+import type { BlobbonautProfile, StorageItem } from '@blobbi-kit/core/blobbi';
 import {
   KIND_BLOBBONAUT_PROFILE,
   updateBlobbonautTags,
   createStorageTags,
-} from '@/blobbi/core/lib/blobbi';
+} from '@blobbi-kit/core/blobbi';
 import { getShopItemById } from '../lib/blobbi-shop-items';
 
 /**

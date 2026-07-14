@@ -1,14 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { Capacitor } from '@capacitor/core';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
 import { useFollowList } from './useFollowActions';
 import { LETTER_KIND } from '@/lib/letterTypes';
-import { ALL_NOTIFICATION_KINDS, getEnabledNotificationKinds } from '@/lib/notificationKinds';
+import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
 
 const PAGE_SIZE = 20;
 
@@ -57,6 +56,13 @@ interface NotificationPage {
   items: NotificationItem[];
   /** Oldest event timestamp in this page, used for cursor-based pagination. */
   oldestTimestamp: number;
+  /**
+   * Newest raw event timestamp in this page, BEFORE client-side filtering
+   * (e.g. dropping reactions on posts the user didn't author). The unread-dot
+   * query (useHasUnreadNotifications) sees those raw events too, so the read
+   * cursor must advance past them or the dot never clears. 0 when empty.
+   */
+  newestRawTimestamp: number;
 }
 
 export interface NotificationData {
@@ -66,7 +72,10 @@ export interface NotificationData {
   groupedItems: GroupedNotificationItem[];
   /** IDs of notifications newer than cursor (unread). */
   newNotificationIds: Set<string>;
-  /** Whether there are any unread notifications. */
+  /**
+   * Whether any notification event (including ones filtered out of `items`,
+   * which the nav-dot query also counts) is newer than the read cursor.
+   */
   hasUnread: boolean;
   /** Mark all current notifications as read. */
   markAsRead: () => Promise<void>;
@@ -214,7 +223,7 @@ export function useNotifications(): NotificationData {
   const infiniteQuery = useInfiniteQuery<NotificationPage, Error>({
     queryKey: ['notifications', user?.pubkey ?? '', kindsKey, authorsKey],
     queryFn: async ({ pageParam, signal }) => {
-      if (!user) return { items: [], oldestTimestamp: Math.floor(Date.now() / 1000) };
+      if (!user) return { items: [], oldestTimestamp: Math.floor(Date.now() / 1000), newestRawTimestamp: 0 };
 
       const filter: Record<string, unknown> = {
         kinds: enabledKinds,
@@ -244,6 +253,13 @@ export function useNotifications(): NotificationData {
       const oldestTimestamp = filtered.length > 0
         ? Math.min(...filtered.map((e) => e.created_at))
         : Math.floor(Date.now() / 1000);
+
+      // Track the newest raw timestamp (pre client-side filtering) so
+      // markAsRead can advance the cursor past events that the unread-dot
+      // query counts but this hook filters out of the visible list.
+      const newestRawTimestamp = filtered.length > 0
+        ? Math.max(...filtered.map((e) => e.created_at))
+        : 0;
 
       // Collect referenced event IDs for batch fetching
       const referencedIds: string[] = [];
@@ -315,7 +331,7 @@ export function useNotifications(): NotificationData {
         return [{ event: ev, referencedEvent }];
       });
 
-      return { items, oldestTimestamp };
+      return { items, oldestTimestamp, newestRawTimestamp };
     },
     getNextPageParam: (lastPage) => {
       if (!lastPage || lastPage.items.length === 0) return undefined;
@@ -324,7 +340,9 @@ export function useNotifications(): NotificationData {
     initialPageParam: undefined as number | undefined,
     enabled: !!user,
     staleTime: 30_000,
-    refetchInterval: Capacitor.isNativePlatform() ? false : 60_000,
+    // No polling — real-time updates come from the always-mounted
+    // NotificationStream component, which invalidates this query when a new
+    // notification event arrives over the persistent relay subscription.
   });
 
   const {
@@ -335,43 +353,6 @@ export function useNotifications(): NotificationData {
     isFetchingNextPage,
     fetchNextPage,
   } = infiniteQuery;
-
-  // Real-time subscription: open a persistent REQ with `since: now` so new
-  // notifications are detected immediately instead of waiting for the next poll.
-  // When any new event arrives, invalidate the query cache to trigger a refetch.
-  useEffect(() => {
-    if (!user || Capacitor.isNativePlatform()) return;
-
-    const ac = new AbortController();
-    const since = Math.floor(Date.now() / 1000);
-
-    (async () => {
-      try {
-        for await (const msg of nostr.req(
-          [{
-            kinds: [...ALL_NOTIFICATION_KINDS],
-            '#p': [user.pubkey],
-            since,
-          }],
-          { signal: ac.signal },
-        )) {
-          if (msg[0] === 'EVENT') {
-            const ev = msg[2];
-            // Ignore own events
-            if (ev.pubkey === user.pubkey) continue;
-            // New notification arrived — invalidate both the full list and the
-            // unread indicator so the UI updates immediately.
-            queryClient.invalidateQueries({ queryKey: ['notifications', user.pubkey] });
-            queryClient.invalidateQueries({ queryKey: ['notifications-unread', user.pubkey] });
-          }
-        }
-      } catch {
-        // AbortError on cleanup — expected
-      }
-    })();
-
-    return () => ac.abort();
-  }, [nostr, user, queryClient]);
 
   // Flatten and deduplicate across pages
   const items = useMemo(() => {
@@ -397,6 +378,14 @@ export function useNotifications(): NotificationData {
     ? Math.max(optimisticCursor.current, remoteCursor ?? 0)
     : remoteCursor;
 
+  // Newest raw event timestamp across all pages (0 when nothing fetched).
+  // Includes events filtered out of `items`, matching what the nav-dot
+  // query (useHasUnreadNotifications) sees at the relay level.
+  const newestEventTimestamp = useMemo(() => {
+    if (!data?.pages) return 0;
+    return Math.max(0, ...data.pages.map((page) => page.newestRawTimestamp ?? 0));
+  }, [data?.pages]);
+
   // Build set of unread notification IDs
   const newNotificationIds = useMemo(() => {
     if (notificationsCursor === null) return new Set<string>();
@@ -407,7 +396,10 @@ export function useNotifications(): NotificationData {
     );
   }, [items, notificationsCursor]);
 
-  const hasUnread = notificationsCursor !== null && newNotificationIds.size > 0;
+  // Base unread state on the raw timestamp, not just visible items — an
+  // unread event that got filtered out of the list still lights the nav dot,
+  // so it must still trigger (and be cleared by) markAsRead.
+  const hasUnread = notificationsCursor !== null && newestEventTimestamp > notificationsCursor;
 
   // Build grouped items for condensed display
   const groupedItems = useMemo(
@@ -417,9 +409,13 @@ export function useNotifications(): NotificationData {
 
   // Mark all current notifications as read by updating the cursor
   const markAsRead = useCallback(async () => {
-    if (!user || items.length === 0 || notificationsCursor === null) return;
+    if (!user || newestEventTimestamp === 0 || notificationsCursor === null) return;
 
-    const newestTimestamp = Math.max(...items.map((item) => item.event.created_at));
+    // Use the newest RAW timestamp so the cursor also passes events that were
+    // filtered out of the visible list (e.g. reactions to posts the user was
+    // merely tagged in). The unread-dot query counts those, so stopping short
+    // of them would leave the dot lit forever.
+    const newestTimestamp = newestEventTimestamp;
 
     if (newestTimestamp <= notificationsCursor) return;
 
@@ -442,8 +438,9 @@ export function useNotifications(): NotificationData {
       // propagates). That stale refetch re-queries the relay with the old
       // `since` value, finds the same "unread" events, returns `true`, and
       // overwrites the `false` we just set — causing the dot to reappear.
-      // The 60-second poll (or real-time subscription) will naturally
-      // re-evaluate once the cursor has fully propagated.
+      // The NotificationStream subscription will naturally re-evaluate when
+      // the next notification event arrives, by which point the cursor has
+      // fully propagated.
       queryClient.setQueriesData<boolean>(
         { queryKey: ['notifications-unread', user.pubkey] },
         false,
@@ -453,7 +450,7 @@ export function useNotifications(): NotificationData {
       optimisticCursor.current = null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.pubkey, items.length, notificationsCursor]);
+  }, [user?.pubkey, newestEventTimestamp, notificationsCursor]);
 
   return {
     items,

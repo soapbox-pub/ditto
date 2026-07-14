@@ -216,6 +216,9 @@ export function MentionAutocomplete({
         case 'Tab':
           if (profiles && profiles.length > 0) {
             e.preventDefault();
+            // Make sure no other keydown listener (e.g. a submit-on-Enter
+            // handler) also reacts to this keypress.
+            e.stopImmediatePropagation();
             selectProfile(profiles[selectedIndex]);
           }
           break;
@@ -272,7 +275,7 @@ export function MentionAutocomplete({
             profile={profile}
             isSelected={index === selectedIndex}
             isFollowed={followedPubkeys.has(profile.pubkey)}
-            onClick={() => selectProfile(profile)}
+            onSelect={() => selectProfile(profile)}
           />
         ))}
       </div>
@@ -288,12 +291,12 @@ function MentionItem({
   profile,
   isSelected,
   isFollowed,
-  onClick,
+  onSelect,
 }: {
   profile: SearchProfile;
   isSelected: boolean;
   isFollowed: boolean;
-  onClick: () => void;
+  onSelect: () => void;
 }) {
   const { metadata, pubkey } = profile;
   const displayName = metadata.name || metadata.display_name || 'Anonymous';
@@ -309,8 +312,13 @@ function MentionItem({
         'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors cursor-pointer',
         isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
       )}
-      onClick={onClick}
-      onMouseDown={(e) => e.preventDefault()}
+      // Select on pointer-down so it fires reliably on touch (a
+      // mousedown-preventDefault can swallow the synthetic click);
+      // preventDefault keeps the composer focused.
+      onPointerDown={(e) => {
+        e.preventDefault();
+        onSelect();
+      }}
     >
       <div className="relative shrink-0">
         <Avatar shape={getAvatarShape(metadata)} className="size-8">

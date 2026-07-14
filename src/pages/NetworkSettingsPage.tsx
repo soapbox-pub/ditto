@@ -1,4 +1,4 @@
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Navigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { RelayListManager } from '@/components/RelayListManager';

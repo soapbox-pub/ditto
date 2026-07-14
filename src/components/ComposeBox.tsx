@@ -7,6 +7,8 @@ import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { PartyHat } from '@/components/BirthdayRain';
+import { isBirthdayToday, parseBirthdayFromContent } from '@/lib/birthday';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,6 +32,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { usePostComment } from '@/hooks/usePostComment';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
+import { prependEventToFeeds } from '@/lib/feedUtils';
 import { useToast } from '@/hooks/useToast';
 import { ToastAction } from '@/components/ui/toast';
 import { tryNeventEncode } from '@/lib/safeNip19';
@@ -38,6 +41,7 @@ import type { EventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
 import { notificationSuccess } from '@/lib/haptics';
 import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, mimeFromExt } from '@/lib/mediaUrls';
+import { extractBlossomUris, blossomImetaTag } from '@/lib/blossomUri';
 
 /** Lazy-loaded EmojiPicker — keeps emoji-mart + its data out of the main bundle. */
 const LazyEmojiPicker = lazy(() => import('@/components/EmojiPicker').then(m => ({ default: m.EmojiPicker })));
@@ -193,9 +197,14 @@ export function ComposeBox({
   initialContent = '',
   initialMode = 'post',
 }: ComposeBoxProps) {
-  const { user, metadata, isLoading: isProfileLoading } = useCurrentUser();
+  const { user, metadata, event: userEvent, isLoading: isProfileLoading } = useCurrentUser();
   const avatarShape = getAvatarShape(metadata);
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
+  // NIP-24 birthday — the current user's own avatar wears a party hat all day.
+  const isUserBirthday = useMemo(
+    () => isBirthdayToday(parseBirthdayFromContent(userEvent?.content)),
+    [userEvent?.content],
+  );
   const { nostr } = useNostr();
   const { mutateAsync: createEvent, isPending, isPending: isPollPending } = useNostrPublish();
   const { mutateAsync: postComment, isPending: isCommentPending } = usePostComment();
@@ -233,6 +242,10 @@ export function ComposeBox({
   const [cwText, setCwText] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerTab, setPickerTab] = useState<'emoji' | 'gif' | 'stickers'>('emoji');
+  // While the user is actively searching GIFs or stickers, the results grid
+  // dominates the available height instead of the idle textarea.
+  const [gifSearchActive, setGifSearchActive] = useState(false);
+  const [stickerSearchActive, setStickerSearchActive] = useState(false);
   const [trayOpen, setTrayOpen] = useState(false);
   const [internalPreviewMode, setInternalPreviewMode] = useState(false);
 
@@ -252,7 +265,7 @@ export function ComposeBox({
   /** Maps .xdc URLs to extracted metadata (name + icon URL). */
   const [webxdcMetas, setWebxdcMetas] = useState<Map<string, { name?: string; iconUrl?: string }>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { insertAtCursor, insertEmoji: insertEmojiAtCursor } = useInsertText(textareaRef, content, setContent);
+  const { insertAtCursor, insertEmoji: insertEmojiAtCursor } = useInsertText(textareaRef, setContent);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Voice recording
@@ -319,17 +332,12 @@ export function ComposeBox({
   }, [content, draftKey, initialContent]);
 
   // On mobile, blur the textarea when the picker opens to dismiss the keyboard.
-  const pickerWasOpen = useRef(false);
+  // Refocusing on close happens synchronously inside the close gesture handlers
+  // (toggle button, GIF/sticker select) — iOS only raises the keyboard for
+  // focus() calls made during a user gesture, so a delayed effect won't work.
   useEffect(() => {
-    if (!isMobile) return;
-    if (pickerOpen) {
+    if (isMobile && pickerOpen) {
       textareaRef.current?.blur();
-      pickerWasOpen.current = true;
-    } else if (pickerWasOpen.current) {
-      // Refocus after picker closes so the user can keep typing
-      pickerWasOpen.current = false;
-      const timer = setTimeout(() => textareaRef.current?.focus(), 150);
-      return () => clearTimeout(timer);
     }
   }, [pickerOpen, isMobile]);
 
@@ -473,10 +481,19 @@ export function ComposeBox({
   // Detect webxdc attachments for preview mode
   const hasWebxdc = useMemo(() => webxdcUuids.size > 0, [webxdcUuids]);
 
+  // Detect BUD-10 blossom: media URIs (image/video/audio) for preview mode.
+  const hasBlossomMedia = useMemo(() => {
+    if (!content) return false;
+    return extractBlossomUris(content).some(({ uri }) => {
+      const mime = mimeFromExt(uri.ext);
+      return mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/');
+    });
+  }, [content]);
+
   // Check if content has any previewable content (link previews, images, videos, audio, webxdc, mentions, or custom emojis)
   const hasPreviewableContent = useMemo(() => {
-    return visibleEmbeds.length > 0 || hasPreviewImages || previewVideos.length > 0 || previewAudios.length > 0 || hasWebxdc || hasMentions || hasCustomEmojis;
-  }, [visibleEmbeds, hasPreviewImages, previewVideos, previewAudios, hasWebxdc, hasMentions, hasCustomEmojis]);
+    return visibleEmbeds.length > 0 || hasPreviewImages || previewVideos.length > 0 || previewAudios.length > 0 || hasWebxdc || hasMentions || hasCustomEmojis || hasBlossomMedia;
+  }, [visibleEmbeds, hasPreviewImages, previewVideos, previewAudios, hasWebxdc, hasMentions, hasCustomEmojis, hasBlossomMedia]);
 
   // Notify parent of previewable content changes
   useEffect(() => {
@@ -562,6 +579,13 @@ export function ComposeBox({
         }
         tags.push(imetaTag);
       }
+    }
+
+    // NIP-92 / BUD-10: imeta for blossom: media URIs so preview matches publish.
+    for (const { uri, raw } of extractBlossomUris(content)) {
+      if (processedUrls.has(raw)) continue;
+      processedUrls.add(raw);
+      tags.push(blossomImetaTag(uri, raw));
     }
     
     return {
@@ -787,16 +811,21 @@ export function ComposeBox({
         });
       } else {
         // Root voice message (kind 1222)
-        await createEvent({
+        const published = await createEvent({
           kind: 1222,
           content: audioUrl,
           tags: [imetaTag],
         });
+        // Optimistically show the new voice post in cached feeds.
+        prependEventToFeeds(queryClient, published);
       }
 
       // Reset state
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (replyTo) {
+        // Voice replies aren't injected into feeds; just mark them stale for
+        // the next natural refetch (see prependEventToFeeds for why there's
+        // no immediate refetch).
+        queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
         // Rebroadcast the original event alongside the voice reply (best-effort).
         if (!isExternalRoot(replyTo)) {
           rebroadcastEvent(nostr, replyTo);
@@ -827,14 +856,16 @@ export function ComposeBox({
       const hashtags = extractHashtags(content);
       const tags: string[][] = hashtags.map((t) => ['t', t]);
 
-      // NIP-27 mention p tags — extract nostr:npub1... from content
-      const mentionMatches = content.matchAll(/nostr:(npub1[023456789acdefghjklmnpqrstuvwxyz]+)/g);
+      // NIP-27 mention p tags — extract nostr:npub1/nprofile1 from content
+      const mentionMatches = content.matchAll(/nostr:((?:npub1|nprofile1)[023456789acdefghjklmnpqrstuvwxyz]+)/g);
       const mentionedPubkeys = new Set<string>();
       for (const match of mentionMatches) {
         try {
           const decoded = nip19.decode(match[1]);
           if (decoded.type === 'npub') {
             mentionedPubkeys.add(decoded.data);
+          } else if (decoded.type === 'nprofile') {
+            mentionedPubkeys.add(decoded.data.pubkey);
           }
         } catch {
           // Invalid bech32, skip
@@ -966,6 +997,13 @@ export function ComposeBox({
         }
       }
 
+      // NIP-92 / BUD-10: Add imeta tags for blossom: media URIs in content.
+      for (const { uri, raw } of extractBlossomUris(finalContent)) {
+        if (processedUrls.has(raw)) continue;
+        processedUrls.add(raw);
+        tags.push(blossomImetaTag(uri, raw));
+      }
+
 
 
       let published: NostrEvent;
@@ -1007,13 +1045,21 @@ export function ComposeBox({
             const rootKind = K ? parseInt(K, 10) : 0;
             const rootPubkey = P ?? '';
 
-            if (A) {
+            // Root coordinates: prefer the uppercase A tag, but fall back to
+            // the lowercase a parent tag — some clients omit A and reference
+            // an addressable root only via E + a. Without this fallback the
+            // reconstructed root loses its d-tag and we'd publish a malformed
+            // `A` value like "37516:<pubkey>:".
+            const addrValue = A ?? replyTo.tags.find(([n]) => n === 'a')?.[1];
+
+            if (addrValue) {
               // Addressable/replaceable root: extract d-tag from the A value
-              const dValue = parseAddr(A)?.identifier ?? '';
+              const parsedAddr = parseAddr(addrValue);
+              const dValue = parsedAddr?.identifier ?? '';
               root = {
                 id: E ?? '',
-                kind: rootKind,
-                pubkey: rootPubkey,
+                kind: rootKind || (parsedAddr?.kind ?? 0),
+                pubkey: rootPubkey || (parsedAddr?.pubkey ?? ''),
                 content: '',
                 created_at: 0,
                 sig: '',
@@ -1062,7 +1108,18 @@ export function ComposeBox({
           prev ? { ...prev, replies: prev.replies + 1 } : prev,
         );
       }
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      // Optimistically prepend the new event to every cached feed page-set so
+      // it appears immediately without waiting for a relay round-trip.
+      // Only inject for top-level posts (not replies) — replies are handled by
+      // the replies list and the reply-count bump above.
+      if (!replyTo) {
+        prependEventToFeeds(queryClient, published);
+      } else {
+        // Replies aren't injected into feeds, but mark them stale (without an
+        // immediate refetch — see prependEventToFeeds) for the next natural
+        // refetch in case "show replies" is enabled.
+        queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
+      }
       if (replyTo) {
         if (isExternalRoot(replyTo)) {
           queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
@@ -1127,12 +1184,20 @@ export function ComposeBox({
       }
     }
 
+    // NIP-92 / BUD-10: Add imeta tags for blossom: media URIs in content.
+    for (const { uri, raw } of extractBlossomUris(finalContent)) {
+      if (processedUrls.has(raw)) continue;
+      processedUrls.add(raw);
+      tags.push(blossomImetaTag(uri, raw));
+    }
+
     tags.push(['alt', `Poll: ${finalContent}`]);
 
     try {
-      await createEvent({ kind: 1068, content: finalContent, tags });
+      const published = await createEvent({ kind: 1068, content: finalContent, tags });
       resetComposeState();
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      // Optimistically show the new poll in cached feeds.
+      prependEventToFeeds(queryClient, published);
       notificationSuccess();
       toast({ title: 'Poll published!' });
       onSuccess?.();
@@ -1145,6 +1210,10 @@ export function ComposeBox({
   const isPollValid = content.trim().length > 0 && pollFilledCount >= 2;
 
   const isExpanded = forceExpanded || expanded || content.length > 0 || !compact;
+  const searchDominant = pickerOpen && (
+    (pickerTab === 'gif' && gifSearchActive) ||
+    (pickerTab === 'stickers' && stickerSearchActive)
+  );
 
   // Early return after all hooks to avoid violating Rules of Hooks
   if (!user && compact) return null;
@@ -1191,13 +1260,20 @@ export function ComposeBox({
           isProfileLoading ? (
             <Skeleton className="size-12 shrink-0 mt-0.5 rounded-full" />
           ) : (
-            <Link to={userProfileUrl} className="shrink-0">
-              <Avatar shape={avatarShape} className="size-12 shrink-0 mt-0.5">
+            <Link to={userProfileUrl} className="relative shrink-0 mt-0.5">
+              <Avatar shape={avatarShape} className="size-12">
                 <AvatarImage src={metadata?.picture} alt={metadata?.name} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
                   {(metadata?.name || metadata?.display_name || 'Anonymous')[0]?.toUpperCase() ?? '?'}
                 </AvatarFallback>
               </Avatar>
+              {/* Birthday party hat — perched on the current user's avatar
+                  all day. Nothing clips it here, so it sits up on the head. */}
+              {isUserBirthday && (
+                <div className="pointer-events-none absolute -top-3 -right-1.5 z-10 rotate-[18deg]">
+                  <PartyHat className="size-8 drop-shadow-sm" pomScale={1.15} />
+                </div>
+              )}
             </Link>
           )
         )}
@@ -1247,8 +1323,8 @@ export function ComposeBox({
         ) : (
           /* Preview mode - Show how post will look */
           mockEvent && (
-            <div className="pt-2.5 pb-2 min-h-[100px] overflow-hidden">
-              <div className="text-lg opacity-85 [&_img]:max-w-full [&_img]:h-auto">
+            <div className="pt-2.5 pb-2 min-h-[100px] overflow-hidden motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200">
+              <div className="text-lg opacity-85">
                 <NoteContent event={mockEvent} className="text-foreground" />
               </div>
             </div>
@@ -1257,7 +1333,7 @@ export function ComposeBox({
 
         {/* Poll options + settings — shown below the normal textarea/preview */}
         {mode === 'poll' && (
-          <div className="space-y-3 pt-1">
+          <div className="space-y-3 pt-1 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-2 motion-safe:duration-200">
             {/* Back to post link — hidden when poll mode is the only mode */}
             {initialMode !== 'poll' && (
               <button
@@ -1273,7 +1349,7 @@ export function ComposeBox({
             {/* Options */}
             <div className="space-y-1.5">
               {pollOptions.map((opt, idx) => (
-                <div key={opt.id} className="flex items-center gap-2">
+                <div key={opt.id} className="flex items-center gap-2 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-150">
                   <input
                     type="text"
                     value={opt.label}
@@ -1354,7 +1430,7 @@ export function ComposeBox({
 
         {/* Content warning input */}
         {cwEnabled && (
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-200">
             <AlertTriangle className="size-4 text-amber-500 shrink-0" />
             <Input
               value={cwText}
@@ -1394,7 +1470,7 @@ export function ComposeBox({
         {isExpanded && (
           voiceRecorder.isRecording || isPublishingVoice ? (
             /* ── Voice recording UI ─────────────────────────────── */
-            <div className="flex items-center gap-3 mt-3 rounded-xl bg-destructive/5 border border-destructive/20 px-3 py-2.5">
+            <div className="flex items-center gap-3 mt-3 rounded-xl bg-destructive/5 border border-destructive/20 px-3 py-2.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-200">
               {/* Recording indicator */}
               <div className="flex items-center gap-2 min-w-0">
                 <div className="size-2.5 rounded-full bg-destructive animate-pulse shrink-0" />
@@ -1424,7 +1500,7 @@ export function ComposeBox({
                     type="button"
                     onClick={voiceRecorder.cancelRecording}
                     disabled={isPublishingVoice}
-                    className="p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
+                    className="p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all motion-safe:active:scale-90 disabled:opacity-40"
                   >
                     <X className="size-[18px]" />
                   </button>
@@ -1449,7 +1525,7 @@ export function ComposeBox({
             </div>
           ) : (
             /* ── Normal toolbar ──────────────────────────────────── */
-            <div className={cn("flex items-center justify-between mt-3", forceExpanded && "shrink-0")}>
+            <div className={cn("flex items-center justify-between mt-3 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-150", forceExpanded && "shrink-0")}>
               {/* Left: action icons */}
               <div className="flex items-center gap-1">
                 {/* File upload */}
@@ -1459,7 +1535,7 @@ export function ComposeBox({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isUploading || !user}
-                      className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40"
+                      className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all motion-safe:active:scale-90 disabled:opacity-40"
                     >
                       {isUploading ? <Loader2 className="size-[18px] animate-spin" /> : <Paperclip className="size-[18px]" />}
                     </button>
@@ -1490,7 +1566,7 @@ export function ComposeBox({
                         type="button"
                         onClick={handleStartRecording}
                         disabled={!user}
-                        className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40"
+                        className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all motion-safe:active:scale-90 disabled:opacity-40"
                       >
                         <Mic className="size-[18px]" />
                       </button>
@@ -1504,9 +1580,17 @@ export function ComposeBox({
                    <TooltipTrigger asChild>
                      <button
                        type="button"
-                       onClick={() => setPickerOpen((v) => !v)}
+                       disabled={!user}
+                       onClick={() => {
+                         if (pickerOpen) {
+                           // Refocus synchronously within the tap gesture so
+                           // iOS raises the keyboard again.
+                           textareaRef.current?.focus();
+                         }
+                         setPickerOpen(!pickerOpen);
+                       }}
                        className={cn(
-                         'p-2 rounded-full transition-colors',
+                         'p-2 rounded-full transition-all motion-safe:active:scale-90 disabled:opacity-40',
                          pickerOpen
                            ? 'text-primary bg-primary/10'
                            : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
@@ -1527,7 +1611,8 @@ export function ComposeBox({
                           type="button"
                           disabled={!user}
                           className={cn(
-                            'p-2 rounded-full transition-colors disabled:opacity-40',
+                            'p-2 rounded-full transition-all motion-safe:active:scale-90 disabled:opacity-40',
+                            trayOpen && 'motion-safe:rotate-45',
                             (trayOpen || mode === 'poll' || cwEnabled)
                               ? 'text-primary bg-primary/10'
                               : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
@@ -1584,7 +1669,7 @@ export function ComposeBox({
                   <Button
                     onClick={handlePollSubmit}
                     disabled={!isPollValid || isPollPending || !user}
-                    className="rounded-full px-5 font-bold"
+                    className="rounded-full px-5 font-bold transition-all motion-safe:active:scale-95"
                     size="sm"
                   >
                     {isPollPending ? 'Publishing...' : 'Publish poll'}
@@ -1593,7 +1678,7 @@ export function ComposeBox({
                   <Button
                     onClick={handleSubmit}
                     disabled={!content.trim() || isPending || isCommentPending || !user || charCount > MAX_CHARS}
-                    className="rounded-full px-5 font-bold"
+                    className="rounded-full px-5 font-bold transition-all motion-safe:active:scale-95"
                     size="sm"
                   >
                     {isPending || isCommentPending ? 'Posting...' : 'Post!'}
@@ -1604,17 +1689,31 @@ export function ComposeBox({
           )
         )}
 
-      {/* Inline emoji / GIF / sticker picker panel — rendered outside the
-          padded content area so it bleeds edge-to-edge. */}
+      {/* Inline emoji / GIF / sticker picker panel — full-bleed sheet with
+          its own background and rounded top. The entrance animates transform
+          and opacity only (compositor-friendly); layout changes happen in a
+          single reflow so nothing fights keyboard/viewport resizes. */}
       {pickerOpen && (
-        <div className={cn("-mx-4 shrink-0 overflow-hidden animate-in fade-in-0 duration-150", forceExpanded && "rounded-b-2xl")}>
+        <div className={cn(
+          "-mx-4 mt-2 shrink-0 overflow-hidden rounded-t-2xl bg-popover motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200",
+          forceExpanded && "rounded-b-2xl",
+          // While searching GIFs or stickers in the modal, grow to claim
+          // nearly all free space. basis-0 + shrink are critical: with the
+          // default `shrink-0 basis-auto` the tray sizes to the grid's
+          // content height and silently overflows the modal, leaving the
+          // scroller with nothing to scroll. This only applies on mobile,
+          // where the dialog has a fixed (visual-viewport) height; on desktop
+          // the dialog is `h-auto` and the inner content carries an explicit
+          // height instead, so reset to the default sizing there.
+          searchDominant && forceExpanded && "flex flex-col grow-[999] shrink basis-0 min-h-0 sm:grow-0 sm:shrink-0 sm:basis-auto",
+        )}>
           {/* Tab bar — pill highlight style for inline mode */}
-          <div className="flex gap-1 px-3 pt-2">
+          <div className="flex gap-1 px-3 pt-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setPickerTab('emoji')}
                 className={cn(
-                  'flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
+                  'flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all motion-safe:active:scale-95',
                   pickerTab === 'emoji'
                     ? 'bg-primary/15 text-primary'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted',
@@ -1627,24 +1726,24 @@ export function ComposeBox({
                 type="button"
                 onClick={() => setPickerTab('gif')}
                 className={cn(
-                  'flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
+                  'flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all motion-safe:active:scale-95',
                   pickerTab === 'gif'
                     ? 'bg-primary/15 text-primary'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted',
                 )}
               >
-                <svg width="14" height="14" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <svg className="block size-3.5 shrink-0" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                   <rect x="1" y="1" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.5" fill="none"/>
                   <text x="9" y="9" textAnchor="middle" dominantBaseline="central" fontSize="7" fontWeight="700" fontFamily="system-ui,sans-serif" fill="currentColor" letterSpacing="0.5">GIF</text>
                 </svg>
                 GIF
               </button>
-              {customEmojis.length > 0 && (
+              {customEmojisEnabled && (
                 <button
                   type="button"
                   onClick={() => setPickerTab('stickers')}
                   className={cn(
-                    'flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
+                    'flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all motion-safe:active:scale-95',
                     pickerTab === 'stickers'
                       ? 'bg-primary/15 text-primary'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted',
@@ -1655,40 +1754,71 @@ export function ComposeBox({
                 </button>
               )}
             </div>
-            {/* Picker content */}
-            {pickerTab === 'emoji' ? (
-              <Suspense fallback={<div className="w-full h-[280px] flex items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
-                <LazyEmojiPicker
+            {/* Picker content — capped to a fraction of the *visible* viewport
+                (via --visual-viewport-height, set by the compose modal) so the
+                virtual keyboard (e.g. while searching) never squeezes the
+                composer out of the screen. During an active GIF/sticker search
+                the results dominate: fill the tray in the modal, or take half
+                the viewport inline. */}
+            <div className={cn(
+              "min-h-[160px]",
+              searchDominant
+                // In the modal, fill the fixed-height sheet with `flex-1`. That
+                // only works on mobile, where the dialog is sized to the visual
+                // viewport; on desktop the dialog is `h-auto` (capped at 85dvh),
+                // so a `flex-1`/`basis-0` child has no free space to claim and
+                // collapses to `min-h-[160px]` — the "clicking search collapses
+                // the section" bug. Give desktop an explicit tall height.
+                ? (forceExpanded ? "flex-1 sm:flex-none sm:h-[min(420px,50dvh)]" : "h-[min(420px,50dvh)]")
+                : "h-[min(280px,calc(var(--visual-viewport-height,100dvh)*0.4))]",
+            )}>
+              {/* Keyed on the active tab so switching cross-fades the content */}
+              <div key={pickerTab} className="h-full motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-150">
+              {pickerTab === 'emoji' ? (
+                <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
+                  <LazyEmojiPicker
+                    customEmojis={customEmojis}
+                    height="100%"
+                    onSelect={(selection) => {
+                      if (selection.type === 'native') {
+                        insertEmoji(selection.emoji);
+                      } else {
+                        insertEmoji(`:${selection.shortcode}:`);
+                      }
+                    }}
+                  />
+                </Suspense>
+              ) : pickerTab === 'stickers' ? (
+                <StickerPicker
                   customEmojis={customEmojis}
-                  onSelect={(selection) => {
-                    if (selection.type === 'native') {
-                      insertEmoji(selection.emoji);
-                    } else {
-                      insertEmoji(`:${selection.shortcode}:`);
-                    }
+                  height="100%"
+                  autoFocus={!isMobile}
+                  onSearchActiveChange={setStickerSearchActive}
+                  onSelect={(emoji) => {
+                    setContent((prev) => (prev ? prev + '\n' + emoji.url : emoji.url));
+                    setPickerOpen(false);
+                    expand();
+                    // Within the tap gesture, so iOS raises the keyboard again.
+                    textareaRef.current?.focus();
                   }}
                 />
-              </Suspense>
-            ) : pickerTab === 'stickers' ? (
-              <StickerPicker
-                customEmojis={customEmojis}
-                height={280}
-                autoFocus={!isMobile}
-                onSelect={(emoji) => {
-                  setContent((prev) => (prev ? prev + '\n' + emoji.url : emoji.url));
-                  setPickerOpen(false);
-                  expand();
-                }}
-              />
-            ) : (
-              <GifPicker onSelect={(gif) => {
-                setContent((prev) => (prev ? prev + '\n' + gif.url : gif.url));
-                setPickerOpen(false);
-                expand();
-              }} />
-            )}
-          </div>
-        )}
+              ) : (
+                <GifPicker
+                  autoFocus={!isMobile}
+                  onSearchActiveChange={setGifSearchActive}
+                  onSelect={(gif) => {
+                    setContent((prev) => (prev ? prev + '\n' + gif.url : gif.url));
+                    setPickerOpen(false);
+                    expand();
+                    // Within the tap gesture, so iOS raises the keyboard again.
+                    textareaRef.current?.focus();
+                  }}
+                />
+              )}
+              </div>{/* end keyed tab content */}
+            </div>{/* end viewport-capped height */}
+        </div>
+      )}
 
     </div>
   );

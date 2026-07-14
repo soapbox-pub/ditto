@@ -97,6 +97,26 @@ const BACKGROUND_HEARTS: Array<{
   { style: { bottom: '14%', right: '12%' }, size: 'size-7', rotate: 'rotate-6', opacity: 0.09 },
 ];
 
+/**
+ * A few hearts that float up from the bottom of the sheet like lava-lamp
+ * bubbles, on a slow staggered loop — an ambient touch, kept to a handful so
+ * the infinite animation stays cheap even when love-list cards appear in a
+ * feed.
+ */
+const FLOATING_HEARTS: Array<{
+  left: string;
+  size: string;
+  opacity: number;
+  sway: number;
+  duration: number;
+  delay: number;
+}> = [
+  { left: '18%', size: 'size-5', opacity: 0.5, sway: 16, duration: 7, delay: 0 },
+  { left: '46%', size: 'size-4', opacity: 0.4, sway: -14, duration: 8.5, delay: 2.4 },
+  { left: '68%', size: 'size-6', opacity: 0.45, sway: 20, duration: 6.5, delay: 4.2 },
+  { left: '84%', size: 'size-4', opacity: 0.35, sway: -12, duration: 9, delay: 1.2 },
+];
+
 // ---------------------------------------------------------------------------
 // A single loved one, written on a ruled line
 // ---------------------------------------------------------------------------
@@ -234,14 +254,38 @@ export function LoveListContent({ event, compact, className }: LoveListContentPr
             style={{ border: '2.5px dashed rgba(192, 57, 43, 0.4)' }}
           />
 
-          {/* Drifting background hearts */}
+          {/* Drifting background hearts — a gentle side-to-side sway. Only
+              ~12 per card and translate-only, so it composites cheaply. */}
           {BACKGROUND_HEARTS.map((h, i) => (
-            <Heart
+            <span
               key={i}
               aria-hidden
-              className={cn('absolute pointer-events-none', h.size, h.rotate)}
-              style={{ ...h.style, color: '#E74C3C', fill: '#E74C3C', opacity: h.opacity }}
-            />
+              className="absolute pointer-events-none motion-safe:animate-heart-drift"
+              style={{ ...h.style, animationDelay: `${(i % 4) * 0.5}s`, animationDuration: `${4 + (i % 3)}s` }}
+            >
+              <Heart
+                className={cn('block', h.size, h.rotate)}
+                style={{ color: '#E74C3C', fill: '#E74C3C', opacity: h.opacity }}
+              />
+            </span>
+          ))}
+
+          {/* Hearts floating up from the bottom of the sheet (ambient loop) */}
+          {FLOATING_HEARTS.map((h, i) => (
+            <span
+              key={`float-${i}`}
+              aria-hidden
+              className="absolute pointer-events-none motion-safe:animate-heart-float"
+              style={{
+                left: h.left,
+                animationDelay: `${h.delay}s`,
+                '--float-sway': `${h.sway}px`,
+                '--float-opacity': h.opacity,
+                '--float-duration': `${h.duration}s`,
+              } as CSSProperties}
+            >
+              <Heart className={cn('block', h.size)} style={{ color: '#E74C3C', fill: '#E74C3C' }} />
+            </span>
           ))}
 
           {/* Subtle paper edge shading */}

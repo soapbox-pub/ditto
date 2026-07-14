@@ -126,14 +126,25 @@ export function useFollowActions(): UseFollowActionsReturn {
         // ⑤ Preserve the content field (relay hints / petnames in some clients)
         const content = prev?.content ?? '';
 
-        await publishEvent({
+        const published = await publishEvent({
           kind: 3,
           content,
           tags: newTags,
           prev: prev ?? undefined,
         });
 
-        // ⑥ Invalidate cached follow-list queries so UI updates
+        // ⑥ Optimistically reflect the new follow list immediately. Relays often
+        // haven't indexed the just-published event yet, so an immediate refetch
+        // would read stale data and the UI wouldn't update until a later reload.
+        // Seed the store + query cache with the event we just published so the
+        // cache-fallback path in `fetchContactList` is also correct.
+        void store.event(published);
+        queryClient.setQueryData<FollowListData>(['follow-list', user.pubkey], {
+          event: published,
+          pubkeys: contactListPubkeys(published),
+        });
+
+        // ⑦ Invalidate so the relay copy stays authoritative once it propagates.
         queryClient.invalidateQueries({ queryKey: ['follow-list'] });
       } finally {
         setIsPending(false);
@@ -181,14 +192,23 @@ export function useFollowActions(): UseFollowActionsReturn {
         if (newPTags.length === 0) return 0;
 
         // ④ Publish (non-p tags first, then existing p tags, then new p tags)
-        await publishEvent({
+        const published = await publishEvent({
           kind: 3,
           content: prev?.content ?? '',
           tags: [...nonPTags, ...existingPTags, ...newPTags],
           prev: prev ?? undefined,
         });
 
-        // ⑤ Invalidate cached follow-list queries so UI updates
+        // ⑤ Optimistically reflect the new follow list immediately (see
+        // mutateFollowList for why we seed the store + cache before the relay
+        // has indexed the event).
+        void store.event(published);
+        queryClient.setQueryData<FollowListData>(['follow-list', user.pubkey], {
+          event: published,
+          pubkeys: contactListPubkeys(published),
+        });
+
+        // ⑥ Invalidate so the relay copy stays authoritative once it propagates.
         queryClient.invalidateQueries({ queryKey: ['follow-list'] });
 
         return newPTags.length;

@@ -1,4 +1,4 @@
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { ChevronRight, Settings } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';

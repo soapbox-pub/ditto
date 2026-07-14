@@ -12,18 +12,66 @@ import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
 /** Interface for the native DittoNotification Capacitor plugin. */
 interface DittoNotificationPlugin {
   configure(options: { userPubkey?: string; relayUrls?: string[]; enabledKinds?: number[]; authors?: string[]; notificationStyle?: string }): Promise<void>;
+  /** Android: whether the app is exempt from battery optimizations (Doze). */
+  isIgnoringBatteryOptimizations(): Promise<{ ignoring: boolean }>;
+  /**
+   * Android: show the one-tap system dialog to grant the exemption.
+   * Resolves when the dialog closes, with the fresh exemption state.
+   */
+  requestIgnoreBatteryOptimizations(): Promise<{ ignoring: boolean }>;
 }
 
 const DittoNotification = registerPlugin<DittoNotificationPlugin>('DittoNotification');
 
 /**
+ * Check whether Ditto is exempt from Android battery optimizations.
+ *
+ * Battery optimization can cut the background relay connection that drives
+ * "persistent" notification mode, and on Android 15+ the exemption is also
+ * required to restart the foreground service after a reboot.
+ *
+ * Returns `true` (exempt / nothing to do) on non-Android platforms or when
+ * the native method is unavailable (older app binary), so callers never show
+ * a false warning.
+ */
+export async function isIgnoringBatteryOptimizations(): Promise<boolean> {
+  if (Capacitor.getPlatform() !== 'android') return true;
+  try {
+    const { ignoring } = await DittoNotification.isIgnoringBatteryOptimizations();
+    return ignoring;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Open the one-tap system dialog asking the user to exempt Ditto from
+ * battery optimizations. Resolves once the dialog closes, returning the
+ * fresh exemption state (`true` = exempt) so callers can update their UI
+ * immediately — the dialog overlays the WebView without hiding it, so no
+ * visibilitychange event fires when it closes. No-op outside Android.
+ */
+export async function requestIgnoreBatteryOptimizations(): Promise<boolean> {
+  if (Capacitor.getPlatform() !== 'android') return true;
+  try {
+    const { ignoring } = await DittoNotification.requestIgnoreBatteryOptimizations();
+    return ignoring;
+  } catch (err) {
+    console.error('[notifications] Failed to request battery optimization exemption:', err);
+    // The request may still have opened a settings screen — re-check.
+    return isIgnoringBatteryOptimizations();
+  }
+}
+
+/**
  * Manages the native Android notification service via Capacitor.
  *
  * Passes user pubkey + relay URLs + enabled notification kinds + optional
- * authors filter to the DittoNotification plugin so it can poll for events
- * in the background. Respects the NIP-78 notificationsEnabled setting
- * (defaults to on), per-type notification preferences, and the "only from
- * people I follow" setting.
+ * authors filter to the DittoNotification plugin. In "persistent" mode the
+ * native service holds live WebSocket subscriptions to those relays and
+ * shows notifications the moment events arrive. Respects the NIP-78
+ * notificationsEnabled setting (defaults to on), per-type notification
+ * preferences, and the "only from people I follow" setting.
  *
  * Web Push (nostr-push) is handled separately by usePushNotifications +
  * NotificationSettings — this hook is Capacitor-only.
@@ -52,9 +100,12 @@ export function useNativeNotifications(): void {
     ? followedPubkeys
     : undefined;
 
-  // Request native notification permission on first mount.
+  // Request native notification permission once the user logs in. Asking at
+  // app launch (before login) wastes the one system prompt on a moment with
+  // no context — the user hasn't done anything notifiable yet, so denial is
+  // the likely outcome and Android remembers it.
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!Capacitor.isNativePlatform() || !user) return;
 
     (async () => {
       try {
@@ -66,7 +117,7 @@ export function useNativeNotifications(): void {
         // Permission check failed — ignore
       }
     })();
-  }, []);
+  }, [user]);
 
   // Configure / deconfigure the native polling service.
   useEffect(() => {

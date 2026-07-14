@@ -14,14 +14,12 @@ import { ScrollToTop } from "./components/ScrollToTop";
 import { VersionCheck } from "./components/VersionCheck";
 import { useCurrentUser } from "./hooks/useCurrentUser";
 import { useProfileUrl } from "./hooks/useProfileUrl";
-import { getExtraKindDef } from "./lib/extraKinds";
+import { getExtraKindDef, getSectionKinds } from "./lib/extraKinds";
 
 // Critical-path pages: eagerly loaded (landing + fallback)
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-
-// Lazy-loaded companion layer (~450K code-split)
-const BlobbiCompanionLayer = lazy(() => import("@/blobbi/companion").then(m => ({ default: m.BlobbiCompanionLayer })));
+import { BlobbiCompanionGate } from "@/components/BlobbiCompanionGate";
 
 // Lazy-loaded compose modal (pulls in emoji-mart ~620K)
 const ReplyComposeModal = lazy(() => import("@/components/ReplyComposeModal").then(m => ({ default: m.ReplyComposeModal })));
@@ -91,7 +89,6 @@ const packsDef = getExtraKindDef("packs")!;
 const articlesDef = getExtraKindDef("articles")!;
 const decksDef = getExtraKindDef("decks")!;
 const emojisDef = getExtraKindDef("emojis")!;
-const developmentDef = getExtraKindDef("development")!;
 const highlightsDef = getExtraKindDef("highlights")!;
 
 /** Polls feed page with a FAB that opens the compose modal (poll mode via + menu). */
@@ -155,9 +152,7 @@ export function AppRouter() {
         <ScrollToTop />
         <HighlightSelectionButton />
         <BlobbiActionsProvider>
-          <Suspense fallback={null}>
-            <BlobbiCompanionLayer />
-          </Suspense>
+          <BlobbiCompanionGate />
           <Routes>
           {/* Auto-follow deep link: fullscreen immersive (no sidebars/nav) */}
           <Route path="/follow/:npub" element={<FollowPage />} />
@@ -225,7 +220,7 @@ export function AppRouter() {
             />
             <Route path="/webxdc" element={<WebxdcFeedPage />} />
             <Route path="/articles/new" element={<ArticleEditorPage />} />
-            <Route path="/articles/edit/:naddr" element={<ArticleEditorPage />} />
+            <Route path="/articles/edit/:slug" element={<ArticleEditorPage />} />
             <Route
               path="/articles"
               element={
@@ -263,11 +258,8 @@ export function AppRouter() {
               path="/development"
               element={
                 <KindFeedPage
-                  kind={[
-                    developmentDef.kind,
-                    ...(developmentDef.extraFeedKinds ?? []),
-                  ]}
-                  title={developmentDef.label}
+                  kind={getSectionKinds("development")}
+                  title="Development"
                   icon={sidebarItemIcon("development", "size-5")}
                   showFAB={false}
                 />

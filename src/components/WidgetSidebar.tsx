@@ -6,15 +6,13 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
   SortableContext,
   verticalListSortingStrategy,
   useSortable,
   arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+  CSS,
+  type DragEndEvent,
+} from '@/lib/sortable';
 import { Plus } from 'lucide-react';
 
 import { WidgetCard } from '@/components/WidgetCard';
@@ -212,6 +210,9 @@ export function WidgetSidebar() {
     });
   }, [updateWidgets]);
 
+  // `hidden lg:flex` must stay in sync with MainLayout's useMediaQuery
+  // gate (min-width: 1024px) — below `lg` this component is not mounted
+  // at all, so phones don't pay for widget chunks and queries.
   return (
     <aside className="w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-2">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

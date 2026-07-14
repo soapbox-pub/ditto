@@ -10,13 +10,12 @@ import { DITTO_RELAYS } from '@/lib/appRelays';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useInterests } from '@/hooks/useInterests';
-import { useMuteList } from '@/hooks/useMuteList';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { buildTagFilterValues } from '@/lib/tagFilterValues';
 import { PageHeader } from '@/components/PageHeader';
-import { isEventMuted } from '@/lib/muteHelpers';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 interface TagFeedPageProps {
@@ -67,7 +66,7 @@ export function TagFeedPage({
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { feedSettings } = useFeedSettings();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const interestTagName = filterKey === '#g' ? 'g' : 't';
   const { hasInterest, addInterest, removeInterest } = useInterests(interestTagName);
 
@@ -100,9 +99,9 @@ export function TagFeedPage({
   });
 
   const filteredEvents = useMemo(() => {
-    if (!events || muteItems.length === 0) return events;
-    return events.filter((e) => !isEventMuted(e, muteItems));
-  }, [events, muteItems]);
+    if (!events) return events;
+    return events.filter((e) => !isMuted(e));
+  }, [events, isMuted]);
 
   return (
     <main className="">

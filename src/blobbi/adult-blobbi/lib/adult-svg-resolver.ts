@@ -5,14 +5,14 @@
  * Each adult form has its own folder with base and sleeping variants.
  */
 
-import type { Blobbi } from '@/blobbi/core/types/blobbi';
+import type { Blobbi } from '@blobbi-kit/core/types/blobbi';
 import { 
   type AdultForm, 
   type AdultSvgResolverOptions,
   ADULT_FORMS,
   resolveAdultForm,
   getDefaultAdultForm,
-} from '../types/adult.types';
+} from '@blobbi-kit/core/types/adult';
 import { ADULT_SVG_MAP } from './adult-svg-data';
 
 // ─── Public API ───────────────────────────────────────────────────────────────

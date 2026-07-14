@@ -25,6 +25,8 @@ interface EmojiPickerProps {
 	onSelect: (selection: EmojiSelection) => void;
 	/** NIP-30 custom emojis to display in a dedicated tab. */
 	customEmojis?: CustomEmoji[];
+	/** Picker height (px number or CSS length, e.g. '100%'). Defaults to 280px. */
+	height?: number | string;
 }
 
 interface EmojiMartEmoji {
@@ -48,7 +50,7 @@ interface EmojiMartEmoji {
  * Custom NIP-30 emojis are added via emoji-mart's `custom` prop, which renders
  * them in a dedicated tab alongside the standard Unicode categories.
  */
-export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
+export function EmojiPicker({ onSelect, customEmojis, height = 280 }: EmojiPickerProps) {
 	useTheme(); // subscribe to theme changes so resolvedTheme stays fresh
 	const isMobile = useIsMobile();
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -143,7 +145,10 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
 			if (shadowRoot) {
 				const style = document.createElement("style");
 				style.textContent = [
-					":host { width: 100% !important; height: 280px !important; min-height: 160px !important; border-radius: 0 !important; box-shadow: none !important; }",
+					// Fill the wrapper div, which owns the picker height (see the
+					// `height` prop) — this lets containers size the picker to the
+					// visible viewport instead of a fixed 280px.
+					":host { width: 100% !important; height: 100% !important; min-height: 0 !important; border-radius: 0 !important; box-shadow: none !important; }",
 					"#root { width: 100% !important; background-color: transparent !important; --sidebar-width: 0px !important; }",
 					".scroll { padding-right: var(--padding) !important; }",
 					".sticky { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background-color: transparent !important; }",
@@ -191,7 +196,7 @@ export function EmojiPicker({ onSelect, customEmojis }: EmojiPickerProps) {
 		<div
 			ref={containerRef}
 			className="emoji-mart-wrapper w-full"
-			style={{ isolation: "isolate" }}
+			style={{ isolation: "isolate", height }}
 			onWheel={(e) => {
 				// Prevent scroll from bubbling to the page
 				e.stopPropagation();

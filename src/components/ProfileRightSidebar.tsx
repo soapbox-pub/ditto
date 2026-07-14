@@ -20,11 +20,15 @@ import QRCode from 'qrcode';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useBlossomFallback } from '@/hooks/useBlossomFallback';
+import { getEffectiveBlossomServers } from '@/lib/appBlossom';
+import { extractBlossomUris, resolveBlossomUri, resolveBlossomUrl } from '@/lib/blossomUri';
 import { getContentWarning } from '@/lib/contentWarning';
 import { MiniAudioPlayer } from '@/components/MiniAudioPlayer';
 import { isAudioUrl, isImageUrl, isVideoUrl } from '@/lib/mediaTypeDetection';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { parseDimToAspectRatio } from '@/lib/mediaUtils';
+import { mimeFromExt } from '@/lib/mediaUrls';
 import { isWeatherFieldLabel } from '@/lib/weatherStation';
 import { WeatherStationCard } from '@/components/WeatherStationCard';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
@@ -131,8 +135,12 @@ function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: strin
   return {};
 }
 
-/** Extract media items from an array of events (pure function, no query). */
-function extractMedia(events: NostrEvent[], cwPolicy: string): MediaItem[] {
+/** Extract media items from an array of events (pure function, no query).
+ *
+ * @param blossomServers - The viewer's effective Blossom servers, used to
+ * resolve BUD-10 `blossom:` URIs into fetchable HTTPS URLs.
+ */
+function extractMedia(events: NostrEvent[], cwPolicy: string, blossomServers: string[]): MediaItem[] {
   const items: MediaItem[] = [];
   const seen = new Set<string>();
 
@@ -144,7 +152,8 @@ function extractMedia(events: NostrEvent[], cwPolicy: string): MediaItem[] {
 
     // For media-native kinds (vines etc.), extract from imeta tags
     if (event.kind !== 1) {
-      const { url, blurhash, dim, mime } = extractImetaFields(event);
+      const { url: rawUrl, blurhash, dim, mime } = extractImetaFields(event);
+      const url = rawUrl ? resolveBlossomUrl(rawUrl, blossomServers) : undefined;
       if (url && !seen.has(url)) {
         seen.add(url);
         const dTag = event.tags.find(([n]) => n === 'd')?.[1];
@@ -162,6 +171,18 @@ function extractMedia(events: NostrEvent[], cwPolicy: string): MediaItem[] {
         const { blurhash, dim, mime } = extractImetaFields(event, url);
         items.push({ url, blurhash, dim, mime, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
       }
+    }
+
+    // BUD-10 blossom: media URIs in kind 1 content — resolve to HTTPS blob URLs.
+    // The imeta lookup uses the raw blossom: URI, since that's what's in the tag.
+    for (const { uri, raw } of extractBlossomUris(event.content)) {
+      const mime = mimeFromExt(uri.ext);
+      if (!/^(image|video|audio)\//.test(mime)) continue;
+      const [url] = resolveBlossomUri(uri, blossomServers);
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      const { blurhash, dim } = extractImetaFields(event, raw);
+      items.push({ url, blurhash, dim, mime, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
     }
   }
 
@@ -184,6 +205,8 @@ function MediaTile({ item }: { item: MediaItem }) {
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const { config } = useAppContext();
+  // Content-addressed Blossom URLs get automatic fallback across servers.
+  const { src, onError } = useBlossomFallback(item.url);
   const isVideo = isVideoItem(item);
 
   useEffect(() => {
@@ -212,7 +235,7 @@ function MediaTile({ item }: { item: MediaItem }) {
       )}
       {isVideo ? (
         <video
-          src={item.url}
+          src={src}
           data-no-native-poster=""
           poster={BLANK_POSTER}
           className="absolute inset-0 w-full h-full object-cover"
@@ -222,15 +245,17 @@ function MediaTile({ item }: { item: MediaItem }) {
           playsInline
           preload="metadata"
           onLoadedData={() => setLoaded(true)}
+          onError={onError}
         />
       ) : (
         <img
           ref={imgRef}
-          src={item.url}
+          src={src}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
           loading="lazy"
           onLoad={() => setLoaded(true)}
+          onError={onError}
         />
       )}
     </div>
@@ -531,8 +556,12 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
   });
 
   const media = useMemo(
-    () => extractMedia(sidebarEvents ?? [], config.contentWarningPolicy),
-    [sidebarEvents, config.contentWarningPolicy],
+    () => extractMedia(
+      sidebarEvents ?? [],
+      config.contentWarningPolicy,
+      getEffectiveBlossomServers(config.blossomServerMetadata, config.useAppBlossomServers),
+    ),
+    [sidebarEvents, config.contentWarningPolicy, config.blossomServerMetadata, config.useAppBlossomServers],
   );
 
   const sidebarRows = useMemo(() => sidebarJustifiedLayout(media), [media]);

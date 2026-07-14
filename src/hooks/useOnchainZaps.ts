@@ -2,7 +2,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { fetchTxDetail, nostrPubkeyToBitcoinAddress } from '@/lib/bitcoin';
+import { fetchTxDetail } from '@/lib/esploraApi';
 import { useAppContext } from '@/hooks/useAppContext';
 import { isNostrId } from '@/lib/nostrId';
 /** A single verified on-chain zap, with the amount that actually paid the recipient on-chain. */
@@ -118,7 +118,10 @@ export async function verifyOnchainZap(
   if (recipientPubkeys.includes(event.pubkey)) return null;
 
   // Derive the expected Taproot address for each recipient, plus the
-  // sender's so we can exclude change outputs.
+  // sender's so we can exclude change outputs. Address derivation needs
+  // `@scure/btc-signer` (~150 kB raw), which we keep out of the entry
+  // bundle — load it on demand here (we're already async).
+  const { nostrPubkeyToBitcoinAddress } = await import('@/lib/bitcoin');
   const recipientAddresses = new Set<string>();
   for (const pk of recipientPubkeys) {
     const addr = nostrPubkeyToBitcoinAddress(pk);

@@ -15,8 +15,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
 
 import { useComments } from '@/hooks/useComments';
-import { useMuteList } from '@/hooks/useMuteList';
-import { isEventMuted } from '@/lib/muteHelpers';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { formatTime } from '@/lib/formatTime';
 import { formatNumber } from '@/lib/formatNumber';
@@ -65,7 +64,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
   const { user } = useCurrentUser();
 
   const stats = useEventStats(event.id, event);
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
 
   const [replyOpen, setReplyOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -76,9 +75,8 @@ function TrackDetail({ event }: { event: NostrEvent }) {
   const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);
   const comments = useMemo(() => {
     const top = commentsData?.topLevelComments ?? [];
-    if (muteItems.length === 0) return top;
-    return top.filter((r) => !isEventMuted(r, muteItems));
-  }, [commentsData?.topLevelComments, muteItems]);
+    return top.filter((r) => !isMuted(r));
+  }, [commentsData?.topLevelComments, isMuted]);
 
   const hashtags = event.tags.filter(([n]) => n === 't').map(([, v]) => v);
 

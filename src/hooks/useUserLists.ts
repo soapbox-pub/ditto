@@ -16,6 +16,7 @@ import { useNostrPublish } from './useNostrPublish';
 import { useFollowPacks } from './useFollowPacks';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { isNostrId } from '@/lib/nostrId';
+import { rollbackQuery } from '@/lib/optimisticEvent';
 import type { NostrEvent, NostrSigner } from '@nostrify/nostrify';
 
 export interface UserList {
@@ -199,6 +200,22 @@ export function useUserLists() {
 
   const lists: UserList[] = listsQuery.data ?? [];
 
+  const listsKey = ['user-lists', user?.pubkey];
+
+  /**
+   * Optimistically transform the cached UserList[] and return a snapshot for
+   * rollback. Keeps the four list mutations DRY.
+   */
+  function optimisticLists(transform: (lists: UserList[]) => UserList[]): UserList[] | undefined {
+    const snapshot = queryClient.getQueryData<UserList[]>(listsKey);
+    queryClient.setQueryData<UserList[]>(listsKey, (old) => transform(old ?? []));
+    return snapshot;
+  }
+
+  function rollbackLists(snapshot: UserList[] | undefined): void {
+    rollbackQuery(queryClient, listsKey, snapshot);
+  }
+
   /** Create a new list. Returns the created UserList. */
   const createList = useMutation({
     mutationFn: async ({ title, description, pubkeys = [] }: { title: string; description?: string; pubkeys?: string[] }) => {
@@ -251,6 +268,20 @@ export function useUserLists() {
         prev,
       });
     },
+    // Optimistically add the pubkey so isInList() flips instantly.
+    onMutate: ({ listId, pubkey }: { listId: string; pubkey: string }) => {
+      const snapshot = optimisticLists((old) =>
+        old.map((l) =>
+          l.id === listId && !l.pubkeys.includes(pubkey)
+            ? { ...l, pubkeys: [...l.pubkeys, pubkey] }
+            : l,
+        ),
+      );
+      return { snapshot };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx) rollbackLists(ctx.snapshot);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-lists', user?.pubkey] });
     },
@@ -285,6 +316,24 @@ export function useUserLists() {
         tags: newTags,
         prev,
       });
+    },
+    // Optimistically drop the pubkey so isInList() flips instantly.
+    onMutate: ({ listId, pubkey }: { listId: string; pubkey: string }) => {
+      const snapshot = optimisticLists((old) =>
+        old.map((l) =>
+          l.id === listId
+            ? {
+                ...l,
+                pubkeys: l.pubkeys.filter((pk) => pk !== pubkey),
+                privatePubkeys: l.privatePubkeys.filter((pk) => pk !== pubkey),
+              }
+            : l,
+        ),
+      );
+      return { snapshot };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx) rollbackLists(ctx.snapshot);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-lists', user?.pubkey] });
@@ -321,6 +370,16 @@ export function useUserLists() {
         tags: newTags,
         prev,
       });
+    },
+    // Optimistically rename so the list title updates instantly.
+    onMutate: ({ listId, title }: { listId: string; title: string }) => {
+      const snapshot = optimisticLists((old) =>
+        old.map((l) => (l.id === listId ? { ...l, title: title.trim() } : l)),
+      );
+      return { snapshot };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx) rollbackLists(ctx.snapshot);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-lists', user?.pubkey] });

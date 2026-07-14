@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSeoMeta } from '@unhead/react';
-import { useInView } from 'react-intersection-observer';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
+import { useInView } from '@/hooks/useInView';
 import {
   ArrowLeft,
   ExternalLink,

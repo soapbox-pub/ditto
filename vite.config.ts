@@ -123,6 +123,39 @@ function getCommitTag(): string {
   }
 }
 
+/**
+ * Vite plugin that removes legacy `.woff` fallback sources from @font-face
+ * `src` lists in imported CSS (the static @fontsource packages ship each font
+ * as `url(x.woff2) format('woff2'), url(x.woff) format('woff')`).
+ *
+ * Every runtime Ditto supports — modern browsers, iOS WKWebView, Android
+ * WebView — supports WOFF2 (universal since ~2016; the app's `esnext` build
+ * target excludes anything older), so the `format()` negotiation never selects
+ * the WOFF branch. Stripping the reference before Vite's CSS pipeline resolves
+ * `url()`s means the ~46 duplicate .woff assets (~1 MB) are never emitted:
+ * they'd otherwise be packed verbatim into the APK/IPA (already-compressed
+ * font data, so zip can't shrink it) and published to nsite.
+ *
+ * Variable fonts (@fontsource-variable/*) are woff2-only and unaffected.
+ */
+function stripWoffFallbacks(): Plugin {
+  return {
+    name: "ditto:strip-woff-fallbacks",
+    enforce: "pre", // run before vite:css resolves url() references
+    transform(code, id) {
+      if (!id.includes("@fontsource") || !/\.css(\?|$)/.test(id)) return;
+      // Remove `, url(<anything>.woff) format('woff')` fallback clauses.
+      // Only matches bare .woff (the woff2 clause says format('woff2')).
+      const stripped = code.replace(
+        /,\s*url\([^)]+\.woff\)\s*format\(['"]woff['"]\)/g,
+        "",
+      );
+      if (stripped === code) return;
+      return { code: stripped, map: null };
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -144,6 +177,7 @@ export default defineConfig(({ mode }) => {
   },
   plugins: [
     react(),
+    stripWoffFallbacks(),
     visualizer({
       filename: "dist/bundle.html",
       template: "treemap",
@@ -162,11 +196,23 @@ export default defineConfig(({ mode }) => {
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
+    // Only run Ditto's own tests. Blobbi lives in the published @blobbi-kit/*
+    // packages (node_modules), whose internal tests are not part of this run.
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
     onConsoleLog(log) {
       return !log.includes("React Router Future Flag Warning");
     },
     env: {
       DEBUG_PRINT_LIMIT: '0', // Suppress DOM output that exceeds AI context windows
+    },
+    server: {
+      deps: {
+        // Inline the published @blobbi-kit packages so Vitest transforms them
+        // through its pipeline. Without this they resolve as externalized
+        // node_modules, and `vi.mock()` calls in tests (e.g. mocking
+        // '@nostrify/react') never intercept the imports made inside them.
+        inline: [/@blobbi-kit\//],
+      },
     },
   },
   build: {
@@ -199,10 +245,20 @@ export default defineConfig(({ mode }) => {
     exclude: ['@capacitor/filesystem', '@capacitor/share'],
   },
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
+    alias: [
+      // @blobbi-kit/core and @blobbi-kit/react resolve through their installed
+      // package exports in node_modules (published npm packages), not source aliases.
+      { find: "@", replacement: path.resolve(__dirname, "./src") },
+    ],
+    // Dedupe the React-context-bearing singletons so a dependency can't pull in a
+    // second copy of them (which breaks useContext).
+    dedupe: [
+      'react',
+      'react-dom',
+      'react/jsx-runtime',
+      '@nostrify/react',
+      '@tanstack/react-query',
+    ],
   },
 };
 });

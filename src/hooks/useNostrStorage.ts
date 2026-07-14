@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { NostrStorageContext } from '@/contexts/NostrStorageContext';
-import type { NIndexedDB } from '@/lib/NIndexedDB';
+import type { NIndexedDB } from '@nostrify/indexeddb';
 
 /**
  * Access the app-wide IndexedDB event store.

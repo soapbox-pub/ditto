@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Heart } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
@@ -10,8 +10,9 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserReaction } from '@/hooks/useUserReaction';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
+import { isCustomEmoji } from '@/lib/customEmoji';
 import { formatNumber } from '@/lib/formatNumber';
-import { impactLight } from '@/lib/haptics';
+import { impactLight, impactMedium } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import type { EventStats } from '@/hooks/useTrending';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -36,6 +37,30 @@ interface ReactionButtonProps {
   filledHeart?: boolean;
 }
 
+/**
+ * Send-side reaction burst: particles radiating from the icon when the user
+ * reacts — small copies of the chosen emoji, or pink dots as the fallback —
+ * plus a shockwave ring and a squash-and-release pop of the icon itself.
+ * Deterministic geometry: evenly spaced rays at a uniform radius so the
+ * burst reads as a circle, angled so no ray points straight down into the
+ * card's overflow-hidden edge. The spark/halo layers detonate 90ms after
+ * the icon starts its squash (see the `reaction-*` animations in the
+ * tailwind config) so the whole thing lands as one percussive hit.
+ */
+const BURST_RADIUS = 24;
+const BURST_RAY_COUNT = 8;
+const BURST_RAYS = Array.from({ length: BURST_RAY_COUNT }, (_, i) => {
+  const angle = (i / BURST_RAY_COUNT) * Math.PI * 2 - Math.PI / 2 + Math.PI / BURST_RAY_COUNT;
+  return {
+    x: Math.cos(angle) * BURST_RADIUS,
+    y: Math.sin(angle) * BURST_RADIUS,
+    color: i % 2 === 0 ? '#ec4899' : '#f9a8d4',
+  };
+});
+
+/** Covers the 90ms detonation delay + 0.6s spark animation. */
+const BURST_DURATION_MS = 800;
+
 export function ReactionButton({
   eventId,
   eventPubkey,
@@ -56,6 +81,23 @@ export function ReactionButton({
   const userReaction = useUserReaction(eventId);
 
   const hasReacted = !!userReaction;
+
+  // Send-side burst feedback. Triggered explicitly from the two react paths
+  // (double-click ❤️ and QuickReactMenu pick) rather than by watching
+  // `hasReacted`, which also flips when the relay query resolves an old
+  // reaction on load. The burst echoes the chosen emoji; custom emojis
+  // (`:shortcode:` image reactions) fall back to pink dots since their
+  // images turn to mud at particle size.
+  const [burst, setBurst] = useState<{ emoji?: string } | null>(null);
+  const triggerBurst = useCallback((emoji?: string) => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    setBurst({ emoji: emoji && !isCustomEmoji(emoji) ? emoji : undefined });
+  }, []);
+  useEffect(() => {
+    if (!burst) return;
+    const timeout = setTimeout(() => setBurst(null), BURST_DURATION_MS);
+    return () => clearTimeout(timeout);
+  }, [burst]);
 
   const handleUnreact = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -158,7 +200,8 @@ export function ReactionButton({
             e.stopPropagation();
             if (!user) return;
             if (hasReacted) return;
-            impactLight();
+            impactMedium();
+            triggerBurst('❤️');
             setMenuOpen(false);
             const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
             queryClient.setQueryData(['user-reaction', eventId], { content: '❤️' });
@@ -196,13 +239,49 @@ export function ReactionButton({
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          {filledHeart ? (
-            <Heart className="size-6" fill={hasReacted ? 'currentColor' : 'none'} />
-          ) : hasReacted && userReaction ? (
-            <RenderResolvedEmoji emoji={userReaction} className="h-5 w-5 object-contain leading-none translate-y-px" />
-          ) : (
-            <Heart className="size-5" />
-          )}
+          <span className="relative flex items-center justify-center">
+            <span
+              className={cn(
+                'flex items-center justify-center',
+                burst && 'motion-safe:animate-reaction-pop',
+              )}
+            >
+              {filledHeart ? (
+                <Heart className="size-6" fill={hasReacted ? 'currentColor' : 'none'} />
+              ) : hasReacted && userReaction ? (
+                <RenderResolvedEmoji emoji={userReaction} className="h-5 w-5 object-contain leading-none translate-y-px" />
+              ) : (
+                <Heart className="size-5" />
+              )}
+            </span>
+            {burst && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 flex items-center justify-center motion-reduce:hidden"
+              >
+                {/* Shockwave ring */}
+                <span className="absolute size-6 rounded-full border-2 border-pink-500/60 animate-reaction-halo" />
+                {BURST_RAYS.map((ray, i) => (
+                  <span
+                    key={i}
+                    className={cn(
+                      'absolute animate-reaction-spark select-none',
+                      !burst.emoji && 'size-1.5 rounded-full',
+                    )}
+                    style={{
+                      fontSize: burst.emoji ? 12 : undefined,
+                      lineHeight: burst.emoji ? 1 : undefined,
+                      backgroundColor: burst.emoji ? undefined : ray.color,
+                      '--spark-x': `${ray.x}px`,
+                      '--spark-y': `${ray.y}px`,
+                    } as React.CSSProperties}
+                  >
+                    {burst.emoji}
+                  </span>
+                ))}
+              </span>
+            )}
+          </span>
           {reactionCount > 0 && (
             <span className={cn('text-sm tabular-nums', hasReacted && 'text-pink-500')}>{formatNumber(reactionCount)}</span>
           )}
@@ -222,6 +301,7 @@ export function ReactionButton({
           eventPubkey={eventPubkey}
           eventKind={eventKind}
           reactedEvent={reactedEvent}
+          onReacted={triggerBurst}
           onExpandChange={(expanded) => {
             pickerExpandedRef.current = expanded;
           }}

@@ -1,4 +1,4 @@
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Feed } from '@/components/Feed';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';

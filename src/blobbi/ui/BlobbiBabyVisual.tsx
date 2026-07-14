@@ -24,8 +24,8 @@ import type { ExternalEyeOffset, BlobbiReactionState, BlobbiRenderMode } from '.
 import type { BlobbiVisualRecipe } from './lib/recipe';
 import type { BlobbiEmotion } from './lib/emotion-types';
 import type { BodyEffectsSpec } from './lib/bodyEffects';
-import type { Blobbi } from '@/blobbi/core/types/blobbi';
-import { isBlobbiSleeping } from '@/blobbi/core/types/blobbi';
+import type { Blobbi } from '@blobbi-kit/core/types/blobbi';
+import { isBlobbiSleeping } from '@blobbi-kit/core/types/blobbi';
 import { BlobbiBabySvgRenderer } from './BlobbiBabySvgRenderer';
 
 export interface BlobbiBabyVisualProps {

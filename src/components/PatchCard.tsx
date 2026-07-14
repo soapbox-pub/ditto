@@ -1,6 +1,9 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { FileText, GitCommit, User, Wand2 } from "lucide-react";
+import { GitSiteLinks } from "@/components/GitSiteLinks";
+import { NGIT_RELAY } from "@/lib/appRelays";
 import { openUrl } from "@/lib/downloadFile";
+import { tryNeventEncode } from "@/lib/safeNip19";
 import { Badge } from "@/components/ui/badge";
 
 interface PatchCardProps {
@@ -76,6 +79,12 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 			(t) => t !== "root" && t !== "root-revision" && t !== "shakespeare",
 		);
 
+	const nevent = tryNeventEncode({
+		id: event.id,
+		author: event.pubkey,
+		relays: [NGIT_RELAY],
+	});
+
 	return (
 		<div className="mt-2 space-y-3">
 			{/* Card container */}
@@ -149,6 +158,9 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 							Edit with Shakespeare
 						</button>
 					)}
+
+					{/* External site links */}
+					<GitSiteLinks nip19={nevent} className="pt-0.5" />
 				</div>
 			</div>
 

@@ -1,11 +1,15 @@
-import { useState, useCallback, useMemo } from 'react';
+import { lazy, Suspense, useState, useCallback, useMemo } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { CustomEmojiImg } from '@/components/CustomEmoji';
-import { EmojiPicker, type EmojiSelection } from '@/components/EmojiPicker';
+import type { EmojiSelection } from '@/components/EmojiPicker';
+
+// The emoji picker (data + UI) is ~500 kB raw; lazy-load it so it only
+// downloads when someone actually expands the full picker.
+const EmojiPicker = lazy(() => import('@/components/EmojiPicker').then(m => ({ default: m.EmojiPicker })));
 import { isCustomEmoji } from '@/lib/customEmoji';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
@@ -14,7 +18,7 @@ import { useEmojiUsage } from '@/hooks/useEmojiUsage';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { cn } from '@/lib/utils';
-import { impactLight } from '@/lib/haptics';
+import { impactMedium } from '@/lib/haptics';
 import type { EventStats } from '@/hooks/useTrending';
 import type { ResolvedEmoji } from '@/lib/customEmoji';
 
@@ -32,6 +36,13 @@ interface QuickReactMenuProps {
   reactedEvent?: NostrEvent;
   /** Called after an emoji is selected so the parent can close the popover. */
   onClose?: () => void;
+  /**
+   * Called the moment a reaction is selected (both the default publish path
+   * and the `onReact` delegate path) — for send-side feedback like the
+   * reaction burst animation. Receives the selected emoji (custom emojis
+   * arrive in `:shortcode:` form).
+   */
+  onReacted?: (emoji: string) => void;
   /** Called when the full picker is opened/closed so the parent can lock the popover open. */
   onExpandChange?: (expanded: boolean) => void;
   /**
@@ -50,6 +61,7 @@ export function QuickReactMenu({
   eventKind,
   reactedEvent,
   onClose,
+  onReacted,
   onExpandChange,
   onReact,
   className,
@@ -92,10 +104,13 @@ export function QuickReactMenu({
   /** Publish a reaction with a native Unicode emoji string. */
   const publishReaction = useCallback((emoji: string, emojiTag?: [string, string, string]) => {
     if (!user) return;
-    impactLight();
+    impactMedium();
 
     // Close the entire popover
     onClose?.();
+
+    // Send-side feedback (reaction burst) in the parent button
+    onReacted?.((emoji === '+' || emoji === '') ? '👍' : emoji);
 
     // Set selected emoji for optimistic update
     setSelectedEmoji(emoji);
@@ -161,7 +176,7 @@ export function QuickReactMenu({
         },
       },
     );
-  }, [user, eventId, eventPubkey, eventKind, reactedEvent, nostr, onReact, publishEvent, queryClient, trackEmojiUsage, onClose]);
+  }, [user, eventId, eventPubkey, eventKind, reactedEvent, nostr, onReact, publishEvent, queryClient, trackEmojiUsage, onClose, onReacted]);
 
   /** Handle selection from the quick buttons (native or custom emoji). */
   const handleQuickSelect = useCallback((emoji: string) => {
@@ -197,7 +212,9 @@ export function QuickReactMenu({
         className={cn('rounded-xl shadow-xl overflow-hidden bg-popover border border-border', className)}
         onClick={(e) => e.stopPropagation()}
       >
-        <EmojiPicker customEmojis={customEmojis} onSelect={handlePickerSelect} />
+        <Suspense fallback={<div className="w-[352px] max-w-[90vw] h-[400px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>}>
+          <EmojiPicker customEmojis={customEmojis} onSelect={handlePickerSelect} />
+        </Suspense>
       </div>
     );
   }

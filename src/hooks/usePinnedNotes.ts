@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { optimisticPatchEventTags, rollbackEvent, toggleTag } from '@/lib/optimisticEvent';
 
 /**
  * Hook to manage NIP-51 pinned notes (kind 10001).
@@ -78,6 +79,20 @@ export function usePinnedNotes(pubkey?: string) {
         created_at: Math.floor(Date.now() / 1000),
         prev: prev ?? undefined,
       });
+    },
+    // Optimistically flip the pin state before the relay round-trip by
+    // patching the cached kind 10001 event's `e` tags. Snapshot for rollback.
+    onMutate: (eventId: string) => {
+      const key = ['pinned-notes', user?.pubkey];
+      const snapshot = optimisticPatchEventTags(queryClient, key, {
+        kind: 10001,
+        pubkey: user?.pubkey ?? '',
+        transform: (tags) => toggleTag(tags, 'e', eventId),
+      });
+      return { snapshot, key };
+    },
+    onError: (_err, _eventId, ctx) => {
+      if (ctx) rollbackEvent(queryClient, ctx.key, ctx.snapshot);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pinned-notes', user?.pubkey] });

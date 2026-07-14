@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { fetchAddressDetail, fetchBtcPrice } from '@/lib/bitcoin';
+import { fetchAddressDetail } from '@/lib/esploraApi';
+import { fetchBtcPrice } from '@/lib/bitcoinMoney';
 import { useAppContext } from '@/hooks/useAppContext';
 
 /**

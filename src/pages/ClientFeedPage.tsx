@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Monitor } from 'lucide-react';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Feed } from '@/components/Feed';
 import { PageHeader } from '@/components/PageHeader';

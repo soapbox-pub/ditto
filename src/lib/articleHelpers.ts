@@ -37,3 +37,35 @@ export function parseArticleEvent(event: NostrEvent): ArticleFields & { publishe
     publishedAt,
   };
 }
+
+/** Average adult silent reading speed, in words per minute. */
+const WORDS_PER_MINUTE = 225;
+
+/**
+ * Estimate how many minutes it takes to read the given article content.
+ * Strips common Markdown syntax before counting words so formatting
+ * characters don't inflate the count. Always returns at least 1 minute
+ * for non-empty content, or 0 when there are no words.
+ */
+export function getReadingTimeMinutes(content: string): number {
+  const text = content
+    // Remove fenced code blocks.
+    .replace(/```[\s\S]*?```/g, ' ')
+    // Remove inline code.
+    .replace(/`[^`]*`/g, ' ')
+    // Drop image/link URLs but keep their visible label text.
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    // Strip remaining Markdown punctuation.
+    .replace(/[#*_>~`-]/g, ' ');
+
+  const words = text.split(/\s+/).filter(Boolean).length;
+  if (words === 0) return 0;
+  return Math.max(1, Math.round(words / WORDS_PER_MINUTE));
+}
+
+/** Format a reading-time estimate as a short human label, e.g. "5 min read". */
+export function formatReadingTime(content: string): string | undefined {
+  const minutes = getReadingTimeMinutes(content);
+  if (minutes === 0) return undefined;
+  return `${minutes} min read`;
+}

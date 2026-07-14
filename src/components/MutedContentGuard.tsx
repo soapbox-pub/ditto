@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { VolumeX, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useMuteList } from '@/hooks/useMuteList';
-import { isEventMuted } from '@/lib/muteHelpers';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -24,10 +23,10 @@ interface MutedContentGuardProps {
  * media and nested queries are not fetched for muted content.
  */
 export function MutedContentGuard({ event, children, className }: MutedContentGuardProps) {
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const [revealed, setRevealed] = useState(false);
 
-  if (revealed || muteItems.length === 0 || !isEventMuted(event, muteItems)) {
+  if (revealed || !isMuted(event)) {
     return <>{children}</>;
   }
 

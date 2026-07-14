@@ -1,4 +1,5 @@
 import { useNostr } from '@nostrify/react';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from './useAppContext';
 import { useCurrentUser } from './useCurrentUser';
@@ -32,6 +33,18 @@ const OVER_FETCH_MULTIPLIER = 3;
 
 // Re-export FeedItem for backwards compatibility
 export type { FeedItem };
+
+/**
+ * Drop reply items when the user has disabled "Show replies in feed".
+ * Applies to the target event regardless of wrapper — a repost, reaction,
+ * or zap of a reply still surfaces the reply, so those are filtered too.
+ * Profile-zap fallback cards are kept: `item.event` there is the zap
+ * receipt itself (whose `e` tag would trip isReplyEvent), and the card
+ * renders the zap activity, not the unresolved target.
+ */
+function excludeReplies(items: FeedItem[]): FeedItem[] {
+  return items.filter((item) => item.profileZapRecipient || !isReplyEvent(item.event));
+}
 
 /** Extended FeedItem with pagination metadata. */
 interface FeedPage {
@@ -70,7 +83,12 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
   const { store } = useNostrStorage();
 
   // Build the full kinds list from user settings, or use the override.
-  const allKinds = options?.kinds ?? getEnabledFeedKinds(feedSettings);
+  // When replies are hidden, NIP-22 comment kinds (1111 / 1244) are dropped
+  // from settings-derived queries entirely — every comment is a reply, so
+  // fetching them only wastes bandwidth on events the filter discards.
+  const settingsKinds = getEnabledFeedKinds(feedSettings);
+  const allKinds = options?.kinds ??
+    (feedSettings.followsFeedShowReplies ? settingsKinds : settingsKinds.filter((k) => k !== 1111 && k !== 1244));
 
   const tagFilters = options?.tagFilters;
 
@@ -162,11 +180,29 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
 
         // Seed the author query cache from the metadata we already fetched
         // for NIP-05 verification, so downstream useAuthor() calls are instant.
-        for (const meta of metadataEvents) {
-          if (!queryClient.getQueryData(['author', meta.pubkey])) {
-            const parsed = parseAuthorEvent(meta);
-            queryClient.setQueryData(['author', meta.pubkey], parsed);
-            // Persist to IndexedDB (fire-and-forget)
+        // Only fills empty entries — but on a fresh page load the cache is
+        // empty, so a stale relay copy could be seeded and marked fresh,
+        // blocking useAuthor's guarded fetch. Prefer the newest of
+        // {relay copy, local store} so a just-saved profile isn't downgraded.
+        if (metadataEvents.length > 0) {
+          const unseeded = metadataEvents.filter((meta) => !queryClient.getQueryData(['author', meta.pubkey]));
+          const storedEvents = unseeded.length > 0
+            ? await store.query([{ kinds: [0], authors: [...new Set(unseeded.map((e) => e.pubkey))] }])
+            : [];
+          const newestStored = new Map<string, NostrEvent>();
+          for (const stored of storedEvents) {
+            const current = newestStored.get(stored.pubkey);
+            if (!current || stored.created_at > current.created_at) {
+              newestStored.set(stored.pubkey, stored);
+            }
+          }
+
+          for (const meta of unseeded) {
+            const stored = newestStored.get(meta.pubkey);
+            const newest = stored && stored.created_at > meta.created_at ? stored : meta;
+            queryClient.setQueryData(['author', meta.pubkey], parseAuthorEvent(newest));
+            // Persist the relay copy to IndexedDB (fire-and-forget) — the
+            // store keeps the newest replaceable event itself.
             void store.event(meta);
           }
         }
@@ -208,9 +244,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
 
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {
-          dedupedItems = dedupedItems.filter(
-            (item) => item.repostedBy || item.reactedBy || item.zappedBy || item.profileZapRecipient || !isReplyEvent(item.event),
-          );
+          dedupedItems = excludeReplies(dedupedItems);
         }
 
         // Seed event cache so embedded note previews resolve instantly.
@@ -255,9 +289,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
 
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {
-          dedupedItems = dedupedItems.filter(
-            (item) => item.repostedBy || item.reactedBy || item.zappedBy || item.profileZapRecipient || !isReplyEvent(item.event),
-          );
+          dedupedItems = excludeReplies(dedupedItems);
         }
 
         // Seed event cache so embedded note previews resolve instantly.
@@ -294,9 +326,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
 
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {
-          dedupedItems = dedupedItems.filter(
-            (item) => item.repostedBy || item.reactedBy || item.zappedBy || item.profileZapRecipient || !isReplyEvent(item.event),
-          );
+          dedupedItems = excludeReplies(dedupedItems);
         }
 
         // Seed event cache so embedded note previews resolve instantly.

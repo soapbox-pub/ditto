@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Bell, BellOff, AlertTriangle, Heart, Quote, Repeat2, Zap, AtSign, MessageSquare, Users, Award, Mail, Radio, MonitorSmartphone } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
+import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { isIgnoringBatteryOptimizations, requestIgnoreBatteryOptimizations } from '@/hooks/useNativeNotifications';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { toast } from '@/hooks/useToast';
 
@@ -175,6 +177,41 @@ export function NotificationSettings() {
 
   const pushEnabled = isNative ? nativePushEnabled : pushHookEnabled;
 
+  const isAndroid = Capacitor.getPlatform() === 'android';
+
+  // Battery optimization gets in the way of persistent mode: Android may cut
+  // the background relay connection and (on Android 15+) blocks the service
+  // from restarting after a reboot. When persistent mode is active, detect the
+  // condition and offer a one-tap exemption request.
+  const [batteryOptimized, setBatteryOptimized] = useState(false);
+
+  useEffect(() => {
+    if (!isAndroid || notificationStyle !== 'persistent' || !pushEnabled) {
+      setBatteryOptimized(false);
+      return;
+    }
+
+    let cancelled = false;
+    const check = () => {
+      isIgnoringBatteryOptimizations().then((ignoring) => {
+        if (!cancelled) setBatteryOptimized(!ignoring);
+      });
+    };
+
+    check();
+
+    // Re-check when the user returns from the system exemption dialog.
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') check();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [isAndroid, notificationStyle, pushEnabled]);
+
   useSeoMeta({
     title: `Notifications | Settings | ${config.appName}`,
     description: 'Configure your notification preferences',
@@ -243,6 +280,22 @@ export function NotificationSettings() {
     updateSettings.mutateAsync({ notificationStyle: style }).catch(() => {
       setNotificationStyle(prev); // roll back on failure
     });
+
+    // Surface the battery-optimization requirement up front: persistent mode
+    // is unreliable without the exemption, so ask with the one-tap system
+    // dialog the moment the user opts in (we're in a click handler, so the
+    // gesture context is valid). Declining leaves the inline warning below
+    // as the recovery path.
+    if (style === 'persistent' && isAndroid) {
+      isIgnoringBatteryOptimizations()
+        .then((ignoring) => {
+          if (ignoring) return;
+          return requestIgnoreBatteryOptimizations().then((nowIgnoring) => {
+            setBatteryOptimized(!nowIgnoring);
+          });
+        })
+        .catch(() => {});
+    }
   };
 
   const handleToggleOnlyFollowing = (enabled: boolean) => {
@@ -309,7 +362,7 @@ export function NotificationSettings() {
 
         {/* Notification Style — Android only, visible when push is enabled.
             On iOS both modes use BGAppRefreshTask so the choice is meaningless. */}
-        {Capacitor.getPlatform() === 'android' && pushEnabled && (
+        {isAndroid && pushEnabled && (
           <>
             <SectionHeader title="Delivery Method" />
             <div className="pb-4">
@@ -341,11 +394,41 @@ export function NotificationSettings() {
                       <span className="text-sm font-medium">Persistent</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Polls relays directly in the background for new notifications. Use this for reliable delivery on devices without push notification support.
+                      Keeps a live relay connection open in the background so notifications arrive instantly. Use this for reliable delivery on devices without push notification support.
                     </p>
                   </Label>
                 </div>
               </RadioGroup>
+
+              {/* Battery optimization warning — persistent mode is unreliable
+                  while Android is allowed to throttle Ditto in the background. */}
+              {notificationStyle === 'persistent' && batteryOptimized && (
+                <div className="mx-3 mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="size-4 shrink-0 text-amber-500 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs">
+                        Battery optimization is enabled for Ditto. Android may cut the
+                        background relay connection and prevent it from resuming after a
+                        reboot.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-2 h-8 text-xs"
+                        onClick={async () => {
+                          // Resolves when the system dialog closes, with the
+                          // fresh exemption state — update the banner right away.
+                          const ignoring = await requestIgnoreBatteryOptimizations();
+                          setBatteryOptimized(!ignoring);
+                        }}
+                      >
+                        Disable battery optimization
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}

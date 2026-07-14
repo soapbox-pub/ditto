@@ -1,17 +1,30 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
+/** NIP-22 comment kinds: 1111 (text comment) and 1244 (NIP-A0 voice comment). */
+const COMMENT_KINDS = new Set([1111, 1244]);
+
 /**
- * Returns true if the event is a reply (has a root or reply e-tag, or an unmarked e-tag).
+ * Returns true if the event is a reply:
+ * - NIP-22 comment kinds (1111 / 1244) are replies by definition.
+ * - A root or reply e-tag, or an unmarked e-tag (NIP-10).
+ * - An a-tag explicitly marked "root" or "reply" (NIP-10 reply to an addressable event).
  * e-tags with marker "mention" are intentional inline quotes and do NOT make an event a reply.
- * Follows NIP-10 conventions.
  */
 export function isReplyEvent(event: NostrEvent): boolean {
-  const eTags = event.tags.filter(([name]) => name === 'e');
-  if (eTags.length === 0) return false;
+  // NIP-22 comments always reference a parent, but comments on addressable
+  // events or external content carry only `a`/`i` tags — no `e` tag — so the
+  // tag checks below can't catch them.
+  if (COMMENT_KINDS.has(event.kind)) return true;
 
-  // If every e-tag is explicitly marked "mention", this is not a reply
-  const nonMentionTags = eTags.filter(([, , , marker]) => marker !== 'mention');
-  return nonMentionTags.length > 0;
+  // Any e-tag not explicitly marked "mention" makes this a reply (NIP-10:
+  // marked root/reply tags, or the deprecated positional scheme).
+  const eTags = event.tags.filter(([name]) => name === 'e');
+  if (eTags.some(([, , , marker]) => marker !== 'mention')) return true;
+
+  // NIP-10 replies to addressable events (e.g. a kind 1 reply to an article)
+  // reference the root with a marked `a` tag and may have no `e` tag at all.
+  // Only marked tags count — unmarked `a` tags are plain references.
+  return event.tags.some(([name, , , marker]) => name === 'a' && (marker === 'root' || marker === 'reply'));
 }
 
 /** Hints extracted from an `e` tag for relay resolution. */

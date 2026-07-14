@@ -1,5 +1,199 @@
 # Changelog
 
+## [2.29.0] - 2026-07-09
+
+Ditto now reads like a newsstand: magazines, magazine issues, and ebooks show up in your feed with their covers and details, and you can flip through them right inside the app. Tap to open a publication and read the PDF page by page in a clean, distraction-free viewer — no downloads or extra apps required.
+
+### Added
+- Magazines, magazine issues, and ebooks now appear in your feed with cover art and details, and you can read their PDFs inline in a full-screen viewer
+
+## [2.28.2] - 2026-07-07
+
+A speed and stability tune-up. Ditto now launches lighter and scrolls smoother, feeds render more efficiently, and profiles load reliably even on slower phones. GIF search moves to a new provider, mentions in profile bios now link to the person, and a handful of annoyances are gone — a battery-draining background loop, an untappable search box on mobile, and a notification dot that wouldn't clear.
+
+### Added
+- Mentions in profile bios now link straight to the person's profile
+
+### Changed
+- GIF search now runs on a new provider for better results
+- The app launches lighter and feels snappier — faster startup, smoother scrolling, and less stutter while your feed loads
+
+### Fixed
+- Fixed a background loop that could quietly drain your battery
+- Profiles now load reliably on slower phones instead of getting stuck
+- The search box in the mobile "More" menu is tappable again
+- The notification dot now clears properly instead of lingering
+- Reposts, reactions, and zaps of replies no longer show up when replies are hidden, and replies are now consistently treated as replies in your feed
+
+## [2.28.1] - 2026-07-04
+
+A small patch to keep the party going: birthday celebrations now linger six hours past midnight, so night owls and friends in earlier timezones don't miss the balloons. Also fixes Blobbi hatching so your freshly hatched Blobbi gets its evolution missions right away, hatching counts toward your care streak, and naming your new friend no longer wipes its missions.
+
+### Changed
+- Birthday celebrations now last six hours past midnight, so the party doesn't cut off abruptly for night owls and well-wishers in earlier timezones
+
+### Fixed
+- Hatching a Blobbi now starts its evolution missions immediately and counts toward your care streak, and naming your new Blobbi no longer wipes those missions
+
+## [2.28.0] - 2026-07-03
+
+Android notifications get a major upgrade: they now arrive instantly, show the sender's picture, and stack neatly into a single conversation as they pile up — and Ditto helps you keep them flowing with a one-tap battery setting. Profiles now show the interests you have in common with whoever you're visiting. Plus clearer notification text that says exactly who did what, and a prettier birthday celebration with big balloons that float up the page.
+
+### Added
+- See the interests you have in common with someone right on their profile
+- Android notifications now arrive instantly and show the sender's picture, stacking into a single conversation-style notification as they pile up
+- Ditto now asks to enable notifications right after you log in, with a one-tap option to keep them arriving reliably in the background
+
+### Changed
+- Notification text now tells you exactly who did what — like "Alice reacted to your post" — instead of generic exclamations
+- Birthday celebrations got a makeover: a festive script heading styled like a calendar page, and a handful of big balloons that float up the profile
+
+### Fixed
+- Repost notifications no longer show raw technical data as the message body
+
+## [2.27.2] - 2026-07-03
+
+Feeds now feel instant: voice notes, polls, photos, and mini-app posts show up the moment you share them, and new posts no longer flicker and vanish before the feed catches up. There's a new one-tap button to wish someone a happy birthday when you land on their profile, plus an opt-in content type for signed truthfulness claims. Also fixed the GIF and sticker search collapsing in the composer and the birthday dropdowns in the profile editor.
+
+### Added
+- A one-tap button on birthday profiles to send someone a happy-birthday post
+- Optional support for signed truthfulness claims — turn it on in content settings to see them in your feed
+
+### Changed
+- Voice notes, polls, photos, and mini-app posts now appear in your feed instantly when you share them, instead of waiting for a refresh
+
+### Fixed
+- New posts no longer briefly appear and then vanish from the feed after sharing
+- The GIF and sticker search in the post composer no longer collapses when you tap the search box on desktop
+- The month and day dropdowns in the profile editor now show your saved birthday instead of staying blank
+
+## [2.27.1] - 2026-07-03
+
+Birthday polish: the celebration tune now starts on its own when you open someone's birthday profile instead of waiting for a tap, saved birthdays stick around after a refresh, and party hats now show up everywhere they should — on the composer as you write and on the post you're viewing in a thread.
+
+### Fixed
+- Birthday music now plays automatically on mobile instead of only starting after your first tap
+- Your saved birthday no longer disappears from the profile editor after a refresh
+- Party hats now appear on your avatar in the composer and on the author's avatar in the post you're viewing
+
+## [2.27.0] - 2026-07-03
+
+Birthdays are here! Add yours in the profile editor and, when your big day rolls around, Ditto throws a party — confetti and balloons rain across your profile, a little party hat perches on your avatar, and a cheery tune plays to celebrate. You'll spot party hats on other people's birthdays too. Also fixed the avatar-shape picker so it no longer freezes the page, tidied up the GM sunrise animation, and Ditto now starts up noticeably faster.
+
+### Added
+- Set your birthday in the profile editor and celebrate it with confetti, balloons, a party hat on your avatar, and a festive jingle — party hats also appear on other people's birthdays in profiles and posts
+
+### Changed
+- Ditto now loads faster on first open
+
+### Fixed
+- Choosing an avatar shape no longer freezes the page or opens an empty picker
+- The GM sunrise now animates above post media instead of hiding behind images
+
+## [2.26.1] - 2026-07-03
+
+A quick fix for logging in: pasting your secret key into the login field no longer sets off the clipboard safety warning meant to stop you from posting it publicly.
+
+### Fixed
+- Pasting a secret key into the login field no longer triggers the accidental-paste warning
+
+## [2.26.0] - 2026-07-03
+
+Composing on mobile is a whole new experience — a full-screen editor with a slick animated emoji, GIF, and sticker tray. The Development feed now shows the full life of open-source projects: issues, pull requests, and status updates. Posts tagged #nsfw are tucked behind content warnings, and you can exempt people you follow from your muted words. Plus smarter search, a better mention autocomplete, and a proper eulogy for deleted posts.
+
+### Added
+- The Development feed now shows the full life of open-source projects — issues, pull requests, and status updates — with quick links to NostrHub and Gitworkshop and a feed toggle for each activity type
+- Posts tagged with sensitive hashtags like #nsfw are now hidden behind a content warning
+- A new synced setting to exempt people you follow from your muted words and hashtags
+- When a post no longer exists, Ditto now tells you it was deleted by its author (and why, if they said) instead of offering futile retries — with a fitting word from Sartre
+- Geocache found logs and comments now show the treasure they belong to at the top of the thread
+
+### Changed
+- Composing on mobile is now a full-screen, keyboard-aware experience
+- The emoji, GIF, and sticker pickers open in a smoothly animated tray, and search results expand to fill the composer
+- The home feed and content settings pages are cleaner and load instantly
+
+### Fixed
+- Search results now show recent posts first instead of old ones
+- The mention autocomplete no longer closes while scrolling it, and picking a suggestion works reliably on touch screens
+- Mentioning someone via a profile link now properly notifies them
+- The sidebar's More menu no longer hides under the status bar on mobile
+
+## [2.25.2] - 2026-07-02
+
+A small fix so that "GM" notes wrapped in quotation marks now correctly trigger the sunrise celebration.
+
+### Fixed
+- GM sunrise animation now fires when note content is wrapped in quotes (e.g. "GM")
+
+## [2.25.1] - 2026-07-02
+
+A fresh login screen with a playful animated key that unlocks the Ditto planet, a one-tap login for browser extension users, and fixes for profile media galleries not showing Blossom-hosted content and a lag on Android taps.
+
+### Added
+- The login screen now greets you with an animated key unlocking Ditto
+- If you have a Nostr browser extension installed, logging in is now a single tap — your account is detected and confirmed automatically
+
+### Fixed
+- Profile media galleries and the Photos feed now correctly display Blossom-hosted images and videos
+- Tapping items on Android no longer feels sluggish due to an overly heavy haptic sequence
+
+## [2.25.0] - 2026-07-02
+
+Ditto feels instant now. Your posts pop into the feed the moment you hit publish, and bookmarking, pinning, muting, liking, and following all land right away instead of waiting on the network. Love a profile and hearts rain down over their header, with the love letter card getting its own gentle drift of floating hearts. Plus you can now unmute a conversation straight from the note menu, and a batch of little fixes and polish.
+
+### Added
+- Your new posts appear in the feed instantly when you publish, no waiting for the network
+- Bookmarks, pins, mutes, likes, follows, and more now update the moment you tap, with a graceful undo if a publish fails
+- Loving a profile now showers hearts across their header
+- The love letter card comes alive with hearts that gently drift and float upward
+- Unmute a conversation right from the note menu
+
+### Changed
+- Opening a note always plays its celebration now, even after a busy morning feed has used up the session's animations
+
+### Fixed
+- Selection haptics now work on Android
+- Bookmarking a post now confirms with a toast and tells you if it failed
+
+## [2.24.0] - 2026-07-01
+
+Something wonderful happens on the feed now. Notifications are instant on every platform. Sharing into Ditto works when installed as a web app. Android users on persistent notifications can fix battery issues with one tap.
+
+### Added
+- Feed cards come alive with particle effects — confetti, balloons, sunrises, and more
+- Reacting to a post sends a satisfying burst of particles from the heart
+- Notifications are now instant on web and Android, powered by a live relay connection instead of polling
+- Sharing from other apps now works when Ditto is installed as a web app
+- iOS visitors to the web app see a native App Store banner
+- Android: the persistent notification service now survives reboots
+- Android: a one-tap button in notification settings to fix battery optimization issues
+
+## [2.23.5] - 2026-07-01
+
+Your feed now keeps up with the conversation in real time — a tappable pill appears when new posts arrive, so you never have to guess when to refresh. Search gains a "Ditto users only" filter, articles show a reading-time estimate and render as tidy preview cards in the feed, and editing your published articles is smoother than ever. Posts can now embed content-addressed images, video, and audio that stay reachable even if a server goes down. Plus a big speed-up to app startup and a batch of fixes.
+
+### Added
+- A live "new posts" pill appears on your feed when fresh posts arrive — tap it to refresh and jump to the top
+- A "Ditto users only" filter in search scopes results to people posting from Ditto
+- Articles show a "min read" estimate on feed cards and the article page
+- Posts can embed content-addressed images, videos, and audio that fall back across servers if one is unavailable
+
+### Changed
+- Feed articles now appear as compact preview cards with cover image, summary, and a reading-time footer
+- Editing your published articles now opens a dedicated page with the slug locked, fixing stale content and spurious errors when switching between articles
+- The article editor's publish action is now a normal button next to Save Draft instead of a floating corner button
+- Articles render with proper typographic quotes, dashes, and ellipses
+- Highlights now scroll their quoted excerpt into view so you see the point of the highlight right away
+- The app starts up faster by loading its Bitcoin signing tools only when you actually send an on-chain payment
+- The suggested follow packs during onboarding are now a selectable grid — pick several and follow them all at once
+
+### Fixed
+- The follow button now updates instantly instead of reverting until you reload the page
+- Search no longer stops loading more results prematurely
+- Vivid, saturated theme colors now get readable text instead of unreadable dark text
+- Your original companion no longer gets replaced by an egg after a profile hiccup
+
 ## [2.23.4] - 2026-06-18
 
 A performance tune-up that makes profiles and feeds load faster by trimming away redundant background network requests. Tabs, dialogs, and zap buttons now only fetch what they need, when you need it.

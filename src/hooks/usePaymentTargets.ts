@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { rollbackQuery } from '@/lib/optimisticEvent';
 import {
   PAYMENT_TARGETS_KIND,
   parsePaymentTargets,
@@ -78,6 +79,17 @@ export function useUpdatePaymentTargets() {
         tags,
         prev: prev ?? undefined,
       });
+    },
+    // Optimistically apply the new target set so the settings UI updates
+    // immediately. Snapshot for rollback on error.
+    onMutate: (targets: PaymentTarget[]) => {
+      const key = ['payment-targets', user?.pubkey];
+      const snapshot = queryClient.getQueryData<PaymentTarget[]>(key);
+      queryClient.setQueryData<PaymentTarget[]>(key, targets);
+      return { snapshot, key };
+    },
+    onError: (_err, _targets, ctx) => {
+      if (ctx) rollbackQuery(queryClient, ctx.key, ctx.snapshot);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-targets', user?.pubkey] });

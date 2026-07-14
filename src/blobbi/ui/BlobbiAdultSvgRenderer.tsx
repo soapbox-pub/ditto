@@ -33,7 +33,7 @@ import { applyBodyEffects, type BodyEffectsSpec } from './lib/bodyEffects';
 import { debugBlobbi } from './lib/debug';
 import { useRecipeFingerprint } from './hooks/useFillLevelUpdate';
 import { useBlobbiInstanceId } from './hooks/useBlobbiInstanceId';
-import type { Blobbi } from '@/blobbi/core/types/blobbi';
+import type { Blobbi } from '@blobbi-kit/core/types/blobbi';
 
 export interface BlobbiAdultSvgRendererProps {
   /** The Blobbi data */

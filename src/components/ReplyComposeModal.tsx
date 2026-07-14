@@ -4,9 +4,9 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import {
   Dialog,
-  DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ComposeDialogContent } from '@/components/ComposeDialogContent';
 import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import { EmbeddedPost } from '@/components/EmbeddedPost';
 import { ComposeBox, type ExternalReplyRoot } from '@/components/ComposeBox';
@@ -59,9 +59,8 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
+      <ComposeDialogContent
         ref={dialogContentRef}
-        className="max-w-[520px] max-h-[95dvh] sm:max-h-[85dvh] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden !flex !flex-col"
         onOpenAutoFocus={(e) => {
           // Prevent Radix from focusing its own first-focusable (the X button).
           e.preventDefault();
@@ -89,7 +88,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
                   <button
                     onClick={() => setPreviewMode(false)}
                     className={cn(
-                      "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
+                      "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all motion-safe:active:scale-95",
                       !previewMode 
                         ? "bg-background text-foreground shadow-sm" 
                         : "text-muted-foreground hover:text-foreground"
@@ -100,7 +99,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
                   <button
                     onClick={() => setPreviewMode(true)}
                     className={cn(
-                      "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
+                      "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all motion-safe:active:scale-95",
                       previewMode 
                         ? "bg-background text-foreground shadow-sm" 
                         : "text-muted-foreground hover:text-foreground"
@@ -113,7 +112,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
 
               <button
                 onClick={() => onOpenChange(false)}
-                className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+                className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-all motion-safe:active:scale-90"
               >
                 <X className="size-5" />
               </button>
@@ -121,9 +120,10 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
           </div>
 
           {/* Embedded original post (reply only, not for quotes)
-              Capped at 20% of viewport so it never dominates the modal. */}
+              Capped at 20% of the *visible* viewport (shrinks with the
+              keyboard) so it never squeezes out the composer. */}
           {event && !isQuote && (
-            <div className="overflow-y-auto max-h-[20dvh] shrink-0">
+            <div className="overflow-y-auto max-h-[calc(var(--visual-viewport-height,100dvh)*0.2)] shrink-0">
               {isUrl ? (
                 <div className="mx-4 mb-2">
                   <LinkEmbed url={event.href} showActions={false} hideImage />
@@ -163,7 +163,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
             />
           </div>
         </PortalContainerProvider>
-      </DialogContent>
+      </ComposeDialogContent>
     </Dialog>
   );
 }

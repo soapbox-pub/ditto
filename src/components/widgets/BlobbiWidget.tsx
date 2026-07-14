@@ -5,18 +5,18 @@ import { ArrowLeftRight, Egg, Footprints, Loader2, X } from 'lucide-react';
 import { BlobbiAwayState } from '@/blobbi/ui/BlobbiAwayState';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { StatIndicator } from '@/blobbi/ui/StatIndicator';
-import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
+import { useProjectedBlobbiState } from '@blobbi-kit/react/hooks/useProjectedBlobbiState';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
-import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
+import { useBlobbisCollection } from '@blobbi-kit/react/hooks/useBlobbisCollection';
 import { useBlobbiCompanionData } from '@/blobbi/companion/hooks/useBlobbiCompanionData';
-import { useFreshBlobbiBeforeAction } from '@/blobbi/core/hooks/useFreshBlobbiBeforeAction';
+import { useFreshBlobbiBeforeAction } from '@blobbi-kit/react/hooks/useFreshBlobbiBeforeAction';
 import { useBlobbiUseInventoryItem } from '@/blobbi/actions/hooks/useBlobbiUseInventoryItem';
 import { isActionVisibleForStage, type InventoryAction, type BlobbiAction } from '@/blobbi/actions/lib/blobbi-action-utils';
-import { getVisibleStats } from '@/blobbi/core/lib/blobbi-decay';
-import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
-import { KIND_BLOBBI_STATE, KIND_BLOBBONAUT_PROFILE, updateBlobbiTags, updateBlobbonautTags } from '@/blobbi/core/lib/blobbi';
-import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
-import { getStreakTagUpdates } from '@/blobbi/actions/lib/blobbi-streak';
+import { getVisibleStats } from '@blobbi-kit/core/blobbi-decay';
+import { getBlobbiStatDisplayState } from '@blobbi-kit/core/blobbi-segments';
+import { KIND_BLOBBI_STATE, KIND_BLOBBONAUT_PROFILE, updateBlobbiTags, updateBlobbonautTags, getSelectedBlobbiKey } from '@blobbi-kit/core/blobbi';
+import { applyBlobbiDecay } from '@blobbi-kit/core/blobbi-decay';
+import { getStreakTagUpdates } from '@blobbi-kit/react/lib/blobbi-streak';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -26,8 +26,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
-import type { BlobbiCompanion } from '@/blobbi/core/lib/blobbi';
-import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
+import type { BlobbiCompanion } from '@blobbi-kit/core/blobbi';
+import type { BlobbiStats } from '@blobbi-kit/core/types/blobbi';
 
 /** Stat-to-action mapping: each stat has an associated quick action + default item. */
 const STAT_ACTION_MAP: Record<string, { itemId: string; action: InventoryAction } | 'sleep'> = {
@@ -55,17 +55,12 @@ const STAT_ACTION_NAME: Record<string, BlobbiAction> = {
   hygiene: 'clean',
 };
 
-/** localStorage key helper matching BlobbiPage pattern. */
-function getSelectedBlobbiKey(pubkey: string): string {
-  return `blobbi:selected:d:${pubkey.slice(0, 8)}`;
-}
-
 /** Mini Blobbi widget with live stats and quick actions. */
 export function BlobbiWidget() {
   const { user } = useCurrentUser();
-  const { companions, isLoading, updateCompanionEvent } = useBlobbisCollection();
+  const { companions, isLoading, updateCompanionEvent } = useBlobbisCollection(undefined, user?.pubkey);
   const { profile, updateProfileEvent, invalidate: invalidateProfile } = useBlobbonautProfile();
-  const { fetchFreshBlobbiBeforeAction } = useFreshBlobbiBeforeAction();
+  const { fetchFreshBlobbiBeforeAction } = useFreshBlobbiBeforeAction(user?.pubkey);
   const { mutateAsync: publishEvent } = useNostrPublish();
 
   // Companions list (deduplicated by d-tag, newest wins, inside
@@ -81,20 +76,18 @@ export function BlobbiWidget() {
     return record;
   }, [filteredCompanions]);
 
-  // Match BlobbiPage's selection logic: localStorage > profile.has > first companion
+  // Match BlobbiPage's selection logic: localStorage > first companion in the
+  // deterministically-ordered collection. We no longer consult profile.has —
+  // ownership/order comes from the authored kind 31124 collection (single
+  // source of truth), so a drifted/wiped has list can't surface a stale egg.
   const localStorageKey = user?.pubkey ? getSelectedBlobbiKey(user.pubkey) : 'blobbi:selected:d:none';
   const [storedSelectedD, setStoredSelectedD] = useLocalStorage<string | null>(localStorageKey, null);
 
   const companion = useMemo<BlobbiCompanion | null>(() => {
     if (!filteredCompanions || filteredCompanions.length === 0) return null;
     if (storedSelectedD && filteredCompanionsByD[storedSelectedD]) return filteredCompanionsByD[storedSelectedD];
-    if (profile) {
-      for (const d of profile.has) {
-        if (filteredCompanionsByD[d]) return filteredCompanionsByD[d];
-      }
-    }
     return filteredCompanions[0];
-  }, [filteredCompanions, filteredCompanionsByD, storedSelectedD, profile]);
+  }, [filteredCompanions, filteredCompanionsByD, storedSelectedD]);
 
   // Zero-arg wrapper for fetching fresh data before an action (read step of
   // the read-modify-write pattern, same as BlobbiPage)

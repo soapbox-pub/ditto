@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Users, Radio, Zap, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { PageHeader } from '@/components/PageHeader';

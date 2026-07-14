@@ -1,22 +1,30 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, X, Sticker } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import type { CustomEmoji } from '@/hooks/useCustomEmojis';
 
 interface StickerPickerProps {
   customEmojis: CustomEmoji[];
   onSelect: (emoji: CustomEmoji) => void;
-  /** Fixed height for the picker. Defaults to 350px. */
-  height?: number;
+  /** Fixed height for the picker (px number or CSS length, e.g. '100%'). Defaults to 350px. */
+  height?: number | string;
   /** Auto-focus the search input on mount (default true on desktop). */
   autoFocus?: boolean;
+  /** Reports whether the user is actively searching (input focused or query non-empty). */
+  onSearchActiveChange?: (active: boolean) => void;
 }
 
-export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus = true }: StickerPickerProps) {
+export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus = true, onSearchActiveChange }: StickerPickerProps) {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  // Report search activity so the container can give results more room.
+  const searchActive = searchFocused || query.trim().length > 0;
+  useEffect(() => {
+    onSearchActiveChange?.(searchActive);
+  }, [searchActive, onSearchActiveChange]);
 
   useEffect(() => {
     if (autoFocus) {
@@ -51,6 +59,8 @@ export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus 
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
             placeholder="Search stickers..."
             className="pl-8 pr-8 h-9 text-base md:text-sm bg-muted/50 border-0 rounded-lg"
           />
@@ -66,8 +76,8 @@ export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus 
         </div>
       </div>
 
-      {/* Results */}
-      <ScrollArea className="flex-1 min-h-0">
+      {/* Results — native scroller so the dialog's scroll-lock allows touch scrolling */}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <p className="text-sm">No stickers found</p>
@@ -92,7 +102,7 @@ export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus 
             ))}
           </div>
         )}
-      </ScrollArea>
+      </div>
     </div>
   );
 }

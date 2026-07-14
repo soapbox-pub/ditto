@@ -3,11 +3,16 @@ import {
   Award,
   Bird,
   Camera,
+  CircleCheck,
+  CircleDashed,
+  CircleDot,
+  CircleX,
   Egg,
   FileCode,
   FileText,
   GitBranch,
   GitPullRequest,
+  GitPullRequestArrow,
   HandHeart,
   Heart,
   ListMusic,
@@ -20,6 +25,7 @@ import {
   Package,
   Play,
   Radio,
+  ShieldCheck,
   SmilePlus,
   PartyPopper,
   Sparkles,
@@ -29,15 +35,17 @@ import {
   Volume2,
   VolumeX,
   Zap,
+  Newspaper,
+  BookOpen,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import { type ReactNode, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useInView } from "@/hooks/useInView";
 import { Link } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
-const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
-const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
+const EmbeddedArticleCard = lazy(() => import("@/components/EmbeddedArticleCard").then(m => ({ default: m.EmbeddedArticleCard })));
+const EmbeddedPublicationCard = lazy(() => import("@/components/EmbeddedPublicationCard").then(m => ({ default: m.EmbeddedPublicationCard })));const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const BlobbiSocialActions = lazy(() => import("@/components/BlobbiSocialActions").then(m => ({ default: m.BlobbiSocialActions })));
-import { parseBlobbiEvent } from "@/blobbi/core/lib/blobbi";
 import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
 import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 import {
@@ -50,6 +58,8 @@ import { BadgeAwardCard } from "@/components/BadgeAwardCard";
 import { BadgeContent } from "@/components/BadgeContent";
 import { BadgeSetContent } from "@/components/BadgeSetContent";
 import { CalendarEventContent } from "@/components/CalendarEventContent";
+import { CelebrationOverlay, CELEBRATION_DURATION_MS } from "@/components/CelebrationOverlay";
+import { PartyHat } from "@/components/BirthdayRain";
 import {
   ColorMomentContent,
   ColorMomentEyeButton,
@@ -70,8 +80,14 @@ import { BirdDetectionContent } from "@/components/BirdDetectionContent";
 import { BirdexContent } from "@/components/BirdexContent";
 import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
+const GitStatusCard = lazy(() => import("@/components/GitStatusCard").then(m => ({ default: m.GitStatusCard })));
+const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ default: m.IssueCard })));
+import { PrUpdateCard } from "@/components/PrUpdateCard";
+import { RepoStateCard } from "@/components/RepoStateCard";
 import { HighlightContent } from "@/components/HighlightContent";
-import { CampaignContent } from "@/components/CampaignContent";
+import { AttestationContent } from "@/components/AttestationContent";
+import { ATTESTATION_KIND } from "@/lib/attestation";
+import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { ZapContent } from "@/components/ZapContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { ImageGallery } from "@/components/ImageGallery";
@@ -105,12 +121,17 @@ import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { isBadgeSetEvent, isProfileBadgesEvent } from "@/lib/badgeUtils";
+import { canCelebrate, detectCelebration, markCelebrated } from "@/lib/celebrations";
+import { parseBirthdayFromContent, isBirthdayToday } from "@/lib/birthday";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { ZapDialog } from "@/components/ZapDialog";
 import { useAppContext } from "@/hooks/useAppContext";
+import { useEvent } from "@/hooks/useEvent";
+import { NGIT_RELAY } from "@/lib/appRelays";
+import { getGitRepoRef, getGitRootRef, gitStatusVerb, gitTicketNoun } from "@/lib/gitActivity";
 import { useAuthor } from "@/hooks/useAuthor";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useLoveList, LOVE_LIST_KIND } from "@/hooks/useLoveList";
@@ -391,9 +412,50 @@ export const NoteCard = memo(function NoteCard({
 
   const pollVoteLabel = usePollVoteLabel(event);
 
+  // Celebration effect — text notes containing celebratory words/emojis
+  // ("congrats", "happy birthday", "gm", 🎉…) play a one-shot particle
+  // overlay once the card has been mostly in view for a beat (the dwell
+  // keeps the effect from spraying mid-scroll, where it reads as visual
+  // noise). Eligibility (once per event per session) lives
+  // in @/lib/celebrations; skipped entirely under prefers-reduced-motion.
+  // The observer is skipped for ordinary notes so the feed doesn't pay for
+  // it.
+  const celebration = useMemo(
+    () => (event.kind === 1 ? detectCelebration(event.content) : undefined),
+    [event],
+  );
+  const [celebrating, setCelebrating] = useState(false);
+  const { ref: celebrationRef, inView: celebrationInView } = useInView({
+    threshold: 0.6,
+    skip: !celebration || celebrating || !canCelebrate(event.id),
+  });
+  useEffect(() => {
+    if (!celebration || !celebrationInView) return;
+    if (!canCelebrate(event.id)) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Arm after a short dwell; scrolling away flips `celebrationInView` and
+    // the cleanup cancels before anything plays.
+    const arm = setTimeout(() => {
+      markCelebrated(event.id);
+      setCelebrating(true);
+    }, 400);
+    return () => clearTimeout(arm);
+  }, [celebration, celebrationInView, event.id]);
+  useEffect(() => {
+    if (!celebrating) return;
+    const timeout = setTimeout(() => setCelebrating(false), CELEBRATION_DURATION_MS);
+    return () => clearTimeout(timeout);
+  }, [celebrating]);
+
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
+  // NIP-24 birthday — the author's avatar wears a party hat all day.
+  const authorEventContent = author.data?.event?.content;
+  const isAuthorBirthday = useMemo(
+    () => isBirthdayToday(parseBirthdayFromContent(authorEventContent)),
+    [authorEventContent],
+  );
   const nip05 = metadata?.nip05;
   const { data: nip05Verified, isPending: nip05Pending } = useNip05Verify(
     nip05,
@@ -435,6 +497,7 @@ export const NoteCard = memo(function NoteCard({
 
   const { onClick: openPost, onAuxClick: auxOpenPost } = useOpenPost(
     `/${encodedId}`,
+    event,
   );
 
   // Profile-zap card click target: the recipient's profile, not the zap event.
@@ -463,6 +526,7 @@ export const NoteCard = memo(function NoteCard({
   const isConstellation = event.kind === 30621;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isArticle = event.kind === 30023;
+  const isPublication = PUBLICATION_KINDS.has(event.kind);
   const isMagicDeck = event.kind === 37381;
   const isStream = event.kind === 30311;
   const isFileMetadata = event.kind === 1063;
@@ -489,8 +553,12 @@ export const NoteCard = memo(function NoteCard({
   const isAudioKind =
     isMusicTrack || isMusicPlaylist || isPodcastEpisode || isPodcastTrailer;
   const isGitRepo = event.kind === 30617;
+  const isRepoState = event.kind === 30618;
   const isPatch = event.kind === 1617;
   const isPullRequest = event.kind === 1618;
+  const isPrUpdate = event.kind === 1619;
+  const isIssue = event.kind === 1621;
+  const isGitStatus = event.kind >= 1630 && event.kind <= 1633;
   const isCustomNip = event.kind === 30817;
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
@@ -501,6 +569,7 @@ export const NoteCard = memo(function NoteCard({
   const isLetter = event.kind === 8211;
   const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
+  const isAttestation = event.kind === ATTESTATION_KIND;
   const isCampaign = event.kind === 33863;
   const isVanish = event.kind === 62;
   const isZap = event.kind === 9735 || event.kind === 8333;
@@ -514,13 +583,15 @@ export const NoteCard = memo(function NoteCard({
   );
   const isProfile = event.kind === 0;
   const isBlobbiState = event.kind === 31124;
-  const blobbiCompanion = useMemo(() => isBlobbiState ? parseBlobbiEvent(event) : null, [event, isBlobbiState]);
+  // Read the two tags needed for the interact gate directly instead of importing
+  // @blobbi-kit/core's parseBlobbiEvent here — that would drag ~48K of the kit
+  // into the eager bundle. BlobbiSocialActions (lazy) does the full parse itself.
   const showBlobbiInteract = isBlobbiState
     && !!user
     && user.pubkey !== event.pubkey
-    && !!blobbiCompanion?.socialOpen
-    && blobbiCompanion?.stage !== 'egg';
-  const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
+    && event.tags.some((t) => t[0] === 'social' && t[1] === 'open')
+    && event.tags.find((t) => t[0] === 'stage')?.[1] !== 'egg';
+  const isDevKind = isGitRepo || isRepoState || isPatch || isPullRequest || isPrUpdate || isIssue || isGitStatus || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
     !isPoll &&
@@ -532,6 +603,7 @@ export const NoteCard = memo(function NoteCard({
     !isConstellation &&
     !isPeopleList &&
     !isArticle &&
+    !isPublication &&
     !isMagicDeck &&
     !isStream &&
     !isFileMetadata &&
@@ -555,6 +627,7 @@ export const NoteCard = memo(function NoteCard({
     !isLetter &&
     !isLoveList &&
     !isHighlight &&
+    !isAttestation &&
     !isCampaign &&
     !isVanish &&
     !isZap &&
@@ -701,7 +774,11 @@ export const NoteCard = memo(function NoteCard({
           <PeopleListContent event={event} />
         ) : isArticle ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
-            <ArticleContent event={event} preview className="mt-2" />
+            <EmbeddedArticleCard event={event} className="mt-2" />
+          </Suspense>
+        ) : isPublication ? (
+          <Suspense fallback={<Skeleton className="h-28 w-full rounded-lg" />}>
+            <EmbeddedPublicationCard event={event} className="mt-2" hideAuthor />
           </Suspense>
         ) : isMagicDeck ? (
           <MagicDeckContent event={event} />
@@ -741,6 +818,18 @@ export const NoteCard = memo(function NoteCard({
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <PullRequestCard event={event} />
           </Suspense>
+        ) : isIssue ? (
+          <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+            <IssueCard event={event} />
+          </Suspense>
+        ) : isPrUpdate ? (
+          <PrUpdateCard event={event} />
+        ) : isGitStatus ? (
+          <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+            <GitStatusCard event={event} />
+          </Suspense>
+        ) : isRepoState ? (
+          <RepoStateCard event={event} />
         ) : isCustomNip ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <CustomNipCard event={event} />
@@ -775,6 +864,8 @@ export const NoteCard = memo(function NoteCard({
           <LoveListContent event={event} compact />
         ) : isHighlight ? (
           <HighlightContent event={event} />
+        ) : isAttestation ? (
+          <AttestationContent event={event} />
         ) : isCampaign ? (
           <CampaignContent event={event} />
         ) : isProfile ? (
@@ -861,7 +952,7 @@ export const NoteCard = memo(function NoteCard({
     <ProfileHoverCard pubkey={event.pubkey} asChild>
       <Link
         to={profileUrl}
-        className="shrink-0"
+        className="relative shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
         <Avatar shape={avatarShape} className={threaded || threadedLast ? "size-10" : "size-11"}>
@@ -870,6 +961,15 @@ export const NoteCard = memo(function NoteCard({
             {displayName[0]?.toUpperCase()}
           </AvatarFallback>
         </Avatar>
+        {/* Birthday party hat — perched on the author's avatar all day.
+            Seated well onto the head (not floating above it) because the
+            card wrapper is overflow-hidden with only ~12px of top padding —
+            anything poking further up gets clipped. */}
+        {isAuthorBirthday && (
+          <div className="pointer-events-none absolute -top-3.5 -right-2 z-10 rotate-[18deg]">
+            <PartyHat className="size-8 drop-shadow-sm" pomScale={1.15} />
+          </div>
+        )}
       </Link>
     </ProfileHoverCard>
   );
@@ -934,7 +1034,7 @@ export const NoteCard = memo(function NoteCard({
 
         {showBlobbiInteract && (
           <Suspense fallback={null}>
-            <BlobbiSocialActions event={t} source="blobbi-feed" companion={blobbiCompanion} onInteractionSuccess={handleBlobbiInteractionSuccess} />
+            <BlobbiSocialActions event={t} source="blobbi-feed" onInteractionSuccess={handleBlobbiInteractionSuccess} />
           </Suspense>
         )}
 
@@ -1353,8 +1453,11 @@ export const NoteCard = memo(function NoteCard({
   // ── Threaded layout (with or without connector line) ──
   if (threaded || threadedLast) {
     // Kind action header (e.g. "updated their badges") — same logic as normal layout
-    const threadedKindHeader = !repostedBy && !reactedBy && !zappedBy && !profileZapRecipient && !hideKindHeader && KIND_HEADER_MAP[event.kind]
-      ? (() => {
+    const threadedKindHeader = !repostedBy && !reactedBy && !zappedBy && !profileZapRecipient && !hideKindHeader
+      ? isGitStatus
+        ? <GitStatusActionHeader event={event} />
+        : KIND_HEADER_MAP[event.kind]
+        ? (() => {
           const cfg = KIND_HEADER_MAP[event.kind];
           const isLive = event.kind === 30311 && getEffectiveStreamStatus(event) === "live";
           return (
@@ -1372,6 +1475,7 @@ export const NoteCard = memo(function NoteCard({
             />
           );
         })()
+        : null
       : null;
 
     return (
@@ -1415,17 +1519,21 @@ export const NoteCard = memo(function NoteCard({
   // ── Normal layout ──
   return (
     <article
+      ref={celebrationRef}
       className={cn(
-        "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+        "relative px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
         highlight && "animate-highlight-fade",
         className,
       )}
       onClick={handleCardClick}
       onAuxClick={handleAuxClick}
     >
+      {celebrating && celebration && <CelebrationOverlay variant={celebration} />}
       {/* Action header — wrapper (repost/reaction/zap) takes priority, otherwise derived from event kind */}
       {wrapperHeader ? (
         wrapperHeader
+      ) : !hideKindHeader && !profileZapRecipient && isGitStatus ? (
+        <GitStatusActionHeader event={event} />
       ) : (
         !hideKindHeader && !profileZapRecipient && KIND_HEADER_MAP[event.kind] &&
         (() => {
@@ -2087,6 +2195,21 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     noun: "photo",
     nounRoute: "/photos",
   },
+  [MAGAZINE_KIND]: {
+    icon: Newspaper,
+    action: (event) => publishedAtAction(event, { created: "published a", updated: "updated a", fallback: "published a" }),
+    noun: "magazine",
+  },
+  [MAGAZINE_ISSUE_KIND]: {
+    icon: Newspaper,
+    action: (event) => publishedAtAction(event, { created: "published a", updated: "updated a", fallback: "published a" }),
+    noun: "magazine issue",
+  },
+  [EBOOK_KIND]: {
+    icon: BookOpen,
+    action: (event) => publishedAtAction(event, { created: "published an", updated: "updated an", fallback: "published an" }),
+    noun: "ebook",
+  },
   4: {
     icon: Mail,
     action: "sent an",
@@ -2218,6 +2341,28 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     noun: "pull request",
     nounRoute: "/development",
   },
+  1619: {
+    icon: GitPullRequestArrow,
+    action: "updated a",
+    noun: "pull request",
+    nounRoute: "/development",
+  },
+  1621: {
+    icon: CircleDot,
+    action: "opened an",
+    noun: "issue",
+    nounRoute: "/development",
+  },
+  // NIP-34 status events (1630-1633) intentionally have no header entry:
+  // whether the referenced root is an issue, patch, or pull request is
+  // only known after fetching it, so GitStatusCard renders the precise
+  // sentence ("Closed issue: ...", "Merged pull request: ...") itself.
+  30618: {
+    icon: GitBranch,
+    action: "pushed to a",
+    noun: "repository",
+    nounRoute: "/development",
+  },
   30817: {
     icon: FileCode,
     action: (event) => publishedAtAction(event, { created: "proposed a", updated: "updated a", fallback: "proposed a" }),
@@ -2245,6 +2390,11 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: "shared a",
     noun: "highlight",
     nounRoute: "/highlights",
+  },
+  31871: {
+    icon: ShieldCheck,
+    action: (event) => publishedAtAction(event, { created: "published an", updated: "updated an", fallback: "published an" }),
+    noun: "attestation",
   },
   33863: {
     icon: HandHeart,
@@ -2389,5 +2539,63 @@ export function EventActionHeader({
         </span>
       </div>
     </div>
+  );
+}
+
+/** Badge icon per NIP-34 status kind for the action header. */
+const GIT_STATUS_HEADER_ICONS: Record<number, React.ComponentType<{ className?: string }>> = {
+  1630: CircleDot,
+  1631: CircleCheck,
+  1632: CircleX,
+  1633: CircleDashed,
+};
+
+/**
+ * Action header for NIP-34 status events (kinds 1630-1633), e.g.
+ * "Alice closed an issue" / "Alice merged a pull request".
+ *
+ * Whether the referenced root is an issue, patch, or pull request is only
+ * known after fetching it (kind 1631 alone means resolved/applied/merged
+ * depending on the root's kind), so this can't be a static
+ * `KIND_HEADER_MAP` entry. The root query shares its cache entry with the
+ * one `GitStatusCard` makes, so no extra relay round-trip happens. Until
+ * the root resolves, only the verb is shown ("Alice closed …").
+ */
+function GitStatusActionHeader({ event }: { event: NostrEvent }) {
+  const rootRef = getGitRootRef(event);
+  const repoRef = getGitRepoRef(event);
+
+  const relayHints = [
+    ...(rootRef?.relay ? [rootRef.relay] : []),
+    ...(repoRef?.relay ? [repoRef.relay] : []),
+    NGIT_RELAY,
+  ];
+
+  const { data: root } = useEvent(rootRef?.id, relayHints, repoRef?.pubkey);
+
+  const noun = gitTicketNoun(root?.kind);
+  const article = noun === 'issue' ? 'an' : 'a';
+
+  let action: string;
+  let linkedNoun: string | undefined;
+  if (event.kind === 1633) {
+    // "marked a pull request as draft" — the trailing "as draft" rules
+    // out the linked-noun pattern, so build the full phrase.
+    action = noun ? `marked ${article} ${noun} as draft` : 'marked as draft';
+  } else {
+    const verb = gitStatusVerb(event.kind, root?.kind);
+    action = noun ? `${verb} ${article}` : verb;
+    linkedNoun = noun;
+  }
+
+  return (
+    <EventActionHeader
+      pubkey={event.pubkey}
+      icon={GIT_STATUS_HEADER_ICONS[event.kind] ?? CircleDot}
+      iconClassName="text-muted-foreground"
+      action={action}
+      noun={linkedNoun}
+      nounRoute={linkedNoun ? "/development" : undefined}
+    />
   );
 }

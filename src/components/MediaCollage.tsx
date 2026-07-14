@@ -18,6 +18,8 @@ import { Lightbox, LOADING_SENTINEL } from '@/components/ImageGallery';
 import { PhotoBottomBar } from '@/components/PhotoBottomBar';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useBlossomFallback } from '@/hooks/useBlossomFallback';
+import { getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { parseDimToAspectRatio, eventToMediaItem, type MediaType, type MediaItem } from '@/lib/mediaUtils';
@@ -129,6 +131,8 @@ function AudioThumb({ pubkey }: { pubkey: string }) {
 function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void }) {
   const [loaded, setLoaded] = useState(false);
   const { config } = useAppContext();
+  // Content-addressed Blossom URLs get automatic fallback across servers.
+  const { src, onError } = useBlossomFallback(item.url);
   const hasCW = item.contentWarning !== undefined;
   const policy = config.contentWarningPolicy;
   const [cwRevealed, setCwRevealed] = useState(false);
@@ -158,7 +162,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
 
       {item.type === 'video' && !showBlur && (
         <video
-          src={item.url}
+          src={src}
           data-no-native-poster=""
           poster={BLANK_POSTER}
           className={cn('absolute inset-0 w-full h-full object-cover transition-opacity duration-300 group-hover:scale-[1.04]', loaded ? 'opacity-100' : 'opacity-0')}
@@ -168,15 +172,17 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
           playsInline
           preload="metadata"
           onLoadedData={() => setLoaded(true)}
+          onError={onError}
         />
       )}
       {item.type === 'image' && !showBlur && (
         <img
-          src={item.url}
+          src={src}
           alt={item.alt ?? ''}
           className={cn('absolute inset-0 w-full h-full object-cover transition-all duration-300 group-hover:scale-[1.04]', loaded ? 'opacity-100' : 'opacity-0')}
           loading="lazy"
           onLoad={() => setLoaded(true)}
+          onError={onError}
         />
       )}
       {item.type === 'audio' && !showBlur && (
@@ -288,13 +294,20 @@ export function MediaCollage({ events, className, initialOpenUrl, onInitialOpenC
   const isMobile = useIsMobile();
   const { config } = useAppContext();
 
+  // Effective Blossom servers — needed to resolve BUD-10 blossom: URIs into
+  // fetchable HTTPS URLs when the URI carries no `xs` server hint.
+  const blossomServers = useMemo(
+    () => getEffectiveBlossomServers(config.blossomServerMetadata, config.useAppBlossomServers),
+    [config.blossomServerMetadata, config.useAppBlossomServers],
+  );
+
   const items = useMemo(
     () => events
-      .map(eventToMediaItem)
+      .map((event) => eventToMediaItem(event, blossomServers))
       .filter((x): x is MediaItem => x !== null)
       // Filter out content-warned items when policy is 'hide'
       .filter((x) => !(x.contentWarning !== undefined && config.contentWarningPolicy === 'hide')),
-    [events, config.contentWarningPolicy],
+    [events, blossomServers, config.contentWarningPolicy],
   );
 
   const flat = useMemo<FlatEntry[]>(

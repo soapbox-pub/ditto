@@ -8,21 +8,20 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { timeAgo } from '@/lib/timeAgo';
-import { isEventMuted } from '@/lib/muteHelpers';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useOpenPost } from '@/hooks/useOpenPost';
 import { useSortedPosts } from '@/hooks/useTrending';
-import { useMuteList } from '@/hooks/useMuteList';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 
 /** Hot posts widget for the right sidebar. */
 export function HotPostsWidget() {
   const { data: rawPosts, isLoading } = useSortedPosts('hot', 5);
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
 
   const posts = useMemo(() => {
-    if (!rawPosts || muteItems.length === 0) return rawPosts;
-    return rawPosts.filter((e) => !isEventMuted(e, muteItems));
-  }, [rawPosts, muteItems]);
+    if (!rawPosts) return rawPosts;
+    return rawPosts.filter((e) => !isMuted(e));
+  }, [rawPosts, isMuted]);
 
   if (isLoading) {
     return (
@@ -64,7 +63,7 @@ function HotPostCard({ event }: { event: NostrEvent }) {
   const avatarShape = getAvatarShape(metadata);
   const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
-  const { onClick: openPost, onAuxClick } = useOpenPost(`/${encodedId}`);
+  const { onClick: openPost, onAuxClick } = useOpenPost(`/${encodedId}`, event);
 
   const snippet = useMemo(() => {
     const clean = event.content.replace(/https?:\/\/\S+/g, '').trim();

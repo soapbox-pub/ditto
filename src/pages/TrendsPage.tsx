@@ -1,17 +1,16 @@
-import { useSeoMeta } from "@unhead/react";
+import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { Flame, Loader2, Swords, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useInView } from "react-intersection-observer";
+import { useInView } from "@/hooks/useInView";
 import { ClientUsersChart } from "@/components/ClientUsersChart";
 import { NoteCard } from "@/components/NoteCard";
 import { PageHeader } from "@/components/PageHeader";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppContext } from "@/hooks/useAppContext";
-import { useMuteList } from "@/hooks/useMuteList";
+import { useMuteFilter } from "@/hooks/useMuteFilter";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
 import { type SortMode, useInfiniteSortedPosts } from "@/hooks/useTrending";
-import { isEventMuted } from "@/lib/muteHelpers";
 import { cn } from "@/lib/utils";
 
 export function TrendsPage() {
@@ -38,7 +37,7 @@ export function TrendsPage() {
     hasNextPage: hasNextSorted,
     isFetchingNextPage: isFetchingNextSorted,
   } = useInfiniteSortedPosts(trendSort, true);
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
 
   // Flatten, deduplicate, and filter muted posts from paginated sorted results
   const sortedPosts = useMemo(() => {
@@ -47,12 +46,12 @@ export function TrendsPage() {
       sortedData?.pages.flat().filter((event) => {
         if (seen.has(event.id)) return false;
         seen.add(event.id);
-        if (muteItems.length > 0 && isEventMuted(event, muteItems))
+        if (isMuted(event))
           return false;
         return true;
       }) ?? []
     );
-  }, [sortedData?.pages, muteItems]);
+  }, [sortedData?.pages, isMuted]);
 
   // Intersection observer for infinite scroll on sorted posts
   const { ref: sortedScrollRef, inView: sortedInView } = useInView({

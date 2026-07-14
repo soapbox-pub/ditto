@@ -1,4 +1,4 @@
-import { useState, useId, useMemo } from 'react';
+import { useState, useId, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronUp, LogOut, UserPlus, Loader2, QrCode } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -6,11 +6,12 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { SidebarNavList } from '@/components/SidebarNavItem';
 import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
+import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 
 import { LoginArea } from '@/components/auth/LoginArea';
 import { LinkFooter } from '@/components/LinkFooter';
 import { EmojifiedText } from '@/components/CustomEmoji';
-import LoginDialog from '@/components/auth/LoginDialog';
+import { LoginFlow } from '@/components/auth/LoginFlow';
 import { FollowQRDialog } from '@/components/FollowQRDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -71,6 +72,15 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const [statusEditing, setStatusEditing] = useState(false);
   const [statusDraft, setStatusDraft] = useState('');
 
+  // Portal container for menus opened inside the drawer (e.g. the "More..."
+  // menu with its search input). Portaling them into the sheet keeps them
+  // inside the dialog's RemoveScroll + FocusScope boundary so they stay
+  // interactable on touch devices.
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
+  const sheetContentRef = useCallback((node: HTMLDivElement | null) => {
+    setPortalContainer(node ?? undefined);
+  }, []);
+
   /** Compute the background image style for the drawer, mirroring the body background. */
   const bgStyle = useMemo<React.CSSProperties>(() => {
     const resolved = resolveTheme(theme);
@@ -105,7 +115,8 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   return (
     <>
         <Sheet open={open} onOpenChange={(v) => { if (!v) setMoreMenuOpen(false); onOpenChange(v); }}>
-        <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col overflow-visible">
+        <SheetContent ref={sheetContentRef} side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col overflow-visible">
+          <PortalContainerProvider value={portalContainer}>
           {/* SVG clip path definition for the drawer + arc shape.
               The clip path uses objectBoundingBox units so the arc scales with the
               background layer. The 0.893 ratio ≈ DRAWER_WIDTH / DRAWER_BG_WIDTH
@@ -375,10 +386,11 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               </div>
             </div>
           )}
+          </PortalContainerProvider>
         </SheetContent>
       </Sheet>
 
-      <LoginDialog
+      <LoginFlow
         isOpen={loginDialogOpen}
         onClose={() => setLoginDialogOpen(false)}
         onLogin={() => setLoginDialogOpen(false)}

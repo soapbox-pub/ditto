@@ -1,7 +1,8 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import { BookMarked, Copy, Check, ExternalLink, Globe, Wand2 } from "lucide-react";
+import { BookMarked, Copy, Check, ExternalLink, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { GitSiteLinks } from "@/components/GitSiteLinks";
 import { openUrl } from "@/lib/downloadFile";
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { NostrURI } from "@/lib/NostrURI";
@@ -36,6 +37,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 	// Nostr clone URI (nostr://npub/relay/identifier)
 	const nostrUri = NostrURI.fromEvent(event);
 	const nostrCloneUrl = nostrUri.toString();
+	const repoNaddr = nostrUri.toNaddr();
 
 	// Shakespeare + web URL = this is a deployed application, not a repo
 	const isApp = hasShakespeare && !!webUrls[0];
@@ -109,48 +111,35 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 				</div>
 
 				{/* Action buttons */}
-				{(hasShakespeare || isApp || webUrls[0]) && (
-					<div className="flex flex-wrap gap-2 pt-0.5">
-						{hasShakespeare && (
-							<button
-								type="button"
-								className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-								onClick={(e) => {
-									e.stopPropagation();
-									openUrl(shakespeareUrl);
-								}}
-							>
-								<Wand2 className="size-3" />
-								Edit with Shakespeare
-							</button>
-						)}
-						{isApp ? (
-							<button
-								type="button"
-								className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
-								onClick={(e) => {
-									e.stopPropagation();
-									openUrl(webUrls[0]);
-								}}
-							>
-								<ExternalLink className="size-3" />
-								Open App
-							</button>
-						) : webUrls[0] ? (
-							<button
-								type="button"
-								className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
-								onClick={(e) => {
-									e.stopPropagation();
-									openUrl(webUrls[0]);
-								}}
-							>
-								<Globe className="size-3" />
-								Browse Repository
-							</button>
-						) : null}
-					</div>
-				)}
+				<div className="flex flex-wrap gap-2 pt-0.5">
+					{hasShakespeare && (
+						<button
+							type="button"
+							className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+							onClick={(e) => {
+								e.stopPropagation();
+								openUrl(shakespeareUrl);
+							}}
+						>
+							<Wand2 className="size-3" />
+							Edit with Shakespeare
+						</button>
+					)}
+					{isApp && (
+						<button
+							type="button"
+							className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
+							onClick={(e) => {
+								e.stopPropagation();
+								openUrl(webUrls[0]);
+							}}
+						>
+							<ExternalLink className="size-3" />
+							Open App
+						</button>
+					)}
+					<GitSiteLinks nip19={repoNaddr} />
+				</div>
 			</div>
 		</div>
 	);

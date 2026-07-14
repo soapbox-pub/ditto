@@ -1,4 +1,4 @@
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { LetterPreferencesSection } from '@/components/letter/LetterPreferencesSection';
 
 export function LetterPreferencesPage() {

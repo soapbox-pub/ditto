@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
+import { useInView } from '@/hooks/useInView';
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { nip19 } from 'nostr-tools';
-import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
+import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake, HeartHandshake } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -24,6 +24,8 @@ import { NoteCard } from '@/components/NoteCard';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ProfileLoveButton } from '@/components/ProfileLoveButton';
+import { CelebrationOverlay, CELEBRATION_DURATION_MS } from '@/components/CelebrationOverlay';
+import { BirthdayRain, PartyHat } from '@/components/BirthdayRain';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Nip05Badge, VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -35,12 +37,14 @@ import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useMuteList } from '@/hooks/useMuteList';
-import { isEventMuted } from '@/lib/muteHelpers';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useProfileFeed, useProfileLikes as useProfileLikesInfinite, useTabFeed, filterByTab } from '@/hooks/useProfileFeed';
 import type { ProfileTab as CoreProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { MediaCollage, MediaCollageSkeleton } from '@/components/MediaCollage';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
+import { useInterests } from '@/hooks/useInterests';
+import { normalizeTagValue } from '@/lib/hashtag';
 import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
 import { useWallComments } from '@/hooks/useWallComments';
 import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
@@ -81,16 +85,14 @@ import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import type { ProfileTab, ProfileTabsData, TabFilter, TabVarDef } from '@/lib/profileTabsEvent';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
   SortableContext, sortableKeyboardCoordinates, useSortable,
   horizontalListSortingStrategy, arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS as DndCSS } from '@dnd-kit/utilities';
+  CSS as DndCSS,
+  type DragEndEvent,
+} from '@/lib/sortable';
 import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
-import { resolveCssFamily } from '@/lib/fonts';
+import { resolveCssFamily, loadBundledFont } from '@/lib/fonts';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontSection } from '@/components/FontPicker';
@@ -103,6 +105,9 @@ import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import type { AddrCoords } from '@/hooks/useEvent';
 import { isNostrId } from '@/lib/nostrId';
+import { tryNpubEncode } from '@/lib/safeNip19';
+import { parseBirthdayFromContent, isBirthdayToday } from '@/lib/birthday';
+import { startBirthdayJingle, stopBirthdayJingle } from '@/lib/birthdayJingle';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { parseAddr } from '@/lib/parseAddr';
 import { impactMedium } from '@/lib/haptics';
@@ -972,23 +977,77 @@ const TAB_DISPLAY_LABELS: Record<string, string> = {
 
 const tabDisplayLabel = (label: string): string => TAB_DISPLAY_LABELS[label] ?? label;
 
+/**
+ * Commit a cheap static skeleton first, then mount the heavy body from an
+ * effect. The lazy route reveal is an interruptible concurrent render, and on
+ * slow devices query-cache updates restart it faster than a full pass over
+ * this tree can finish — livelocking the route on its Suspense fallback. The
+ * effect-driven render is sync priority and can't be restarted.
+ */
 export function ProfilePage() {
+  const [bodyMounted, setBodyMounted] = useState(false);
+
+  useEffect(() => {
+    setBodyMounted(true);
+  }, []);
+
+  if (!bodyMounted) {
+    return (
+      <main className="flex-1 min-w-0 relative">
+        <div className="h-36 md:h-48 bg-secondary relative">
+          <Skeleton className="w-full h-full rounded-none" />
+        </div>
+        <div className="px-4 pb-4">
+          <div className="relative -mt-12 mb-3">
+            <Skeleton className="size-24 rounded-full border-4 border-background" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  return <ProfilePageInner />;
+}
+
+function ProfilePageInner() {
   const { config } = useAppContext();
   const params = useParams();
   const npub = params.npub ?? params.nip19;
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { toast } = useToast();
-  const { muteItems } = useMuteList();
+  const { isMuted: isMutedEvent } = useMuteFilter();
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<CoreProfileTab | string>('posts');
   const [sidebarMediaUrl, setSidebarMediaUrl] = useState<string | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  // Hearts sprinkle over the header when this profile is added to the Love List.
+  const [lovedCelebrating, setLovedCelebrating] = useState(false);
+  // NIP-24 birthday — mutes the looping jingle while viewing a birthday profile.
+  const [jingleMuted, setJingleMuted] = useState(false);
+  // NIP-24 birthday — composer prefilled with a birthday wish mentioning this profile.
+  const [birthdayComposeOpen, setBirthdayComposeOpen] = useState(false);
   const [followQROpen, setFollowQROpen] = useState(false);
   const [followersModalOpen, setFollowersModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-
+  // Sprinkle hearts over the header for a moment when a profile is loved.
+  // prefers-reduced-motion callers skip it (the overlay is also hidden by CSS
+  // as defense-in-depth).
+  const handleLoved = useCallback(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    setLovedCelebrating(true);
+  }, []);
+  useEffect(() => {
+    if (!lovedCelebrating) return;
+    const timeout = setTimeout(() => setLovedCelebrating(false), CELEBRATION_DURATION_MS);
+    return () => clearTimeout(timeout);
+  }, [lovedCelebrating]);
   // Determine if the URL param is a NIP-05 identifier (contains @ or is a domain-like string)
   const isNip05Param = useMemo(() => {
     if (!npub) return false;
@@ -1065,6 +1124,50 @@ interface FollowersListModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   displayName: string;
+}
+
+/**
+ * Quiet "You both like art, music and 3 more" line shown on profiles whose
+ * interests list (kind 10015) overlaps the viewer's — a conversation starter
+ * for making friends. Reads as prose (no boxes, no `#`); each interest links
+ * to its tag feed. Tags are pre-validated by useProfileSupplementary.
+ */
+function SharedInterests({ tags }: { tags: string[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? tags : tags.slice(0, 3);
+  const hidden = tags.length - shown.length;
+
+  return (
+    <div className="flex items-start gap-1.5 mt-2 text-sm text-muted-foreground">
+      <HeartHandshake className="size-3.5 shrink-0 mt-0.5 text-primary" aria-hidden="true" />
+      <p className="min-w-0 break-words">
+        You both like{' '}
+        {shown.map((tag, i) => (
+          <Fragment key={tag}>
+            {i > 0 && (i === shown.length - 1 && hidden === 0 ? ' and ' : ', ')}
+            <Link
+              to={`/t/${encodeURIComponent(tag)}`}
+              className="font-medium text-foreground hover:text-primary hover:underline"
+            >
+              {tag}
+            </Link>
+          </Fragment>
+        ))}
+        {hidden > 0 && (
+          <>
+            {' '}and{' '}
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="font-medium underline decoration-dotted underline-offset-2 hover:text-foreground transition-colors"
+            >
+              {hidden} more
+            </button>
+          </>
+        )}
+      </p>
+    </div>
+  );
 }
 
 function FollowersListModal({ pubkey, open, onOpenChange, displayName }: FollowersListModalProps) {
@@ -1333,6 +1436,31 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const metadataEvent = author.data?.event;
   const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
 
+  // NIP-24 birthday — parse from the raw kind 0 content and celebrate all day
+  // when the profile's month/day match today (year is optional and unused).
+  const birthday = useMemo(
+    () => parseBirthdayFromContent(metadataEvent?.content),
+    [metadataEvent?.content],
+  );
+  const isBirthday = isBirthdayToday(birthday);
+  // npub for the prefilled birthday-wish mention. tryNpubEncode because the
+  // pubkey may come from an untrusted NIP-05 .well-known lookup.
+  const birthdayNpub = isBirthday ? tryNpubEncode(pubkey) : undefined;
+
+  // Loop the birthday jingle while viewing the profile; stops on navigation
+  // away (unmount), profile change, or mute.
+  useEffect(() => {
+    if (!isBirthday || jingleMuted) return;
+    startBirthdayJingle();
+    return () => stopBirthdayJingle();
+  }, [isBirthday, jingleMuted, pubkey]);
+
+  // Script display font for the birthday heading — lazy-loaded only on
+  // someone's birthday.
+  useEffect(() => {
+    if (isBirthday) loadBundledFont('Pacifico');
+  }, [isBirthday]);
+
   // Kind 3 + 10001 — fetched separately so the large contact list
   // doesn't block the profile header or feed from rendering.
   const { data: supplementary } = useProfileSupplementary(pubkey);
@@ -1421,6 +1549,17 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   // Whether this profile's Love List (kind 15683) includes the viewer.
   // No extra query — the love list is already part of the supplementary fetch.
   const lovesYou = !isOwnProfile && !!user && (supplementary?.loved.includes(user.pubkey) ?? false);
+
+  // Hashtag interests (kind 10015) the viewer shares with this profile.
+  // The profile's interests come from the supplementary fetch (already
+  // normalized); the viewer's own list is normalized the same way here so
+  // stray `#` prefixes or whitespace don't break the match.
+  const { hashtags: viewerInterests } = useInterests();
+  const sharedInterests = useMemo(() => {
+    if (isOwnProfile || !user || viewerInterests.length === 0) return [];
+    const mine = new Set(viewerInterests.map((tag) => normalizeTagValue(tag)).filter(Boolean));
+    return (supplementary?.interests ?? []).filter((tag) => mine.has(tag)).sort();
+  }, [isOwnProfile, user, viewerInterests, supplementary?.interests]);
 
   // Does the profile owner follow the current user?
   // Wall posts are only visible to people the profile owner follows,
@@ -1684,13 +1823,13 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
         if (!seen.has(key)) {
           seen.add(key);
-          if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) continue;
+          if (isMutedEvent(item.event)) continue;
           items.push(item);
         }
       }
     }
     return items;
-  }, [feedData?.pages, muteItems]);
+  }, [feedData?.pages, isMutedEvent]);
 
   // Flatten media pages for the sidebar and media tab
   const mediaEvents = useMemo(() => {
@@ -1738,13 +1877,13 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       for (const comment of page.comments) {
         if (!seen.has(comment.id)) {
           seen.add(comment.id);
-          if (muteItems.length > 0 && isEventMuted(comment, muteItems)) continue;
+          if (isMutedEvent(comment)) continue;
           items.push(comment);
         }
       }
     }
     return items;
-  }, [wallData?.pages, muteItems]);
+  }, [wallData?.pages, isMutedEvent]);
 
   // Pair each wall comment with its first direct sub-reply (same pattern as PostDetailPage replies).
   // useWallComments queries #A (uppercase root tag) which returns all depth levels per NIP-22,
@@ -1905,7 +2044,24 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   }
 
   return (
-    <main className="flex-1 min-w-0">
+    <main className="flex-1 min-w-0 relative">
+      {/* Love List celebration — hearts rain down over the top of the profile
+          when this profile is added to the Love List. Anchored to the top
+          third of the page so the sprinkle covers the header. */}
+      {lovedCelebrating && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[40vh] z-20 overflow-hidden">
+          <CelebrationOverlay variant="hearts" />
+        </div>
+      )}
+      {/* Birthday rain — its own persistent weather effect (not the one-shot
+          post celebration): confetti and balloons fall continuously through
+          the full height of the content area for as long as the profile is
+          open. Density scales with the measured height inside BirthdayRain. */}
+      {isBirthday && (
+        <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+          <BirthdayRain />
+        </div>
+      )}
       <PullToRefresh onRefresh={handleRefresh}>
         {/* Banner */}
           <div className="h-36 md:h-48 bg-secondary relative">
@@ -2092,6 +2248,21 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+
+            {/* Wish happy birthday — lower right of the banner (someone else's birthday only) */}
+            {!isOwnProfile && birthdayNpub && (
+              <Button
+                variant="outline"
+                className="absolute bottom-3 right-3 z-10 max-w-[calc(100%-1.5rem)] rounded-full font-bold backdrop-blur-sm border-amber-400/60 bg-background/70 text-amber-700 hover:bg-background/85 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
+                onClick={() => setBirthdayComposeOpen(true)}
+                disabled={!user}
+                title={user ? undefined : 'Log in to wish a happy birthday'}
+                aria-label={`Wish ${displayName} a Happy Birthday!`}
+              >
+                <Cake className="size-4 mr-2 shrink-0" aria-hidden="true" />
+                <span className="truncate">Wish {displayName} a Happy Birthday!</span>
+              </Button>
+            )}
           </div>
 
           {/* Profile info */}
@@ -2126,6 +2297,14 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       </Avatar>
                     </div>
                   </button>
+
+                  {/* Birthday party hat — perched on the avatar's head,
+                      tilted like it was pulled on in a hurry. */}
+                  {isBirthday && (
+                    <div className="pointer-events-none absolute -top-5 right-0 md:-top-7 md:right-1 z-10 rotate-[18deg]">
+                      <PartyHat className="size-12 md:size-16 drop-shadow-md" />
+                    </div>
+                  )}
 
                   {/* NIP-38 thought bubble — floats beside the avatar over the banner */}
                   {feedSettings.showUserStatuses !== false && profileStatus.status && (
@@ -2172,7 +2351,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                   )}
                   {/* Love List toggle */}
                   {!isOwnProfile && (
-                    <ProfileLoveButton pubkey={pubkey} displayName={displayName} isFollowing={isFollowing} />
+                    <ProfileLoveButton pubkey={pubkey} displayName={displayName} isFollowing={isFollowing} onLoved={handleLoved} />
                   )}
                   {isOwnProfile ? (
                     <Link to="/settings/profile">
@@ -2273,6 +2452,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </p>
               )}
 
+              {/* Interests (kind 10015) shared with the viewer */}
+              {sharedInterests.length > 0 && <SharedInterests tags={sharedInterests} />}
+
               {/* Badge preview */}
               {badgeRefs.length > 0 && (
                 <div className="flex items-center gap-1.5 mt-2">
@@ -2310,6 +2492,40 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             </>
           )}
         </div>
+
+        {/* Birthday — a quiet typographic calendar page: centered stack of
+            BIRTHDAY TODAY, a hairline rule, month over a big day number, and
+            the jingle mute toggle. */}
+        {isBirthday && birthday?.month !== undefined && birthday?.day !== undefined && (
+          <div
+            className="flex flex-col items-center px-4 pb-6 pt-2 text-center"
+            title={isOwnProfile ? 'Happy birthday!' : `It's ${displayName}'s birthday today!`}
+          >
+            <span
+              className="text-2xl leading-relaxed text-amber-700 dark:text-amber-400"
+              style={{ fontFamily: "'Pacifico', cursive" }}
+            >
+              Birthday today
+            </span>
+            <span className="my-3 h-px w-12 bg-border" aria-hidden="true" />
+            <span className="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
+              {new Date(2000, birthday.month - 1, 1).toLocaleDateString(undefined, { month: 'long' })}
+            </span>
+            <span className="mt-1 text-5xl font-extrabold leading-none tabular-nums">
+              {birthday.day}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="mt-3 size-8 rounded-full text-muted-foreground hover:text-foreground"
+              onClick={() => setJingleMuted((m) => !m)}
+              aria-label={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
+              title={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
+            >
+              {jingleMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+            </Button>
+          </div>
+        )}
 
         {/* Tabs */}
         <SubHeaderBar pinned>
@@ -2692,6 +2908,17 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         {/* Follow QR dialog (own profile action bar button) */}
         {isOwnProfile && (
           <FollowQRDialog open={followQROpen} onOpenChange={setFollowQROpen} />
+        )}
+
+        {/* Birthday wish composer — prefilled mention (someone else's birthday only) */}
+        {!isOwnProfile && birthdayNpub && (
+          <ReplyComposeModal
+            open={birthdayComposeOpen}
+            onOpenChange={setBirthdayComposeOpen}
+            initialContent={`Happy birthday, nostr:${birthdayNpub}! 🎂🎉`}
+            title="Wish a happy birthday"
+            placeholder={`Wish ${displayName} a happy birthday...`}
+          />
         )}
 
         {/* Followers List Modal */}

@@ -1,6 +1,5 @@
 import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createHead, UnheadProvider } from "@unhead/react/client";
 import { BrowserRouter } from "react-router-dom";
 import { AppProvider } from "@/components/AppProvider";
 import NostrProvider from "@/components/NostrProvider";
@@ -12,8 +11,6 @@ interface TestAppProps {
 }
 
 export function TestApp({ children }: TestAppProps) {
-  const head = createHead();
-
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -45,6 +42,7 @@ export function TestApp({ children }: TestAppProps) {
       showHighlights: false,
       feedIncludeHighlights: false,
       feedIncludeCampaigns: false,
+      feedIncludeAttestations: false,
       showEvents: false,
       feedIncludeEvents: false,
       showVines: true,
@@ -88,7 +86,22 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludePodcastEpisodes: false,
       feedIncludePodcastTrailers: false,
       showDevelopment: false,
-      feedIncludeDevelopment: false,
+      feedIncludeGitRepos: false,
+      feedIncludeGitPushes: false,
+      feedIncludeGitPatches: false,
+      feedIncludeGitPullRequests: false,
+      feedIncludeGitPrUpdates: false,
+      feedIncludeGitIssues: false,
+      feedIncludeGitStatusReopened: false,
+      feedIncludeGitStatusResolved: false,
+      feedIncludeGitStatusClosed: false,
+      feedIncludeGitStatusDraft: false,
+      feedIncludeCustomNips: false,
+      feedIncludeNsiteRoots: false,
+      feedIncludeNsiteNamed: false,
+      feedIncludeZapstoreApps: false,
+      feedIncludeZapstoreReleases: false,
+      feedIncludeAppHandlers: false,
       showBadges: false,
       showBadgeDefinitions: true,
       showProfileBadges: true,
@@ -118,6 +131,7 @@ export function TestApp({ children }: TestAppProps) {
     corsProxy: "https://proxy.shakespeare.diy/?url={href}",
     magicMouse: false,
     contentWarningPolicy: "blur",
+    exemptFollowsFromFilters: false,
     sentryDsn: "",
     sentryEnabled: false,
     plausibleDomain: "",
@@ -133,19 +147,17 @@ export function TestApp({ children }: TestAppProps) {
   };
 
   return (
-    <UnheadProvider head={head}>
-      <AppProvider storageKey="test-app-config" defaultConfig={defaultConfig}>
-        <QueryClientProvider client={queryClient}>
-          <NostrLoginProvider storageKey="test-login">
-            <NostrProvider>
-              <NWCProvider>
-                <BrowserRouter>{children}</BrowserRouter>
-              </NWCProvider>
-            </NostrProvider>
-          </NostrLoginProvider>
-        </QueryClientProvider>
-      </AppProvider>
-    </UnheadProvider>
+    <AppProvider storageKey="test-app-config" defaultConfig={defaultConfig}>
+      <QueryClientProvider client={queryClient}>
+        <NostrLoginProvider storageKey="test-login">
+          <NostrProvider>
+            <NWCProvider>
+              <BrowserRouter>{children}</BrowserRouter>
+            </NWCProvider>
+          </NostrProvider>
+        </NostrLoginProvider>
+      </QueryClientProvider>
+    </AppProvider>
   );
 }
 

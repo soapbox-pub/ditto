@@ -1,7 +1,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { useNostr } from "@nostrify/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSeoMeta } from "@unhead/react";
+import { useSeoMeta } from "@/hooks/useSeoMeta";
 import {
   AlertCircle,
   ArrowLeft,
@@ -19,6 +19,7 @@ import {
   Share2,
   Star,
   Stars,
+  Trash2,
   Zap,
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -40,13 +41,15 @@ import {
 } from "@/components/CustomEmoji";
 const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const BlobbiSocialActions = lazy(() => import("@/components/BlobbiSocialActions").then(m => ({ default: m.BlobbiSocialActions })));
-import { parseBlobbiEvent } from "@/blobbi/core/lib/blobbi";
+import { parseBlobbiEvent } from "@blobbi-kit/core/blobbi";
 import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
 import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { HighlightContent } from "@/components/HighlightContent";
-import { CampaignContent } from "@/components/CampaignContent";
+import { AttestationContent } from "@/components/AttestationContent";
+import { ATTESTATION_KIND } from "@/lib/attestation";
+import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
 import { PeopleListDetailContent } from "@/components/PeopleListDetailContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
@@ -55,18 +58,24 @@ import { BirdDetectionContent } from "@/components/BirdDetectionContent";
 import { BirdexContent } from "@/components/BirdexContent";
 import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
+const GitStatusCard = lazy(() => import("@/components/GitStatusCard").then(m => ({ default: m.GitStatusCard })));
+const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ default: m.IssueCard })));
+import { PrUpdateCard } from "@/components/PrUpdateCard";
+import { RepoStateCard } from "@/components/RepoStateCard";
 import { ImageGallery } from "@/components/ImageGallery";
 import {
   InteractionsModal,
   type InteractionTab,
 } from "@/components/InteractionsModal";
 import { RepostIcon } from "@/components/icons/RepostIcon";
+import { ChestIcon } from "@/components/icons/ChestIcon";
 import { LiveStreamPage } from "@/components/LiveStreamPage";
 import { MagicDeckContent } from "@/components/MagicDeckContent";
 import { MusicDetailContent } from "@/components/MusicDetailContent";
 import { ActivityCard, EventActionHeader, NoteCard } from "@/components/NoteCard";
 import { publishedAtAction } from "@/lib/publishedAtAction";
 import { NoteContent } from "@/components/NoteContent";
+import { CelebrationOverlay, CELEBRATION_DURATION_MS } from "@/components/CelebrationOverlay";
 import { UnknownKindContent } from "@/components/UnknownKindContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { NoteMoreMenu } from "@/components/NoteMoreMenu";
@@ -74,6 +83,7 @@ import { PostActionBar } from "@/components/PostActionBar";
 import { PeopleAvatarStack } from "@/components/PeopleAvatarStack";
 import { PatchCard } from "@/components/PatchCard";
 import { PodcastDetailContent } from "@/components/PodcastDetailContent";
+import { PublicationContent } from "@/components/PublicationContent";
 import { PollContent } from "@/components/PollContent";
 const PullRequestCard = lazy(() => import("@/components/PullRequestCard").then(m => ({ default: m.PullRequestCard })));
 import { ReactionButton } from "@/components/ReactionButton";
@@ -82,6 +92,8 @@ import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
 import { ThreadedReplyList, FlatThreadedReplyList, type ReplyNode } from "@/components/ThreadedReplyList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PartyHat } from "@/components/BirthdayRain";
+import { isBirthdayToday, parseBirthdayFromContent } from "@/lib/birthday";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { Button } from "@/components/ui/button";
 import {
@@ -106,9 +118,10 @@ import { AppHandlerDetailPage } from "@/pages/AppHandlerDetailPage";
 import { ExternalContentView } from "@/pages/ExternalContentPage";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
+import { useEventDeletion } from "@/hooks/useEventDeletion";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { formatNumber } from "@/lib/formatNumber";
-import { KIND_LABELS } from "@/lib/kindLabels";
+import { getKindLabel, KIND_LABELS } from "@/lib/kindLabels";
 
 /** Kinds that get the full people-list detail view (follow list / set / pack / love list). */
 const PEOPLE_LIST_KINDS = new Set([3, 30000, 39089, LOVE_LIST_KIND]);
@@ -153,6 +166,9 @@ function shellTitleForKind(kind?: number): string {
   if (PODCAST_KINDS.has(kind)) return "Episode Details";
   if (CALENDAR_EVENT_KINDS.has(kind)) return "Event Details";
   if (kind === LIVE_STREAM_KIND) return "Live Stream";
+  if (kind === MAGAZINE_KIND) return "Magazine";
+  if (kind === MAGAZINE_ISSUE_KIND) return "Magazine Issue";
+  if (kind === EBOOK_KIND) return "Ebook";
   // Composite labels that differ from the raw kind name
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
   // Kind 10008 is unambiguously profile badges (NIP-51 standard list).
@@ -185,7 +201,7 @@ import { useComments } from "@/hooks/useComments";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEventInteractions, extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
 import { extractOnchainZapClaimedAmount, extractOnchainZapRecipients, useVerifiedOnchainZap } from "@/hooks/useOnchainZaps";
-import { useMuteList } from "@/hooks/useMuteList";
+import { useMuteFilter } from "@/hooks/useMuteFilter";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useReplies } from "@/hooks/useReplies";
 import { useShareOrigin } from "@/hooks/useShareOrigin";
@@ -195,10 +211,10 @@ import { useFormatMoney } from "@/hooks/useFormatMoney";
 import type { Nip85EventStats } from "@/hooks/useNip85Stats";
 import { extractISBNFromEvent } from "@/lib/bookstr";
 import { isBadgeSetEvent, isProfileBadgesEvent } from "@/lib/badgeUtils";
+import { detectCelebration, markCelebrated } from "@/lib/celebrations";
 import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
 import { encodeEventAddress } from "@/lib/encodeEvent";
 import { getDisplayName } from "@/lib/getDisplayName";
-import { isEventMuted } from "@/lib/muteHelpers";
 import { parseAddr } from "@/lib/parseAddr";
 import { getParentEventId, getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
 import { shareOrCopy } from "@/lib/share";
@@ -530,14 +546,12 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
  * provides the comments tree.
  */
 function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);
 
   const orderedReplies = useMemo(() => {
     const topLevel = commentsData?.topLevelComments ?? [];
-    const filtered = muteItems.length > 0
-      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
-      : topLevel;
+    const filtered = topLevel.filter((r) => !isMuted(r));
     return [...filtered]
       .sort((a, b) => a.created_at - b.created_at)
       .map((reply) => {
@@ -547,7 +561,7 @@ function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
           firstSubReply: directReplies[0] as NostrEvent | undefined,
         };
       });
-  }, [commentsData, muteItems]);
+  }, [commentsData, isMuted]);
 
   return (
     <div>
@@ -683,6 +697,109 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
   );
 }
 
+/** Human noun for a deleted event's kind, suitable mid-sentence ("this short text note"). */
+function deletedKindNoun(kind: number | undefined): string {
+  if (kind === undefined) return "event";
+  const label = getKindLabel(kind);
+  // Lowercase the first letter unless the label starts with an acronym ("DM relay list").
+  return /^[A-Z][a-z]/.test(label)
+    ? label.charAt(0).toLowerCase() + label.slice(1)
+    : label;
+}
+
+/**
+ * Meditations on nonexistence, absence, and impermanence — fitting company
+ * for an event that may be deleted, lost, or simply on a relay we can't see.
+ * Same system as ProfilePage's NO_TABS_QUOTES: one random pick per mount.
+ */
+const NONEXISTENCE_QUOTES: { text: string; author: string; source: string }[] = [
+  {
+    text: "Nothingness lies coiled in the heart of being — like a worm.",
+    author: "Jean-Paul Sartre",
+    source: "Being and Nothingness",
+  },
+  {
+    text: "Nothing happens, nobody comes, nobody goes, it's awful!",
+    author: "Samuel Beckett",
+    source: "Waiting for Godot",
+  },
+  {
+    text: "I only wish I had such eyes — to be able to see Nobody! And at that distance too!",
+    author: "Lewis Carroll",
+    source: "Through the Looking-Glass",
+  },
+  {
+    text: "It cannot be seen, cannot be felt, cannot be heard, cannot be smelt. It lies behind stars and under hills, and empty holes it fills.",
+    author: "J. R. R. Tolkien",
+    source: "The Hobbit",
+  },
+  {
+    text: "We are such stuff as dreams are made on, and our little life is rounded with a sleep.",
+    author: "William Shakespeare",
+    source: "The Tempest",
+  },
+  {
+    text: "Loss is nothing else but change, and change is Nature's delight.",
+    author: "Marcus Aurelius",
+    source: "Meditations",
+  },
+  {
+    text: "It was all a nothing and a man was nothing too.",
+    author: "Ernest Hemingway",
+    source: "A Clean, Well-Lighted Place",
+  },
+  {
+    text: "Only in silence the word, only in dark the light, only in dying life: bright the hawk's flight on the empty sky.",
+    author: "Ursula K. Le Guin",
+    source: "A Wizard of Earthsea",
+  },
+  {
+    text: "We shape clay into a pot, but it is the emptiness inside that holds whatever we want.",
+    author: "Laozi",
+    source: "Tao Te Ching",
+  },
+  {
+    text: "And if you gaze long into an abyss, the abyss also gazes into you.",
+    author: "Friedrich Nietzsche",
+    source: "Beyond Good and Evil",
+  },
+  {
+    text: "All that we see or seem is but a dream within a dream.",
+    author: "Edgar Allan Poe",
+    source: "A Dream Within a Dream",
+  },
+  {
+    text: "It is not down in any map; true places never are.",
+    author: "Herman Melville",
+    source: "Moby-Dick",
+  },
+  {
+    text: "Nobody is my name. My father and mother call me Nobody.",
+    author: "Homer",
+    source: "The Odyssey",
+  },
+];
+
+/** A small epigraph on nonexistence, shown beneath the details of an event that isn't. */
+function NonexistenceQuote() {
+  const quote = useMemo(
+    () => NONEXISTENCE_QUOTES[Math.floor(Math.random() * NONEXISTENCE_QUOTES.length)],
+    [],
+  );
+  return (
+    <div className="pt-2 px-4 flex flex-col items-center">
+      <p className="max-w-sm font-serif text-sm italic leading-6 text-foreground/60 tracking-wide text-center">
+        <span className="text-2xl leading-none align-bottom text-muted-foreground/25 font-serif mr-1" aria-hidden>&ldquo;</span>
+        {quote.text}
+        <span className="text-2xl leading-none align-bottom text-muted-foreground/25 font-serif ml-1" aria-hidden>&rdquo;</span>
+      </p>
+      <p className="mt-2 font-serif text-xs text-muted-foreground/70 tracking-wide text-center">
+        &mdash; {quote.author}, <cite>{quote.source}</cite>
+      </p>
+    </div>
+  );
+}
+
 /** Shows a "not found" state with contextual event info and a collapsible relay retry option. */
 function EventNotFound({
   context,
@@ -704,6 +821,15 @@ function EventNotFound({
   // Extract author pubkey from context if available
   const authorPubkey =
     context.type === "event" ? context.authorHint : context.addr.pubkey;
+
+  // The event couldn't be loaded — check whether the author published a
+  // kind 5 (NIP-09) deletion request for it, so we can say *why* it's gone.
+  const { data: deletionInfo, isLoading: isDeletionCheckLoading } = useEventDeletion(
+    context.type === "event"
+      ? { type: "event", eventId: context.eventId, authorHint: context.authorHint }
+      : { type: "addr", addr: context.addr },
+    true,
+  );
 
   const handleRetry = useCallback(
     async (targetUrl: string) => {
@@ -755,21 +881,57 @@ function EventNotFound({
   return (
     <div className="px-4 py-12">
       <div className="max-w-md mx-auto space-y-6">
-        {/* Not found message */}
-        <div className="text-center space-y-3">
-          <div className="inline-flex items-center justify-center size-14 rounded-full bg-muted/60 mb-2">
-            <AlertCircle className="size-7 text-muted-foreground" />
+        {/* Not found message — skeleton until the deletion check resolves, so
+            we never flash "Event not found" before flipping to "Event deleted". */}
+        {isDeletionCheckLoading ? (
+          <div className="text-center space-y-3">
+            <Skeleton className="size-14 rounded-full mx-auto mb-2" />
+            <Skeleton className="h-6 w-40 mx-auto" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-full max-w-xs mx-auto" />
+              <Skeleton className="h-4 w-3/4 max-w-56 mx-auto" />
+            </div>
           </div>
-          <h2 className="text-xl font-bold">Event not found</h2>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {authorPubkey
-              ? "This event couldn't be loaded from your connected relays or the author's outbox relays. It may exist on a relay neither of you are connected to."
-              : "This event couldn't be loaded from your connected relays. It may exist on a relay you're not connected to."}
-          </p>
-        </div>
+        ) : (
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center justify-center size-14 rounded-full bg-muted/60 mb-2">
+              {deletionInfo ? (
+                <Trash2 className="size-7 text-muted-foreground" />
+              ) : (
+                <AlertCircle className="size-7 text-muted-foreground" />
+              )}
+            </div>
+            <h2 className="text-xl font-bold">
+              {deletionInfo ? "Event deleted" : "Event not found"}
+            </h2>
+            {deletionInfo ? (
+              <>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {deletionInfo.verified
+                    ? `This ${deletedKindNoun(deletionInfo.deletedKind)} was deleted by its author on ${formatFullDate(deletionInfo.deletion.created_at)}.`
+                    : `A deletion request for this ${deletedKindNoun(deletionInfo.deletedKind)} was published on ${formatFullDate(deletionInfo.deletion.created_at)}, so it was likely removed by its author.`}
+                </p>
+                {deletionInfo.reason && (
+                  <p className="text-sm text-muted-foreground italic break-words">
+                    “{deletionInfo.reason}”
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {authorPubkey
+                  ? "This event couldn't be loaded from your connected relays or the author's outbox relays. It may exist on a relay neither of you are connected to."
+                  : "This event couldn't be loaded from your connected relays. It may exist on a relay you're not connected to."}
+              </p>
+            )}
+          </div>
+        )}
 
-        {/* Primary retry action */}
-        {onRetry && (
+        {/* Retrying makes no sense for a verified deletion — the author
+            removed it on purpose. An unverified kind 5 is just a claim, so
+            keep the retry affordances in that case. Held back while the
+            deletion check is pending so they don't flash in and out. */}
+        {!isDeletionCheckLoading && onRetry && !deletionInfo?.verified && (
           <Button
             className="rounded-full w-full"
             onClick={onRetry}
@@ -831,51 +993,56 @@ function EventNotFound({
           {authorPubkey && <AuthorHintRow pubkey={authorPubkey} />}
         </div>
 
-        {/* Collapsible relay retry */}
-        <Collapsible open={retryOpen} onOpenChange={setRetryOpen}>
-          <CollapsibleTrigger asChild>
-            <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full">
-              <ChevronRight
-                className={`size-4 transition-transform duration-200 ${retryOpen ? "rotate-90" : ""}`}
-              />
-              <span>Try another relay</span>
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-3 space-y-3">
-            <div className="flex gap-2">
-              <Input
-                value={relayUrl}
-                onChange={(e) => setRelayUrl(e.target.value)}
-                placeholder="wss://relay.example.com"
-                className="flex-1 font-mono text-base md:text-xs h-9 rounded-full"
-                disabled={isRetrying}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleRetry(relayUrl);
-                }}
-              />
-              <Button
-                size="sm"
-                onClick={() => handleRetry(relayUrl)}
-                disabled={isRetrying || !relayUrl.trim()}
-                className="shrink-0 h-9 rounded-full"
-              >
-                {isRetrying ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Radio className="size-4" />
-                )}
-                <span className="ml-1.5">Try</span>
-              </Button>
-            </div>
+        <NonexistenceQuote />
 
-            {retryError && (
-              <p className="text-xs text-destructive flex items-center gap-1.5">
-                <AlertCircle className="size-3 shrink-0" />
-                {retryError}
-              </p>
-            )}
-          </CollapsibleContent>
-        </Collapsible>
+        {/* Collapsible relay retry — hidden for verified deletions and while
+            the deletion check is pending */}
+        {!isDeletionCheckLoading && !deletionInfo?.verified && (
+          <Collapsible open={retryOpen} onOpenChange={setRetryOpen}>
+            <CollapsibleTrigger asChild>
+              <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full">
+                <ChevronRight
+                  className={`size-4 transition-transform duration-200 ${retryOpen ? "rotate-90" : ""}`}
+                />
+                <span>Try another relay</span>
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-3 space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  value={relayUrl}
+                  onChange={(e) => setRelayUrl(e.target.value)}
+                  placeholder="wss://relay.example.com"
+                  className="flex-1 font-mono text-base md:text-xs h-9 rounded-full"
+                  disabled={isRetrying}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleRetry(relayUrl);
+                  }}
+                />
+                <Button
+                  size="sm"
+                  onClick={() => handleRetry(relayUrl)}
+                  disabled={isRetrying || !relayUrl.trim()}
+                  className="shrink-0 h-9 rounded-full"
+                >
+                  {isRetrying ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Radio className="size-4" />
+                  )}
+                  <span className="ml-1.5">Try</span>
+                </Button>
+              </div>
+
+              {retryError && (
+                <p className="text-xs text-destructive flex items-center gap-1.5">
+                  <AlertCircle className="size-3 shrink-0" />
+                  {retryError}
+                </p>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        )}
       </div>
     </div>
   );
@@ -1066,7 +1233,7 @@ function BookReviewRating({ event }: { event: NostrEvent }) {
 
 
 function PostDetailContent({ event }: { event: NostrEvent }) {
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const queryClient = useQueryClient();
   const shareOrigin = useShareOrigin();
   const location = useLocation();
@@ -1075,8 +1242,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
-
-  // Auto-play nsite when navigated from a pinned nsite sidebar item.
+  // NIP-24 birthday — the author's avatar wears a party hat all day.
+  const authorEventContent = author.data?.event?.content;
+  const isAuthorBirthday = useMemo(
+    () => isBirthdayToday(parseBirthdayFromContent(authorEventContent)),
+    [authorEventContent],
+  );
   // Uses React Router state (not URL params) so external URLs cannot trigger auto-launch.
   // The state includes a timestamp so each sidebar click produces a distinct key,
   // allowing the player to re-open even when already on the same page.
@@ -1112,6 +1283,34 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   const pollVoteLabel = usePollVoteLabel(event);
 
+  // Celebration effect — same as the feed (see NoteCard): text notes with
+  // celebratory words/emojis play a one-shot confetti overlay. On the detail
+  // page the note is the focus, so it plays shortly after mount rather than
+  // waiting on an intersection observer, and it always plays — deliberately
+  // opening a note is an explicit action, so the feed's once-per-session
+  // suppression doesn't apply here. It still marks the event celebrated so
+  // the feed card won't replay it afterwards.
+  const celebration = useMemo(
+    () => (event.kind === 1 ? detectCelebration(event.content) : undefined),
+    [event],
+  );
+  const [celebrating, setCelebrating] = useState(false);
+  useEffect(() => {
+    if (!celebration) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Short delay so the page settles before the confetti drops.
+    const arm = setTimeout(() => {
+      markCelebrated(event.id);
+      setCelebrating(true);
+    }, 600);
+    return () => clearTimeout(arm);
+  }, [celebration, event.id]);
+  useEffect(() => {
+    if (!celebrating) return;
+    const timeout = setTimeout(() => setCelebrating(false), CELEBRATION_DURATION_MS);
+    return () => clearTimeout(timeout);
+  }, [celebrating]);
+
   // NIP-19 encoded event identifier for share URLs
   const encodedEventId = useMemo(() => encodeEventAddress(event), [event]);
 
@@ -1134,6 +1333,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isEmojiPack = event.kind === 30030;
   const isArticle = event.kind === 30023;
+  const isPublication = PUBLICATION_KINDS.has(event.kind);
   const isMagicDeck = event.kind === 37381;
   const isFileMetadata = event.kind === 1063;
   const isTheme = event.kind === 36767 || event.kind === 16767;
@@ -1144,8 +1344,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isVideo = event.kind === 21 || event.kind === 22;
   const isCommunity = event.kind === 34550;
   const isGitRepo = event.kind === 30617;
+  const isRepoState = event.kind === 30618;
   const isPatch = event.kind === 1617;
   const isPullRequest = event.kind === 1618;
+  const isPrUpdate = event.kind === 1619;
+  const isIssue = event.kind === 1621;
+  const isGitStatus = event.kind >= 1630 && event.kind <= 1633;
   const isCustomNip = event.kind === 30817;
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
@@ -1156,6 +1360,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isLetter = event.kind === 8211;
   const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
+  const isAttestation = event.kind === ATTESTATION_KIND;
   const isCampaign = event.kind === 33863;
   const isVanish = event.kind === VANISH_KIND;
   const isZap = event.kind === 9735;
@@ -1163,7 +1368,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isProfile = event.kind === 0;
   const isBlobbiState = event.kind === 31124;
   const isBadgeAward = event.kind === BADGE_AWARD_KIND;
-  const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
+  const isDevKind = isGitRepo || isRepoState || isPatch || isPullRequest || isPrUpdate || isIssue || isGitStatus || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
     !isPoll &&
@@ -1176,6 +1381,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isPeopleList &&
     !isEmojiPack &&
     !isArticle &&
+    !isPublication &&
     !isMagicDeck &&
     !isFileMetadata &&
     !isTheme &&
@@ -1194,6 +1400,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isLetter &&
     !isLoveList &&
     !isHighlight &&
+    !isAttestation &&
     !isCampaign &&
     !isVanish &&
     !isZap &&
@@ -1275,12 +1482,18 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const rootKind = K ? parseInt(K, 10) : 0;
     const rootPubkey = P ?? "";
 
-    if (A) {
-      const dValue = parseAddr(A)?.identifier ?? "";
+    // Root coordinates: prefer the uppercase A tag, but fall back to the
+    // lowercase a parent tag — some clients omit A and reference an
+    // addressable root only via E + a (identical for top-level comments).
+    const addrValue = A ?? event.tags.find(([n]) => n === "a")?.[1];
+
+    if (addrValue) {
+      const parsedAddr = parseAddr(addrValue);
+      const dValue = parsedAddr?.identifier ?? "";
       return {
         id: E ?? "",
-        kind: rootKind,
-        pubkey: rootPubkey,
+        kind: rootKind || (parsedAddr?.kind ?? 0),
+        pubkey: rootPubkey || (parsedAddr?.pubkey ?? ""),
         content: "",
         created_at: 0,
         sig: "",
@@ -1302,18 +1515,21 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const { data: rawReplies, isLoading: kind1RepliesLoading } = useReplies(
     isKind1 ? event.id : undefined,
   );
+  // Geocache listings thread their kind 7516 found logs (NIP-GC) alongside
+  // NIP-22 comment logs — both reference the cache with a lowercase `a` tag.
   const { data: commentsData, isLoading: commentsLoading } = useComments(
     commentRoot,
     500,
+    event.kind === 37516 ? [7516] : undefined,
   );
 
   const repliesLoading = isKind1 ? kind1RepliesLoading : commentsLoading;
 
   const replies = useMemo(() => {
     const source = isKind1 ? rawReplies : commentsData?.allComments;
-    if (!source || muteItems.length === 0) return source;
-    return source.filter((r) => !isEventMuted(r, muteItems));
-  }, [isKind1, rawReplies, commentsData?.allComments, muteItems]);
+    if (!source) return source;
+    return source.filter((r) => !isMuted(r));
+  }, [isKind1, rawReplies, commentsData?.allComments, isMuted]);
 
   // Build a full reply tree for recursive threaded rendering.
   const replyTree = useMemo((): ReplyNode[] => {
@@ -1373,19 +1589,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
     if (isComment) {
       const directReplies = commentsData?.getDirectReplies(event.id) ?? [];
-      const filtered = muteItems.length > 0
-        ? directReplies.filter((r) => !isEventMuted(r, muteItems))
-        : directReplies;
+      const filtered = directReplies.filter((r) => !isMuted(r));
       return filtered.map((r) => buildNode(r));
     }
 
     // Non-kind-1 root
     const topLevel = commentsData?.topLevelComments ?? [];
-    const filtered = muteItems.length > 0
-      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
-      : topLevel;
+    const filtered = topLevel.filter((r) => !isMuted(r));
     return [...filtered].sort((a, b) => a.created_at - b.created_at).map((r) => buildNode(r));
-  }, [isKind1, isComment, replies, event.id, commentsData, muteItems]);
+  }, [isKind1, isComment, replies, event.id, commentsData, isMuted]);
 
   // Seed the NIP-85 stats cache with client-side reply counts for each comment
   // in the thread. NIP-85 may not have stats for kind 1111 events, so this
@@ -1466,7 +1678,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     if (!isComment) return undefined;
     const kTag = event.tags.find(([n]) => n === "K")?.[1];
     if (kTag !== "0") return undefined;
-    const aTag = event.tags.find(([n]) => n === "A")?.[1];
+    // Some clients omit the uppercase A root tag; for top-level comments the
+    // lowercase a parent tag carries the same coordinates.
+    const aTag = (event.tags.find(([n]) => n === "A") ?? event.tags.find(([n]) => n === "a"))?.[1];
     return parseAddr(aTag)?.pubkey;
   }, [event, isComment]);
 
@@ -1475,13 +1689,26 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     if (!isComment) return undefined;
     const kTag = event.tags.find(([n]) => n === "K")?.[1];
     if (kTag !== "34550") return undefined;
-    const aTag = event.tags.find(([n]) => n === "A")?.[1];
+    const aTag = (event.tags.find(([n]) => n === "A") ?? event.tags.find(([n]) => n === "a"))?.[1];
     return parseAddr(aTag);
   }, [event, isComment]);
 
   // For kind 1111 comments on any other addressable event (vines, music, etc.),
   // extract the addr for a generic preview — only if not already handled above.
+  // Kind 7516 found logs (NIP-GC) get the same treatment: they reference the
+  // geocache they log with a lowercase `a` tag.
   const addrRoot = useMemo(() => {
+    if (isFoundLog) {
+      const aTagFull = event.tags.find(([n]) => n === "a");
+      const parsed = parseAddr(aTagFull?.[1]);
+      if (!parsed) return undefined;
+      return {
+        kind: parsed.kind,
+        pubkey: parsed.pubkey,
+        identifier: parsed.identifier,
+        relayHint: aTagFull?.[2] || undefined,
+      };
+    }
     if (
       !isComment ||
       externalIdentifier ||
@@ -1489,20 +1716,34 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       communityRootAddr
     )
       return undefined;
-    const kTag = event.tags.find(([n]) => n === "K")?.[1];
-    if (!kTag) return undefined;
-    const kind = parseInt(kTag, 10);
-    if (isNaN(kind)) return undefined;
-    const aTag = event.tags.find(([n]) => n === "A")?.[1];
-    const parsed = parseAddr(aTag);
+    // NIP-22 uppercase A holds the addressable root, but some clients omit it
+    // and reference the root only via uppercase E + the lowercase a parent tag
+    // (identical to the root for top-level comments). Fall back to lowercase.
+    const aTagFull = event.tags.find(([n]) => n === "A") ?? event.tags.find(([n]) => n === "a");
+    const parsed = parseAddr(aTagFull?.[1]);
     if (!parsed) return undefined;
-    // K tag is the authoritative root kind — the A tag's first segment must
-    // match, but if it doesn't (or the A tag references a different kind by
-    // mistake), prefer K so the addressable-event preview still resolves.
-    return { kind, pubkey: parsed.pubkey, identifier: parsed.identifier };
+    // The kind tag matching the used coordinate tag (K for A, k for a) is
+    // authoritative — the coordinate's first segment must match, but if it
+    // doesn't (or the tag references a different kind by mistake), prefer
+    // K/k so the addressable-event preview still resolves. When no kind tag
+    // is present, trust the coordinate.
+    const kTag = aTagFull?.[0] === "A"
+      ? event.tags.find(([n]) => n === "K")?.[1]
+      : event.tags.find(([n]) => n === "k")?.[1];
+    const kind = kTag ? parseInt(kTag, 10) : parsed.kind;
+    if (isNaN(kind)) return undefined;
+    return {
+      kind,
+      pubkey: parsed.pubkey,
+      identifier: parsed.identifier,
+      // A/a tags may carry a relay hint at position [2] — needed when the
+      // root lives outside the user's configured relays.
+      relayHint: aTagFull?.[2] || undefined,
+    };
   }, [
     event,
     isComment,
+    isFoundLog,
     externalIdentifier,
     profileRootPubkey,
     communityRootAddr,
@@ -1669,7 +1910,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       )}
       {profileRootPubkey && <ProfilePreview pubkey={profileRootPubkey} />}
       {communityRootAddr && <CommunityPreview addr={communityRootAddr} />}
-      {addrRoot && <AddrAncestor addr={addrRoot} />}
+      {/* For nested replies (parentEventId) the ancestor chain below pulls the
+          root itself via the top-most comment's A/a tags — rendering addrRoot
+          here too would show the root twice. */}
+      {addrRoot && !parentEventId && (
+        <AddrAncestor
+          addr={addrRoot}
+          relays={addrRoot.relayHint ? [addrRoot.relayHint] : undefined}
+        />
+      )}
 
       {/* Book context for reviews (kind 31985) and posts that tag a book */}
       {bookIsbn && <ExternalContentPreview identifier={`isbn:${bookIsbn}`} />}
@@ -2219,7 +2468,16 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
       {/* Main post — expanded Ditto-style view */}
       {!isReaction && !isRepost && !isVanish && !isZap && !isOnchainZap && !isProfile && !isPollVote && (
-        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+        <article
+          ref={focusedPostRef}
+          className={cn(
+            "relative px-4 pt-3 pb-0",
+            // Clip confetti to the card only while it plays — overflow-hidden
+            // is not part of this article's normal layout.
+            celebrating && "overflow-hidden",
+          )}
+        >
+          {celebrating && celebration && <CelebrationOverlay variant={celebration} />}
           {/* Kind action header for app handlers */}
           {isAppHandler && (
             <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published an app", updated: "updated an app", fallback: "published an app" })} />
@@ -2242,6 +2500,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           {isConstellation && (
             <EventActionHeader pubkey={event.pubkey} icon={Stars} action={publishedAtAction(event, { created: "drew a", updated: "redrew a", fallback: "drew a" })} noun="constellation" />
           )}
+          {isFoundLog && (
+            <EventActionHeader pubkey={event.pubkey} icon={ChestIcon} action="found a" noun="treasure" nounRoute="/treasures" />
+          )}
 
           {/* Author row */}
           <div className="flex items-center gap-3">
@@ -2256,13 +2517,19 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             ) : (
               <>
                 <ProfileHoverCard pubkey={event.pubkey} asChild>
-                  <Link to={profileUrl}>
+                  <Link to={profileUrl} className="relative shrink-0">
                     <Avatar shape={avatarShape} className="size-11">
                       <AvatarImage src={metadata?.picture} alt={displayName} />
                       <AvatarFallback className="bg-primary/20 text-primary text-sm">
                         {displayName[0].toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
+                    {/* Birthday party hat — perched on the author's avatar all day. */}
+                    {isAuthorBirthday && (
+                      <div className="pointer-events-none absolute -top-3 -right-1.5 z-10 rotate-[18deg]">
+                        <PartyHat className="size-8 drop-shadow-sm" pomScale={1.15} />
+                      </div>
+                    )}
                   </Link>
                 </ProfileHoverCard>
 
@@ -2324,6 +2591,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
                 <ArticleContent event={event} className="mt-3" />
               </Suspense>
+            ) : isPublication ? (
+              <PublicationContent event={event} />
             ) : isMagicDeck ? (
               <MagicDeckContent event={event} />
             ) : isFileMetadata ? (
@@ -2348,6 +2617,26 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   <PullRequestCard event={event} preview={false} />
                 </div>
               </Suspense>
+            ) : isIssue ? (
+              <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
+                <div className="mt-3">
+                  <IssueCard event={event} preview={false} />
+                </div>
+              </Suspense>
+            ) : isPrUpdate ? (
+              <div className="mt-3">
+                <PrUpdateCard event={event} preview={false} />
+              </div>
+            ) : isGitStatus ? (
+              <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
+                <div className="mt-3">
+                  <GitStatusCard event={event} preview={false} />
+                </div>
+              </Suspense>
+            ) : isRepoState ? (
+              <div className="mt-3">
+                <RepoStateCard event={event} preview={false} />
+              </div>
             ) : isCustomNip ? (
               <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
                 <div className="mt-3">
@@ -2384,6 +2673,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <LoveListContent event={event} />
             ) : isHighlight ? (
               <HighlightContent event={event} expanded />
+            ) : isAttestation ? (
+              <AttestationContent event={event} expanded />
             ) : isCampaign ? (
               <CampaignContent event={event} expanded />
             ) : isBlobbiState ? (
@@ -2488,8 +2779,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
  * Renders a parent event fetched by addr coordinates as a threaded NoteCard.
  * Used when a kind 1111 comment references its root via an `a` tag (no event ID).
  */
-function AddrAncestor({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
-  const { data: event, isLoading } = useAddrEvent(addr);
+function AddrAncestor({ addr, relays }: { addr: { kind: number; pubkey: string; identifier: string }; relays?: string[] }) {
+  const { data: event, isLoading } = useAddrEvent(addr, relays);
 
   if (isLoading) {
     return (
@@ -2547,6 +2838,21 @@ function AncestorThread({
   );
   const parentId = parentHints?.id;
 
+  // Kind 1111 comments at the top of the chain (no lowercase-e parent) sit
+  // directly on their root. When that root is an addressable event, pull it
+  // from the comment's A (or legacy lowercase a) tag so the thread renders
+  // root → comments → focused reply. Kind 0 profiles and kind 34550
+  // communities are excluded — they get dedicated preview banners rendered
+  // by PostDetailContent instead.
+  const addrRootRef = useMemo(() => {
+    if (!event || event.kind !== 1111 || parentId) return undefined;
+    const aTagFull = event.tags.find(([n]) => n === "A") ??
+      event.tags.find(([n]) => n === "a");
+    const parsed = parseAddr(aTagFull?.[1]);
+    if (!parsed || parsed.kind === 0 || parsed.kind === 34550) return undefined;
+    return { addr: parsed, relayHint: aTagFull?.[2] || undefined };
+  }, [event, parentId]);
+
   // Cap recursion to avoid runaway chains
   const MAX_DEPTH = 20;
 
@@ -2584,6 +2890,13 @@ function AncestorThread({
 
   return (
     <>
+      {/* Addressable root above the top-most comment of the chain */}
+      {addrRootRef && (
+        <AddrAncestor
+          addr={addrRootRef.addr}
+          relays={addrRootRef.relayHint ? [addrRootRef.relayHint] : undefined}
+        />
+      )}
       {/* Render this event's parent first (if any), so ancestors appear top-down */}
       {parentId &&
         depth < MAX_DEPTH &&

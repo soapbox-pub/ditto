@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { ComposeLetterSheet } from '@/components/letter/ComposeLetterSheet';
 

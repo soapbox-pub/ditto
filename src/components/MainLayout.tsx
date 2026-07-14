@@ -10,6 +10,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { CenterColumnContext, DrawerContext, LayoutStore, LayoutStoreContext, NavHiddenContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { NsitePlayerContext, type NsitePlayerState } from '@/contexts/NsitePlayerContext';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { cn } from '@/lib/utils';
 
@@ -18,17 +19,15 @@ const WidgetSidebar = lazy(() => import('@/components/WidgetSidebar').then((m) =
 /** Neutral fallback shown in the content area while a lazy page chunk is loading. */
 function PageSkeleton() {
   return (
-    <>
-      {/* Main column placeholder — mirrors the Outlet wrapper's border + bg classes */}
-      <main className="flex-1 min-w-0 min-h-screen sidebar:border-l sidebar:border-r border-border bg-background/85 sidebar:max-w-[600px] flex items-center justify-center">
-        <div className="relative w-10 h-10">
-          <div className="absolute inset-0 rounded-full border-[2.5px] border-primary/20" />
-          <div className="absolute inset-0 rounded-full border-[2.5px] border-transparent border-t-primary animate-spin" />
-        </div>
-      </main>
-      {/* Right sidebar placeholder — preserves layout width */}
-      <div className="w-1/4 max-w-[300px] shrink-0 hidden lg:block" />
-    </>
+    /* Main column placeholder — mirrors the Outlet wrapper's border + bg classes.
+       No right-sidebar placeholder: the sidebar lives outside this Suspense
+       boundary and stays mounted while page chunks load. */
+    <main className="flex-1 min-w-0 min-h-screen sidebar:border-l sidebar:border-r border-border bg-background/85 sidebar:max-w-[600px] flex items-center justify-center">
+      <div className="relative w-10 h-10">
+        <div className="absolute inset-0 rounded-full border-[2.5px] border-primary/20" />
+        <div className="absolute inset-0 rounded-full border-[2.5px] border-transparent border-t-primary animate-spin" />
+      </div>
+    </main>
   );
 }
 
@@ -42,6 +41,10 @@ function MainLayoutInner() {
   const { config } = useAppContext();
   const { hidden: navHidden } = useScrollDirection(scrollContainer);
   const location = useLocation();
+  // WidgetSidebar hides itself with CSS below Tailwind's `lg` breakpoint
+  // (1024px, see WidgetSidebar.tsx). Skip *mounting* it entirely there so
+  // phones don't pay for its lazy chunks, relay queries, and render work.
+  const showWidgetSidebar = useMediaQuery('(min-width: 1024px)');
   return (
     <CenterColumnContext.Provider value={centerColumnEl}>
     <DrawerContext.Provider value={openDrawer}>
@@ -60,7 +63,7 @@ function MainLayoutInner() {
         {/* Desktop left sidebar - hidden below sidebar breakpoint */}
         <LeftSidebar />
 
-        {/* Main content + right sidebar: inside Suspense so the left sidebar persists while lazy pages load */}
+        {/* Main content: inside Suspense so both sidebars persist while lazy pages load */}
         <Suspense fallback={<PageSkeleton />}>
           {/* -mt-mobile-bar pulls content up behind the mobile top bar so the
               transparent SVG header arc and page content overlap seamlessly.
@@ -93,8 +96,15 @@ function MainLayoutInner() {
               </div>
             )}
           </div>
-          {/* Right sidebar — render page-provided sidebar, or the widget sidebar */}
-          {rightSidebar ?? <Suspense fallback={<div className="w-1/4 max-w-[300px] shrink-0 hidden lg:block" />}><WidgetSidebar /></Suspense>}
+        </Suspense>
+
+        {/* Right sidebar — page-provided sidebar, or the widget sidebar.
+            Kept OUTSIDE the page Suspense so it persists (like LeftSidebar)
+            while lazy page chunks load, instead of blanking out between
+            navigations. Only mounted at `lg`+ — below that it would be
+            CSS-hidden anyway, so phones skip its chunks and queries. */}
+        <Suspense fallback={<div className="w-1/4 max-w-[300px] shrink-0 hidden lg:block" />}>
+          {rightSidebar ?? (showWidgetSidebar && <WidgetSidebar />)}
         </Suspense>
       </div>
 

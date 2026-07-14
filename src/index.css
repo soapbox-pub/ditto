@@ -57,6 +57,18 @@
 }
 
 @layer utilities {
+  /* ── Feed item render skipping ────────────────────────────────────────────
+     Applied to each feed-item wrapper so the browser skips layout/paint/style
+     for off-screen cards — the dominant scroll cost on low-end phones once a
+     long feed has accumulated. `contain-intrinsic-size: auto 300px` gives
+     unrendered cards a placeholder height (post-render, `auto` remembers the
+     real height) so the scrollbar stays stable. IntersectionObservers inside
+     the cards keep working. Safe no-op on engines without support. */
+  .cv-feed-item {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 300px;
+  }
+
   /* ── Safe-area inset utilities ────────────────────────────────────────────
      Use var(--safe-area-inset-*, …) as the outer wrapper so that
      Capacitor's SystemBars plugin (which injects --safe-area-inset-* CSS

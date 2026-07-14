@@ -1,4 +1,6 @@
 import type { NostrEvent, NPool } from '@nostrify/nostrify';
+import type { InfiniteData, QueryClient } from '@tanstack/react-query';
+import { getGitRootRef } from '@/lib/gitActivity';
 import { getZapAmountSats, getZapSenderPubkey, getTargetEventId } from '@/lib/zapHelpers';
 
 /**
@@ -122,6 +124,51 @@ export interface FeedItem {
   sortTimestamp: number;
 }
 
+/** Shape of one page of the `['feed']` infinite query — must match `useFeed`'s `FeedPage`. */
+interface FeedPage {
+  items: FeedItem[];
+  oldestQueryTimestamp: number;
+  rawCount: number;
+}
+
+/**
+ * Optimistically prepend a freshly published event to every active cached
+ * feed, so it appears immediately without waiting for a relay round-trip.
+ *
+ * Also seeds the `['event', id]` cache (so embedded previews and the detail
+ * page resolve instantly) and marks `['feed']` queries stale WITHOUT
+ * refetching: an immediate refetch races the relay's write→read indexing and
+ * its result wholesale-replaces the cached pages, swallowing the optimistic
+ * item. The next natural refetch (pull-to-refresh, remount) happens after
+ * the relay has indexed the event.
+ */
+export function prependEventToFeeds(queryClient: QueryClient, event: NostrEvent): void {
+  /** A minimal FeedItem wrapping the freshly signed event. */
+  const optimisticItem: FeedItem = {
+    event,
+    sortTimestamp: event.created_at,
+  };
+
+  queryClient.setQueryData(['event', event.id], event);
+
+  queryClient.setQueriesData<InfiniteData<FeedPage>>(
+    { queryKey: ['feed'], type: 'active' },
+    (prev) => {
+      if (!prev) return prev;
+      const [firstPage, ...rest] = prev.pages;
+      if (!firstPage) return prev;
+      // Guard against double-insertion if the relay echoes back quickly.
+      if (firstPage.items.some((item) => item.event.id === event.id)) return prev;
+      return {
+        ...prev,
+        pages: [{ ...firstPage, items: [optimisticItem, ...firstPage.items] }, ...rest],
+      };
+    },
+  );
+
+  queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
+}
+
 /**
  * Compute a stable React key / dedup key for a feed item. The same target
  * event can appear with multiple wrappers (a repost AND a reaction AND a
@@ -198,6 +245,12 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
     const hasSource = event.tags.some(([n]) => n === 'a' || n === 'e' || n === 'r');
     if (!hasContent && !hasSource) return true;
   }
+  // Attestations (kind 31871) without a valid `s` state tag have nothing
+  // trustworthy to render — the state pill is the whole point of the card.
+  if (event.kind === 31871) {
+    const state = event.tags.find(([n]) => n === 's')?.[1]?.trim().toLowerCase();
+    if (state !== 'verifying' && state !== 'valid' && state !== 'invalid' && state !== 'revoked') return true;
+  }
   // Fundraisers (kind 33863) without a title, `d`, or any `w` wallet
   // tag have nothing to render and nothing to donate to. We skip the
   // full bech32(m) check here (parseCampaign does that at the render
@@ -212,6 +265,21 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
   // Love Lists (kind 15683, see NIP.md) with no `p` tags — an emptied list
   // has no hearts to show on its paper card.
   if (event.kind === 15683 && !event.tags.some(([n, v]) => n === 'p' && v)) return true;
+  // NIP-34 issues (kind 1621) with no subject and no content have nothing
+  // to render.
+  if (event.kind === 1621) {
+    const hasSubject = event.tags.some(([n, v]) => n === 'subject' && v?.trim());
+    if (!hasSubject && !event.content.trim()) return true;
+  }
+  // NIP-34 status events (1630-1633) and PR updates (1619) must reference
+  // a root ticket / PR via an `e`/`E` tag — without one there is nothing
+  // the status applies to.
+  if (event.kind === 1619 || (event.kind >= 1630 && event.kind <= 1633)) {
+    if (!getGitRootRef(event)) return true;
+  }
+  // NIP-34 repository state (kind 30618) with no refs — an empty push
+  // announcement has no branches or tags to show.
+  if (event.kind === 30618 && !event.tags.some(([n, v]) => n.startsWith('refs/') && v)) return true;
   return false;
 }
 

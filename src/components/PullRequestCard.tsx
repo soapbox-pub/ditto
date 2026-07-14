@@ -11,7 +11,11 @@ import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { buildMarkdownComponents } from "@/components/markdownComponents";
+import { GitSiteLinks } from "@/components/GitSiteLinks";
+import { NGIT_RELAY } from "@/lib/appRelays";
 import { openUrl } from "@/lib/downloadFile";
+import { tryNeventEncode } from "@/lib/safeNip19";
 
 interface PullRequestCardProps {
 	event: NostrEvent;
@@ -56,6 +60,12 @@ export function PullRequestCard({
 	const shakespeareUrl = cloneUrls[0]
 		? `https://shakespeare.diy/clone?url=${encodeURIComponent(cloneUrls[0])}`
 		: "https://shakespeare.diy";
+
+	const nevent = tryNeventEncode({
+		id: event.id,
+		author: event.pubkey,
+		relays: [NGIT_RELAY],
+	});
 
 	return (
 		<div className="mt-2 space-y-3">
@@ -149,19 +159,7 @@ export function PullRequestCard({
 								Edit with Shakespeare
 							</button>
 						)}
-						{!hasShakespeare && cloneUrls[0] && (
-							<button
-								type="button"
-								className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
-								onClick={(e) => {
-									e.stopPropagation();
-									handleCopy(cloneUrls[0]);
-								}}
-							>
-								<Copy className="size-3" />
-								{copied ? "Copied!" : "Copy Clone URL"}
-							</button>
-						)}
+						<GitSiteLinks nip19={nevent} />
 					</div>
 				</div>
 			</div>
@@ -211,7 +209,10 @@ export function PullRequestCard({
 			{!preview && hasDescription && (
 			<div className="rounded-2xl border border-border overflow-hidden px-4 py-4 sidebar:px-5 sidebar:py-5">
 				<div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-img:rounded-lg prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-[13px] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:font-normal prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border prose-th:text-foreground">
-					<Markdown rehypePlugins={[rehypeSanitize]}>
+					<Markdown
+						rehypePlugins={[rehypeSanitize]}
+						components={buildMarkdownComponents(event)}
+					>
 						{event.content}
 					</Markdown>
 				</div>
