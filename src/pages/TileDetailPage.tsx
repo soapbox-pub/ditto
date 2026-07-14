@@ -69,14 +69,14 @@ export function TileDetailPage() {
         ) : (
           <>
             <Card><CardContent className="space-y-4 p-5">
-              <div className="flex gap-4">
+              <div className="flex flex-col gap-4 sm:flex-row">
                 <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-primary">
                   {tile.image ? <img src={tile.image} alt="" className="size-full object-cover" /> : <LayoutGrid className="size-8" />}
                 </div>
                 <div className="min-w-0"><h1 className="text-2xl font-bold">{tile.name}</h1><p className="mt-1 text-sm text-muted-foreground">{tile.identifier} · v{tile.version}</p>{tile.summary && <p className="mt-3">{tile.summary}</p>}</div>
               </div>
               <div className="flex flex-wrap gap-2">{tile.perms.map((permission) => <Badge key={permission} variant="outline">{permission}</Badge>)}{tile.widget && <Badge variant="secondary">Widget: {tile.widget.label}</Badge>}</div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {installed ? <Button variant="outline" onClick={() => installations.uninstall({ pubkey: tile.pubkey, identifier: tile.identifier })}>Remove tile</Button> : <Button onClick={openInstall} disabled={!user && canUseCanvasTiles()}>Install tile</Button>}
                 {updateAvailable && <Button onClick={openInstall}>Update tile</Button>}
                 {!user && <p className="self-center text-sm text-muted-foreground">Log in to install tiles.</p>}
@@ -91,7 +91,10 @@ export function TileDetailPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Install {tile?.name}</DialogTitle><DialogDescription>Review the capabilities requested by {tile?.identifier}. {tile?.pubkey}</DialogDescription></DialogHeader>
           <div className="space-y-3">
-            {tile?.perms.length ? tile.perms.map((permission) => <label key={permission} className="flex items-center gap-3 text-sm"><Checkbox checked={approvedPermissions.includes(permission)} onCheckedChange={(checked) => setApprovedPermissions((current) => checked ? [...current, permission] : current.filter((item) => item !== permission))} />{permission}</label>) : <p className="text-sm text-muted-foreground">This tile does not request any capabilities.</p>}
+            {tile?.perms.length ? tile.perms.map((permission) => {
+              const id = `tile-permission-${permission}`;
+              return <label key={permission} htmlFor={id} className="flex items-center gap-3 text-sm"><Checkbox id={id} checked={approvedPermissions.includes(permission)} onCheckedChange={(checked) => setApprovedPermissions((current) => checked ? [...current, permission] : current.filter((item) => item !== permission))} />{permission}</label>;
+            }) : <p className="text-sm text-muted-foreground">This tile does not request any capabilities.</p>}
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setPermissionsOpen(false)}>Cancel</Button><Button onClick={install}>Install</Button></DialogFooter>
         </DialogContent>

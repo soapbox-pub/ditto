@@ -267,6 +267,12 @@ sidebar widgets never mount a tile instance. Platform and execution-gate tests
 plus the complete suite passed before commit `9d36d14c Gate Canvas tiles to
 browsers`.
 
+The initial accessibility and responsive pass adds an accessible marketplace
+search label, label-to-checkbox associations in the capability dialog, compact
+detail-page layout at narrow widths, keyboard drag/resize controls for sidebar
+widgets, visible keyboard focus rings, and reduced-motion-safe widget
+transitions.
+
 1. Perform keyboard, screen-reader, mobile, and reduced-motion checks on the
    marketplace, permission dialog, detail view, and sidebar widgets.
 2. Re-check bundle output and worker loading in Vite and Capacitor webviews.

@@ -64,7 +64,7 @@ export function WidgetPickerDialog({ open, onOpenChange, currentWidgets, onAdd, 
                           }
                         }}
                         className={cn(
-                          'flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-colors text-left',
+                          'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                           isActive
                             ? 'bg-primary/10 hover:bg-primary/15'
                             : 'hover:bg-secondary/60',

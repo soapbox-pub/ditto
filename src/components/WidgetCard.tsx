@@ -71,10 +71,23 @@ export function WidgetCard({
     document.addEventListener('pointerup', onUp);
   }, [definition.minHeight, definition.maxHeight, onHeightChange]);
 
+  const handleResizeKeyDown = useCallback((event: React.KeyboardEvent) => {
+    const direction = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;
+    if (!direction) return;
+    event.preventDefault();
+    const height = Math.max(
+      definition.minHeight,
+      Math.min(definition.maxHeight, liveHeightRef.current + direction * 16),
+    );
+    liveHeightRef.current = height;
+    setLiveHeight(height);
+    onHeightChange(height);
+  }, [definition.minHeight, definition.maxHeight, onHeightChange]);
+
   return (
     <div
       className={cn(
-        'bg-background/85 rounded-xl overflow-hidden transition-shadow',
+        'bg-background/85 rounded-xl overflow-hidden motion-safe:transition-shadow',
         isDragging && 'shadow-lg ring-1 ring-primary/20',
         resizing && 'select-none',
       )}
@@ -83,7 +96,7 @@ export function WidgetCard({
       <div className="flex items-center gap-1.5 px-3 py-2">
         {/* Icon + label */}
         {definition.href ? (
-          <Link to={definition.href} className="flex items-center gap-1.5 flex-1 min-w-0 hover:text-primary transition-colors">
+          <Link to={definition.href} className="flex min-w-0 flex-1 items-center gap-1.5 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <Icon className="size-5 text-muted-foreground shrink-0" />
             <span className="text-xl font-semibold truncate">{label}</span>
           </Link>
@@ -96,8 +109,9 @@ export function WidgetCard({
 
         {/* Remove */}
         <button
+          type="button"
           onClick={onRemove}
-          className="p-0.5 rounded text-muted-foreground hover:text-destructive transition-colors"
+          className="rounded p-0.5 text-muted-foreground transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={intl.formatMessage({ id: 'widgets.common.removeWidget', defaultMessage: "Remove widget" })}
         >
           <X className="size-3.5" />
@@ -105,9 +119,10 @@ export function WidgetCard({
 
         {/* Drag handle */}
         <button
-          className="p-0.5 rounded text-muted-foreground/50 hover:text-muted-foreground cursor-grab active:cursor-grabbing transition-colors"
+          type="button"
+          className="cursor-grab rounded p-0.5 text-muted-foreground/50 transition-colors hover:text-muted-foreground active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           {...dragHandleProps}
-          tabIndex={-1}
+          aria-label={`Reorder ${definition.label} widget`}
         >
           <GripVertical className="size-3.5" />
         </button>
@@ -115,11 +130,11 @@ export function WidgetCard({
 
       {/* Content */}
       {definition.fillHeight ? (
-        <div style={{ height: liveHeight }} className={cn('p-2', !resizing && 'transition-[height] duration-200')}>
+        <div style={{ height: liveHeight }} className={cn('p-2', !resizing && 'motion-safe:transition-[height] motion-safe:duration-200')}>
           {children}
         </div>
       ) : (
-        <ScrollArea style={{ maxHeight: liveHeight }} className={cn(!resizing && 'transition-[max-height] duration-200')}>
+          <ScrollArea style={{ maxHeight: liveHeight }} className={cn(!resizing && 'motion-safe:transition-[max-height] motion-safe:duration-200')}>
           <div className="p-2">
             {children}
           </div>
@@ -129,7 +144,16 @@ export function WidgetCard({
       {/* Resize handle */}
       <div
         onPointerDown={handleResizeStart}
-        className="h-1.5 cursor-ns-resize flex items-center justify-center hover:bg-secondary/60 transition-colors"
+        onKeyDown={handleResizeKeyDown}
+        role="separator"
+        tabIndex={0}
+        aria-label={`Resize ${definition.label} widget`}
+        aria-orientation="horizontal"
+        aria-valuemin={definition.minHeight}
+        aria-valuemax={definition.maxHeight}
+        aria-valuenow={liveHeight}
+        aria-valuetext={`${liveHeight} pixels`}
+        className="flex h-1.5 cursor-ns-resize items-center justify-center transition-colors hover:bg-secondary/60 focus-visible:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       />
     </div>
   );

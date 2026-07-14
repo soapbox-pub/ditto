@@ -63,8 +63,9 @@ export function TilesPage() {
     <main className="mx-auto w-full max-w-5xl">
       <PageHeader title="Tiles" icon={<LayoutGrid className="size-5" />} backTo="/" />
       <div className="space-y-6 px-4 pb-8">
-        <p className="max-w-2xl text-sm text-muted-foreground">Discover verified Nostr Canvas tiles. Tiles are reviewed before installation permissions are introduced in a later update.</p>
+        <p className="max-w-2xl text-sm text-muted-foreground">Discover verified Nostr Canvas tiles. Review each tile's requested capabilities before installing it.</p>
         <label className="relative block">
+          <span className="sr-only">Search tiles</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search tiles" className="pl-9" />
         </label>
