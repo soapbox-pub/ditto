@@ -64,14 +64,6 @@ public class SpaRouteProcessor implements RouteProcessor {
             route.setPath(prefix + "/index.html");
         }
 
-        // Capacitor consumes the returned path inconsistently: for normal asset
-        // requests it prepends the asset base itself (passing basePath="" here),
-        // but for the root "/" and html5mode fallbacks it opens getPath()
-        // directly (passing basePath="public"). Prepending the supplied basePath
-        // satisfies both — without it, the root load fails with
-        // net::ERR_CONNECTION_REFUSED ("localhost refused to connect").
-        route.setPath(basePath + resolved);
-
         return route;
     }
 
