@@ -11,8 +11,9 @@
  * Save, Share, Add-to-sidebar, etc.), and tabs for Feed and Members. Love lists
  * swap the hero/title block for the love-letter card.
  *
- * Owner-mode features (remove members, add members) are enabled automatically
- * when the current user owns a kind 30000 list.
+ * Owner-mode features (edit details, add/remove members) are enabled
+ * automatically when the current user owns a kind 30000 follow set or a
+ * kind 39089 follow pack.
  */
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -22,6 +23,7 @@ import {
   UserPlus,
   Loader2,
   Copy,
+  Pencil,
   X,
   MessageCircle,
 } from 'lucide-react';
@@ -37,6 +39,7 @@ import { TabButton } from '@/components/TabButton';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { AddMembersDialog } from '@/components/AddMembersDialog';
+import { EditPeopleListDialog } from '@/components/EditPeopleListDialog';
 import { ComposeBox } from '@/components/ComposeBox';
 import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
@@ -55,6 +58,7 @@ import { LOVE_LIST_KIND, loveListPubkeys } from '@/hooks/useLoveList';
 import { useTabFeed } from '@/hooks/useProfileFeed';
 import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useUserLists } from '@/hooks/useUserLists';
+import { useFollowPacks, useFollowPackActions } from '@/hooks/useFollowPacks';
 
 import { feedItemKey, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
@@ -189,10 +193,12 @@ interface MembersTabProps {
   membersLoading: boolean;
   followedPubkeys: Set<string>;
   currentUserPubkey: string | undefined;
-  /** When true, show per-member "Remove" buttons. Enabled for owners of kind 30000 lists. */
+  /** When true, show per-member "Remove" buttons. Enabled for owners of kind 30000 sets and 39089 packs. */
   canRemove: boolean;
-  /** Kind 30000 d-tag — required when canRemove is true. */
+  /** The list's d-tag — required when canRemove is true. */
   listId?: string;
+  /** The list's kind (30000 or 39089) — determines which remove mutation is used. */
+  listKind?: number;
 }
 
 export function PeopleListMembersTab({
@@ -203,6 +209,7 @@ export function PeopleListMembersTab({
   currentUserPubkey,
   canRemove,
   listId,
+  listKind,
 }: MembersTabProps) {
   if (membersLoading) {
     return (
@@ -228,6 +235,7 @@ export function PeopleListMembersTab({
             isSelf={pk === currentUserPubkey}
             canRemove={canRemove}
             listId={listId}
+            listKind={listKind}
           />
         );
       })}
@@ -291,10 +299,12 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
   const { user } = useCurrentUser();
   const { data: followList } = useFollowList();
   const { lists: ownLists, createList } = useUserLists();
+  const { data: ownPacks = [] } = useFollowPacks();
 
   const isOwnList = user && event.pubkey === user.pubkey;
   const isFollowList = event.kind === 3;
   const isFollowSet = event.kind === 30000;
+  const isFollowPack = event.kind === 39089;
   const isLoveList = event.kind === LOVE_LIST_KIND;
   const dTag = useMemo(
     () => event.tags.find(([n]) => n === 'd')?.[1] ?? '',
@@ -363,10 +373,17 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
   const [activeTab, setActiveTab] = useState<Tab>('feed');
   const [cloning, setCloning] = useState(false);
   const [addMembersOpen, setAddMembersOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
-  // Owner-mode remove is only available for lists we manage locally (kind 30000)
-  const ownerCanRemove = !!(isOwnList && isFollowSet && ownLists.some((l) => l.id === dTag));
+  // Owner mode (edit details, add/remove members) is available for kind 30000
+  // follow sets and kind 39089 follow packs the current user owns. The
+  // own-lists/own-packs membership check filters out reserved d-tags and
+  // deletion husks that the owner hooks already exclude.
+  const ownerCanEdit = !!(isOwnList && (
+    (isFollowSet && ownLists.some((l) => l.id === dTag)) ||
+    (isFollowPack && ownPacks.some((p) => p.id === dTag))
+  ));
 
   // Stable cache-key for the feed tab — the naddr uniquely identifies this list.
   const shareNip19 = useMemo(() => {
@@ -490,6 +507,19 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
             />
           )}
 
+          {/* Edit — owners of follow sets and follow packs can edit details directly */}
+          {ownerCanEdit && (
+            <Button
+              variant="outline"
+              className={showFollowAllButton ? undefined : 'flex-1'}
+              onClick={() => setEditOpen(true)}
+              title={isFollowPack ? 'Edit this pack' : 'Edit this list'}
+            >
+              <Pencil className="size-4" />
+              Edit
+            </Button>
+          )}
+
           {/* Save (clone) — available to logged-in viewers who don't own the list, not for kind 3 / love lists (those are personal lists, you don't clone them) */}
           {user && !isOwnList && !isFollowList && !isLoveList && (
             <Button
@@ -543,7 +573,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
       <div style={{ height: ARC_OVERHANG_PX }} />
 
       {/* Owner "Add members" row — above members tab content */}
-      {ownerCanRemove && activeTab === 'members' && (
+      {ownerCanEdit && activeTab === 'members' && (
         <div className="px-4 py-3 border-b border-border">
           <Button
             variant="outline"
@@ -567,8 +597,9 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
           membersLoading={membersLoading}
           followedPubkeys={followedPubkeys}
           currentUserPubkey={user?.pubkey}
-          canRemove={ownerCanRemove}
+          canRemove={ownerCanEdit}
           listId={dTag}
+          listKind={event.kind}
         />
       ) : (
         <PeopleListCommentsTab
@@ -578,13 +609,21 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
         />
       )}
 
-      {ownerCanRemove && (
-        <AddMembersDialog
-          open={addMembersOpen}
-          onOpenChange={setAddMembersOpen}
-          listId={dTag}
-          listPubkeys={pubkeys}
-        />
+      {ownerCanEdit && (
+        <>
+          <AddMembersDialog
+            open={addMembersOpen}
+            onOpenChange={setAddMembersOpen}
+            listId={dTag}
+            listKind={event.kind}
+            listPubkeys={pubkeys}
+          />
+          <EditPeopleListDialog
+            event={event}
+            open={editOpen}
+            onOpenChange={setEditOpen}
+          />
+        </>
       )}
 
       <NoteMoreMenu
@@ -603,10 +642,12 @@ interface MemberCardProps {
   metadata?: NostrMetadata;
   isFollowed: boolean;
   isSelf: boolean;
-  /** When true, renders a "remove" button that calls useUserLists().removeFromList. */
+  /** When true, renders a "remove" button that removes the member from the list/pack. */
   canRemove?: boolean;
-  /** Kind 30000 d-tag — required when canRemove is true. */
+  /** The list's d-tag — required when canRemove is true. */
   listId?: string;
+  /** The list's kind (30000 or 39089) — determines which remove mutation is used. */
+  listKind?: number;
 }
 
 export function MemberCard({
@@ -616,6 +657,7 @@ export function MemberCard({
   isSelf,
   canRemove,
   listId,
+  listKind,
 }: MemberCardProps) {
   const navigate = useNavigate();
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
@@ -624,6 +666,7 @@ export function MemberCard({
   const avatarShape = getAvatarShape(metadata);
   const { follow, unfollow, isPending } = useFollowActions();
   const { removeFromList } = useUserLists();
+  const { removeFromPack } = useFollowPackActions();
   const { toast } = useToast();
   const [removing, setRemoving] = useState(false);
 
@@ -645,15 +688,20 @@ export function MemberCard({
       if (!listId) return;
       setRemoving(true);
       try {
-        await removeFromList.mutateAsync({ listId, pubkey });
-        toast({ title: 'Removed from list' });
+        if (listKind === 39089) {
+          await removeFromPack.mutateAsync({ packId: listId, pubkey });
+          toast({ title: 'Removed from pack' });
+        } else {
+          await removeFromList.mutateAsync({ listId, pubkey });
+          toast({ title: 'Removed from list' });
+        }
       } catch {
         toast({ title: 'Failed to remove', variant: 'destructive' });
       } finally {
         setRemoving(false);
       }
     },
-    [listId, pubkey, removeFromList, toast],
+    [listId, listKind, pubkey, removeFromList, removeFromPack, toast],
   );
 
   return (

@@ -1,7 +1,8 @@
 /**
  * AddMembersDialog
  *
- * Search-based dialog for adding profiles to a specific list.
+ * Search-based dialog for adding profiles to a specific list — either a
+ * kind 30000 follow set or a kind 39089 follow pack.
  * Uses NIP-50 profile search and allows keyboard navigation.
  */
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
@@ -13,6 +14,7 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useUserLists } from '@/hooks/useUserLists';
+import { useFollowPackActions } from '@/hooks/useFollowPacks';
 import { toast } from '@/hooks/useToast';
 import type { SearchProfile } from '@/hooks/useSearchProfiles';
 
@@ -20,10 +22,12 @@ interface AddMembersDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   listId: string;
+  /** The list's kind — 30000 (follow set, default) or 39089 (follow pack). */
+  listKind?: number;
   listPubkeys: string[];
 }
 
-export function AddMembersDialog({ open, onOpenChange, listId, listPubkeys }: AddMembersDialogProps) {
+export function AddMembersDialog({ open, onOpenChange, listId, listKind = 30000, listPubkeys }: AddMembersDialogProps) {
   const [query, setQuery] = useState('');
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [addingPubkeys, setAddingPubkeys] = useState<Set<string>>(new Set());
@@ -33,6 +37,9 @@ export function AddMembersDialog({ open, onOpenChange, listId, listPubkeys }: Ad
 
   const { data: searchResults, isLoading, isFetching } = useSearchProfiles(query);
   const { addToList } = useUserLists();
+  const { addToPack } = useFollowPackActions();
+  const isPack = listKind === 39089;
+  const noun = isPack ? 'pack' : 'list';
 
   // Existing member set for filtering
   const existingMembers = useMemo(() => new Set(listPubkeys), [listPubkeys]);
@@ -63,10 +70,14 @@ export function AddMembersDialog({ open, onOpenChange, listId, listPubkeys }: Ad
     if (addingPubkeys.has(profile.pubkey) || addedPubkeys.has(profile.pubkey)) return;
     setAddingPubkeys((prev) => new Set(prev).add(profile.pubkey));
     try {
-      await addToList.mutateAsync({ listId, pubkey: profile.pubkey });
+      if (isPack) {
+        await addToPack.mutateAsync({ packId: listId, pubkey: profile.pubkey });
+      } else {
+        await addToList.mutateAsync({ listId, pubkey: profile.pubkey });
+      }
       setAddedPubkeys((prev) => new Set(prev).add(profile.pubkey));
-              const name = profile.metadata.name || profile.metadata.display_name || 'Anonymous';
-      toast({ title: `Added ${name} to list` });
+      const name = profile.metadata.name || profile.metadata.display_name || 'Anonymous';
+      toast({ title: `Added ${name} to ${noun}` });
     } catch {
       toast({ title: 'Failed to add member', variant: 'destructive' });
     } finally {
@@ -76,7 +87,7 @@ export function AddMembersDialog({ open, onOpenChange, listId, listPubkeys }: Ad
         return next;
       });
     }
-  }, [addToList, listId, addingPubkeys, addedPubkeys]);
+  }, [addToList, addToPack, isPack, noun, listId, addingPubkeys, addedPubkeys]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -127,7 +138,7 @@ export function AddMembersDialog({ open, onOpenChange, listId, listPubkeys }: Ad
           {!query.trim() ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
               <UserPlus className="size-8 mx-auto mb-2 opacity-50" />
-              Search for people to add to this list.
+              Search for people to add to this {noun}.
             </div>
           ) : isLoading && !searchResults ? (
             <div className="py-12 text-center">
@@ -136,7 +147,7 @@ export function AddMembersDialog({ open, onOpenChange, listId, listPubkeys }: Ad
           ) : filteredResults.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
               {searchResults && searchResults.length > 0
-                ? 'All matching users are already in this list.'
+                ? `All matching users are already in this ${noun}.`
                 : 'No profiles found.'}
             </div>
           ) : (

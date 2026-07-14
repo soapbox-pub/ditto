@@ -50,7 +50,7 @@ const NUDGE_OVERRIDES: Record<number, string> = {
   30078: 'app settings',
   30315: 'status update',
   31925: 'event RSVP',
-  39089: 'help content',
+  39089: 'follow pack update',
 };
 
 function labelForOp(kind: number | undefined, opType: OpType): string {

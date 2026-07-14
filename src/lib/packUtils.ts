@@ -74,6 +74,33 @@ export function parsePeopleList(
   return { title, description, image, pubkeys, variant };
 }
 
+/** Editable metadata fields shared by follow sets (30000) and follow packs (39089). */
+export interface PeopleListDetails {
+  title: string;
+  description?: string;
+  image?: string;
+}
+
+/**
+ * Return a new tags array with the list's title/description/image replaced.
+ *
+ * Removes the canonical tags *and* their legacy aliases (`name`, `summary`,
+ * `thumb`) so other clients that read the aliases don't show stale values,
+ * then appends the canonical `title` / `description` / `image` tags. All other
+ * tags (`d`, `p`, `alt`, etc.) are preserved in their original order.
+ */
+export function updatePeopleListDetailTags(
+  tags: string[][],
+  details: PeopleListDetails,
+): string[][] {
+  const REPLACED = new Set(['title', 'name', 'description', 'summary', 'image', 'thumb']);
+  const next = tags.filter(([n]) => !REPLACED.has(n));
+  next.push(['title', details.title.trim()]);
+  if (details.description?.trim()) next.push(['description', details.description.trim()]);
+  if (details.image?.trim()) next.push(['image', details.image.trim()]);
+  return next;
+}
+
 /**
  * Returns pubkeys in display order for a people-list event.
  *

@@ -17,6 +17,7 @@ import { useFollowPacks } from './useFollowPacks';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { isNostrId } from '@/lib/nostrId';
 import { rollbackQuery } from '@/lib/optimisticEvent';
+import { updatePeopleListDetailTags, type PeopleListDetails } from '@/lib/packUtils';
 import type { NostrEvent, NostrSigner } from '@nostrify/nostrify';
 
 export interface UserList {
@@ -216,6 +217,18 @@ export function useUserLists() {
     rollbackQuery(queryClient, listsKey, snapshot);
   }
 
+  /**
+   * Update the detail-page cache in place so views rendering the raw event
+   * (e.g. PeopleListDetailContent via useAddrEvent) reflect the mutation
+   * immediately instead of waiting for a relay round-trip.
+   */
+  function syncAddrEvent(listId: string, published: NostrEvent): void {
+    queryClient.setQueryData<NostrEvent | null>(
+      ['addr-event', 30000, user?.pubkey ?? '', listId],
+      published,
+    );
+  }
+
   /** Create a new list. Returns the created UserList. */
   const createList = useMutation({
     mutationFn: async ({ title, description, pubkeys = [] }: { title: string; description?: string; pubkeys?: string[] }) => {
@@ -261,12 +274,13 @@ export function useUserLists() {
 
       const newTags = [...prev.tags, ['p', pubkey]];
       const content = await encryptPrivateTags(freshList.privatePubkeys, user.signer, user.pubkey);
-      await publishEvent({
+      const published = await publishEvent({
         kind: 30000,
         content,
         tags: newTags,
         prev,
       });
+      syncAddrEvent(listId, published);
     },
     // Optimistically add the pubkey so isInList() flips instantly.
     onMutate: ({ listId, pubkey }: { listId: string; pubkey: string }) => {
@@ -310,12 +324,13 @@ export function useUserLists() {
       // Remove from private pubkeys too
       const newPrivatePubkeys = freshList.privatePubkeys.filter((pk) => pk !== pubkey);
       const content = await encryptPrivateTags(newPrivatePubkeys, user.signer, user.pubkey);
-      await publishEvent({
+      const published = await publishEvent({
         kind: 30000,
         content,
         tags: newTags,
         prev,
       });
+      syncAddrEvent(listId, published);
     },
     // Optimistically drop the pubkey so isInList() flips instantly.
     onMutate: ({ listId, pubkey }: { listId: string; pubkey: string }) => {
@@ -364,17 +379,68 @@ export function useUserLists() {
         newTags.push(['title', title.trim()]);
       }
       const content = await encryptPrivateTags(freshList.privatePubkeys, user.signer, user.pubkey);
-      await publishEvent({
+      const published = await publishEvent({
         kind: 30000,
         content,
         tags: newTags,
         prev,
       });
+      syncAddrEvent(listId, published);
     },
     // Optimistically rename so the list title updates instantly.
     onMutate: ({ listId, title }: { listId: string; title: string }) => {
       const snapshot = optimisticLists((old) =>
         old.map((l) => (l.id === listId ? { ...l, title: title.trim() } : l)),
+      );
+      return { snapshot };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx) rollbackLists(ctx.snapshot);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user-lists', user?.pubkey] });
+    },
+  });
+
+  /** Update a list's title / description / image. */
+  const updateList = useMutation({
+    mutationFn: async ({ listId, ...details }: { listId: string } & PeopleListDetails) => {
+      if (!user) throw new Error('Must be logged in');
+
+      // Fetch the freshest version of this specific list from relays
+      const prev = await fetchFreshEvent(nostr, {
+        kinds: [30000],
+        authors: [user.pubkey],
+        '#d': [listId],
+      });
+
+      if (!prev) throw new Error('List not found');
+
+      const freshList = await parseListEventWithDecryption(prev, user.signer, user.pubkey);
+
+      const newTags = updatePeopleListDetailTags(prev.tags, details);
+      const content = await encryptPrivateTags(freshList.privatePubkeys, user.signer, user.pubkey);
+      const published = await publishEvent({
+        kind: 30000,
+        content,
+        tags: newTags,
+        prev,
+      });
+      syncAddrEvent(listId, published);
+    },
+    // Optimistically update details so the UI reflects the edit instantly.
+    onMutate: ({ listId, title, description, image }: { listId: string } & PeopleListDetails) => {
+      const snapshot = optimisticLists((old) =>
+        old.map((l) =>
+          l.id === listId
+            ? {
+                ...l,
+                title: title.trim(),
+                description: description?.trim() || undefined,
+                image: image?.trim() || undefined,
+              }
+            : l,
+        ),
       );
       return { snapshot };
     },
@@ -437,6 +503,7 @@ export function useUserLists() {
     addToList,
     removeFromList,
     renameList,
+    updateList,
     deleteList,
     isInList,
   };
