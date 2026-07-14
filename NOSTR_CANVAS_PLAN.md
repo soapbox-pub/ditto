@@ -238,6 +238,11 @@ run `npm run test`, and commit.
 
 ## Phase 5: Polish and Deferred Follow-ups
 
+Canvas discovery remains available in Capacitor apps, but tile installation and
+Lua worker execution are browser-only until the native WebView path is verified.
+Native install/update actions show a clear availability dialog, and native
+sidebar widgets never mount a tile instance.
+
 1. Perform keyboard, screen-reader, mobile, and reduced-motion checks on the
    marketplace, permission dialog, detail view, and sidebar widgets.
 2. Re-check bundle output and worker loading in Vite and Capacitor webviews.

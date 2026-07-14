@@ -95,16 +95,14 @@ function useCanvasWidgetCatalog() {
 
   useEffect(() => runtime.on('settings-fields-changed', () => setRuntimeVersion((version) => version + 1)), [runtime]);
 
-  return useMemo(() => {
-    const eligible = new Set(runtime.getWidgetEligibleIdentifiers());
-    const installedIdentifiers = new Set(config.installedCanvasTiles.map((coordinate) => coordinate.identifier));
-    const definitions = config.installedCanvasTiles.flatMap((coordinate) => {
-      const event = installations.getCachedDefinition(coordinate);
-      const tile = event && parseTileDefinition(event);
-      return tile && eligible.has(tile.identifier) ? [canvasWidgetDefinition(tile)].filter((definition): definition is WidgetDefinition => !!definition) : [];
-    });
-    return { definitions, installedIdentifiers };
-  }, [config.installedCanvasTiles, installations, runtime, runtimeVersion]);
+  const eligible = new Set(runtime.getWidgetEligibleIdentifiers());
+  const installedIdentifiers = new Set(config.installedCanvasTiles.map((coordinate) => coordinate.identifier));
+  const definitions = config.installedCanvasTiles.flatMap((coordinate) => {
+    const event = installations.getCachedDefinition(coordinate);
+    const tile = event && parseTileDefinition(event);
+    return tile && eligible.has(tile.identifier) ? [canvasWidgetDefinition(tile)].filter((definition): definition is WidgetDefinition => !!definition) : [];
+  });
+  return { definitions, installedIdentifiers, runtimeVersion };
 }
 
 /** Fallback while a widget component is loading. */

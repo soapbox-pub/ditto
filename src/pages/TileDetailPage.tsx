@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { parseTileDefinition } from '@/tiles/definition';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useCanvasTileInstallations } from '@/components/CanvasTileInstallationsProvider';
+import { canUseCanvasTiles } from '@/lib/canvasPlatform';
 
 export function TileDetailPage() {
   const { naddr } = useParams<{ naddr: string }>();
@@ -24,6 +25,7 @@ export function TileDetailPage() {
   const { user } = useCurrentUser();
   const installations = useCanvasTileInstallations();
   const [permissionsOpen, setPermissionsOpen] = useState(false);
+  const [mobileAvailabilityOpen, setMobileAvailabilityOpen] = useState(false);
   const [approvedPermissions, setApprovedPermissions] = useState<Capability[]>([]);
   const address = useMemo(() => {
     try {
@@ -44,9 +46,18 @@ export function TileDetailPage() {
   const updateAvailable = !!installed && !!tile && installed.id !== tile.id;
 
   const install = () => {
+    if (!canUseCanvasTiles()) {
+      setPermissionsOpen(false);
+      setMobileAvailabilityOpen(true);
+      return;
+    }
     if (!tileEvent || !tile) return;
     installations.install(tileEvent, approvedPermissions.filter((permission) => tile.perms.includes(permission)));
     setPermissionsOpen(false);
+  };
+  const openInstall = () => {
+    if (canUseCanvasTiles()) setPermissionsOpen(true);
+    else setMobileAvailabilityOpen(true);
   };
 
   return (
@@ -66,8 +77,8 @@ export function TileDetailPage() {
               </div>
               <div className="flex flex-wrap gap-2">{tile.perms.map((permission) => <Badge key={permission} variant="outline">{permission}</Badge>)}{tile.widget && <Badge variant="secondary">Widget: {tile.widget.label}</Badge>}</div>
               <div className="flex gap-2">
-                {installed ? <Button variant="outline" onClick={() => installations.uninstall({ pubkey: tile.pubkey, identifier: tile.identifier })}>Remove tile</Button> : <Button onClick={() => setPermissionsOpen(true)} disabled={!user}>Install tile</Button>}
-                {updateAvailable && <Button onClick={() => setPermissionsOpen(true)}>Update tile</Button>}
+                {installed ? <Button variant="outline" onClick={() => installations.uninstall({ pubkey: tile.pubkey, identifier: tile.identifier })}>Remove tile</Button> : <Button onClick={openInstall} disabled={!user && canUseCanvasTiles()}>Install tile</Button>}
+                {updateAvailable && <Button onClick={openInstall}>Update tile</Button>}
                 {!user && <p className="self-center text-sm text-muted-foreground">Log in to install tiles.</p>}
               </div>
             </CardContent></Card>
@@ -83,6 +94,15 @@ export function TileDetailPage() {
             {tile?.perms.length ? tile.perms.map((permission) => <label key={permission} className="flex items-center gap-3 text-sm"><Checkbox checked={approvedPermissions.includes(permission)} onCheckedChange={(checked) => setApprovedPermissions((current) => checked ? [...current, permission] : current.filter((item) => item !== permission))} />{permission}</label>) : <p className="text-sm text-muted-foreground">This tile does not request any capabilities.</p>}
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setPermissionsOpen(false)}>Cancel</Button><Button onClick={install}>Install</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={mobileAvailabilityOpen} onOpenChange={setMobileAvailabilityOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tiles are coming soon</DialogTitle>
+            <DialogDescription>Installing and running tiles is not available in the Ditto mobile apps yet. You can browse tiles here and install them from a web browser.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter><Button onClick={() => setMobileAvailabilityOpen(false)}>Close</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </main>
