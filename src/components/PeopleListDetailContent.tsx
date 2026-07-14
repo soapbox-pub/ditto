@@ -20,9 +20,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useInView } from '@/hooks/useInView';
 import {
   Users,
-  UserPlus,
   Loader2,
   Copy,
+  ChevronDown,
   Pencil,
   X,
   MessageCircle,
@@ -33,12 +33,18 @@ import type { NostrEvent, NostrFilter, NostrMetadata } from '@nostrify/nostrify'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteCard } from '@/components/NoteCard';
 import { TabButton } from '@/components/TabButton';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
-import { AddMembersDialog } from '@/components/AddMembersDialog';
+import { EditMembersDialog } from '@/components/EditMembersDialog';
 import { EditPeopleListDialog } from '@/components/EditPeopleListDialog';
 import { ComposeBox } from '@/components/ComposeBox';
 import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
@@ -372,7 +378,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
 
   const [activeTab, setActiveTab] = useState<Tab>('feed');
   const [cloning, setCloning] = useState(false);
-  const [addMembersOpen, setAddMembersOpen] = useState(false);
+  const [editMembersOpen, setEditMembersOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
@@ -507,17 +513,31 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
             />
           )}
 
-          {/* Edit — owners of follow sets and follow packs can edit details directly */}
+          {/* Edit — owners of follow sets and follow packs can edit details and members directly */}
           {ownerCanEdit && (
-            <Button
-              variant="outline"
-              className={showFollowAllButton ? undefined : 'flex-1'}
-              onClick={() => setEditOpen(true)}
-              title={isFollowPack ? 'Edit this pack' : 'Edit this list'}
-            >
-              <Pencil className="size-4" />
-              Edit
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={showFollowAllButton ? undefined : 'flex-1'}
+                  title={isFollowPack ? 'Edit this pack' : 'Edit this list'}
+                >
+                  <Pencil className="size-4" />
+                  Edit
+                  <ChevronDown className="size-3.5 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem className="gap-2" onSelect={() => setEditOpen(true)}>
+                  <Pencil className="size-4" />
+                  Edit details
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2" onSelect={() => setEditMembersOpen(true)}>
+                  <Users className="size-4" />
+                  Edit members
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
 
           {/* Save (clone) — available to logged-in viewers who don't own the list, not for kind 3 / love lists (those are personal lists, you don't clone them) */}
@@ -572,21 +592,6 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
       {/* Spacer below the pinned tabs (matches ProfilePage / BadgeDetailContent). */}
       <div style={{ height: ARC_OVERHANG_PX }} />
 
-      {/* Owner "Add members" row — above members tab content */}
-      {ownerCanEdit && activeTab === 'members' && (
-        <div className="px-4 py-3 border-b border-border">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setAddMembersOpen(true)}
-          >
-            <UserPlus className="size-4" />
-            Add Members
-          </Button>
-        </div>
-      )}
-
       {/* Tab content */}
       {activeTab === 'feed' ? (
         <PeopleListFeedTab pubkeys={pubkeys} tabKey={shareNip19} />
@@ -611,9 +616,9 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
 
       {ownerCanEdit && (
         <>
-          <AddMembersDialog
-            open={addMembersOpen}
-            onOpenChange={setAddMembersOpen}
+          <EditMembersDialog
+            open={editMembersOpen}
+            onOpenChange={setEditMembersOpen}
             listId={dTag}
             listKind={event.kind}
             listPubkeys={pubkeys}
