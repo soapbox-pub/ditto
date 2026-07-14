@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.31.0] - 2026-07-14
+
+Quizzes come to Ditto! Build your own quizzes — personality tests, "which character are you," trivia, and more — with cover art and a custom picture for every possible outcome. Take a friend's quiz right in the app, see your result, and choose to share it to your feed. Browse the new Quizzes feed to discover what everyone's making, and get a heads-up when someone takes yours.
+
+### Added
+- Create, take, and share quizzes: design personality tests, typologies, and trivia with cover images and a picture for each outcome
+- A new Quizzes feed and builder for discovering and making quizzes, with results that show your followers first
+- Get notified when someone takes your quiz
+
 ## [2.30.1] - 2026-07-14
 
 Fixes a frustrating snag when tidying up your follow packs: editing a pack's details or members no longer leaves the page frozen and unclickable once you're done.
