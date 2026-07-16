@@ -37,6 +37,8 @@ import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
 import { UnknownKindContent } from '@/components/UnknownKindContent';
+import { ArmadaInviteEmbed } from '@/components/ArmadaInviteEmbed';
+import { INVITE_BUNDLE_KIND, parseArmadaInvite } from '@/lib/armadaInvite';
 
 interface EmbeddedNaddrProps {
   /** The decoded naddr coordinates. */
@@ -113,6 +115,24 @@ export function EmbeddedNaddr(props: EmbeddedNaddrProps) {
 
 function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: EmbeddedNaddrProps) {
   const { data: event, isLoading, isError } = useAddrEvent(addr);
+
+  // Encrypted community invite bundles (kind 33301) can never render as a plain
+  // event — their content is NIP-44 encrypted and the unlock key lives in the
+  // link's URL fragment, which a naddr coordinate doesn't carry. Recognize the
+  // kind and offer to open it in a compatible app. When we have the original
+  // source URL we pass it through so the card keeps the `#fragment` secret
+  // needed to actually join.
+  if (addr.kind === INVITE_BUNDLE_KIND) {
+    const naddr = nip19.naddrEncode({ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier });
+    const invite = (sourceUrl && parseArmadaInvite(sourceUrl)) || {
+      naddr,
+      fragment: '',
+      openUrl: `https://armada.buzz/invite/${naddr}`,
+      missingSecret: true,
+    };
+    return <ArmadaInviteEmbed invite={invite} className={className} />;
+  }
+
 
   if (isLoading) {
     return <EmbeddedNaddrSkeleton className={className} />;
