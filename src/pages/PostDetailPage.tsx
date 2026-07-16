@@ -61,6 +61,9 @@ import { BirdDetectionContent } from "@/components/BirdDetectionContent";
 import { BirdexContent } from "@/components/BirdexContent";
 import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
+import { ArmadaInviteEmbed } from "@/components/ArmadaInviteEmbed";
+import { INVITE_BUNDLE_KIND, type ArmadaInvite } from "@/lib/armadaInvite";
+import { nip19 } from "nostr-tools";
 const GitStatusCard = lazy(() => import("@/components/GitStatusCard").then(m => ({ default: m.GitStatusCard })));
 const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ default: m.IssueCard })));
 import { PrUpdateCard } from "@/components/PrUpdateCard";
@@ -427,6 +430,28 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
       ? `${resolvedEvent.tags.find(([n]) => n === "title")?.[1] || resolvedEvent.tags.find(([n]) => n === "name")?.[1] || loadingTitle} - ${config.appName}`
       : `${loadingTitle} - ${config.appName}`,
   });
+
+  // Encrypted community invite bundles (kind 33301, Concord CORD-05) can't
+  // render as a plain event — their content is NIP-44 encrypted. Reached via a
+  // bare naddr the unlock secret (a URL #fragment) isn't available, so show the
+  // invite card in its "missing secret" state and skip the pointless fetch UI.
+  if (addr.kind === INVITE_BUNDLE_KIND) {
+    const naddr = nip19.naddrEncode({ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier });
+    const invite: ArmadaInvite = {
+      naddr,
+      linkSigner: addr.pubkey,
+      fragment: "",
+      openUrl: `https://armada.buzz/invite/${naddr}`,
+      missingSecret: true,
+    };
+    return (
+      <PostDetailShell title="Community invite">
+        <div className="px-4 pb-8">
+          <ArmadaInviteEmbed invite={invite} variant="detail" />
+        </div>
+      </PostDetailShell>
+    );
+  }
 
   if (isLoading) {
     return (

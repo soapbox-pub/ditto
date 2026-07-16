@@ -38,7 +38,7 @@ import { cn } from '@/lib/utils';
 import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
 import { UnknownKindContent } from '@/components/UnknownKindContent';
 import { ArmadaInviteEmbed } from '@/components/ArmadaInviteEmbed';
-import { INVITE_BUNDLE_KIND, parseArmadaInvite } from '@/lib/armadaInvite';
+import { INVITE_BUNDLE_KIND, parseArmadaInvite, type ArmadaInvite } from '@/lib/armadaInvite';
 
 interface EmbeddedNaddrProps {
   /** The decoded naddr coordinates. */
@@ -124,8 +124,9 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
   // needed to actually join.
   if (addr.kind === INVITE_BUNDLE_KIND) {
     const naddr = nip19.naddrEncode({ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier });
-    const invite = (sourceUrl && parseArmadaInvite(sourceUrl)) || {
+    const invite: ArmadaInvite = (sourceUrl && parseArmadaInvite(sourceUrl)) || {
       naddr,
+      linkSigner: addr.pubkey,
       fragment: '',
       openUrl: `https://armada.buzz/invite/${naddr}`,
       missingSecret: true,
