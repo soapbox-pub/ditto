@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.31.1] - 2026-07-16
+
+Community invite links now come to life in your feed. When someone shares an invite to a private community, Ditto unlocks it and shows a rich preview — the community's name, icon, and channel count — right inline, so you know exactly what you're joining before you tap through. You can open the invite in a compatible app or copy the link to share it along.
+
+### Added
+- Community invite links now show a live preview with the community's name, icon, and channel count, with options to open or copy the invite
+
 ## [2.31.0] - 2026-07-14
 
 Quizzes come to Ditto! Build your own quizzes — personality tests, "which character are you," trivia, and more — with cover art and a custom picture for every possible outcome. Take a friend's quiz right in the app, see your result, and choose to share it to your feed. Browse the new Quizzes feed to discover what everyone's making, and get a heads-up when someone takes yours.
