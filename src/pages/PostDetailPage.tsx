@@ -47,6 +47,9 @@ import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { HighlightContent } from "@/components/HighlightContent";
+import { QuizContent } from "@/components/quiz/QuizContent";
+import { QuizResultContent } from "@/components/quiz/QuizResultContent";
+import { QUIZ_KIND, QUIZ_RESULT_KIND } from "@/lib/quiz";
 import { AttestationContent } from "@/components/AttestationContent";
 import { ATTESTATION_KIND } from "@/lib/attestation";
 import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
@@ -58,6 +61,9 @@ import { BirdDetectionContent } from "@/components/BirdDetectionContent";
 import { BirdexContent } from "@/components/BirdexContent";
 import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
+import { ArmadaInviteEmbed } from "@/components/ArmadaInviteEmbed";
+import { INVITE_BUNDLE_KIND, type ArmadaInvite } from "@/lib/armadaInvite";
+import { nip19 } from "nostr-tools";
 const GitStatusCard = lazy(() => import("@/components/GitStatusCard").then(m => ({ default: m.GitStatusCard })));
 const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ default: m.IssueCard })));
 import { PrUpdateCard } from "@/components/PrUpdateCard";
@@ -424,6 +430,28 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
       ? `${resolvedEvent.tags.find(([n]) => n === "title")?.[1] || resolvedEvent.tags.find(([n]) => n === "name")?.[1] || loadingTitle} - ${config.appName}`
       : `${loadingTitle} - ${config.appName}`,
   });
+
+  // Encrypted community invite bundles (kind 33301, Concord CORD-05) can't
+  // render as a plain event — their content is NIP-44 encrypted. Reached via a
+  // bare naddr the unlock secret (a URL #fragment) isn't available, so show the
+  // invite card in its "missing secret" state and skip the pointless fetch UI.
+  if (addr.kind === INVITE_BUNDLE_KIND) {
+    const naddr = nip19.naddrEncode({ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier });
+    const invite: ArmadaInvite = {
+      naddr,
+      linkSigner: addr.pubkey,
+      fragment: "",
+      openUrl: `https://armada.buzz/invite/${naddr}`,
+      missingSecret: true,
+    };
+    return (
+      <PostDetailShell title="Community invite">
+        <div className="px-4 pb-8">
+          <ArmadaInviteEmbed invite={invite} variant="detail" />
+        </div>
+      </PostDetailShell>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -1362,6 +1390,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isHighlight = event.kind === 9802;
   const isAttestation = event.kind === ATTESTATION_KIND;
   const isCampaign = event.kind === 33863;
+  const isQuiz = event.kind === QUIZ_KIND;
+  const isQuizResult = event.kind === QUIZ_RESULT_KIND;
   const isVanish = event.kind === VANISH_KIND;
   const isZap = event.kind === 9735;
   const isOnchainZap = event.kind === 8333;
@@ -1402,6 +1432,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isHighlight &&
     !isAttestation &&
     !isCampaign &&
+    !isQuiz &&
+    !isQuizResult &&
     !isVanish &&
     !isZap &&
     !isOnchainZap &&
@@ -2677,6 +2709,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <AttestationContent event={event} expanded />
             ) : isCampaign ? (
               <CampaignContent event={event} expanded />
+            ) : isQuiz ? (
+              <QuizContent event={event} expanded />
+            ) : isQuizResult ? (
+              <QuizResultContent event={event} expanded />
             ) : isBlobbiState ? (
               <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
                 <BlobbiStateCard event={event} lookMode="follow-pointer" interactionReaction={blobbiReactionState} />

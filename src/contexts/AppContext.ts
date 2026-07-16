@@ -84,6 +84,16 @@ export interface FeedSettings {
   showTreasureGeocaches: boolean;
   /** Show Found logs (kind 7516) in Treasures */
   showTreasureFoundLogs: boolean;
+  /** Show Quizzes link in sidebar */
+  showQuizzes: boolean;
+  /** Show Quiz definitions (kind 37849) in Quizzes */
+  showQuizDefinitions: boolean;
+  /** Show Quiz results (kind 7849) in Quizzes */
+  showQuizResults: boolean;
+  /** Include Quiz definitions (kind 37849) in the follows/global feed */
+  feedIncludeQuizzes: boolean;
+  /** Include Quiz results (kind 7849) in the follows/global feed */
+  feedIncludeQuizResults: boolean;
   /** Show Colors (kind 3367) link in sidebar */
   showColors: boolean;
   /** Show People Lists (kind 39089 follow packs, kind 30000 people sets) link in sidebar */

@@ -1,5 +1,43 @@
 # Changelog
 
+## [2.31.1] - 2026-07-16
+
+Community invite links now come to life in your feed. When someone shares an invite to a private community, Ditto unlocks it and shows a rich preview — the community's name, icon, and channel count — right inline, so you know exactly what you're joining before you tap through. You can open the invite in a compatible app or copy the link to share it along.
+
+### Added
+- Community invite links now show a live preview with the community's name, icon, and channel count, with options to open or copy the invite
+
+## [2.31.0] - 2026-07-14
+
+Quizzes come to Ditto! Build your own quizzes — personality tests, "which character are you," trivia, and more — with cover art and a custom picture for every possible outcome. Take a friend's quiz right in the app, see your result, and choose to share it to your feed. Browse the new Quizzes feed to discover what everyone's making, and get a heads-up when someone takes yours.
+
+### Added
+- Create, take, and share quizzes: design personality tests, typologies, and trivia with cover images and a picture for each outcome
+- A new Quizzes feed and builder for discovering and making quizzes, with results that show your followers first
+- Get notified when someone takes your quiz
+
+## [2.30.1] - 2026-07-14
+
+Fixes a frustrating snag when tidying up your follow packs: editing a pack's details or members no longer leaves the page frozen and unclickable once you're done.
+
+### Fixed
+- Editing a follow pack's details or members no longer leaves the page unresponsive after the dialog closes
+
+## [2.30.0] - 2026-07-14
+
+Take charge of your follow packs and lists. Owners can now edit the title, description, and cover image of their follow packs and lists right from the detail page, and manage members — adding or removing people — all from one place. Under the hood, Ditto is lighter on your battery and memory too: your Blobbi companion sips power while idle, and long scrolling feeds stay smooth without bogging down your phone.
+
+### Added
+- Owners can edit their follow packs and lists — title, description, cover image, and members — directly from the detail page
+
+### Changed
+- Long feeds use less memory while scrolling, keeping the app smooth over long sessions
+- Your Blobbi companion now uses far less power while idle
+
+### Fixed
+- Zap dialogs can now scroll on short screens, so the on-chain payment details are always reachable
+- Games and apps can now capture your mouse pointer when they need to
+
 ## [2.29.0] - 2026-07-09
 
 Ditto now reads like a newsstand: magazines, magazine issues, and ebooks show up in your feed with their covers and details, and you can flip through them right inside the app. Tap to open a publication and read the PDF page by page in a clean, distraction-free viewer — no downloads or extra apps required.

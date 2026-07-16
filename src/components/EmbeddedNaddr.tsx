@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
-import { Award, HandHeart, MessageSquareOff } from 'lucide-react';
+import { Award, ClipboardList, HandHeart, MessageSquareOff } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const BlobbiStateCard = lazy(() => import('@/components/BlobbiStateCard').then(m => ({ default: m.BlobbiStateCard })));
@@ -31,11 +31,14 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { isProfileBadgesEvent } from '@/lib/badgeUtils';
 import { CAMPAIGN_KIND, parseCampaign } from '@/lib/campaign';
+import { QUIZ_KIND, parseQuiz } from '@/lib/quiz';
 import { sanitizeUrl, externalUrl } from '@/lib/sanitizeUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
 import { UnknownKindContent } from '@/components/UnknownKindContent';
+import { ArmadaInviteEmbed } from '@/components/ArmadaInviteEmbed';
+import { INVITE_BUNDLE_KIND, parseArmadaInvite, type ArmadaInvite } from '@/lib/armadaInvite';
 
 interface EmbeddedNaddrProps {
   /** The decoded naddr coordinates. */
@@ -113,6 +116,25 @@ export function EmbeddedNaddr(props: EmbeddedNaddrProps) {
 function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: EmbeddedNaddrProps) {
   const { data: event, isLoading, isError } = useAddrEvent(addr);
 
+  // Encrypted community invite bundles (kind 33301) can never render as a plain
+  // event — their content is NIP-44 encrypted and the unlock key lives in the
+  // link's URL fragment, which a naddr coordinate doesn't carry. Recognize the
+  // kind and offer to open it in a compatible app. When we have the original
+  // source URL we pass it through so the card keeps the `#fragment` secret
+  // needed to actually join.
+  if (addr.kind === INVITE_BUNDLE_KIND) {
+    const naddr = nip19.naddrEncode({ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier });
+    const invite: ArmadaInvite = (sourceUrl && parseArmadaInvite(sourceUrl)) || {
+      naddr,
+      linkSigner: addr.pubkey,
+      fragment: '',
+      openUrl: `https://armada.buzz/invite/${naddr}`,
+      missingSecret: true,
+    };
+    return <ArmadaInviteEmbed invite={invite} className={className} />;
+  }
+
+
   if (isLoading) {
     return <EmbeddedNaddrSkeleton className={className} />;
   }
@@ -158,6 +180,13 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
   // pill + description instead of the generic title/description fallback.
   if (event.kind === ATTESTATION_KIND) {
     return <EmbeddedAttestationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Kind 37849 quizzes (see NIP.md) get a compact card with title, summary,
+  // and question count. The generic fallback would work (title/summary tags)
+  // but wouldn't show the question count or the "Quiz" label.
+  if (event.kind === QUIZ_KIND) {
+    return <EmbeddedQuizCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Long-form articles (NIP-23) get a rich link-preview-style card: cover
@@ -572,6 +601,60 @@ function EmbeddedCampaignCard({
           {campaign.summary}
         </p>
       )}
+    </EmbeddedCardShell>
+  );
+}
+
+/**
+ * Compact inline card for kind 37849 quizzes (see NIP.md): title, summary,
+ * question count. Malformed quizzes fall through to the generic
+ * {@link EmbeddedNaddrCard}, which still renders the NIP-31 `alt` tag.
+ */
+function EmbeddedQuizCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const quiz = useMemo(() => parseQuiz(event), [event]);
+
+  const naddrId = useMemo(() => {
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+    return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
+  }, [event]);
+
+  if (!quiz) {
+    return <EmbeddedNaddrCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  const questionCount = quiz.questions.length;
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={naddrId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-primary">
+        <ClipboardList className="size-3" />
+        Quiz
+      </div>
+      <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
+        {quiz.title}
+      </p>
+      {quiz.summary && (
+        <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words">
+          {quiz.summary}
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {questionCount} {questionCount === 1 ? 'question' : 'questions'}
+      </p>
     </EmbeddedCardShell>
   );
 }

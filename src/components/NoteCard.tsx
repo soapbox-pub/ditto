@@ -7,6 +7,8 @@ import {
   CircleDashed,
   CircleDot,
   CircleX,
+  ClipboardCheck,
+  ClipboardList,
   Egg,
   FileCode,
   FileText,
@@ -85,6 +87,9 @@ const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ defau
 import { PrUpdateCard } from "@/components/PrUpdateCard";
 import { RepoStateCard } from "@/components/RepoStateCard";
 import { HighlightContent } from "@/components/HighlightContent";
+import { QuizContent } from "@/components/quiz/QuizContent";
+import { QuizResultContent } from "@/components/quiz/QuizResultContent";
+import { QUIZ_KIND, QUIZ_RESULT_KIND } from "@/lib/quiz";
 import { AttestationContent } from "@/components/AttestationContent";
 import { ATTESTATION_KIND } from "@/lib/attestation";
 import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
@@ -571,6 +576,8 @@ export const NoteCard = memo(function NoteCard({
   const isHighlight = event.kind === 9802;
   const isAttestation = event.kind === ATTESTATION_KIND;
   const isCampaign = event.kind === 33863;
+  const isQuiz = event.kind === QUIZ_KIND;
+  const isQuizResult = event.kind === QUIZ_RESULT_KIND;
   const isVanish = event.kind === 62;
   const isZap = event.kind === 9735 || event.kind === 8333;
   // Multi-recipient onchain zap (NIP-BC batch form): more than one `p` tag.
@@ -629,6 +636,8 @@ export const NoteCard = memo(function NoteCard({
     !isHighlight &&
     !isAttestation &&
     !isCampaign &&
+    !isQuiz &&
+    !isQuizResult &&
     !isVanish &&
     !isZap &&
     !isProfile &&
@@ -868,6 +877,10 @@ export const NoteCard = memo(function NoteCard({
           <AttestationContent event={event} />
         ) : isCampaign ? (
           <CampaignContent event={event} />
+        ) : isQuiz ? (
+          <QuizContent event={event} />
+        ) : isQuizResult ? (
+          <QuizResultContent event={event} />
         ) : isProfile ? (
           <ProfileCardContent event={event} />
         ) : isBlobbiState ? (
@@ -2390,6 +2403,18 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: "shared a",
     noun: "highlight",
     nounRoute: "/highlights",
+  },
+  [QUIZ_KIND]: {
+    icon: ClipboardList,
+    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated their", fallback: "shared a" }),
+    noun: "quiz",
+    nounRoute: "/quizzes",
+  },
+  [QUIZ_RESULT_KIND]: {
+    icon: ClipboardCheck,
+    action: "got a",
+    noun: "quiz result",
+    nounRoute: "/quizzes",
   },
   31871: {
     icon: ShieldCheck,

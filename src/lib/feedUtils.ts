@@ -265,6 +265,19 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
   // Love Lists (kind 15683, see NIP.md) with no `p` tags — an emptied list
   // has no hearts to show on its paper card.
   if (event.kind === 15683 && !event.tags.some(([n, v]) => n === 'p' && v)) return true;
+  // Quizzes (kind 37849, see NIP.md) that don't have the minimum viable
+  // structure: a title, at least one question, and at least one option.
+  // (Full parse validation happens at the render site.)
+  if (event.kind === 37849) {
+    const hasTitle = event.tags.some(([n, v]) => n === 'title' && typeof v === 'string' && v.trim().length > 0);
+    const hasQuestion = event.tags.some(([n]) => n === 'question');
+    const hasOption = event.tags.some(([n]) => n === 'option');
+    const hasDimension = event.tags.some(([n]) => n === 'dimension');
+    if (!hasTitle || !hasQuestion || !hasOption || !hasDimension) return true;
+  }
+  // Quiz results (kind 7849) without a quiz coordinate have no quiz to
+  // reference and nothing meaningful to render.
+  if (event.kind === 7849 && !event.tags.some(([n, v]) => n === 'a' && v?.startsWith('37849:'))) return true;
   // NIP-34 issues (kind 1621) with no subject and no content have nothing
   // to render.
   if (event.kind === 1621) {

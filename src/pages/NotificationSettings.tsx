@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
-import { Bell, BellOff, AlertTriangle, Heart, Quote, Repeat2, Zap, AtSign, MessageSquare, Users, Award, Mail, Radio, MonitorSmartphone } from 'lucide-react';
+import { Bell, BellOff, AlertTriangle, ClipboardCheck, Heart, Quote, Repeat2, Zap, AtSign, MessageSquare, Users, Award, Mail, Radio, MonitorSmartphone } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { isIgnoringBatteryOptimizations, requestIgnoreBatteryOptimizations } fro
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { toast } from '@/hooks/useToast';
 
-type NotificationPrefKey = 'reactions' | 'reposts' | 'zaps' | 'mentions' | 'comments' | 'badges' | 'letters' | 'highlights';
+type NotificationPrefKey = 'reactions' | 'reposts' | 'zaps' | 'mentions' | 'comments' | 'badges' | 'letters' | 'highlights' | 'quizzes';
 
 interface NotificationTypeRow {
   key: NotificationPrefKey;
@@ -81,6 +81,13 @@ const NOTIFICATION_TYPES: NotificationTypeRow[] = [
     kinds: [9802],
     description: 'When someone highlights your content',
     icon: <Quote className="size-5" />,
+  },
+  {
+    key: 'quizzes',
+    label: 'Quizzes',
+    kinds: [7849],
+    description: 'When someone takes your quiz',
+    icon: <ClipboardCheck className="size-5" />,
   },
 ];
 

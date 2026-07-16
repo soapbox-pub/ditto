@@ -11,6 +11,8 @@
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
+| 37849 | Quiz                 | Shareable quiz with weighted-scoring questions        |
+| 7849  | Quiz Result          | A user's computed result for a quiz                   |
 
 ### Community Kinds
 
@@ -1001,3 +1003,101 @@ Albums are represented as kind 34139 playlist events with a `["t", "album"]` tag
 - Track ordering follows the order of `a` tags in the event
 - The same detail view, playback, and commenting features apply to both albums and playlists
 
+
+---
+
+## Quizzes
+
+Two kinds implement shareable social quizzes: **kind 37849** (Quiz, addressable) defines the quiz, and **kind 7849** (Quiz Result, regular) records a user's computed result. The numbers spell QUIZ on a phone keypad (7-8-4-9).
+
+The data model covers weighted-scoring quizzes: every question's options add weighted points to named **dimensions**, and the final result maps dimension totals to **outcomes**. This expresses category quizzes (Sorting Hat), axis tests (Political Compass), typologies (16personalities-style), and trivia scores (a "correct" dimension with range buckets) without any executable scoring logic in events.
+
+### Kind 37849: Quiz
+
+An addressable event defining a quiz. `content` is an optional freeform plaintext description.
+
+**Identifiers** (`<id>` values in the tags below) MUST match `[a-zA-Z0-9_-]+` so that `:`-delimited tag values parse unambiguously.
+
+| Tag         | Required | Description |
+|-------------|----------|-------------|
+| `d`         | Yes      | Quiz slug. |
+| `title`     | Yes      | Quiz title. |
+| `summary`   | No       | Short description for cards/previews. |
+| `image`     | No       | Cover image URL. |
+| `t`         | No       | Topic tags. |
+| `dimension` | Yes (≥1) | `["dimension", "<id>", "<label>"]` — a named scoring dimension. Display order = tag order. |
+| `question`  | Yes (≥1) | `["question", "<id>", "<text>"]` — presentation order = tag order. |
+| `option`    | Yes (≥2 per question) | `["option", "<question-id>", "<option-id>", "<label>", "<dim>:<weight>", …]` — an answer choice. Weight entries from index 4 add `<weight>` (decimal, may be negative) to dimension `<dim>` when this option is chosen. Omitted dimensions contribute 0. |
+| `scoring`   | No       | `["scoring", "<mode>"]` — `argmax` (default), `ranges`, or `scores`. |
+| `outcome`   | Depends  | `["outcome", "<id>", "<label>", "<description>", "<image>", "<condition>", …]` — result definition. `<image>` is an optional HTTPS URL shown with the result (use an empty string as a placeholder when conditions follow but there is no image). See below. |
+| `alt`       | Yes      | NIP-31 fallback. |
+
+**Scoring modes** — after summing weights for the taker's chosen options into per-dimension totals:
+
+- **`argmax`** — the highest-scoring dimension wins (ties broken by dimension tag order). The outcome whose `<id>` equals the winning dimension's id applies. Category quizzes ("which house are you").
+- **`ranges`** — every outcome whose conditions all hold applies. Conditions occupy tag indices ≥ 5 in the form `<dim>:<min>:<max>` (inclusive bounds; empty string = unbounded, e.g. `econ:0:` means econ ≥ 0). Multiple conditions in one outcome are ANDed; multiple outcomes may match (per-axis pole labels, quadrant labels, score buckets).
+- **`scores`** — no outcomes; clients display the dimension totals themselves (raw axis/coordinate results). Clients derive display bounds for each dimension by summing the min/max option weight per question.
+
+Quizzes are addressable so authors can fix typos. Results SHOULD pin the exact revision taken via an `e` tag (see below).
+
+### Kind 7849: Quiz Result
+
+A regular event recording the publisher's own result for a quiz. `content` is an optional freeform comment from the taker.
+
+| Tag       | Required | Description |
+|-----------|----------|-------------|
+| `a`       | Yes      | Quiz coordinate `37849:<pubkey>:<d>`, with optional relay hint. |
+| `e`       | Recommended | Event id of the exact quiz revision taken. |
+| `p`       | Recommended | Quiz author's pubkey (enables notifications). |
+| `outcome` | No       | `["outcome", "<id>", "<label>", "<image>"]` — a matched outcome. Label and optional image URL are denormalized so the result renders without fetching the quiz. |
+| `score`   | No       | `["score", "<dim-id>", "<value>", "<dim-label>", "<min>", "<max>"]` — per-dimension total. Label and bounds (indices 3-5) are optional denormalizations for standalone rendering. |
+| `answer`  | No       | `["answer", "<question-id>", "<option-id>"]` — the taker's raw answers. **Opt-in**: clients MUST NOT publish answers without explicit user consent (answers to e.g. medical-adjacent quizzes are sensitive). When present, clients MAY recompute scores to verify the claimed result. |
+| `alt`     | Yes      | NIP-31 fallback. |
+
+**Client behavior:**
+
+- One result per pubkey per quiz: when multiple kind 7849 events from the same pubkey reference the same quiz coordinate, only the one with the largest `created_at` counts (NIP-88-style dedupe). Retaking a quiz publishes a new event.
+- Results are self-attested. Clients MAY verify a result by recomputing from `answer` tags against the pinned quiz revision, but for social quizzes unverified results are acceptable.
+- Sharing a result MUST be an explicit user action after taking the quiz, never automatic.
+- "Friends' results" views SHOULD query `{ kinds: [7849], '#a': [<coordinate>], authors: [<follow list>] }`.
+
+**Example quiz (argmax):**
+
+```json
+{
+  "kind": 37849,
+  "content": "Which element are you? Four questions, zero rigor.",
+  "tags": [
+    ["d", "element-quiz"],
+    ["title", "Which Element Are You?"],
+    ["summary", "Fire, water, earth, or air — settle it forever."],
+    ["dimension", "fire", "Fire"],
+    ["dimension", "water", "Water"],
+    ["question", "q1", "Pick a vacation:"],
+    ["option", "q1", "a", "Volcano hike", "fire:2"],
+    ["option", "q1", "b", "Lake cabin", "water:2"],
+    ["scoring", "argmax"],
+    ["outcome", "fire", "Fire", "You burn bright and occasionally down.", "https://cdn.example/fire.webp"],
+    ["outcome", "water", "Water", "You go with the flow.", "https://cdn.example/water.webp"],
+    ["alt", "Quiz: Which Element Are You?"]
+  ]
+}
+```
+
+**Example result:**
+
+```json
+{
+  "kind": 7849,
+  "content": "no notes, this is accurate",
+  "tags": [
+    ["a", "37849:<author-pubkey>:element-quiz"],
+    ["e", "<quiz-event-id>"],
+    ["p", "<author-pubkey>"],
+    ["outcome", "fire", "Fire", "https://cdn.example/fire.webp"],
+    ["score", "fire", "6", "Fire", "0", "8"],
+    ["score", "water", "2", "Water", "0", "8"],
+    ["alt", "Quiz result: Fire on \"Which Element Are You?\""]
+  ]
+}
+```
