@@ -541,6 +541,38 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     (i) => i >= 0 && i < images.length,
   );
 
+  // ── Preload beyond the mounted window ─────────────────────────────────────
+  // The ±1 neighbours above are already fetched because they're mounted as
+  // real <img> elements. For galleries with many images — or images served
+  // from a slow host — fast swiping outruns a narrow look-ahead and each new
+  // slot stalls on a cold fetch. Warm the HTTP cache well beyond the mounted
+  // window (enough to cover most real galleries in full) so those fetches are
+  // already in flight, or done, by the time the user swipes there.
+  //
+  // Fetched at default priority: hosts here speak HTTP/2 (verified), so there
+  // is no ~6-connection cap to protect and no benefit to marking these 'low' —
+  // doing so only makes the browser defer them, which defeats the point.
+  //
+  // The created Image objects are retained in a ref so they aren't garbage-
+  // collected before the request completes.
+  const preloadedUrlsRef = useRef<Set<string>>(new Set());
+  const preloadImagesRef = useRef<HTMLImageElement[]>([]);
+  useEffect(() => {
+    const PRELOAD_RADIUS = 8;
+    for (let offset = -PRELOAD_RADIUS; offset <= PRELOAD_RADIUS; offset++) {
+      if (Math.abs(offset) <= 1) continue; // already covered by mounted slots
+      const i = currentIndex + offset;
+      if (i < 0 || i >= images.length) continue;
+      if ((mediaTypes?.[i] ?? 'image') !== 'image') continue;
+      const url = images[i];
+      if (!url || url === LOADING_SENTINEL || preloadedUrlsRef.current.has(url)) continue;
+      preloadedUrlsRef.current.add(url);
+      const img = new Image();
+      img.src = url;
+      preloadImagesRef.current.push(img);
+    }
+  }, [currentIndex, images, mediaTypes]);
+
   return createPortal(
     <div
       ref={containerRef}
