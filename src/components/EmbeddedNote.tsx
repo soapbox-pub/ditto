@@ -29,6 +29,7 @@ import { isPeopleListKind } from '@/lib/packUtils';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { NoteContent } from '@/components/NoteContent';
+import { LiveChatContext } from '@/components/LiveChatContext';
 import { useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -152,6 +153,13 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
     return <EmbeddedHighlightCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
+  // Kind 1311 NIP-53 live chat messages get a compact card that shows the
+  // message plus the stream it was posted in. Without this branch the generic
+  // card would render the message with no anchor — a floating chat line.
+  if (event.kind === 1311) {
+    return <EmbeddedLiveChatCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   // Kind 31871 attestations get a compact status card. The generic fallback
   // would show only the description text with no state pill — and feed it
   // through the kind-1 tokenizer.
@@ -211,6 +219,46 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
   }
 
   return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} highlightText={highlightText} />;
+}
+
+/** Compact inline card for kind 1311 NIP-53 live chat messages. */
+function EmbeddedLiveChatCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+
+  const text = event.content.trim();
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={neventId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <LiveChatContext
+        event={event}
+        className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0 overflow-hidden"
+      />
+      {text ? (
+        <p className="text-sm whitespace-pre-wrap break-words line-clamp-4 text-foreground">
+          {text}
+        </p>
+      ) : (
+        <p className="text-xs italic text-muted-foreground">Live chat message</p>
+      )}
+    </EmbeddedCardShell>
+  );
 }
 
 /** Compact inline card for kind 9802 NIP-84 highlight events. */

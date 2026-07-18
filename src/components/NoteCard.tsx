@@ -70,6 +70,7 @@ import {
 } from "@/components/ColorMomentContent";
 import { BrokenEventFallback } from "@/components/BrokenEventFallback";
 import { CommentContext } from "@/components/CommentContext";
+import { LiveChatContext } from "@/components/LiveChatContext";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EmojifiedText, ReactionEmoji } from "@/components/CustomEmoji";
@@ -649,13 +650,16 @@ export const NoteCard = memo(function NoteCard({
     !isBlobbiState;
 
   const isComment = event.kind === 1111;
-  const isReply = isTextNote && !isComment && isReplyEvent(event);
+  const isLiveChat = event.kind === 1311;
+  const isReply = isTextNote && !isComment && !isLiveChat && isReplyEvent(event);
   // Unknown kinds land in the `isTextNote` branch (it's the negation of every
   // known-kind flag above). For anything other than real text-note kinds
   // (1 / 11 / 1111), render a NIP-31 fallback instead of feeding arbitrary
-  // content into the kind-1 tokenizer.
+  // content into the kind-1 tokenizer. Kind 1311 (NIP-53 live chat message)
+  // is also prose — it carries NIP-21 mentions and q tags — so it renders
+  // through the tokenizer like a text note rather than tombstoning.
   const isUnknownKind =
-    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111;
+    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111 && event.kind !== 1311;
 
   // Find all people being replied to (for "Replying to @user1 and @user2")
   const replyToPubkeys = useMemo(() => {
@@ -740,6 +744,7 @@ export const NoteCard = memo(function NoteCard({
     <>
       {/* Reply context (kind 1) or comment context (kind 1111) — shown above content */}
       {isComment && <CommentContext event={event} />}
+      {isLiveChat && <LiveChatContext event={event} />}
       {isReply && (
         <ReplyContext
           pubkeys={replyToPubkeys}

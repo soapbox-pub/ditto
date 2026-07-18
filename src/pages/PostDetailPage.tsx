@@ -190,6 +190,7 @@ function shellTitleForKind(kind?: number): string {
 }
 
 import { CommentContext } from "@/components/CommentContext";
+import { LiveChatContext } from "@/components/LiveChatContext";
 import { CommunityContent } from "@/components/CommunityContent";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
 import { BrokenEventFallback } from "@/components/BrokenEventFallback";
@@ -1448,7 +1449,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   // above). For anything other than real text-note kinds (1 / 11 / 1111) we
   // render a NIP-31 fallback instead of treating arbitrary content as kind 1.
   const isUnknownKind =
-    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111;
+    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111 && event.kind !== 1311;
 
   const { data: stats } = useEventStats(event.id, event);
   const { data: interactions } = useEventInteractions(event.id);
@@ -2604,6 +2605,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
           {/* Comment context for kind 1111 */}
           {event.kind === 1111 && <CommentContext event={event} />}
+          {event.kind === 1311 && <LiveChatContext event={event} />}
 
           {/* Star rating for book reviews (kind 31985) */}
           {event.kind === BOOK_REVIEW_KIND && (

@@ -70,6 +70,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   1068: 'poll',
   1111: 'comment',
   1222: 'voice message',
+  1311: 'live chat message',
   1617: 'patch',
   1618: 'pull request',
   1619: 'pull request update',
