@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
-import { Award, ClipboardList, HandHeart, MessageSquareOff } from 'lucide-react';
+import { Award, CalendarClock, ClipboardList, HandHeart, MessageSquareOff, Video } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const BlobbiStateCard = lazy(() => import('@/components/BlobbiStateCard').then(m => ({ default: m.BlobbiStateCard })));
@@ -187,6 +187,14 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
   // but wouldn't show the question count or the "Quiz" label.
   if (event.kind === QUIZ_KIND) {
     return <EmbeddedQuizCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-53 Meeting Spaces (30312) and Meeting Room events (30313) get a
+  // compact card with a Room/Meeting pill + title + summary + status.
+  // The generic naddr card would render title/summary too, but wouldn't
+  // surface the status or the room/meeting affordance.
+  if (event.kind === 30312 || event.kind === 30313) {
+    return <EmbeddedRoomCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Long-form articles (NIP-23) get a rich link-preview-style card: cover
@@ -655,6 +663,64 @@ function EmbeddedQuizCard({
       <p className="text-xs text-muted-foreground">
         {questionCount} {questionCount === 1 ? 'question' : 'questions'}
       </p>
+    </EmbeddedCardShell>
+  );
+}
+
+/**
+ * Compact inline card for NIP-53 Meeting Spaces (kind 30312) and Meeting
+ * Room events (kind 30313). Shows a Room/Meeting pill, the title (from the
+ * `title` or `room` tag), the summary, and the current status. The generic
+ * {@link EmbeddedNaddrCard} would render title/summary from tags but has no
+ * concept of the room/meeting status.
+ */
+function EmbeddedRoomCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const isSpace = event.kind === 30312;
+  const Icon = isSpace ? Video : CalendarClock;
+
+  const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
+  const title = getTag('title') || getTag('room') || (isSpace ? 'Untitled Room' : 'Untitled Meeting');
+  const summary = getTag('summary');
+  const status = getTag('status');
+
+  const naddrId = useMemo(() => {
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+    return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
+  }, [event]);
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={naddrId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-primary">
+        <Icon className="size-3" />
+        {isSpace ? 'Room' : 'Meeting'}
+        {status && (
+          <span className="ml-1 rounded-full bg-secondary/60 px-2 py-0.5 text-[10px] text-muted-foreground normal-case tracking-normal">
+            {status}
+          </span>
+        )}
+      </div>
+      <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
+        {title}
+      </p>
+      {summary && (
+        <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words">
+          {summary}
+        </p>
+      )}
     </EmbeddedCardShell>
   );
 }

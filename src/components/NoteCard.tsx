@@ -27,6 +27,8 @@ import {
   Package,
   Play,
   Radio,
+  CalendarClock,
+  Video,
   ShieldCheck,
   SmilePlus,
   PartyPopper,
@@ -87,6 +89,7 @@ const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ defau
 import { PrUpdateCard } from "@/components/PrUpdateCard";
 import { RepoStateCard } from "@/components/RepoStateCard";
 import { HighlightContent } from "@/components/HighlightContent";
+import { InteractiveRoomContent } from "@/components/InteractiveRoomContent";
 import { QuizContent } from "@/components/quiz/QuizContent";
 import { QuizResultContent } from "@/components/quiz/QuizResultContent";
 import { QUIZ_KIND, QUIZ_RESULT_KIND } from "@/lib/quiz";
@@ -534,6 +537,7 @@ export const NoteCard = memo(function NoteCard({
   const isPublication = PUBLICATION_KINDS.has(event.kind);
   const isMagicDeck = event.kind === 37381;
   const isStream = event.kind === 30311;
+  const isRoom = event.kind === 30312 || event.kind === 30313;
   const isFileMetadata = event.kind === 1063;
   const isThemeDefinition = event.kind === 36767;
   const isActiveTheme = event.kind === 16767;
@@ -613,6 +617,7 @@ export const NoteCard = memo(function NoteCard({
     !isPublication &&
     !isMagicDeck &&
     !isStream &&
+    !isRoom &&
     !isFileMetadata &&
     !isTheme &&
     !isVoiceMessage &&
@@ -873,6 +878,8 @@ export const NoteCard = memo(function NoteCard({
           <LoveListContent event={event} compact />
         ) : isHighlight ? (
           <HighlightContent event={event} />
+        ) : isRoom ? (
+          <InteractiveRoomContent event={event} />
         ) : isAttestation ? (
           <AttestationContent event={event} />
         ) : isCampaign ? (
@@ -2319,6 +2326,21 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
       getEffectiveStreamStatus(event) === "live"
         ? "is streaming"
         : "streamed",
+  },
+  30312: {
+    icon: Video,
+    action: (event) => publishedAtAction(event, { created: "opened a", updated: "updated a", fallback: "opened a" }),
+    noun: "room",
+  },
+  30313: {
+    icon: CalendarClock,
+    action: (event) => {
+      const status = event.tags.find(([n]) => n === "status")?.[1];
+      if (status === "live") return "is hosting a";
+      if (status === "ended") return "hosted a";
+      return "scheduled a";
+    },
+    noun: "meeting",
   },
   32267: {
     icon: Package,

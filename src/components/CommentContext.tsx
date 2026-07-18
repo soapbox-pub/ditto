@@ -3,8 +3,9 @@ import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
-  Award, BarChart3, Bird, Bitcoin, BookOpen, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Egg, FileText, Film,
+  Award, BarChart3, Bird, Bitcoin, BookOpen, CalendarClock, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Egg, FileText, Film,
   GitBranch, GitPullRequest, HandHeart, Heart, Mail, MapPin, MessageSquare, Mic, Music, Newspaper,
+  Video,
   Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, ShieldCheck, SmilePlus, Sparkles,
   Stars, UserCheck, Users, Vote, Zap,
 } from 'lucide-react';
@@ -160,6 +161,8 @@ const KIND_LABELS: Record<number, string> = {
   3063: 'a Zapstore asset',
   30063: 'a Zapstore release',
   30311: 'a stream',
+  30312: 'a room',
+  30313: 'a meeting',
   30315: 'a status',
   30617: 'a repository',
   30618: 'a repository update',
@@ -229,6 +232,8 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   3063: Package,
   30063: Package,
   30311: Radio,
+  30312: Video,
+  30313: CalendarClock,
   30617: GitBranch,
   30618: GitBranch,
   31990: Package,

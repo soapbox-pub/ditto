@@ -105,6 +105,8 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   3063: 'Zapstore asset',
   30063: 'Zapstore release',
   30311: 'stream',
+  30312: 'room',
+  30313: 'meeting',
   30315: 'status',
   30617: 'repository',
   30618: 'repository update',
