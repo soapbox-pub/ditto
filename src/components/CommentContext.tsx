@@ -19,7 +19,7 @@ import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { LinkPreview } from '@/components/LinkPreview';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
-import { ReactionEmoji } from '@/components/CustomEmoji';
+import { ReactionEmoji, EmojifiedText } from '@/components/CustomEmoji';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -499,7 +499,7 @@ function ReplyToCommentContext({ pubkey, eventId, className }: { pubkey: string;
           className="text-primary hover:underline truncate"
           onClick={(e) => e.stopPropagation()}
         >
-          @{displayName}
+          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
         </Link>
       </ProfileHoverCard>
     </CommentContextRow>
@@ -557,7 +557,7 @@ function FollowListCommentContext({ pubkey, className }: { pubkey: string; class
           className="text-primary hover:underline truncate"
           onClick={(e) => e.stopPropagation()}
         >
-          @{displayName}'s
+          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>'s
         </Link>
       </ProfileHoverCard>
       <Link
@@ -587,7 +587,7 @@ function ProfileCommentContext({ pubkey, className }: { pubkey: string; classNam
           className="text-primary hover:underline truncate"
           onClick={(e) => e.stopPropagation()}
         >
-          @{displayName}
+          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
         </Link>
       </ProfileHoverCard>
     </CommentContextRow>
@@ -637,7 +637,7 @@ function ProfileBadgesCommentContext({ root, className }: { root: CommentRoot; c
           className="text-primary hover:underline truncate"
           onClick={(e) => e.stopPropagation()}
         >
-          @{displayName}
+          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
         </Link>
       </ProfileHoverCard>
     </CommentContextRow>
@@ -767,7 +767,7 @@ function ReactionCommentContext({ event, className }: { event: NostrEvent; class
             className="text-primary hover:underline truncate cursor-pointer"
             onClick={(e) => e.stopPropagation()}
           >
-            @{displayName}
+            @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
           </Link>
         </ProfileHoverCard>
       )}
@@ -829,7 +829,7 @@ function ZapCommentContext({ event, className }: { event: NostrEvent; className?
                 className="text-primary hover:underline truncate cursor-pointer"
                 onClick={(e) => e.stopPropagation()}
               >
-                @{senderName}
+                @<EmojifiedText tags={author.data?.event?.tags ?? []}>{senderName}</EmojifiedText>
               </Link>
             </ProfileHoverCard>
           )}
@@ -869,7 +869,7 @@ function HighlightCommentContext({ event, className }: { event: NostrEvent; clas
           className="text-primary hover:underline truncate"
           onClick={(e) => e.stopPropagation()}
         >
-          @{displayName}'s
+          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>'s
         </Link>
       </ProfileHoverCard>
       <EventHoverLink
@@ -921,14 +921,14 @@ function CampaignCommentContext({ root, className }: { root: CommentRoot; classN
         <ProfileHoverCard pubkey={pubkey} asChild>
           <Link
             to={profileLink}
-            className="text-primary hover:underline truncate"
-            onClick={(e) => e.stopPropagation()}
-          >
-            @{displayName}'s
-          </Link>
+          className="text-primary hover:underline truncate"
+          onClick={(e) => e.stopPropagation()}
+        >
+          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
+        </Link>
         </ProfileHoverCard>
       ) : (
-        <span className="truncate">@{displayName}'s</span>
+        <span className="truncate">@<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>'s</span>
       )}
       {campaignLink && hoverContent ? (
         <EventHoverLink
@@ -967,7 +967,7 @@ function PollVoteCommentContext({ event, className }: { event: NostrEvent; class
             className="text-primary hover:underline truncate cursor-pointer"
             onClick={(e) => e.stopPropagation()}
           >
-            @{displayName}
+            @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
           </Link>
         </ProfileHoverCard>
       )}

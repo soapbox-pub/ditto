@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import { EmbeddedNote } from '@/components/EmbeddedNote';
+import { EmojifiedText } from '@/components/CustomEmoji';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
@@ -88,7 +89,7 @@ function ReplyAuthor({ pubkey }: { pubkey: string }) {
         className="text-primary hover:underline truncate max-w-[200px] inline-block align-bottom"
         onClick={(e) => e.stopPropagation()}
       >
-        @{name}
+        @<EmojifiedText tags={author.data?.event?.tags ?? []}>{name}</EmojifiedText>
       </Link>
     </ProfileHoverCard>
   );
