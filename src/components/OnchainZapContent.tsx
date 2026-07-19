@@ -34,7 +34,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import type { ParsedCampaign } from '@/lib/campaign';
 import type { BitcoinRecipientOverride } from '@/hooks/useOnchainZap';
 
-const USD_PRESETS = [1, 5, 10, 25, 100];
+const USD_PRESETS = [1, 5, 20, 50, 100];
 
 const FEE_SPEED_LABELS: Record<OnchainFeeSpeed, string> = {
   fastest: '~10 min',
