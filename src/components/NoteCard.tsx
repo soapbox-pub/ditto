@@ -370,7 +370,7 @@ function isDeprecatedFollowSet(event: NostrEvent): boolean {
   return false;
 }
 
-export const NoteCard = memo(function NoteCard({
+const NoteCardImpl = memo(function NoteCardImpl({
   event,
   className,
   repostedBy,
@@ -1623,6 +1623,29 @@ export const NoteCard = memo(function NoteCard({
     </article>
   );
 });
+
+/**
+ * Per-card error boundary.
+ *
+ * A single malformed event (e.g. an attacker-controlled tag that trips
+ * `nip19.*Encode`) must not take down the whole feed. The inner boundary in
+ * `NoteCardImpl` only covers the kind-based content dispatch; this outer one
+ * catches anything that throws elsewhere in the card — reply/comment context,
+ * author header, action bars — and degrades to a `BrokenEventFallback`
+ * tombstone instead of escaping to the app-level boundary in `MainLayout`.
+ */
+export function NoteCard(props: NoteCardProps) {
+  return (
+    <ErrorBoundary
+      fallback={<BrokenEventFallback className={props.className} />}
+      sentryLevel="error"
+      sentryTags={{ errorBoundary: 'note-card-outer', kind: props.event.kind }}
+      resetKeys={[props.event.id]}
+    >
+      <NoteCardImpl {...props} />
+    </ErrorBoundary>
+  );
+}
 
 const MAX_HEIGHT = 400; // px — posts taller than this get truncated
 
