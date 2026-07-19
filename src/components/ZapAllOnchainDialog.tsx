@@ -39,7 +39,7 @@ import {
  * across all recipients, and we divide by recipient count to get the
  * per-person amount.
  */
-const USD_TOTAL_PRESETS = [5, 10, 25, 50, 100];
+const USD_TOTAL_PRESETS = [5, 10, 20, 50, 100];
 
 const FEE_SPEED_LABELS: Record<OnchainFeeSpeed, string> = {
   fastest: '~10 min',
