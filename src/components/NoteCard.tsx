@@ -1111,75 +1111,10 @@ const NoteCardImpl = memo(function NoteCardImpl({
 
   const actionButtons = renderActionButtons();
 
-  // ── Vanish layout (kind 62) — dramatic card, no author row ──
-  if (isVanish) {
-    // Threaded vanish (ancestor in a reply thread — needs connector line + avatar column)
-    if (threaded || threadedLast) {
-      return (
-        <article
-          className={cn(
-            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-            threaded ? "pb-0" : "pb-3 border-b border-border",
-            className,
-          )}
-          onClick={handleCardClick}
-          onAuxClick={handleAuxClick}
-        >
-          <div className="flex gap-3">
-            <div className="flex flex-col items-center">
-              {avatarElement}
-              {threaded && (
-                <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
-              )}
-            </div>
-            <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
-              <VanishCardCompact event={event} timestamp={timeAgo(event.created_at)} />
-              {!compact && (
-                <>
-                  {actionButtons}
-                  <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
-                  <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
-                </>
-              )}
-            </div>
-          </div>
-        </article>
-      );
-    }
-
-    return (
-      <article
-        className={cn(
-          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-          className,
-        )}
-        onClick={handleCardClick}
-        onAuxClick={handleAuxClick}
-      >
-        <VanishCardCompact event={event} />
-        {!compact && (
-          <>
-            {actionButtons}
-            <NoteMoreMenu
-              event={event}
-              open={moreMenuOpen}
-              onOpenChange={setMoreMenuOpen}
-            />
-            <ReplyComposeModal
-              event={event}
-              open={replyOpen}
-              onOpenChange={setReplyOpen}
-            />
-          </>
-        )}
-      </article>
-    );
-  }
-
   // Wrapper header — shown above activity-card layouts (reaction/repost/zap/poll vote)
   // and above the normal layout when this event was surfaced via a repost,
-  // reaction, or zap. The activity-card branches return early so they need
-  // it computed up here.
+  // reaction, or zap. The activity-card branches (and the vanish layout below)
+  // return early so it needs to be computed up here.
   const wrapperHeader = reactedBy ? (
     <EventActionHeader
       pubkey={reactedBy.pubkey}
@@ -1218,6 +1153,73 @@ const NoteCardImpl = memo(function NoteCardImpl({
       actionEvent={repostEvent}
     />
   ) : undefined;
+
+  // ── Vanish layout (kind 62) — dramatic card, no author row ──
+  if (isVanish) {
+    // Threaded vanish (ancestor in a reply thread — needs connector line + avatar column)
+    if (threaded || threadedLast) {
+      return (
+        <article
+          className={cn(
+            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+            threaded ? "pb-0" : "pb-3 border-b border-border",
+            className,
+          )}
+          onClick={handleCardClick}
+          onAuxClick={handleAuxClick}
+        >
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              {avatarElement}
+              {threaded && (
+                <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
+              )}
+            </div>
+            <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
+              {wrapperHeader}
+              <VanishCardCompact event={event} timestamp={timeAgo(event.created_at)} />
+              {!compact && (
+                <>
+                  {actionButtons}
+                  <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+                  <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+                </>
+              )}
+            </div>
+          </div>
+        </article>
+      );
+    }
+
+    return (
+      <article
+        className={cn(
+          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
+      >
+        {wrapperHeader}
+        <VanishCardCompact event={event} />
+        {!compact && (
+          <>
+            {actionButtons}
+            <NoteMoreMenu
+              event={event}
+              open={moreMenuOpen}
+              onOpenChange={setMoreMenuOpen}
+            />
+            <ReplyComposeModal
+              event={event}
+              open={replyOpen}
+              onOpenChange={setReplyOpen}
+            />
+          </>
+        )}
+      </article>
+    );
+  }
 
   // ── Profile-targeted zap layout (kind 8333 / 9735) ──
   // Used when the zap has no resolvable target note — either because
