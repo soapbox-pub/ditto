@@ -156,6 +156,7 @@ import { getContentWarning } from "@/lib/contentWarning";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
+import { isNostrId } from "@/lib/nostrId";
 import { isMediaDominantPost } from "@/lib/noteContent";
 import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
@@ -671,9 +672,12 @@ export const NoteCard = memo(function NoteCard({
     );
 
     if (pTags.length > 0) {
-      // Remove duplicates and filter out undefined/empty pubkeys
+      // Remove duplicates and filter out malformed pubkeys. `p` tag values are
+      // attacker-controlled; an invalid one (e.g. odd-length hex) crashes
+      // `nip19.npubEncode` downstream in ReplyContext. Validate at this parse
+      // layer so renderers can assume well-formed hex.
       return [
-        ...new Set(pTags.map(([, pubkey]) => pubkey).filter(Boolean)),
+        ...new Set(pTags.map(([, pubkey]) => pubkey).filter(isNostrId)),
       ] as string[];
     }
 
@@ -681,7 +685,7 @@ export const NoteCard = memo(function NoteCard({
     const allPTags = event.tags.filter(([name]) => name === "p");
     if (allPTags.length > 0) {
       return [
-        ...new Set(allPTags.map(([, pubkey]) => pubkey).filter(Boolean)),
+        ...new Set(allPTags.map(([, pubkey]) => pubkey).filter(isNostrId)),
       ] as string[];
     }
 
@@ -694,7 +698,10 @@ export const NoteCard = memo(function NoteCard({
     );
     const replyTag = eTags.find(([, , , marker]) => marker === "reply");
     const rootTag = eTags.find(([, , , marker]) => marker === "root");
-    const parentAuthor = replyTag?.[4] || rootTag?.[4] || event.pubkey;
+    // NIP-10 pubkey hints (5th element) are attacker-controlled; fall back to
+    // the event author (self-reply) if the hint isn't valid hex.
+    const hint = replyTag?.[4] || rootTag?.[4];
+    const parentAuthor = isNostrId(hint) ? hint : event.pubkey;
     return [parentAuthor];
   }, [event.tags, isTextNote, isReply, event.pubkey]);
 
