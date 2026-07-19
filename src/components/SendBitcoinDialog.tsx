@@ -71,7 +71,7 @@ import { extractTxFromSignedPsbtV2 } from '@/lib/psbtV2';
 // Constants
 // ---------------------------------------------------------------------------
 
-const USD_PRESETS = [1, 5, 20, 50, 100];
+const USD_PRESETS = [1, 5, 10, 20, 50, 100];
 
 /** Preset confirmation-speed tiers, plus a user-entered `'custom'` rate. */
 type FeeSpeed = 'fastest' | 'halfHour' | 'hour' | 'economy' | 'custom';
