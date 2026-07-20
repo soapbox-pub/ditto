@@ -173,7 +173,7 @@ const KIND_LABELS: Record<number, string> = {
   31990: 'an app',
   32267: 'a Zapstore app',
   34139: 'a playlist',
-  34236: 'a divine',
+  34236: 'a short video',
   34550: 'a community',
   35128: 'an nsite',
   36767: 'a theme',

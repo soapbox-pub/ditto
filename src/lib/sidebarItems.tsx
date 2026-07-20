@@ -120,7 +120,7 @@ export interface SidebarItemDef {
  * Single source of truth for all sidebar items.
  *
  * Every item that can appear in the sidebar — whether it's a system page like
- * "Feed" or a Nostr content type like "Vines" — lives here with a consistent
+ * "Feed" or a Nostr content type like "Shorts" — lives here with a consistent
  * shape. The order here is the default display order for fresh installs.
  */
 export const SIDEBAR_ITEMS: SidebarItemDef[] = [
@@ -188,7 +188,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "articles", label: "Articles", path: "/articles", icon: BookOpen },
   { id: "highlights", label: "Highlights", path: "/highlights", icon: Quote },
   { id: "books", label: "Books", path: "/books", icon: BookMarked },
-  { id: "vines", label: "Divines", path: "/vines", icon: Clapperboard },
+  { id: "vines", label: "Shorts", path: "/shorts", icon: Clapperboard },
   { id: "music", label: "Music", path: "/music", icon: Music },
   { id: "podcasts", label: "Podcasts", path: "/podcasts", icon: Podcast },
 

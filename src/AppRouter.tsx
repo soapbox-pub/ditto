@@ -195,7 +195,10 @@ export function AppRouter() {
               path="/streams"
               element={<Navigate to="/videos" replace />}
             />
-            <Route path="/vines" element={<VinesFeedPage />} />
+            <Route path="/shorts" element={<VinesFeedPage />} />
+            {/* /vines and /divines redirect to /shorts for backward compatibility */}
+            <Route path="/vines" element={<Navigate to="/shorts" replace />} />
+            <Route path="/divines" element={<Navigate to="/shorts" replace />} />
             <Route path="/music" element={<MusicPage />} />
             <Route path="/podcasts" element={<PodcastsFeedPage />} />
             <Route path="/polls" element={<PollsFeedPage />} />

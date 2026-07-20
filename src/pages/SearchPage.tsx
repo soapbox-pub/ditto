@@ -291,7 +291,7 @@ export function SearchPage() {
     const labels: string[] = [];
     if (!includeReplies) labels.push('No replies');
     if (onlyDitto) labels.push('Ditto users only');
-    if (mediaType !== 'all') labels.push({ images: 'Images', videos: 'Videos', vines: 'Shorts & Divines', none: 'No media' }[mediaType] ?? mediaType);
+    if (mediaType !== 'all') labels.push({ images: 'Images', videos: 'Videos', vines: 'Shorts', none: 'No media' }[mediaType] ?? mediaType);
     if (language !== 'global') labels.push(language.toUpperCase());
     if (platform !== 'nostr') labels.push({ activitypub: 'Mastodon', atproto: 'Bluesky' }[platform] ?? platform);
     if (sort !== 'recent') labels.push(sort === 'hot' ? 'Hot' : 'Trending');
