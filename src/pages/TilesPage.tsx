@@ -1,10 +1,11 @@
 import { useDeferredValue, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { LayoutGrid, Search } from 'lucide-react';
+import { LayoutGrid, RefreshCw, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,6 +57,12 @@ export function TilesPage() {
   const tilesQuery = useQuery({
     queryKey: ['nostr-canvas', 'marketplace', 3],
     queryFn: ({ signal }) => nostr.query([{ kinds: [30207], '#t': ['nostr-canvas-tile'], '#s': ['3'], limit: 250 }], { signal }),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1_000 * 2 ** attempt, 10_000),
   });
   const tiles = useMemo(
     () => searchMarketplaceTiles(getNewestTileDefinitions(tilesQuery.data ?? []), deferredQuery),
@@ -78,6 +85,12 @@ export function TilesPage() {
             <p className="text-xs text-muted-foreground">Unverified tiles are not associated with the NIP-05 identity in their identifier.</p>
           </div>
           <Switch id="show-unverified-tiles" checked={showUnverified} onCheckedChange={setShowUnverified} />
+        </div>
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => void tilesQuery.refetch()} disabled={tilesQuery.isFetching}>
+            <RefreshCw className="size-4" />
+            {tilesQuery.isFetching ? 'Checking relays' : 'Refresh tiles'}
+          </Button>
         </div>
         {tilesQuery.isLoading ? (
           <div className="grid gap-3 sm:grid-cols-2"><Skeleton className="h-36 rounded-xl" /><Skeleton className="h-36 rounded-xl" /></div>
