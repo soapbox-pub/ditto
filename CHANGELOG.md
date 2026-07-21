@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.32.0] - 2026-07-21
+
+Shorts are here — short videos have a new name and live at /shorts. Android users can now sign in with Amber and other native signing apps for a more secure experience. This release also brings live chat to livestreams, renders meeting spaces and rooms, and updates Bitcoin payment preset amounts.
+
+### Added
+- Android native signer login — sign in on Android with Amber or other external signer apps
+- Live chat messages inside livestreams
+- Meeting spaces and rooms
+
+### Changed
+- Renamed Vines to Shorts; now available at /shorts
+- Updated Bitcoin payment preset amounts to $1/$5/$20/$50/$100
+- Updated zap-all preset total amounts to $5/$10/$20/$50/$100
+
+### Fixed
+- Custom emoji now render in reply and comment thread author names
+- Repost indicator now shows correctly above reposted deletion-request posts
+- Individual post cards no longer crash the entire feed when they encounter an error
+- Reply threads no longer crash on malformed author IDs
+
 ## [2.31.1] - 2026-07-16
 
 Community invite links now come to life in your feed. When someone shares an invite to a private community, Ditto unlocks it and shows a rich preview — the community's name, icon, and channel count — right inline, so you know exactly what you're joining before you tap through. You can open the invite in a compatible app or copy the link to share it along.
