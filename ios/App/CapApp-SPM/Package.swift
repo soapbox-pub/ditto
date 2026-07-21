@@ -19,6 +19,7 @@ let package = Package(
         .package(name: "CapacitorLocalNotifications", path: "../../../node_modules/@capacitor/local-notifications"),
         .package(name: "CapacitorShare", path: "../../../node_modules/@capacitor/share"),
         .package(name: "CapgoCapacitorAutofillSavePassword", path: "../../../node_modules/@capgo/capacitor-autofill-save-password"),
+        .package(name: "CapacitorPluginNostrSigner", path: "../../../node_modules/capacitor-plugin-nostr-signer"),
         .package(name: "CapacitorSecureStoragePlugin", path: "../../../node_modules/capacitor-secure-storage-plugin")
     ],
     targets: [
@@ -34,6 +35,7 @@ let package = Package(
                 .product(name: "CapacitorLocalNotifications", package: "CapacitorLocalNotifications"),
                 .product(name: "CapacitorShare", package: "CapacitorShare"),
                 .product(name: "CapgoCapacitorAutofillSavePassword", package: "CapgoCapacitorAutofillSavePassword"),
+                .product(name: "CapacitorPluginNostrSigner", package: "CapacitorPluginNostrSigner"),
                 .product(name: "CapacitorSecureStoragePlugin", package: "CapacitorSecureStoragePlugin")
             ]
         )
