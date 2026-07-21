@@ -1,4 +1,5 @@
 import type { NostrEvent } from '@nostrify/nostrify';
+import { finalizeEvent, getPublicKey } from 'nostr-tools';
 import { describe, expect, it } from 'vitest';
 import {
   getMarketplaceTiles,
@@ -7,17 +8,16 @@ import {
 } from './marketplace';
 import type { TileDefinition } from './definition';
 
-const ALICE = 'a'.repeat(64);
-const BOB = 'b'.repeat(64);
+const ALICE_PRIVATE_KEY = new Uint8Array(32).fill(1);
+const BOB_PRIVATE_KEY = new Uint8Array(32).fill(2);
+const ALICE = getPublicKey(ALICE_PRIVATE_KEY);
+const BOB = getPublicKey(BOB_PRIVATE_KEY);
 
 function tileEvent(identifier: string, pubkey: string, created_at: number, name: string, summary: string): NostrEvent {
-  return {
-    id: `${created_at}`.padStart(64, '0'),
-    pubkey,
+  return finalizeEvent({
     created_at,
     kind: 30207,
     content: 'function render() return ui.Text("tile") end',
-    sig: 'c'.repeat(128),
     tags: [
       ['d', identifier],
       ['name', name],
@@ -28,7 +28,7 @@ function tileEvent(identifier: string, pubkey: string, created_at: number, name:
       ['summary', summary],
       ['perm', 'fetch'],
     ],
-  };
+  }, pubkey === BOB ? BOB_PRIVATE_KEY : ALICE_PRIVATE_KEY);
 }
 
 describe('marketplace tile selection', () => {

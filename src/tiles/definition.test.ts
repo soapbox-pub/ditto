@@ -1,18 +1,18 @@
 import type { NostrEvent } from '@nostrify/nostrify';
+import { finalizeEvent } from 'nostr-tools';
 import { describe, expect, it } from 'vitest';
 import { parseTileDefinition } from './definition';
 
-const PUBKEY = 'a'.repeat(64);
+const PRIVATE_KEY = new Uint8Array(32).fill(1);
 
 function tileEvent(overrides: Partial<NostrEvent> = {}): NostrEvent {
+  const { id: _id, pubkey: _pubkey, sig: _sig, ...unsigned } = overrides;
   return {
-    id: 'b'.repeat(64),
-    pubkey: PUBKEY,
-    created_at: 1_700_000_000,
-    kind: 30207,
-    content: 'function render() return ui.Text("Weather") end',
-    sig: 'c'.repeat(128),
-    tags: [
+    ...finalizeEvent({
+      created_at: 1_700_000_000,
+      kind: 30207,
+      content: 'function render() return ui.Text("Weather") end',
+      tags: [
       ['d', 'alice@example.com:weather'],
       ['name', 'Weather'],
       ['v', '1.2.3'],
@@ -24,7 +24,9 @@ function tileEvent(overrides: Partial<NostrEvent> = {}): NostrEvent {
       ['image', 'https://cdn.example.com/weather.png'],
       ['perm', 'fetch'],
       ['widget', 'label:Weather'],
-    ],
+      ],
+      ...unsigned,
+    }, PRIVATE_KEY),
     ...overrides,
   };
 }
@@ -56,7 +58,7 @@ describe('parseTileDefinition', () => {
     expect(parseTileDefinition(event)).toBeNull();
   });
 
-  it('omits an unsafe optional image without rejecting the tile', () => {
+  it('rejects a definition with an unsafe optional image', () => {
     const tile = parseTileDefinition(tileEvent({
       tags: [
         ['d', 'alice@example.com:weather'],
@@ -67,7 +69,6 @@ describe('parseTileDefinition', () => {
       ],
     }));
 
-    expect(tile).toMatchObject({ identifier: 'alice@example.com:weather' });
-    expect(tile?.image).toBeUndefined();
+    expect(tile).toBeNull();
   });
 });

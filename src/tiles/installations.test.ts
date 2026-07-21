@@ -1,4 +1,5 @@
 import type { NostrEvent } from '@nostrify/nostrify';
+import { finalizeEvent, getPublicKey } from 'nostr-tools';
 import { describe, expect, it, vi } from 'vitest';
 import {
   CanvasTileInstallations,
@@ -6,18 +7,18 @@ import {
   type InstalledCanvasTile,
 } from './installations';
 
-const ALICE = 'a'.repeat(64);
-const BOB = 'b'.repeat(64);
+const ALICE_PRIVATE_KEY = new Uint8Array(32).fill(1);
+const ALICE = getPublicKey(ALICE_PRIVATE_KEY);
+const BOB = getPublicKey(new Uint8Array(32).fill(2));
 
 function tileEvent(overrides: Partial<NostrEvent> = {}): NostrEvent {
+  const { id: _id, pubkey: _pubkey, sig: _sig, ...unsigned } = overrides;
   return {
-    id: 'c'.repeat(64),
-    pubkey: ALICE,
-    created_at: 1_700_000_000,
-    kind: 30207,
-    content: 'function render() return ui.Text("Weather") end',
-    sig: 'd'.repeat(128),
-    tags: [
+    ...finalizeEvent({
+      created_at: 1_700_000_000,
+      kind: 30207,
+      content: 'function render() return ui.Text("Weather") end',
+      tags: [
       ['d', 'alice@example.com:weather'],
       ['name', 'Weather'],
       ['v', '1.0.0'],
@@ -26,7 +27,9 @@ function tileEvent(overrides: Partial<NostrEvent> = {}): NostrEvent {
       ['t', 'nostr-canvas-tile'],
       ['perm', 'fetch'],
       ['perm', 'publish-event'],
-    ],
+      ],
+      ...unsigned,
+    }, ALICE_PRIVATE_KEY),
     ...overrides,
   };
 }
@@ -51,7 +54,8 @@ describe('CanvasTileInstallations', () => {
     });
 
     installations.setAccount(ALICE);
-    const installed = installations.install(tileEvent(), ['fetch']);
+    const event = tileEvent();
+    const installed = installations.install(event, ['fetch']);
 
     const coordinate: InstalledCanvasTile = {
       pubkey: ALICE,
@@ -59,14 +63,20 @@ describe('CanvasTileInstallations', () => {
     };
     expect(installed).toEqual(coordinate);
     expect(savedCoordinates).toHaveBeenCalledWith([coordinate]);
-    expect(tileRuntime.registerFromEvent).toHaveBeenCalledWith(tileEvent());
+    expect(tileRuntime.registerFromEvent).toHaveBeenCalledWith(event);
     expect(installations.getGrantedCapabilities('alice@example.com:weather', ['fetch', 'publish-event'])).toEqual(['fetch']);
-    expect(installations.getCachedDefinition(coordinate)).toEqual(tileEvent());
+    expect(installations.getCachedDefinition(coordinate)).toMatchObject({
+      id: event.id,
+      pubkey: event.pubkey,
+      content: event.content,
+      tags: event.tags,
+    });
   });
 
   it('restores a missing local definition only through an author-constrained coordinate query', async () => {
     const tileRuntime = runtime();
-    const query = vi.fn().mockResolvedValue([tileEvent()]);
+    const event = tileEvent();
+    const query = vi.fn().mockResolvedValue([event]);
     const coordinate: InstalledCanvasTile = { pubkey: ALICE, identifier: 'alice@example.com:weather' };
     const installations = new CanvasTileInstallations({
       storage: new Map(),
@@ -79,7 +89,7 @@ describe('CanvasTileInstallations', () => {
     await installations.restore([coordinate]);
 
     expect(query).toHaveBeenCalledWith({ kinds: [30207], authors: [ALICE], '#d': ['alice@example.com:weather'], limit: 1 });
-    expect(tileRuntime.registerFromEvent).toHaveBeenCalledWith(tileEvent());
+    expect(tileRuntime.registerFromEvent).toHaveBeenCalledWith(event);
     expect(installations.getGrantedCapabilities('alice@example.com:weather', ['fetch'])).toEqual([]);
   });
 
@@ -125,7 +135,7 @@ describe('CanvasTileInstallations', () => {
 
     installations.setAccount(ALICE);
     installations.install(tileEvent(), ['fetch']);
-    installations.install(tileEvent({ id: 'e'.repeat(64), created_at: 1_700_000_100 }), ['fetch']);
+    installations.install(tileEvent({ created_at: 1_700_000_100 }), ['fetch']);
     installations.uninstall(coordinate);
 
     expect(saveCoordinates).toHaveBeenLastCalledWith([]);

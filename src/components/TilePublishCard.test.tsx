@@ -1,19 +1,17 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { render, screen } from '@testing-library/react';
+import { finalizeEvent } from 'nostr-tools';
 import { describe, expect, it } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { TilePublishCard } from './TilePublishCard';
 
-const PUBKEY = 'a'.repeat(64);
+const PRIVATE_KEY = new Uint8Array(32).fill(1);
 
 function tileEvent(tags?: string[][]): NostrEvent {
-  return {
-    id: 'b'.repeat(64),
-    pubkey: PUBKEY,
+  return finalizeEvent({
     created_at: 1_700_000_000,
     kind: 30207,
     content: 'function render() return ui.Text("This Lua source must not render as a note") end',
-    sig: 'c'.repeat(128),
     tags: tags ?? [
       ['d', 'alice@example.com:weather'],
       ['name', 'Weather'],
@@ -23,7 +21,7 @@ function tileEvent(tags?: string[][]): NostrEvent {
       ['t', 'nostr-canvas-tile'],
       ['summary', 'Local weather at a glance'],
     ],
-  };
+  }, PRIVATE_KEY);
 }
 
 describe('TilePublishCard', () => {

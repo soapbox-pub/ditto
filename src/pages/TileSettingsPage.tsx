@@ -22,6 +22,7 @@ const CAPABILITY_LABELS: Record<Capability, string> = {
   'publish-event': 'Publish events',
   'nip44-encrypt': 'Encrypt NIP-44 messages',
   'nip44-decrypt': 'Decrypt NIP-44 messages',
+  'bitcoin-sign-psbt': 'Sign Bitcoin PSBTs',
   fetch: 'Make network requests',
   navigate: 'Request navigation',
 };
