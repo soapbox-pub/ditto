@@ -5,9 +5,12 @@ import { Gamepad2, ChevronRight, Copy, Download, Files, Loader2 } from 'lucide-r
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { PageHeader } from '@/components/PageHeader';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { MemoryCardIcon } from '@/components/MemoryCardIcon';
+import { SubHeaderBar } from '@/components/SubHeaderBar';
+import { TabButton } from '@/components/TabButton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,7 +27,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAuthor } from '@/hooks/useAuthor';
-import { useMemoryCard, useMemoryCardGallery, type ResolvedCard } from '@/hooks/useMemoryCards';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useFeedTab } from '@/hooks/useFeedTab';
+import {
+  useMemoryCard,
+  useMemoryCardGallery,
+  type GalleryTab,
+  type ResolvedCard,
+} from '@/hooks/useMemoryCards';
 import { useMemoryCardActions } from '@/hooks/useMemoryCardActions';
 import { toast } from '@/hooks/useToast';
 import { getExtraKindDef } from '@/lib/extraKinds';
@@ -33,6 +43,7 @@ import { isNostrId } from '@/lib/nostrId';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
 import { tryNpubEncode } from '@/lib/safeNip19';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { cn } from '@/lib/utils';
 import {
   type CardSummary,
   decodeBlockVisual,
@@ -87,53 +98,130 @@ function AuthorRow({ pubkey, size = 'sm' }: { pubkey: string; size?: 'sm' | 'md'
   );
 }
 
-function GalleryCardTile({ card }: { card: CardSummary }) {
+/**
+ * A single save slot inside a memory-card tile's preview screen. Renders the
+ * save's animated icon when the block decodes to one, a lit dot for a
+ * continuation block, or a dim empty frame for a free slot.
+ */
+function CardSlot({ index, event }: { index: number; event: NostrEvent | undefined }) {
   const visual = useMemo(() => {
-    if (!card.iconEvent) return null;
+    if (!event) return null;
     try {
-      return decodeBlockVisual(hexToBytes(card.iconEvent.content));
+      return decodeBlockVisual(hexToBytes(event.content));
     } catch {
       return null;
     }
-  }, [card.iconEvent]);
+  }, [event]);
 
+  if (visual) {
+    return (
+      <MemoryCardIcon
+        frames={visual.frames}
+        size={30}
+        className="rounded-[3px] border-white/15 shadow-[0_0_6px_rgba(80,180,255,0.25)]"
+      />
+    );
+  }
+
+  const filled = !!event; // continuation block: occupied but no icon of its own
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        'flex size-[30px] shrink-0 items-center justify-center rounded-[3px] border',
+        filled
+          ? 'border-cyan-300/30 bg-cyan-300/10'
+          : 'border-dashed border-white/10 bg-white/[0.02]',
+      )}
+    >
+      {filled && <div className="size-1.5 rounded-full bg-cyan-300/50" />}
+      <span className="sr-only">Slot {index}</span>
+    </div>
+  );
+}
+
+/**
+ * Gallery tile styled after the PlayStation 1 BIOS memory-card manager: a dark
+ * CRT "screen" showing the card's 15 save slots as animated icons, framed by a
+ * plastic card body with a gold connector strip, and author/usage meta below.
+ */
+function MemoryCardTile({ card }: { card: CardSummary }) {
   const npub = tryNpubEncode(card.pubkey);
   const href = npub ? `/memory-cards/${npub}/${encodeURIComponent(card.cardId)}` : '#';
-  const blockLabel = `${card.blocks.size} block${card.blocks.size === 1 ? '' : 's'}`;
+  const used = card.blocks.size - (card.blocks.has(0) ? 1 : 0);
 
   return (
     <Link
       to={href}
-      className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-all hover:-translate-y-0.5 hover:border-border/80 hover:shadow-md"
+      className="group block rounded-2xl border border-border bg-card p-3 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <MemoryCardIcon frames={visual?.frames ?? null} size={52} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold">
-          {card.name ? `${card.name} ` : ''}
-          <span className="font-mono text-sm text-muted-foreground">{card.cardId}</span>
-        </p>
-        <div className="mt-0.5">
-          <AuthorRow pubkey={card.pubkey} />
+      {/* Plastic memory-card body */}
+      <div className="overflow-hidden rounded-xl border border-slate-700/60 bg-gradient-to-b from-slate-800 to-slate-950 shadow-inner">
+        {/* Gold connector strip */}
+        <div className="flex h-2.5 items-stretch gap-[3px] bg-slate-900/80 px-3 py-[3px]">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex-1 rounded-[1px] bg-gradient-to-b from-amber-300/80 to-amber-500/60" />
+          ))}
         </div>
-        <p className="mt-0.5 text-xs text-muted-foreground">{blockLabel}</p>
+
+        {/* CRT screen with the 5×3 slot grid */}
+        <div className="relative p-3">
+          {/* Scanline overlay */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-40 mix-blend-overlay"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(to bottom, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 3px)',
+            }}
+          />
+          <div className="relative grid grid-cols-5 justify-items-center gap-2">
+            {Array.from({ length: 15 }, (_, i) => i + 1).map((n) => (
+              <CardSlot key={n} index={n} event={card.slots[n]} />
+            ))}
+          </div>
+        </div>
       </div>
-      <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+
+      {/* Meta row */}
+      <div className="mt-3 flex items-center gap-2 px-0.5">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold leading-tight">
+            {card.name ? `${card.name} ` : ''}
+            <span className="font-mono text-xs text-muted-foreground">{card.cardId}</span>
+          </p>
+          <div className="mt-0.5">
+            <AuthorRow pubkey={card.pubkey} />
+          </div>
+        </div>
+        <span className="shrink-0 rounded-md border border-border bg-muted px-2 py-1 font-mono text-[11px] font-semibold tabular-nums text-muted-foreground">
+          {used}/15
+        </span>
+        <ChevronRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      </div>
     </Link>
   );
 }
 
-function GalleryView() {
-  const { data: cards, isLoading } = useMemoryCardGallery();
+const GALLERY_EMPTY: Record<GalleryTab, string> = {
+  mine: 'You haven’t published any memory cards yet. Clone a card or copy a save block to make one.',
+  follows: 'None of the people you follow have shared a memory card yet. Try the Global tab.',
+  global:
+    'No memory cards found on your relays yet. Cards are published as kind 38192 events — check back soon, or point Ditto at a relay that carries them.',
+};
 
-  if (isLoading) {
+function GalleryView({ tab }: { tab: GalleryTab }) {
+  const { data: cards, isLoading, isPending } = useMemoryCardGallery(tab);
+
+  if (isLoading || isPending) {
     return (
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-xl border border-border p-3">
-            <Skeleton className="size-[52px] rounded-md" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-1/2" />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="rounded-2xl border border-border p-3">
+            <Skeleton className="h-[132px] w-full rounded-xl" />
+            <div className="mt-3 flex items-center gap-2">
+              <Skeleton className="size-5 rounded-full" />
+              <Skeleton className="h-4 w-1/2" />
             </div>
           </div>
         ))}
@@ -144,10 +232,7 @@ function GalleryView() {
   if (!cards || cards.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border py-12 px-8 text-center">
-        <p className="mx-auto max-w-sm text-muted-foreground">
-          No memory cards found on your relays yet. Cards are published as kind 38192 events — check
-          back soon, or point Ditto at a relay that carries them.
-        </p>
+        <p className="mx-auto max-w-sm text-muted-foreground">{GALLERY_EMPTY[tab]}</p>
       </div>
     );
   }
@@ -162,9 +247,9 @@ function GalleryView() {
         <span className="font-semibold text-foreground">{authorCount}</span>{' '}
         author{authorCount === 1 ? '' : 's'}
       </p>
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {cards.map((card) => (
-          <GalleryCardTile key={`${card.pubkey}|${card.cardId}`} card={card} />
+          <MemoryCardTile key={`${card.pubkey}|${card.cardId}`} card={card} />
         ))}
       </div>
     </>
@@ -635,18 +720,27 @@ function CloneCardDialog({
  */
 export function MemoryCardsPage() {
   const { config } = useAppContext();
+  const { user } = useCurrentUser();
   const { npub, cardId: rawCardId } = useParams<{ npub?: string; cardId?: string }>();
 
   const pubkey = useMemo(() => decodePubkey(npub), [npub]);
   const cardId = rawCardId ? decodeURIComponent(rawCardId) : undefined;
   const viewing = !!npub;
 
+  const [storedTab, setActiveTab] = useFeedTab<GalleryTab>(
+    'memory-cards',
+    ['mine', 'follows', 'global'],
+    'global',
+  );
+  // Author-scoped tabs need a logged-in user; fall back to Global otherwise.
+  const activeTab: GalleryTab = user ? storedTab : 'global';
+
   useSeoMeta({
     title: `Memory Cards | ${config.appName}`,
     description: 'PlayStation 1 memory cards shared over Nostr',
   });
 
-  useLayoutOptions({ showFAB: false });
+  useLayoutOptions({ showFAB: false, hasSubHeader: !viewing });
 
   return (
     <main className="flex-1 min-w-0">
@@ -659,9 +753,9 @@ export function MemoryCardsPage() {
         <KindInfoButton kindDef={cardsDef} icon={<Gamepad2 className="size-5" />} />
       </PageHeader>
 
-      <div className="p-4">
-        {viewing ? (
-          pubkey ? (
+      {viewing ? (
+        <div className="p-4">
+          {pubkey ? (
             <CardViewer pubkey={pubkey} cardId={cardId} />
           ) : (
             <div className="rounded-xl border border-dashed border-border py-12 px-8 text-center">
@@ -673,11 +767,37 @@ export function MemoryCardsPage() {
                 .
               </p>
             </div>
-          )
-        ) : (
-          <GalleryView />
-        )}
-      </div>
+          )}
+        </div>
+      ) : (
+        <>
+          <SubHeaderBar>
+            <TabButton
+              label="Mine"
+              active={activeTab === 'mine'}
+              onClick={() => setActiveTab('mine')}
+              disabled={!user}
+            />
+            <TabButton
+              label="Follows"
+              active={activeTab === 'follows'}
+              onClick={() => setActiveTab('follows')}
+              disabled={!user}
+            />
+            <TabButton
+              label="Global"
+              active={activeTab === 'global'}
+              onClick={() => setActiveTab('global')}
+            />
+          </SubHeaderBar>
+
+          <div style={{ height: ARC_OVERHANG_PX }} />
+
+          <div className="p-4">
+            <GalleryView tab={activeTab} />
+          </div>
+        </>
+      )}
     </main>
   );
 }

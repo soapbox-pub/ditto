@@ -9,22 +9,51 @@ import {
   MEMORY_CARD_KIND,
   type CardSummary,
 } from '@/lib/memorycard';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useFollowList } from '@/hooks/useFollowActions';
 
 /** One relay round-trip cap for memory-card queries. */
 const QUERY_TIMEOUT = 8000;
 
+/** Which slice of cards the gallery shows. */
+export type GalleryTab = 'mine' | 'follows' | 'global';
+
 /**
- * Scan the relay for every memory card (kind 38192) and group the block events
- * into cards keyed by author + card id, for the Explore gallery.
+ * Scan the relay for memory cards (kind 38192) and group the block events into
+ * cards keyed by author + card id, for the Explore gallery.
+ *
+ * - `global` — every card on the relay.
+ * - `follows` — cards authored by the user or the people they follow.
+ * - `mine` — only the logged-in user's own cards.
  */
-export function useMemoryCardGallery() {
+export function useMemoryCardGallery(tab: GalleryTab = 'global') {
   const { nostr } = useNostr();
+  const { user } = useCurrentUser();
+  const { data: followData } = useFollowList();
+  const followList = followData?.pubkeys;
+
+  // Author-scoped tabs need the follow list (or at least the user) resolved.
+  const ready =
+    tab === 'global' ||
+    (tab === 'mine' && !!user) ||
+    (tab === 'follows' && !!user && followList !== undefined);
 
   return useQuery<CardSummary[]>({
-    queryKey: ['memory-cards', 'gallery'],
+    queryKey: ['memory-cards', 'gallery', tab, user?.pubkey ?? ''],
+    enabled: ready,
     queryFn: async ({ signal }) => {
+      const filter: NostrFilter = { kinds: [MEMORY_CARD_KIND], limit: 600 };
+
+      if (tab === 'mine' && user) {
+        filter.authors = [user.pubkey];
+      } else if (tab === 'follows' && user) {
+        const set = new Set(followList ?? []);
+        set.add(user.pubkey);
+        filter.authors = [...set];
+      }
+
       const events = await nostr.query(
-        [{ kinds: [MEMORY_CARD_KIND], limit: 600 }],
+        [filter],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(QUERY_TIMEOUT)]) },
       );
       return groupCards(events);

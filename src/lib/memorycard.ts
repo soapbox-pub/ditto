@@ -278,6 +278,8 @@ export interface CardSummary {
   name: string | null;
   /** An event whose content decodes to an icon, for the gallery thumbnail. */
   iconEvent: NostrEvent | null;
+  /** Newest event per save-slot index (1–15), for slot-grid previews. */
+  slots: Record<number, NostrEvent>;
 }
 
 /**
@@ -291,11 +293,14 @@ export function groupCards(events: NostrEvent[]): CardSummary[] {
     const key = ev.pubkey + '|' + m;
     let c = cards.get(key);
     if (!c) {
-      c = { pubkey: ev.pubkey, cardId: m, blocks: new Set(), name: null, iconEvent: null };
+      c = { pubkey: ev.pubkey, cardId: m, blocks: new Set(), name: null, iconEvent: null, slots: {} };
       cards.set(key, c);
     }
     const n = blockOf(ev);
     if (n >= 0) c.blocks.add(n);
+    if (n >= 1 && n <= 15 && (!c.slots[n] || ev.created_at > c.slots[n].created_at)) {
+      c.slots[n] = ev;
+    }
     c.name = c.name || tagVal(ev, 'name');
     if (!c.iconEvent) {
       const st = tagVal(ev, 'state');
