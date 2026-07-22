@@ -2616,7 +2616,12 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             <div className="flex items-center shrink-0 ml-auto">
               {/* + dropdown — only visible in edit mode */}
               {tabEditMode && (
-                <DropdownMenu>
+                // modal={false} is required: the "Add custom tab" item opens a Radix
+                // Dialog. A modal DropdownMenu locks `document.body` with
+                // `pointer-events: none`; opening the Dialog mid-close makes it capture
+                // that value as the body's "previous" state and restore it on close,
+                // freezing all pointer interaction (most reproducible on touch).
+                <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <button
                       className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
