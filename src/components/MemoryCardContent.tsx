@@ -15,12 +15,12 @@ import {
 } from '@/lib/memorycard';
 
 /**
- * Feed-card renderer for a NIP-XX memory-card block event (kind 38192).
+ * Feed-card renderer for a memory-card block event (kind 38192).
  *
  * Each event is one 8 KB block of a PS1 memory card. Save blocks decode to an
  * animated icon and BIOS title; block 0 and continuation blocks have no icon,
  * so they render as a compact system row. The whole card links through to the
- * full card viewer at `/cards/:npub/:cardId`.
+ * full card viewer at `/memory-cards/:npub/:cardId`.
  */
 export function MemoryCardContent({ event }: { event: NostrEvent }) {
   const visual = useMemo(() => {
@@ -40,7 +40,7 @@ export function MemoryCardContent({ event }: { event: NostrEvent }) {
 
   const npub = tryNpubEncode(event.pubkey);
   const cardHref =
-    npub && cardId ? `/ps1/${npub}/${encodeURIComponent(cardId)}` : undefined;
+    npub && cardId ? `/memory-cards/${npub}/${encodeURIComponent(cardId)}` : undefined;
 
   const title = visual?.title || tagVal(event, 'title') || '(untitled save)';
   const isSave = !!visual;

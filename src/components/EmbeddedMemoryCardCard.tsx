@@ -21,7 +21,7 @@ interface EmbeddedMemoryCardCardProps {
 }
 
 /**
- * Compact embedded preview for a NIP-XX memory-card block (kind 38192).
+ * Compact embedded preview for a memory-card block (kind 38192).
  *
  * The generic embedded fallback dumps the 16 KB hex `content` as body text;
  * this instead decodes the save icon and title and links through to the card
@@ -45,7 +45,7 @@ export function EmbeddedMemoryCardCard({ event, className, disableHoverCards }: 
 
   const npub = tryNpubEncode(event.pubkey);
   const navigateTo = npub
-    ? `ps1/${npub}${cardId ? `/${encodeURIComponent(cardId)}` : ''}`
+    ? `memory-cards/${npub}${cardId ? `/${encodeURIComponent(cardId)}` : ''}`
     : '';
 
   const isSave = !!visual;

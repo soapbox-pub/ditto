@@ -13,6 +13,7 @@
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
 | 37849 | Quiz                 | Shareable quiz with weighted-scoring questions        |
 | 7849  | Quiz Result          | A user's computed result for a quiz                   |
+| 38192 | PS Memory Card       | One 8 KB block of a PlayStation 1 memory card         |
 
 ### Community Kinds
 
@@ -553,6 +554,58 @@ The `shape` field is added to the JSON content of a kind 0 event alongside stand
 - When `shape` is set to an unrecognized or invalid value, clients MUST fall back to a circle. This ensures forward compatibility.
 - The `shape` field is purely cosmetic and has no protocol-level significance.
 - Clients MAY choose not to support this extension, in which case avatars render as circles as usual.
+
+---
+
+## Kind 38192: PlayStation Memory Card
+
+### Summary
+
+A PlayStation 1 memory card published to Nostr one block at a time. A physical card is 16 × 8192-byte blocks: block 0 is the header/directory (allocation table), and blocks 1–15 hold saves. Each block is a separate addressable event, so a full card is a set of up to 16 events sharing a common card id. Clients decode each save block's BIOS title and animated 16×16 icon straight from the raw bytes, and can reconstruct a downloadable `.mcd` image from the block set.
+
+### Event Structure
+
+- **Kind:** 38192 (addressable, 30000–39999).
+- **`content`:** the block's 8192 bytes encoded as 16384 lowercase hex characters.
+
+```jsonc
+{
+  "kind": 38192,
+  "content": "534301...", // 16384 hex chars = 8192 bytes
+  "tags": [
+    ["d", "main-1"],            // <card-id>-<block>
+    ["m", "main"],              // card id
+    ["block", "1"],             // block index 0–15
+    ["state", "first"],         // directory allocation state
+    ["name", "My Card"],        // optional human card name
+    ["filename", "BASLUS-00067..."], // save filename / product code
+    ["region", "NTSC-U"],       // optional region string
+    ["x", "<sha256-of-bytes>"], // content integrity hash
+    ["alt", "PlayStation memory card save block"]
+  ]
+}
+```
+
+### Tags
+
+- **`d`** (required): the address, `"<card-id>-<block>"` (e.g. `main-1`). The trailing `-<digits>` is the block index, so card ids MUST NOT contain spaces or themselves end with `-<number>`.
+- **`m`** (required): the card id shared by every block of the same card. Clients group blocks into cards by `(pubkey, m)`.
+- **`block`** (required): the block index `0`–`15`. Clients fall back to the numeric suffix of `d` when absent.
+- **`state`**: directory allocation state — `header`, `first`, `middle`, `last`, or `free`. `first` starts a save; `middle`/`last` are continuation blocks of a multi-block save.
+- **`name`**: optional human-readable card name for the gallery.
+- **`filename`**: the save's on-card filename / product code (used for region detection).
+- **`region`**: optional region string (`NTSC-U`, `PAL`, `NTSC-J`, …).
+- **`title`**: optional fallback title when the BIOS title can't be decoded.
+- **`x`**: integrity hash of the content bytes. Re-publishing a block under a new key or address leaves `content` (and thus `x`) unchanged.
+- **`alt`** (recommended): NIP-31 human-readable fallback.
+
+Save blocks begin with the ASCII magic `SC`. The BIOS title is Shift-JIS at offset `0x04` (64 bytes); the 16-colour BGR555 palette is at `0x60`; 1–3 4bpp 16×16 icon frames start at `0x80`.
+
+### Client Behavior
+
+- To view one card, filter by `authors: [pubkey]` (and optionally `#m: [cardId]`) and collapse to the newest event per block index using the relay's last-writer-wins rule for addressable events.
+- To reconstruct a `.mcd` image, zero-fill any unpublished blocks. Block 0 (header/directory) SHOULD be present or emulators may reject the image.
+- Copying/cloning re-publishes existing blocks under the acting user's key at a chosen card id; only the address tags (`d`, `m`, `block`) are rewritten — the `content` and `x` tag are preserved.
 
 ---
 

@@ -206,9 +206,9 @@ export function AppRouter() {
             <Route path="/treasures" element={<TreasuresPage />} />
             <Route path="/quizzes" element={<QuizzesPage />} />
             <Route path="/quizzes/new" element={<CreateQuizPage />} />
-            <Route path="/ps1" element={<MemoryCardsPage />} />
-            <Route path="/ps1/:npub" element={<MemoryCardsPage />} />
-            <Route path="/ps1/:npub/:cardId" element={<MemoryCardsPage />} />
+            <Route path="/memory-cards" element={<MemoryCardsPage />} />
+            <Route path="/memory-cards/:npub" element={<MemoryCardsPage />} />
+            <Route path="/memory-cards/:npub/:cardId" element={<MemoryCardsPage />} />
             <Route
               path="/colors"
               element={

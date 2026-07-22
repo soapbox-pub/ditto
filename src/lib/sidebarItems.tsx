@@ -201,7 +201,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "decks", label: "Magic Decks", path: "/decks", icon: CardsIcon },
   { id: "treasures", label: "Treasures", path: "/treasures", icon: ChestIcon },
   { id: "quizzes", label: "Quizzes", path: "/quizzes", icon: ClipboardList },
-  { id: "cards", label: "Memory Cards", path: "/ps1", icon: Gamepad2 },
+  { id: "cards", label: "Memory Cards", path: "/memory-cards", icon: Gamepad2 },
   { id: "emojis", label: "Emojis", path: "/emojis", icon: SmilePlus },
   { id: "development", label: "Development", path: "/development", icon: Code },
   { id: "badges", label: "Badges", path: "/badges", icon: Award },

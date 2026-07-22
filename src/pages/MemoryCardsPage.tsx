@@ -98,7 +98,7 @@ function GalleryCardTile({ card }: { card: CardSummary }) {
   }, [card.iconEvent]);
 
   const npub = tryNpubEncode(card.pubkey);
-  const href = npub ? `/ps1/${npub}/${encodeURIComponent(card.cardId)}` : '#';
+  const href = npub ? `/memory-cards/${npub}/${encodeURIComponent(card.cardId)}` : '#';
   const blockLabel = `${card.blocks.size} block${card.blocks.size === 1 ? '' : 's'}`;
 
   return (
@@ -397,7 +397,7 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
               return (
                 <Link
                   key={id}
-                  to={npub ? `/ps1/${npub}/${encodeURIComponent(id)}` : '#'}
+                  to={npub ? `/memory-cards/${npub}/${encodeURIComponent(id)}` : '#'}
                   className="rounded border border-border px-2 py-0.5 font-mono text-xs hover:bg-secondary"
                 >
                   {id}
@@ -486,7 +486,7 @@ function CopyBlockDialog({
       toast({ title: 'Block copied', description: `Published to “${id}” at block #${block}.` });
       const npub = tryNpubEncode(myPubkey ?? '');
       onClose();
-      if (npub) navigate(`/ps1/${npub}/${encodeURIComponent(id)}`);
+      if (npub) navigate(`/memory-cards/${npub}/${encodeURIComponent(id)}`);
     } catch (e) {
       toast({ title: 'Copy failed', description: String(e), variant: 'destructive' });
     } finally {
@@ -580,7 +580,7 @@ function CloneCardDialog({
       });
       const npub = tryNpubEncode(myPubkey ?? '');
       onClose();
-      if (npub) navigate(`/ps1/${npub}/${encodeURIComponent(id)}`);
+      if (npub) navigate(`/memory-cards/${npub}/${encodeURIComponent(id)}`);
     } catch (e) {
       toast({ title: 'Clone failed', description: String(e), variant: 'destructive' });
     } finally {
@@ -624,11 +624,11 @@ function CloneCardDialog({
 }
 
 /**
- * Dedicated page for PlayStation 1 memory cards (NIP-XX kind 38192).
+ * Dedicated page for PlayStation 1 memory cards (kind 38192).
  *
- * - `/ps1` — Explore gallery of every card on the relay.
- * - `/ps1/:npub` — open that author's fullest card.
- * - `/ps1/:npub/:cardId` — open a specific card.
+ * - `/memory-cards` — Explore gallery of every card on the relay.
+ * - `/memory-cards/:npub` — open that author's fullest card.
+ * - `/memory-cards/:npub/:cardId` — open a specific card.
  *
  * Read-only: blocks decode to titles and animated icons straight from their raw
  * bytes; no signing or editing.
@@ -653,7 +653,7 @@ export function MemoryCardsPage() {
       <PageHeader
         title="Memory Cards"
         icon={sidebarItemIcon('cards', 'size-5')}
-        backTo={viewing ? '/ps1' : '/'}
+        backTo={viewing ? '/memory-cards' : '/'}
         alwaysShowBack={viewing}
       >
         <KindInfoButton kindDef={cardsDef} icon={<Gamepad2 className="size-5" />} />
@@ -667,7 +667,7 @@ export function MemoryCardsPage() {
             <div className="rounded-xl border border-dashed border-border py-12 px-8 text-center">
               <p className="mx-auto max-w-sm text-muted-foreground">
                 That doesn’t look like a valid npub.{' '}
-                <Link to="/ps1" className="text-primary hover:underline">
+                <Link to="/memory-cards" className="text-primary hover:underline">
                   Back to all cards
                 </Link>
                 .
