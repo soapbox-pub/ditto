@@ -541,24 +541,14 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     (i) => i >= 0 && i < images.length,
   );
 
-  // ── Preload beyond the mounted window ─────────────────────────────────────
-  // The ±1 neighbours above are already fetched because they're mounted as
-  // real <img> elements. For galleries with many images — or images served
-  // from a slow host — fast swiping outruns a narrow look-ahead and each new
-  // slot stalls on a cold fetch. Warm the HTTP cache well beyond the mounted
-  // window (enough to cover most real galleries in full) so those fetches are
-  // already in flight, or done, by the time the user swipes there.
-  //
-  // Fetched at default priority: hosts here speak HTTP/2 (verified), so there
-  // is no ~6-connection cap to protect and no benefit to marking these 'low' —
-  // doing so only makes the browser defer them, which defeats the point.
-  //
-  // The created Image objects are retained in a ref so they aren't garbage-
-  // collected before the request completes.
+  // Preload a few images either side of the current one so swipes land on an
+  // already-fetched picture instead of a cold load. Kept small — image URLs are
+  // arbitrary Blossom hosts, so we can't assume a fast origin. Retained Image
+  // refs (cleared on close) keep their in-flight requests from being GC'd.
   const preloadedUrlsRef = useRef<Set<string>>(new Set());
   const preloadImagesRef = useRef<HTMLImageElement[]>([]);
   useEffect(() => {
-    const PRELOAD_RADIUS = 8;
+    const PRELOAD_RADIUS = 3;
     for (let offset = -PRELOAD_RADIUS; offset <= PRELOAD_RADIUS; offset++) {
       if (Math.abs(offset) <= 1) continue; // already covered by mounted slots
       const i = currentIndex + offset;
@@ -572,6 +562,16 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
       preloadImagesRef.current.push(img);
     }
   }, [currentIndex, images, mediaTypes]);
+
+  // Release retained preload references when the lightbox closes.
+  useEffect(() => {
+    const urls = preloadedUrlsRef.current;
+    const imgs = preloadImagesRef.current;
+    return () => {
+      urls.clear();
+      imgs.length = 0;
+    };
+  }, []);
 
   return createPortal(
     <div
