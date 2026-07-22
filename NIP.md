@@ -606,6 +606,7 @@ Save blocks begin with the ASCII magic `SC`. The BIOS title is Shift-JIS at offs
 - To view one card, filter by `authors: [pubkey]` (and optionally `#m: [cardId]`) and collapse to the newest event per block index using the relay's last-writer-wins rule for addressable events.
 - To reconstruct a `.mcd` image, zero-fill any unpublished blocks. Block 0 (header/directory) SHOULD be present or emulators may reject the image.
 - Copying/cloning re-publishes existing blocks under the acting user's key at a chosen card id; only the address tags (`d`, `m`, `block`) are rewritten — the `content` and `x` tag are preserved.
+- To publish or update a card from a raw 128 KB image, split it into 16 blocks, read each block's allocation `state`, `filename`, and `region` from block 0's directory frames (each 128-byte frame `n` describes block `n`; allocation dword `0x51`/`0x52`/`0x53` = first/middle/last, `0xA0`+ = free), and publish the header plus every non-free block. Re-publishing to an existing card id updates it.
 
 ---
 

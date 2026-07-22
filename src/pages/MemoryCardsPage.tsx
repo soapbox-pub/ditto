@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
-import { Gamepad2, ChevronRight, Copy, Download, Files, Loader2 } from 'lucide-react';
+import { Gamepad2, ChevronRight, Copy, Download, Files, Loader2, Upload } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -212,9 +212,25 @@ const GALLERY_EMPTY: Record<GalleryTab, string> = {
 
 function GalleryView({ tab }: { tab: GalleryTab }) {
   const { data: cards, isLoading, isPending } = useMemoryCardGallery(tab);
+  const { uploadCard, myPubkey } = useMemoryCardActions();
+  const [uploadOpen, setUploadOpen] = useState(false);
 
-  if (isLoading || isPending) {
-    return (
+  const isMine = tab === 'mine';
+  const loading = isLoading || isPending;
+
+  // The Mine tab lets you publish a card image or update an existing one.
+  const uploadBar = isMine ? (
+    <div className="mb-4 flex justify-end">
+      <Button size="sm" onClick={() => setUploadOpen(true)}>
+        <Upload className="mr-1.5 size-4" />
+        Upload / update card
+      </Button>
+    </div>
+  ) : null;
+
+  let content: React.ReactNode;
+  if (loading) {
+    content = (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="rounded-2xl border border-border p-3">
@@ -227,32 +243,163 @@ function GalleryView({ tab }: { tab: GalleryTab }) {
         ))}
       </div>
     );
-  }
-
-  if (!cards || cards.length === 0) {
-    return (
+  } else if (!cards || cards.length === 0) {
+    content = (
       <div className="rounded-xl border border-dashed border-border py-12 px-8 text-center">
         <p className="mx-auto max-w-sm text-muted-foreground">{GALLERY_EMPTY[tab]}</p>
       </div>
     );
+  } else {
+    const authorCount = new Set(cards.map((c) => c.pubkey)).size;
+    content = (
+      <>
+        <p className="mb-4 text-sm text-muted-foreground">
+          <span className="font-semibold text-foreground">{cards.length}</span>{' '}
+          card{cards.length === 1 ? '' : 's'}
+          {!isMine && (
+            <>
+              {' '}from{' '}
+              <span className="font-semibold text-foreground">{authorCount}</span>{' '}
+              author{authorCount === 1 ? '' : 's'}
+            </>
+          )}
+        </p>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {cards.map((card) => (
+            <MemoryCardTile key={`${card.pubkey}|${card.cardId}`} card={card} />
+          ))}
+        </div>
+      </>
+    );
   }
-
-  const authorCount = new Set(cards.map((c) => c.pubkey)).size;
 
   return (
     <>
-      <p className="mb-4 text-sm text-muted-foreground">
-        <span className="font-semibold text-foreground">{cards.length}</span>{' '}
-        card{cards.length === 1 ? '' : 's'} from{' '}
-        <span className="font-semibold text-foreground">{authorCount}</span>{' '}
-        author{authorCount === 1 ? '' : 's'}
-      </p>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {cards.map((card) => (
-          <MemoryCardTile key={`${card.pubkey}|${card.cardId}`} card={card} />
-        ))}
-      </div>
+      {uploadBar}
+      {content}
+      {uploadOpen && (
+        <UploadCardDialog
+          existingIds={cards?.map((c) => c.cardId) ?? []}
+          myPubkey={myPubkey}
+          uploadCard={uploadCard}
+          onClose={() => setUploadOpen(false)}
+        />
+      )}
     </>
+  );
+}
+
+/** Dialog: publish a card image under the user's key, or update an existing card. */
+function UploadCardDialog({
+  existingIds,
+  myPubkey,
+  uploadCard,
+  onClose,
+}: {
+  existingIds: string[];
+  myPubkey: string | undefined;
+  uploadCard: (cardId: string, image: Uint8Array, name?: string) => Promise<number>;
+  onClose: () => void;
+}) {
+  const navigate = useNavigate();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [cardId, setCardId] = useState(existingIds[0] ?? 'main');
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!file) {
+      toast({ title: 'Choose a memory card file first.', variant: 'destructive' });
+      return;
+    }
+    const id = cardId.trim();
+    const err = validateCardId(id);
+    if (err) {
+      toast({ title: err, variant: 'destructive' });
+      return;
+    }
+    setBusy(true);
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const count = await uploadCard(id, bytes, name);
+      toast({
+        title: existingIds.includes(id) ? 'Card updated' : 'Card published',
+        description: `Published ${count} block${count === 1 ? '' : 's'} to “${id}”.`,
+      });
+      const npub = tryNpubEncode(myPubkey ?? '');
+      onClose();
+      if (npub) navigate(`/memory-cards/${npub}/${encodeURIComponent(id)}`);
+    } catch (e) {
+      toast({ title: 'Upload failed', description: String(e), variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Upload or update a memory card</DialogTitle>
+          <DialogDescription>
+            Pick a PlayStation 1 memory card image (128 KB `.mcd` / `.mcr` / `.bin`). Its header and
+            every occupied save block are published under your key. Your signer prompts once per
+            block. Choosing an existing card id updates that card.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="mc-upload-file">Memory card file</Label>
+            <input
+              ref={fileRef}
+              id="mc-upload-file"
+              type="file"
+              accept=".mcd,.mcr,.bin,.gme,.mem,.vgs,.ps,.psm,application/octet-stream"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border file:border-input file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-secondary/80"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="mc-upload-card">Card id</Label>
+            <Input
+              id="mc-upload-card"
+              value={cardId}
+              onChange={(e) => setCardId(e.target.value)}
+              placeholder="e.g. main"
+              autoComplete="off"
+              list="mc-upload-card-ids"
+            />
+            {existingIds.length > 0 && (
+              <datalist id="mc-upload-card-ids">
+                {existingIds.map((id) => (
+                  <option key={id} value={id} />
+                ))}
+              </datalist>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="mc-upload-name">Card name (optional)</Label>
+            <Input
+              id="mc-upload-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. My PSX Card"
+              autoComplete="off"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={busy || !file}>
+            {busy && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+            {existingIds.includes(cardId.trim()) ? 'Update card' : 'Publish card'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

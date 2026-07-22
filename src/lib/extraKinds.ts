@@ -516,7 +516,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'memory-cards',
     addressable: true,
     section: 'whimsy',
-    blurb: 'PlayStation 1 memory cards, published block-by-block to Nostr. Browse cards shared by others, watch their animated save icons, and open a card to see all 16 blocks — titles, regions and icons decoded straight from the raw save bytes.',
+    blurb: 'PlayStation 1 memory cards, published block-by-block to Nostr. Browse cards shared by others, watch their animated save icons, and open a card to see all 16 blocks. Titles, regions and icons are decoded straight from the raw save bytes.',
   },
   // Blobbi (feed-only — dedicated page at /blobbi)
   {

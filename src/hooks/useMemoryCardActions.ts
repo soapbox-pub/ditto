@@ -7,6 +7,9 @@ import { downloadBinaryFile } from '@/lib/downloadFile';
 import {
   MEMORY_CARD_KIND,
   blockBytes,
+  buildBlockTags,
+  bytesToHex,
+  parseCardImage,
   reTagBlock,
   reconstructCard,
 } from '@/lib/memorycard';
@@ -50,6 +53,48 @@ export function useMemoryCardActions() {
     [publishEvent],
   );
 
+  /**
+   * Publish (or update) a card from a raw memory-card image. Splits the image
+   * into blocks, publishes the header (block 0) plus every occupied save block
+   * under the given card id, and returns the number of blocks published. The
+   * signer prompts once per block. Publishing to an existing card id overwrites
+   * its blocks (last-writer-wins).
+   */
+  const uploadCard = useCallback(
+    async (cardId: string, image: Uint8Array, name?: string) => {
+      const parsed = parseCardImage(image);
+      if (!parsed) {
+        throw new Error('Not a valid PlayStation memory card image (needs a 128 KB "MC" header).');
+      }
+
+      const trimmedName = name?.trim() || undefined;
+
+      // Header (block 0) first, so a reconstructed .mcd has its directory.
+      await publishEvent({
+        kind: MEMORY_CARD_KIND,
+        content: bytesToHex(parsed.header),
+        tags: buildBlockTags(cardId, 0, parsed.header, { state: 'header', name: trimmedName }),
+      });
+
+      for (const b of parsed.blocks) {
+        await publishEvent({
+          kind: MEMORY_CARD_KIND,
+          content: bytesToHex(b.bytes),
+          tags: buildBlockTags(cardId, b.index, b.bytes, {
+            state: b.state,
+            name: trimmedName,
+            filename: b.filename,
+            region: b.region,
+            title: b.title,
+          }),
+        });
+      }
+
+      return parsed.blocks.length + 1; // + header
+    },
+    [publishEvent],
+  );
+
   /** Reconstruct and download the full 128 KB `.mcd` image. */
   const downloadCard = useCallback(
     async (cardId: string, blocks: Record<number, NostrEvent>) => {
@@ -75,6 +120,7 @@ export function useMemoryCardActions() {
     myPubkey: user?.pubkey,
     publishBlock,
     cloneCard,
+    uploadCard,
     downloadCard,
     downloadBlock,
   };
