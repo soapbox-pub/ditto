@@ -271,22 +271,13 @@ The router provides automatic scroll-to-top on navigation and a 404 `NotFound` p
 
 ## Internationalization (i18n)
 
-UI strings use FormatJS (`react-intl`) with the English source **inline at the call site**. `I18nProvider` from `@/i18n` (wired in `main.tsx` and `TestApp`) holds the locale; translations live in `src/i18n/locales/*.json` as flat `id → message` maps.
+UI strings use FormatJS (`react-intl`), English inline at the call site. Translations live in `src/i18n/locales/*.json`.
 
-```tsx
-import { useIntl } from 'react-intl';
-
-const intl = useIntl();
-intl.formatMessage({ id: 'settings.title', defaultMessage: 'Settings' });
-intl.formatMessage({ id: 'sidebar.logOutAs', defaultMessage: 'Log out @{name}' }, { name });
-```
-
-Rules:
-
-- **Always include `defaultMessage`** so call sites are greppable by English text. Never reference a bare id.
-- **Never add or update non-English translations unless the user explicitly asks.** Missing catalog entries fall back to the inline English, so new strings ship untranslated by design. Translation syncs are a deliberate batch: `npm run i18n:extract`, translate the new/changed ids, update the locale catalogs.
-- Keep ids (`area.key`) stable when English text changes; change an id only when its meaning changes.
-- Plurals/rich text use ICU: `{count, plural, one {# item} other {# items}}`. Escape literal braces with apostrophes: `'{hostname}'`.
+- **Never write user-visible text outside `<FormattedMessage>` / `intl.formatMessage()`.** Prefer `<FormattedMessage>` in JSX; use `intl.formatMessage()` only for string values (props, `title`, `aria-label`, `toast`).
+- **Never add or update non-English translations unless explicitly asked.** New strings ship untranslated by design — they fall back to the inline English.
+- **Ids and `defaultMessage` must be static literals**, never template strings or variables, or `npm run i18n:extract` can't see them. For lists, attach `defineMessage({ id, defaultMessage })` descriptors to the data and spread/pass them: `<FormattedMessage {...item.label} />`.
+- Ids are `area.key`. Keep them stable when the English wording changes; change an id only when its meaning changes.
+- ICU for plurals/values: `{count, plural, one {# item} other {# items}}`. Escape literal braces with apostrophes: `'{hostname}'`.
 
 ## Design Standards
 
