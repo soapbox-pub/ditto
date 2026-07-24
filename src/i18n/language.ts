@@ -1,8 +1,3 @@
-import { createContext, useContext } from 'react';
-
-/** localStorage key holding the user's explicit language choice. */
-export const LANGUAGE_STORAGE_KEY = 'ditto:language';
-
 /** Languages with a bundled translation catalog, shown in the language picker. */
 export const LANGUAGE_OPTIONS = [
   { code: 'en', nativeName: 'English' },
@@ -12,28 +7,43 @@ export const LANGUAGE_OPTIONS = [
 
 export const SUPPORTED_CODES: readonly string[] = LANGUAGE_OPTIONS.map((l) => l.code);
 
-/** Detect the preferred locale: explicit picker choice first, then the browser/OS. */
+/**
+ * Translation catalogs, imported lazily so each locale is emitted as its own
+ * chunk instead of being bundled into the app entry for every user.
+ * English needs no catalog: it lives inline in each `defaultMessage`.
+ */
+const CATALOGS: Record<string, () => Promise<{ default: Record<string, string> }>> = {
+  de: () => import('./locales/de.json'),
+  ja: () => import('./locales/ja.json'),
+};
+
+const loaded = new Map<string, Record<string, string>>();
+
+/** Whether a locale has a translation catalog to load at all. */
+export function hasCatalog(locale: string): boolean {
+  return locale in CATALOGS;
+}
+
+/** Already-loaded catalog for a locale, if its chunk has been fetched. */
+export function peekCatalog(locale: string): Record<string, string> | undefined {
+  return loaded.get(locale);
+}
+
+/** Fetch a locale's catalog chunk, memoized for the lifetime of the page. */
+export async function loadCatalog(locale: string): Promise<Record<string, string> | undefined> {
+  const cached = loaded.get(locale);
+  if (cached) return cached;
+
+  const load = CATALOGS[locale];
+  if (!load) return undefined;
+
+  const { default: messages } = await load();
+  loaded.set(locale, messages);
+  return messages;
+}
+
+/** Preferred locale from the browser/OS, falling back to English. */
 export function detectLocale(): string {
-  const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-  if (stored && SUPPORTED_CODES.includes(stored)) return stored;
   const nav = (navigator.languages?.[0] ?? navigator.language ?? 'en').split('-')[0];
   return SUPPORTED_CODES.includes(nav) ? nav : 'en';
-}
-
-export interface LanguageState {
-  /** Active locale code, e.g. 'en', 'de', 'ja'. */
-  locale: string;
-  /** True when following the browser/OS locale (no explicit choice stored). */
-  system: boolean;
-  /** Switch language; pass 'system' to follow the browser/OS locale again. */
-  setLanguage: (code: string) => void;
-}
-
-export const LanguageContext = createContext<LanguageState | null>(null);
-
-/** Current language state and the picker's setter. */
-export function useLanguage(): LanguageState {
-  const ctx = useContext(LanguageContext);
-  if (!ctx) throw new Error('useLanguage must be used within I18nProvider');
-  return ctx;
 }

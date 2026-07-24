@@ -5,7 +5,7 @@ import { AppProvider } from "@/components/AppProvider";
 import NostrProvider from "@/components/NostrProvider";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
-import { I18nProvider } from "@/i18n";
+import { I18nProvider } from "@/components/I18nProvider";
 
 interface TestAppProps {
   children: React.ReactNode;
@@ -155,8 +155,8 @@ export function TestApp({ children }: TestAppProps) {
   };
 
   return (
-    <I18nProvider>
-      <AppProvider storageKey="test-app-config" defaultConfig={defaultConfig}>
+    <AppProvider storageKey="test-app-config" defaultConfig={defaultConfig}>
+      <I18nProvider>
         <QueryClientProvider client={queryClient}>
           <NostrLoginProvider storageKey="test-login">
             <NostrProvider>
@@ -166,8 +166,8 @@ export function TestApp({ children }: TestAppProps) {
             </NostrProvider>
           </NostrLoginProvider>
         </QueryClientProvider>
-      </AppProvider>
-    </I18nProvider>
+      </I18nProvider>
+    </AppProvider>
   );
 }
 

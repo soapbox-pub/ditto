@@ -253,6 +253,7 @@ export const AppConfigSchema = z.object({
   /** NIP-19 naddr1 string for the kind 31990 handler event. */
   client: z.string().startsWith('naddr1').optional(),
   magicMouse: z.boolean().optional(),
+  locale: z.string().optional(),
   theme: ThemeSchema,
   customTheme: ThemeConfigCompatSchema.optional(),
   autoShareTheme: z.boolean(),

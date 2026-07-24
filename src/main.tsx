@@ -7,8 +7,6 @@ import './lib/polyfills.ts';
 import { hydrateNip05Cache } from '@/lib/nip05Cache';
 hydrateNip05Cache();
 
-import { I18nProvider } from '@/i18n';
-
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import App from './App.tsx';
 import './index.css';
@@ -87,11 +85,9 @@ if (Capacitor.isNativePlatform()) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 createRoot(document.getElementById("root")!).render(
-  <I18nProvider>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </I18nProvider>
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
 );
 
 // Remove the HTML preloader after React has painted.
