@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter, NostrSigner } from '@nostrify/nostrify';
@@ -170,7 +170,7 @@ function MuteSnapshotCard({
   onRestore: () => void;
   isRestoring: boolean;
 }) {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const parts: string[] = [];
   if (summary.pubkeys > 0) parts.push(`${summary.pubkeys} ${summary.pubkeys === 1 ? 'user' : 'users'}`);
   if (summary.hashtags > 0) parts.push(`${summary.hashtags} ${summary.hashtags === 1 ? 'hashtag' : 'hashtags'}`);
@@ -189,7 +189,7 @@ function MuteSnapshotCard({
       {isCurrent && (
         <div className="absolute top-3 right-3 flex items-center gap-1 text-xs font-medium text-primary">
           <Check className="size-3.5" />
-          {t('muteRecovery.current')}
+          {intl.formatMessage({ id: 'muteRecovery.current', defaultMessage: "Current" })}
         </div>
       )}
 
@@ -200,7 +200,7 @@ function MuteSnapshotCard({
 
         <div className="min-w-0 flex-1 space-y-1">
           <div className="font-semibold text-sm">
-            {t('muteRecovery.mutedItems', { count: summary.total, formatted: summary.total.toLocaleString() })}
+            {intl.formatMessage({ id: 'muteRecovery.mutedItems', defaultMessage: "{count, plural, one {{formatted} muted item} other {{formatted} muted items}}" }, { count: summary.total, formatted: summary.total.toLocaleString() })}
           </div>
 
           {parts.length > 0 && (
@@ -226,7 +226,7 @@ function MuteSnapshotCard({
               {summary.threads > 0 && (
                 <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                   <MessageSquareOff className="size-3" />
-                  {t('muteRecovery.threadCount', { count: summary.threads })}
+                  {intl.formatMessage({ id: 'muteRecovery.threadCount', defaultMessage: "{count} threads" }, { count: summary.threads })}
                 </span>
               )}
             </div>
@@ -235,7 +235,7 @@ function MuteSnapshotCard({
           {summary.decryptionFailed && (
             <div className="flex items-center gap-1 text-[11px] text-amber-500">
               <AlertTriangle className="size-3" />
-              {t('muteRecovery.decryptionFailed')}
+              {intl.formatMessage({ id: 'muteRecovery.decryptionFailed', defaultMessage: "Could not decrypt private items" })}
             </div>
           )}
 
@@ -259,7 +259,7 @@ function MuteSnapshotCard({
             ) : (
               <RotateCcw className="size-3.5" />
             )}
-            {t('muteRecovery.restore')}
+            {intl.formatMessage({ id: 'muteRecovery.restore', defaultMessage: "Restore" })}
           </Button>
         </div>
       )}
@@ -270,12 +270,12 @@ function MuteSnapshotCard({
 // ─── Empty State ──────────────────────────────────────────────────────
 
 function EmptyState() {
-  const { t } = useTranslation();
+  const intl = useIntl();
 
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <p className="text-sm text-muted-foreground">
-        {t('muteRecovery.empty')}
+        {intl.formatMessage({ id: 'muteRecovery.empty', defaultMessage: "No mute list history found. Your relay may not store historical events." })}
       </p>
     </div>
   );
@@ -305,7 +305,7 @@ function SnapshotSkeleton() {
 // ─── Mute History Content ─────────────────────────────────────────────
 
 function MuteHistoryContent({ onClose }: { onClose: () => void }) {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
@@ -380,8 +380,8 @@ function MuteHistoryContent({ onClose }: { onClose: () => void }) {
       }
 
       toast({
-        title: t('muteRecovery.restored'),
-        description: t('muteRecovery.restoredDescription', { date: formatDate(event.created_at) }),
+        title: intl.formatMessage({ id: 'muteRecovery.restored', defaultMessage: "Mute list restored" }),
+        description: intl.formatMessage({ id: 'muteRecovery.restoredDescription', defaultMessage: "Successfully restored from {date}." }, { date: formatDate(event.created_at) }),
       });
 
       queryClient.invalidateQueries({ queryKey: ['mute-recovery', 'kind10000', pubkey] });
@@ -392,8 +392,8 @@ function MuteHistoryContent({ onClose }: { onClose: () => void }) {
     } catch (error) {
       console.error('Failed to restore mute list:', error);
       toast({
-        title: t('muteRecovery.restoreFailed'),
-        description: t('muteRecovery.restoreFailedDescription'),
+        title: intl.formatMessage({ id: 'muteRecovery.restoreFailed', defaultMessage: "Restore failed" }),
+        description: intl.formatMessage({ id: 'muteRecovery.restoreFailedDescription', defaultMessage: "Could not republish the mute list. Please try again." }),
         variant: 'destructive',
       });
     } finally {
@@ -433,16 +433,16 @@ function MuteHistoryContent({ onClose }: { onClose: () => void }) {
 // ─── Main Dialog ──────────────────────────────────────────────────────
 
 export function MuteListRecoveryDialog({ open, onOpenChange }: MuteListRecoveryDialogProps) {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const close = () => onOpenChange(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg p-0 gap-0 rounded-2xl overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-4">
-          <DialogTitle className="text-lg font-bold">{t('muteRecovery.title')}</DialogTitle>
+          <DialogTitle className="text-lg font-bold">{intl.formatMessage({ id: 'muteRecovery.title', defaultMessage: "Mute List Recovery" })}</DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            {t('muteRecovery.description')}
+            {intl.formatMessage({ id: 'muteRecovery.description', defaultMessage: "Browse and restore previous versions of your mute list." })}
           </p>
         </DialogHeader>
 

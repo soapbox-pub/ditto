@@ -5,7 +5,7 @@
 
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -35,14 +35,14 @@ interface FeedWidgetProps {
 
 /** Compact feed widget showing recent events for given kind(s). */
 export function FeedWidget({ kinds, feedPath, feedLabel, limit = 5, emptyMessage }: FeedWidgetProps) {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
   const { data: curatorFollows } = useCuratorFollowList();
   const followPubkeys = followData?.pubkeys;
 
-  const emptyText = emptyMessage ?? t('widgets.feed.empty');
+  const emptyText = emptyMessage ?? intl.formatMessage({ id: 'widgets.feed.empty', defaultMessage: "No content yet." });
 
   const kindsKey = kinds.join(',');
 
@@ -96,11 +96,11 @@ export function FeedWidget({ kinds, feedPath, feedLabel, limit = 5, emptyMessage
 
 /** Minimal event card for sidebar widgets. */
 function CompactEventCard({ event }: { event: NostrEvent }) {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || t('common.anonymous');
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
   const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
 
   // Try to get a title from tags (articles, events, etc.)
@@ -111,8 +111,8 @@ function CompactEventCard({ event }: { event: NostrEvent }) {
     if (title) return title;
     const clean = event.content.replace(/https?:\/\/\S+/g, '').trim();
     if (clean.length > 100) return clean.slice(0, 100) + '...';
-    return clean || t('widgets.common.media');
-  }, [event.content, title, t]);
+    return clean || intl.formatMessage({ id: 'widgets.common.media', defaultMessage: "(media)" });
+  }, [event.content, title, intl]);
 
   return (
     <Link

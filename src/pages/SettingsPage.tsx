@@ -2,7 +2,7 @@ import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { ChevronRight, Languages, Settings } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import { PageHeader } from '@/components/PageHeader';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -10,12 +10,14 @@ import { IntroImage } from '@/components/IntroImage';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { toast } from '@/hooks/useToast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { isUsingSystemLanguage, LANGUAGE_OPTIONS, setLanguage } from '@/i18n';
+import { LANGUAGE_OPTIONS, useLanguage } from '@/i18n/language';
 
 const RequestToVanishDialog = lazy(() => import('@/components/RequestToVanishDialog').then(m => ({ default: m.RequestToVanishDialog })));
 
 interface SettingsSection {
   id: string;
+  label: string;
+  description: string;
   illustration?: string;
   path: string;
   requiresAuth?: boolean;
@@ -24,53 +26,67 @@ interface SettingsSection {
 const settingsSections: SettingsSection[] = [
   {
     id: 'profile',
+    label: 'Profile',
+    description: 'Edit your display name, bio, and avatar',
     illustration: '/profile-intro.png',
     path: '/settings/profile',
     requiresAuth: true,
   },
   {
     id: 'feed',
+    label: 'Home Feed',
+    description: 'Choose what types of posts appear in your home feed',
     illustration: '/community-intro.png',
     path: '/settings/feed',
   },
   {
     id: 'content',
+    label: 'Content',
+    description: 'Muted users, hashtags, and sensitive content settings',
     illustration: '/mute-intro.png',
     path: '/settings/content',
   },
   {
     id: 'network',
+    label: 'Network',
+    description: 'Relays and file upload servers',
     illustration: '/relay-intro.png',
     path: '/settings/network',
     requiresAuth: true,
   },
   {
     id: 'notifications',
+    label: 'Notifications',
+    description: 'Configure push notification preferences',
     illustration: '/notification-intro.png',
     path: '/settings/notifications',
     requiresAuth: true,
   },
   {
     id: 'advanced',
+    label: 'Advanced',
+    description: 'Wallet, system, and power user settings',
     illustration: '/advanced-intro.png',
     path: '/settings/advanced',
   },
   {
     id: 'magic',
+    label: 'Magic',
+    description: 'Enchanted cursor effects and mystical interface powers',
     illustration: '/magic-intro.png',
     path: '/settings/magic',
   },
 ];
 
 export function SettingsPage() {
-  const { t, i18n } = useTranslation();
+  const intl = useIntl();
+  const { locale, system, setLanguage } = useLanguage();
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
   const navigate = useNavigate();
   const [sigilFlash, setSigilFlash] = useState(false);
   const [sigilVisible, setSigilVisible] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
-  const [systemLanguage, setSystemLanguage] = useState(isUsingSystemLanguage());
   const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -83,8 +99,8 @@ export function SettingsPage() {
   useLayoutOptions({});
 
   useSeoMeta({
-    title: `${t('settings.title')} | ${config.appName}`,
-    description: t('settings.metaDescription', { appName: config.appName }),
+    title: `${intl.formatMessage({ id: 'settings.title', defaultMessage: "Settings" })} | ${config.appName}`,
+    description: intl.formatMessage({ id: 'settings.metaDescription', defaultMessage: "Manage your {appName} settings" }, { appName: config.appName }),
   });
 
   // Magic section only appears in the menu once unlocked
@@ -101,22 +117,22 @@ export function SettingsPage() {
     setTimeout(() => setSigilFlash(false), 1000);
     updateConfig((c) => ({ ...c, magicMouse: true }));
     toast({
-      title: t('settings.magicUnlocked'),
-      description: t('settings.magicUnlockedDescription'),
+      title: intl.formatMessage({ id: 'settings.magicUnlocked', defaultMessage: "✨ Magical potential unlocked" }),
+      description: intl.formatMessage({ id: 'settings.magicUnlockedDescription', defaultMessage: "You have awakened the arcane. Your cursor now burns with enchanted fire." }),
     });
   }
 
   return (
     <main className="relative min-h-screen pb-16 sidebar:pb-0">
       {/* Page header */}
-      <PageHeader title={t('settings.title')} icon={<Settings className="size-5" />} backTo="/" />
+      <PageHeader title={intl.formatMessage({ id: 'settings.title', defaultMessage: "Settings" })} icon={<Settings className="size-5" />} backTo="/" />
 
       {/* Codex heading + exposition */}
       <div className="px-7 pb-4 pt-4 text-center space-y-2.5">
         <p className="text-xs text-muted-foreground leading-relaxed select-none">
-          {t('settings.intro')}<br />{t('settings.introSub')}
+          {intl.formatMessage({ id: 'settings.intro', defaultMessage: "Shape your identity, tune your feed, and manage how you connect to the Nostr network." })}<br />{intl.formatMessage({ id: 'settings.introSub', defaultMessage: "Everything you need to make this place feel like yours." })}
         </p>
-        <p className="text-[10px] tracking-[0.5em] uppercase text-primary/60 select-none pt-6">{t('settings.codex')}</p>
+        <p className="text-[10px] tracking-[0.5em] uppercase text-primary/60 select-none pt-6">{intl.formatMessage({ id: 'settings.codex', defaultMessage: "Codex of Configuration" })}</p>
       </div>
 
       {/* Tome ornament */}
@@ -141,9 +157,9 @@ export function SettingsPage() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{t(`settings.sections.${section.id}.label`)}</p>
+                  <p className="text-sm font-semibold">{intl.formatMessage({ id: `settings.sections.${section.id}.label`, defaultMessage: section.label })}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {t(`settings.sections.${section.id}.description`)}
+                    {intl.formatMessage({ id: `settings.sections.${section.id}.description`, defaultMessage: section.description })}
                   </p>
                 </div>
                 <ChevronRight className="size-4 text-primary/40 shrink-0 group-hover:text-primary/70 transition-colors" strokeWidth={4} />
@@ -163,23 +179,20 @@ export function SettingsPage() {
             <Languages className="size-8 text-primary/70" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold">{t('settings.language.label')}</p>
+            <p className="text-sm font-semibold">{intl.formatMessage({ id: 'settings.language.label', defaultMessage: "Language" })}</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {t('settings.language.description')}
+              {intl.formatMessage({ id: 'settings.language.description', defaultMessage: "Choose your preferred interface language" })}
             </p>
           </div>
           <Select
-            value={systemLanguage ? 'system' : (i18n.resolvedLanguage ?? 'en').split('-')[0]}
-            onValueChange={(value) => {
-              setLanguage(value);
-              setSystemLanguage(value === 'system');
-            }}
+            value={system ? 'system' : locale}
+            onValueChange={setLanguage}
           >
             <SelectTrigger className="w-[9.5rem] shrink-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="system">{t('settings.language.system')}</SelectItem>
+              <SelectItem value="system">{intl.formatMessage({ id: 'settings.language.system', defaultMessage: "System default" })}</SelectItem>
               {LANGUAGE_OPTIONS.map((lang) => (
                 <SelectItem key={lang.code} value={lang.code}>
                   {lang.nativeName}
@@ -197,7 +210,7 @@ export function SettingsPage() {
             onClick={() => setDeleteAccountOpen(true)}
             className="text-xs text-destructive-foreground bg-destructive/80 hover:bg-destructive rounded-full px-4 py-1.5 transition-colors"
           >
-            {t('settings.deleteAccount')}
+            {intl.formatMessage({ id: 'settings.deleteAccount', defaultMessage: "Delete Account" })}
           </button>
         </div>
       )}
@@ -225,7 +238,7 @@ export function SettingsPage() {
         <button
           onClick={unlockMagic}
           className="relative group focus:outline-none"
-          aria-label={config.magicMouse ? t('settings.openMagic') : t('settings.unlockMagic')}
+          aria-label={config.magicMouse ? intl.formatMessage({ id: 'settings.openMagic', defaultMessage: "Open Magic settings" }) : intl.formatMessage({ id: 'settings.unlockMagic', defaultMessage: "Unlock magical potential" })}
         >
           {/* Ambient radial glow pool — tight, close to the image */}
           <div

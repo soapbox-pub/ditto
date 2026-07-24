@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { GripVertical, X } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove, CSS,
@@ -37,7 +37,7 @@ export function SidebarNavItem({
   const icon = sidebarItemIcon(id);
   const label = useItemLabel(id);
   const path = itemPath(id, profilePath, homePage);
-  const { t } = useTranslation();
+  const intl = useIntl();
 
   return (
     <div
@@ -78,7 +78,7 @@ export function SidebarNavItem({
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(id); }}
           className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          title={t('sidebar.removeItem', { label })}
+          title={intl.formatMessage({ id: 'sidebar.removeItem', defaultMessage: "Remove {label}" }, { label })}
         >
           <X className="size-4" />
         </button>
@@ -98,7 +98,7 @@ interface SidebarDividerItemProps {
 function SidebarDividerItem({ sortableId, editing, onRemove }: SidebarDividerItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sortableId, disabled: !editing });
   const style = { transform: CSS.Transform.toString(transform), transition };
-  const { t } = useTranslation();
+  const intl = useIntl();
 
   return (
     <div
@@ -122,7 +122,7 @@ function SidebarDividerItem({ sortableId, editing, onRemove }: SidebarDividerIte
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
           className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          title={t('sidebar.removeDivider')}
+          title={intl.formatMessage({ id: 'sidebar.removeDivider', defaultMessage: "Remove divider" })}
         >
           <X className="size-4" />
         </button>

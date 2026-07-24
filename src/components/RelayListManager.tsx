@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import { Plus, X, Settings, Server, Shield, Zap } from 'lucide-react';
 import { HelpTip } from '@/components/HelpTip';
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,7 @@ function renderRelayUrl(url: string): string {
 }
 
 function RelayIdentity({ url }: { url: string }) {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const { data: relayInfo } = useRelayInfo(url);
 
   const relayName = relayInfo?.name?.trim() || renderRelayUrl(url);
@@ -68,13 +68,13 @@ function RelayIdentity({ url }: { url: string }) {
           {hasAuthRequired && (
             <Badge variant="secondary" className="gap-1 text-[10px]">
               <Shield className="size-2.5" />
-              {t('settings.network.auth')}
+              {intl.formatMessage({ id: 'settings.network.auth', defaultMessage: "Auth" })}
             </Badge>
           )}
           {hasPaymentRequired && (
             <Badge variant="secondary" className="gap-1 text-[10px]">
               <Zap className="size-2.5" />
-              {t('settings.network.paid')}
+              {intl.formatMessage({ id: 'settings.network.paid', defaultMessage: "Paid" })}
             </Badge>
           )}
         </div>
@@ -85,7 +85,7 @@ function RelayIdentity({ url }: { url: string }) {
   return (
     <div className="flex min-w-0 flex-1 items-center gap-3">
       <Avatar className="size-8 shrink-0 border border-border/70">
-        <AvatarImage src={relayInfo?.icon} alt={t('settings.network.relayIcon', { name: relayName })} />
+        <AvatarImage src={relayInfo?.icon} alt={intl.formatMessage({ id: 'settings.network.relayIcon', defaultMessage: "{name} icon" }, { name: relayName })} />
         <AvatarFallback>
           <Server className="size-4 text-muted-foreground" />
         </AvatarFallback>
@@ -109,7 +109,7 @@ function RelayIdentity({ url }: { url: string }) {
 }
 
 export function RelayListManager() {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const { config, updateConfig } = useAppContext();
   const { user } = useCurrentUser();
   const { mutate: publishEvent } = useNostrPublish();
@@ -163,10 +163,10 @@ export function RelayListManager() {
     }
     
     toast({
-      title: enabled ? t('settings.network.appRelaysEnabled') : t('settings.network.appRelaysDisabled'),
+      title: enabled ? intl.formatMessage({ id: 'settings.network.appRelaysEnabled', defaultMessage: "App relays enabled" }) : intl.formatMessage({ id: 'settings.network.appRelaysDisabled', defaultMessage: "App relays disabled" }),
       description: enabled
-        ? t('settings.network.appRelaysEnabledDescription')
-        : t('settings.network.appRelaysDisabledDescription'),
+        ? intl.formatMessage({ id: 'settings.network.appRelaysEnabledDescription', defaultMessage: "App relays will be used alongside your personal relays." })
+        : intl.formatMessage({ id: 'settings.network.appRelaysDisabledDescription', defaultMessage: "Only your personal relays will be used." }),
     });
   };
 
@@ -183,18 +183,18 @@ export function RelayListManager() {
     }
 
     toast({
-      title: enabled ? t('settings.network.userRelaysEnabled') : t('settings.network.userRelaysDisabled'),
+      title: enabled ? intl.formatMessage({ id: 'settings.network.userRelaysEnabled', defaultMessage: "Your relays enabled" }) : intl.formatMessage({ id: 'settings.network.userRelaysDisabled', defaultMessage: "Your relays disabled" }),
       description: enabled
-        ? t('settings.network.userRelaysEnabledDescription')
-        : t('settings.network.userRelaysDisabledDescription'),
+        ? intl.formatMessage({ id: 'settings.network.userRelaysEnabledDescription', defaultMessage: "Your personal relays will be used alongside app relays when enabled." })
+        : intl.formatMessage({ id: 'settings.network.userRelaysDisabledDescription', defaultMessage: "Your personal relays will not be used. Only app relays will be queried." }),
     });
   };
 
   const handleAddRelay = () => {
     if (!isValidRelayUrl(newRelayUrl)) {
       toast({
-        title: t('settings.network.invalidRelayUrl'),
-        description: t('settings.network.invalidRelayUrlDescription'),
+        title: intl.formatMessage({ id: 'settings.network.invalidRelayUrl', defaultMessage: "Invalid relay URL" }),
+        description: intl.formatMessage({ id: 'settings.network.invalidRelayUrlDescription', defaultMessage: "Please enter a valid relay URL (e.g., wss://relay.example.com)" }),
         variant: 'destructive',
       });
       return;
@@ -204,8 +204,8 @@ export function RelayListManager() {
 
     if (relays.some(r => r.url === normalized)) {
       toast({
-        title: t('settings.network.relayExists'),
-        description: t('settings.network.relayExistsDescription'),
+        title: intl.formatMessage({ id: 'settings.network.relayExists', defaultMessage: "Relay already exists" }),
+        description: intl.formatMessage({ id: 'settings.network.relayExistsDescription', defaultMessage: "This relay is already in your list." }),
         variant: 'destructive',
       });
       return;
@@ -280,15 +280,15 @@ export function RelayListManager() {
       {
         onSuccess: () => {
           toast({
-            title: t('settings.network.relayListPublished'),
-            description: t('settings.network.relayListPublishedDescription'),
+            title: intl.formatMessage({ id: 'settings.network.relayListPublished', defaultMessage: "Relay list published" }),
+            description: intl.formatMessage({ id: 'settings.network.relayListPublishedDescription', defaultMessage: "Your relay list has been published to Nostr." }),
           });
         },
         onError: (error) => {
           console.error('Failed to publish relay list:', error);
           toast({
-            title: t('settings.network.relayListPublishFailed'),
-            description: t('settings.network.relayListPublishFailedDescription'),
+            title: intl.formatMessage({ id: 'settings.network.relayListPublishFailed', defaultMessage: "Failed to publish relay list" }),
+            description: intl.formatMessage({ id: 'settings.network.relayListPublishFailedDescription', defaultMessage: "There was an error publishing your relay list to Nostr." }),
             variant: 'destructive',
           });
         },
@@ -302,10 +302,10 @@ export function RelayListManager() {
       <div className="pt-4 pb-4">
         <div className="px-3 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">{t('settings.network.appRelays')}</h3>
+            <h3 className="text-sm font-medium">{intl.formatMessage({ id: 'settings.network.appRelays', defaultMessage: "App Relays" })}</h3>
             <div className="flex items-center gap-2">
               <Label htmlFor="use-app-relays" className="text-xs text-muted-foreground cursor-pointer">
-                {config.useAppRelays ? t('settings.network.enabled') : t('settings.network.disabled')}
+                {config.useAppRelays ? intl.formatMessage({ id: 'settings.network.enabled', defaultMessage: "Enabled" }) : intl.formatMessage({ id: 'settings.network.disabled', defaultMessage: "Disabled" })}
               </Label>
               <Switch
                 id="use-app-relays"
@@ -316,7 +316,7 @@ export function RelayListManager() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            {t('settings.network.appRelaysDescription')}
+            {intl.formatMessage({ id: 'settings.network.appRelaysDescription', defaultMessage: "Default relays for reliable connectivity. Used alongside your personal relays when enabled." })}
           </p>
         </div>
         
@@ -334,10 +334,10 @@ export function RelayListManager() {
               </Link>
               <div className="flex items-center gap-1 text-[10px]">
                 {relay.read && (
-                  <span className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 font-medium">{t('settings.network.read')}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 font-medium">{intl.formatMessage({ id: 'settings.network.read', defaultMessage: "Read" })}</span>
                 )}
                 {relay.write && (
-                  <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium">{t('settings.network.write')}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium">{intl.formatMessage({ id: 'settings.network.write', defaultMessage: "Write" })}</span>
                 )}
               </div>
             </div>
@@ -349,10 +349,10 @@ export function RelayListManager() {
       <div className="pb-4 pt-4">
         <div className="px-3 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium flex items-center gap-1.5">{t('settings.network.yourRelays')} <HelpTip faqId="what-are-relays" iconSize="size-3.5" /></h3>
+            <h3 className="text-sm font-medium flex items-center gap-1.5">{intl.formatMessage({ id: 'settings.network.yourRelays', defaultMessage: "Your Relays" })} <HelpTip faqId="what-are-relays" iconSize="size-3.5" /></h3>
             <div className="flex items-center gap-2">
               <Label htmlFor="use-user-relays" className="text-xs text-muted-foreground cursor-pointer">
-                {config.useUserRelays ? t('settings.network.enabled') : t('settings.network.disabled')}
+                {config.useUserRelays ? intl.formatMessage({ id: 'settings.network.enabled', defaultMessage: "Enabled" }) : intl.formatMessage({ id: 'settings.network.disabled', defaultMessage: "Disabled" })}
               </Label>
               <Switch
                 id="use-user-relays"
@@ -363,7 +363,7 @@ export function RelayListManager() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            {t('settings.network.yourRelaysDescription')} {user ? t('settings.network.yourRelaysSynced') : t('settings.network.yourRelaysLogin')}
+            {intl.formatMessage({ id: 'settings.network.yourRelaysDescription', defaultMessage: "Your personal relay list. Disabled by default — enable to include your relays in queries and publishes." })} {user ? intl.formatMessage({ id: 'settings.network.yourRelaysSynced', defaultMessage: "Your list is still synced to Nostr when logged in." }) : intl.formatMessage({ id: 'settings.network.yourRelaysLogin', defaultMessage: "Log in to sync your list to Nostr." })}
           </p>
         </div>
 
@@ -374,7 +374,7 @@ export function RelayListManager() {
         )}>
           {relays.length === 0 ? (
             <div className="text-xs text-muted-foreground py-8 text-center">
-              {config.useAppRelays ? t('settings.network.noRelaysWithAppRelays') : t('settings.network.noRelays')}
+              {config.useAppRelays ? intl.formatMessage({ id: 'settings.network.noRelaysWithAppRelays', defaultMessage: "No personal relays configured. Add relays below or keep App Relays enabled above." }) : intl.formatMessage({ id: 'settings.network.noRelays', defaultMessage: "No personal relays configured. Add relays below." })}
             </div>
           ) : (
             <div className="space-y-1">
@@ -402,7 +402,7 @@ export function RelayListManager() {
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <Label htmlFor={`read-${relay.url}`} className="text-xs cursor-pointer">
-                            {t('settings.network.read')}
+                            {intl.formatMessage({ id: 'settings.network.read', defaultMessage: "Read" })}
                           </Label>
                           <Switch
                             id={`read-${relay.url}`}
@@ -413,7 +413,7 @@ export function RelayListManager() {
                         </div>
                         <div className="flex items-center justify-between">
                           <Label htmlFor={`write-${relay.url}`} className="text-xs cursor-pointer">
-                            {t('settings.network.write')}
+                            {intl.formatMessage({ id: 'settings.network.write', defaultMessage: "Write" })}
                           </Label>
                           <Switch
                             id={`write-${relay.url}`}
@@ -446,7 +446,7 @@ export function RelayListManager() {
           <div className="flex gap-2">
             <div className="flex-1">
               <Label htmlFor="new-relay-url" className="sr-only">
-                {t('settings.network.relayUrl')}
+                {intl.formatMessage({ id: 'settings.network.relayUrl', defaultMessage: "Relay URL" })}
               </Label>
               <Input
                 id="new-relay-url"
@@ -469,13 +469,13 @@ export function RelayListManager() {
               className="h-9 shrink-0 text-xs"
             >
               <Plus className="h-3.5 w-3.5 mr-1.5" />
-              {t('common.add')}
+              {intl.formatMessage({ id: 'common.add', defaultMessage: "Add" })}
             </Button>
           </div>
 
           {!user && (
             <p className="text-[10px] text-muted-foreground mt-2">
-              {t('settings.network.loginToSync')}
+              {intl.formatMessage({ id: 'settings.network.loginToSync', defaultMessage: "Log in to sync your relay list with Nostr" })}
             </p>
           )}
         </div>

@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Bell, BellOff, AlertTriangle, ClipboardCheck, Heart, Quote, Repeat2, Zap, AtSign, MessageSquare, Users, Award, Mail, Radio, MonitorSmartphone } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -22,54 +22,74 @@ interface NotificationTypeRow {
   key: NotificationPrefKey;
   kinds: number[];
   icon: React.ReactNode;
+  label: string;
+  description: string;
 }
 
-// Labels and descriptions resolve via `settings.notifications.type.<key>.*` at render.
+// English source strings live inline; ids resolve via `settings.notifications.type.<key>.*`.
 const NOTIFICATION_TYPES: NotificationTypeRow[] = [
   {
     key: 'reactions',
     kinds: [7],
     icon: <Heart className="size-5" />,
+    label: 'Reactions',
+    description: 'When someone reacts to your posts',
   },
   {
     key: 'reposts',
     kinds: [6, 16],
     icon: <Repeat2 className="size-5" />,
+    label: 'Reposts',
+    description: 'When someone reposts your notes',
   },
   {
     key: 'zaps',
     kinds: [9735, 8333],
     icon: <Zap className="size-5" />,
+    label: 'Zaps',
+    description: 'When someone sends you a lightning or on-chain zap',
   },
   {
     key: 'mentions',
     kinds: [1],
     icon: <AtSign className="size-5" />,
+    label: 'Mentions',
+    description: 'When someone mentions you in a note',
   },
   {
     key: 'comments',
     kinds: [1111],
     icon: <MessageSquare className="size-5" />,
+    label: 'Comments & Replies',
+    description: 'When someone comments on or replies to your posts',
   },
   {
     key: 'badges',
     kinds: [8],
     icon: <Award className="size-5" />,
+    label: 'Badge Awards',
+    description: 'When someone awards you a badge',
   },
   {
     key: 'letters',
     kinds: [8211],
     icon: <Mail className="size-5" />,
+    label: 'Letters',
+    description: 'When someone sends you a letter',
   },
   {
     key: 'highlights',
     kinds: [9802],
     icon: <Quote className="size-5" />,
+    label: 'Highlights',
+    description: 'When someone highlights your content',
   },
   {
     key: 'quizzes',
     kinds: [7849],
     icon: <ClipboardCheck className="size-5" />,
+    label: 'Quizzes',
+    description: 'When someone takes your quiz',
   },
 ];
 
@@ -134,7 +154,7 @@ function NotifRow({
 }
 
 export function NotificationSettings() {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { settings, updateSettings } = useEncryptedSettings();
@@ -203,8 +223,8 @@ export function NotificationSettings() {
   }, [isAndroid, notificationStyle, pushEnabled]);
 
   useSeoMeta({
-    title: `${t('settings.notifications.title')} | ${t('settings.title')} | ${config.appName}`,
-    description: t('settings.notifications.metaDescription'),
+    title: `${intl.formatMessage({ id: 'settings.notifications.title', defaultMessage: "Notifications" })} | ${intl.formatMessage({ id: 'settings.title', defaultMessage: "Settings" })} | ${config.appName}`,
+    description: intl.formatMessage({ id: 'settings.notifications.metaDescription', defaultMessage: "Configure your notification preferences" }),
   });
 
   useEffect(() => {
@@ -228,7 +248,7 @@ export function NotificationSettings() {
           await enablePush(user.pubkey, prefs);
         } catch (err) {
           console.error('[push] Registration failed:', err);
-          toast({ title: t('settings.notifications.enableFailed'), description: t('settings.notifications.enableFailedDescription') });
+          toast({ title: intl.formatMessage({ id: 'settings.notifications.enableFailed', defaultMessage: "Failed to enable notifications" }), description: intl.formatMessage({ id: 'settings.notifications.enableFailedDescription', defaultMessage: "Please try again." }) });
           return; // Don't persist enabled=true if registration failed
         }
       }
@@ -316,9 +336,9 @@ export function NotificationSettings() {
         alwaysShowBack
         titleContent={
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold">{t('settings.notifications.title')}</h1>
+            <h1 className="text-xl font-bold">{intl.formatMessage({ id: 'settings.notifications.title', defaultMessage: "Notifications" })}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {t('settings.notifications.subtitle')}
+              {intl.formatMessage({ id: 'settings.notifications.subtitle', defaultMessage: "Customize which notifications you receive." })}
             </p>
           </div>
         }
@@ -326,12 +346,12 @@ export function NotificationSettings() {
 
       <div className="p-4">
         {/* Push Notifications */}
-        <SectionHeader title={t('settings.notifications.pushTitle')} />
+        <SectionHeader title={intl.formatMessage({ id: 'settings.notifications.pushTitle', defaultMessage: "Push Notifications" })} />
         <div className="pb-4">
           <NotifRow
             icon={pushEnabled ? <Bell className="size-5" /> : <BellOff className="size-5" />}
-            label={t('settings.notifications.enablePush')}
-            description={t('settings.notifications.enablePushDescription')}
+            label={intl.formatMessage({ id: 'settings.notifications.enablePush', defaultMessage: "Enable Push Notifications" })}
+            description={intl.formatMessage({ id: 'settings.notifications.enablePushDescription', defaultMessage: "Receive notifications for activity on your posts" })}
             checked={pushEnabled}
             onCheckedChange={handleTogglePush}
             disabled={!isSupported || isDenied}
@@ -339,13 +359,13 @@ export function NotificationSettings() {
           {!isSupported && (
             <div className="flex items-center gap-2 px-3 pb-3 text-muted-foreground">
               <AlertTriangle className="size-3.5 shrink-0" />
-              <p className="text-xs">{t('settings.notifications.notSupported')}</p>
+              <p className="text-xs">{intl.formatMessage({ id: 'settings.notifications.notSupported', defaultMessage: "Your browser does not support push notifications." })}</p>
             </div>
           )}
           {isDenied && (
             <div className="flex items-center gap-2 px-3 pb-3 text-destructive">
               <AlertTriangle className="size-3.5 shrink-0" />
-              <p className="text-xs">{t('settings.notifications.blocked')}</p>
+              <p className="text-xs">{intl.formatMessage({ id: 'settings.notifications.blocked', defaultMessage: "Notifications are blocked. Update your browser settings to allow notifications from this site." })}</p>
             </div>
           )}
         </div>
@@ -354,10 +374,10 @@ export function NotificationSettings() {
             On iOS both modes use BGAppRefreshTask so the choice is meaningless. */}
         {isAndroid && pushEnabled && (
           <>
-            <SectionHeader title={t('settings.notifications.deliveryMethod')} />
+            <SectionHeader title={intl.formatMessage({ id: 'settings.notifications.deliveryMethod', defaultMessage: "Delivery Method" })} />
             <div className="pb-4">
               <p className="text-xs text-muted-foreground px-3 pt-3 pb-4">
-                {t('settings.notifications.deliveryMethodDescription')}
+                {intl.formatMessage({ id: 'settings.notifications.deliveryMethodDescription', defaultMessage: "Choose how notifications are delivered to your device." })}
               </p>
               <RadioGroup
                 value={notificationStyle}
@@ -369,10 +389,10 @@ export function NotificationSettings() {
                   <Label htmlFor="style-push" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2">
                       <Radio className="size-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{t('settings.notifications.stylePush')}</span>
+                      <span className="text-sm font-medium">{intl.formatMessage({ id: 'settings.notifications.stylePush', defaultMessage: "Push" })}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {t('settings.notifications.stylePushDescription')}
+                      {intl.formatMessage({ id: 'settings.notifications.stylePushDescription', defaultMessage: "Standard notifications. No persistent status bar icon." })}
                     </p>
                   </Label>
                 </div>
@@ -381,10 +401,10 @@ export function NotificationSettings() {
                   <Label htmlFor="style-persistent" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2">
                       <MonitorSmartphone className="size-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{t('settings.notifications.stylePersistent')}</span>
+                      <span className="text-sm font-medium">{intl.formatMessage({ id: 'settings.notifications.stylePersistent', defaultMessage: "Persistent" })}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {t('settings.notifications.stylePersistentDescription')}
+                      {intl.formatMessage({ id: 'settings.notifications.stylePersistentDescription', defaultMessage: "Keeps a live relay connection open in the background so notifications arrive instantly. Use this for reliable delivery on devices without push notification support." })}
                     </p>
                   </Label>
                 </div>
@@ -398,7 +418,7 @@ export function NotificationSettings() {
                     <AlertTriangle className="size-4 shrink-0 text-amber-500 mt-0.5" />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs">
-                        {t('settings.notifications.batteryWarning', { appName: config.appName })}
+                        {intl.formatMessage({ id: 'settings.notifications.batteryWarning', defaultMessage: "Battery optimization is enabled for {appName}. Android may cut the background relay connection and prevent it from resuming after a reboot." }, { appName: config.appName })}
                       </p>
                       <Button
                         size="sm"
@@ -411,7 +431,7 @@ export function NotificationSettings() {
                           setBatteryOptimized(!ignoring);
                         }}
                       >
-                        {t('settings.notifications.disableBatteryOptimization')}
+                        {intl.formatMessage({ id: 'settings.notifications.disableBatteryOptimization', defaultMessage: "Disable battery optimization" })}
                       </Button>
                     </div>
                   </div>
@@ -422,18 +442,18 @@ export function NotificationSettings() {
         )}
 
         {/* Filter + Notify Me About — one continuous block */}
-        <SectionHeader title={t('settings.notifications.notifyMeAbout')} />
+        <SectionHeader title={intl.formatMessage({ id: 'settings.notifications.notifyMeAbout', defaultMessage: "Notify Me About" })} />
         <div className="pb-4">
           {/* Filter sub-section */}
           <div className="px-3 pt-4 pb-2">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {t('settings.notifications.filter')}
+              {intl.formatMessage({ id: 'settings.notifications.filter', defaultMessage: "Filter" })}
             </span>
           </div>
           <NotifRow
             icon={<Users className="size-5" />}
-            label={t('settings.notifications.onlyFollowing')}
-            description={t('settings.notifications.onlyFollowingDescription')}
+            label={intl.formatMessage({ id: 'settings.notifications.onlyFollowing', defaultMessage: "Only from people I follow" })}
+            description={intl.formatMessage({ id: 'settings.notifications.onlyFollowingDescription', defaultMessage: "Hide notifications from accounts you don't follow" })}
             checked={prefs.onlyFollowing === true}
             onCheckedChange={handleToggleOnlyFollowing}
             noBorder
@@ -442,16 +462,16 @@ export function NotificationSettings() {
           {/* Types sub-section */}
           <div className="px-3 pt-4 pb-2">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {t('settings.notifications.types')}
+              {intl.formatMessage({ id: 'settings.notifications.types', defaultMessage: "Types" })}
             </span>
           </div>
           {NOTIFICATION_TYPES.map((type) => (
             <NotifRow
               key={type.key}
               icon={type.icon}
-              label={t(`settings.notifications.type.${type.key}.label`)}
+              label={intl.formatMessage({ id: `settings.notifications.type.${type.key}.label`, defaultMessage: type.label })}
               kinds={type.kinds}
-              description={t(`settings.notifications.type.${type.key}.description`)}
+              description={intl.formatMessage({ id: `settings.notifications.type.${type.key}.description`, defaultMessage: type.description })}
               checked={prefs[type.key] !== false}
               onCheckedChange={(enabled) => handleToggleType(type.key, enabled)}
             />

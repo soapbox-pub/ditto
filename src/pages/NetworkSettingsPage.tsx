@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@/hooks/useSeoMeta';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import { Navigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { RelayListManager } from '@/components/RelayListManager';
@@ -12,13 +12,13 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { cn } from '@/lib/utils';
 
 export function NetworkSettingsPage() {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
 
   useSeoMeta({
-    title: `${t('settings.sections.network.label')} | ${t('settings.title')} | ${config.appName}`,
-    description: t('settings.network.metaDescription'),
+    title: `${intl.formatMessage({ id: 'settings.sections.network.label', defaultMessage: "Network" })} | ${intl.formatMessage({ id: 'settings.title', defaultMessage: "Settings" })} | ${config.appName}`,
+    description: intl.formatMessage({ id: 'settings.network.metaDescription', defaultMessage: "Manage relays and file upload servers" }),
   });
 
   if (!user) {
@@ -33,9 +33,9 @@ export function NetworkSettingsPage() {
         alwaysShowBack
         titleContent={
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold flex items-center gap-1.5">{t('settings.sections.network.label')} <HelpTip faqId="what-is-nostr" /></h1>
+            <h1 className="text-xl font-bold flex items-center gap-1.5">{intl.formatMessage({ id: 'settings.sections.network.label', defaultMessage: "Network" })} <HelpTip faqId="what-is-nostr" /></h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {t('settings.network.pageDescription')}
+              {intl.formatMessage({ id: 'settings.network.pageDescription', defaultMessage: "Relays are servers that store and distribute content across the Nostr network. Blossom servers handle file uploads." })}
             </p>
           </div>
         }
@@ -46,9 +46,9 @@ export function NetworkSettingsPage() {
         <div className="flex items-center gap-4 px-3 pt-2 pb-4">
           <IntroImage src="/relay-intro.png" />
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold">{t('settings.network.networkConnections')}</h2>
+            <h2 className="text-sm font-semibold">{intl.formatMessage({ id: 'settings.network.networkConnections', defaultMessage: "Network Connections" })}</h2>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              {t('settings.network.networkConnectionsDescription')}
+              {intl.formatMessage({ id: 'settings.network.networkConnectionsDescription', defaultMessage: "Manage your relay connections. Relays are servers that store and distribute Nostr events across the network." })}
             </p>
           </div>
         </div>
@@ -56,7 +56,7 @@ export function NetworkSettingsPage() {
         {/* Relays */}
         <div>
           <div className="relative px-3 py-3.5">
-            <h2 className="text-base font-semibold flex items-center gap-1.5">{t('settings.network.relays')} <HelpTip faqId="what-are-relays" /></h2>
+            <h2 className="text-base font-semibold flex items-center gap-1.5">{intl.formatMessage({ id: 'settings.network.relays', defaultMessage: "Relays" })} <HelpTip faqId="what-are-relays" /></h2>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
           </div>
           <div className="pt-2 pb-4">
@@ -67,7 +67,7 @@ export function NetworkSettingsPage() {
         {/* Blossom Servers */}
         <div>
           <div className="relative px-3 py-3.5">
-            <h2 className="text-base font-semibold flex items-center gap-1.5">{t('settings.network.blossomServers')} <HelpTip faqId="what-are-blossom" /></h2>
+            <h2 className="text-base font-semibold flex items-center gap-1.5">{intl.formatMessage({ id: 'settings.network.blossomServers', defaultMessage: "Blossom Servers" })} <HelpTip faqId="what-are-blossom" /></h2>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
           </div>
           <div className="pt-2 pb-4">
@@ -78,14 +78,14 @@ export function NetworkSettingsPage() {
         {/* Image Upload Quality */}
         <div>
           <div className="relative px-3 py-3.5">
-            <h2 className="text-base font-semibold">{t('settings.network.imageUploads')}</h2>
+            <h2 className="text-base font-semibold">{intl.formatMessage({ id: 'settings.network.imageUploads', defaultMessage: "Image Uploads" })}</h2>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
           </div>
           <div className="pt-4 pb-4 px-3 space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">{t('settings.network.uploadQuality')}</Label>
+              <Label className="text-sm font-medium">{intl.formatMessage({ id: 'settings.network.uploadQuality', defaultMessage: "Upload quality" })}</Label>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                {t('settings.network.uploadQualityDescription')}
+                {intl.formatMessage({ id: 'settings.network.uploadQualityDescription', defaultMessage: "Compressed resizes large images and picks the smallest format. Original uploads images exactly as-is." })}
               </p>
             </div>
             <div className="inline-flex items-center gap-0.5 p-1 bg-muted/50 rounded-lg">
@@ -100,7 +100,7 @@ export function NetworkSettingsPage() {
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  {t(`settings.network.imageQuality.${value}`)}
+                  {intl.formatMessage({ id: `settings.network.imageQuality.${value}`, defaultMessage: value })}
                 </button>
               ))}
             </div>

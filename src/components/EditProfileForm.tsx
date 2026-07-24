@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -52,7 +52,7 @@ interface EditProfileFormProps {
 }
 
 export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange }) => {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -168,7 +168,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       imageSrc: objectUrl,
       aspect: field === 'picture' ? 1 : 3,
       field,
-      title: field === 'picture' ? t('editProfile.cropPictureTitle') : t('editProfile.cropBannerTitle'),
+      title: field === 'picture' ? intl.formatMessage({ id: 'editProfile.cropPictureTitle', defaultMessage: "Crop Profile Picture" }) : intl.formatMessage({ id: 'editProfile.cropBannerTitle', defaultMessage: "Crop Banner Image" }),
     });
   };
 
@@ -185,14 +185,14 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       form.setValue(field, url);
       notifyChange();
       toast({
-        title: t('editProfile.toast.success'),
-        description: field === 'picture' ? t('editProfile.toast.pictureUploaded') : t('editProfile.toast.bannerUploaded'),
+        title: intl.formatMessage({ id: 'editProfile.toast.success', defaultMessage: "Success" }),
+        description: field === 'picture' ? intl.formatMessage({ id: 'editProfile.toast.pictureUploaded', defaultMessage: "Profile picture uploaded successfully" }) : intl.formatMessage({ id: 'editProfile.toast.bannerUploaded', defaultMessage: "Banner uploaded successfully" }),
       });
     } catch (error) {
       console.error(`Failed to upload ${field}:`, error);
       toast({
-        title: t('editProfile.toast.error'),
-        description: field === 'picture' ? t('editProfile.toast.pictureUploadFailed') : t('editProfile.toast.bannerUploadFailed'),
+        title: intl.formatMessage({ id: 'editProfile.toast.error', defaultMessage: "Error" }),
+        description: field === 'picture' ? intl.formatMessage({ id: 'editProfile.toast.pictureUploadFailed', defaultMessage: "Failed to upload profile picture. Please try again." }) : intl.formatMessage({ id: 'editProfile.toast.bannerUploadFailed', defaultMessage: "Failed to upload banner. Please try again." }),
         variant: 'destructive',
       });
     }
@@ -208,8 +208,8 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
   const onSubmit = async (values: ExtendedMetadata) => {
     if (!user) {
       toast({
-        title: t('editProfile.toast.error'),
-        description: t('editProfile.toast.notLoggedIn'),
+        title: intl.formatMessage({ id: 'editProfile.toast.error', defaultMessage: "Error" }),
+        description: intl.formatMessage({ id: 'editProfile.toast.notLoggedIn', defaultMessage: "You must be logged in to update your profile" }),
         variant: 'destructive',
       });
       return;
@@ -260,14 +260,14 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
 
       toast({
-        title: t('editProfile.toast.success'),
-        description: t('editProfile.toast.profileUpdated'),
+        title: intl.formatMessage({ id: 'editProfile.toast.success', defaultMessage: "Success" }),
+        description: intl.formatMessage({ id: 'editProfile.toast.profileUpdated', defaultMessage: "Your profile has been updated" }),
       });
     } catch (error) {
       console.error('Failed to update profile:', error);
       toast({
-        title: t('editProfile.toast.error'),
-        description: t('editProfile.toast.updateFailed'),
+        title: intl.formatMessage({ id: 'editProfile.toast.error', defaultMessage: "Error" }),
+        description: intl.formatMessage({ id: 'editProfile.toast.updateFailed', defaultMessage: "Failed to update your profile. Please try again." }),
         variant: 'destructive',
       });
     }
@@ -279,9 +279,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       <div className="flex items-center gap-4 px-3 pt-2 pb-4">
         <IntroImage src="/profile-intro.png" />
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold">{t('editProfile.identity.title')}</h2>
+          <h2 className="text-sm font-semibold">{intl.formatMessage({ id: 'editProfile.identity.title', defaultMessage: "Your Identity" })}</h2>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            {t('editProfile.identity.description')}
+            {intl.formatMessage({ id: 'editProfile.identity.description', defaultMessage: "Customize your profile with a name, bio, images, and verification. This is how others will see you on Nostr." })}
           </p>
         </div>
       </div>
@@ -306,12 +306,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs font-medium">{t('editProfile.name.label')}</FormLabel>
+                  <FormLabel className="text-xs font-medium">{intl.formatMessage({ id: 'editProfile.name.label', defaultMessage: "Name" })}</FormLabel>
                   <FormControl>
-                    <Input placeholder={t('editProfile.name.placeholder')} {...field} className="h-9" />
+                    <Input placeholder={intl.formatMessage({ id: 'editProfile.name.placeholder', defaultMessage: "Your name" })} {...field} className="h-9" />
                   </FormControl>
                   <FormDescription className="text-xs">
-                    {t('editProfile.name.description')}
+                    {intl.formatMessage({ id: 'editProfile.name.description', defaultMessage: "This is your display name that will be displayed to others." })}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -325,16 +325,16 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
               name="about"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs font-medium">{t('editProfile.about.label')}</FormLabel>
+                  <FormLabel className="text-xs font-medium">{intl.formatMessage({ id: 'editProfile.about.label', defaultMessage: "Bio" })}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder={t('editProfile.about.placeholder')}
+                      placeholder={intl.formatMessage({ id: 'editProfile.about.placeholder', defaultMessage: "Tell others about yourself" })}
                       className="resize-none min-h-20"
                       {...field}
                     />
                   </FormControl>
                   <FormDescription className="text-xs">
-                    {t('editProfile.about.description')}
+                    {intl.formatMessage({ id: 'editProfile.about.description', defaultMessage: "A short description about yourself." })}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -350,9 +350,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                 render={({ field }) => (
                   <ImageUploadField
                     field={field}
-                    label={t('editProfile.picture.label')}
+                    label={intl.formatMessage({ id: 'editProfile.picture.label', defaultMessage: "Profile Picture" })}
                     placeholder="https://example.com/profile.jpg"
-                    description={t('editProfile.picture.description')}
+                    description={intl.formatMessage({ id: 'editProfile.picture.description', defaultMessage: "Upload an image or provide a URL" })}
                     previewType="square"
                     onPickFile={(file) => openCropDialog(file, 'picture')}
                   />
@@ -365,9 +365,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                 render={({ field }) => (
                   <ImageUploadField
                     field={field}
-                    label={t('editProfile.banner.label')}
+                    label={intl.formatMessage({ id: 'editProfile.banner.label', defaultMessage: "Banner Image" })}
                     placeholder="https://example.com/banner.jpg"
-                    description={t('editProfile.banner.description')}
+                    description={intl.formatMessage({ id: 'editProfile.banner.description', defaultMessage: "Wide banner image for your profile" })}
                     previewType="wide"
                     onPickFile={(file) => openCropDialog(file, 'banner')}
                   />
@@ -383,12 +383,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                 name="website"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-medium">{t('editProfile.website.label')}</FormLabel>
+                    <FormLabel className="text-xs font-medium">{intl.formatMessage({ id: 'editProfile.website.label', defaultMessage: "Website" })}</FormLabel>
                     <FormControl>
                       <Input placeholder="https://yourwebsite.com" {...field} className="h-9" />
                     </FormControl>
                     <FormDescription className="text-xs">
-                      {t('editProfile.website.description')}
+                      {intl.formatMessage({ id: 'editProfile.website.description', defaultMessage: "Your personal website or social link" })}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -400,12 +400,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                 name="nip05"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-medium">{t('editProfile.nip05.label')}</FormLabel>
+                    <FormLabel className="text-xs font-medium">{intl.formatMessage({ id: 'editProfile.nip05.label', defaultMessage: "NIP-05 Identifier" })}</FormLabel>
                     <FormControl>
                       <Input placeholder="you@example.com" {...field} className="h-9" />
                     </FormControl>
                     <FormDescription className="text-xs">
-                      {t('editProfile.nip05.description')}
+                      {intl.formatMessage({ id: 'editProfile.nip05.description', defaultMessage: "Your verified Nostr identifier" })}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -417,12 +417,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                 name="lud16"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-medium">{t('editProfile.lud16.label')}</FormLabel>
+                    <FormLabel className="text-xs font-medium">{intl.formatMessage({ id: 'editProfile.lud16.label', defaultMessage: "Lightning Address" })}</FormLabel>
                     <FormControl>
                       <Input placeholder="you@walletofsatoshi.com" {...field} className="h-9" />
                     </FormControl>
                     <FormDescription className="text-xs">
-                      {t('editProfile.lud16.description')}
+                      {intl.formatMessage({ id: 'editProfile.lud16.description', defaultMessage: "Your lightning address for receiving zaps" })}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -436,9 +436,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <FormLabel className="text-xs font-medium">{t('editProfile.fields.label')}</FormLabel>
+                  <FormLabel className="text-xs font-medium">{intl.formatMessage({ id: 'editProfile.fields.label', defaultMessage: "Profile Fields" })}</FormLabel>
                   <FormDescription className="text-xs mt-1">
-                    {t('editProfile.fields.description')}
+                    {intl.formatMessage({ id: 'editProfile.fields.description', defaultMessage: "Add custom fields like social links, Bitcoin address, or other info" })}
                   </FormDescription>
                 </div>
                 <Button
@@ -449,7 +449,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                   className="h-8 text-xs"
                 >
                   <Plus className="h-3 w-3 mr-1" />
-                  {t('editProfile.fields.addField')}
+                  {intl.formatMessage({ id: 'editProfile.fields.addField', defaultMessage: "Add Field" })}
                 </Button>
               </div>
 
@@ -464,7 +464,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                           <FormItem>
                             <FormControl>
                               <Input
-                                placeholder={t('editProfile.fields.labelPlaceholder')}
+                                placeholder={intl.formatMessage({ id: 'editProfile.fields.labelPlaceholder', defaultMessage: "Label" })}
                                 {...field}
                                 className="h-9"
                               />
@@ -480,7 +480,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                           <FormItem>
                             <FormControl>
                               <Input
-                                placeholder={t('editProfile.fields.valuePlaceholder')}
+                                placeholder={intl.formatMessage({ id: 'editProfile.fields.valuePlaceholder', defaultMessage: "Value or URL" })}
                                 {...field}
                                 className="h-9"
                               />
@@ -495,7 +495,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                         size="icon"
                         onClick={() => remove(index)}
                         className="h-9 w-9 text-destructive hover:text-destructive"
-                        title={t('editProfile.fields.removeField')}
+                        title={intl.formatMessage({ id: 'editProfile.fields.removeField', defaultMessage: "Remove field" })}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -515,7 +515,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                   variant="ghost"
                   className="w-full justify-between p-0 h-auto hover:bg-transparent"
                 >
-                  <span className="text-xs font-medium text-muted-foreground">{t('editProfile.advanced')}</span>
+                  <span className="text-xs font-medium text-muted-foreground">{intl.formatMessage({ id: 'editProfile.advanced', defaultMessage: "Advanced Settings" })}</span>
                   {showAdvanced ? (
                     <ChevronUp className="h-4 w-4 text-muted-foreground" />
                   ) : (
@@ -530,9 +530,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                       <div className="space-y-0.5">
-                        <FormLabel className="text-sm">{t('editProfile.bot.label')}</FormLabel>
+                        <FormLabel className="text-sm">{intl.formatMessage({ id: 'editProfile.bot.label', defaultMessage: "Bot Account" })}</FormLabel>
                         <FormDescription className="text-xs">
-                          {t('editProfile.bot.description')}
+                          {intl.formatMessage({ id: 'editProfile.bot.description', defaultMessage: "Mark this account as automated or a bot" })}
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -558,7 +558,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
               {(isPending || isUploading) && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              {t('editProfile.save')}
+              {intl.formatMessage({ id: 'editProfile.save', defaultMessage: "Save Profile" })}
             </Button>
           </div>
         </form>
@@ -590,7 +590,7 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   previewType,
   onPickFile,
 }) => {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
@@ -630,13 +630,13 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
             className="h-8 text-xs"
           >
             <Upload className="h-3 w-3 mr-1.5" />
-            {t('editProfile.uploadCrop')}
+            {intl.formatMessage({ id: 'editProfile.uploadCrop', defaultMessage: "Upload & Crop" })}
           </Button>
           {field.value && (
             <div className={`h-8 ${previewType === 'square' ? 'w-8' : 'w-20'} rounded overflow-hidden border`}>
               <img
                 src={field.value}
-                alt={t('editProfile.previewAlt', { label })}
+                alt={intl.formatMessage({ id: 'editProfile.previewAlt', defaultMessage: "{label} preview" }, { label })}
                 className="h-full w-full object-cover"
               />
             </div>

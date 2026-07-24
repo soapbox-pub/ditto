@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import { Play, Pause, Music, Clock } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 
 /** Rich music widget showing the latest track with playback controls. */
 export function MusicWidget() {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
@@ -58,19 +58,19 @@ export function MusicWidget() {
   }
 
   if (!event) {
-    return <p className="text-sm text-muted-foreground p-1">{t('widgets.music.empty')}</p>;
+    return <p className="text-sm text-muted-foreground p-1">{intl.formatMessage({ id: 'widgets.music.empty', defaultMessage: "No music yet." })}</p>;
   }
 
   return <MusicCard event={event} />;
 }
 
 function MusicCard({ event }: { event: NostrEvent }) {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const player = useAudioPlayer();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || t('common.anonymous');
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
 
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
   const encodedId = useMemo(() => {

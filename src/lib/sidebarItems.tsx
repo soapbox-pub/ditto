@@ -49,7 +49,7 @@ import {
   User,
   Zap,
 } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { useIntl } from "react-intl";
 import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
 import { PlanetIcon } from "@/components/icons/PlanetIcon";
@@ -275,9 +275,9 @@ export function itemLabel(id: string): string {
  * pass through untranslated.
  */
 export function useItemLabel(id: string): string {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const fallback = SIDEBAR_ITEM_MAP.get(id)?.label;
-  return fallback ? t(`nav.${id}`, { defaultValue: fallback }) : id;
+  return fallback ? intl.formatMessage({ id: `nav.${id}`, defaultMessage: fallback }) : id;
 }
 
 /** Lookup navigation path for a sidebar item ID. */

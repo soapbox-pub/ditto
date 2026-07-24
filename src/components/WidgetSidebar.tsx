@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, lazy, Suspense, memo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import {
   DndContext,
   closestCenter,
@@ -46,7 +46,7 @@ const WidgetPickerDialog = lazy(() => import('@/components/WidgetPickerDialog').
 // ── Widget content resolver ──────────────────────────────────────────────────
 
 function WidgetContent({ id }: { id: string }) {
-  const { t } = useTranslation();
+  const intl = useIntl();
 
   switch (id) {
     case 'trends':
@@ -70,12 +70,12 @@ function WidgetContent({ id }: { id: string }) {
     case 'feed:music':
       return <MusicWidget />;
     case 'feed:articles':
-      return <FeedWidget kinds={[30023]} feedPath="/articles" feedLabel={t('widgets.articles.viewAll')} />;
+      return <FeedWidget kinds={[30023]} feedPath="/articles" feedLabel={intl.formatMessage({ id: 'widgets.articles.viewAll', defaultMessage: "View all articles" })} />;
     case 'feed:events':
-      return <FeedWidget kinds={[31922, 31923]} feedPath="/events" feedLabel={t('widgets.events.viewAll')} />;
+      return <FeedWidget kinds={[31922, 31923]} feedPath="/events" feedLabel={intl.formatMessage({ id: 'widgets.events.viewAll', defaultMessage: "View all events" })} />;
 
     default:
-      return <p className="text-xs text-muted-foreground p-1">{t('widgets.common.unknownWidget')}</p>;
+      return <p className="text-xs text-muted-foreground p-1">{intl.formatMessage({ id: 'widgets.common.unknownWidget', defaultMessage: "Unknown widget." })}</p>;
   }
 }
 
@@ -92,15 +92,15 @@ function WidgetSkeleton() {
 
 /** Compact fallback shown when a widget crashes. */
 function WidgetErrorFallback({ name }: { name: string }) {
-  const { t } = useTranslation();
+  const intl = useIntl();
   return (
     <div className="flex flex-col items-center gap-2 py-4 px-3 text-center">
-      <p className="text-xs text-muted-foreground">{t('widgets.common.loadFailed', { name })}</p>
+      <p className="text-xs text-muted-foreground">{intl.formatMessage({ id: 'widgets.common.loadFailed', defaultMessage: "{name} failed to load." }, { name })}</p>
       <button
         onClick={() => window.location.reload()}
         className="text-xs text-primary hover:underline"
       >
-        {t('widgets.common.reloadPage')}
+        {intl.formatMessage({ id: 'widgets.common.reloadPage', defaultMessage: "Reload page" })}
       </button>
     </div>
   );
@@ -157,7 +157,7 @@ const SortableWidget = memo(function SortableWidget({ config, definition, onRemo
 const EMPTY_WIDGETS: WidgetConfig[] = [];
 
 export function WidgetSidebar() {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const { config, updateConfig } = useAppContext();
   const { user } = useCurrentUser();
   const { updateSettings } = useEncryptedSettings();
@@ -244,7 +244,7 @@ export function WidgetSidebar() {
               className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-background/85 text-muted-foreground hover:text-foreground hover:bg-background transition-colors text-xs"
             >
               <Plus className="size-3.5" />
-              {t('widgets.common.addWidget')}
+              {intl.formatMessage({ id: 'widgets.common.addWidget', defaultMessage: "Add widget" })}
             </button>
           </div>
         </SortableContext>

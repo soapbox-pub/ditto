@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Plus, Pencil, Check, SeparatorHorizontal, Search, ChevronDown, ChevronUp, LinkIcon } from 'lucide-react';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -85,8 +85,8 @@ function ScrollCaret({ direction, onMouseEnter, onMouseLeave }: { direction: 'up
 }
 
 function ItemRow({ item, onAdd, onClose }: { item: HiddenSidebarItem; onAdd: (id: string) => void; onClose: () => void }) {
-  const { t } = useTranslation();
-  const label = t(`nav.${item.id}`, { defaultValue: item.label });
+  const intl = useIntl();
+  const label = intl.formatMessage({ id: `nav.${item.id}`, defaultMessage: item.label });
   return (
     <div className="flex items-center">
       <button
@@ -99,7 +99,7 @@ function ItemRow({ item, onAdd, onClose }: { item: HiddenSidebarItem; onAdd: (id
       <button
         onClick={() => { onAdd(item.id); onClose(); }}
         className="size-8 flex items-center justify-center shrink-0 rounded-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-        title={t('sidebar.addToSidebar', { label })}
+        title={intl.formatMessage({ id: 'sidebar.addToSidebar', defaultMessage: "Add {label} to sidebar" }, { label })}
       >
         <Plus className="size-4" strokeWidth={4} />
       </button>
@@ -110,7 +110,7 @@ function ItemRow({ item, onAdd, onClose }: { item: HiddenSidebarItem; onAdd: (id
 export function SidebarMoreMenu({
   editing, hiddenItems, onDoneEditing, onStartEditing, onAdd, onAddDivider, onNavigate, open, onOpenChange, homePage,
 }: SidebarMoreMenuProps) {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const [query, setQuery] = useState('');
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [addQuery, setAddQuery] = useState('');
@@ -119,7 +119,7 @@ export function SidebarMoreMenu({
   const [linkError, setLinkError] = useState('');
 
   /** Translated label for a hidden item, so menus and filtering match the UI language. */
-  const labelOf = useCallback((item: HiddenSidebarItem) => t(`nav.${item.id}`, { defaultValue: item.label }), [t]);
+  const labelOf = useCallback((item: HiddenSidebarItem) => intl.formatMessage({ id: `nav.${item.id}`, defaultMessage: item.label }), [intl]);
 
   const filtered = hiddenItems.filter((item) => labelOf(item).toLowerCase().includes(query.toLowerCase()));
   const addFiltered = hiddenItems.filter((item) => labelOf(item).toLowerCase().includes(addQuery.toLowerCase()));
@@ -141,7 +141,7 @@ export function SidebarMoreMenu({
     if (raw.startsWith('iso3166:')) {
       const code = raw.slice('iso3166:'.length);
       if (!/^[A-Za-z]{2}(-[A-Za-z0-9]+)?$/.test(code)) {
-        setLinkError(t('sidebar.invalidCountryCode'));
+        setLinkError(intl.formatMessage({ id: 'sidebar.invalidCountryCode', defaultMessage: "Invalid country/region code" }));
         return;
       }
       onAdd(raw);
@@ -165,7 +165,7 @@ export function SidebarMoreMenu({
       const subdomain = raw.slice('nsite://'.length);
       const parsed = parseNsiteSubdomain(subdomain);
       if (!parsed || parsed.kind !== 35128) {
-        setLinkError(t('sidebar.invalidNsite'));
+        setLinkError(intl.formatMessage({ id: 'sidebar.invalidNsite', defaultMessage: "Invalid nsite identifier (only named sites are supported)" }));
         return;
       }
       onAdd(raw);
@@ -183,11 +183,11 @@ export function SidebarMoreMenu({
       const decoded = nip19.decode(bech32);
       const validTypes = ['npub', 'nprofile', 'note', 'nevent', 'naddr'];
       if (!validTypes.includes(decoded.type)) {
-        setLinkError(t('sidebar.unsupportedIdentifier'));
+        setLinkError(intl.formatMessage({ id: 'sidebar.unsupportedIdentifier', defaultMessage: "Unsupported identifier type" }));
         return;
       }
     } catch {
-      setLinkError(t('sidebar.invalidIdentifier'));
+      setLinkError(intl.formatMessage({ id: 'sidebar.invalidIdentifier', defaultMessage: "Invalid identifier" }));
       return;
     }
 
@@ -209,26 +209,26 @@ export function SidebarMoreMenu({
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85">
               <Plus className="size-4" />
-              <span>{t('common.add')}</span>
+              <span>{intl.formatMessage({ id: 'common.add', defaultMessage: "Add" })}</span>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="start" collisionPadding={8} className="w-[240px] p-1 flex flex-col max-h-[calc(var(--radix-dropdown-menu-content-available-height)-12px-var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]">
             <div className="flex items-center gap-3 px-2 py-2 shrink-0">
               <Search className="size-5 shrink-0" />
-              <input value={addQuery} onChange={(e) => setAddQuery(e.target.value)} placeholder={t('common.searchPlaceholder')} className="flex-1 min-w-0 bg-transparent text-base md:text-sm outline-none placeholder:text-muted-foreground/60" autoFocus />
+              <input value={addQuery} onChange={(e) => setAddQuery(e.target.value)} placeholder={intl.formatMessage({ id: 'common.searchPlaceholder', defaultMessage: "Search..." })} className="flex-1 min-w-0 bg-transparent text-base md:text-sm outline-none placeholder:text-muted-foreground/60" autoFocus />
             </div>
             <div className="h-px bg-border mb-1 shrink-0" />
             {add.canScrollUp && <ScrollCaret direction="up" onMouseEnter={() => add.startScroll('up')} onMouseLeave={add.stopScroll} />}
             <div ref={add.refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={add.onScroll}>
               {addFiltered.map((item) => <ItemRow key={item.id} item={item} onAdd={onAdd} onClose={() => setAddMenuOpen(false)} />)}
-              {addFiltered.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground text-center">{t('common.noResults')}</p>}
+              {addFiltered.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground text-center">{intl.formatMessage({ id: 'common.noResults', defaultMessage: "No results" })}</p>}
             </div>
             {add.canScrollDown && <ScrollCaret direction="down" onMouseEnter={() => add.startScroll('down')} onMouseLeave={add.stopScroll} />}
           </DropdownMenuContent>
         </DropdownMenu>
         <button onClick={onAddDivider} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85">
           <SeparatorHorizontal className="size-4" />
-          <span>{t('sidebar.addDivider')}</span>
+          <span>{intl.formatMessage({ id: 'sidebar.addDivider', defaultMessage: "Add divider" })}</span>
         </button>
         {linkInput ? (
           <div className="flex flex-col gap-1 px-4 py-2 bg-background/85 rounded-2xl">
@@ -247,7 +247,7 @@ export function SidebarMoreMenu({
                     setLinkError('');
                   }
                 }}
-                placeholder={t('sidebar.linkInputPlaceholder')}
+                placeholder={intl.formatMessage({ id: 'sidebar.linkInputPlaceholder', defaultMessage: "URL, npub1..., nsite://..., ..." })}
                 className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
                 autoFocus
               />
@@ -258,13 +258,13 @@ export function SidebarMoreMenu({
                 onClick={handleAddLink}
                 className="text-xs font-medium text-primary hover:underline"
               >
-                {t('common.add')}
+                {intl.formatMessage({ id: 'common.add', defaultMessage: "Add" })}
               </button>
               <button
                 onClick={() => { setLinkInput(false); setLinkValue(''); setLinkError(''); }}
                 className="text-xs text-muted-foreground hover:underline"
               >
-                {t('common.cancel')}
+                {intl.formatMessage({ id: 'common.cancel', defaultMessage: "Cancel" })}
               </button>
             </div>
           </div>
@@ -274,12 +274,12 @@ export function SidebarMoreMenu({
             className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85"
           >
             <LinkIcon className="size-4" />
-            <span>{t('sidebar.addLink')}</span>
+            <span>{intl.formatMessage({ id: 'sidebar.addLink', defaultMessage: "Add link" })}</span>
           </button>
         )}
         <button onClick={onDoneEditing} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-primary font-medium hover:bg-primary/10 bg-background/85">
           <Check className="size-4" />
-          <span>{t('sidebar.doneEditing')}</span>
+          <span>{intl.formatMessage({ id: 'sidebar.doneEditing', defaultMessage: "Done editing" })}</span>
         </button>
       </div>
     );
@@ -290,13 +290,13 @@ export function SidebarMoreMenu({
       <DropdownMenuTrigger asChild>
         <button className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40 bg-background/85">
           {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-          <span>{t('sidebar.more')}</span>
+          <span>{intl.formatMessage({ id: 'sidebar.more', defaultMessage: "More..." })}</span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" collisionPadding={8} className="w-[240px] p-1 flex flex-col max-h-[calc(var(--radix-dropdown-menu-content-available-height)-12px-var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]">
         <div className="flex items-center gap-3 px-2 py-2 shrink-0">
           <Search className="size-5 shrink-0" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('common.searchPlaceholder')} className="flex-1 min-w-0 bg-transparent text-base md:text-sm outline-none placeholder:text-muted-foreground/60" autoFocus />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={intl.formatMessage({ id: 'common.searchPlaceholder', defaultMessage: "Search..." })} className="flex-1 min-w-0 bg-transparent text-base md:text-sm outline-none placeholder:text-muted-foreground/60" autoFocus />
         </div>
         <div className="h-px bg-border mb-1 shrink-0" />
         {main.canScrollUp && <ScrollCaret direction="up" onMouseEnter={() => main.startScroll('up')} onMouseLeave={main.stopScroll} />}
@@ -307,18 +307,18 @@ export function SidebarMoreMenu({
                 {sidebarItemIcon(item.id, 'size-5 shrink-0')}
                 <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{labelOf(item)}</span>
               </Link>
-              <button onClick={() => { onAdd(item.id); onOpenChange(false); }} className="size-8 flex items-center justify-center shrink-0 rounded-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title={t('sidebar.addToSidebar', { label: labelOf(item) })}>
+              <button onClick={() => { onAdd(item.id); onOpenChange(false); }} className="size-8 flex items-center justify-center shrink-0 rounded-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title={intl.formatMessage({ id: 'sidebar.addToSidebar', defaultMessage: "Add {label} to sidebar" }, { label: labelOf(item) })}>
                 <Plus className="size-4" strokeWidth={4} />
               </button>
             </div>
           ))}
-          {filtered.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground text-center">{t('common.noResults')}</p>}
+          {filtered.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground text-center">{intl.formatMessage({ id: 'common.noResults', defaultMessage: "No results" })}</p>}
         </div>
         {main.canScrollDown && <ScrollCaret direction="down" onMouseEnter={() => main.startScroll('down')} onMouseLeave={main.stopScroll} />}
         <div className="h-px bg-border my-1 shrink-0" />
         <button onClick={() => { onStartEditing(); onOpenChange(false); }} className="flex items-center gap-3 w-full px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors cursor-pointer shrink-0">
           <Pencil className="size-5" />
-          <span>{t('sidebar.editSidebar')}</span>
+          <span>{intl.formatMessage({ id: 'sidebar.editSidebar', defaultMessage: "Edit sidebar" })}</span>
         </button>
       </DropdownMenuContent>
     </DropdownMenu>

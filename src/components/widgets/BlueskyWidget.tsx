@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import { MessageCircle, Repeat2, Heart } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
@@ -42,7 +42,7 @@ function useBlueskyWidgetPosts() {
 
 /** Bluesky trending posts widget for the sidebar. */
 export function BlueskyWidget() {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const { data: posts, isLoading, isError } = useBlueskyWidgetPosts();
 
   if (isLoading) {
@@ -63,11 +63,11 @@ export function BlueskyWidget() {
   }
 
   if (isError) {
-    return <p className="text-sm text-muted-foreground p-1">{t('widgets.bluesky.loadFailed')}</p>;
+    return <p className="text-sm text-muted-foreground p-1">{intl.formatMessage({ id: 'widgets.bluesky.loadFailed', defaultMessage: "Failed to load Bluesky posts." })}</p>;
   }
 
   if (!posts || posts.length === 0) {
-    return <p className="text-sm text-muted-foreground p-1">{t('widgets.bluesky.empty')}</p>;
+    return <p className="text-sm text-muted-foreground p-1">{intl.formatMessage({ id: 'widgets.bluesky.empty', defaultMessage: "No trending posts right now." })}</p>;
   }
 
   return (
@@ -76,7 +76,7 @@ export function BlueskyWidget() {
         <BlueskyPostCard key={post.cid} post={post} />
       ))}
       <div className="pt-1 px-2">
-        <Link to="/bluesky" className="text-xs text-primary hover:underline">{t('widgets.bluesky.viewMore')}</Link>
+        <Link to="/bluesky" className="text-xs text-primary hover:underline">{intl.formatMessage({ id: 'widgets.bluesky.viewMore', defaultMessage: "View more on Bluesky" })}</Link>
       </div>
     </div>
   );

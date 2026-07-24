@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import { RotateCcw } from 'lucide-react';
 import { MuteSettingsInternals, SensitiveContentSection, ThemePreferencesSection, VideoAutoplaySection } from '@/components/ContentSettings';
 import { MuteListRecoveryDialog } from '@/components/MuteListRecoveryDialog';
@@ -12,14 +12,14 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export function ContentPage() {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const [recoveryOpen, setRecoveryOpen] = useState(false);
 
   useSeoMeta({
-    title: `${t('settings.sections.content.label')} | ${t('settings.title')} | ${config.appName}`,
-    description: t('settings.sections.content.description'),
+    title: `${intl.formatMessage({ id: 'settings.sections.content.label', defaultMessage: "Content" })} | ${intl.formatMessage({ id: 'settings.title', defaultMessage: "Settings" })} | ${config.appName}`,
+    description: intl.formatMessage({ id: 'settings.sections.content.description', defaultMessage: "Muted users, hashtags, and sensitive content settings" }),
   });
 
   return (
@@ -30,9 +30,9 @@ export function ContentPage() {
         alwaysShowBack
         titleContent={
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold">{t('settings.sections.content.label')}</h1>
+            <h1 className="text-xl font-bold">{intl.formatMessage({ id: 'settings.sections.content.label', defaultMessage: "Content" })}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {t('settings.content.pageDescription')}
+              {intl.formatMessage({ id: 'settings.content.pageDescription', defaultMessage: "Mute users, hashtags, or words, and choose how sensitive content is shown. Mutes are encrypted and private." })}
             </p>
           </div>
         }
@@ -42,9 +42,9 @@ export function ContentPage() {
       <div className="flex items-center gap-4 px-7 py-2">
         <IntroImage src="/mute-intro.png" size="w-28" />
         <div className="min-w-0">
-          <h2 className="text-base font-semibold">{t('settings.content.contentControl')}</h2>
+          <h2 className="text-base font-semibold">{intl.formatMessage({ id: 'settings.content.contentControl', defaultMessage: "Content Control" })}</h2>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            {t('settings.content.contentControlDescription')}
+            {intl.formatMessage({ id: 'settings.content.contentControlDescription', defaultMessage: "You decide what shows up in your feeds." })}
           </p>
         </div>
       </div>
@@ -54,7 +54,7 @@ export function ContentPage() {
         {/* Muted Content Section */}
         <div>
           <div className="relative px-3 py-3.5 flex items-center justify-between">
-            <h2 className="text-base font-semibold flex items-center gap-1.5">{t('settings.content.mutedContent')} <HelpTip faqId="report-content" /></h2>
+            <h2 className="text-base font-semibold flex items-center gap-1.5">{intl.formatMessage({ id: 'settings.content.mutedContent', defaultMessage: "Muted Content" })} <HelpTip faqId="report-content" /></h2>
             {user && (
               <Button
                 variant="ghost"
@@ -63,7 +63,7 @@ export function ContentPage() {
                 onClick={() => setRecoveryOpen(true)}
               >
                 <RotateCcw className="size-3.5" />
-                {t('settings.content.recovery')}
+                {intl.formatMessage({ id: 'settings.content.recovery', defaultMessage: "Recovery" })}
               </Button>
             )}
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
@@ -83,7 +83,7 @@ export function ContentPage() {
         {/* Sensitive Content Section */}
         <div>
           <div className="relative px-3 py-3.5">
-            <h2 className="text-base font-semibold flex items-center gap-1.5">{t('settings.content.sensitiveContent')} <HelpTip faqId="report-content" /></h2>
+            <h2 className="text-base font-semibold flex items-center gap-1.5">{intl.formatMessage({ id: 'settings.content.sensitiveContent', defaultMessage: "Sensitive Content" })} <HelpTip faqId="report-content" /></h2>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
           </div>
           <div className="pb-4">
@@ -94,7 +94,7 @@ export function ContentPage() {
         {/* Viewing Preferences Section */}
         <div>
           <div className="relative px-3 py-3.5">
-            <h2 className="text-base font-semibold">{t('settings.content.viewingPreferences')}</h2>
+            <h2 className="text-base font-semibold">{intl.formatMessage({ id: 'settings.content.viewingPreferences', defaultMessage: "Viewing Preferences" })}</h2>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
           </div>
           <div className="px-3 py-4 space-y-5">

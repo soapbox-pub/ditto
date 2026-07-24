@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import {
   TrendingUp,
   Flame,
@@ -245,10 +245,10 @@ export function widgetI18nStem(id: string): string {
  * untranslated.
  */
 export function useWidgetLabel(id: string): string {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const def = WIDGET_MAP.get(id);
   if (!def) return id;
-  return t(`widgets.${widgetI18nStem(id)}.title`, { defaultValue: def.label });
+  return intl.formatMessage({ id: `widgets.${widgetI18nStem(id)}.title`, defaultMessage: def.label });
 }
 
 /**
@@ -257,10 +257,10 @@ export function useWidgetLabel(id: string): string {
  * the registry's English description when the key is missing.
  */
 export function useWidgetDescription(id: string): string {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const def = WIDGET_MAP.get(id);
   if (!def) return '';
-  return t(`widgets.${widgetI18nStem(id)}.description`, { defaultValue: def.description });
+  return intl.formatMessage({ id: `widgets.${widgetI18nStem(id)}.description`, defaultMessage: def.description });
 }
 
 /**
@@ -269,6 +269,6 @@ export function useWidgetDescription(id: string): string {
  * label from WIDGET_CATEGORIES when the key is missing.
  */
 export function useWidgetCategoryLabel(category: string): string {
-  const { t } = useTranslation();
-  return t(`widgets.categories.${category}`, { defaultValue: WIDGET_CATEGORIES[category] ?? category });
+  const intl = useIntl();
+  return intl.formatMessage({ id: `widgets.categories.${category}`, defaultMessage: WIDGET_CATEGORIES[category] ?? category });
 }

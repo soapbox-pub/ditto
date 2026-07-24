@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import { Plus, Trash2, Zap, Globe, WalletMinimal, CheckCircle, X, Bitcoin, ArrowUp, ArrowDown, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/useToast';
 import { DEFAULT_ESPLORA_APIS } from '@/lib/esplora';
 
 export function WalletSettings() {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [connectionUri, setConnectionUri] = useState('');
   const [alias, setAlias] = useState('');
@@ -79,15 +79,15 @@ export function WalletSettings() {
   const handleAddEsplora = () => {
     if (!isValidEsploraUrl(newEsploraUrl)) {
       toast({
-        title: t('settings.wallet.invalidApiUrl'),
-        description: t('settings.wallet.invalidApiUrlDescription'),
+        title: intl.formatMessage({ id: 'settings.wallet.invalidApiUrl', defaultMessage: "Invalid API URL" }),
+        description: intl.formatMessage({ id: 'settings.wallet.invalidApiUrlDescription', defaultMessage: "Enter a valid HTTPS URL (e.g. https://mempool.space/api)" }),
         variant: 'destructive',
       });
       return;
     }
     const normalized = normalizeEsploraUrl(newEsploraUrl);
     if (esploraApis.includes(normalized)) {
-      toast({ title: t('settings.wallet.alreadyInList'), variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'settings.wallet.alreadyInList', defaultMessage: "Already in the list" }), variant: 'destructive' });
       return;
     }
     saveEsploraApis([...esploraApis, normalized]);
@@ -99,8 +99,8 @@ export function WalletSettings() {
     // the user can hit "Restore defaults" if they want to start over.
     if (esploraApis.length <= 1) {
       toast({
-        title: t('settings.wallet.oneApiRequired'),
-        description: t('settings.wallet.oneApiRequiredDescription'),
+        title: intl.formatMessage({ id: 'settings.wallet.oneApiRequired', defaultMessage: "At least one API is required" }),
+        description: intl.formatMessage({ id: 'settings.wallet.oneApiRequiredDescription', defaultMessage: "Add another endpoint before removing this one, or restore the defaults." }),
         variant: 'destructive',
       });
       return;
@@ -118,7 +118,7 @@ export function WalletSettings() {
 
   const handleResetEsplora = () => {
     saveEsploraApis([...DEFAULT_ESPLORA_APIS]);
-    toast({ title: t('settings.wallet.apisRestored') });
+    toast({ title: intl.formatMessage({ id: 'settings.wallet.apisRestored', defaultMessage: "Bitcoin APIs restored to defaults" }) });
   };
 
   const isAtDefaults =
@@ -137,8 +137,8 @@ export function WalletSettings() {
   const handleAddConnection = async () => {
     if (!connectionUri.trim()) {
       toast({
-        title: t('settings.wallet.connectionUriRequired'),
-        description: t('settings.wallet.connectionUriRequiredDescription'),
+        title: intl.formatMessage({ id: 'settings.wallet.connectionUriRequired', defaultMessage: "Connection URI required" }),
+        description: intl.formatMessage({ id: 'settings.wallet.connectionUriRequiredDescription', defaultMessage: "Please enter a valid NWC connection URI." }),
         variant: 'destructive',
       });
       return;
@@ -164,8 +164,8 @@ export function WalletSettings() {
   const handleSetActive = (connectionString: string) => {
     setActiveConnection(connectionString);
     toast({
-      title: t('settings.wallet.activeWalletChanged'),
-      description: t('settings.wallet.activeWalletChangedDescription'),
+      title: intl.formatMessage({ id: 'settings.wallet.activeWalletChanged', defaultMessage: "Active wallet changed" }),
+      description: intl.formatMessage({ id: 'settings.wallet.activeWalletChangedDescription', defaultMessage: "The selected wallet is now active for zaps." }),
     });
   };
 
@@ -174,7 +174,7 @@ export function WalletSettings() {
       <div className="space-y-6">
         {/* Connection status cards */}
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide px-1">{t('settings.wallet.status')}</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide px-1">{intl.formatMessage({ id: 'settings.wallet.status', defaultMessage: "Status" })}</h2>
           <div className="grid gap-3">
             {/* WebLN */}
             <Card className="overflow-hidden">
@@ -185,13 +185,13 @@ export function WalletSettings() {
                   </div>
                   <div>
                     <p className="text-sm font-medium">WebLN</p>
-                    <p className="text-xs text-muted-foreground">{t('settings.wallet.weblnDescription')}</p>
+                    <p className="text-xs text-muted-foreground">{intl.formatMessage({ id: 'settings.wallet.weblnDescription', defaultMessage: "Browser extension" })}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {webln && <CheckCircle className="size-4 text-green-500" />}
                   <Badge variant={webln ? 'default' : 'secondary'} className="text-xs">
-                    {webln ? t('settings.wallet.ready') : t('settings.wallet.notFound')}
+                    {webln ? intl.formatMessage({ id: 'settings.wallet.ready', defaultMessage: "Ready" }) : intl.formatMessage({ id: 'settings.wallet.notFound', defaultMessage: "Not Found" })}
                   </Badge>
                 </div>
               </CardContent>
@@ -208,15 +208,15 @@ export function WalletSettings() {
                     <p className="text-sm font-medium">Nostr Wallet Connect</p>
                     <p className="text-xs text-muted-foreground">
                       {connections.length > 0
-                        ? t('settings.wallet.walletsConnected', { count: connections.length })
-                        : t('settings.wallet.remoteWalletConnection')}
+                        ? intl.formatMessage({ id: 'settings.wallet.walletsConnected', defaultMessage: "{count, plural, one {{count} wallet connected} other {{count} wallets connected}}" }, { count: connections.length })
+                        : intl.formatMessage({ id: 'settings.wallet.remoteWalletConnection', defaultMessage: "Remote wallet connection" })}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {hasNWC && <CheckCircle className="size-4 text-green-500" />}
                   <Badge variant={hasNWC ? 'default' : 'secondary'} className="text-xs">
-                    {hasNWC ? t('settings.wallet.ready') : t('settings.wallet.none')}
+                    {hasNWC ? intl.formatMessage({ id: 'settings.wallet.ready', defaultMessage: "Ready" }) : intl.formatMessage({ id: 'settings.wallet.none', defaultMessage: "None" })}
                   </Badge>
                 </div>
               </CardContent>
@@ -232,7 +232,7 @@ export function WalletSettings() {
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Nostr Wallet Connect</h2>
             <Button size="sm" variant="outline" onClick={() => setAddDialogOpen(true)} className="rounded-full">
               <Plus className="size-4 mr-1" />
-              {t('common.add')}
+              {intl.formatMessage({ id: 'common.add', defaultMessage: "Add" })}
             </Button>
           </div>
 
@@ -240,8 +240,8 @@ export function WalletSettings() {
             <Card className="border-dashed">
               <CardContent className="py-10 text-center">
                 <WalletMinimal className="size-8 mx-auto mb-3 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground mb-1">{t('settings.wallet.noWallets')}</p>
-                <p className="text-xs text-muted-foreground/70">{t('settings.wallet.noWalletsDescription')}</p>
+                <p className="text-sm text-muted-foreground mb-1">{intl.formatMessage({ id: 'settings.wallet.noWallets', defaultMessage: "No wallets connected" })}</p>
+                <p className="text-xs text-muted-foreground/70">{intl.formatMessage({ id: 'settings.wallet.noWalletsDescription', defaultMessage: "Add an NWC connection to enable instant zaps." })}</p>
               </CardContent>
             </Card>
           ) : (
@@ -258,10 +258,10 @@ export function WalletSettings() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">
-                            {connection.alias || info?.alias || t('settings.wallet.lightningWallet')}
+                            {connection.alias || info?.alias || intl.formatMessage({ id: 'settings.wallet.lightningWallet', defaultMessage: "Lightning Wallet" })}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {isActive ? t('settings.wallet.active') : t('settings.wallet.nwcConnection')}
+                            {isActive ? intl.formatMessage({ id: 'settings.wallet.active', defaultMessage: "Active" }) : intl.formatMessage({ id: 'settings.wallet.nwcConnection', defaultMessage: "NWC Connection" })}
                           </p>
                         </div>
                       </div>
@@ -273,7 +273,7 @@ export function WalletSettings() {
                             variant="ghost"
                             onClick={() => handleSetActive(connection.connectionString)}
                             className="rounded-full"
-                            title={t('settings.wallet.setAsActive')}
+                            title={intl.formatMessage({ id: 'settings.wallet.setAsActive', defaultMessage: "Set as active" })}
                           >
                             <Zap className="size-3.5" />
                           </Button>
@@ -283,7 +283,7 @@ export function WalletSettings() {
                           variant="ghost"
                           onClick={() => handleRemoveConnection(connection.connectionString)}
                           className="rounded-full text-muted-foreground hover:text-destructive"
-                          title={t('settings.wallet.removeWallet')}
+                          title={intl.formatMessage({ id: 'settings.wallet.removeWallet', defaultMessage: "Remove wallet" })}
                         >
                           <Trash2 className="size-3.5" />
                         </Button>
@@ -302,7 +302,7 @@ export function WalletSettings() {
             <Separator />
             <div className="text-center py-4 space-y-2 px-4">
               <p className="text-sm text-muted-foreground">
-                {t('settings.wallet.installHelp')}
+                {intl.formatMessage({ id: 'settings.wallet.installHelp', defaultMessage: "Install a WebLN browser extension or connect a NWC wallet to send zaps." })}
               </p>
             </div>
           </>
@@ -314,7 +314,7 @@ export function WalletSettings() {
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              {t('settings.wallet.bitcoinApis')}
+              {intl.formatMessage({ id: 'settings.wallet.bitcoinApis', defaultMessage: "Bitcoin APIs" })}
             </h2>
             <Button
               size="sm"
@@ -322,15 +322,15 @@ export function WalletSettings() {
               onClick={handleResetEsplora}
               disabled={isAtDefaults}
               className="rounded-full text-xs h-7"
-              title={t('settings.wallet.restoreDefaultsTitle')}
+              title={intl.formatMessage({ id: 'settings.wallet.restoreDefaultsTitle', defaultMessage: "Restore the default mempool.space → mempool.emzy.de → blockstream.info list" })}
             >
               <RotateCcw className="size-3.5 mr-1" />
-              {t('settings.wallet.restoreDefaults')}
+              {intl.formatMessage({ id: 'settings.wallet.restoreDefaults', defaultMessage: "Restore defaults" })}
             </Button>
           </div>
 
           <p className="text-xs text-muted-foreground px-1">
-            {t('settings.wallet.bitcoinApisDescription')}
+            {intl.formatMessage({ id: 'settings.wallet.bitcoinApisDescription', defaultMessage: "Esplora-compatible Bitcoin REST endpoints used by the wallet, on-chain zaps, and tx/address pages. Tried in order — if the top one is rate-limited or down, the next is tried automatically. Reorder so your preferred endpoint is first." })}
           </p>
 
           <div className="space-y-2">
@@ -346,7 +346,7 @@ export function WalletSettings() {
                         {renderEsploraUrl(url)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {index === 0 ? t('settings.wallet.primary') : t('settings.wallet.fallback', { index })}
+                        {index === 0 ? intl.formatMessage({ id: 'settings.wallet.primary', defaultMessage: "Primary" }) : intl.formatMessage({ id: 'settings.wallet.fallback', defaultMessage: "Fallback {index}" }, { index })}
                       </p>
                     </div>
                   </div>
@@ -357,7 +357,7 @@ export function WalletSettings() {
                       onClick={() => handleMoveEsplora(index, -1)}
                       disabled={index === 0}
                       className="rounded-full size-8 p-0"
-                      title={t('settings.wallet.moveUp')}
+                      title={intl.formatMessage({ id: 'settings.wallet.moveUp', defaultMessage: "Move up" })}
                     >
                       <ArrowUp className="size-3.5" />
                     </Button>
@@ -367,7 +367,7 @@ export function WalletSettings() {
                       onClick={() => handleMoveEsplora(index, 1)}
                       disabled={index === esploraApis.length - 1}
                       className="rounded-full size-8 p-0"
-                      title={t('settings.wallet.moveDown')}
+                      title={intl.formatMessage({ id: 'settings.wallet.moveDown', defaultMessage: "Move down" })}
                     >
                       <ArrowDown className="size-3.5" />
                     </Button>
@@ -377,7 +377,7 @@ export function WalletSettings() {
                       onClick={() => handleRemoveEsplora(url)}
                       disabled={esploraApis.length <= 1}
                       className="rounded-full size-8 p-0 text-muted-foreground hover:text-destructive"
-                      title={esploraApis.length <= 1 ? t('settings.wallet.oneApiRequired') : t('settings.wallet.remove')}
+                      title={esploraApis.length <= 1 ? intl.formatMessage({ id: 'settings.wallet.oneApiRequired', defaultMessage: "At least one API is required" }) : intl.formatMessage({ id: 'settings.wallet.remove', defaultMessage: "Remove" })}
                     >
                       <Trash2 className="size-3.5" />
                     </Button>
@@ -391,7 +391,7 @@ export function WalletSettings() {
           <div className="flex gap-2 px-1">
             <div className="flex-1">
               <Label htmlFor="new-esplora-url" className="sr-only">
-                {t('settings.wallet.bitcoinApiUrlLabel')}
+                {intl.formatMessage({ id: 'settings.wallet.bitcoinApiUrlLabel', defaultMessage: "Bitcoin API URL" })}
               </Label>
               <Input
                 id="new-esplora-url"
@@ -412,7 +412,7 @@ export function WalletSettings() {
               className="h-9 shrink-0 text-xs"
             >
               <Plus className="h-3.5 w-3.5 mr-1.5" />
-              {t('common.add')}
+              {intl.formatMessage({ id: 'common.add', defaultMessage: "Add" })}
             </Button>
           </div>
         </div>
@@ -424,7 +424,7 @@ export function WalletSettings() {
           {/* Header */}
           <div className="flex items-center justify-between px-4 h-12">
             <DialogTitle className="text-base font-semibold">
-              {t('settings.wallet.connectDialogTitle')}
+              {intl.formatMessage({ id: 'settings.wallet.connectDialogTitle', defaultMessage: "Connect NWC Wallet" })}
             </DialogTitle>
             <button
               onClick={() => setAddDialogOpen(false)}
@@ -436,13 +436,13 @@ export function WalletSettings() {
 
           {/* Description */}
           <p className="px-4 -mt-1 mb-2 text-sm text-muted-foreground">
-            {t('settings.wallet.connectDialogDescription')}
+            {intl.formatMessage({ id: 'settings.wallet.connectDialogDescription', defaultMessage: "Paste a connection string from your NWC-compatible wallet." })}
           </p>
 
           {/* Form fields */}
           <div className="px-4 space-y-4">
             <Input
-              placeholder={t('settings.wallet.walletNamePlaceholder')}
+              placeholder={intl.formatMessage({ id: 'settings.wallet.walletNamePlaceholder', defaultMessage: "Wallet name (optional)" })}
               value={alias}
               onChange={(e) => setAlias(e.target.value)}
               className="bg-transparent"
@@ -464,7 +464,7 @@ export function WalletSettings() {
               className="rounded-full px-5 font-bold"
               size="sm"
             >
-              {isConnecting ? t('settings.wallet.connecting') : t('settings.wallet.connect')}
+              {isConnecting ? intl.formatMessage({ id: 'settings.wallet.connecting', defaultMessage: "Connecting..." }) : intl.formatMessage({ id: 'settings.wallet.connect', defaultMessage: "Connect" })}
             </Button>
           </div>
         </DialogContent>

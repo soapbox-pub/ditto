@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -59,7 +59,7 @@ export interface PaymentTargetsEditorHandle {
  */
 export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
   function PaymentTargetsEditor(_props, ref) {
-    const { t } = useTranslation();
+    const intl = useIntl();
     const { user } = useCurrentUser();
     const { toast } = useToast();
     const { targets, isLoading } = usePaymentTargets(user?.pubkey);
@@ -109,10 +109,10 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
           const method = PAYMENT_METHODS[d.type];
           if (!method.validate(authority)) {
             toast({
-              title: t('paymentTargets.invalidAddress.title', { method: method.label }),
+              title: intl.formatMessage({ id: 'paymentTargets.invalidAddress.title', defaultMessage: "Invalid {method} address" }, { method: method.label }),
               description: d.type === 'lightning'
-                ? t('paymentTargets.invalidAddress.description', { authority, method: method.label })
-                : t('paymentTargets.invalidAddress.descriptionHandle', { authority, method: method.label }),
+                ? intl.formatMessage({ id: 'paymentTargets.invalidAddress.description', defaultMessage: "\"{authority}\" doesn't look like a valid {method} address." }, { authority, method: method.label })
+                : intl.formatMessage({ id: 'paymentTargets.invalidAddress.descriptionHandle', defaultMessage: "\"{authority}\" doesn't look like a valid {method} address/handle." }, { authority, method: method.label }),
               variant: 'destructive',
             });
             return false;
@@ -125,31 +125,31 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
           return true;
         } catch (err) {
           toast({
-            title: t('paymentTargets.error'),
+            title: intl.formatMessage({ id: 'paymentTargets.error', defaultMessage: "Error" }),
             description:
-              err instanceof Error ? err.message : t('paymentTargets.saveFailed'),
+              err instanceof Error ? err.message : intl.formatMessage({ id: 'paymentTargets.saveFailed', defaultMessage: "Failed to save payment methods." }),
             variant: 'destructive',
           });
           return false;
         }
       },
-    }), [user, drafts, updateTargets, toast, t]);
+    }), [user, drafts, updateTargets, toast, intl]);
 
     if (!user) return null;
 
     return (
       <div className="space-y-4">
         <div>
-          <h2 className="text-sm font-semibold">{t('paymentTargets.title')}</h2>
+          <h2 className="text-sm font-semibold">{intl.formatMessage({ id: 'paymentTargets.title', defaultMessage: "Accept Donations" })}</h2>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            {t('paymentTargets.description')}
+            {intl.formatMessage({ id: 'paymentTargets.description', defaultMessage: "Let supporters send you crypto and tips." })}
           </p>
         </div>
 
         {isLoading && drafts.length === 0 ? (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {t('paymentTargets.loading')}
+            {intl.formatMessage({ id: 'paymentTargets.loading', defaultMessage: "Loading…" })}
           </div>
         ) : drafts.length > 0 ? (
           <>
@@ -170,7 +170,7 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
                       onChange={(e) => updateDraft(draft.key, e.target.value)}
                       placeholder={method.placeholder}
                       className="h-9 flex-1 min-w-0 font-mono text-xs"
-                      aria-label={t('paymentTargets.addressAriaLabel', { method: method.label })}
+                      aria-label={intl.formatMessage({ id: 'paymentTargets.addressAriaLabel', defaultMessage: "{method} address" }, { method: method.label })}
                     />
                     <Button
                       type="button"
@@ -178,8 +178,8 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
                       size="icon"
                       onClick={() => removeDraft(draft.key)}
                       className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
-                      title={t('paymentTargets.remove', { method: method.label })}
-                      aria-label={t('paymentTargets.remove', { method: method.label })}
+                      title={intl.formatMessage({ id: 'paymentTargets.remove', defaultMessage: "Remove {method}" }, { method: method.label })}
+                      aria-label={intl.formatMessage({ id: 'paymentTargets.remove', defaultMessage: "Remove {method}" }, { method: method.label })}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -198,7 +198,7 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
                   className="h-8 text-xs gap-1.5"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  {t('paymentTargets.addMethod')}
+                  {intl.formatMessage({ id: 'paymentTargets.addMethod', defaultMessage: "Add method" })}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="min-w-44">
@@ -221,7 +221,7 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
                 className="w-full h-11 gap-2 border-dashed"
               >
                 <Plus className="h-4 w-4" />
-                {t('paymentTargets.addDonation')}
+                {intl.formatMessage({ id: 'paymentTargets.addDonation', defaultMessage: "Add donation" })}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-44">

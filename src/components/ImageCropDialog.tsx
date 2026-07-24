@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import Cropper from 'react-easy-crop';
 import type { Area, Point } from 'react-easy-crop';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -43,7 +43,7 @@ async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> 
 }
 
 export function ImageCropDialog({ open, imageSrc, aspect, title, onCancel, onCrop }: ImageCropDialogProps) {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
@@ -73,7 +73,7 @@ export function ImageCropDialog({ open, imageSrc, aspect, title, onCancel, onCro
     <Dialog open={open} onOpenChange={(v) => { if (!v) onCancel(); }}>
       <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-3">
-          <DialogTitle className="text-base">{title ?? t('imageCrop.title')}</DialogTitle>
+          <DialogTitle className="text-base">{title ?? intl.formatMessage({ id: 'imageCrop.title', defaultMessage: "Crop Image" })}</DialogTitle>
         </DialogHeader>
 
         {/* Cropper area */}
@@ -110,18 +110,18 @@ export function ImageCropDialog({ open, imageSrc, aspect, title, onCancel, onCro
           <div className="flex justify-between items-center">
             <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs gap-1.5 h-8">
               <RotateCcw className="size-3" />
-              {t('imageCrop.reset')}
+              {intl.formatMessage({ id: 'imageCrop.reset', defaultMessage: "Reset" })}
             </Button>
-            <p className="text-xs text-muted-foreground">{t('imageCrop.hint')}</p>
+            <p className="text-xs text-muted-foreground">{intl.formatMessage({ id: 'imageCrop.hint', defaultMessage: "Drag to reposition · Pinch or scroll to zoom" })}</p>
           </div>
         </div>
 
         <DialogFooter className="px-5 pb-5 gap-2 flex-row justify-end">
           <Button variant="outline" onClick={onCancel} disabled={isProcessing} size="sm">
-            {t('common.cancel')}
+            {intl.formatMessage({ id: 'common.cancel', defaultMessage: "Cancel" })}
           </Button>
           <Button onClick={handleConfirm} disabled={isProcessing} size="sm">
-            {isProcessing ? t('imageCrop.processing') : t('imageCrop.apply')}
+            {isProcessing ? intl.formatMessage({ id: 'imageCrop.processing', defaultMessage: "Processing…" }) : intl.formatMessage({ id: 'imageCrop.apply', defaultMessage: "Apply Crop" })}
           </Button>
         </DialogFooter>
       </DialogContent>

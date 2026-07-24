@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import { Search, UserRoundCheck, MessageSquare, FileText, Hash, Archive, Newspaper, List as ListIcon, Users, SmilePlus } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Input } from '@/components/ui/input';
@@ -548,8 +548,8 @@ function NavItem({
   isSelected: boolean;
   onClick: (item: SidebarItemDef) => void;
 }) {
-  const { t } = useTranslation();
-  const label = t(`nav.${item.id}`, { defaultValue: item.label });
+  const intl = useIntl();
+  const label = intl.formatMessage({ id: `nav.${item.id}`, defaultMessage: item.label });
   const Icon = item.icon;
 
   return (

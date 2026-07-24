@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TrendSparkline } from '@/components/TrendSparkline';
 import { useTrendingTags, useTagSparklines } from '@/hooks/useTrending';
@@ -8,7 +8,7 @@ import { formatNumber } from '@/lib/formatNumber';
 
 /** Compact trending tags widget for the right sidebar. */
 export function TrendingWidget() {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const { data: trendingTagsResult, isLoading: tagsLoading } = useTrendingTags(true);
 
   const trendingTags = trendingTagsResult?.tags;
@@ -34,7 +34,7 @@ export function TrendingWidget() {
   }
 
   if (!trendingTags || trendingTags.length === 0) {
-    return <p className="text-sm text-muted-foreground p-1">{t('widgets.trending.empty')}</p>;
+    return <p className="text-sm text-muted-foreground p-1">{intl.formatMessage({ id: 'widgets.trending.empty', defaultMessage: "No trends available." })}</p>;
   }
 
   return (
@@ -49,7 +49,7 @@ export function TrendingWidget() {
             <div className="font-bold text-sm">#{item.tag}</div>
             {item.accounts > 0 && (
               <div className="text-xs text-muted-foreground">
-                <span className="text-primary font-semibold">{formatNumber(item.accounts)}</span> {t('widgets.trending.peopleTalking')}
+                <span className="text-primary font-semibold">{formatNumber(item.accounts)}</span> {intl.formatMessage({ id: 'widgets.trending.peopleTalking', defaultMessage: "people talking" })}
               </div>
             )}
           </div>
@@ -61,7 +61,7 @@ export function TrendingWidget() {
         </Link>
       ))}
       <div className="pt-1 px-2">
-        <Link to="/trends" className="text-xs text-primary hover:underline">{t('widgets.trending.viewAll')}</Link>
+        <Link to="/trends" className="text-xs text-primary hover:underline">{intl.formatMessage({ id: 'widgets.trending.viewAll', defaultMessage: "View all trends" })}</Link>
       </div>
     </div>
   );

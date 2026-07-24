@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { GripVertical, X } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -30,7 +30,7 @@ export function WidgetCard({
 }: WidgetCardProps) {
   const configHeight = config.height ?? definition.defaultHeight;
   const Icon = definition.icon;
-  const { t } = useTranslation();
+  const intl = useIntl();
   const label = useWidgetLabel(definition.id);
 
   // Local height for smooth resize — only commits to config on pointer up.
@@ -98,7 +98,7 @@ export function WidgetCard({
         <button
           onClick={onRemove}
           className="p-0.5 rounded text-muted-foreground hover:text-destructive transition-colors"
-          aria-label={t('widgets.common.removeWidget')}
+          aria-label={intl.formatMessage({ id: 'widgets.common.removeWidget', defaultMessage: "Remove widget" })}
         >
           <X className="size-3.5" />
         </button>

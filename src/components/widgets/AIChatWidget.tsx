@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Send } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
+import { useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,7 +19,7 @@ const conversationCache = new Map<string, ChatMessage[]>();
 
 /** Compact AI chat widget for the sidebar. */
 export function AIChatWidget() {
-  const { t } = useTranslation();
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { sendStreamingMessage, getAvailableModels, isLoading, isAuthenticated } = useShakespeare();
   const hasCredits = useShakespeareCredits();
@@ -88,16 +88,16 @@ export function AIChatWidget() {
       setMessages((prev) => [...prev, { role: 'assistant', content: accumulated }]);
       setStreamingContent('');
     } catch {
-      setMessages((prev) => [...prev, { role: 'assistant', content: t('widgets.aiChat.errorMessage') }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: intl.formatMessage({ id: 'widgets.aiChat.errorMessage', defaultMessage: "Sorry, something went wrong. Please try again." }) }]);
       setStreamingContent('');
     }
-  }, [input, isLoading, messages, sendStreamingMessage, defaultModelId, t]);
+  }, [input, isLoading, messages, sendStreamingMessage, defaultModelId, intl]);
 
   if (!user || !isAuthenticated) {
     return (
       <div className="flex flex-col items-center gap-3 py-6 px-3 text-center">
         <pre className="text-xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
-        <p className="text-xs text-muted-foreground">{t('widgets.aiChat.loginPrompt')}</p>
+        <p className="text-xs text-muted-foreground">{intl.formatMessage({ id: 'widgets.aiChat.loginPrompt', defaultMessage: "Log in to chat with Dork" })}</p>
       </div>
     );
   }
@@ -109,7 +109,7 @@ export function AIChatWidget() {
       <div className="flex flex-col items-center gap-3 py-6 px-3 text-center">
         <pre className="text-xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          {t('widgets.aiChat.creditsPre')}{' '}
+          {intl.formatMessage({ id: 'widgets.aiChat.creditsPre', defaultMessage: "Grab some credits on" })}{' '}
           <a
             href="https://shakespeare.diy"
             target="_blank"
@@ -118,13 +118,13 @@ export function AIChatWidget() {
           >
             Shakespeare
           </a>
-          {' '}{t('widgets.aiChat.creditsPost')}
+          {' '}{intl.formatMessage({ id: 'widgets.aiChat.creditsPost', defaultMessage: "to chat with Dork." })}
         </p>
         <Link
           to="/ai-chat"
           className="text-xs font-medium text-primary hover:underline"
         >
-          {t('widgets.aiChat.open')}
+          {intl.formatMessage({ id: 'widgets.aiChat.open', defaultMessage: "Open AI Chat" })}
         </Link>
       </div>
     );
@@ -138,7 +138,7 @@ export function AIChatWidget() {
           {messages.length === 0 && !streamingContent && (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
               <pre className="text-xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
-              <p className="text-xs text-muted-foreground">{t('widgets.aiChat.emptyPrompt')}</p>
+              <p className="text-xs text-muted-foreground">{intl.formatMessage({ id: 'widgets.aiChat.emptyPrompt', defaultMessage: "Ask me anything..." })}</p>
             </div>
           )}
           {messages.map((msg, i) => (
@@ -170,7 +170,7 @@ export function AIChatWidget() {
                 handleSend();
               }
             }}
-            placeholder={t('widgets.aiChat.messagePlaceholder')}
+            placeholder={intl.formatMessage({ id: 'widgets.aiChat.messagePlaceholder', defaultMessage: "Message..." })}
             rows={1}
             className="flex-1 resize-none text-sm bg-secondary/50 rounded-lg px-2.5 py-1.5 border-0 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/60 min-h-[32px] max-h-[80px]"
           />
