@@ -55,6 +55,9 @@ import {
   type BlobbiCompanion,
   type BlobbiStats,
   type BlobbonautProfile,
+  // Legacy: only used to satisfy the kit's still-required (deprecated)
+  // `profileStorage` field on the shared canonical-action result. Ditto never
+  // reads consumable storage — care items are free and infinitely available.
   type StorageItem,
 } from '@blobbi-kit/core/blobbi';
 
@@ -863,6 +866,13 @@ interface BlobbiDashboardProps {
     allTags: string[][];
     profileAllTags: string[][];
     profileEvent: import('@nostrify/nostrify').NostrEvent;
+    /**
+     * Legacy consumable storage from pre-existing kind:11125 `storage` tags.
+     * Never read by Ditto (care items are free/infinite). Retained only because
+     * blobbi-kit 0.2.0 still requires this field on its canonical-action result
+     * contract; deprecated and scheduled for removal in a future kit major.
+     * @deprecated Do not read.
+     */
     profileStorage: StorageItem[];
   } | null>;
   // DEV ONLY: State editor props
