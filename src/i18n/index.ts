@@ -4,6 +4,7 @@ import { initReactI18next } from 'react-i18next';
 
 import de from './locales/de.json';
 import en from './locales/en.json';
+import ja from './locales/ja.json';
 
 /** localStorage key the detector caches the user's explicit language choice under. */
 export const LANGUAGE_STORAGE_KEY = 'i18nextLng';
@@ -12,6 +13,7 @@ export const LANGUAGE_STORAGE_KEY = 'i18nextLng';
 export const LANGUAGE_OPTIONS = [
   { code: 'en', nativeName: 'English' },
   { code: 'de', nativeName: 'Deutsch' },
+  { code: 'ja', nativeName: '日本語' },
 ] as const;
 
 const SUPPORTED_CODES = LANGUAGE_OPTIONS.map((l) => l.code);
@@ -23,6 +25,7 @@ void i18n
     resources: {
       en: { translation: en },
       de: { translation: de },
+      ja: { translation: ja },
     },
     fallbackLng: 'en',
     supportedLngs: SUPPORTED_CODES,

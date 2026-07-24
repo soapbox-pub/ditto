@@ -1,0 +1,122 @@
+{
+  "common": {
+    "add": "追加",
+    "anonymous": "匿名",
+    "cancel": "キャンセル",
+    "clear": "クリア",
+    "noResults": "結果なし",
+    "save": "保存",
+    "searchPlaceholder": "検索..."
+  },
+  "nav": {
+    "ai-chat": "AIチャット",
+    "archive": "アーカイブ",
+    "articles": "記事",
+    "badges": "バッジ",
+    "blobbi": "ブロッビ",
+    "bluesky": "Bluesky",
+    "books": "本",
+    "bookmarks": "ブックマーク",
+    "cards": "メモリーカード",
+    "changelog": "更新履歴",
+    "colors": "カラーモーメント",
+    "decks": "マジックデッキ",
+    "development": "開発",
+    "emojis": "絵文字",
+    "events": "イベント",
+    "feed": "フィード",
+    "help": "ヘルプ",
+    "highlights": "ハイライト",
+    "letters": "手紙",
+    "lists": "リスト",
+    "music": "音楽",
+    "notifications": "通知",
+    "packs": "フォローパック",
+    "photos": "写真",
+    "podcasts": "ポッドキャスト",
+    "polls": "投票",
+    "profile": "プロフィール",
+    "quizzes": "クイズ",
+    "search": "検索",
+    "settings": "設定",
+    "themes": "テーマ",
+    "treasures": "宝物",
+    "trends": "トレンド",
+    "videos": "動画",
+    "vines": "ショート",
+    "wallet": "ウォレット",
+    "webxdc": "Webxdc",
+    "wikipedia": "ウィキペディア",
+    "world": "ワールド"
+  },
+  "sidebar": {
+    "addAccount": "別のアカウントを追加",
+    "addDivider": "区切り線を追加",
+    "addLink": "リンクを追加",
+    "addToSidebar": "{{label}}をサイドバーに追加",
+    "doneEditing": "完了",
+    "editSidebar": "サイドバーを編集",
+    "invalidCountryCode": "無効な国/地域コードです",
+    "invalidIdentifier": "無効な識別子です",
+    "invalidNsite": "無効なnsite識別子です（名前付きサイトのみサポートされています）",
+    "join": "参加",
+    "linkInputPlaceholder": "URL, npub1..., nsite://..., ...",
+    "logOutAs": "@{{name}}をログアウト",
+    "more": "もっと見る...",
+    "removeDivider": "区切り線を削除",
+    "removeItem": "{{label}}を削除",
+    "setStatus": "ステータスを設定",
+    "shareProfile": "プロフィールを共有",
+    "statusCleared": "ステータスをクリアしました",
+    "statusPlaceholder": "いまどうしてる？",
+    "statusUpdated": "ステータスを更新しました",
+    "unsupportedIdentifier": "サポートされていない識別子タイプです"
+  },
+  "settings": {
+    "codex": "設定の書",
+    "deleteAccount": "アカウントを削除",
+    "intro": "アイデンティティを形作り、フィードを調整し、Nostrネットワークへのつながり方を管理しましょう。",
+    "introSub": "この場所をあなたらしくするために必要なものがすべてここにあります。",
+    "language": {
+      "description": "表示言語を選択してください",
+      "label": "言語",
+      "system": "システムのデフォルト"
+    },
+    "magicUnlocked": "✨ 魔法の力が解放されました",
+    "magicUnlockedDescription": "あなたは秘術に目覚めました。カーソルが魔法の炎に包まれます。",
+    "metaDescription": "{{appName}}の設定を管理",
+    "openMagic": "マジック設定を開く",
+    "sections": {
+      "advanced": {
+        "description": "ウォレット、システム、パワーユーザー向けの設定",
+        "label": "詳細設定"
+      },
+      "content": {
+        "description": "ミュートしたユーザー、ハッシュタグ、センシティブコンテンツの設定",
+        "label": "コンテンツ"
+      },
+      "feed": {
+        "description": "ホームフィードに表示する投稿の種類を選択",
+        "label": "ホームフィード"
+      },
+      "magic": {
+        "description": "魔法のカーソルエフェクトと神秘的なインターフェースの力",
+        "label": "マジック"
+      },
+      "network": {
+        "description": "リレーとファイルアップロードサーバー",
+        "label": "ネットワーク"
+      },
+      "notifications": {
+        "description": "プッシュ通知の設定",
+        "label": "通知"
+      },
+      "profile": {
+        "description": "表示名、自己紹介、アバターを編集",
+        "label": "プロフィール"
+      }
+    },
+    "title": "設定",
+    "unlockMagic": "魔法の力を解放する"
+  }
+}
