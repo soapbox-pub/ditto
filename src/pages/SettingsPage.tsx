@@ -2,7 +2,7 @@ import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { ChevronRight, Languages, Settings } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { defineMessage, FormattedMessage, useIntl, type MessageDescriptor } from 'react-intl';
 import { PageHeader } from '@/components/PageHeader';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -10,14 +10,15 @@ import { IntroImage } from '@/components/IntroImage';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { toast } from '@/hooks/useToast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { LANGUAGE_OPTIONS, useLanguage } from '@/i18n/language';
+import { useLanguage } from '@/hooks/useLanguage';
+import { LANGUAGE_OPTIONS } from '@/i18n/language';
 
 const RequestToVanishDialog = lazy(() => import('@/components/RequestToVanishDialog').then(m => ({ default: m.RequestToVanishDialog })));
 
 interface SettingsSection {
   id: string;
-  label: string;
-  description: string;
+  label: MessageDescriptor;
+  description: MessageDescriptor;
   illustration?: string;
   path: string;
   requiresAuth?: boolean;
@@ -26,53 +27,53 @@ interface SettingsSection {
 const settingsSections: SettingsSection[] = [
   {
     id: 'profile',
-    label: 'Profile',
-    description: 'Edit your display name, bio, and avatar',
+    label: defineMessage({ id: 'settings.sections.profile.label', defaultMessage: 'Profile' }),
+    description: defineMessage({ id: 'settings.sections.profile.description', defaultMessage: 'Edit your display name, bio, and avatar' }),
     illustration: '/profile-intro.png',
     path: '/settings/profile',
     requiresAuth: true,
   },
   {
     id: 'feed',
-    label: 'Home Feed',
-    description: 'Choose what types of posts appear in your home feed',
+    label: defineMessage({ id: 'settings.sections.feed.label', defaultMessage: 'Home Feed' }),
+    description: defineMessage({ id: 'settings.sections.feed.description', defaultMessage: 'Choose what types of posts appear in your home feed' }),
     illustration: '/community-intro.png',
     path: '/settings/feed',
   },
   {
     id: 'content',
-    label: 'Content',
-    description: 'Muted users, hashtags, and sensitive content settings',
+    label: defineMessage({ id: 'settings.sections.content.label', defaultMessage: 'Content' }),
+    description: defineMessage({ id: 'settings.sections.content.description', defaultMessage: 'Muted users, hashtags, and sensitive content settings' }),
     illustration: '/mute-intro.png',
     path: '/settings/content',
   },
   {
     id: 'network',
-    label: 'Network',
-    description: 'Relays and file upload servers',
+    label: defineMessage({ id: 'settings.sections.network.label', defaultMessage: 'Network' }),
+    description: defineMessage({ id: 'settings.sections.network.description', defaultMessage: 'Relays and file upload servers' }),
     illustration: '/relay-intro.png',
     path: '/settings/network',
     requiresAuth: true,
   },
   {
     id: 'notifications',
-    label: 'Notifications',
-    description: 'Configure push notification preferences',
+    label: defineMessage({ id: 'settings.sections.notifications.label', defaultMessage: 'Notifications' }),
+    description: defineMessage({ id: 'settings.sections.notifications.description', defaultMessage: 'Configure push notification preferences' }),
     illustration: '/notification-intro.png',
     path: '/settings/notifications',
     requiresAuth: true,
   },
   {
     id: 'advanced',
-    label: 'Advanced',
-    description: 'Wallet, system, and power user settings',
+    label: defineMessage({ id: 'settings.sections.advanced.label', defaultMessage: 'Advanced' }),
+    description: defineMessage({ id: 'settings.sections.advanced.description', defaultMessage: 'Wallet, system, and power user settings' }),
     illustration: '/advanced-intro.png',
     path: '/settings/advanced',
   },
   {
     id: 'magic',
-    label: 'Magic',
-    description: 'Enchanted cursor effects and mystical interface powers',
+    label: defineMessage({ id: 'settings.sections.magic.label', defaultMessage: 'Magic' }),
+    description: defineMessage({ id: 'settings.sections.magic.description', defaultMessage: 'Enchanted cursor effects and mystical interface powers' }),
     illustration: '/magic-intro.png',
     path: '/settings/magic',
   },
@@ -157,9 +158,9 @@ export function SettingsPage() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold"><FormattedMessage id={`settings.sections.${section.id}.label`} defaultMessage={section.label} /></p>
+                  <p className="text-sm font-semibold"><FormattedMessage {...section.label} /></p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    <FormattedMessage id={`settings.sections.${section.id}.description`} defaultMessage={section.description} />
+                    <FormattedMessage {...section.description} />
                   </p>
                 </div>
                 <ChevronRight className="size-4 text-primary/40 shrink-0 group-hover:text-primary/70 transition-colors" strokeWidth={4} />

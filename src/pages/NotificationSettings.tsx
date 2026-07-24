@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Bell, BellOff, AlertTriangle, ClipboardCheck, Heart, Quote, Repeat2, Zap, AtSign, MessageSquare, Users, Award, Mail, Radio, MonitorSmartphone } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { defineMessage, FormattedMessage, useIntl, type MessageDescriptor } from 'react-intl';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -22,74 +22,73 @@ interface NotificationTypeRow {
   key: NotificationPrefKey;
   kinds: number[];
   icon: React.ReactNode;
-  label: string;
-  description: string;
+  label: MessageDescriptor;
+  description: MessageDescriptor;
 }
 
-// English source strings live inline; ids resolve via `settings.notifications.type.<key>.*`.
 const NOTIFICATION_TYPES: NotificationTypeRow[] = [
   {
     key: 'reactions',
     kinds: [7],
     icon: <Heart className="size-5" />,
-    label: 'Reactions',
-    description: 'When someone reacts to your posts',
+    label: defineMessage({ id: 'settings.notifications.type.reactions.label', defaultMessage: 'Reactions' }),
+    description: defineMessage({ id: 'settings.notifications.type.reactions.description', defaultMessage: 'When someone reacts to your posts' }),
   },
   {
     key: 'reposts',
     kinds: [6, 16],
     icon: <Repeat2 className="size-5" />,
-    label: 'Reposts',
-    description: 'When someone reposts your notes',
+    label: defineMessage({ id: 'settings.notifications.type.reposts.label', defaultMessage: 'Reposts' }),
+    description: defineMessage({ id: 'settings.notifications.type.reposts.description', defaultMessage: 'When someone reposts your notes' }),
   },
   {
     key: 'zaps',
     kinds: [9735, 8333],
     icon: <Zap className="size-5" />,
-    label: 'Zaps',
-    description: 'When someone sends you a lightning or on-chain zap',
+    label: defineMessage({ id: 'settings.notifications.type.zaps.label', defaultMessage: 'Zaps' }),
+    description: defineMessage({ id: 'settings.notifications.type.zaps.description', defaultMessage: 'When someone sends you a lightning or on-chain zap' }),
   },
   {
     key: 'mentions',
     kinds: [1],
     icon: <AtSign className="size-5" />,
-    label: 'Mentions',
-    description: 'When someone mentions you in a note',
+    label: defineMessage({ id: 'settings.notifications.type.mentions.label', defaultMessage: 'Mentions' }),
+    description: defineMessage({ id: 'settings.notifications.type.mentions.description', defaultMessage: 'When someone mentions you in a note' }),
   },
   {
     key: 'comments',
     kinds: [1111],
     icon: <MessageSquare className="size-5" />,
-    label: 'Comments & Replies',
-    description: 'When someone comments on or replies to your posts',
+    label: defineMessage({ id: 'settings.notifications.type.comments.label', defaultMessage: 'Comments & Replies' }),
+    description: defineMessage({ id: 'settings.notifications.type.comments.description', defaultMessage: 'When someone comments on or replies to your posts' }),
   },
   {
     key: 'badges',
     kinds: [8],
     icon: <Award className="size-5" />,
-    label: 'Badge Awards',
-    description: 'When someone awards you a badge',
+    label: defineMessage({ id: 'settings.notifications.type.badges.label', defaultMessage: 'Badge Awards' }),
+    description: defineMessage({ id: 'settings.notifications.type.badges.description', defaultMessage: 'When someone awards you a badge' }),
   },
   {
     key: 'letters',
     kinds: [8211],
     icon: <Mail className="size-5" />,
-    label: 'Letters',
-    description: 'When someone sends you a letter',
+    label: defineMessage({ id: 'settings.notifications.type.letters.label', defaultMessage: 'Letters' }),
+    description: defineMessage({ id: 'settings.notifications.type.letters.description', defaultMessage: 'When someone sends you a letter' }),
   },
   {
     key: 'highlights',
     kinds: [9802],
     icon: <Quote className="size-5" />,
-    label: 'Highlights',
-    description: 'When someone highlights your content',
+    label: defineMessage({ id: 'settings.notifications.type.highlights.label', defaultMessage: 'Highlights' }),
+    description: defineMessage({ id: 'settings.notifications.type.highlights.description', defaultMessage: 'When someone highlights your content' }),
   },
   {
     key: 'quizzes',
     kinds: [7849],
     icon: <ClipboardCheck className="size-5" />,
-    label: 'Quizzes',
-    description: 'When someone takes your quiz',
+    label: defineMessage({ id: 'settings.notifications.type.quizzes.label', defaultMessage: 'Quizzes' }),
+    description: defineMessage({ id: 'settings.notifications.type.quizzes.description', defaultMessage: 'When someone takes your quiz' }),
   },
 ];
 
@@ -469,9 +468,9 @@ export function NotificationSettings() {
             <NotifRow
               key={type.key}
               icon={type.icon}
-              label={intl.formatMessage({ id: `settings.notifications.type.${type.key}.label`, defaultMessage: type.label })}
+              label={intl.formatMessage(type.label)}
               kinds={type.kinds}
-              description={intl.formatMessage({ id: `settings.notifications.type.${type.key}.description`, defaultMessage: type.description })}
+              description={intl.formatMessage(type.description)}
               checked={prefs[type.key] !== false}
               onCheckedChange={(enabled) => handleToggleType(type.key, enabled)}
             />

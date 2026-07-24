@@ -302,7 +302,7 @@
   "settings.network.blossomServers": "Blossom-Server",
   "settings.network.disabled": "Deaktiviert",
   "settings.network.enabled": "Aktiviert",
-  "settings.network.imageQuality.compressed": "komprimiert",
+  "settings.network.imageQuality.compressed": "Komprimiert",
   "settings.network.imageQuality.original": "Original",
   "settings.network.imageUploads": "Bild-Uploads",
   "settings.network.invalidRelayUrl": "Ungültige Relay-URL",

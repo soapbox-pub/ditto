@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@/hooks/useSeoMeta';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { defineMessage, FormattedMessage, useIntl, type MessageDescriptor } from 'react-intl';
 import { Navigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { RelayListManager } from '@/components/RelayListManager';
@@ -10,6 +10,12 @@ import { Label } from '@/components/ui/label';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { cn } from '@/lib/utils';
+import type { AppConfig } from '@/contexts/AppContext';
+
+const IMAGE_QUALITY_OPTIONS: { value: AppConfig['imageQuality']; label: MessageDescriptor }[] = [
+  { value: 'compressed', label: defineMessage({ id: 'settings.network.imageQuality.compressed', defaultMessage: 'Compressed' }) },
+  { value: 'original', label: defineMessage({ id: 'settings.network.imageQuality.original', defaultMessage: 'Original' }) },
+];
 
 export function NetworkSettingsPage() {
   const intl = useIntl();
@@ -89,18 +95,18 @@ export function NetworkSettingsPage() {
               </p>
             </div>
             <div className="inline-flex items-center gap-0.5 p-1 bg-muted/50 rounded-lg">
-              {(['compressed', 'original'] as const).map((value) => (
+              {IMAGE_QUALITY_OPTIONS.map(({ value, label }) => (
                 <button
                   key={value}
                   onClick={() => updateConfig((prev) => ({ ...prev, imageQuality: value }))}
                   className={cn(
-                    'px-4 py-1.5 text-sm font-medium rounded-md transition-all capitalize',
+                    'px-4 py-1.5 text-sm font-medium rounded-md transition-all',
                     config.imageQuality === value
                       ? 'bg-background text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  <FormattedMessage id={`settings.network.imageQuality.${value}`} defaultMessage={value} />
+                  <FormattedMessage {...label} />
                 </button>
               ))}
             </div>
