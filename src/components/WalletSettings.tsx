@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Plus, Trash2, Zap, Globe, WalletMinimal, CheckCircle, X, Bitcoin, ArrowUp, ArrowDown, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -174,7 +174,7 @@ export function WalletSettings() {
       <div className="space-y-6">
         {/* Connection status cards */}
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide px-1">{intl.formatMessage({ id: 'settings.wallet.status', defaultMessage: "Status" })}</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide px-1"><FormattedMessage id="settings.wallet.status" defaultMessage={"Status"} /></h2>
           <div className="grid gap-3">
             {/* WebLN */}
             <Card className="overflow-hidden">
@@ -185,13 +185,13 @@ export function WalletSettings() {
                   </div>
                   <div>
                     <p className="text-sm font-medium">WebLN</p>
-                    <p className="text-xs text-muted-foreground">{intl.formatMessage({ id: 'settings.wallet.weblnDescription', defaultMessage: "Browser extension" })}</p>
+                    <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.wallet.weblnDescription" defaultMessage={"Browser extension"} /></p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {webln && <CheckCircle className="size-4 text-green-500" />}
                   <Badge variant={webln ? 'default' : 'secondary'} className="text-xs">
-                    {webln ? intl.formatMessage({ id: 'settings.wallet.ready', defaultMessage: "Ready" }) : intl.formatMessage({ id: 'settings.wallet.notFound', defaultMessage: "Not Found" })}
+                    {webln ? <FormattedMessage id="settings.wallet.ready" defaultMessage={"Ready"} /> : <FormattedMessage id="settings.wallet.notFound" defaultMessage={"Not Found"} />}
                   </Badge>
                 </div>
               </CardContent>
@@ -208,15 +208,15 @@ export function WalletSettings() {
                     <p className="text-sm font-medium">Nostr Wallet Connect</p>
                     <p className="text-xs text-muted-foreground">
                       {connections.length > 0
-                        ? intl.formatMessage({ id: 'settings.wallet.walletsConnected', defaultMessage: "{count, plural, one {{count} wallet connected} other {{count} wallets connected}}" }, { count: connections.length })
-                        : intl.formatMessage({ id: 'settings.wallet.remoteWalletConnection', defaultMessage: "Remote wallet connection" })}
+                        ? <FormattedMessage id="settings.wallet.walletsConnected" defaultMessage={"{count, plural, one {{count} wallet connected} other {{count} wallets connected}}"} values={{ count: connections.length }} />
+                        : <FormattedMessage id="settings.wallet.remoteWalletConnection" defaultMessage={"Remote wallet connection"} />}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {hasNWC && <CheckCircle className="size-4 text-green-500" />}
                   <Badge variant={hasNWC ? 'default' : 'secondary'} className="text-xs">
-                    {hasNWC ? intl.formatMessage({ id: 'settings.wallet.ready', defaultMessage: "Ready" }) : intl.formatMessage({ id: 'settings.wallet.none', defaultMessage: "None" })}
+                    {hasNWC ? <FormattedMessage id="settings.wallet.ready" defaultMessage={"Ready"} /> : <FormattedMessage id="settings.wallet.none" defaultMessage={"None"} />}
                   </Badge>
                 </div>
               </CardContent>
@@ -232,7 +232,7 @@ export function WalletSettings() {
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Nostr Wallet Connect</h2>
             <Button size="sm" variant="outline" onClick={() => setAddDialogOpen(true)} className="rounded-full">
               <Plus className="size-4 mr-1" />
-              {intl.formatMessage({ id: 'common.add', defaultMessage: "Add" })}
+              <FormattedMessage id="common.add" defaultMessage={"Add"} />
             </Button>
           </div>
 
@@ -240,8 +240,8 @@ export function WalletSettings() {
             <Card className="border-dashed">
               <CardContent className="py-10 text-center">
                 <WalletMinimal className="size-8 mx-auto mb-3 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground mb-1">{intl.formatMessage({ id: 'settings.wallet.noWallets', defaultMessage: "No wallets connected" })}</p>
-                <p className="text-xs text-muted-foreground/70">{intl.formatMessage({ id: 'settings.wallet.noWalletsDescription', defaultMessage: "Add an NWC connection to enable instant zaps." })}</p>
+                <p className="text-sm text-muted-foreground mb-1"><FormattedMessage id="settings.wallet.noWallets" defaultMessage={"No wallets connected"} /></p>
+                <p className="text-xs text-muted-foreground/70"><FormattedMessage id="settings.wallet.noWalletsDescription" defaultMessage={"Add an NWC connection to enable instant zaps."} /></p>
               </CardContent>
             </Card>
           ) : (
@@ -258,10 +258,10 @@ export function WalletSettings() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">
-                            {connection.alias || info?.alias || intl.formatMessage({ id: 'settings.wallet.lightningWallet', defaultMessage: "Lightning Wallet" })}
+                            {connection.alias || info?.alias || <FormattedMessage id="settings.wallet.lightningWallet" defaultMessage={"Lightning Wallet"} />}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {isActive ? intl.formatMessage({ id: 'settings.wallet.active', defaultMessage: "Active" }) : intl.formatMessage({ id: 'settings.wallet.nwcConnection', defaultMessage: "NWC Connection" })}
+                            {isActive ? <FormattedMessage id="settings.wallet.active" defaultMessage={"Active"} /> : <FormattedMessage id="settings.wallet.nwcConnection" defaultMessage={"NWC Connection"} />}
                           </p>
                         </div>
                       </div>
@@ -302,7 +302,7 @@ export function WalletSettings() {
             <Separator />
             <div className="text-center py-4 space-y-2 px-4">
               <p className="text-sm text-muted-foreground">
-                {intl.formatMessage({ id: 'settings.wallet.installHelp', defaultMessage: "Install a WebLN browser extension or connect a NWC wallet to send zaps." })}
+                <FormattedMessage id="settings.wallet.installHelp" defaultMessage={"Install a WebLN browser extension or connect a NWC wallet to send zaps."} />
               </p>
             </div>
           </>
@@ -314,7 +314,7 @@ export function WalletSettings() {
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              {intl.formatMessage({ id: 'settings.wallet.bitcoinApis', defaultMessage: "Bitcoin APIs" })}
+              <FormattedMessage id="settings.wallet.bitcoinApis" defaultMessage={"Bitcoin APIs"} />
             </h2>
             <Button
               size="sm"
@@ -325,12 +325,12 @@ export function WalletSettings() {
               title={intl.formatMessage({ id: 'settings.wallet.restoreDefaultsTitle', defaultMessage: "Restore the default mempool.space → mempool.emzy.de → blockstream.info list" })}
             >
               <RotateCcw className="size-3.5 mr-1" />
-              {intl.formatMessage({ id: 'settings.wallet.restoreDefaults', defaultMessage: "Restore defaults" })}
+              <FormattedMessage id="settings.wallet.restoreDefaults" defaultMessage={"Restore defaults"} />
             </Button>
           </div>
 
           <p className="text-xs text-muted-foreground px-1">
-            {intl.formatMessage({ id: 'settings.wallet.bitcoinApisDescription', defaultMessage: "Esplora-compatible Bitcoin REST endpoints used by the wallet, on-chain zaps, and tx/address pages. Tried in order — if the top one is rate-limited or down, the next is tried automatically. Reorder so your preferred endpoint is first." })}
+            <FormattedMessage id="settings.wallet.bitcoinApisDescription" defaultMessage={"Esplora-compatible Bitcoin REST endpoints used by the wallet, on-chain zaps, and tx/address pages. Tried in order — if the top one is rate-limited or down, the next is tried automatically. Reorder so your preferred endpoint is first."} />
           </p>
 
           <div className="space-y-2">
@@ -346,7 +346,7 @@ export function WalletSettings() {
                         {renderEsploraUrl(url)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {index === 0 ? intl.formatMessage({ id: 'settings.wallet.primary', defaultMessage: "Primary" }) : intl.formatMessage({ id: 'settings.wallet.fallback', defaultMessage: "Fallback {index}" }, { index })}
+                        {index === 0 ? <FormattedMessage id="settings.wallet.primary" defaultMessage={"Primary"} /> : <FormattedMessage id="settings.wallet.fallback" defaultMessage={"Fallback {index}"} values={{ index }} />}
                       </p>
                     </div>
                   </div>
@@ -391,7 +391,7 @@ export function WalletSettings() {
           <div className="flex gap-2 px-1">
             <div className="flex-1">
               <Label htmlFor="new-esplora-url" className="sr-only">
-                {intl.formatMessage({ id: 'settings.wallet.bitcoinApiUrlLabel', defaultMessage: "Bitcoin API URL" })}
+                <FormattedMessage id="settings.wallet.bitcoinApiUrlLabel" defaultMessage={"Bitcoin API URL"} />
               </Label>
               <Input
                 id="new-esplora-url"
@@ -412,7 +412,7 @@ export function WalletSettings() {
               className="h-9 shrink-0 text-xs"
             >
               <Plus className="h-3.5 w-3.5 mr-1.5" />
-              {intl.formatMessage({ id: 'common.add', defaultMessage: "Add" })}
+              <FormattedMessage id="common.add" defaultMessage={"Add"} />
             </Button>
           </div>
         </div>
@@ -424,7 +424,7 @@ export function WalletSettings() {
           {/* Header */}
           <div className="flex items-center justify-between px-4 h-12">
             <DialogTitle className="text-base font-semibold">
-              {intl.formatMessage({ id: 'settings.wallet.connectDialogTitle', defaultMessage: "Connect NWC Wallet" })}
+              <FormattedMessage id="settings.wallet.connectDialogTitle" defaultMessage={"Connect NWC Wallet"} />
             </DialogTitle>
             <button
               onClick={() => setAddDialogOpen(false)}
@@ -436,7 +436,7 @@ export function WalletSettings() {
 
           {/* Description */}
           <p className="px-4 -mt-1 mb-2 text-sm text-muted-foreground">
-            {intl.formatMessage({ id: 'settings.wallet.connectDialogDescription', defaultMessage: "Paste a connection string from your NWC-compatible wallet." })}
+            <FormattedMessage id="settings.wallet.connectDialogDescription" defaultMessage={"Paste a connection string from your NWC-compatible wallet."} />
           </p>
 
           {/* Form fields */}
@@ -464,7 +464,7 @@ export function WalletSettings() {
               className="rounded-full px-5 font-bold"
               size="sm"
             >
-              {isConnecting ? intl.formatMessage({ id: 'settings.wallet.connecting', defaultMessage: "Connecting..." }) : intl.formatMessage({ id: 'settings.wallet.connect', defaultMessage: "Connect" })}
+              {isConnecting ? <FormattedMessage id="settings.wallet.connecting" defaultMessage={"Connecting..."} /> : <FormattedMessage id="settings.wallet.connect" defaultMessage={"Connect"} />}
             </Button>
           </div>
         </DialogContent>

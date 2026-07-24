@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Plus, X, Settings, Server, Shield, Zap } from 'lucide-react';
 import { HelpTip } from '@/components/HelpTip';
 import { Button } from '@/components/ui/button';
@@ -68,13 +68,13 @@ function RelayIdentity({ url }: { url: string }) {
           {hasAuthRequired && (
             <Badge variant="secondary" className="gap-1 text-[10px]">
               <Shield className="size-2.5" />
-              {intl.formatMessage({ id: 'settings.network.auth', defaultMessage: "Auth" })}
+              <FormattedMessage id="settings.network.auth" defaultMessage={"Auth"} />
             </Badge>
           )}
           {hasPaymentRequired && (
             <Badge variant="secondary" className="gap-1 text-[10px]">
               <Zap className="size-2.5" />
-              {intl.formatMessage({ id: 'settings.network.paid', defaultMessage: "Paid" })}
+              <FormattedMessage id="settings.network.paid" defaultMessage={"Paid"} />
             </Badge>
           )}
         </div>
@@ -302,10 +302,10 @@ export function RelayListManager() {
       <div className="pt-4 pb-4">
         <div className="px-3 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">{intl.formatMessage({ id: 'settings.network.appRelays', defaultMessage: "App Relays" })}</h3>
+            <h3 className="text-sm font-medium"><FormattedMessage id="settings.network.appRelays" defaultMessage={"App Relays"} /></h3>
             <div className="flex items-center gap-2">
               <Label htmlFor="use-app-relays" className="text-xs text-muted-foreground cursor-pointer">
-                {config.useAppRelays ? intl.formatMessage({ id: 'settings.network.enabled', defaultMessage: "Enabled" }) : intl.formatMessage({ id: 'settings.network.disabled', defaultMessage: "Disabled" })}
+                {config.useAppRelays ? <FormattedMessage id="settings.network.enabled" defaultMessage={"Enabled"} /> : <FormattedMessage id="settings.network.disabled" defaultMessage={"Disabled"} />}
               </Label>
               <Switch
                 id="use-app-relays"
@@ -316,7 +316,7 @@ export function RelayListManager() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            {intl.formatMessage({ id: 'settings.network.appRelaysDescription', defaultMessage: "Default relays for reliable connectivity. Used alongside your personal relays when enabled." })}
+            <FormattedMessage id="settings.network.appRelaysDescription" defaultMessage={"Default relays for reliable connectivity. Used alongside your personal relays when enabled."} />
           </p>
         </div>
         
@@ -334,10 +334,10 @@ export function RelayListManager() {
               </Link>
               <div className="flex items-center gap-1 text-[10px]">
                 {relay.read && (
-                  <span className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 font-medium">{intl.formatMessage({ id: 'settings.network.read', defaultMessage: "Read" })}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 font-medium"><FormattedMessage id="settings.network.read" defaultMessage={"Read"} /></span>
                 )}
                 {relay.write && (
-                  <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium">{intl.formatMessage({ id: 'settings.network.write', defaultMessage: "Write" })}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium"><FormattedMessage id="settings.network.write" defaultMessage={"Write"} /></span>
                 )}
               </div>
             </div>
@@ -349,10 +349,10 @@ export function RelayListManager() {
       <div className="pb-4 pt-4">
         <div className="px-3 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium flex items-center gap-1.5">{intl.formatMessage({ id: 'settings.network.yourRelays', defaultMessage: "Your Relays" })} <HelpTip faqId="what-are-relays" iconSize="size-3.5" /></h3>
+            <h3 className="text-sm font-medium flex items-center gap-1.5"><FormattedMessage id="settings.network.yourRelays" defaultMessage={"Your Relays"} /> <HelpTip faqId="what-are-relays" iconSize="size-3.5" /></h3>
             <div className="flex items-center gap-2">
               <Label htmlFor="use-user-relays" className="text-xs text-muted-foreground cursor-pointer">
-                {config.useUserRelays ? intl.formatMessage({ id: 'settings.network.enabled', defaultMessage: "Enabled" }) : intl.formatMessage({ id: 'settings.network.disabled', defaultMessage: "Disabled" })}
+                {config.useUserRelays ? <FormattedMessage id="settings.network.enabled" defaultMessage={"Enabled"} /> : <FormattedMessage id="settings.network.disabled" defaultMessage={"Disabled"} />}
               </Label>
               <Switch
                 id="use-user-relays"
@@ -363,7 +363,7 @@ export function RelayListManager() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            {intl.formatMessage({ id: 'settings.network.yourRelaysDescription', defaultMessage: "Your personal relay list. Disabled by default — enable to include your relays in queries and publishes." })} {user ? intl.formatMessage({ id: 'settings.network.yourRelaysSynced', defaultMessage: "Your list is still synced to Nostr when logged in." }) : intl.formatMessage({ id: 'settings.network.yourRelaysLogin', defaultMessage: "Log in to sync your list to Nostr." })}
+            <FormattedMessage id="settings.network.yourRelaysDescription" defaultMessage={"Your personal relay list. Disabled by default — enable to include your relays in queries and publishes."} /> {user ? <FormattedMessage id="settings.network.yourRelaysSynced" defaultMessage={"Your list is still synced to Nostr when logged in."} /> : <FormattedMessage id="settings.network.yourRelaysLogin" defaultMessage={"Log in to sync your list to Nostr."} />}
           </p>
         </div>
 
@@ -374,7 +374,7 @@ export function RelayListManager() {
         )}>
           {relays.length === 0 ? (
             <div className="text-xs text-muted-foreground py-8 text-center">
-              {config.useAppRelays ? intl.formatMessage({ id: 'settings.network.noRelaysWithAppRelays', defaultMessage: "No personal relays configured. Add relays below or keep App Relays enabled above." }) : intl.formatMessage({ id: 'settings.network.noRelays', defaultMessage: "No personal relays configured. Add relays below." })}
+              {config.useAppRelays ? <FormattedMessage id="settings.network.noRelaysWithAppRelays" defaultMessage={"No personal relays configured. Add relays below or keep App Relays enabled above."} /> : <FormattedMessage id="settings.network.noRelays" defaultMessage={"No personal relays configured. Add relays below."} />}
             </div>
           ) : (
             <div className="space-y-1">
@@ -402,7 +402,7 @@ export function RelayListManager() {
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <Label htmlFor={`read-${relay.url}`} className="text-xs cursor-pointer">
-                            {intl.formatMessage({ id: 'settings.network.read', defaultMessage: "Read" })}
+                            <FormattedMessage id="settings.network.read" defaultMessage={"Read"} />
                           </Label>
                           <Switch
                             id={`read-${relay.url}`}
@@ -413,7 +413,7 @@ export function RelayListManager() {
                         </div>
                         <div className="flex items-center justify-between">
                           <Label htmlFor={`write-${relay.url}`} className="text-xs cursor-pointer">
-                            {intl.formatMessage({ id: 'settings.network.write', defaultMessage: "Write" })}
+                            <FormattedMessage id="settings.network.write" defaultMessage={"Write"} />
                           </Label>
                           <Switch
                             id={`write-${relay.url}`}
@@ -446,7 +446,7 @@ export function RelayListManager() {
           <div className="flex gap-2">
             <div className="flex-1">
               <Label htmlFor="new-relay-url" className="sr-only">
-                {intl.formatMessage({ id: 'settings.network.relayUrl', defaultMessage: "Relay URL" })}
+                <FormattedMessage id="settings.network.relayUrl" defaultMessage={"Relay URL"} />
               </Label>
               <Input
                 id="new-relay-url"
@@ -469,13 +469,13 @@ export function RelayListManager() {
               className="h-9 shrink-0 text-xs"
             >
               <Plus className="h-3.5 w-3.5 mr-1.5" />
-              {intl.formatMessage({ id: 'common.add', defaultMessage: "Add" })}
+              <FormattedMessage id="common.add" defaultMessage={"Add"} />
             </Button>
           </div>
 
           {!user && (
             <p className="text-[10px] text-muted-foreground mt-2">
-              {intl.formatMessage({ id: 'settings.network.loginToSync', defaultMessage: "Log in to sync your relay list with Nostr" })}
+              <FormattedMessage id="settings.network.loginToSync" defaultMessage={"Log in to sync your relay list with Nostr"} />
             </p>
           )}
         </div>

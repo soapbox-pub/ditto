@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Bell, BellOff, AlertTriangle, ClipboardCheck, Heart, Quote, Repeat2, Zap, AtSign, MessageSquare, Users, Award, Mail, Radio, MonitorSmartphone } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -336,9 +336,9 @@ export function NotificationSettings() {
         alwaysShowBack
         titleContent={
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold">{intl.formatMessage({ id: 'settings.notifications.title', defaultMessage: "Notifications" })}</h1>
+            <h1 className="text-xl font-bold"><FormattedMessage id="settings.notifications.title" defaultMessage={"Notifications"} /></h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {intl.formatMessage({ id: 'settings.notifications.subtitle', defaultMessage: "Customize which notifications you receive." })}
+              <FormattedMessage id="settings.notifications.subtitle" defaultMessage={"Customize which notifications you receive."} />
             </p>
           </div>
         }
@@ -359,13 +359,13 @@ export function NotificationSettings() {
           {!isSupported && (
             <div className="flex items-center gap-2 px-3 pb-3 text-muted-foreground">
               <AlertTriangle className="size-3.5 shrink-0" />
-              <p className="text-xs">{intl.formatMessage({ id: 'settings.notifications.notSupported', defaultMessage: "Your browser does not support push notifications." })}</p>
+              <p className="text-xs"><FormattedMessage id="settings.notifications.notSupported" defaultMessage={"Your browser does not support push notifications."} /></p>
             </div>
           )}
           {isDenied && (
             <div className="flex items-center gap-2 px-3 pb-3 text-destructive">
               <AlertTriangle className="size-3.5 shrink-0" />
-              <p className="text-xs">{intl.formatMessage({ id: 'settings.notifications.blocked', defaultMessage: "Notifications are blocked. Update your browser settings to allow notifications from this site." })}</p>
+              <p className="text-xs"><FormattedMessage id="settings.notifications.blocked" defaultMessage={"Notifications are blocked. Update your browser settings to allow notifications from this site."} /></p>
             </div>
           )}
         </div>
@@ -377,7 +377,7 @@ export function NotificationSettings() {
             <SectionHeader title={intl.formatMessage({ id: 'settings.notifications.deliveryMethod', defaultMessage: "Delivery Method" })} />
             <div className="pb-4">
               <p className="text-xs text-muted-foreground px-3 pt-3 pb-4">
-                {intl.formatMessage({ id: 'settings.notifications.deliveryMethodDescription', defaultMessage: "Choose how notifications are delivered to your device." })}
+                <FormattedMessage id="settings.notifications.deliveryMethodDescription" defaultMessage={"Choose how notifications are delivered to your device."} />
               </p>
               <RadioGroup
                 value={notificationStyle}
@@ -389,10 +389,10 @@ export function NotificationSettings() {
                   <Label htmlFor="style-push" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2">
                       <Radio className="size-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{intl.formatMessage({ id: 'settings.notifications.stylePush', defaultMessage: "Push" })}</span>
+                      <span className="text-sm font-medium"><FormattedMessage id="settings.notifications.stylePush" defaultMessage={"Push"} /></span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {intl.formatMessage({ id: 'settings.notifications.stylePushDescription', defaultMessage: "Standard notifications. No persistent status bar icon." })}
+                      <FormattedMessage id="settings.notifications.stylePushDescription" defaultMessage={"Standard notifications. No persistent status bar icon."} />
                     </p>
                   </Label>
                 </div>
@@ -401,10 +401,10 @@ export function NotificationSettings() {
                   <Label htmlFor="style-persistent" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2">
                       <MonitorSmartphone className="size-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{intl.formatMessage({ id: 'settings.notifications.stylePersistent', defaultMessage: "Persistent" })}</span>
+                      <span className="text-sm font-medium"><FormattedMessage id="settings.notifications.stylePersistent" defaultMessage={"Persistent"} /></span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {intl.formatMessage({ id: 'settings.notifications.stylePersistentDescription', defaultMessage: "Keeps a live relay connection open in the background so notifications arrive instantly. Use this for reliable delivery on devices without push notification support." })}
+                      <FormattedMessage id="settings.notifications.stylePersistentDescription" defaultMessage={"Keeps a live relay connection open in the background so notifications arrive instantly. Use this for reliable delivery on devices without push notification support."} />
                     </p>
                   </Label>
                 </div>
@@ -418,7 +418,7 @@ export function NotificationSettings() {
                     <AlertTriangle className="size-4 shrink-0 text-amber-500 mt-0.5" />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs">
-                        {intl.formatMessage({ id: 'settings.notifications.batteryWarning', defaultMessage: "Battery optimization is enabled for {appName}. Android may cut the background relay connection and prevent it from resuming after a reboot." }, { appName: config.appName })}
+                        <FormattedMessage id="settings.notifications.batteryWarning" defaultMessage={"Battery optimization is enabled for {appName}. Android may cut the background relay connection and prevent it from resuming after a reboot."} values={{ appName: config.appName }} />
                       </p>
                       <Button
                         size="sm"
@@ -431,7 +431,7 @@ export function NotificationSettings() {
                           setBatteryOptimized(!ignoring);
                         }}
                       >
-                        {intl.formatMessage({ id: 'settings.notifications.disableBatteryOptimization', defaultMessage: "Disable battery optimization" })}
+                        <FormattedMessage id="settings.notifications.disableBatteryOptimization" defaultMessage={"Disable battery optimization"} />
                       </Button>
                     </div>
                   </div>
@@ -447,7 +447,7 @@ export function NotificationSettings() {
           {/* Filter sub-section */}
           <div className="px-3 pt-4 pb-2">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {intl.formatMessage({ id: 'settings.notifications.filter', defaultMessage: "Filter" })}
+              <FormattedMessage id="settings.notifications.filter" defaultMessage={"Filter"} />
             </span>
           </div>
           <NotifRow
@@ -462,7 +462,7 @@ export function NotificationSettings() {
           {/* Types sub-section */}
           <div className="px-3 pt-4 pb-2">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {intl.formatMessage({ id: 'settings.notifications.types', defaultMessage: "Types" })}
+              <FormattedMessage id="settings.notifications.types" defaultMessage={"Types"} />
             </span>
           </div>
           {NOTIFICATION_TYPES.map((type) => (

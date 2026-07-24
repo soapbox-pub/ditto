@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Upload, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -157,13 +157,13 @@ export function BlossomSettings() {
       <div className="pt-4 pb-4">
         <div className="px-3 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">{intl.formatMessage({ id: 'settings.network.appBlossomServers', defaultMessage: "App Blossom Servers" })}</h3>
+            <h3 className="text-sm font-medium"><FormattedMessage id="settings.network.appBlossomServers" defaultMessage={"App Blossom Servers"} /></h3>
             <div className="flex items-center gap-2">
               <Label
                 htmlFor="use-app-blossom-servers"
                 className="text-xs text-muted-foreground cursor-pointer"
               >
-                {config.useAppBlossomServers ? intl.formatMessage({ id: 'settings.network.enabled', defaultMessage: "Enabled" }) : intl.formatMessage({ id: 'settings.network.disabled', defaultMessage: "Disabled" })}
+                {config.useAppBlossomServers ? <FormattedMessage id="settings.network.enabled" defaultMessage={"Enabled"} /> : <FormattedMessage id="settings.network.disabled" defaultMessage={"Disabled"} />}
               </Label>
               <Switch
                 id="use-app-blossom-servers"
@@ -174,7 +174,7 @@ export function BlossomSettings() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            {intl.formatMessage({ id: 'settings.network.appBlossomDescription', defaultMessage: "Default file upload servers for reliable media hosting. Used alongside your personal servers when enabled." })}
+            <FormattedMessage id="settings.network.appBlossomDescription" defaultMessage={"Default file upload servers for reliable media hosting. Used alongside your personal servers when enabled."} />
           </p>
         </div>
 
@@ -201,9 +201,9 @@ export function BlossomSettings() {
       {/* User Blossom Servers Section */}
       <div className="pb-4 pt-4">
         <div className="px-3 space-y-3">
-          <h3 className="text-sm font-medium">{intl.formatMessage({ id: 'settings.network.yourBlossomServers', defaultMessage: "Your Blossom Servers" })}</h3>
+          <h3 className="text-sm font-medium"><FormattedMessage id="settings.network.yourBlossomServers" defaultMessage={"Your Blossom Servers"} /></h3>
           <p className="text-xs text-muted-foreground">
-            {intl.formatMessage({ id: 'settings.network.yourBlossomDescription', defaultMessage: "Your personal Blossom server list (BUD-03). Synced to Nostr as kind 10063 when logged in." })}
+            <FormattedMessage id="settings.network.yourBlossomDescription" defaultMessage={"Your personal Blossom server list (BUD-03). Synced to Nostr as kind 10063 when logged in."} />
           </p>
         </div>
 
@@ -211,7 +211,7 @@ export function BlossomSettings() {
         <div className="mt-3">
           {servers.length === 0 ? (
             <div className="text-xs text-muted-foreground py-8 text-center">
-              {intl.formatMessage({ id: 'settings.network.noBlossomServers', defaultMessage: "No personal Blossom servers configured. Add a server below or enable App Blossom Servers above." })}
+              <FormattedMessage id="settings.network.noBlossomServers" defaultMessage={"No personal Blossom servers configured. Add a server below or enable App Blossom Servers above."} />
             </div>
           ) : (
             <div className="space-y-1">
@@ -243,7 +243,7 @@ export function BlossomSettings() {
           <div className="flex gap-2">
             <div className="flex-1">
               <Label htmlFor="new-blossom-url" className="sr-only">
-                {intl.formatMessage({ id: 'settings.network.blossomServerUrl', defaultMessage: "Blossom Server URL" })}
+                <FormattedMessage id="settings.network.blossomServerUrl" defaultMessage={"Blossom Server URL"} />
               </Label>
               <Input
                 id="new-blossom-url"
@@ -264,13 +264,13 @@ export function BlossomSettings() {
               className="h-9 shrink-0 text-xs"
             >
               <Plus className="h-3.5 w-3.5 mr-1.5" />
-              {intl.formatMessage({ id: 'common.add', defaultMessage: "Add" })}
+              <FormattedMessage id="common.add" defaultMessage={"Add"} />
             </Button>
           </div>
 
           {!user && (
             <p className="text-[10px] text-muted-foreground mt-2">
-              {intl.formatMessage({ id: 'settings.network.loginToSyncBlossom', defaultMessage: "Log in to sync your Blossom server list with Nostr" })}
+              <FormattedMessage id="settings.network.loginToSyncBlossom" defaultMessage={"Log in to sync your Blossom server list with Nostr"} />
             </p>
           )}
         </div>

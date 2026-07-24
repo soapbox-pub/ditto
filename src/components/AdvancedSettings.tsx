@@ -67,7 +67,7 @@ export function AdvancedSettings() {
               variant="ghost"
               className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
             >
-              <span className="text-base font-semibold">{intl.formatMessage({ id: 'settings.advanced.system', defaultMessage: "System" })}</span>
+              <span className="text-base font-semibold"><FormattedMessage id="settings.advanced.system" defaultMessage={"System"} /></span>
               {systemOpen ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground" />
               ) : (
@@ -82,10 +82,10 @@ export function AdvancedSettings() {
               {/* Stats Source */}
               <div>
                 <Label htmlFor="stats-pubkey" className="text-sm font-medium">
-                  {intl.formatMessage({ id: 'settings.advanced.statsPubkeyLabel', defaultMessage: "NIP-85 Stats Pubkey" })}
+                  <FormattedMessage id="settings.advanced.statsPubkeyLabel" defaultMessage={"NIP-85 Stats Pubkey"} />
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  {intl.formatMessage({ id: 'settings.advanced.statsPubkeyDescription', defaultMessage: "Trusted pubkey for pre-computed engagement stats (likes, reposts, comments)." })}
+                  <FormattedMessage id="settings.advanced.statsPubkeyDescription" defaultMessage={"Trusted pubkey for pre-computed engagement stats (likes, reposts, comments)."} />
                 </p>
                 <Input
                   id="stats-pubkey"
@@ -97,11 +97,11 @@ export function AdvancedSettings() {
                 />
                 {statsPubkey && statsPubkey.length !== 64 && (
                   <p className="text-xs text-destructive mt-1">
-                    {intl.formatMessage({ id: 'settings.advanced.statsPubkeyError', defaultMessage: "Pubkey must be exactly 64 hexadecimal characters" })}
+                    <FormattedMessage id="settings.advanced.statsPubkeyError" defaultMessage={"Pubkey must be exactly 64 hexadecimal characters"} />
                   </p>
                 )}
                 <div className="text-xs text-muted-foreground mt-2">
-                  <span className="font-medium">{intl.formatMessage({ id: 'settings.advanced.defaultLabel', defaultMessage: "Default:" })}{' '}</span>
+                  <span className="font-medium"><FormattedMessage id="settings.advanced.defaultLabel" defaultMessage={"Default:"} />{' '}</span>
                   <span className="font-mono break-all">5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea</span>
                 </div>
               </div>
@@ -109,7 +109,7 @@ export function AdvancedSettings() {
               {/* Favicon URL */}
               <div>
                 <Label htmlFor="favicon-url" className="text-sm font-medium">
-                  {intl.formatMessage({ id: 'settings.advanced.faviconUrlLabel', defaultMessage: "Favicon URL" })}
+                  <FormattedMessage id="settings.advanced.faviconUrlLabel" defaultMessage={"Favicon URL"} />
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1 mb-2">
                   <FormattedMessage
@@ -134,7 +134,7 @@ export function AdvancedSettings() {
                   className="font-mono text-base md:text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
-                  <span className="font-medium">{intl.formatMessage({ id: 'settings.advanced.defaultLabel', defaultMessage: "Default:" })}{' '}</span>
+                  <span className="font-medium"><FormattedMessage id="settings.advanced.defaultLabel" defaultMessage={"Default:"} />{' '}</span>
                   <span className="font-mono break-all">https://ditto.pub/api/favicon/{'{hostname}'}</span>
                 </div>
               </div>
@@ -142,7 +142,7 @@ export function AdvancedSettings() {
               {/* Link Preview URL */}
               <div>
                 <Label htmlFor="link-preview-url" className="text-sm font-medium">
-                  {intl.formatMessage({ id: 'settings.advanced.linkPreviewUrlLabel', defaultMessage: "Link Preview URL" })}
+                  <FormattedMessage id="settings.advanced.linkPreviewUrlLabel" defaultMessage={"Link Preview URL"} />
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1 mb-2">
                   <FormattedMessage
@@ -167,7 +167,7 @@ export function AdvancedSettings() {
                   className="font-mono text-base md:text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
-                  <span className="font-medium">{intl.formatMessage({ id: 'settings.advanced.defaultLabel', defaultMessage: "Default:" })}{' '}</span>
+                  <span className="font-medium"><FormattedMessage id="settings.advanced.defaultLabel" defaultMessage={"Default:"} />{' '}</span>
                   <span className="font-mono break-all">https://ditto.pub/api/link-preview/{'{url}'}</span>
                 </div>
               </div>
@@ -175,7 +175,7 @@ export function AdvancedSettings() {
               {/* CORS Proxy */}
               <div>
                 <Label htmlFor="cors-proxy" className="text-sm font-medium">
-                  {intl.formatMessage({ id: 'settings.advanced.corsProxyLabel', defaultMessage: "CORS Proxy" })}
+                  <FormattedMessage id="settings.advanced.corsProxyLabel" defaultMessage={"CORS Proxy"} />
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1 mb-2">
                   <FormattedMessage
@@ -200,7 +200,7 @@ export function AdvancedSettings() {
                   className="font-mono text-base md:text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
-                  <span className="font-medium">{intl.formatMessage({ id: 'settings.advanced.defaultLabel', defaultMessage: "Default:" })}{' '}</span>
+                  <span className="font-medium"><FormattedMessage id="settings.advanced.defaultLabel" defaultMessage={"Default:"} />{' '}</span>
                   <span className="font-mono break-all">https://proxy.shakespeare.diy/?url={'{href}'}</span>
                 </div>
               </div>
@@ -219,7 +219,7 @@ export function AdvancedSettings() {
             >
               <span className="flex items-center gap-2 text-base font-semibold">
                 <Coins className="h-4 w-4" />
-                {intl.formatMessage({ id: 'settings.advanced.currency', defaultMessage: "Currency" })}
+                <FormattedMessage id="settings.advanced.currency" defaultMessage={"Currency"} />
               </span>
               {currencyOpen ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -232,9 +232,9 @@ export function AdvancedSettings() {
           <CollapsibleContent>
             <div className="px-3 pt-3 pb-4 space-y-3">
               <div>
-                <Label className="text-sm font-medium">{intl.formatMessage({ id: 'settings.advanced.currencyDisplayLabel', defaultMessage: "Display amounts in" })}</Label>
+                <Label className="text-sm font-medium"><FormattedMessage id="settings.advanced.currencyDisplayLabel" defaultMessage={"Display amounts in"} /></Label>
                 <p className="text-xs text-muted-foreground mt-1 mb-3">
-                  {intl.formatMessage({ id: 'settings.advanced.currencyDisplayDescription', defaultMessage: "Choose how zap totals, balances, and other monetary amounts are shown throughout the app. USD is converted from sats using the current BTC price; sats falls back automatically when the price is unavailable." })}
+                  <FormattedMessage id="settings.advanced.currencyDisplayDescription" defaultMessage={"Choose how zap totals, balances, and other monetary amounts are shown throughout the app. USD is converted from sats using the current BTC price; sats falls back automatically when the price is unavailable."} />
                 </p>
                 <RadioGroup
                   value={currencyDisplay}
@@ -247,9 +247,9 @@ export function AdvancedSettings() {
                   >
                     <RadioGroupItem value="usd" id="currency-usd" />
                     <div className="flex-1">
-                      <span className="text-sm font-medium">{intl.formatMessage({ id: 'settings.advanced.currencyUsd', defaultMessage: "US Dollars" })}</span>
+                      <span className="text-sm font-medium"><FormattedMessage id="settings.advanced.currencyUsd" defaultMessage={"US Dollars"} /></span>
                       <p className="text-xs text-muted-foreground">
-                        {intl.formatMessage({ id: 'settings.advanced.currencyExample', defaultMessage: "e.g." })} <span className="font-semibold">$2.50</span>
+                        <FormattedMessage id="settings.advanced.currencyExample" defaultMessage={"e.g."} /> <span className="font-semibold">$2.50</span>
                       </p>
                     </div>
                   </label>
@@ -259,9 +259,9 @@ export function AdvancedSettings() {
                   >
                     <RadioGroupItem value="sats" id="currency-sats" />
                     <div className="flex-1">
-                      <span className="text-sm font-medium">{intl.formatMessage({ id: 'settings.advanced.currencySats', defaultMessage: "Satoshis" })}</span>
+                      <span className="text-sm font-medium"><FormattedMessage id="settings.advanced.currencySats" defaultMessage={"Satoshis"} /></span>
                       <p className="text-xs text-muted-foreground">
-                        {intl.formatMessage({ id: 'settings.advanced.currencyExample', defaultMessage: "e.g." })} <span className="font-semibold">6,300 sats</span>
+                        <FormattedMessage id="settings.advanced.currencyExample" defaultMessage={"e.g."} /> <span className="font-semibold">6,300 sats</span>
                       </p>
                     </div>
                   </label>
@@ -282,7 +282,7 @@ export function AdvancedSettings() {
             >
               <span className="flex items-center gap-2 text-base font-semibold">
                 <Bug className="h-4 w-4" />
-                {intl.formatMessage({ id: 'settings.advanced.errorReporting', defaultMessage: "Error Reporting" })}
+                <FormattedMessage id="settings.advanced.errorReporting" defaultMessage={"Error Reporting"} />
               </span>
               {sentryOpen ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -299,10 +299,10 @@ export function AdvancedSettings() {
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <Label htmlFor="sentry-enabled" className="text-sm font-medium">
-                    {intl.formatMessage({ id: 'settings.advanced.shareErrorReports', defaultMessage: "Share error reports" })}
+                    <FormattedMessage id="settings.advanced.shareErrorReports" defaultMessage={"Share error reports"} />
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    {intl.formatMessage({ id: 'settings.advanced.shareErrorReportsDescription', defaultMessage: "Help improve this app by automatically sending crash and error reports." })}
+                    <FormattedMessage id="settings.advanced.shareErrorReportsDescription" defaultMessage={"Help improve this app by automatically sending crash and error reports."} />
                   </p>
                 </div>
                 <Switch
@@ -341,7 +341,7 @@ export function AdvancedSettings() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  {intl.formatMessage({ id: 'settings.advanced.sentryDsnDescription', defaultMessage: "Sentry Data Source Name (DSN) for error reporting. Leave empty to disable Sentry." })}
+                  <FormattedMessage id="settings.advanced.sentryDsnDescription" defaultMessage={"Sentry Data Source Name (DSN) for error reporting. Leave empty to disable Sentry."} />
                 </p>
                 <Input
                   id="sentry-dsn"
@@ -375,7 +375,7 @@ export function AdvancedSettings() {
               >
                 <span className="flex items-center gap-2 text-base font-semibold text-destructive">
                   <AlertTriangle className="h-4 w-4" />
-                  {intl.formatMessage({ id: 'settings.advanced.dangerZone', defaultMessage: "Danger Zone" })}
+                  <FormattedMessage id="settings.advanced.dangerZone" defaultMessage={"Danger Zone"} />
                 </span>
                 {dangerOpen ? (
                   <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -389,9 +389,9 @@ export function AdvancedSettings() {
               <div className="px-3 pt-3 pb-4 space-y-4">
                 <div className="rounded-lg border border-destructive/30 p-4 space-y-3">
                   <div>
-                    <h3 className="text-sm font-medium">{intl.formatMessage({ id: 'settings.deleteAccount', defaultMessage: "Delete Account" })}</h3>
+                    <h3 className="text-sm font-medium"><FormattedMessage id="settings.deleteAccount" defaultMessage={"Delete Account"} /></h3>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      {intl.formatMessage({ id: 'settings.advanced.deleteAccountDescription', defaultMessage: "Permanently delete your data from the network, including your profile, posts, reactions, and direct messages. This action is irreversible." })}
+                      <FormattedMessage id="settings.advanced.deleteAccountDescription" defaultMessage={"Permanently delete your data from the network, including your profile, posts, reactions, and direct messages. This action is irreversible."} />
                     </p>
                   </div>
                   <Button
@@ -400,7 +400,7 @@ export function AdvancedSettings() {
                     className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
                     onClick={() => setVanishDialogOpen(true)}
                   >
-                    {intl.formatMessage({ id: 'settings.deleteAccount', defaultMessage: "Delete Account" })}
+                    <FormattedMessage id="settings.deleteAccount" defaultMessage={"Delete Account"} />
                   </Button>
                 </div>
               </div>

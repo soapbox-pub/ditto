@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -16,7 +16,6 @@ import { useMuteFilter } from '@/hooks/useMuteFilter';
 
 /** Hot posts widget for the right sidebar. */
 export function HotPostsWidget() {
-  const intl = useIntl();
   const { data: rawPosts, isLoading } = useSortedPosts('hot', 5);
   const { isMuted } = useMuteFilter();
 
@@ -43,7 +42,7 @@ export function HotPostsWidget() {
   }
 
   if (!posts || posts.length === 0) {
-    return <p className="text-sm text-muted-foreground p-1">{intl.formatMessage({ id: 'widgets.hotPosts.empty', defaultMessage: "No hot posts right now." })}</p>;
+    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.hotPosts.empty" defaultMessage={"No hot posts right now."} /></p>;
   }
 
   return (
@@ -52,7 +51,7 @@ export function HotPostsWidget() {
         <HotPostCard key={event.id} event={event} />
       ))}
       <div className="pt-1 px-2">
-        <Link to="/trends" className="text-xs text-primary hover:underline">{intl.formatMessage({ id: 'widgets.hotPosts.viewAll', defaultMessage: "View all on Trends" })}</Link>
+        <Link to="/trends" className="text-xs text-primary hover:underline"><FormattedMessage id="widgets.hotPosts.viewAll" defaultMessage={"View all on Trends"} /></Link>
       </div>
     </div>
   );

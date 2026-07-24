@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@/hooks/useSeoMeta';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { PageHeader } from '@/components/PageHeader';
 import { IntroImage } from '@/components/IntroImage';
 import { AdvancedSettings } from '@/components/AdvancedSettings';
@@ -30,9 +30,9 @@ export function AdvancedSettingsPage() {
         alwaysShowBack
         titleContent={
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold">{intl.formatMessage({ id: 'settings.advanced.title', defaultMessage: "Advanced" })}</h1>
+            <h1 className="text-xl font-bold"><FormattedMessage id="settings.advanced.title" defaultMessage={"Advanced"} /></h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {intl.formatMessage({ id: 'settings.advanced.subtitle', defaultMessage: "Wallet connections, system configuration, and other advanced options for power users." })}
+              <FormattedMessage id="settings.advanced.subtitle" defaultMessage={"Wallet connections, system configuration, and other advanced options for power users."} />
             </p>
           </div>
         }
@@ -43,9 +43,9 @@ export function AdvancedSettingsPage() {
         <div className="flex items-center gap-4 px-3 pt-2 pb-4">
           <IntroImage src="/advanced-intro.png" />
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold">{intl.formatMessage({ id: 'settings.advanced.introTitle', defaultMessage: "Power User Settings" })}</h2>
+            <h2 className="text-sm font-semibold"><FormattedMessage id="settings.advanced.introTitle" defaultMessage={"Power User Settings"} /></h2>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              {intl.formatMessage({ id: 'settings.advanced.introDescription', defaultMessage: "Wallet connections, system configuration, and other advanced options." })}
+              <FormattedMessage id="settings.advanced.introDescription" defaultMessage={"Wallet connections, system configuration, and other advanced options."} />
             </p>
           </div>
         </div>
@@ -58,7 +58,7 @@ export function AdvancedSettingsPage() {
                 variant="ghost"
                 className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
               >
-                <span className="text-base font-semibold">{intl.formatMessage({ id: 'settings.wallet.title', defaultMessage: "Wallet" })}</span>
+                <span className="text-base font-semibold"><FormattedMessage id="settings.wallet.title" defaultMessage={"Wallet"} /></span>
                 {walletOpen ? (
                   <ChevronUp className="h-4 w-4 text-muted-foreground" />
                 ) : (

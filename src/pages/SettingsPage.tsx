@@ -2,7 +2,7 @@ import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { ChevronRight, Languages, Settings } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { PageHeader } from '@/components/PageHeader';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -130,9 +130,9 @@ export function SettingsPage() {
       {/* Codex heading + exposition */}
       <div className="px-7 pb-4 pt-4 text-center space-y-2.5">
         <p className="text-xs text-muted-foreground leading-relaxed select-none">
-          {intl.formatMessage({ id: 'settings.intro', defaultMessage: "Shape your identity, tune your feed, and manage how you connect to the Nostr network." })}<br />{intl.formatMessage({ id: 'settings.introSub', defaultMessage: "Everything you need to make this place feel like yours." })}
+          <FormattedMessage id="settings.intro" defaultMessage={"Shape your identity, tune your feed, and manage how you connect to the Nostr network."} /><br /><FormattedMessage id="settings.introSub" defaultMessage={"Everything you need to make this place feel like yours."} />
         </p>
-        <p className="text-[10px] tracking-[0.5em] uppercase text-primary/60 select-none pt-6">{intl.formatMessage({ id: 'settings.codex', defaultMessage: "Codex of Configuration" })}</p>
+        <p className="text-[10px] tracking-[0.5em] uppercase text-primary/60 select-none pt-6"><FormattedMessage id="settings.codex" defaultMessage={"Codex of Configuration"} /></p>
       </div>
 
       {/* Tome ornament */}
@@ -157,9 +157,9 @@ export function SettingsPage() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{intl.formatMessage({ id: `settings.sections.${section.id}.label`, defaultMessage: section.label })}</p>
+                  <p className="text-sm font-semibold"><FormattedMessage id={`settings.sections.${section.id}.label`} defaultMessage={section.label} /></p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {intl.formatMessage({ id: `settings.sections.${section.id}.description`, defaultMessage: section.description })}
+                    <FormattedMessage id={`settings.sections.${section.id}.description`} defaultMessage={section.description} />
                   </p>
                 </div>
                 <ChevronRight className="size-4 text-primary/40 shrink-0 group-hover:text-primary/70 transition-colors" strokeWidth={4} />
@@ -179,9 +179,9 @@ export function SettingsPage() {
             <Languages className="size-8 text-primary/70" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold">{intl.formatMessage({ id: 'settings.language.label', defaultMessage: "Language" })}</p>
+            <p className="text-sm font-semibold"><FormattedMessage id="settings.language.label" defaultMessage={"Language"} /></p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {intl.formatMessage({ id: 'settings.language.description', defaultMessage: "Choose your preferred interface language" })}
+              <FormattedMessage id="settings.language.description" defaultMessage={"Choose your preferred interface language"} />
             </p>
           </div>
           <Select
@@ -192,7 +192,7 @@ export function SettingsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="system">{intl.formatMessage({ id: 'settings.language.system', defaultMessage: "System default" })}</SelectItem>
+              <SelectItem value="system"><FormattedMessage id="settings.language.system" defaultMessage={"System default"} /></SelectItem>
               {LANGUAGE_OPTIONS.map((lang) => (
                 <SelectItem key={lang.code} value={lang.code}>
                   {lang.nativeName}
@@ -210,7 +210,7 @@ export function SettingsPage() {
             onClick={() => setDeleteAccountOpen(true)}
             className="text-xs text-destructive-foreground bg-destructive/80 hover:bg-destructive rounded-full px-4 py-1.5 transition-colors"
           >
-            {intl.formatMessage({ id: 'settings.deleteAccount', defaultMessage: "Delete Account" })}
+            <FormattedMessage id="settings.deleteAccount" defaultMessage={"Delete Account"} />
           </button>
         </div>
       )}

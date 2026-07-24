@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -140,16 +140,16 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
     return (
       <div className="space-y-4">
         <div>
-          <h2 className="text-sm font-semibold">{intl.formatMessage({ id: 'paymentTargets.title', defaultMessage: "Accept Donations" })}</h2>
+          <h2 className="text-sm font-semibold"><FormattedMessage id="paymentTargets.title" defaultMessage={"Accept Donations"} /></h2>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            {intl.formatMessage({ id: 'paymentTargets.description', defaultMessage: "Let supporters send you crypto and tips." })}
+            <FormattedMessage id="paymentTargets.description" defaultMessage={"Let supporters send you crypto and tips."} />
           </p>
         </div>
 
         {isLoading && drafts.length === 0 ? (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {intl.formatMessage({ id: 'paymentTargets.loading', defaultMessage: "Loading…" })}
+            <FormattedMessage id="paymentTargets.loading" defaultMessage={"Loading…"} />
           </div>
         ) : drafts.length > 0 ? (
           <>
@@ -198,7 +198,7 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
                   className="h-8 text-xs gap-1.5"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  {intl.formatMessage({ id: 'paymentTargets.addMethod', defaultMessage: "Add method" })}
+                  <FormattedMessage id="paymentTargets.addMethod" defaultMessage={"Add method"} />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="min-w-44">
@@ -221,7 +221,7 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
                 className="w-full h-11 gap-2 border-dashed"
               >
                 <Plus className="h-4 w-4" />
-                {intl.formatMessage({ id: 'paymentTargets.addDonation', defaultMessage: "Add donation" })}
+                <FormattedMessage id="paymentTargets.addDonation" defaultMessage={"Add donation"} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-44">

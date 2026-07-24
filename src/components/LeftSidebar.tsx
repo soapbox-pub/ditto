@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   UserPlus, LogOut,
@@ -135,7 +135,7 @@ export function LeftSidebar() {
             onClick={() => setLoginDialogOpen(true)}
             className="flex items-center justify-center w-full h-10 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors cursor-pointer"
           >
-            {intl.formatMessage({ id: 'sidebar.join', defaultMessage: "Join" })}
+            <FormattedMessage id="sidebar.join" defaultMessage={"Join"} />
           </button>
         </div>
       )}
@@ -164,7 +164,7 @@ export function LeftSidebar() {
                       <span className="font-semibold text-sm truncate">
                         {currentUserEvent && (metadata?.name || metadata?.display_name)
                           ? <EmojifiedText tags={currentUserEvent.tags}>{metadata.name || metadata.display_name || ''}</EmojifiedText>
-                          : (metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" }))}
+                          : (metadata?.name || metadata?.display_name || <FormattedMessage id="common.anonymous" defaultMessage={"Anonymous"} />)}
                       </span>
                       {metadata?.nip05 && (
                         <VerifiedNip05Text nip05={metadata.nip05} pubkey={user.pubkey} className="text-xs text-muted-foreground truncate" />
@@ -232,7 +232,7 @@ export function LeftSidebar() {
                         disabled={publishStatus.isPending}
                         className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
                       >
-                        {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : intl.formatMessage({ id: 'common.save', defaultMessage: "Save" })}
+                        {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : <FormattedMessage id="common.save" defaultMessage={"Save"} />}
                       </button>
                       {userStatus.status && (
                         <button
@@ -246,14 +246,14 @@ export function LeftSidebar() {
                           disabled={publishStatus.isPending}
                           className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
                         >
-                          {intl.formatMessage({ id: 'common.clear', defaultMessage: "Clear" })}
+                          <FormattedMessage id="common.clear" defaultMessage={"Clear"} />
                         </button>
                       )}
                       <button
                         onClick={() => { setStatusEditing(false); setStatusDraft(''); }}
                         className="text-xs text-muted-foreground hover:underline ml-auto"
                       >
-                        {intl.formatMessage({ id: 'common.cancel', defaultMessage: "Cancel" })}
+                        <FormattedMessage id="common.cancel" defaultMessage={"Cancel"} />
                       </button>
                     </div>
                   </div>
@@ -268,7 +268,7 @@ export function LeftSidebar() {
                     {userStatus.status ? (
                       <span className="truncate text-muted-foreground italic text-xs pr-1">{userStatus.status}</span>
                     ) : (
-                      <span className="text-muted-foreground">{intl.formatMessage({ id: 'sidebar.setStatus', defaultMessage: "Set a status" })}</span>
+                      <span className="text-muted-foreground"><FormattedMessage id="sidebar.setStatus" defaultMessage={"Set a status"} /></span>
                     )}
                   </button>
                 )}
@@ -298,15 +298,15 @@ export function LeftSidebar() {
               <div className="py-1">
                 <button onClick={() => { setAccountPopoverOpen(false); setFollowQROpen(true); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 transition-colors">
                   <QrCode className="size-4 text-muted-foreground" />
-                  <span>{intl.formatMessage({ id: 'sidebar.shareProfile', defaultMessage: "Share profile" })}</span>
+                  <span><FormattedMessage id="sidebar.shareProfile" defaultMessage={"Share profile"} /></span>
                 </button>
                 <button onClick={() => { setAccountPopoverOpen(false); setLoginDialogOpen(true); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 transition-colors">
                   <UserPlus className="size-4 text-muted-foreground" />
-                  <span>{intl.formatMessage({ id: 'sidebar.addAccount', defaultMessage: "Add another account" })}</span>
+                  <span><FormattedMessage id="sidebar.addAccount" defaultMessage={"Add another account"} /></span>
                 </button>
                 <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors">
                   <LogOut className="size-4" />
-                  <span>{intl.formatMessage({ id: 'sidebar.logOutAs', defaultMessage: "Log out @{name}" }, { name: metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" }) })}</span>
+                  <span><FormattedMessage id="sidebar.logOutAs" defaultMessage={"Log out @{name}"} values={{ name: metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" }) }} /></span>
                 </button>
               </div>
             </PopoverContent>

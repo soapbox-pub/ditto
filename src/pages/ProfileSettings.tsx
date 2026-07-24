@@ -7,7 +7,7 @@ import {
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useNostrLogin } from '@nostrify/react/login';
-import { useIntl, type IntlShape } from 'react-intl';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 
 import { saveNsec } from '@/lib/credentialManager';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
@@ -387,9 +387,9 @@ function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploadi
                       </TooltipTrigger>
                       <TooltipContent side="top" className="text-xs max-w-52">
                         {formatHint ? (
-                          <span>{intl.formatMessage({ id: 'settings.profile.fields.uploadTooltip', defaultMessage: "Choose file to upload" })}<br /><span className="text-muted-foreground">{formatHint}</span></span>
+                          <span><FormattedMessage id="settings.profile.fields.uploadTooltip" defaultMessage={"Choose file to upload"} /><br /><span className="text-muted-foreground">{formatHint}</span></span>
                         ) : (
-                          <span>{intl.formatMessage({ id: 'settings.profile.fields.uploadTooltipMedia', defaultMessage: "Choose a media file to upload" })}</span>
+                          <span><FormattedMessage id="settings.profile.fields.uploadTooltipMedia" defaultMessage={"Choose a media file to upload"} /></span>
                         )}
                       </TooltipContent>
                     </Tooltip>
@@ -752,12 +752,12 @@ export function ProfileSettings() {
         )}
         titleContent={
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold leading-tight">{intl.formatMessage({ id: 'settings.profile.title', defaultMessage: "Profile" })}</h1>
+            <h1 className="text-xl font-bold leading-tight"><FormattedMessage id="settings.profile.title" defaultMessage={"Profile"} /></h1>
           </div>
         }
       >
         <Button type="submit" form="profile-settings-form" size="sm" className="shrink-0 rounded-full font-bold px-5" disabled={busy}>
-          {busy ? <Loader2 className="size-3.5 animate-spin" /> : intl.formatMessage({ id: 'common.save', defaultMessage: "Save" })}
+          {busy ? <Loader2 className="size-3.5 animate-spin" /> : <FormattedMessage id="common.save" defaultMessage={"Save"} />}
         </Button>
       </PageHeader>
 
@@ -768,9 +768,9 @@ export function ProfileSettings() {
           <div className="flex items-center gap-4 px-3 pt-2 pb-2">
             <IntroImage src="/profile-intro.png" />
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold">{intl.formatMessage({ id: 'settings.profile.identity.title', defaultMessage: "Your Identity" })}</h2>
+              <h2 className="text-sm font-semibold"><FormattedMessage id="settings.profile.identity.title" defaultMessage={"Your Identity"} /></h2>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                {intl.formatMessage({ id: 'settings.profile.identity.description', defaultMessage: "Tap any field on the card to edit. Click your avatar or banner to upload and crop a new image." })}
+                <FormattedMessage id="settings.profile.identity.description" defaultMessage={"Tap any field on the card to edit. Click your avatar or banner to upload and crop a new image."} />
               </p>
             </div>
           </div>
@@ -788,14 +788,14 @@ export function ProfileSettings() {
           {isUploading && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 className="size-3.5 animate-spin" />
-              {intl.formatMessage({ id: 'settings.profile.uploading', defaultMessage: "Uploading…" })}
+              <FormattedMessage id="settings.profile.uploading" defaultMessage={"Uploading…"} />
             </div>
           )}
 
           {/* Profile fields */}
           <div>
             <h2 className="text-sm font-medium py-2 flex items-center gap-1">
-              {intl.formatMessage({ id: 'settings.profile.fields.title', defaultMessage: "Profile Fields" })}
+              <FormattedMessage id="settings.profile.fields.title" defaultMessage={"Profile Fields"} />
               <HelpTip faqId="profile-fields" iconSize="size-3.5" />
             </h2>
 
@@ -808,7 +808,7 @@ export function ProfileSettings() {
                   <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
                     <div className="w-6" />
                     <div className="flex items-center h-9 px-3 text-sm text-muted-foreground">
-                      <span>{intl.formatMessage({ id: 'settings.profile.fields.websiteLabel', defaultMessage: "Website" })}</span>
+                      <span><FormattedMessage id="settings.profile.fields.websiteLabel" defaultMessage={"Website"} /></span>
                     </div>
                     <Input placeholder="https://yourwebsite.com" {...field} className="h-9" />
                     <div className="size-9" />
@@ -824,7 +824,7 @@ export function ProfileSettings() {
                   <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
                     <div className="w-6" />
                     <div className="flex items-center h-9 px-3 text-sm text-muted-foreground gap-1">
-                      <span>{intl.formatMessage({ id: 'settings.profile.fields.lightningLabel', defaultMessage: "Lightning" })}</span>
+                      <span><FormattedMessage id="settings.profile.fields.lightningLabel" defaultMessage={"Lightning"} /></span>
                       <HelpTip faqId="what-are-zaps" iconSize="size-3.5" />
                     </div>
                     <Input placeholder="you@walletofsatoshi.com" {...field} className="h-9" />
@@ -892,7 +892,7 @@ export function ProfileSettings() {
                 <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
                   <span className="text-sm font-medium flex items-center gap-1.5">
                     <Eye className="size-3.5" />
-                    {intl.formatMessage({ id: 'settings.profile.fields.previewTitle', defaultMessage: "Profile Fields Preview" })}
+                    <FormattedMessage id="settings.profile.fields.previewTitle" defaultMessage={"Profile Fields Preview"} />
                   </span>
                   <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
                 </Button>
@@ -927,7 +927,7 @@ export function ProfileSettings() {
           <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
             <CollapsibleTrigger asChild>
               <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
-                <span className="text-sm font-medium">{intl.formatMessage({ id: 'settings.profile.advanced', defaultMessage: "Advanced" })}</span>
+                <span className="text-sm font-medium"><FormattedMessage id="settings.profile.advanced" defaultMessage={"Advanced"} /></span>
                 <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
               </Button>
             </CollapsibleTrigger>
@@ -938,8 +938,8 @@ export function ProfileSettings() {
                 render={({ field }) => (
                   <FormItem className="flex items-center justify-between rounded-lg border p-3">
                     <div>
-                      <FormLabel className="text-sm">{intl.formatMessage({ id: 'settings.profile.bot.label', defaultMessage: "Bot Account" })}</FormLabel>
-                      <FormDescription className="text-xs">{intl.formatMessage({ id: 'settings.profile.bot.description', defaultMessage: "Mark this account as automated" })}</FormDescription>
+                      <FormLabel className="text-sm"><FormattedMessage id="settings.profile.bot.label" defaultMessage={"Bot Account"} /></FormLabel>
+                      <FormDescription className="text-xs"><FormattedMessage id="settings.profile.bot.description" defaultMessage={"Mark this account as automated"} /></FormDescription>
                     </div>
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -1103,10 +1103,10 @@ function BirthdaySection() {
     <div className="space-y-3">
       <div className="flex items-center gap-2 pb-1">
         <Cake className="size-4 text-primary/70" />
-        <h2 className="text-sm font-semibold">{intl.formatMessage({ id: 'settings.profile.birthday.title', defaultMessage: "Birthday" })}</h2>
+        <h2 className="text-sm font-semibold"><FormattedMessage id="settings.profile.birthday.title" defaultMessage={"Birthday"} /></h2>
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed">
-        {intl.formatMessage({ id: 'settings.profile.birthday.description', defaultMessage: "Shown on your profile — friends get confetti and a birthday tune when they visit on the day. Every field is optional; skip the year if you'd rather keep your age private." })}
+        <FormattedMessage id="settings.profile.birthday.description" defaultMessage={"Shown on your profile — friends get confetti and a birthday tune when they visit on the day. Every field is optional; skip the year if you'd rather keep your age private."} />
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -1174,7 +1174,7 @@ function BirthdaySection() {
           onClick={handleSave}
           disabled={!dirty || yearInvalid || saving || !user}
         >
-          {saving ? <Loader2 className="size-3.5 animate-spin" /> : intl.formatMessage({ id: 'common.save', defaultMessage: "Save" })}
+          {saving ? <Loader2 className="size-3.5 animate-spin" /> : <FormattedMessage id="common.save" defaultMessage={"Save"} />}
         </Button>
 
         {hasStored && (
@@ -1194,7 +1194,7 @@ function BirthdaySection() {
 
       {showYearInvalid && (
         <p className="text-xs text-destructive">
-          {intl.formatMessage({ id: 'settings.profile.birthday.yearError', defaultMessage: "Enter a 4-digit year between 1900 and {year}, or leave it blank." }, { year: currentYear })}
+          <FormattedMessage id="settings.profile.birthday.yearError" defaultMessage={"Enter a 4-digit year between 1900 and {year}, or leave it blank."} values={{ year: currentYear }} />
         </p>
       )}
     </div>
@@ -1217,7 +1217,7 @@ function BackupKeySection() {
   const heading = (
     <div className="flex items-center gap-2 pb-1">
       <KeyRound className="size-4 text-primary/70" />
-      <h2 className="text-sm font-semibold">{intl.formatMessage({ id: 'settings.profile.backupKey.title', defaultMessage: "Your Key" })}</h2>
+      <h2 className="text-sm font-semibold"><FormattedMessage id="settings.profile.backupKey.title" defaultMessage={"Your Key"} /></h2>
     </div>
   );
 
@@ -1229,7 +1229,7 @@ function BackupKeySection() {
       <div>
         {heading}
         <p className="text-xs text-muted-foreground leading-relaxed">
-          {intl.formatMessage({ id: 'settings.profile.backupKey.extensionNote', defaultMessage: "You're signed in with a browser extension (NIP-07). Your secret key is stored there — manage or export it from the extension itself." })}
+          <FormattedMessage id="settings.profile.backupKey.extensionNote" defaultMessage={"You're signed in with a browser extension (NIP-07). Your secret key is stored there — manage or export it from the extension itself."} />
         </p>
       </div>
     );
@@ -1240,7 +1240,7 @@ function BackupKeySection() {
       <div>
         {heading}
         <p className="text-xs text-muted-foreground leading-relaxed">
-          {intl.formatMessage({ id: 'settings.profile.backupKey.bunkerNote', defaultMessage: "You're signed in with a remote signer (NIP-46). Your secret key is held by that signer and cannot be exported from {appName}." }, { appName: config.appName })}
+          <FormattedMessage id="settings.profile.backupKey.bunkerNote" defaultMessage={"You're signed in with a remote signer (NIP-46). Your secret key is held by that signer and cannot be exported from {appName}."} values={{ appName: config.appName }} />
         </p>
       </div>
     );
@@ -1297,7 +1297,7 @@ function BackupKeySection() {
     <div className="space-y-4">
       {heading}
       <p className="text-xs text-muted-foreground leading-relaxed">
-        {intl.formatMessage({ id: 'settings.profile.backupKey.description', defaultMessage: "This secret key controls your account on {appName}. Anyone with it can post, read your DMs, and impersonate you. Store it in a password manager or somewhere else only you can access." }, { appName: config.appName })}
+        <FormattedMessage id="settings.profile.backupKey.description" defaultMessage={"This secret key controls your account on {appName}. Anyone with it can post, read your DMs, and impersonate you. Store it in a password manager or somewhere else only you can access."} values={{ appName: config.appName }} />
       </p>
 
       <div className="relative">
@@ -1345,7 +1345,7 @@ function BackupKeySection() {
       {showKey && (
         <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 animate-in fade-in slide-in-from-top-1 duration-200">
           <p className="text-xs text-amber-900 dark:text-amber-300 leading-relaxed">
-            {intl.formatMessage({ id: 'settings.profile.backupKey.warning', defaultMessage: "NEVER share your secret key with anyone. Avoid screenshotting it or pasting it anywhere except a password manager. If shared, others will be able to access your account." })}
+            <FormattedMessage id="settings.profile.backupKey.warning" defaultMessage={"NEVER share your secret key with anyone. Avoid screenshotting it or pasting it anywhere except a password manager. If shared, others will be able to access your account."} />
           </p>
         </div>
       )}
@@ -1359,11 +1359,11 @@ function BackupKeySection() {
       >
         {isSaving ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" /> {intl.formatMessage({ id: 'settings.profile.backupKey.saving', defaultMessage: "Saving…" })}
+            <Loader2 className="w-4 h-4 animate-spin" /> <FormattedMessage id="settings.profile.backupKey.saving" defaultMessage={"Saving…"} />
           </>
         ) : (
           <>
-            <Download className="w-4 h-4" /> {intl.formatMessage({ id: 'settings.profile.backupKey.button', defaultMessage: "Back Up Key" })}
+            <Download className="w-4 h-4" /> <FormattedMessage id="settings.profile.backupKey.button" defaultMessage={"Back Up Key"} />
           </>
         )}
       </Button>

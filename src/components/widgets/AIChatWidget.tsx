@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Send } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -97,7 +97,7 @@ export function AIChatWidget() {
     return (
       <div className="flex flex-col items-center gap-3 py-6 px-3 text-center">
         <pre className="text-xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
-        <p className="text-xs text-muted-foreground">{intl.formatMessage({ id: 'widgets.aiChat.loginPrompt', defaultMessage: "Log in to chat with Dork" })}</p>
+        <p className="text-xs text-muted-foreground"><FormattedMessage id="widgets.aiChat.loginPrompt" defaultMessage={"Log in to chat with Dork"} /></p>
       </div>
     );
   }
@@ -109,22 +109,28 @@ export function AIChatWidget() {
       <div className="flex flex-col items-center gap-3 py-6 px-3 text-center">
         <pre className="text-xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          {intl.formatMessage({ id: 'widgets.aiChat.creditsPre', defaultMessage: "Grab some credits on" })}{' '}
-          <a
-            href="https://shakespeare.diy"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline"
-          >
-            Shakespeare
-          </a>
-          {' '}{intl.formatMessage({ id: 'widgets.aiChat.creditsPost', defaultMessage: "to chat with Dork." })}
+          <FormattedMessage
+            id="widgets.aiChat.credits"
+            defaultMessage="Grab some credits on <link>Shakespeare</link> to chat with Dork."
+            values={{
+              link: (chunks) => (
+                <a
+                  href="https://shakespeare.diy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  {chunks}
+                </a>
+              ),
+            }}
+          />
         </p>
         <Link
           to="/ai-chat"
           className="text-xs font-medium text-primary hover:underline"
         >
-          {intl.formatMessage({ id: 'widgets.aiChat.open', defaultMessage: "Open AI Chat" })}
+          <FormattedMessage id="widgets.aiChat.open" defaultMessage={"Open AI Chat"} />
         </Link>
       </div>
     );
@@ -138,7 +144,7 @@ export function AIChatWidget() {
           {messages.length === 0 && !streamingContent && (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
               <pre className="text-xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
-              <p className="text-xs text-muted-foreground">{intl.formatMessage({ id: 'widgets.aiChat.emptyPrompt', defaultMessage: "Ask me anything..." })}</p>
+              <p className="text-xs text-muted-foreground"><FormattedMessage id="widgets.aiChat.emptyPrompt" defaultMessage={"Ask me anything..."} /></p>
             </div>
           )}
           {messages.map((msg, i) => (

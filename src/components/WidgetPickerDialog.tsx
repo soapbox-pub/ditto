@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Check, Plus } from 'lucide-react';
-import { useIntl } from 'react-intl';
+import { FormattedMessage } from 'react-intl';
 
 import {
   Dialog,
@@ -23,7 +23,6 @@ interface WidgetPickerDialogProps {
 
 /** Dialog for adding/removing widgets from the sidebar. */
 export function WidgetPickerDialog({ open, onOpenChange, currentWidgets, onAdd, onRemove }: WidgetPickerDialogProps) {
-  const intl = useIntl();
   const activeIds = useMemo(() => new Set(currentWidgets.map((w) => w.id)), [currentWidgets]);
 
   // Group widgets by category
@@ -39,7 +38,7 @@ export function WidgetPickerDialog({ open, onOpenChange, currentWidgets, onAdd, 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{intl.formatMessage({ id: 'widgets.picker.title', defaultMessage: "Add Widget" })}</DialogTitle>
+          <DialogTitle><FormattedMessage id="widgets.picker.title" defaultMessage={"Add Widget"} /></DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh]">
@@ -47,7 +46,7 @@ export function WidgetPickerDialog({ open, onOpenChange, currentWidgets, onAdd, 
             {Object.entries(grouped).map(([category, widgets]) => (
               <div key={category}>
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
-                  {intl.formatMessage({ id: `widgets.categories.${category}`, defaultMessage: WIDGET_CATEGORIES[category] ?? category })}
+                  <FormattedMessage id={`widgets.categories.${category}`} defaultMessage={WIDGET_CATEGORIES[category] ?? category} />
                 </h3>
                 <div className="space-y-1">
                   {widgets.map((widget) => {
@@ -77,8 +76,8 @@ export function WidgetPickerDialog({ open, onOpenChange, currentWidgets, onAdd, 
                           <Icon className="size-4" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium">{intl.formatMessage({ id: `widgets.${widgetI18nStem(widget.id)}.title`, defaultMessage: widget.label })}</div>
-                          <div className="text-xs text-muted-foreground truncate">{intl.formatMessage({ id: `widgets.${widgetI18nStem(widget.id)}.description`, defaultMessage: widget.description })}</div>
+                          <div className="text-sm font-medium"><FormattedMessage id={`widgets.${widgetI18nStem(widget.id)}.title`} defaultMessage={widget.label} /></div>
+                          <div className="text-xs text-muted-foreground truncate"><FormattedMessage id={`widgets.${widgetI18nStem(widget.id)}.description`} defaultMessage={widget.description} /></div>
                         </div>
                         <div className={cn(
                           'size-6 rounded-full flex items-center justify-center shrink-0 transition-colors',

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -35,7 +35,6 @@ function parseFirstPhoto(tags: string[][]): { url: string; alt?: string } | unde
 
 /** Rich photo widget showing the latest photo from follows. */
 export function PhotoWidget() {
-  const intl = useIntl();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
@@ -68,7 +67,7 @@ export function PhotoWidget() {
   }
 
   if (!event) {
-    return <p className="text-sm text-muted-foreground p-1">{intl.formatMessage({ id: 'widgets.photo.empty', defaultMessage: "No photos yet." })}</p>;
+    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.photo.empty" defaultMessage={"No photos yet."} /></p>;
   }
 
   return <PhotoCard event={event} />;

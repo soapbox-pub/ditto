@@ -1,13 +1,12 @@
 import { Star, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useIntl } from 'react-intl';
+import { FormattedMessage } from 'react-intl';
 
 import { useWikipediaFeatured } from '@/hooks/useWikipediaFeatured';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /** Wikipedia widget showing today's featured article. */
 export function WikipediaWidget() {
-  const intl = useIntl();
   const { data: feed, isLoading, isError } = useWikipediaFeatured();
 
   if (isLoading) {
@@ -22,12 +21,12 @@ export function WikipediaWidget() {
   }
 
   if (isError) {
-    return <p className="text-sm text-muted-foreground p-1">{intl.formatMessage({ id: 'widgets.wikipedia.loadFailed', defaultMessage: "Failed to load featured article." })}</p>;
+    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.wikipedia.loadFailed" defaultMessage={"Failed to load featured article."} /></p>;
   }
 
   const tfa = feed?.tfa;
   if (!tfa) {
-    return <p className="text-sm text-muted-foreground p-1">{intl.formatMessage({ id: 'widgets.wikipedia.empty', defaultMessage: "No featured article today." })}</p>;
+    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.wikipedia.empty" defaultMessage={"No featured article today."} /></p>;
   }
 
   const imageUrl = tfa.originalimage?.source ?? tfa.thumbnail?.source;

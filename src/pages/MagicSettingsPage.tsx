@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@/hooks/useSeoMeta';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { PageHeader } from '@/components/PageHeader';
 import { IntroImage } from '@/components/IntroImage';
 import { Switch } from '@/components/ui/switch';
@@ -27,9 +27,9 @@ export function MagicSettingsPage() {
         alwaysShowBack
         titleContent={
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold">{intl.formatMessage({ id: 'settings.magic.title', defaultMessage: "Magic" })}</h1>
+            <h1 className="text-xl font-bold"><FormattedMessage id="settings.magic.title" defaultMessage={"Magic"} /></h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {intl.formatMessage({ id: 'settings.magic.subtitle', defaultMessage: "Harness the mystical energies of your device. Imbue your cursor with elemental fire." })}
+              <FormattedMessage id="settings.magic.subtitle" defaultMessage={"Harness the mystical energies of your device. Imbue your cursor with elemental fire."} />
             </p>
           </div>
         }
@@ -40,9 +40,9 @@ export function MagicSettingsPage() {
         <div className="flex items-center gap-4 px-3 pt-2 pb-6">
           <IntroImage src="/magic-intro.png" />
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold">{intl.formatMessage({ id: 'settings.magic.introTitle', defaultMessage: "Arcane Configuration" })}</h2>
+            <h2 className="text-sm font-semibold"><FormattedMessage id="settings.magic.introTitle" defaultMessage={"Arcane Configuration"} /></h2>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              {intl.formatMessage({ id: 'settings.magic.introDescription', defaultMessage: "Harness the mystical energies of your device. Imbue your cursor with elemental fire and make every interaction feel enchanted." })}
+              <FormattedMessage id="settings.magic.introDescription" defaultMessage={"Harness the mystical energies of your device. Imbue your cursor with elemental fire and make every interaction feel enchanted."} />
             </p>
           </div>
         </div>
@@ -61,10 +61,10 @@ export function MagicSettingsPage() {
         >
           <div className="flex-1 min-w-0">
             <Label htmlFor="magic-mouse-toggle" className="text-sm font-semibold cursor-pointer flex items-center gap-1.5">
-              {intl.formatMessage({ id: 'settings.magic.magicMouse', defaultMessage: "Magic Mouse" })}
+              <FormattedMessage id="settings.magic.magicMouse" defaultMessage={"Magic Mouse"} />
             </Label>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              {intl.formatMessage({ id: 'settings.magic.magicMouseDescription', defaultMessage: "Your cursor (or finger on touch devices) will emanate magical fire in the glow of your primary color. Move with purpose — every path you trace becomes a trail of flame." })}
+              <FormattedMessage id="settings.magic.magicMouseDescription" defaultMessage={"Your cursor (or finger on touch devices) will emanate magical fire in the glow of your primary color. Move with purpose — every path you trace becomes a trail of flame."} />
             </p>
           </div>
           <Switch

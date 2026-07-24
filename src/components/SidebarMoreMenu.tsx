@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Plus, Pencil, Check, SeparatorHorizontal, Search, ChevronDown, ChevronUp, LinkIcon } from 'lucide-react';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -209,7 +209,7 @@ export function SidebarMoreMenu({
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85">
               <Plus className="size-4" />
-              <span>{intl.formatMessage({ id: 'common.add', defaultMessage: "Add" })}</span>
+              <span><FormattedMessage id="common.add" defaultMessage={"Add"} /></span>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="start" collisionPadding={8} className="w-[240px] p-1 flex flex-col max-h-[calc(var(--radix-dropdown-menu-content-available-height)-12px-var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]">
@@ -221,14 +221,14 @@ export function SidebarMoreMenu({
             {add.canScrollUp && <ScrollCaret direction="up" onMouseEnter={() => add.startScroll('up')} onMouseLeave={add.stopScroll} />}
             <div ref={add.refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={add.onScroll}>
               {addFiltered.map((item) => <ItemRow key={item.id} item={item} onAdd={onAdd} onClose={() => setAddMenuOpen(false)} />)}
-              {addFiltered.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground text-center">{intl.formatMessage({ id: 'common.noResults', defaultMessage: "No results" })}</p>}
+              {addFiltered.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground text-center"><FormattedMessage id="common.noResults" defaultMessage={"No results"} /></p>}
             </div>
             {add.canScrollDown && <ScrollCaret direction="down" onMouseEnter={() => add.startScroll('down')} onMouseLeave={add.stopScroll} />}
           </DropdownMenuContent>
         </DropdownMenu>
         <button onClick={onAddDivider} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85">
           <SeparatorHorizontal className="size-4" />
-          <span>{intl.formatMessage({ id: 'sidebar.addDivider', defaultMessage: "Add divider" })}</span>
+          <span><FormattedMessage id="sidebar.addDivider" defaultMessage={"Add divider"} /></span>
         </button>
         {linkInput ? (
           <div className="flex flex-col gap-1 px-4 py-2 bg-background/85 rounded-2xl">
@@ -258,13 +258,13 @@ export function SidebarMoreMenu({
                 onClick={handleAddLink}
                 className="text-xs font-medium text-primary hover:underline"
               >
-                {intl.formatMessage({ id: 'common.add', defaultMessage: "Add" })}
+                <FormattedMessage id="common.add" defaultMessage={"Add"} />
               </button>
               <button
                 onClick={() => { setLinkInput(false); setLinkValue(''); setLinkError(''); }}
                 className="text-xs text-muted-foreground hover:underline"
               >
-                {intl.formatMessage({ id: 'common.cancel', defaultMessage: "Cancel" })}
+                <FormattedMessage id="common.cancel" defaultMessage={"Cancel"} />
               </button>
             </div>
           </div>
@@ -274,12 +274,12 @@ export function SidebarMoreMenu({
             className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85"
           >
             <LinkIcon className="size-4" />
-            <span>{intl.formatMessage({ id: 'sidebar.addLink', defaultMessage: "Add link" })}</span>
+            <span><FormattedMessage id="sidebar.addLink" defaultMessage={"Add link"} /></span>
           </button>
         )}
         <button onClick={onDoneEditing} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-primary font-medium hover:bg-primary/10 bg-background/85">
           <Check className="size-4" />
-          <span>{intl.formatMessage({ id: 'sidebar.doneEditing', defaultMessage: "Done editing" })}</span>
+          <span><FormattedMessage id="sidebar.doneEditing" defaultMessage={"Done editing"} /></span>
         </button>
       </div>
     );
@@ -290,7 +290,7 @@ export function SidebarMoreMenu({
       <DropdownMenuTrigger asChild>
         <button className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40 bg-background/85">
           {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-          <span>{intl.formatMessage({ id: 'sidebar.more', defaultMessage: "More..." })}</span>
+          <span><FormattedMessage id="sidebar.more" defaultMessage={"More..."} /></span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" collisionPadding={8} className="w-[240px] p-1 flex flex-col max-h-[calc(var(--radix-dropdown-menu-content-available-height)-12px-var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]">
@@ -312,13 +312,13 @@ export function SidebarMoreMenu({
               </button>
             </div>
           ))}
-          {filtered.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground text-center">{intl.formatMessage({ id: 'common.noResults', defaultMessage: "No results" })}</p>}
+          {filtered.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground text-center"><FormattedMessage id="common.noResults" defaultMessage={"No results"} /></p>}
         </div>
         {main.canScrollDown && <ScrollCaret direction="down" onMouseEnter={() => main.startScroll('down')} onMouseLeave={main.stopScroll} />}
         <div className="h-px bg-border my-1 shrink-0" />
         <button onClick={() => { onStartEditing(); onOpenChange(false); }} className="flex items-center gap-3 w-full px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors cursor-pointer shrink-0">
           <Pencil className="size-5" />
-          <span>{intl.formatMessage({ id: 'sidebar.editSidebar', defaultMessage: "Edit sidebar" })}</span>
+          <span><FormattedMessage id="sidebar.editSidebar" defaultMessage={"Edit sidebar"} /></span>
         </button>
       </DropdownMenuContent>
     </DropdownMenu>

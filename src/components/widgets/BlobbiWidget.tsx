@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { ArrowLeftRight, Egg, Footprints, Loader2, X } from 'lucide-react';
 
 import { BlobbiAwayState } from '@/blobbi/ui/BlobbiAwayState';
@@ -211,7 +211,7 @@ export function BlobbiWidget() {
         <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
           <Egg className="size-8 text-primary" />
         </div>
-        <span className="text-xs text-muted-foreground">{intl.formatMessage({ id: 'widgets.blobbi.loginPrompt', defaultMessage: "Log in to hatch your Blobbi" })}</span>
+        <span className="text-xs text-muted-foreground"><FormattedMessage id="widgets.blobbi.loginPrompt" defaultMessage={"Log in to hatch your Blobbi"} /></span>
       </Link>
     );
   }
@@ -235,8 +235,8 @@ export function BlobbiWidget() {
         <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
           <Egg className="size-8 text-primary" />
         </div>
-        <span className="text-sm font-medium text-primary">{intl.formatMessage({ id: 'widgets.blobbi.hatch', defaultMessage: "Hatch your Blobbi" })}</span>
-        <span className="text-xs text-muted-foreground">{intl.formatMessage({ id: 'widgets.blobbi.hatchDesc', defaultMessage: "Get your virtual pet companion" })}</span>
+        <span className="text-sm font-medium text-primary"><FormattedMessage id="widgets.blobbi.hatch" defaultMessage={"Hatch your Blobbi"} /></span>
+        <span className="text-xs text-muted-foreground"><FormattedMessage id="widgets.blobbi.hatchDesc" defaultMessage={"Get your virtual pet companion"} /></span>
       </Link>
     );
   }
@@ -395,7 +395,7 @@ function BlobbiWidgetContent({
             </PopoverTrigger>
             <PopoverContent side="left" align="start" className="w-auto p-3">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-muted-foreground">{intl.formatMessage({ id: 'widgets.blobbi.switch', defaultMessage: "Switch Blobbi" })}</p>
+                <p className="text-xs font-medium text-muted-foreground"><FormattedMessage id="widgets.blobbi.switch" defaultMessage={"Switch Blobbi"} /></p>
                 <button
                   onClick={() => setSwitcherOpen(false)}
                   aria-label={intl.formatMessage({ id: 'widgets.common.close', defaultMessage: "Close" })}

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -279,9 +279,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       <div className="flex items-center gap-4 px-3 pt-2 pb-4">
         <IntroImage src="/profile-intro.png" />
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold">{intl.formatMessage({ id: 'editProfile.identity.title', defaultMessage: "Your Identity" })}</h2>
+          <h2 className="text-sm font-semibold"><FormattedMessage id="editProfile.identity.title" defaultMessage={"Your Identity"} /></h2>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            {intl.formatMessage({ id: 'editProfile.identity.description', defaultMessage: "Customize your profile with a name, bio, images, and verification. This is how others will see you on Nostr." })}
+            <FormattedMessage id="editProfile.identity.description" defaultMessage={"Customize your profile with a name, bio, images, and verification. This is how others will see you on Nostr."} />
           </p>
         </div>
       </div>
@@ -306,12 +306,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs font-medium">{intl.formatMessage({ id: 'editProfile.name.label', defaultMessage: "Name" })}</FormLabel>
+                  <FormLabel className="text-xs font-medium"><FormattedMessage id="editProfile.name.label" defaultMessage={"Name"} /></FormLabel>
                   <FormControl>
                     <Input placeholder={intl.formatMessage({ id: 'editProfile.name.placeholder', defaultMessage: "Your name" })} {...field} className="h-9" />
                   </FormControl>
                   <FormDescription className="text-xs">
-                    {intl.formatMessage({ id: 'editProfile.name.description', defaultMessage: "This is your display name that will be displayed to others." })}
+                    <FormattedMessage id="editProfile.name.description" defaultMessage={"This is your display name that will be displayed to others."} />
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -325,7 +325,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
               name="about"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs font-medium">{intl.formatMessage({ id: 'editProfile.about.label', defaultMessage: "Bio" })}</FormLabel>
+                  <FormLabel className="text-xs font-medium"><FormattedMessage id="editProfile.about.label" defaultMessage={"Bio"} /></FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder={intl.formatMessage({ id: 'editProfile.about.placeholder', defaultMessage: "Tell others about yourself" })}
@@ -334,7 +334,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                     />
                   </FormControl>
                   <FormDescription className="text-xs">
-                    {intl.formatMessage({ id: 'editProfile.about.description', defaultMessage: "A short description about yourself." })}
+                    <FormattedMessage id="editProfile.about.description" defaultMessage={"A short description about yourself."} />
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -383,12 +383,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                 name="website"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-medium">{intl.formatMessage({ id: 'editProfile.website.label', defaultMessage: "Website" })}</FormLabel>
+                    <FormLabel className="text-xs font-medium"><FormattedMessage id="editProfile.website.label" defaultMessage={"Website"} /></FormLabel>
                     <FormControl>
                       <Input placeholder="https://yourwebsite.com" {...field} className="h-9" />
                     </FormControl>
                     <FormDescription className="text-xs">
-                      {intl.formatMessage({ id: 'editProfile.website.description', defaultMessage: "Your personal website or social link" })}
+                      <FormattedMessage id="editProfile.website.description" defaultMessage={"Your personal website or social link"} />
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -400,12 +400,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                 name="nip05"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-medium">{intl.formatMessage({ id: 'editProfile.nip05.label', defaultMessage: "NIP-05 Identifier" })}</FormLabel>
+                    <FormLabel className="text-xs font-medium"><FormattedMessage id="editProfile.nip05.label" defaultMessage={"NIP-05 Identifier"} /></FormLabel>
                     <FormControl>
                       <Input placeholder="you@example.com" {...field} className="h-9" />
                     </FormControl>
                     <FormDescription className="text-xs">
-                      {intl.formatMessage({ id: 'editProfile.nip05.description', defaultMessage: "Your verified Nostr identifier" })}
+                      <FormattedMessage id="editProfile.nip05.description" defaultMessage={"Your verified Nostr identifier"} />
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -417,12 +417,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                 name="lud16"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-medium">{intl.formatMessage({ id: 'editProfile.lud16.label', defaultMessage: "Lightning Address" })}</FormLabel>
+                    <FormLabel className="text-xs font-medium"><FormattedMessage id="editProfile.lud16.label" defaultMessage={"Lightning Address"} /></FormLabel>
                     <FormControl>
                       <Input placeholder="you@walletofsatoshi.com" {...field} className="h-9" />
                     </FormControl>
                     <FormDescription className="text-xs">
-                      {intl.formatMessage({ id: 'editProfile.lud16.description', defaultMessage: "Your lightning address for receiving zaps" })}
+                      <FormattedMessage id="editProfile.lud16.description" defaultMessage={"Your lightning address for receiving zaps"} />
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -436,9 +436,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <FormLabel className="text-xs font-medium">{intl.formatMessage({ id: 'editProfile.fields.label', defaultMessage: "Profile Fields" })}</FormLabel>
+                  <FormLabel className="text-xs font-medium"><FormattedMessage id="editProfile.fields.label" defaultMessage={"Profile Fields"} /></FormLabel>
                   <FormDescription className="text-xs mt-1">
-                    {intl.formatMessage({ id: 'editProfile.fields.description', defaultMessage: "Add custom fields like social links, Bitcoin address, or other info" })}
+                    <FormattedMessage id="editProfile.fields.description" defaultMessage={"Add custom fields like social links, Bitcoin address, or other info"} />
                   </FormDescription>
                 </div>
                 <Button
@@ -449,7 +449,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                   className="h-8 text-xs"
                 >
                   <Plus className="h-3 w-3 mr-1" />
-                  {intl.formatMessage({ id: 'editProfile.fields.addField', defaultMessage: "Add Field" })}
+                  <FormattedMessage id="editProfile.fields.addField" defaultMessage={"Add Field"} />
                 </Button>
               </div>
 
@@ -515,7 +515,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                   variant="ghost"
                   className="w-full justify-between p-0 h-auto hover:bg-transparent"
                 >
-                  <span className="text-xs font-medium text-muted-foreground">{intl.formatMessage({ id: 'editProfile.advanced', defaultMessage: "Advanced Settings" })}</span>
+                  <span className="text-xs font-medium text-muted-foreground"><FormattedMessage id="editProfile.advanced" defaultMessage={"Advanced Settings"} /></span>
                   {showAdvanced ? (
                     <ChevronUp className="h-4 w-4 text-muted-foreground" />
                   ) : (
@@ -530,9 +530,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                       <div className="space-y-0.5">
-                        <FormLabel className="text-sm">{intl.formatMessage({ id: 'editProfile.bot.label', defaultMessage: "Bot Account" })}</FormLabel>
+                        <FormLabel className="text-sm"><FormattedMessage id="editProfile.bot.label" defaultMessage={"Bot Account"} /></FormLabel>
                         <FormDescription className="text-xs">
-                          {intl.formatMessage({ id: 'editProfile.bot.description', defaultMessage: "Mark this account as automated or a bot" })}
+                          <FormattedMessage id="editProfile.bot.description" defaultMessage={"Mark this account as automated or a bot"} />
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -558,7 +558,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
               {(isPending || isUploading) && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              {intl.formatMessage({ id: 'editProfile.save', defaultMessage: "Save Profile" })}
+              <FormattedMessage id="editProfile.save" defaultMessage={"Save Profile"} />
             </Button>
           </div>
         </form>
@@ -630,7 +630,7 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
             className="h-8 text-xs"
           >
             <Upload className="h-3 w-3 mr-1.5" />
-            {intl.formatMessage({ id: 'editProfile.uploadCrop', defaultMessage: "Upload & Crop" })}
+            <FormattedMessage id="editProfile.uploadCrop" defaultMessage={"Upload & Crop"} />
           </Button>
           {field.value && (
             <div className={`h-8 ${previewType === 'square' ? 'w-8' : 'w-20'} rounded overflow-hidden border`}>

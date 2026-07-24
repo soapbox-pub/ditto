@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, lazy, Suspense, memo } from 'react';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import {
   DndContext,
   closestCenter,
@@ -75,7 +75,7 @@ function WidgetContent({ id }: { id: string }) {
       return <FeedWidget kinds={[31922, 31923]} feedPath="/events" feedLabel={intl.formatMessage({ id: 'widgets.events.viewAll', defaultMessage: "View all events" })} />;
 
     default:
-      return <p className="text-xs text-muted-foreground p-1">{intl.formatMessage({ id: 'widgets.common.unknownWidget', defaultMessage: "Unknown widget." })}</p>;
+      return <p className="text-xs text-muted-foreground p-1"><FormattedMessage id="widgets.common.unknownWidget" defaultMessage={"Unknown widget."} /></p>;
   }
 }
 
@@ -92,15 +92,14 @@ function WidgetSkeleton() {
 
 /** Compact fallback shown when a widget crashes. */
 function WidgetErrorFallback({ name }: { name: string }) {
-  const intl = useIntl();
   return (
     <div className="flex flex-col items-center gap-2 py-4 px-3 text-center">
-      <p className="text-xs text-muted-foreground">{intl.formatMessage({ id: 'widgets.common.loadFailed', defaultMessage: "{name} failed to load." }, { name })}</p>
+      <p className="text-xs text-muted-foreground"><FormattedMessage id="widgets.common.loadFailed" defaultMessage={"{name} failed to load."} values={{ name }} /></p>
       <button
         onClick={() => window.location.reload()}
         className="text-xs text-primary hover:underline"
       >
-        {intl.formatMessage({ id: 'widgets.common.reloadPage', defaultMessage: "Reload page" })}
+        <FormattedMessage id="widgets.common.reloadPage" defaultMessage={"Reload page"} />
       </button>
     </div>
   );
@@ -157,7 +156,6 @@ const SortableWidget = memo(function SortableWidget({ config, definition, onRemo
 const EMPTY_WIDGETS: WidgetConfig[] = [];
 
 export function WidgetSidebar() {
-  const intl = useIntl();
   const { config, updateConfig } = useAppContext();
   const { user } = useCurrentUser();
   const { updateSettings } = useEncryptedSettings();
@@ -244,7 +242,7 @@ export function WidgetSidebar() {
               className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-background/85 text-muted-foreground hover:text-foreground hover:bg-background transition-colors text-xs"
             >
               <Plus className="size-3.5" />
-              {intl.formatMessage({ id: 'widgets.common.addWidget', defaultMessage: "Add widget" })}
+              <FormattedMessage id="widgets.common.addWidget" defaultMessage={"Add widget"} />
             </button>
           </div>
         </SortableContext>

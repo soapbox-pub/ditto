@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@/hooks/useSeoMeta';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { ContentSettings } from '@/components/ContentSettings';
 import { PageHeader } from '@/components/PageHeader';
 import { HelpTip } from '@/components/HelpTip';
@@ -22,9 +22,9 @@ export function ContentSettingsPage() {
         alwaysShowBack
         titleContent={
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold flex items-center gap-1.5">{intl.formatMessage({ id: 'settings.sections.feed.label', defaultMessage: "Home Feed" })} <HelpTip faqId="fyp" /></h1>
+            <h1 className="text-xl font-bold flex items-center gap-1.5"><FormattedMessage id="settings.sections.feed.label" defaultMessage={"Home Feed"} /> <HelpTip faqId="fyp" /></h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {intl.formatMessage({ id: 'settings.feed.pageDescription', defaultMessage: "Nostr supports many content types beyond text posts. Customize which appear in your home feed." })}
+              <FormattedMessage id="settings.feed.pageDescription" defaultMessage={"Nostr supports many content types beyond text posts. Customize which appear in your home feed."} />
             </p>
           </div>
         }

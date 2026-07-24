@@ -1,5 +1,5 @@
 import { useState, useId, useMemo, useCallback } from 'react';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronUp, LogOut, UserPlus, Loader2, QrCode } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -218,7 +218,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                             disabled={publishStatus.isPending}
                             className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
                           >
-                            {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : intl.formatMessage({ id: 'common.save', defaultMessage: "Save" })}
+                            {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : <FormattedMessage id="common.save" defaultMessage={"Save"} />}
                           </button>
                           {userStatus.status && (
                             <button
@@ -232,14 +232,14 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                               disabled={publishStatus.isPending}
                               className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
                             >
-                              {intl.formatMessage({ id: 'common.clear', defaultMessage: "Clear" })}
+                              <FormattedMessage id="common.clear" defaultMessage={"Clear"} />
                             </button>
                           )}
                           <button
                             onClick={() => { setStatusEditing(false); setStatusDraft(''); }}
                             className="text-xs text-muted-foreground hover:underline ml-auto"
                           >
-                            {intl.formatMessage({ id: 'common.cancel', defaultMessage: "Cancel" })}
+                            <FormattedMessage id="common.cancel" defaultMessage={"Cancel"} />
                           </button>
                         </div>
                       </div>
@@ -254,7 +254,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                         {userStatus.status ? (
                           <span className="truncate text-muted-foreground italic text-xs pr-1">{userStatus.status}</span>
                         ) : (
-                          <span className="text-muted-foreground">{intl.formatMessage({ id: 'sidebar.setStatus', defaultMessage: "Set a status" })}</span>
+                          <span className="text-muted-foreground"><FormattedMessage id="sidebar.setStatus" defaultMessage={"Set a status"} /></span>
                         )}
                       </button>
                     )}
@@ -288,21 +288,21 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-muted-foreground hover:bg-secondary/60 transition-colors"
                   >
                     <QrCode className="size-5 shrink-0" />
-                    <span>{intl.formatMessage({ id: 'sidebar.shareProfile', defaultMessage: "Share profile" })}</span>
+                    <span><FormattedMessage id="sidebar.shareProfile" defaultMessage={"Share profile"} /></span>
                   </button>
                   <button
                     onClick={() => { handleClose(); setLoginDialogOpen(true); }}
                     className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-muted-foreground hover:bg-secondary/60 transition-colors"
                   >
                     <UserPlus className="size-5 shrink-0" />
-                    <span>{intl.formatMessage({ id: 'sidebar.addAccount', defaultMessage: "Add another account" })}</span>
+                    <span><FormattedMessage id="sidebar.addAccount" defaultMessage={"Add another account"} /></span>
                   </button>
                   <button
                     onClick={handleLogout}
                     className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-destructive hover:bg-destructive/10 transition-colors"
                   >
                     <LogOut className="size-5 shrink-0" />
-                    <span>{intl.formatMessage({ id: 'sidebar.logOutAs', defaultMessage: "Log out @{name}" }, { name: metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" }) })}</span>
+                    <span><FormattedMessage id="sidebar.logOutAs" defaultMessage={"Log out @{name}"} values={{ name: metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" }) }} /></span>
                   </button>
                 </div>
               )}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Loader2 } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ export function StatusWidget() {
 
   if (!user) {
     return (
-      <p className="text-sm text-muted-foreground px-1">{intl.formatMessage({ id: 'widgets.status.loginPrompt', defaultMessage: "Log in to set a status." })}</p>
+      <p className="text-sm text-muted-foreground px-1"><FormattedMessage id="widgets.status.loginPrompt" defaultMessage={"Log in to set a status."} /></p>
     );
   }
 
@@ -66,7 +66,7 @@ export function StatusWidget() {
             disabled={publishStatus.isPending}
             className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
           >
-            {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : intl.formatMessage({ id: 'common.save', defaultMessage: "Save" })}
+            {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : <FormattedMessage id="common.save" defaultMessage={"Save"} />}
           </button>
           {userStatus.status && (
             <button
@@ -82,14 +82,14 @@ export function StatusWidget() {
               disabled={publishStatus.isPending}
               className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
             >
-              {intl.formatMessage({ id: 'common.clear', defaultMessage: "Clear" })}
+              <FormattedMessage id="common.clear" defaultMessage={"Clear"} />
             </button>
           )}
           <button
             onClick={() => { setEditing(false); setDraft(''); }}
             className="text-xs text-muted-foreground hover:underline ml-auto"
           >
-            {intl.formatMessage({ id: 'common.cancel', defaultMessage: "Cancel" })}
+            <FormattedMessage id="common.cancel" defaultMessage={"Cancel"} />
           </button>
         </div>
       </div>
@@ -107,7 +107,7 @@ export function StatusWidget() {
       {userStatus.status ? (
         <span className="truncate text-muted-foreground italic text-xs">{userStatus.status}</span>
       ) : (
-        <span className="text-muted-foreground text-xs">{intl.formatMessage({ id: 'widgets.status.setPrompt', defaultMessage: "Click to set a status..." })}</span>
+        <span className="text-muted-foreground text-xs"><FormattedMessage id="widgets.status.setPrompt" defaultMessage={"Click to set a status..."} /></span>
       )}
     </button>
   );

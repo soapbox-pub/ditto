@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { IntroImage } from '@/components/IntroImage';
 import {
   Users, Download, Loader2, X, Pencil, Home, Globe, MapPin,
@@ -36,7 +36,6 @@ import type { SavedFeed, TabFilter, ContentWarningPolicy } from '@/contexts/AppC
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 
 export function ContentSettings() {
-  const intl = useIntl();
 
   return (
     <div>
@@ -46,7 +45,7 @@ export function ContentSettings() {
       {/* Feed Tabs Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">{intl.formatMessage({ id: 'settings.feed.homeFeedTabs', defaultMessage: "Home Feed Tabs" })}</h2>
+          <h2 className="text-base font-semibold"><FormattedMessage id="settings.feed.homeFeedTabs" defaultMessage={"Home Feed Tabs"} /></h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
@@ -57,13 +56,13 @@ export function ContentSettings() {
       {/* Notes Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">{intl.formatMessage({ id: 'settings.feed.postTypes', defaultMessage: "Post Types" })}</h2>
+          <h2 className="text-base font-semibold"><FormattedMessage id="settings.feed.postTypes" defaultMessage={"Post Types"} /></h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
           <div className="px-3 pt-3 pb-2">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              {intl.formatMessage({ id: 'settings.feed.postTypesDescription', defaultMessage: "Core content types that appear in your home feed." })}
+              <FormattedMessage id="settings.feed.postTypesDescription" defaultMessage={"Core content types that appear in your home feed."} />
             </p>
           </div>
 
@@ -74,7 +73,7 @@ export function ContentSettings() {
       {/* Other Stuff Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">{intl.formatMessage({ id: 'settings.feed.moreContentTypes', defaultMessage: "More Content Types" })}</h2>
+          <h2 className="text-base font-semibold"><FormattedMessage id="settings.feed.moreContentTypes" defaultMessage={"More Content Types"} /></h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
@@ -82,9 +81,9 @@ export function ContentSettings() {
           <div className="flex items-center gap-4 px-3 pt-3 pb-2">
             <IntroImage src="/feed-intro.png" size="w-28" />
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold">{intl.formatMessage({ id: 'settings.feed.otherStuff', defaultMessage: "Other Stuff" })}</h3>
+              <h3 className="text-sm font-semibold"><FormattedMessage id="settings.feed.otherStuff" defaultMessage={"Other Stuff"} /></h3>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                {intl.formatMessage({ id: 'settings.feed.otherStuffDescription', defaultMessage: "Nostr isn't just text posts — pick what else shows up in your home feed." })}
+                <FormattedMessage id="settings.feed.otherStuffDescription" defaultMessage={"Nostr isn't just text posts — pick what else shows up in your home feed."} />
               </p>
             </div>
           </div>
@@ -209,7 +208,6 @@ function NotesFeedSettings() {
 }
 
 function FeedSettingsFormInternals() {
-  const intl = useIntl();
   const { feedSettings } = useFeedSettings();
 
   return (
@@ -242,7 +240,7 @@ function FeedSettingsFormInternals() {
               <span className="flex items-center gap-3 min-w-0">
                 <span className="text-sm font-medium">{SECTION_LABELS[section]}</span>
                 <Badge variant="secondary" className="shrink-0 font-normal">
-                  {intl.formatMessage({ id: 'settings.feed.enabledOf', defaultMessage: "{enabled} of {total} on" }, { enabled, total })}
+                  <FormattedMessage id="settings.feed.enabledOf" defaultMessage={"{enabled} of {total} on"} values={{ enabled, total }} />
                 </Badge>
               </span>
             </AccordionTrigger>
@@ -414,9 +412,9 @@ function FeedTabsSection() {
       <div className="flex items-center gap-4 px-3 pt-3 pb-2">
         <IntroImage src="/community-intro.png" size="w-28" />
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold">{intl.formatMessage({ id: 'settings.feed.feedNavigation', defaultMessage: "Feed Navigation" })}</h3>
+          <h3 className="text-sm font-semibold"><FormattedMessage id="settings.feed.feedNavigation" defaultMessage={"Feed Navigation"} /></h3>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            {intl.formatMessage({ id: 'settings.feed.feedNavigationDescription', defaultMessage: "Choose which tabs appear at the top of your home feed." })}
+            <FormattedMessage id="settings.feed.feedNavigationDescription" defaultMessage={"Choose which tabs appear at the top of your home feed."} />
           </p>
         </div>
       </div>
@@ -425,8 +423,8 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">{intl.formatMessage({ id: 'settings.feed.showReplies', defaultMessage: "Show replies in feed" })}</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">{intl.formatMessage({ id: 'settings.feed.showRepliesDescription', defaultMessage: "Include replies from people you follow, not just top-level posts" })}</p>
+            <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.showReplies" defaultMessage={"Show replies in feed"} /></Label>
+            <p className="text-xs text-muted-foreground mt-0.5"><FormattedMessage id="settings.feed.showRepliesDescription" defaultMessage={"Include replies from people you follow, not just top-level posts"} /></p>
           </div>
           <Switch
             checked={feedSettings.followsFeedShowReplies}
@@ -444,8 +442,8 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">{intl.formatMessage({ id: 'settings.feed.appFeed', defaultMessage: "{appName} Feed" }, { appName: config.appName })}</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">{intl.formatMessage({ id: 'settings.feed.appFeedDescription', defaultMessage: "Show trending and curated content from the {appName} relay" }, { appName: config.appName })}</p>
+            <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.appFeed" defaultMessage={"{appName} Feed"} values={{ appName: config.appName }} /></Label>
+            <p className="text-xs text-muted-foreground mt-0.5"><FormattedMessage id="settings.feed.appFeedDescription" defaultMessage={"Show trending and curated content from the {appName} relay"} values={{ appName: config.appName }} /></p>
           </div>
           <Switch
             checked={showDittoFeed}
@@ -458,8 +456,8 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">{intl.formatMessage({ id: 'settings.feed.globalFeed', defaultMessage: "Global Feed" })}</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">{intl.formatMessage({ id: 'settings.feed.globalFeedDescription', defaultMessage: "Show posts from all users across the network" })}</p>
+            <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.globalFeed" defaultMessage={"Global Feed"} /></Label>
+            <p className="text-xs text-muted-foreground mt-0.5"><FormattedMessage id="settings.feed.globalFeedDescription" defaultMessage={"Show posts from all users across the network"} /></p>
           </div>
           <Switch
             checked={showGlobalFeed}
@@ -472,11 +470,11 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">{intl.formatMessage({ id: 'settings.feed.communityFeed', defaultMessage: "Community Feed" })}</Label>
+            <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.communityFeed" defaultMessage={"Community Feed"} /></Label>
             <p className="text-xs text-muted-foreground mt-0.5">
               {community
-                ? intl.formatMessage({ id: 'settings.feed.communityFeedActive', defaultMessage: "Show \"{label}\" tab for {domain} users" }, { label: community.label, domain: community.domain })
-                : intl.formatMessage({ id: 'settings.feed.communityFeedInactive', defaultMessage: "Set a community below to enable this feed" })}
+                ? <FormattedMessage id="settings.feed.communityFeedActive" defaultMessage={"Show \"{label}\" tab for {domain} users"} values={{ label: community.label, domain: community.domain }} />
+                : <FormattedMessage id="settings.feed.communityFeedInactive" defaultMessage={"Set a community below to enable this feed"} />}
             </p>
           </div>
           <Switch
@@ -495,10 +493,10 @@ function FeedTabsSection() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Users className="h-4 w-4 text-muted-foreground" />
-            <Label className="text-sm font-medium">{intl.formatMessage({ id: 'settings.feed.community', defaultMessage: "Community" })}</Label>
+            <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.community" defaultMessage={"Community"} /></Label>
           </div>
           <p className="text-xs text-muted-foreground">
-            {intl.formatMessage({ id: 'settings.feed.communityDescription', defaultMessage: "Set a community domain. We'll download the NIP-05 user list to show posts only from verified members." })}
+            <FormattedMessage id="settings.feed.communityDescription" defaultMessage={"Set a community domain. We'll download the NIP-05 user list to show posts only from verified members."} />
           </p>
         </div>
 
@@ -535,7 +533,7 @@ function FeedTabsSection() {
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{community.label}</p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {community.domain} • {intl.formatMessage({ id: 'settings.feed.userCount', defaultMessage: "{count, plural, one {{count} user} other {{count} users}}" }, { count: community.userCount })}
+                  {community.domain} • <FormattedMessage id="settings.feed.userCount" defaultMessage={"{count, plural, one {{count} user} other {{count} users}}"} values={{ count: community.userCount }} />
                 </p>
               </div>
             </div>
@@ -614,9 +612,9 @@ function InterestsSection() {
   return (
     <div className="px-3 py-4 space-y-4 border-t border-border">
       <div>
-        <h3 className="text-sm font-semibold">{intl.formatMessage({ id: 'settings.feed.interestTabs', defaultMessage: "Interest Tabs" })}</h3>
+        <h3 className="text-sm font-semibold"><FormattedMessage id="settings.feed.interestTabs" defaultMessage={"Interest Tabs"} /></h3>
         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          {intl.formatMessage({ id: 'settings.feed.interestTabsDescription', defaultMessage: "Hashtags and locations you follow appear as tabs on the home feed." })}
+          <FormattedMessage id="settings.feed.interestTabsDescription" defaultMessage={"Hashtags and locations you follow appear as tabs on the home feed."} />
         </p>
       </div>
 
@@ -624,7 +622,7 @@ function InterestsSection() {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Hash className="size-4 text-muted-foreground shrink-0" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{intl.formatMessage({ id: 'settings.feed.hashtags', defaultMessage: "Hashtags" })}</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"><FormattedMessage id="settings.feed.hashtags" defaultMessage={"Hashtags"} /></span>
         </div>
 
         <div className="flex gap-2">
@@ -651,7 +649,7 @@ function InterestsSection() {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : hashtags.length === 0 ? (
-          <p className="text-xs text-muted-foreground">{intl.formatMessage({ id: 'settings.feed.noHashtags', defaultMessage: "No followed hashtags yet." })}</p>
+          <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.feed.noHashtags" defaultMessage={"No followed hashtags yet."} /></p>
         ) : (
           <div className="space-y-1.5">
             {hashtags.map((tag) => (
@@ -681,7 +679,7 @@ function InterestsSection() {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <MapPin className="size-4 text-muted-foreground shrink-0" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{intl.formatMessage({ id: 'settings.feed.locations', defaultMessage: "Locations" })}</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"><FormattedMessage id="settings.feed.locations" defaultMessage={"Locations"} /></span>
         </div>
 
         <div className="flex gap-2">
@@ -708,7 +706,7 @@ function InterestsSection() {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : geotags.length === 0 ? (
-          <p className="text-xs text-muted-foreground">{intl.formatMessage({ id: 'settings.feed.noLocations', defaultMessage: "No followed locations yet." })}</p>
+          <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.feed.noLocations" defaultMessage={"No followed locations yet."} /></p>
         ) : (
           <div className="space-y-1.5">
             {geotags.map((tag) => (
@@ -768,7 +766,7 @@ function SavedFeedsSection() {
   return (
     <div className="px-3 py-4 space-y-3 border-t border-border">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">{intl.formatMessage({ id: 'settings.feed.customTabs', defaultMessage: "Custom Tabs" })}</h3>
+        <h3 className="text-sm font-semibold"><FormattedMessage id="settings.feed.customTabs" defaultMessage={"Custom Tabs"} /></h3>
         <Button
           variant="outline"
           size="sm"
@@ -776,13 +774,13 @@ function SavedFeedsSection() {
           onClick={() => setAddFeedModalOpen(true)}
         >
           <Plus className="size-3.5" />
-          {intl.formatMessage({ id: 'settings.feed.addTab', defaultMessage: "Add tab" })}
+          <FormattedMessage id="settings.feed.addTab" defaultMessage={"Add tab"} />
         </Button>
       </div>
 
       {feedTabs.length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          {intl.formatMessage({ id: 'settings.feed.noCustomTabs', defaultMessage: "No custom tabs yet. Save a search from the search page, or add one above." })}
+          <FormattedMessage id="settings.feed.noCustomTabs" defaultMessage={"No custom tabs yet. Save a search from the search page, or add one above."} />
         </p>
       ) : (
         <div className="space-y-1.5">
@@ -925,7 +923,7 @@ export function SensitiveContentSection() {
   return (
     <div>
       <p className="text-xs text-muted-foreground px-3 pt-3 pb-1">
-        {intl.formatMessage({ id: 'settings.content.sensitiveDescription', defaultMessage: "How to display posts their author marked as sensitive (NSFW, spoilers, etc)." })}
+        <FormattedMessage id="settings.content.sensitiveDescription" defaultMessage={"How to display posts their author marked as sensitive (NSFW, spoilers, etc)."} />
       </p>
 
       {/* Policy options — consistent row style with other settings */}
@@ -958,7 +956,6 @@ export function SensitiveContentSection() {
  * (muted hashtags and words). Explicit user and thread mutes still apply.
  */
 export function MuteFollowExemptionSection() {
-  const intl = useIntl();
   const { config, updateConfig } = useAppContext();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
@@ -975,9 +972,9 @@ export function MuteFollowExemptionSection() {
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="space-y-0.5">
-        <Label className="text-sm font-medium">{intl.formatMessage({ id: 'settings.content.exemptFollows', defaultMessage: "Don't filter people you follow" })}</Label>
+        <Label className="text-sm font-medium"><FormattedMessage id="settings.content.exemptFollows" defaultMessage={"Don't filter people you follow"} /></Label>
         <p className="text-xs text-muted-foreground">
-          {intl.formatMessage({ id: 'settings.content.exemptFollowsDescription', defaultMessage: "Muted hashtags and words won't hide posts from accounts you follow. Muted users and threads still apply." })}
+          <FormattedMessage id="settings.content.exemptFollowsDescription" defaultMessage={"Muted hashtags and words won't hide posts from accounts you follow. Muted users and threads still apply."} />
         </p>
       </div>
       <Switch
@@ -1086,25 +1083,25 @@ export function MuteSettingsInternals() {
               <SelectItem value="pubkey">
                 <div className="flex items-center gap-2">
                   <UserX className="h-4 w-4" />
-                  {intl.formatMessage({ id: 'settings.content.muteTypeOptions.user', defaultMessage: "User" })}
+                  <FormattedMessage id="settings.content.muteTypeOptions.user" defaultMessage={"User"} />
                 </div>
               </SelectItem>
               <SelectItem value="hashtag">
                 <div className="flex items-center gap-2">
                   <Hash className="h-4 w-4" />
-                  {intl.formatMessage({ id: 'settings.content.muteTypeOptions.hashtag', defaultMessage: "Hashtag" })}
+                  <FormattedMessage id="settings.content.muteTypeOptions.hashtag" defaultMessage={"Hashtag"} />
                 </div>
               </SelectItem>
               <SelectItem value="word">
                 <div className="flex items-center gap-2">
                   <MessageSquareOff className="h-4 w-4" />
-                  {intl.formatMessage({ id: 'settings.content.muteTypeOptions.word', defaultMessage: "Word/Phrase" })}
+                  <FormattedMessage id="settings.content.muteTypeOptions.word" defaultMessage={"Word/Phrase"} />
                 </div>
               </SelectItem>
               <SelectItem value="thread">
                 <div className="flex items-center gap-2">
                   <MessageSquareOff className="h-4 w-4" />
-                  {intl.formatMessage({ id: 'settings.content.muteTypeOptions.thread', defaultMessage: "Thread" })}
+                  <FormattedMessage id="settings.content.muteTypeOptions.thread" defaultMessage={"Thread"} />
                 </div>
               </SelectItem>
             </SelectContent>
@@ -1129,7 +1126,7 @@ export function MuteSettingsInternals() {
             className="h-9"
           >
             <Plus className="mr-1.5 h-4 w-4" />
-            {intl.formatMessage({ id: 'common.add', defaultMessage: "Add" })}
+            <FormattedMessage id="common.add" defaultMessage={"Add"} />
           </Button>
         </div>
       </div>
@@ -1148,7 +1145,7 @@ export function MuteSettingsInternals() {
         </div>
       ) : muteItems.length === 0 ? (
         <p className="text-muted-foreground text-center py-8 text-sm">
-          {intl.formatMessage({ id: 'settings.content.noMutedItems', defaultMessage: "No muted items yet" })}
+          <FormattedMessage id="settings.content.noMutedItems" defaultMessage={"No muted items yet"} />
         </p>
       ) : (
         <Accordion type="multiple">
@@ -1281,7 +1278,6 @@ function MuteTypeSection({
 }
 
 export function VideoAutoplaySection() {
-  const intl = useIntl();
   const { config, updateConfig } = useAppContext();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
@@ -1298,8 +1294,8 @@ export function VideoAutoplaySection() {
   return (
     <div className="flex items-center justify-between">
       <div className="space-y-0.5">
-        <Label className="text-sm font-medium">{intl.formatMessage({ id: 'settings.content.autoplayVideos', defaultMessage: "Autoplay videos" })}</Label>
-        <p className="text-xs text-muted-foreground">{intl.formatMessage({ id: 'settings.content.autoplayVideosDescription', defaultMessage: "Automatically play videos (muted) in feeds and previews" })}</p>
+        <Label className="text-sm font-medium"><FormattedMessage id="settings.content.autoplayVideos" defaultMessage={"Autoplay videos"} /></Label>
+        <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.content.autoplayVideosDescription" defaultMessage={"Automatically play videos (muted) in feeds and previews"} /></p>
       </div>
       <Switch
         checked={autoplay}
@@ -1310,7 +1306,6 @@ export function VideoAutoplaySection() {
 }
 
 export function ThemePreferencesSection() {
-  const intl = useIntl();
   const { feedSettings, updateFeedSettings } = useFeedSettings();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
@@ -1328,8 +1323,8 @@ export function ThemePreferencesSection() {
   return (
     <div className="flex items-center justify-between">
       <div className="space-y-0.5">
-        <Label className="text-sm font-medium">{intl.formatMessage({ id: 'settings.content.showCustomThemes', defaultMessage: "Show custom profile themes" })}</Label>
-        <p className="text-xs text-muted-foreground">{intl.formatMessage({ id: 'settings.content.showCustomThemesDescription', defaultMessage: "Display other users' custom themes when visiting their profiles" })}</p>
+        <Label className="text-sm font-medium"><FormattedMessage id="settings.content.showCustomThemes" defaultMessage={"Show custom profile themes"} /></Label>
+        <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.content.showCustomThemesDescription" defaultMessage={"Display other users' custom themes when visiting their profiles"} /></p>
       </div>
       <Switch
         checked={showOnProfiles}
@@ -1361,10 +1356,10 @@ function HomePageSetting() {
         <div className="min-w-0 flex-1">
           <Label className="text-sm font-medium flex items-center gap-2">
             <Home className="size-4" />
-            {intl.formatMessage({ id: 'settings.feed.homepage', defaultMessage: "Homepage" })}
+            <FormattedMessage id="settings.feed.homepage" defaultMessage={"Homepage"} />
           </Label>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {intl.formatMessage({ id: 'settings.feed.homepageDescription', defaultMessage: "Choose which page to display when you open the app" })}
+            <FormattedMessage id="settings.feed.homepageDescription" defaultMessage={"Choose which page to display when you open the app"} />
           </p>
         </div>
         <Select value={config.homePage} onValueChange={handleHomePageChange}>
