@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.33.0] - 2026-07-24
+
+Memory cards are here. Ditto now speaks PlayStation 1: upload a memory card image and it goes up block by block, animated save icons and all. Browse cards from people you follow or from the whole network, watch the icons spin, copy a save onto your own card, or download the whole thing as a file you can drop straight into an emulator. This release also unfreezes the Add custom tab dialog on your profile and fixes Android sign-in with Amber on relays that ask you to authenticate.
+
+### Added
+- PlayStation 1 memory cards: a new Memory Cards page with Mine, Follows, and Global tabs, plus save titles, regions, and animated icons decoded straight from the raw save data
+- Upload a memory card image to publish or update your own card, download any card as a file for your emulator, copy a single save, or clone an entire card
+
+### Fixed
+- Opening the Add custom tab dialog on your profile no longer leaves the page frozen and unclickable
+- The content type picker inside the custom tab dialog now spans the full field instead of hanging off-center
+- Signing in on Android with Amber or another external signer app now works on relays that require authentication
+
 ## [2.32.0] - 2026-07-21
 
 Shorts are here — short videos have a new name and live at /shorts. Android users can now sign in with Amber and other native signing apps for a more secure experience. This release also brings live chat to livestreams, renders meeting spaces and rooms, and updates Bitcoin payment preset amounts.
