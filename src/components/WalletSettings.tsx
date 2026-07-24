@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Zap, Globe, WalletMinimal, CheckCircle, X, Bitcoin, ArrowUp, ArrowDown, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,7 @@ import { useToast } from '@/hooks/useToast';
 import { DEFAULT_ESPLORA_APIS } from '@/lib/esplora';
 
 export function WalletSettings() {
+  const { t } = useTranslation();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [connectionUri, setConnectionUri] = useState('');
   const [alias, setAlias] = useState('');
@@ -77,15 +79,15 @@ export function WalletSettings() {
   const handleAddEsplora = () => {
     if (!isValidEsploraUrl(newEsploraUrl)) {
       toast({
-        title: 'Invalid API URL',
-        description: 'Enter a valid HTTPS URL (e.g. https://mempool.space/api)',
+        title: t('settings.wallet.invalidApiUrl'),
+        description: t('settings.wallet.invalidApiUrlDescription'),
         variant: 'destructive',
       });
       return;
     }
     const normalized = normalizeEsploraUrl(newEsploraUrl);
     if (esploraApis.includes(normalized)) {
-      toast({ title: 'Already in the list', variant: 'destructive' });
+      toast({ title: t('settings.wallet.alreadyInList'), variant: 'destructive' });
       return;
     }
     saveEsploraApis([...esploraApis, normalized]);
@@ -97,8 +99,8 @@ export function WalletSettings() {
     // the user can hit "Restore defaults" if they want to start over.
     if (esploraApis.length <= 1) {
       toast({
-        title: 'At least one API is required',
-        description: 'Add another endpoint before removing this one, or restore the defaults.',
+        title: t('settings.wallet.oneApiRequired'),
+        description: t('settings.wallet.oneApiRequiredDescription'),
         variant: 'destructive',
       });
       return;
@@ -116,7 +118,7 @@ export function WalletSettings() {
 
   const handleResetEsplora = () => {
     saveEsploraApis([...DEFAULT_ESPLORA_APIS]);
-    toast({ title: 'Bitcoin APIs restored to defaults' });
+    toast({ title: t('settings.wallet.apisRestored') });
   };
 
   const isAtDefaults =
@@ -135,8 +137,8 @@ export function WalletSettings() {
   const handleAddConnection = async () => {
     if (!connectionUri.trim()) {
       toast({
-        title: 'Connection URI required',
-        description: 'Please enter a valid NWC connection URI.',
+        title: t('settings.wallet.connectionUriRequired'),
+        description: t('settings.wallet.connectionUriRequiredDescription'),
         variant: 'destructive',
       });
       return;
@@ -162,8 +164,8 @@ export function WalletSettings() {
   const handleSetActive = (connectionString: string) => {
     setActiveConnection(connectionString);
     toast({
-      title: 'Active wallet changed',
-      description: 'The selected wallet is now active for zaps.',
+      title: t('settings.wallet.activeWalletChanged'),
+      description: t('settings.wallet.activeWalletChangedDescription'),
     });
   };
 
@@ -172,7 +174,7 @@ export function WalletSettings() {
       <div className="space-y-6">
         {/* Connection status cards */}
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide px-1">Status</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide px-1">{t('settings.wallet.status')}</h2>
           <div className="grid gap-3">
             {/* WebLN */}
             <Card className="overflow-hidden">
@@ -183,13 +185,13 @@ export function WalletSettings() {
                   </div>
                   <div>
                     <p className="text-sm font-medium">WebLN</p>
-                    <p className="text-xs text-muted-foreground">Browser extension</p>
+                    <p className="text-xs text-muted-foreground">{t('settings.wallet.weblnDescription')}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {webln && <CheckCircle className="size-4 text-green-500" />}
                   <Badge variant={webln ? 'default' : 'secondary'} className="text-xs">
-                    {webln ? 'Ready' : 'Not Found'}
+                    {webln ? t('settings.wallet.ready') : t('settings.wallet.notFound')}
                   </Badge>
                 </div>
               </CardContent>
@@ -206,15 +208,15 @@ export function WalletSettings() {
                     <p className="text-sm font-medium">Nostr Wallet Connect</p>
                     <p className="text-xs text-muted-foreground">
                       {connections.length > 0
-                        ? `${connections.length} wallet${connections.length !== 1 ? 's' : ''} connected`
-                        : 'Remote wallet connection'}
+                        ? t('settings.wallet.walletsConnected', { count: connections.length })
+                        : t('settings.wallet.remoteWalletConnection')}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {hasNWC && <CheckCircle className="size-4 text-green-500" />}
                   <Badge variant={hasNWC ? 'default' : 'secondary'} className="text-xs">
-                    {hasNWC ? 'Ready' : 'None'}
+                    {hasNWC ? t('settings.wallet.ready') : t('settings.wallet.none')}
                   </Badge>
                 </div>
               </CardContent>
@@ -230,7 +232,7 @@ export function WalletSettings() {
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Nostr Wallet Connect</h2>
             <Button size="sm" variant="outline" onClick={() => setAddDialogOpen(true)} className="rounded-full">
               <Plus className="size-4 mr-1" />
-              Add
+              {t('common.add')}
             </Button>
           </div>
 
@@ -238,8 +240,8 @@ export function WalletSettings() {
             <Card className="border-dashed">
               <CardContent className="py-10 text-center">
                 <WalletMinimal className="size-8 mx-auto mb-3 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground mb-1">No wallets connected</p>
-                <p className="text-xs text-muted-foreground/70">Add an NWC connection to enable instant zaps.</p>
+                <p className="text-sm text-muted-foreground mb-1">{t('settings.wallet.noWallets')}</p>
+                <p className="text-xs text-muted-foreground/70">{t('settings.wallet.noWalletsDescription')}</p>
               </CardContent>
             </Card>
           ) : (
@@ -256,10 +258,10 @@ export function WalletSettings() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">
-                            {connection.alias || info?.alias || 'Lightning Wallet'}
+                            {connection.alias || info?.alias || t('settings.wallet.lightningWallet')}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {isActive ? 'Active' : 'NWC Connection'}
+                            {isActive ? t('settings.wallet.active') : t('settings.wallet.nwcConnection')}
                           </p>
                         </div>
                       </div>
@@ -271,7 +273,7 @@ export function WalletSettings() {
                             variant="ghost"
                             onClick={() => handleSetActive(connection.connectionString)}
                             className="rounded-full"
-                            title="Set as active"
+                            title={t('settings.wallet.setAsActive')}
                           >
                             <Zap className="size-3.5" />
                           </Button>
@@ -281,7 +283,7 @@ export function WalletSettings() {
                           variant="ghost"
                           onClick={() => handleRemoveConnection(connection.connectionString)}
                           className="rounded-full text-muted-foreground hover:text-destructive"
-                          title="Remove wallet"
+                          title={t('settings.wallet.removeWallet')}
                         >
                           <Trash2 className="size-3.5" />
                         </Button>
@@ -300,7 +302,7 @@ export function WalletSettings() {
             <Separator />
             <div className="text-center py-4 space-y-2 px-4">
               <p className="text-sm text-muted-foreground">
-                Install a WebLN browser extension or connect a NWC wallet to send zaps.
+                {t('settings.wallet.installHelp')}
               </p>
             </div>
           </>
@@ -312,7 +314,7 @@ export function WalletSettings() {
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Bitcoin APIs
+              {t('settings.wallet.bitcoinApis')}
             </h2>
             <Button
               size="sm"
@@ -320,17 +322,15 @@ export function WalletSettings() {
               onClick={handleResetEsplora}
               disabled={isAtDefaults}
               className="rounded-full text-xs h-7"
-              title="Restore the default mempool.space → mempool.emzy.de → blockstream.info list"
+              title={t('settings.wallet.restoreDefaultsTitle')}
             >
               <RotateCcw className="size-3.5 mr-1" />
-              Restore defaults
+              {t('settings.wallet.restoreDefaults')}
             </Button>
           </div>
 
           <p className="text-xs text-muted-foreground px-1">
-            Esplora-compatible Bitcoin REST endpoints used by the wallet, on-chain zaps,
-            and tx/address pages. Tried in order — if the top one is rate-limited or down,
-            the next is tried automatically. Reorder so your preferred endpoint is first.
+            {t('settings.wallet.bitcoinApisDescription')}
           </p>
 
           <div className="space-y-2">
@@ -346,7 +346,7 @@ export function WalletSettings() {
                         {renderEsploraUrl(url)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {index === 0 ? 'Primary' : `Fallback ${index}`}
+                        {index === 0 ? t('settings.wallet.primary') : t('settings.wallet.fallback', { index })}
                       </p>
                     </div>
                   </div>
@@ -357,7 +357,7 @@ export function WalletSettings() {
                       onClick={() => handleMoveEsplora(index, -1)}
                       disabled={index === 0}
                       className="rounded-full size-8 p-0"
-                      title="Move up"
+                      title={t('settings.wallet.moveUp')}
                     >
                       <ArrowUp className="size-3.5" />
                     </Button>
@@ -367,7 +367,7 @@ export function WalletSettings() {
                       onClick={() => handleMoveEsplora(index, 1)}
                       disabled={index === esploraApis.length - 1}
                       className="rounded-full size-8 p-0"
-                      title="Move down"
+                      title={t('settings.wallet.moveDown')}
                     >
                       <ArrowDown className="size-3.5" />
                     </Button>
@@ -377,7 +377,7 @@ export function WalletSettings() {
                       onClick={() => handleRemoveEsplora(url)}
                       disabled={esploraApis.length <= 1}
                       className="rounded-full size-8 p-0 text-muted-foreground hover:text-destructive"
-                      title={esploraApis.length <= 1 ? 'At least one API is required' : 'Remove'}
+                      title={esploraApis.length <= 1 ? t('settings.wallet.oneApiRequired') : t('settings.wallet.remove')}
                     >
                       <Trash2 className="size-3.5" />
                     </Button>
@@ -391,7 +391,7 @@ export function WalletSettings() {
           <div className="flex gap-2 px-1">
             <div className="flex-1">
               <Label htmlFor="new-esplora-url" className="sr-only">
-                Bitcoin API URL
+                {t('settings.wallet.bitcoinApiUrlLabel')}
               </Label>
               <Input
                 id="new-esplora-url"
@@ -412,7 +412,7 @@ export function WalletSettings() {
               className="h-9 shrink-0 text-xs"
             >
               <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Add
+              {t('common.add')}
             </Button>
           </div>
         </div>
@@ -424,7 +424,7 @@ export function WalletSettings() {
           {/* Header */}
           <div className="flex items-center justify-between px-4 h-12">
             <DialogTitle className="text-base font-semibold">
-              Connect NWC Wallet
+              {t('settings.wallet.connectDialogTitle')}
             </DialogTitle>
             <button
               onClick={() => setAddDialogOpen(false)}
@@ -436,13 +436,13 @@ export function WalletSettings() {
 
           {/* Description */}
           <p className="px-4 -mt-1 mb-2 text-sm text-muted-foreground">
-            Paste a connection string from your NWC-compatible wallet.
+            {t('settings.wallet.connectDialogDescription')}
           </p>
 
           {/* Form fields */}
           <div className="px-4 space-y-4">
             <Input
-              placeholder="Wallet name (optional)"
+              placeholder={t('settings.wallet.walletNamePlaceholder')}
               value={alias}
               onChange={(e) => setAlias(e.target.value)}
               className="bg-transparent"
@@ -464,7 +464,7 @@ export function WalletSettings() {
               className="rounded-full px-5 font-bold"
               size="sm"
             >
-              {isConnecting ? 'Connecting...' : 'Connect'}
+              {isConnecting ? t('settings.wallet.connecting') : t('settings.wallet.connect')}
             </Button>
           </div>
         </DialogContent>

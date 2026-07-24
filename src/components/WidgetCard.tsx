@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { GripVertical, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import type { WidgetDefinition } from '@/lib/sidebarWidgets';
+import { useWidgetLabel, type WidgetDefinition } from '@/lib/sidebarWidgets';
 import type { WidgetConfig } from '@/contexts/AppContext';
 
 interface WidgetCardProps {
@@ -29,6 +30,8 @@ export function WidgetCard({
 }: WidgetCardProps) {
   const configHeight = config.height ?? definition.defaultHeight;
   const Icon = definition.icon;
+  const { t } = useTranslation();
+  const label = useWidgetLabel(definition.id);
 
   // Local height for smooth resize — only commits to config on pointer up.
   const [liveHeight, setLiveHeight] = useState(configHeight);
@@ -82,12 +85,12 @@ export function WidgetCard({
         {definition.href ? (
           <Link to={definition.href} className="flex items-center gap-1.5 flex-1 min-w-0 hover:text-primary transition-colors">
             <Icon className="size-5 text-muted-foreground shrink-0" />
-            <span className="text-xl font-semibold truncate">{definition.label}</span>
+            <span className="text-xl font-semibold truncate">{label}</span>
           </Link>
         ) : (
           <>
             <Icon className="size-5 text-muted-foreground shrink-0" />
-            <span className="text-xl font-semibold flex-1 truncate">{definition.label}</span>
+            <span className="text-xl font-semibold flex-1 truncate">{label}</span>
           </>
         )}
 
@@ -95,7 +98,7 @@ export function WidgetCard({
         <button
           onClick={onRemove}
           className="p-0.5 rounded text-muted-foreground hover:text-destructive transition-colors"
-          aria-label="Remove widget"
+          aria-label={t('widgets.common.removeWidget')}
         >
           <X className="size-3.5" />
         </button>

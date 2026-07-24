@@ -1,15 +1,17 @@
 import { useSeoMeta } from '@/hooks/useSeoMeta';
+import { useTranslation } from 'react-i18next';
 import { ContentSettings } from '@/components/ContentSettings';
 import { PageHeader } from '@/components/PageHeader';
 import { HelpTip } from '@/components/HelpTip';
 import { useAppContext } from '@/hooks/useAppContext';
 
 export function ContentSettingsPage() {
+  const { t } = useTranslation();
   const { config } = useAppContext();
 
   useSeoMeta({
-    title: `Home Feed | Settings | ${config.appName}`,
-    description: 'Choose what types of posts appear in your home feed',
+    title: `${t('settings.sections.feed.label')} | ${t('settings.title')} | ${config.appName}`,
+    description: t('settings.sections.feed.description'),
   });
 
   return (
@@ -20,9 +22,9 @@ export function ContentSettingsPage() {
         alwaysShowBack
         titleContent={
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold flex items-center gap-1.5">Home Feed <HelpTip faqId="fyp" /></h1>
+            <h1 className="text-xl font-bold flex items-center gap-1.5">{t('settings.sections.feed.label')} <HelpTip faqId="fyp" /></h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Nostr supports many content types beyond text posts. Customize which appear in your home feed.
+              {t('settings.feed.pageDescription')}
             </p>
           </div>
         }

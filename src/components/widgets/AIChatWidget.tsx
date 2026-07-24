@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Send } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,6 +19,7 @@ const conversationCache = new Map<string, ChatMessage[]>();
 
 /** Compact AI chat widget for the sidebar. */
 export function AIChatWidget() {
+  const { t } = useTranslation();
   const { user } = useCurrentUser();
   const { sendStreamingMessage, getAvailableModels, isLoading, isAuthenticated } = useShakespeare();
   const hasCredits = useShakespeareCredits();
@@ -86,16 +88,16 @@ export function AIChatWidget() {
       setMessages((prev) => [...prev, { role: 'assistant', content: accumulated }]);
       setStreamingContent('');
     } catch {
-      setMessages((prev) => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: t('widgets.aiChat.errorMessage') }]);
       setStreamingContent('');
     }
-  }, [input, isLoading, messages, sendStreamingMessage, defaultModelId]);
+  }, [input, isLoading, messages, sendStreamingMessage, defaultModelId, t]);
 
   if (!user || !isAuthenticated) {
     return (
       <div className="flex flex-col items-center gap-3 py-6 px-3 text-center">
         <pre className="text-xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
-        <p className="text-xs text-muted-foreground">Log in to chat with Dork</p>
+        <p className="text-xs text-muted-foreground">{t('widgets.aiChat.loginPrompt')}</p>
       </div>
     );
   }
@@ -107,7 +109,7 @@ export function AIChatWidget() {
       <div className="flex flex-col items-center gap-3 py-6 px-3 text-center">
         <pre className="text-xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Grab some credits on{' '}
+          {t('widgets.aiChat.creditsPre')}{' '}
           <a
             href="https://shakespeare.diy"
             target="_blank"
@@ -116,13 +118,13 @@ export function AIChatWidget() {
           >
             Shakespeare
           </a>
-          {' '}to chat with Dork.
+          {' '}{t('widgets.aiChat.creditsPost')}
         </p>
         <Link
           to="/ai-chat"
           className="text-xs font-medium text-primary hover:underline"
         >
-          Open AI Chat
+          {t('widgets.aiChat.open')}
         </Link>
       </div>
     );
@@ -136,7 +138,7 @@ export function AIChatWidget() {
           {messages.length === 0 && !streamingContent && (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
               <pre className="text-xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
-              <p className="text-xs text-muted-foreground">Ask me anything...</p>
+              <p className="text-xs text-muted-foreground">{t('widgets.aiChat.emptyPrompt')}</p>
             </div>
           )}
           {messages.map((msg, i) => (
@@ -168,7 +170,7 @@ export function AIChatWidget() {
                 handleSend();
               }
             }}
-            placeholder="Message..."
+            placeholder={t('widgets.aiChat.messagePlaceholder')}
             rows={1}
             className="flex-1 resize-none text-sm bg-secondary/50 rounded-lg px-2.5 py-1.5 border-0 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/60 min-h-[32px] max-h-[80px]"
           />

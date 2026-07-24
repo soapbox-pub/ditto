@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -51,6 +52,7 @@ interface EditProfileFormProps {
 }
 
 export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange }) => {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -166,7 +168,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       imageSrc: objectUrl,
       aspect: field === 'picture' ? 1 : 3,
       field,
-      title: field === 'picture' ? 'Crop Profile Picture' : 'Crop Banner Image',
+      title: field === 'picture' ? t('editProfile.cropPictureTitle') : t('editProfile.cropBannerTitle'),
     });
   };
 
@@ -183,14 +185,14 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       form.setValue(field, url);
       notifyChange();
       toast({
-        title: 'Success',
-        description: `${field === 'picture' ? 'Profile picture' : 'Banner'} uploaded successfully`,
+        title: t('editProfile.toast.success'),
+        description: field === 'picture' ? t('editProfile.toast.pictureUploaded') : t('editProfile.toast.bannerUploaded'),
       });
     } catch (error) {
       console.error(`Failed to upload ${field}:`, error);
       toast({
-        title: 'Error',
-        description: `Failed to upload ${field === 'picture' ? 'profile picture' : 'banner'}. Please try again.`,
+        title: t('editProfile.toast.error'),
+        description: field === 'picture' ? t('editProfile.toast.pictureUploadFailed') : t('editProfile.toast.bannerUploadFailed'),
         variant: 'destructive',
       });
     }
@@ -206,8 +208,8 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
   const onSubmit = async (values: ExtendedMetadata) => {
     if (!user) {
       toast({
-        title: 'Error',
-        description: 'You must be logged in to update your profile',
+        title: t('editProfile.toast.error'),
+        description: t('editProfile.toast.notLoggedIn'),
         variant: 'destructive',
       });
       return;
@@ -258,14 +260,14 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
 
       toast({
-        title: 'Success',
-        description: 'Your profile has been updated',
+        title: t('editProfile.toast.success'),
+        description: t('editProfile.toast.profileUpdated'),
       });
     } catch (error) {
       console.error('Failed to update profile:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to update your profile. Please try again.',
+        title: t('editProfile.toast.error'),
+        description: t('editProfile.toast.updateFailed'),
         variant: 'destructive',
       });
     }
@@ -277,9 +279,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       <div className="flex items-center gap-4 px-3 pt-2 pb-4">
         <IntroImage src="/profile-intro.png" />
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold">Your Identity</h2>
+          <h2 className="text-sm font-semibold">{t('editProfile.identity.title')}</h2>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Customize your profile with a name, bio, images, and verification. This is how others will see you on Nostr.
+            {t('editProfile.identity.description')}
           </p>
         </div>
       </div>
@@ -304,12 +306,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs font-medium">Name</FormLabel>
+                  <FormLabel className="text-xs font-medium">{t('editProfile.name.label')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Your name" {...field} className="h-9" />
+                    <Input placeholder={t('editProfile.name.placeholder')} {...field} className="h-9" />
                   </FormControl>
                   <FormDescription className="text-xs">
-                    This is your display name that will be displayed to others.
+                    {t('editProfile.name.description')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -323,16 +325,16 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
               name="about"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs font-medium">Bio</FormLabel>
+                  <FormLabel className="text-xs font-medium">{t('editProfile.about.label')}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Tell others about yourself"
+                      placeholder={t('editProfile.about.placeholder')}
                       className="resize-none min-h-20"
                       {...field}
                     />
                   </FormControl>
                   <FormDescription className="text-xs">
-                    A short description about yourself.
+                    {t('editProfile.about.description')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -348,9 +350,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                 render={({ field }) => (
                   <ImageUploadField
                     field={field}
-                    label="Profile Picture"
+                    label={t('editProfile.picture.label')}
                     placeholder="https://example.com/profile.jpg"
-                    description="Upload an image or provide a URL"
+                    description={t('editProfile.picture.description')}
                     previewType="square"
                     onPickFile={(file) => openCropDialog(file, 'picture')}
                   />
@@ -363,9 +365,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                 render={({ field }) => (
                   <ImageUploadField
                     field={field}
-                    label="Banner Image"
+                    label={t('editProfile.banner.label')}
                     placeholder="https://example.com/banner.jpg"
-                    description="Wide banner image for your profile"
+                    description={t('editProfile.banner.description')}
                     previewType="wide"
                     onPickFile={(file) => openCropDialog(file, 'banner')}
                   />
@@ -381,12 +383,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                 name="website"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-medium">Website</FormLabel>
+                    <FormLabel className="text-xs font-medium">{t('editProfile.website.label')}</FormLabel>
                     <FormControl>
                       <Input placeholder="https://yourwebsite.com" {...field} className="h-9" />
                     </FormControl>
                     <FormDescription className="text-xs">
-                      Your personal website or social link
+                      {t('editProfile.website.description')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -398,12 +400,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                 name="nip05"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-medium">NIP-05 Identifier</FormLabel>
+                    <FormLabel className="text-xs font-medium">{t('editProfile.nip05.label')}</FormLabel>
                     <FormControl>
                       <Input placeholder="you@example.com" {...field} className="h-9" />
                     </FormControl>
                     <FormDescription className="text-xs">
-                      Your verified Nostr identifier
+                      {t('editProfile.nip05.description')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -415,12 +417,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                 name="lud16"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-medium">Lightning Address</FormLabel>
+                    <FormLabel className="text-xs font-medium">{t('editProfile.lud16.label')}</FormLabel>
                     <FormControl>
                       <Input placeholder="you@walletofsatoshi.com" {...field} className="h-9" />
                     </FormControl>
                     <FormDescription className="text-xs">
-                      Your lightning address for receiving zaps
+                      {t('editProfile.lud16.description')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -434,9 +436,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <FormLabel className="text-xs font-medium">Profile Fields</FormLabel>
+                  <FormLabel className="text-xs font-medium">{t('editProfile.fields.label')}</FormLabel>
                   <FormDescription className="text-xs mt-1">
-                    Add custom fields like social links, Bitcoin address, or other info
+                    {t('editProfile.fields.description')}
                   </FormDescription>
                 </div>
                 <Button
@@ -447,7 +449,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                   className="h-8 text-xs"
                 >
                   <Plus className="h-3 w-3 mr-1" />
-                  Add Field
+                  {t('editProfile.fields.addField')}
                 </Button>
               </div>
 
@@ -462,7 +464,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                           <FormItem>
                             <FormControl>
                               <Input
-                                placeholder="Label"
+                                placeholder={t('editProfile.fields.labelPlaceholder')}
                                 {...field}
                                 className="h-9"
                               />
@@ -478,7 +480,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                           <FormItem>
                             <FormControl>
                               <Input
-                                placeholder="Value or URL"
+                                placeholder={t('editProfile.fields.valuePlaceholder')}
                                 {...field}
                                 className="h-9"
                               />
@@ -493,7 +495,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                         size="icon"
                         onClick={() => remove(index)}
                         className="h-9 w-9 text-destructive hover:text-destructive"
-                        title="Remove field"
+                        title={t('editProfile.fields.removeField')}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -513,7 +515,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                   variant="ghost"
                   className="w-full justify-between p-0 h-auto hover:bg-transparent"
                 >
-                  <span className="text-xs font-medium text-muted-foreground">Advanced Settings</span>
+                  <span className="text-xs font-medium text-muted-foreground">{t('editProfile.advanced')}</span>
                   {showAdvanced ? (
                     <ChevronUp className="h-4 w-4 text-muted-foreground" />
                   ) : (
@@ -528,9 +530,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                       <div className="space-y-0.5">
-                        <FormLabel className="text-sm">Bot Account</FormLabel>
+                        <FormLabel className="text-sm">{t('editProfile.bot.label')}</FormLabel>
                         <FormDescription className="text-xs">
-                          Mark this account as automated or a bot
+                          {t('editProfile.bot.description')}
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -556,7 +558,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
               {(isPending || isUploading) && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Save Profile
+              {t('editProfile.save')}
             </Button>
           </div>
         </form>
@@ -588,6 +590,7 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   previewType,
   onPickFile,
 }) => {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
@@ -627,13 +630,13 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
             className="h-8 text-xs"
           >
             <Upload className="h-3 w-3 mr-1.5" />
-            Upload &amp; Crop
+            {t('editProfile.uploadCrop')}
           </Button>
           {field.value && (
             <div className={`h-8 ${previewType === 'square' ? 'w-8' : 'w-20'} rounded overflow-hidden border`}>
               <img
                 src={field.value}
-                alt={`${label} preview`}
+                alt={t('editProfile.previewAlt', { label })}
                 className="h-full w-full object-cover"
               />
             </div>

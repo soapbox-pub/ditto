@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Upload, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,7 @@ import { APP_BLOSSOM_SERVERS } from '@/lib/appBlossom';
 import { cn } from '@/lib/utils';
 
 export function BlossomSettings() {
+  const { t } = useTranslation();
   const { config, updateConfig } = useAppContext();
   const { user } = useCurrentUser();
   const { mutate: publishEvent } = useNostrPublish();
@@ -56,18 +58,18 @@ export function BlossomSettings() {
       useAppBlossomServers: enabled,
     }));
     toast({
-      title: enabled ? 'App Blossom servers enabled' : 'App Blossom servers disabled',
+      title: enabled ? t('settings.network.appBlossomEnabled') : t('settings.network.appBlossomDisabled'),
       description: enabled
-        ? 'App Blossom servers will be used alongside your personal servers.'
-        : 'Only your personal Blossom servers will be used.',
+        ? t('settings.network.appBlossomEnabledDescription')
+        : t('settings.network.appBlossomDisabledDescription'),
     });
   };
 
   const handleAddServer = () => {
     if (!isValidServerUrl(newServerUrl)) {
       toast({
-        title: 'Invalid server URL',
-        description: 'Please enter a valid HTTPS URL (e.g., https://blossom.example.com/)',
+        title: t('settings.network.invalidServerUrl'),
+        description: t('settings.network.invalidServerUrlDescription'),
         variant: 'destructive',
       });
       return;
@@ -77,7 +79,7 @@ export function BlossomSettings() {
 
     if (servers.some((s) => s === normalized)) {
       toast({
-        title: 'Server already added',
+        title: t('settings.network.serverAlreadyAdded'),
         variant: 'destructive',
       });
       return;
@@ -124,15 +126,15 @@ export function BlossomSettings() {
       {
         onSuccess: () => {
           toast({
-            title: 'Blossom server list published',
-            description: 'Your Blossom server list has been published to Nostr.',
+            title: t('settings.network.blossomListPublished'),
+            description: t('settings.network.blossomListPublishedDescription'),
           });
         },
         onError: (error) => {
           console.error('Failed to publish Blossom server list:', error);
           toast({
-            title: 'Failed to publish Blossom server list',
-            description: 'There was an error publishing your server list to Nostr.',
+            title: t('settings.network.blossomListPublishFailed'),
+            description: t('settings.network.blossomListPublishFailedDescription'),
             variant: 'destructive',
           });
         },
@@ -155,13 +157,13 @@ export function BlossomSettings() {
       <div className="pt-4 pb-4">
         <div className="px-3 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">App Blossom Servers</h3>
+            <h3 className="text-sm font-medium">{t('settings.network.appBlossomServers')}</h3>
             <div className="flex items-center gap-2">
               <Label
                 htmlFor="use-app-blossom-servers"
                 className="text-xs text-muted-foreground cursor-pointer"
               >
-                {config.useAppBlossomServers ? 'Enabled' : 'Disabled'}
+                {config.useAppBlossomServers ? t('settings.network.enabled') : t('settings.network.disabled')}
               </Label>
               <Switch
                 id="use-app-blossom-servers"
@@ -172,7 +174,7 @@ export function BlossomSettings() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Default file upload servers for reliable media hosting. Used alongside your personal servers when enabled.
+            {t('settings.network.appBlossomDescription')}
           </p>
         </div>
 
@@ -199,9 +201,9 @@ export function BlossomSettings() {
       {/* User Blossom Servers Section */}
       <div className="pb-4 pt-4">
         <div className="px-3 space-y-3">
-          <h3 className="text-sm font-medium">Your Blossom Servers</h3>
+          <h3 className="text-sm font-medium">{t('settings.network.yourBlossomServers')}</h3>
           <p className="text-xs text-muted-foreground">
-            Your personal Blossom server list (BUD-03). Synced to Nostr as kind 10063 when logged in.
+            {t('settings.network.yourBlossomDescription')}
           </p>
         </div>
 
@@ -209,7 +211,7 @@ export function BlossomSettings() {
         <div className="mt-3">
           {servers.length === 0 ? (
             <div className="text-xs text-muted-foreground py-8 text-center">
-              No personal Blossom servers configured. Add a server below or enable App Blossom Servers above.
+              {t('settings.network.noBlossomServers')}
             </div>
           ) : (
             <div className="space-y-1">
@@ -241,7 +243,7 @@ export function BlossomSettings() {
           <div className="flex gap-2">
             <div className="flex-1">
               <Label htmlFor="new-blossom-url" className="sr-only">
-                Blossom Server URL
+                {t('settings.network.blossomServerUrl')}
               </Label>
               <Input
                 id="new-blossom-url"
@@ -262,13 +264,13 @@ export function BlossomSettings() {
               className="h-9 shrink-0 text-xs"
             >
               <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Add
+              {t('common.add')}
             </Button>
           </div>
 
           {!user && (
             <p className="text-[10px] text-muted-foreground mt-2">
-              Log in to sync your Blossom server list with Nostr
+              {t('settings.network.loginToSyncBlossom')}
             </p>
           )}
         </div>

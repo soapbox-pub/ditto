@@ -7,6 +7,7 @@ import {
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useNostrLogin } from '@nostrify/react/login';
+import { useTranslation } from 'react-i18next';
 
 import { saveNsec } from '@/lib/credentialManager';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
@@ -87,100 +88,109 @@ interface FieldPreset {
   type: 'text' | 'wallet' | 'media';
   /** File accept attribute for the file picker (media types only). */
   accept?: string;
-  /** Human-readable format list shown in tooltips. */
-  formatHint?: string;
   /** Placeholder for the value input. */
   valuePlaceholder?: string;
 }
 
-const FIELD_PRESETS: FieldPreset[] = [
-  {
-    id: 'music',
-    label: 'Music',
-    description: 'Upload a song or audio clip',
-    icon: Music,
-    defaultLabel: '\u{1F3B6}',
-    type: 'media',
-    accept: 'audio/*',
-    formatHint: 'MP3, OGG, WAV, FLAC, AAC, M4A, Opus',
-    valuePlaceholder: 'Upload audio or paste direct file link',
-  },
-  {
-    id: 'photo',
-    label: 'Photo',
-    description: 'Upload an image',
-    icon: ImageIcon,
-    defaultLabel: '\u{1F4F8}',
-    type: 'media',
-    accept: 'image/*',
-    formatHint: 'JPG, PNG, GIF, WebP, SVG, AVIF',
-    valuePlaceholder: 'Upload image or paste direct file link',
-  },
-  {
-    id: 'video',
-    label: 'Video',
-    description: 'Upload a video clip',
-    icon: Film,
-    defaultLabel: '\u{1F3AC}',
-    type: 'media',
-    accept: 'video/*',
-    formatHint: 'MP4, WebM, MOV',
-    valuePlaceholder: 'Upload video or paste direct file link',
-  },
-  {
-    id: 'email',
-    label: 'Email',
-    description: 'Contact email address',
-    icon: Mail,
-    defaultLabel: 'Email',
-    type: 'text',
-    valuePlaceholder: 'you@example.com',
-  },
-  {
-    id: 'wallet',
-    label: 'Wallet',
-    description: 'Cryptocurrency wallet address',
-    icon: Wallet,
-    defaultLabel: '$BTC',
-    type: 'wallet',
-    valuePlaceholder: 'Address',
-  },
-  {
-    id: 'link',
-    label: 'Link',
-    description: 'Link to any website or profile',
-    icon: Link2,
+/**
+ * Build the preset list with translated text. Universal example values
+ * (emoji labels, tickers, example URLs) stay as literals.
+ */
+function getFieldPresets(t: (key: string) => string): { fieldPresets: FieldPreset[]; customPreset: FieldPreset } {
+  const fieldPresets: FieldPreset[] = [
+    {
+      id: 'music',
+      label: t('settings.profile.fields.presets.music.label'),
+      description: t('settings.profile.fields.presets.music.description'),
+      icon: Music,
+      defaultLabel: '\u{1F3B6}',
+      type: 'media',
+      accept: 'audio/*',
+      valuePlaceholder: t('settings.profile.fields.presets.music.placeholder'),
+    },
+    {
+      id: 'photo',
+      label: t('settings.profile.fields.presets.photo.label'),
+      description: t('settings.profile.fields.presets.photo.description'),
+      icon: ImageIcon,
+      defaultLabel: '\u{1F4F8}',
+      type: 'media',
+      accept: 'image/*',
+      valuePlaceholder: t('settings.profile.fields.presets.photo.placeholder'),
+    },
+    {
+      id: 'video',
+      label: t('settings.profile.fields.presets.video.label'),
+      description: t('settings.profile.fields.presets.video.description'),
+      icon: Film,
+      defaultLabel: '\u{1F3AC}',
+      type: 'media',
+      accept: 'video/*',
+      valuePlaceholder: t('settings.profile.fields.presets.video.placeholder'),
+    },
+    {
+      id: 'email',
+      label: t('settings.profile.fields.presets.email.label'),
+      description: t('settings.profile.fields.presets.email.description'),
+      icon: Mail,
+      defaultLabel: t('settings.profile.fields.presets.email.defaultLabel'),
+      type: 'text',
+      valuePlaceholder: 'you@example.com',
+    },
+    {
+      id: 'wallet',
+      label: t('settings.profile.fields.presets.wallet.label'),
+      description: t('settings.profile.fields.presets.wallet.description'),
+      icon: Wallet,
+      defaultLabel: '$BTC',
+      type: 'wallet',
+      valuePlaceholder: t('settings.profile.fields.addressPlaceholder'),
+    },
+    {
+      id: 'link',
+      label: t('settings.profile.fields.presets.link.label'),
+      description: t('settings.profile.fields.presets.link.description'),
+      icon: Link2,
+      defaultLabel: '',
+      type: 'text',
+      valuePlaceholder: 'https://...',
+    },
+    {
+      id: 'weather',
+      label: t('settings.profile.fields.presets.weather.label'),
+      description: t('settings.profile.fields.presets.weather.description'),
+      icon: CloudSun,
+      defaultLabel: t('settings.profile.fields.presets.weather.defaultLabel'),
+      type: 'text',
+      valuePlaceholder: t('settings.profile.fields.presets.weather.placeholder'),
+    },
+  ];
+
+  /** The "Custom" preset — always shown last, separated by a divider. */
+  const customPreset: FieldPreset = {
+    id: 'custom',
+    label: t('settings.profile.fields.presets.custom.label'),
+    description: t('settings.profile.fields.presets.custom.description'),
+    icon: Pencil,
     defaultLabel: '',
     type: 'text',
-    valuePlaceholder: 'https://...',
-  },
-  {
-    id: 'weather',
-    label: 'Weather',
-    description: 'Connect a Nostr weather station',
-    icon: CloudSun,
-    defaultLabel: 'Weather',
-    type: 'text',
-    valuePlaceholder: 'npub1... or naddr1... (#station-id optional)',
-  },
-];
+    valuePlaceholder: t('settings.profile.fields.valueOrUrlPlaceholder'),
+  };
 
-/** The "Custom" preset — always shown last, separated by a divider. */
-const CUSTOM_PRESET: FieldPreset = {
-  id: 'custom',
-  label: 'Custom',
-  description: 'Create any custom field',
-  icon: Pencil,
-  defaultLabel: '',
-  type: 'text',
-  valuePlaceholder: 'Value or URL',
+  return { fieldPresets, customPreset };
+}
+
+/** Human-readable file-format lists shown in tooltips, keyed by accept filter. */
+const FORMAT_HINTS: Record<string, string> = {
+  'audio/*': 'MP3, OGG, WAV, FLAC, AAC, M4A, Opus',
+  'image/*': 'JPG, PNG, GIF, WebP, SVG, AVIF',
+  'video/*': 'MP4, WebM, MOV',
 };
 
 /** Find a preset's format hint from its accept filter. */
 function getFormatHintForAccept(accept: string | undefined): string | undefined {
   if (!accept) return undefined;
-  const preset = FIELD_PRESETS.find((p) => p.accept === accept);
-  return preset?.formatHint;
+  return FORMAT_HINTS[accept];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -203,10 +213,11 @@ const VIDEO_EXT = /\.(mp4|webm|mov|qt)(\?.*)?$/i;
 
 /**
  * Check whether a pasted URL matches the expected file type for a media field.
- * Returns a warning message if the URL looks wrong, or undefined if it's fine.
- * Only warns when the value looks like a URL — empty/non-URL values return undefined.
+ * Returns the i18n key of a warning message if the URL looks wrong, or
+ * undefined if it's fine. Only warns when the value looks like a URL —
+ * empty/non-URL values return undefined.
  */
-function getMediaMismatchWarning(value: string, accept: string | undefined): string | undefined {
+function getMediaMismatchWarningKey(value: string, accept: string | undefined): string | undefined {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
   // Only check if it looks like a URL
@@ -223,28 +234,28 @@ function getMediaMismatchWarning(value: string, accept: string | undefined): str
 
   if (accept === 'audio/*') {
     if (hasKnownExt && !hasAudioExt) {
-      return 'This URL doesn\u2019t point to an audio file. Upload an audio file or use a direct link ending in .mp3, .ogg, .wav, etc.';
+      return 'settings.profile.fields.warnings.audioMismatch';
     }
     if (!hasKnownExt) {
-      return 'This URL may not work as an audio player. For best results, upload a file using the button or paste a direct link to an audio file.';
+      return 'settings.profile.fields.warnings.audioMaybe';
     }
   }
 
   if (accept === 'image/*') {
     if (hasKnownExt && !hasImageExt) {
-      return 'This URL doesn\u2019t point to an image. Upload an image or use a direct link ending in .jpg, .png, .webp, etc.';
+      return 'settings.profile.fields.warnings.imageMismatch';
     }
     if (!hasKnownExt) {
-      return 'This URL may not display as an image. For best results, upload a file using the button or paste a direct link to an image file.';
+      return 'settings.profile.fields.warnings.imageMaybe';
     }
   }
 
   if (accept === 'video/*') {
     if (hasKnownExt && !hasVideoExt) {
-      return 'This URL doesn\u2019t point to a video. Upload a video or use a direct link ending in .mp4, .webm, .mov, etc.';
+      return 'settings.profile.fields.warnings.videoMismatch';
     }
     if (!hasKnownExt) {
-      return 'This URL may not display as a video. For best results, upload a file using the button or paste a direct link to a video file.';
+      return 'settings.profile.fields.warnings.videoMaybe';
     }
   }
 
@@ -300,6 +311,7 @@ interface SortableFieldRowProps {
 }
 
 function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploading: fieldUploading, control, onRemove, onMediaPick, onTickerChange }: SortableFieldRowProps) {
+  const { t } = useTranslation();
   const formatHint = type === 'media' ? getFormatHintForAccept(accept) : undefined;
 
   return (
@@ -315,12 +327,12 @@ function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploadi
               <Select value={field.value} onValueChange={(v) => { field.onChange(v); onTickerChange(v); }}>
                 <FormControl>
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Ticker" />
+                    <SelectValue placeholder={t('settings.profile.fields.tickerPlaceholder')} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {WALLET_TICKERS.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  {WALLET_TICKERS.map((ticker) => (
+                    <SelectItem key={ticker} value={ticker}>{ticker}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -335,7 +347,7 @@ function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploadi
           render={({ field }) => (
             <FormItem>
               <FormControl>
-                <Input placeholder="Label" {...field} className="h-9" />
+                <Input placeholder={t('settings.profile.fields.labelPlaceholder')} {...field} className="h-9" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -349,12 +361,12 @@ function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploadi
           control={control}
           name={`fields.${index}.value`}
           render={({ field }) => {
-            const mismatchWarning = getMediaMismatchWarning(field.value, accept);
+            const mismatchWarningKey = getMediaMismatchWarningKey(field.value, accept);
             return (
               <FormItem>
                 <div className="flex gap-1.5">
                   <FormControl>
-                    <Input placeholder={valuePlaceholder || 'Upload file or paste direct file link'} {...field} className="h-9 flex-1 min-w-0" readOnly={false} />
+                    <Input placeholder={valuePlaceholder || t('settings.profile.fields.mediaPlaceholder')} {...field} className="h-9 flex-1 min-w-0" readOnly={false} />
                   </FormControl>
                   {fieldUploading ? (
                     <div className="flex items-center justify-center h-9 w-9 shrink-0">
@@ -375,18 +387,18 @@ function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploadi
                       </TooltipTrigger>
                       <TooltipContent side="top" className="text-xs max-w-52">
                         {formatHint ? (
-                          <span>Choose file to upload<br /><span className="text-muted-foreground">{formatHint}</span></span>
+                          <span>{t('settings.profile.fields.uploadTooltip')}<br /><span className="text-muted-foreground">{formatHint}</span></span>
                         ) : (
-                          <span>Choose a media file to upload</span>
+                          <span>{t('settings.profile.fields.uploadTooltipMedia')}</span>
                         )}
                       </TooltipContent>
                     </Tooltip>
                   )}
                 </div>
-                {mismatchWarning && (
+                {mismatchWarningKey && (
                   <p className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-500 mt-1 leading-snug">
                     <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
-                    <span>{mismatchWarning}</span>
+                    <span>{t(mismatchWarningKey)}</span>
                   </p>
                 )}
                 <FormMessage />
@@ -401,7 +413,7 @@ function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploadi
           render={({ field }) => (
             <FormItem>
               <FormControl>
-                <Input placeholder={type === 'wallet' ? 'Address' : 'Value or URL'} {...field} className="h-9" />
+                <Input placeholder={type === 'wallet' ? t('settings.profile.fields.addressPlaceholder') : t('settings.profile.fields.valueOrUrlPlaceholder')} {...field} className="h-9" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -427,6 +439,7 @@ function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploadi
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function ProfileSettings() {
+  const { t } = useTranslation();
   const { user, metadata, event } = useCurrentUser();
   const { config } = useAppContext();
   const queryClient = useQueryClient();
@@ -440,9 +453,12 @@ export function ProfileSettings() {
   const [uploadingFieldIndex, setUploadingFieldIndex] = useState<number>(-1);
 
   useSeoMeta({
-    title: `Profile | Settings | ${config.appName}`,
-    description: `Edit your ${config.appName} profile`,
+    title: `${t('settings.profile.title')} | ${t('settings.title')} | ${config.appName}`,
+    description: t('settings.profile.metaDescription', { appName: config.appName }),
   });
+
+  // Preset templates for the "add field" buttons, with translated labels.
+  const { fieldPresets, customPreset } = getFieldPresets(t);
 
   // Parse existing custom fields from raw event
   const parseFields = (): Array<{ label: string; value: string; type: 'text' | 'wallet' | 'media'; accept?: string }> => {
@@ -518,9 +534,9 @@ export function ProfileSettings() {
     try {
       const [[, url]] = await uploadFile(file);
       form.setValue(`fields.${index}.value`, url, { shouldDirty: true });
-      toast({ title: 'Uploaded', description: 'Media file uploaded' });
+      toast({ title: t('settings.profile.uploaded'), description: t('settings.profile.mediaUploaded') });
     } catch {
-      toast({ title: 'Upload failed', description: 'Please try again.', variant: 'destructive' });
+      toast({ title: t('settings.profile.uploadFailed'), description: t('settings.profile.uploadFailedDescription'), variant: 'destructive' });
     } finally {
       setUploadingFieldIndex(-1);
     }
@@ -563,7 +579,7 @@ export function ProfileSettings() {
     const result: Array<{ label: string; value: string }> = [];
     // Add website if present
     if (watched.website?.trim()) {
-      result.push({ label: 'Website', value: watched.website.trim() });
+      result.push({ label: t('settings.profile.fields.websiteLabel'), value: watched.website.trim() });
     }
     // Add custom fields that have both label and value
     if (watched.fields) {
@@ -574,7 +590,7 @@ export function ProfileSettings() {
       }
     }
     return result;
-  }, [watched.website, watched.fields]);
+  }, [watched.website, watched.fields, t]);
 
   // Card onChange: patch individual fields
   const handleCardChange = (patch: Partial<NostrMetadata>) => {
@@ -602,7 +618,7 @@ export function ProfileSettings() {
       imageSrc: URL.createObjectURL(file),
       aspect: field === 'picture' ? 1 : 3,
       field,
-      title: field === 'picture' ? 'Crop Profile Picture' : 'Crop Banner',
+      title: field === 'picture' ? t('settings.profile.cropPictureTitle') : t('settings.profile.cropBannerTitle'),
     });
   };
 
@@ -615,9 +631,12 @@ export function ProfileSettings() {
       const file = new File([blob], `${field}.jpg`, { type: 'image/jpeg' });
       const [[, url]] = await uploadFile(file);
       form.setValue(field, url, { shouldDirty: true });
-      toast({ title: 'Uploaded', description: `${field === 'picture' ? 'Profile picture' : 'Banner'} updated` });
+      toast({
+        title: t('settings.profile.uploaded'),
+        description: field === 'picture' ? t('settings.profile.pictureUpdated') : t('settings.profile.bannerUpdated'),
+      });
     } catch {
-      toast({ title: 'Upload failed', description: 'Please try again.', variant: 'destructive' });
+      toast({ title: t('settings.profile.uploadFailed'), description: t('settings.profile.uploadFailedDescription'), variant: 'destructive' });
     }
   };
 
@@ -667,9 +686,9 @@ export function ProfileSettings() {
       const targetsSaved = (await paymentTargetsRef.current?.save()) ?? true;
       if (!targetsSaved) return;
 
-      toast({ title: 'Profile saved' });
+      toast({ title: t('settings.profile.saved') });
     } catch {
-      toast({ title: 'Error', description: 'Failed to save profile.', variant: 'destructive' });
+      toast({ title: t('settings.profile.saveError'), description: t('settings.profile.saveErrorDescription'), variant: 'destructive' });
     }
   };
 
@@ -723,7 +742,7 @@ export function ProfileSettings() {
           safe-area padding) instead of leaving a gap, mirroring
           SubHeaderBar's `pinned` mode. */}
       <PageHeader
-        title="Profile"
+        title={t('settings.profile.title')}
         backTo="/settings"
         alwaysShowBack
         className={cn(
@@ -733,12 +752,12 @@ export function ProfileSettings() {
         )}
         titleContent={
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold leading-tight">Profile</h1>
+            <h1 className="text-xl font-bold leading-tight">{t('settings.profile.title')}</h1>
           </div>
         }
       >
         <Button type="submit" form="profile-settings-form" size="sm" className="shrink-0 rounded-full font-bold px-5" disabled={busy}>
-          {busy ? <Loader2 className="size-3.5 animate-spin" /> : 'Save'}
+          {busy ? <Loader2 className="size-3.5 animate-spin" /> : t('common.save')}
         </Button>
       </PageHeader>
 
@@ -749,9 +768,9 @@ export function ProfileSettings() {
           <div className="flex items-center gap-4 px-3 pt-2 pb-2">
             <IntroImage src="/profile-intro.png" />
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold">Your Identity</h2>
+              <h2 className="text-sm font-semibold">{t('settings.profile.identity.title')}</h2>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Tap any field on the card to edit. Click your avatar or banner to upload and crop a new image.
+                {t('settings.profile.identity.description')}
               </p>
             </div>
           </div>
@@ -769,14 +788,14 @@ export function ProfileSettings() {
           {isUploading && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 className="size-3.5 animate-spin" />
-              Uploading…
+              {t('settings.profile.uploading')}
             </div>
           )}
 
           {/* Profile fields */}
           <div>
             <h2 className="text-sm font-medium py-2 flex items-center gap-1">
-              Profile Fields
+              {t('settings.profile.fields.title')}
               <HelpTip faqId="profile-fields" iconSize="size-3.5" />
             </h2>
 
@@ -789,7 +808,7 @@ export function ProfileSettings() {
                   <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
                     <div className="w-6" />
                     <div className="flex items-center h-9 px-3 text-sm text-muted-foreground">
-                      <span>Website</span>
+                      <span>{t('settings.profile.fields.websiteLabel')}</span>
                     </div>
                     <Input placeholder="https://yourwebsite.com" {...field} className="h-9" />
                     <div className="size-9" />
@@ -805,7 +824,7 @@ export function ProfileSettings() {
                   <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
                     <div className="w-6" />
                     <div className="flex items-center h-9 px-3 text-sm text-muted-foreground gap-1">
-                      <span>Lightning</span>
+                      <span>{t('settings.profile.fields.lightningLabel')}</span>
                       <HelpTip faqId="what-are-zaps" iconSize="size-3.5" />
                     </div>
                     <Input placeholder="you@walletofsatoshi.com" {...field} className="h-9" />
@@ -838,7 +857,7 @@ export function ProfileSettings() {
 
               {/* Add field — visible pill buttons */}
               <div className="flex flex-wrap gap-1.5 pt-1">
-                {[...FIELD_PRESETS, CUSTOM_PRESET].map((preset) => {
+                {[...fieldPresets, customPreset].map((preset) => {
                   const Icon = preset.icon;
                   return (
                     <Tooltip key={preset.id}>
@@ -873,7 +892,7 @@ export function ProfileSettings() {
                 <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
                   <span className="text-sm font-medium flex items-center gap-1.5">
                     <Eye className="size-3.5" />
-                    Profile Fields Preview
+                    {t('settings.profile.fields.previewTitle')}
                   </span>
                   <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
                 </Button>
@@ -908,7 +927,7 @@ export function ProfileSettings() {
           <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
             <CollapsibleTrigger asChild>
               <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
-                <span className="text-sm font-medium">Advanced</span>
+                <span className="text-sm font-medium">{t('settings.profile.advanced')}</span>
                 <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
               </Button>
             </CollapsibleTrigger>
@@ -919,8 +938,8 @@ export function ProfileSettings() {
                 render={({ field }) => (
                   <FormItem className="flex items-center justify-between rounded-lg border p-3">
                     <div>
-                      <FormLabel className="text-sm">Bot Account</FormLabel>
-                      <FormDescription className="text-xs">Mark this account as automated</FormDescription>
+                      <FormLabel className="text-sm">{t('settings.profile.bot.label')}</FormLabel>
+                      <FormDescription className="text-xs">{t('settings.profile.bot.description')}</FormDescription>
                     </div>
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -944,9 +963,10 @@ export function ProfileSettings() {
 
 // ── Birthday section ──────────────────────────────────────────────────────────
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+/** i18n key suffixes for the twelve month names, in calendar order. */
+const MONTH_KEYS = [
+  'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december',
 ] as const;
 
 /**
@@ -961,6 +981,7 @@ const MONTH_NAMES = [
  * Per NIP-24 every field is optional — month/day without a year is fine.
  */
 function BirthdaySection() {
+  const { t } = useTranslation();
   const { user, event } = useCurrentUser();
   const { nostr } = useNostr();
   const { store } = useNostrStorage();
@@ -1037,9 +1058,9 @@ function BirthdaySection() {
       // blanks out on reload.
       void store.event(published);
       queryClient.invalidateQueries({ queryKey: ['logins'] });
-      toast({ title: birthday ? 'Birthday saved' : 'Birthday removed' });
+      toast({ title: birthday ? t('settings.profile.birthday.saved') : t('settings.profile.birthday.removed') });
     } catch {
-      toast({ title: 'Error', description: 'Failed to save birthday.', variant: 'destructive' });
+      toast({ title: t('settings.profile.birthday.error'), description: t('settings.profile.birthday.errorDescription'), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -1066,15 +1087,16 @@ function BirthdaySection() {
 
   const dayCount = daysInMonth(month);
 
+  const monthNames = MONTH_KEYS.map((key) => t(`settings.profile.birthday.months.${key}`));
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 pb-1">
         <Cake className="size-4 text-primary/70" />
-        <h2 className="text-sm font-semibold">Birthday</h2>
+        <h2 className="text-sm font-semibold">{t('settings.profile.birthday.title')}</h2>
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed">
-        Shown on your profile — friends get confetti and a birthday tune when they visit on the day.
-        Every field is optional; skip the year if you'd rather keep your age private.
+        {t('settings.profile.birthday.description')}
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -1093,15 +1115,15 @@ function BirthdaySection() {
             if (day !== undefined && day > daysInMonth(m)) setDay(daysInMonth(m));
           }}
         >
-          <SelectTrigger className="h-9 w-36" aria-label="Birthday month">
+          <SelectTrigger className="h-9 w-36" aria-label={t('settings.profile.birthday.monthAriaLabel')}>
             {/* Explicit children keep the trigger label a pure function of
                 component state instead of Radix's internal item registration. */}
-            <SelectValue placeholder="Month">
-              {month !== undefined ? MONTH_NAMES[month - 1] : undefined}
+            <SelectValue placeholder={t('settings.profile.birthday.monthPlaceholder')}>
+              {month !== undefined ? monthNames[month - 1] : undefined}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {MONTH_NAMES.map((name, i) => (
+            {monthNames.map((name, i) => (
               <SelectItem key={name} value={String(i + 1)}>{name}</SelectItem>
             ))}
           </SelectContent>
@@ -1111,8 +1133,8 @@ function BirthdaySection() {
           value={day !== undefined ? String(day) : ''}
           onValueChange={(v) => { if (v) setDay(Number(v)); }}
         >
-          <SelectTrigger className="h-9 w-20" aria-label="Birthday day">
-            <SelectValue placeholder="Day">
+          <SelectTrigger className="h-9 w-20" aria-label={t('settings.profile.birthday.dayAriaLabel')}>
+            <SelectValue placeholder={t('settings.profile.birthday.dayPlaceholder')}>
               {day !== undefined ? String(day) : undefined}
             </SelectValue>
           </SelectTrigger>
@@ -1127,11 +1149,11 @@ function BirthdaySection() {
           value={year}
           onChange={(e) => setYear(e.target.value)}
           onBlur={() => setYearBlurred(true)}
-          placeholder="Year (optional)"
+          placeholder={t('settings.profile.birthday.yearPlaceholder')}
           inputMode="numeric"
           maxLength={4}
           className="h-9 w-32"
-          aria-label="Birthday year (optional)"
+          aria-label={t('settings.profile.birthday.yearAriaLabel')}
           aria-invalid={showYearInvalid}
         />
 
@@ -1142,7 +1164,7 @@ function BirthdaySection() {
           onClick={handleSave}
           disabled={!dirty || yearInvalid || saving || !user}
         >
-          {saving ? <Loader2 className="size-3.5 animate-spin" /> : 'Save'}
+          {saving ? <Loader2 className="size-3.5 animate-spin" /> : t('common.save')}
         </Button>
 
         {hasStored && (
@@ -1153,7 +1175,7 @@ function BirthdaySection() {
             className="h-9 w-9 text-destructive hover:text-destructive"
             onClick={handleRemove}
             disabled={saving}
-            aria-label="Remove birthday"
+            aria-label={t('settings.profile.birthday.removeAriaLabel')}
           >
             <Trash2 className="size-4" />
           </Button>
@@ -1162,7 +1184,7 @@ function BirthdaySection() {
 
       {showYearInvalid && (
         <p className="text-xs text-destructive">
-          Enter a 4-digit year between 1900 and {currentYear}, or leave it blank.
+          {t('settings.profile.birthday.yearError', { year: currentYear })}
         </p>
       )}
     </div>
@@ -1172,6 +1194,7 @@ function BirthdaySection() {
 // ── Backup Key section ────────────────────────────────────────────────────────
 
 function BackupKeySection() {
+  const { t } = useTranslation();
   const { logins } = useNostrLogin();
   const { config } = useAppContext();
   const { toast } = useToast();
@@ -1184,7 +1207,7 @@ function BackupKeySection() {
   const heading = (
     <div className="flex items-center gap-2 pb-1">
       <KeyRound className="size-4 text-primary/70" />
-      <h2 className="text-sm font-semibold">Your Key</h2>
+      <h2 className="text-sm font-semibold">{t('settings.profile.backupKey.title')}</h2>
     </div>
   );
 
@@ -1196,7 +1219,7 @@ function BackupKeySection() {
       <div>
         {heading}
         <p className="text-xs text-muted-foreground leading-relaxed">
-          You're signed in with a browser extension (NIP-07). Your secret key is stored there — manage or export it from the extension itself.
+          {t('settings.profile.backupKey.extensionNote')}
         </p>
       </div>
     );
@@ -1207,7 +1230,7 @@ function BackupKeySection() {
       <div>
         {heading}
         <p className="text-xs text-muted-foreground leading-relaxed">
-          You're signed in with a remote signer (NIP-46). Your secret key is held by that signer and cannot be exported from {config.appName}.
+          {t('settings.profile.backupKey.bunkerNote', { appName: config.appName })}
         </p>
       </div>
     );
@@ -1228,8 +1251,8 @@ function BackupKeySection() {
       setTimeout(() => setCopied(false), 1500);
     } catch {
       toast({
-        title: 'Copy failed',
-        description: 'Could not access the clipboard. Reveal the key and copy it manually.',
+        title: t('settings.profile.backupKey.copyFailed'),
+        description: t('settings.profile.backupKey.copyFailedDescription'),
         variant: 'destructive',
       });
     }
@@ -1242,17 +1265,17 @@ function BackupKeySection() {
       const result = await saveNsec(npub, nsec, config.appName);
       if (result === 'saved-to-file') {
         toast({
-          title: 'Secret key saved',
-          description: 'Your secret key was saved to the Documents folder on your device.',
+          title: t('settings.profile.backupKey.saved'),
+          description: t('settings.profile.backupKey.savedToFileDescription'),
         });
       } else if (result === 'saved') {
-        toast({ title: 'Secret key saved' });
+        toast({ title: t('settings.profile.backupKey.saved') });
       }
       // 'dismissed' is a deliberate user choice — no toast.
     } catch {
       toast({
-        title: 'Save failed',
-        description: 'Could not save the key. Please copy it manually.',
+        title: t('settings.profile.backupKey.saveFailed'),
+        description: t('settings.profile.backupKey.saveFailedDescription'),
         variant: 'destructive',
       });
     } finally {
@@ -1264,7 +1287,7 @@ function BackupKeySection() {
     <div className="space-y-4">
       {heading}
       <p className="text-xs text-muted-foreground leading-relaxed">
-        This secret key controls your account on {config.appName}. Anyone with it can post, read your DMs, and impersonate you. Store it in a password manager or somewhere else only you can access.
+        {t('settings.profile.backupKey.description', { appName: config.appName })}
       </p>
 
       <div className="relative">
@@ -1275,7 +1298,7 @@ function BackupKeySection() {
           onFocus={(e) => e.currentTarget.select()}
           onClick={(e) => e.currentTarget.select()}
           className="pr-20 font-mono text-base md:text-sm"
-          aria-label="Your secret key"
+          aria-label={t('settings.profile.backupKey.inputAriaLabel')}
         />
         <div className="absolute right-0 top-0 h-full flex items-center">
           <Button
@@ -1284,7 +1307,7 @@ function BackupKeySection() {
             size="icon"
             className="h-full px-2 hover:bg-transparent"
             onClick={handleCopy}
-            aria-label="Copy secret key"
+            aria-label={t('settings.profile.backupKey.copyAriaLabel')}
           >
             {copied ? (
               <Check className="h-4 w-4 text-emerald-600" />
@@ -1298,7 +1321,7 @@ function BackupKeySection() {
             size="icon"
             className="h-full px-2 hover:bg-transparent"
             onClick={() => setShowKey((v) => !v)}
-            aria-label={showKey ? 'Hide secret key' : 'Reveal secret key'}
+            aria-label={showKey ? t('settings.profile.backupKey.hideAriaLabel') : t('settings.profile.backupKey.revealAriaLabel')}
           >
             {showKey ? (
               <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -1312,7 +1335,7 @@ function BackupKeySection() {
       {showKey && (
         <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 animate-in fade-in slide-in-from-top-1 duration-200">
           <p className="text-xs text-amber-900 dark:text-amber-300 leading-relaxed">
-            NEVER share your secret key with anyone. Avoid screenshotting it or pasting it anywhere except a password manager. If shared, others will be able to access your account.
+            {t('settings.profile.backupKey.warning')}
           </p>
         </div>
       )}
@@ -1326,11 +1349,11 @@ function BackupKeySection() {
       >
         {isSaving ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" /> Saving…
+            <Loader2 className="w-4 h-4 animate-spin" /> {t('settings.profile.backupKey.saving')}
           </>
         ) : (
           <>
-            <Download className="w-4 h-4" /> Back Up Key
+            <Download className="w-4 h-4" /> {t('settings.profile.backupKey.button')}
           </>
         )}
       </Button>

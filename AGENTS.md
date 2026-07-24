@@ -289,7 +289,9 @@ Rules:
 - Interpolation: `t('sidebar.logOutAs', { name })` for `Log out @{{name}}`. React already escapes values (`escapeValue: false` is set deliberately); never build HTML from translations.
 - When adding a locale, create its JSON catalog, register it in `resources`, and add it to `LANGUAGE_OPTIONS` and `supportedLngs` in `src/i18n/index.ts`.
 
-Not yet migrated (hardcoded English remains, translate opportunistically when touching these areas): `src/lib/extraKinds.ts` labels (feed page headers), most page bodies, toasts, and dialogs outside the app chrome.
+Already migrated: app chrome (nav, sidebar, drawer, bottom nav), the Settings page and all settings subpages, profile editing (`ProfileSettings`, `EditProfileForm`, `PaymentTargetsEditor`, `ImageCropDialog`), sidebar widgets, relay/Blossom management, mute lists, wallet, notifications.
+
+Not yet migrated (hardcoded English remains, translate opportunistically when touching these areas): `src/lib/extraKinds.ts` labels (feed page headers), most other page bodies, toasts, and dialogs outside the areas above.
 
 ## Design Standards
 

@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Bell, BellOff, AlertTriangle, ClipboardCheck, Heart, Quote, Repeat2, Zap, AtSign, MessageSquare, Users, Award, Mail, Radio, MonitorSmartphone } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -19,74 +20,55 @@ type NotificationPrefKey = 'reactions' | 'reposts' | 'zaps' | 'mentions' | 'comm
 
 interface NotificationTypeRow {
   key: NotificationPrefKey;
-  label: string;
   kinds: number[];
-  description: string;
   icon: React.ReactNode;
 }
 
+// Labels and descriptions resolve via `settings.notifications.type.<key>.*` at render.
 const NOTIFICATION_TYPES: NotificationTypeRow[] = [
   {
     key: 'reactions',
-    label: 'Reactions',
     kinds: [7],
-    description: 'When someone reacts to your posts',
     icon: <Heart className="size-5" />,
   },
   {
     key: 'reposts',
-    label: 'Reposts',
     kinds: [6, 16],
-    description: 'When someone reposts your notes',
     icon: <Repeat2 className="size-5" />,
   },
   {
     key: 'zaps',
-    label: 'Zaps',
     kinds: [9735, 8333],
-    description: 'When someone sends you a lightning or on-chain zap',
     icon: <Zap className="size-5" />,
   },
   {
     key: 'mentions',
-    label: 'Mentions',
     kinds: [1],
-    description: 'When someone mentions you in a note',
     icon: <AtSign className="size-5" />,
   },
   {
     key: 'comments',
-    label: 'Comments & Replies',
     kinds: [1111],
-    description: 'When someone comments on or replies to your posts',
     icon: <MessageSquare className="size-5" />,
   },
   {
     key: 'badges',
-    label: 'Badge Awards',
     kinds: [8],
-    description: 'When someone awards you a badge',
     icon: <Award className="size-5" />,
   },
   {
     key: 'letters',
-    label: 'Letters',
     kinds: [8211],
-    description: 'When someone sends you a letter',
     icon: <Mail className="size-5" />,
   },
   {
     key: 'highlights',
-    label: 'Highlights',
     kinds: [9802],
-    description: 'When someone highlights your content',
     icon: <Quote className="size-5" />,
   },
   {
     key: 'quizzes',
-    label: 'Quizzes',
     kinds: [7849],
-    description: 'When someone takes your quiz',
     icon: <ClipboardCheck className="size-5" />,
   },
 ];
@@ -152,6 +134,7 @@ function NotifRow({
 }
 
 export function NotificationSettings() {
+  const { t } = useTranslation();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { settings, updateSettings } = useEncryptedSettings();
@@ -220,8 +203,8 @@ export function NotificationSettings() {
   }, [isAndroid, notificationStyle, pushEnabled]);
 
   useSeoMeta({
-    title: `Notifications | Settings | ${config.appName}`,
-    description: 'Configure your notification preferences',
+    title: `${t('settings.notifications.title')} | ${t('settings.title')} | ${config.appName}`,
+    description: t('settings.notifications.metaDescription'),
   });
 
   useEffect(() => {
@@ -245,7 +228,7 @@ export function NotificationSettings() {
           await enablePush(user.pubkey, prefs);
         } catch (err) {
           console.error('[push] Registration failed:', err);
-          toast({ title: 'Failed to enable notifications', description: 'Please try again.' });
+          toast({ title: t('settings.notifications.enableFailed'), description: t('settings.notifications.enableFailedDescription') });
           return; // Don't persist enabled=true if registration failed
         }
       }
@@ -333,9 +316,9 @@ export function NotificationSettings() {
         alwaysShowBack
         titleContent={
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold">Notifications</h1>
+            <h1 className="text-xl font-bold">{t('settings.notifications.title')}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Customize which notifications you receive.
+              {t('settings.notifications.subtitle')}
             </p>
           </div>
         }
@@ -343,12 +326,12 @@ export function NotificationSettings() {
 
       <div className="p-4">
         {/* Push Notifications */}
-        <SectionHeader title="Push Notifications" />
+        <SectionHeader title={t('settings.notifications.pushTitle')} />
         <div className="pb-4">
           <NotifRow
             icon={pushEnabled ? <Bell className="size-5" /> : <BellOff className="size-5" />}
-            label="Enable Push Notifications"
-            description="Receive notifications for activity on your posts"
+            label={t('settings.notifications.enablePush')}
+            description={t('settings.notifications.enablePushDescription')}
             checked={pushEnabled}
             onCheckedChange={handleTogglePush}
             disabled={!isSupported || isDenied}
@@ -356,13 +339,13 @@ export function NotificationSettings() {
           {!isSupported && (
             <div className="flex items-center gap-2 px-3 pb-3 text-muted-foreground">
               <AlertTriangle className="size-3.5 shrink-0" />
-              <p className="text-xs">Your browser does not support push notifications.</p>
+              <p className="text-xs">{t('settings.notifications.notSupported')}</p>
             </div>
           )}
           {isDenied && (
             <div className="flex items-center gap-2 px-3 pb-3 text-destructive">
               <AlertTriangle className="size-3.5 shrink-0" />
-              <p className="text-xs">Notifications are blocked. Update your browser settings to allow notifications from this site.</p>
+              <p className="text-xs">{t('settings.notifications.blocked')}</p>
             </div>
           )}
         </div>
@@ -371,10 +354,10 @@ export function NotificationSettings() {
             On iOS both modes use BGAppRefreshTask so the choice is meaningless. */}
         {isAndroid && pushEnabled && (
           <>
-            <SectionHeader title="Delivery Method" />
+            <SectionHeader title={t('settings.notifications.deliveryMethod')} />
             <div className="pb-4">
               <p className="text-xs text-muted-foreground px-3 pt-3 pb-4">
-                Choose how notifications are delivered to your device.
+                {t('settings.notifications.deliveryMethodDescription')}
               </p>
               <RadioGroup
                 value={notificationStyle}
@@ -386,10 +369,10 @@ export function NotificationSettings() {
                   <Label htmlFor="style-push" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2">
                       <Radio className="size-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">Push</span>
+                      <span className="text-sm font-medium">{t('settings.notifications.stylePush')}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Standard notifications. No persistent status bar icon.
+                      {t('settings.notifications.stylePushDescription')}
                     </p>
                   </Label>
                 </div>
@@ -398,10 +381,10 @@ export function NotificationSettings() {
                   <Label htmlFor="style-persistent" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2">
                       <MonitorSmartphone className="size-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">Persistent</span>
+                      <span className="text-sm font-medium">{t('settings.notifications.stylePersistent')}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Keeps a live relay connection open in the background so notifications arrive instantly. Use this for reliable delivery on devices without push notification support.
+                      {t('settings.notifications.stylePersistentDescription')}
                     </p>
                   </Label>
                 </div>
@@ -415,9 +398,7 @@ export function NotificationSettings() {
                     <AlertTriangle className="size-4 shrink-0 text-amber-500 mt-0.5" />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs">
-                        Battery optimization is enabled for Ditto. Android may cut the
-                        background relay connection and prevent it from resuming after a
-                        reboot.
+                        {t('settings.notifications.batteryWarning', { appName: config.appName })}
                       </p>
                       <Button
                         size="sm"
@@ -430,7 +411,7 @@ export function NotificationSettings() {
                           setBatteryOptimized(!ignoring);
                         }}
                       >
-                        Disable battery optimization
+                        {t('settings.notifications.disableBatteryOptimization')}
                       </Button>
                     </div>
                   </div>
@@ -441,18 +422,18 @@ export function NotificationSettings() {
         )}
 
         {/* Filter + Notify Me About — one continuous block */}
-        <SectionHeader title="Notify Me About" />
+        <SectionHeader title={t('settings.notifications.notifyMeAbout')} />
         <div className="pb-4">
           {/* Filter sub-section */}
           <div className="px-3 pt-4 pb-2">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Filter
+              {t('settings.notifications.filter')}
             </span>
           </div>
           <NotifRow
             icon={<Users className="size-5" />}
-            label="Only from people I follow"
-            description="Hide notifications from accounts you don't follow"
+            label={t('settings.notifications.onlyFollowing')}
+            description={t('settings.notifications.onlyFollowingDescription')}
             checked={prefs.onlyFollowing === true}
             onCheckedChange={handleToggleOnlyFollowing}
             noBorder
@@ -461,16 +442,16 @@ export function NotificationSettings() {
           {/* Types sub-section */}
           <div className="px-3 pt-4 pb-2">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Types
+              {t('settings.notifications.types')}
             </span>
           </div>
           {NOTIFICATION_TYPES.map((type) => (
             <NotifRow
               key={type.key}
               icon={type.icon}
-              label={type.label}
+              label={t(`settings.notifications.type.${type.key}.label`)}
               kinds={type.kinds}
-              description={type.description}
+              description={t(`settings.notifications.type.${type.key}.description`)}
               checked={prefs[type.key] !== false}
               onCheckedChange={(enabled) => handleToggleType(type.key, enabled)}
             />

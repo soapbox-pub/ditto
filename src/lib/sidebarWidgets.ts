@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   TrendingUp,
   Flame,
@@ -213,3 +214,61 @@ export const WIDGET_CATEGORIES: Record<string, string> = {
   content: 'Content',
   discovery: 'Discovery',
 };
+
+// ── Translated labels ─────────────────────────────────────────────────────────
+
+/** Maps registry widget IDs to their i18n key stem under `widgets.*`. */
+const WIDGET_I18N_STEMS: Record<string, string> = {
+  'trends': 'trending',
+  'hot-posts': 'hotPosts',
+  'wikipedia': 'wikipedia',
+  'bluesky': 'bluesky',
+  'nostr-clients': 'nostrClients',
+  'blobbi': 'blobbi',
+  'status': 'status',
+  'ai-chat': 'aiChat',
+  'feed:photos': 'photo',
+  'feed:music': 'music',
+  'feed:articles': 'articles',
+  'feed:events': 'events',
+};
+
+/** i18n key stem for a widget ID, used to build `widgets.<stem>.*` keys. */
+export function widgetI18nStem(id: string): string {
+  return WIDGET_I18N_STEMS[id] ?? id;
+}
+
+/**
+ * Translated display label for a widget ID, for use in components.
+ * Looks up `widgets.<stem>.title` in the active locale and falls back to the
+ * registry's English label when the key is missing. Unknown IDs pass through
+ * untranslated.
+ */
+export function useWidgetLabel(id: string): string {
+  const { t } = useTranslation();
+  const def = WIDGET_MAP.get(id);
+  if (!def) return id;
+  return t(`widgets.${widgetI18nStem(id)}.title`, { defaultValue: def.label });
+}
+
+/**
+ * Translated description for a widget ID, for use in the widget picker.
+ * Looks up `widgets.<stem>.description` in the active locale and falls back to
+ * the registry's English description when the key is missing.
+ */
+export function useWidgetDescription(id: string): string {
+  const { t } = useTranslation();
+  const def = WIDGET_MAP.get(id);
+  if (!def) return '';
+  return t(`widgets.${widgetI18nStem(id)}.description`, { defaultValue: def.description });
+}
+
+/**
+ * Translated category label for the widget picker.
+ * Looks up `widgets.categories.<category>` and falls back to the English
+ * label from WIDGET_CATEGORIES when the key is missing.
+ */
+export function useWidgetCategoryLabel(category: string): string {
+  const { t } = useTranslation();
+  return t(`widgets.categories.${category}`, { defaultValue: WIDGET_CATEGORIES[category] ?? category });
+}

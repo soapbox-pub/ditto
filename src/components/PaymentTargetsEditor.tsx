@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,7 @@ export interface PaymentTargetsEditorHandle {
  */
 export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
   function PaymentTargetsEditor(_props, ref) {
+    const { t } = useTranslation();
     const { user } = useCurrentUser();
     const { toast } = useToast();
     const { targets, isLoading } = usePaymentTargets(user?.pubkey);
@@ -107,10 +109,10 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
           const method = PAYMENT_METHODS[d.type];
           if (!method.validate(authority)) {
             toast({
-              title: `Invalid ${method.label} address`,
-              description: `"${authority}" doesn't look like a valid ${method.label} ${
-                d.type === 'lightning' ? 'address' : 'address/handle'
-              }.`,
+              title: t('paymentTargets.invalidAddress.title', { method: method.label }),
+              description: d.type === 'lightning'
+                ? t('paymentTargets.invalidAddress.description', { authority, method: method.label })
+                : t('paymentTargets.invalidAddress.descriptionHandle', { authority, method: method.label }),
               variant: 'destructive',
             });
             return false;
@@ -123,31 +125,31 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
           return true;
         } catch (err) {
           toast({
-            title: 'Error',
+            title: t('paymentTargets.error'),
             description:
-              err instanceof Error ? err.message : 'Failed to save payment methods.',
+              err instanceof Error ? err.message : t('paymentTargets.saveFailed'),
             variant: 'destructive',
           });
           return false;
         }
       },
-    }), [user, drafts, updateTargets, toast]);
+    }), [user, drafts, updateTargets, toast, t]);
 
     if (!user) return null;
 
     return (
       <div className="space-y-4">
         <div>
-          <h2 className="text-sm font-semibold">Accept Donations</h2>
+          <h2 className="text-sm font-semibold">{t('paymentTargets.title')}</h2>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Let supporters send you crypto and tips.
+            {t('paymentTargets.description')}
           </p>
         </div>
 
         {isLoading && drafts.length === 0 ? (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Loading…
+            {t('paymentTargets.loading')}
           </div>
         ) : drafts.length > 0 ? (
           <>
@@ -168,7 +170,7 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
                       onChange={(e) => updateDraft(draft.key, e.target.value)}
                       placeholder={method.placeholder}
                       className="h-9 flex-1 min-w-0 font-mono text-xs"
-                      aria-label={`${method.label} address`}
+                      aria-label={t('paymentTargets.addressAriaLabel', { method: method.label })}
                     />
                     <Button
                       type="button"
@@ -176,8 +178,8 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
                       size="icon"
                       onClick={() => removeDraft(draft.key)}
                       className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
-                      title={`Remove ${method.label}`}
-                      aria-label={`Remove ${method.label}`}
+                      title={t('paymentTargets.remove', { method: method.label })}
+                      aria-label={t('paymentTargets.remove', { method: method.label })}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -196,7 +198,7 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
                   className="h-8 text-xs gap-1.5"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  Add method
+                  {t('paymentTargets.addMethod')}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="min-w-44">
@@ -219,7 +221,7 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
                 className="w-full h-11 gap-2 border-dashed"
               >
                 <Plus className="h-4 w-4" />
-                Add donation
+                {t('paymentTargets.addDonation')}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-44">

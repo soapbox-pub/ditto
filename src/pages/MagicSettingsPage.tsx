@@ -1,4 +1,5 @@
 import { useSeoMeta } from '@/hooks/useSeoMeta';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/PageHeader';
 import { IntroImage } from '@/components/IntroImage';
 import { Switch } from '@/components/ui/switch';
@@ -6,11 +7,12 @@ import { Label } from '@/components/ui/label';
 import { useAppContext } from '@/hooks/useAppContext';
 
 export function MagicSettingsPage() {
+  const { t } = useTranslation();
   const { config, updateConfig } = useAppContext();
 
   useSeoMeta({
-    title: `Magic | Settings | ${config.appName}`,
-    description: 'Magical cursor effects and enchanted interface settings',
+    title: `${t('settings.magic.title')} | ${t('settings.title')} | ${config.appName}`,
+    description: t('settings.magic.metaDescription'),
   });
 
   function toggleMagicMouse(checked: boolean) {
@@ -25,9 +27,9 @@ export function MagicSettingsPage() {
         alwaysShowBack
         titleContent={
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold">Magic</h1>
+            <h1 className="text-xl font-bold">{t('settings.magic.title')}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Harness the mystical energies of your device. Imbue your cursor with elemental fire.
+              {t('settings.magic.subtitle')}
             </p>
           </div>
         }
@@ -38,9 +40,9 @@ export function MagicSettingsPage() {
         <div className="flex items-center gap-4 px-3 pt-2 pb-6">
           <IntroImage src="/magic-intro.png" />
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold">Arcane Configuration</h2>
+            <h2 className="text-sm font-semibold">{t('settings.magic.introTitle')}</h2>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Harness the mystical energies of your device. Imbue your cursor with elemental fire and make every interaction feel enchanted.
+              {t('settings.magic.introDescription')}
             </p>
           </div>
         </div>
@@ -59,10 +61,10 @@ export function MagicSettingsPage() {
         >
           <div className="flex-1 min-w-0">
             <Label htmlFor="magic-mouse-toggle" className="text-sm font-semibold cursor-pointer flex items-center gap-1.5">
-              Magic Mouse
+              {t('settings.magic.magicMouse')}
             </Label>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Your cursor (or finger on touch devices) will emanate magical fire in the glow of your primary color. Move with purpose — every path you trace becomes a trail of flame.
+              {t('settings.magic.magicMouseDescription')}
             </p>
           </div>
           <Switch

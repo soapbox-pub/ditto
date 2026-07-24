@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -15,6 +16,7 @@ import { useMuteFilter } from '@/hooks/useMuteFilter';
 
 /** Hot posts widget for the right sidebar. */
 export function HotPostsWidget() {
+  const { t } = useTranslation();
   const { data: rawPosts, isLoading } = useSortedPosts('hot', 5);
   const { isMuted } = useMuteFilter();
 
@@ -41,7 +43,7 @@ export function HotPostsWidget() {
   }
 
   if (!posts || posts.length === 0) {
-    return <p className="text-sm text-muted-foreground p-1">No hot posts right now.</p>;
+    return <p className="text-sm text-muted-foreground p-1">{t('widgets.hotPosts.empty')}</p>;
   }
 
   return (
@@ -50,7 +52,7 @@ export function HotPostsWidget() {
         <HotPostCard key={event.id} event={event} />
       ))}
       <div className="pt-1 px-2">
-        <Link to="/trends" className="text-xs text-primary hover:underline">View all on Trends</Link>
+        <Link to="/trends" className="text-xs text-primary hover:underline">{t('widgets.hotPosts.viewAll')}</Link>
       </div>
     </div>
   );
@@ -58,18 +60,19 @@ export function HotPostsWidget() {
 
 /** Compact hot post card for the sidebar widget. */
 function HotPostCard({ event }: { event: NostrEvent }) {
+  const { t } = useTranslation();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || t('common.anonymous');
   const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
   const { onClick: openPost, onAuxClick } = useOpenPost(`/${encodedId}`, event);
 
   const snippet = useMemo(() => {
     const clean = event.content.replace(/https?:\/\/\S+/g, '').trim();
-    if (clean.length > 100) return clean.slice(0, 100) + '\u2026';
-    return clean || '(media)';
-  }, [event.content]);
+    if (clean.length > 100) return clean.slice(0, 100) + '…';
+    return clean || t('widgets.common.media');
+  }, [event.content, t]);
 
   return (
     <button

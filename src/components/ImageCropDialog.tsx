@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import Cropper from 'react-easy-crop';
 import type { Area, Point } from 'react-easy-crop';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -41,7 +42,8 @@ async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> 
   });
 }
 
-export function ImageCropDialog({ open, imageSrc, aspect, title = 'Crop Image', onCancel, onCrop }: ImageCropDialogProps) {
+export function ImageCropDialog({ open, imageSrc, aspect, title, onCancel, onCrop }: ImageCropDialogProps) {
+  const { t } = useTranslation();
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
@@ -71,7 +73,7 @@ export function ImageCropDialog({ open, imageSrc, aspect, title = 'Crop Image', 
     <Dialog open={open} onOpenChange={(v) => { if (!v) onCancel(); }}>
       <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-3">
-          <DialogTitle className="text-base">{title}</DialogTitle>
+          <DialogTitle className="text-base">{title ?? t('imageCrop.title')}</DialogTitle>
         </DialogHeader>
 
         {/* Cropper area */}
@@ -108,18 +110,18 @@ export function ImageCropDialog({ open, imageSrc, aspect, title = 'Crop Image', 
           <div className="flex justify-between items-center">
             <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs gap-1.5 h-8">
               <RotateCcw className="size-3" />
-              Reset
+              {t('imageCrop.reset')}
             </Button>
-            <p className="text-xs text-muted-foreground">Drag to reposition · Pinch or scroll to zoom</p>
+            <p className="text-xs text-muted-foreground">{t('imageCrop.hint')}</p>
           </div>
         </div>
 
         <DialogFooter className="px-5 pb-5 gap-2 flex-row justify-end">
           <Button variant="outline" onClick={onCancel} disabled={isProcessing} size="sm">
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleConfirm} disabled={isProcessing} size="sm">
-            {isProcessing ? 'Processing…' : 'Apply Crop'}
+            {isProcessing ? t('imageCrop.processing') : t('imageCrop.apply')}
           </Button>
         </DialogFooter>
       </DialogContent>

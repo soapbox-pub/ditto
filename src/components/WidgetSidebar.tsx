@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, lazy, Suspense, memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   DndContext,
   closestCenter,
@@ -22,7 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
-import { getWidgetDefinition } from '@/lib/sidebarWidgets';
+import { getWidgetDefinition, useWidgetLabel } from '@/lib/sidebarWidgets';
 import type { WidgetConfig } from '@/contexts/AppContext';
 import type { WidgetDefinition } from '@/lib/sidebarWidgets';
 
@@ -45,6 +46,8 @@ const WidgetPickerDialog = lazy(() => import('@/components/WidgetPickerDialog').
 // ── Widget content resolver ──────────────────────────────────────────────────
 
 function WidgetContent({ id }: { id: string }) {
+  const { t } = useTranslation();
+
   switch (id) {
     case 'trends':
       return <TrendingWidget />;
@@ -67,12 +70,12 @@ function WidgetContent({ id }: { id: string }) {
     case 'feed:music':
       return <MusicWidget />;
     case 'feed:articles':
-      return <FeedWidget kinds={[30023]} feedPath="/articles" feedLabel="View all articles" />;
+      return <FeedWidget kinds={[30023]} feedPath="/articles" feedLabel={t('widgets.articles.viewAll')} />;
     case 'feed:events':
-      return <FeedWidget kinds={[31922, 31923]} feedPath="/events" feedLabel="View all events" />;
+      return <FeedWidget kinds={[31922, 31923]} feedPath="/events" feedLabel={t('widgets.events.viewAll')} />;
 
     default:
-      return <p className="text-xs text-muted-foreground p-1">Unknown widget.</p>;
+      return <p className="text-xs text-muted-foreground p-1">{t('widgets.common.unknownWidget')}</p>;
   }
 }
 
@@ -89,14 +92,15 @@ function WidgetSkeleton() {
 
 /** Compact fallback shown when a widget crashes. */
 function WidgetErrorFallback({ name }: { name: string }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center gap-2 py-4 px-3 text-center">
-      <p className="text-xs text-muted-foreground">{name} failed to load.</p>
+      <p className="text-xs text-muted-foreground">{t('widgets.common.loadFailed', { name })}</p>
       <button
         onClick={() => window.location.reload()}
         className="text-xs text-primary hover:underline"
       >
-        Reload page
+        {t('widgets.common.reloadPage')}
       </button>
     </div>
   );
@@ -112,6 +116,7 @@ interface SortableWidgetProps {
 }
 
 const SortableWidget = memo(function SortableWidget({ config, definition, onRemove, onHeightChange }: SortableWidgetProps) {
+  const label = useWidgetLabel(definition.id);
   const {
     attributes,
     listeners,
@@ -137,7 +142,7 @@ const SortableWidget = memo(function SortableWidget({ config, definition, onRemo
         isDragging={isDragging}
         dragHandleProps={listeners}
       >
-        <ErrorBoundary fallback={<WidgetErrorFallback name={definition.label} />} reportToSentry>
+        <ErrorBoundary fallback={<WidgetErrorFallback name={label} />} reportToSentry>
           <Suspense fallback={<WidgetSkeleton />}>
             <WidgetContent id={config.id} />
           </Suspense>
@@ -152,6 +157,7 @@ const SortableWidget = memo(function SortableWidget({ config, definition, onRemo
 const EMPTY_WIDGETS: WidgetConfig[] = [];
 
 export function WidgetSidebar() {
+  const { t } = useTranslation();
   const { config, updateConfig } = useAppContext();
   const { user } = useCurrentUser();
   const { updateSettings } = useEncryptedSettings();
@@ -238,7 +244,7 @@ export function WidgetSidebar() {
               className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-background/85 text-muted-foreground hover:text-foreground hover:bg-background transition-colors text-xs"
             >
               <Plus className="size-3.5" />
-              Add widget
+              {t('widgets.common.addWidget')}
             </button>
           </div>
         </SortableContext>

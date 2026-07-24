@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -34,6 +35,7 @@ function parseFirstPhoto(tags: string[][]): { url: string; alt?: string } | unde
 
 /** Rich photo widget showing the latest photo from follows. */
 export function PhotoWidget() {
+  const { t } = useTranslation();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
@@ -66,17 +68,18 @@ export function PhotoWidget() {
   }
 
   if (!event) {
-    return <p className="text-sm text-muted-foreground p-1">No photos yet.</p>;
+    return <p className="text-sm text-muted-foreground p-1">{t('widgets.photo.empty')}</p>;
   }
 
   return <PhotoCard event={event} />;
 }
 
 function PhotoCard({ event }: { event: NostrEvent }) {
+  const { t } = useTranslation();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || t('common.anonymous');
   const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
 
   const photo = useMemo(() => parseFirstPhoto(event.tags), [event.tags]);
@@ -90,7 +93,7 @@ function PhotoCard({ event }: { event: NostrEvent }) {
       <div className="rounded-lg overflow-hidden bg-secondary/30">
         <img
           src={photo.url}
-          alt={photo.alt ?? caption ?? 'Photo'}
+          alt={photo.alt ?? caption ?? t('widgets.photo.alt')}
           className="w-full object-cover max-h-[220px] group-hover:scale-[1.02] transition-transform duration-300"
           loading="lazy"
         />

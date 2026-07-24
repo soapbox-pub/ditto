@@ -1,11 +1,13 @@
 import { Star, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 import { useWikipediaFeatured } from '@/hooks/useWikipediaFeatured';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /** Wikipedia widget showing today's featured article. */
 export function WikipediaWidget() {
+  const { t } = useTranslation();
   const { data: feed, isLoading, isError } = useWikipediaFeatured();
 
   if (isLoading) {
@@ -20,12 +22,12 @@ export function WikipediaWidget() {
   }
 
   if (isError) {
-    return <p className="text-sm text-muted-foreground p-1">Failed to load featured article.</p>;
+    return <p className="text-sm text-muted-foreground p-1">{t('widgets.wikipedia.loadFailed')}</p>;
   }
 
   const tfa = feed?.tfa;
   if (!tfa) {
-    return <p className="text-sm text-muted-foreground p-1">No featured article today.</p>;
+    return <p className="text-sm text-muted-foreground p-1">{t('widgets.wikipedia.empty')}</p>;
   }
 
   const imageUrl = tfa.originalimage?.source ?? tfa.thumbnail?.source;

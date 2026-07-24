@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -17,6 +18,7 @@ import type { CurrencyDisplay } from '@/contexts/AppContext';
 const DEFAULT_SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
 
 export function AdvancedSettings() {
+  const { t } = useTranslation();
   const { config, updateConfig } = useAppContext();
   const { toast } = useToast();
   const { updateSettings } = useEncryptedSettings();
@@ -36,10 +38,10 @@ export function AdvancedSettings() {
     setStatsPubkey(value);
     if (value.length === 64 && /^[0-9a-f]{64}$/i.test(value)) {
       updateConfig(() => ({ nip85StatsPubkey: value.toLowerCase() }));
-      toast({ title: 'Stats source updated', description: 'Using NIP-85 stats from this pubkey.' });
+      toast({ title: t('settings.advanced.statsSourceUpdated'), description: t('settings.advanced.statsSourceUpdatedDescription') });
     } else if (value.length === 0) {
       updateConfig(() => ({ nip85StatsPubkey: '' }));
-      toast({ title: 'Stats source cleared' });
+      toast({ title: t('settings.advanced.statsSourceCleared') });
     }
   };
 
@@ -50,8 +52,8 @@ export function AdvancedSettings() {
     updateConfig(() => ({ currencyDisplay: value }));
     if (user) await updateSettings.mutateAsync({ currencyDisplay: value });
     toast({
-      title: 'Currency display updated',
-      description: value === 'usd' ? 'Amounts shown in US dollars.' : 'Amounts shown in satoshis.',
+      title: t('settings.advanced.currencyUpdated'),
+      description: value === 'usd' ? t('settings.advanced.currencyUpdatedUsd') : t('settings.advanced.currencyUpdatedSats'),
     });
   };
 
@@ -65,7 +67,7 @@ export function AdvancedSettings() {
               variant="ghost"
               className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
             >
-              <span className="text-base font-semibold">System</span>
+              <span className="text-base font-semibold">{t('settings.advanced.system')}</span>
               {systemOpen ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground" />
               ) : (
@@ -80,26 +82,26 @@ export function AdvancedSettings() {
               {/* Stats Source */}
               <div>
                 <Label htmlFor="stats-pubkey" className="text-sm font-medium">
-                  NIP-85 Stats Pubkey
+                  {t('settings.advanced.statsPubkeyLabel')}
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  Trusted pubkey for pre-computed engagement stats (likes, reposts, comments).
+                  {t('settings.advanced.statsPubkeyDescription')}
                 </p>
                 <Input
                   id="stats-pubkey"
                   value={statsPubkey}
                   onChange={(e) => handleStatsPubkeyChange(e.target.value)}
-                  placeholder="Enter 64-character hex pubkey"
+                  placeholder={t('settings.advanced.statsPubkeyPlaceholder')}
                   className="font-mono text-base md:text-sm"
                   maxLength={64}
                 />
                 {statsPubkey && statsPubkey.length !== 64 && (
                   <p className="text-xs text-destructive mt-1">
-                    Pubkey must be exactly 64 hexadecimal characters
+                    {t('settings.advanced.statsPubkeyError')}
                   </p>
                 )}
                 <div className="text-xs text-muted-foreground mt-2">
-                  <span className="font-medium">Default: </span>
+                  <span className="font-medium">{t('settings.advanced.defaultLabel')}{' '}</span>
                   <span className="font-mono break-all">5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea</span>
                 </div>
               </div>
@@ -107,10 +109,13 @@ export function AdvancedSettings() {
               {/* Favicon URL */}
               <div>
                 <Label htmlFor="favicon-url" className="text-sm font-medium">
-                  Favicon URL
+                  {t('settings.advanced.faviconUrlLabel')}
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  URI template for fetching site favicons. Supports RFC 6570 variables: <code className="bg-muted px-1 rounded">{'{href}'}</code>, <code className="bg-muted px-1 rounded">{'{hostname}'}</code>, <code className="bg-muted px-1 rounded">{'{origin}'}</code>, etc.
+                  <Trans
+                    i18nKey="settings.advanced.faviconUrlDescription"
+                    components={{ code: <code className="bg-muted px-1 rounded" /> }}
+                  />
                 </p>
                 <Input
                   id="favicon-url"
@@ -121,14 +126,14 @@ export function AdvancedSettings() {
                     if (trimmed && trimmed !== config.faviconUrl) {
                       updateConfig(() => ({ faviconUrl: trimmed }));
                       if (user) await updateSettings.mutateAsync({ faviconUrl: trimmed });
-                      toast({ title: 'Favicon URL updated' });
+                      toast({ title: t('settings.advanced.faviconUrlUpdated') });
                     }
                   }}
                   placeholder="https://ditto.pub/api/favicon/{hostname}"
                   className="font-mono text-base md:text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
-                  <span className="font-medium">Default: </span>
+                  <span className="font-medium">{t('settings.advanced.defaultLabel')}{' '}</span>
                   <span className="font-mono break-all">https://ditto.pub/api/favicon/{'{hostname}'}</span>
                 </div>
               </div>
@@ -136,10 +141,13 @@ export function AdvancedSettings() {
               {/* Link Preview URL */}
               <div>
                 <Label htmlFor="link-preview-url" className="text-sm font-medium">
-                  Link Preview URL
+                  {t('settings.advanced.linkPreviewUrlLabel')}
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  URI template for fetching link previews (returns OEmbed JSON). Supports RFC 6570 variables: <code className="bg-muted px-1 rounded">{'{url}'}</code>, <code className="bg-muted px-1 rounded">{'{hostname}'}</code>, <code className="bg-muted px-1 rounded">{'{origin}'}</code>, etc.
+                  <Trans
+                    i18nKey="settings.advanced.linkPreviewUrlDescription"
+                    components={{ code: <code className="bg-muted px-1 rounded" /> }}
+                  />
                 </p>
                 <Input
                   id="link-preview-url"
@@ -150,14 +158,14 @@ export function AdvancedSettings() {
                     if (trimmed && trimmed !== config.linkPreviewUrl) {
                       updateConfig(() => ({ linkPreviewUrl: trimmed }));
                       if (user) await updateSettings.mutateAsync({ linkPreviewUrl: trimmed });
-                      toast({ title: 'Link preview URL updated' });
+                      toast({ title: t('settings.advanced.linkPreviewUrlUpdated') });
                     }
                   }}
                   placeholder="https://ditto.pub/api/link-preview/{url}"
                   className="font-mono text-base md:text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
-                  <span className="font-medium">Default: </span>
+                  <span className="font-medium">{t('settings.advanced.defaultLabel')}{' '}</span>
                   <span className="font-mono break-all">https://ditto.pub/api/link-preview/{'{url}'}</span>
                 </div>
               </div>
@@ -165,10 +173,13 @@ export function AdvancedSettings() {
               {/* CORS Proxy */}
               <div>
                 <Label htmlFor="cors-proxy" className="text-sm font-medium">
-                  CORS Proxy
+                  {t('settings.advanced.corsProxyLabel')}
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  Proxy for cross-origin requests (NIP-05 fallback). Use <code className="bg-muted px-1 rounded">{'{href}'}</code> as a placeholder for the target URL.
+                  <Trans
+                    i18nKey="settings.advanced.corsProxyDescription"
+                    components={{ code: <code className="bg-muted px-1 rounded" /> }}
+                  />
                 </p>
                 <Input
                   id="cors-proxy"
@@ -179,14 +190,14 @@ export function AdvancedSettings() {
                     if (trimmed && trimmed !== config.corsProxy) {
                       updateConfig(() => ({ corsProxy: trimmed }));
                       if (user) await updateSettings.mutateAsync({ corsProxy: trimmed });
-                      toast({ title: 'CORS proxy updated' });
+                      toast({ title: t('settings.advanced.corsProxyUpdated') });
                     }
                   }}
                   placeholder="https://proxy.shakespeare.diy/?url={href}"
                   className="font-mono text-base md:text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
-                  <span className="font-medium">Default: </span>
+                  <span className="font-medium">{t('settings.advanced.defaultLabel')}{' '}</span>
                   <span className="font-mono break-all">https://proxy.shakespeare.diy/?url={'{href}'}</span>
                 </div>
               </div>
@@ -205,7 +216,7 @@ export function AdvancedSettings() {
             >
               <span className="flex items-center gap-2 text-base font-semibold">
                 <Coins className="h-4 w-4" />
-                Currency
+                {t('settings.advanced.currency')}
               </span>
               {currencyOpen ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -218,11 +229,9 @@ export function AdvancedSettings() {
           <CollapsibleContent>
             <div className="px-3 pt-3 pb-4 space-y-3">
               <div>
-                <Label className="text-sm font-medium">Display amounts in</Label>
+                <Label className="text-sm font-medium">{t('settings.advanced.currencyDisplayLabel')}</Label>
                 <p className="text-xs text-muted-foreground mt-1 mb-3">
-                  Choose how zap totals, balances, and other monetary amounts are shown
-                  throughout the app. USD is converted from sats using the current BTC
-                  price; sats falls back automatically when the price is unavailable.
+                  {t('settings.advanced.currencyDisplayDescription')}
                 </p>
                 <RadioGroup
                   value={currencyDisplay}
@@ -235,9 +244,9 @@ export function AdvancedSettings() {
                   >
                     <RadioGroupItem value="usd" id="currency-usd" />
                     <div className="flex-1">
-                      <span className="text-sm font-medium">US Dollars</span>
+                      <span className="text-sm font-medium">{t('settings.advanced.currencyUsd')}</span>
                       <p className="text-xs text-muted-foreground">
-                        e.g. <span className="font-semibold">$2.50</span>
+                        {t('settings.advanced.currencyExample')} <span className="font-semibold">$2.50</span>
                       </p>
                     </div>
                   </label>
@@ -247,9 +256,9 @@ export function AdvancedSettings() {
                   >
                     <RadioGroupItem value="sats" id="currency-sats" />
                     <div className="flex-1">
-                      <span className="text-sm font-medium">Satoshis</span>
+                      <span className="text-sm font-medium">{t('settings.advanced.currencySats')}</span>
                       <p className="text-xs text-muted-foreground">
-                        e.g. <span className="font-semibold">6,300 sats</span>
+                        {t('settings.advanced.currencyExample')} <span className="font-semibold">6,300 sats</span>
                       </p>
                     </div>
                   </label>
@@ -270,7 +279,7 @@ export function AdvancedSettings() {
             >
               <span className="flex items-center gap-2 text-base font-semibold">
                 <Bug className="h-4 w-4" />
-                Error Reporting
+                {t('settings.advanced.errorReporting')}
               </span>
               {sentryOpen ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -287,10 +296,10 @@ export function AdvancedSettings() {
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <Label htmlFor="sentry-enabled" className="text-sm font-medium">
-                    Share error reports
+                    {t('settings.advanced.shareErrorReports')}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Help improve this app by automatically sending crash and error reports.
+                    {t('settings.advanced.shareErrorReportsDescription')}
                   </p>
                 </div>
                 <Switch
@@ -308,7 +317,7 @@ export function AdvancedSettings() {
                   <Label htmlFor="sentry-dsn" className="text-sm font-medium">
                     Sentry DSN
                     {sentryDsn !== DEFAULT_SENTRY_DSN && (
-                      <span className="ml-2 inline-block w-2 h-2 rounded-full bg-yellow-400" title="Modified from default" />
+                      <span className="ml-2 inline-block w-2 h-2 rounded-full bg-yellow-400" title={t('settings.advanced.modifiedFromDefault')} />
                     )}
                   </Label>
                   {sentryDsn !== DEFAULT_SENTRY_DSN && (
@@ -316,12 +325,12 @@ export function AdvancedSettings() {
                       variant="ghost"
                       size="sm"
                       className="h-6 w-6 p-0"
-                      title="Restore to default"
+                      title={t('settings.advanced.restoreToDefault')}
                       onClick={async () => {
                         setSentryDsn(DEFAULT_SENTRY_DSN);
                         updateConfig((current) => ({ ...current, sentryDsn: DEFAULT_SENTRY_DSN }));
                         if (user) await updateSettings.mutateAsync({ sentryDsn: DEFAULT_SENTRY_DSN });
-                        toast({ title: 'Sentry DSN restored to default' });
+                        toast({ title: t('settings.advanced.sentryDsnRestored') });
                       }}
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
@@ -329,7 +338,7 @@ export function AdvancedSettings() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  Sentry Data Source Name (DSN) for error reporting. Leave empty to disable Sentry.
+                  {t('settings.advanced.sentryDsnDescription')}
                 </p>
                 <Input
                   id="sentry-dsn"
@@ -340,7 +349,7 @@ export function AdvancedSettings() {
                     if (trimmed !== config.sentryDsn) {
                       updateConfig((current) => ({ ...current, sentryDsn: trimmed }));
                       if (user) await updateSettings.mutateAsync({ sentryDsn: trimmed });
-                      toast({ title: trimmed ? 'Sentry DSN updated' : 'Sentry DSN cleared' });
+                      toast({ title: trimmed ? t('settings.advanced.sentryDsnUpdated') : t('settings.advanced.sentryDsnCleared') });
                     }
                   }}
                   placeholder="https://examplePublicKey@o0.ingest.sentry.io/0"
@@ -363,7 +372,7 @@ export function AdvancedSettings() {
               >
                 <span className="flex items-center gap-2 text-base font-semibold text-destructive">
                   <AlertTriangle className="h-4 w-4" />
-                  Danger Zone
+                  {t('settings.advanced.dangerZone')}
                 </span>
                 {dangerOpen ? (
                   <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -377,10 +386,9 @@ export function AdvancedSettings() {
               <div className="px-3 pt-3 pb-4 space-y-4">
                 <div className="rounded-lg border border-destructive/30 p-4 space-y-3">
                   <div>
-                    <h3 className="text-sm font-medium">Delete Account</h3>
+                    <h3 className="text-sm font-medium">{t('settings.deleteAccount')}</h3>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Permanently delete your data from the network, including your profile,
-                      posts, reactions, and direct messages. This action is irreversible.
+                      {t('settings.advanced.deleteAccountDescription')}
                     </p>
                   </div>
                   <Button
@@ -389,7 +397,7 @@ export function AdvancedSettings() {
                     className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
                     onClick={() => setVanishDialogOpen(true)}
                   >
-                    Delete Account
+                    {t('settings.deleteAccount')}
                   </Button>
                 </div>
               </div>

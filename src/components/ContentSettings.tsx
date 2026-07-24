@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { IntroImage } from '@/components/IntroImage';
 import {
   Users, Download, Loader2, X, Pencil, Home, Globe, MapPin,
@@ -35,6 +36,8 @@ import type { SavedFeed, TabFilter, ContentWarningPolicy } from '@/contexts/AppC
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 
 export function ContentSettings() {
+  const { t } = useTranslation();
+
   return (
     <div>
       {/* Homepage Section */}
@@ -43,7 +46,7 @@ export function ContentSettings() {
       {/* Feed Tabs Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">Home Feed Tabs</h2>
+          <h2 className="text-base font-semibold">{t('settings.feed.homeFeedTabs')}</h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
@@ -54,13 +57,13 @@ export function ContentSettings() {
       {/* Notes Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">Post Types</h2>
+          <h2 className="text-base font-semibold">{t('settings.feed.postTypes')}</h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
           <div className="px-3 pt-3 pb-2">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Core content types that appear in your home feed.
+              {t('settings.feed.postTypesDescription')}
             </p>
           </div>
 
@@ -71,7 +74,7 @@ export function ContentSettings() {
       {/* Other Stuff Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">More Content Types</h2>
+          <h2 className="text-base font-semibold">{t('settings.feed.moreContentTypes')}</h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
@@ -79,9 +82,9 @@ export function ContentSettings() {
           <div className="flex items-center gap-4 px-3 pt-3 pb-2">
             <IntroImage src="/feed-intro.png" size="w-28" />
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold">Other Stuff</h3>
+              <h3 className="text-sm font-semibold">{t('settings.feed.otherStuff')}</h3>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Nostr isn't just text posts — pick what else shows up in your home feed.
+                {t('settings.feed.otherStuffDescription')}
               </p>
             </div>
           </div>
@@ -206,6 +209,7 @@ function NotesFeedSettings() {
 }
 
 function FeedSettingsFormInternals() {
+  const { t } = useTranslation();
   const { feedSettings } = useFeedSettings();
 
   return (
@@ -238,7 +242,7 @@ function FeedSettingsFormInternals() {
               <span className="flex items-center gap-3 min-w-0">
                 <span className="text-sm font-medium">{SECTION_LABELS[section]}</span>
                 <Badge variant="secondary" className="shrink-0 font-normal">
-                  {enabled} of {total} on
+                  {t('settings.feed.enabledOf', { enabled, total })}
                 </Badge>
               </span>
             </AccordionTrigger>
@@ -258,6 +262,7 @@ function FeedSettingsFormInternals() {
 
 // Feed Tabs Section Component
 function FeedTabsSection() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
@@ -309,8 +314,8 @@ function FeedTabsSection() {
   const handleDownloadCommunity = async () => {
     if (!communityDomain.trim()) {
       toast({
-        title: 'Domain required',
-        description: 'Please enter a domain name',
+        title: t('settings.feed.domainRequired'),
+        description: t('settings.feed.domainRequiredDescription'),
         variant: 'destructive',
       });
       return;
@@ -367,16 +372,16 @@ function FeedTabsSection() {
       }
 
       toast({
-        title: 'Community set',
-        description: `${label} with ${userCount} users`,
+        title: t('settings.feed.communitySet'),
+        description: t('settings.feed.communitySetDescription', { label, count: userCount }),
       });
 
       setCommunityDomain('');
     } catch (error) {
       console.error('Failed to download community:', error);
       toast({
-        title: 'Failed to download',
-        description: error instanceof Error ? error.message : 'Could not fetch community data',
+        title: t('settings.feed.downloadFailed'),
+        description: error instanceof Error ? error.message : t('settings.feed.downloadFailedDescription'),
         variant: 'destructive',
       });
     } finally {
@@ -398,8 +403,8 @@ function FeedTabsSection() {
     }
     
     toast({
-      title: 'Community removed',
-      description: 'Community feed cleared',
+      title: t('settings.feed.communityRemoved'),
+      description: t('settings.feed.communityRemovedDescription'),
     });
   };
 
@@ -409,9 +414,9 @@ function FeedTabsSection() {
       <div className="flex items-center gap-4 px-3 pt-3 pb-2">
         <IntroImage src="/community-intro.png" size="w-28" />
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold">Feed Navigation</h3>
+          <h3 className="text-sm font-semibold">{t('settings.feed.feedNavigation')}</h3>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Choose which tabs appear at the top of your home feed.
+            {t('settings.feed.feedNavigationDescription')}
           </p>
         </div>
       </div>
@@ -420,8 +425,8 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">Show replies in feed</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">Include replies from people you follow, not just top-level posts</p>
+            <Label className="text-sm font-medium">{t('settings.feed.showReplies')}</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('settings.feed.showRepliesDescription')}</p>
           </div>
           <Switch
             checked={feedSettings.followsFeedShowReplies}
@@ -439,8 +444,8 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">{config.appName} Feed</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">Show trending and curated content from the {config.appName} relay</p>
+            <Label className="text-sm font-medium">{t('settings.feed.appFeed', { appName: config.appName })}</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('settings.feed.appFeedDescription', { appName: config.appName })}</p>
           </div>
           <Switch
             checked={showDittoFeed}
@@ -453,8 +458,8 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">Global Feed</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">Show posts from all users across the network</p>
+            <Label className="text-sm font-medium">{t('settings.feed.globalFeed')}</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('settings.feed.globalFeedDescription')}</p>
           </div>
           <Switch
             checked={showGlobalFeed}
@@ -467,11 +472,11 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">Community Feed</Label>
+            <Label className="text-sm font-medium">{t('settings.feed.communityFeed')}</Label>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {community 
-                ? `Show "${community.label}" tab for ${community.domain} users`
-                : 'Set a community below to enable this feed'}
+              {community
+                ? t('settings.feed.communityFeedActive', { label: community.label, domain: community.domain })
+                : t('settings.feed.communityFeedInactive')}
             </p>
           </div>
           <Switch
@@ -490,10 +495,10 @@ function FeedTabsSection() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Users className="h-4 w-4 text-muted-foreground" />
-            <Label className="text-sm font-medium">Community</Label>
+            <Label className="text-sm font-medium">{t('settings.feed.community')}</Label>
           </div>
           <p className="text-xs text-muted-foreground">
-            Set a community domain. We'll download the NIP-05 user list to show posts only from verified members.
+            {t('settings.feed.communityDescription')}
           </p>
         </div>
 
@@ -530,7 +535,7 @@ function FeedTabsSection() {
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{community.label}</p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {community.domain} • {community.userCount} {community.userCount === 1 ? 'user' : 'users'}
+                  {community.domain} • {t('settings.feed.userCount', { count: community.userCount })}
                 </p>
               </div>
             </div>
@@ -559,6 +564,7 @@ function FeedTabsSection() {
 // ─── Interests Section ───────────────────────────────────────────────────────
 
 function InterestsSection() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
@@ -573,44 +579,44 @@ function InterestsSection() {
 
   const handleRemoveHashtag = async (tag: string) => {
     await removeHashtag.mutateAsync(tag);
-    toast({ title: `#${tag} removed from feed tabs` });
+    toast({ title: t('settings.feed.hashtagRemoved', { tag }) });
   };
 
   const handleRemoveGeotag = async (tag: string) => {
     await removeGeotag.mutateAsync(tag);
-    toast({ title: `${tag} removed from feed tabs` });
+    toast({ title: t('settings.feed.locationRemoved', { tag }) });
   };
 
   const handleAddHashtag = async () => {
     const tag = newHashtag.trim().toLowerCase().replace(/^#/, '');
     if (!tag) return;
     if (hashtags.includes(tag)) {
-      toast({ title: `#${tag} is already followed`, variant: 'destructive' });
+      toast({ title: t('settings.feed.hashtagAlreadyFollowed', { tag }), variant: 'destructive' });
       return;
     }
     await addHashtag.mutateAsync(tag);
     setNewHashtag('');
-    toast({ title: `#${tag} added to feed tabs` });
+    toast({ title: t('settings.feed.hashtagAdded', { tag }) });
   };
 
   const handleAddGeotag = async () => {
     const tag = newGeotag.trim().toLowerCase();
     if (!tag) return;
     if (geotags.includes(tag)) {
-      toast({ title: `${tag} is already followed`, variant: 'destructive' });
+      toast({ title: t('settings.feed.locationAlreadyFollowed', { tag }), variant: 'destructive' });
       return;
     }
     await addGeotag.mutateAsync(tag);
     setNewGeotag('');
-    toast({ title: `${tag} added to feed tabs` });
+    toast({ title: t('settings.feed.locationAdded', { tag }) });
   };
 
   return (
     <div className="px-3 py-4 space-y-4 border-t border-border">
       <div>
-        <h3 className="text-sm font-semibold">Interest Tabs</h3>
+        <h3 className="text-sm font-semibold">{t('settings.feed.interestTabs')}</h3>
         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Hashtags and locations you follow appear as tabs on the home feed.
+          {t('settings.feed.interestTabsDescription')}
         </p>
       </div>
 
@@ -618,7 +624,7 @@ function InterestsSection() {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Hash className="size-4 text-muted-foreground shrink-0" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hashtags</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('settings.feed.hashtags')}</span>
         </div>
 
         <div className="flex gap-2">
@@ -645,7 +651,7 @@ function InterestsSection() {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : hashtags.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No followed hashtags yet.</p>
+          <p className="text-xs text-muted-foreground">{t('settings.feed.noHashtags')}</p>
         ) : (
           <div className="space-y-1.5">
             {hashtags.map((tag) => (
@@ -660,7 +666,7 @@ function InterestsSection() {
                     onClick={() => handleRemoveHashtag(tag)}
                     disabled={removeHashtag.isPending}
                     className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
-                    aria-label={`Remove #${tag}`}
+                    aria-label={t('settings.feed.removeHashtag', { tag })}
                   >
                     <X className="size-3.5" strokeWidth={4} />
                   </button>
@@ -675,12 +681,12 @@ function InterestsSection() {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <MapPin className="size-4 text-muted-foreground shrink-0" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Locations</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('settings.feed.locations')}</span>
         </div>
 
         <div className="flex gap-2">
           <Input
-            placeholder="geohash (e.g. u4pru)"
+            placeholder={t('settings.feed.geohashPlaceholder')}
             value={newGeotag}
             onChange={(e) => setNewGeotag(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleAddGeotag(); }}
@@ -702,7 +708,7 @@ function InterestsSection() {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : geotags.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No followed locations yet.</p>
+          <p className="text-xs text-muted-foreground">{t('settings.feed.noLocations')}</p>
         ) : (
           <div className="space-y-1.5">
             {geotags.map((tag) => (
@@ -717,7 +723,7 @@ function InterestsSection() {
                     onClick={() => handleRemoveGeotag(tag)}
                     disabled={removeGeotag.isPending}
                     className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
-                    aria-label={`Remove ${tag}`}
+                    aria-label={t('settings.feed.removeLocation', { tag })}
                   >
                     <X className="size-3.5" strokeWidth={4} />
                   </button>
@@ -734,6 +740,7 @@ function InterestsSection() {
 // ─── Saved Feeds Section ─────────────────────────────────────────────────────
 
 function SavedFeedsSection() {
+  const { t } = useTranslation();
   const { savedFeeds, addSavedFeed, removeSavedFeed, updateSavedFeed, isPending } = useSavedFeeds();
   const { toast } = useToast();
   const [addFeedModalOpen, setAddFeedModalOpen] = useState(false);
@@ -743,25 +750,25 @@ function SavedFeedsSection() {
 
   const handleAddFeed = async (label: string, filter: TabFilter, vars: SavedFeed['vars']) => {
     await addSavedFeed(label, filter, vars);
-    toast({ title: `"${label}" added to home feed tabs` });
+    toast({ title: t('settings.feed.savedFeedAdded', { label }) });
   };
 
   const handleEditFeed = async (label: string, filter: TabFilter, vars: SavedFeed['vars']) => {
     if (!editingFeed) return;
     await updateSavedFeed(editingFeed.id, { label, filter, vars });
-    toast({ title: 'Feed updated' });
+    toast({ title: t('settings.feed.savedFeedUpdated') });
     setEditingFeed(null);
   };
 
   const handleRemove = async (feed: SavedFeed) => {
     await removeSavedFeed(feed.id);
-    toast({ title: `"${feed.label}" removed` });
+    toast({ title: t('settings.feed.savedFeedRemoved', { label: feed.label }) });
   };
 
   return (
     <div className="px-3 py-4 space-y-3 border-t border-border">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Custom Tabs</h3>
+        <h3 className="text-sm font-semibold">{t('settings.feed.customTabs')}</h3>
         <Button
           variant="outline"
           size="sm"
@@ -769,13 +776,13 @@ function SavedFeedsSection() {
           onClick={() => setAddFeedModalOpen(true)}
         >
           <Plus className="size-3.5" />
-          Add tab
+          {t('settings.feed.addTab')}
         </Button>
       </div>
 
       {feedTabs.length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          No custom tabs yet. Save a search from the search page, or add one above.
+          {t('settings.feed.noCustomTabs')}
         </p>
       ) : (
         <div className="space-y-1.5">
@@ -824,21 +831,22 @@ function SavedFeedRow({
   onRemove: () => void;
   isPending: boolean;
 }) {
+  const { t } = useTranslation();
   const search = typeof feed.filter.search === 'string' ? feed.filter.search : '';
   const authors = Array.isArray(feed.filter.authors) ? feed.filter.authors as string[] : [];
   const kinds = Array.isArray(feed.filter.kinds) ? feed.filter.kinds as number[] : [];
 
   const scopeLabel = authors.includes('$follows')
-    ? 'Follows'
+    ? t('settings.feed.follows')
     : authors.length > 0
-      ? `${authors.length} author${authors.length > 1 ? 's' : ''}`
+      ? t('settings.feed.authorCount', { count: authors.length })
       : null;
 
   const kindLabel = kinds.length === 0
     ? null
     : kinds.length === 1
-      ? (kindOptions.find((o) => o.value === String(kinds[0]))?.label ?? `Kind ${kinds[0]}`)
-      : `${kinds.length} kinds`;
+      ? (kindOptions.find((o) => o.value === String(kinds[0]))?.label ?? t('settings.feed.kindLabel', { kind: kinds[0] }))
+      : t('settings.feed.kindCount', { count: kinds.length });
 
   return (
     <div className="rounded-lg border border-border/50 bg-secondary/30 group">
@@ -864,7 +872,7 @@ function SavedFeedRow({
           <button
             onClick={onEdit}
             className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            aria-label="Edit"
+            aria-label={t('settings.feed.edit')}
           >
             <Pencil className="size-3.5" />
           </button>
@@ -872,7 +880,7 @@ function SavedFeedRow({
             onClick={onRemove}
             disabled={isPending}
             className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
-            aria-label="Remove"
+            aria-label={t('settings.feed.remove')}
           >
             <X className="size-3.5" />
           </button>
@@ -882,28 +890,29 @@ function SavedFeedRow({
   );
 }
 
-const CW_POLICY_OPTIONS: { value: ContentWarningPolicy; label: string; description: string }[] = [
-  {
-    value: 'blur',
-    label: 'Blur until revealed',
-    description: 'Hidden behind a warning until you choose to view it.',
-  },
-  {
-    value: 'hide',
-    label: 'Hide completely',
-    description: 'Removed from your feeds entirely.',
-  },
-  {
-    value: 'show',
-    label: 'Always show',
-    description: 'Displayed normally, without a warning.',
-  },
-];
-
 export function SensitiveContentSection() {
+  const { t } = useTranslation();
   const { config, updateConfig } = useAppContext();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
+
+  const policyOptions: { value: ContentWarningPolicy; label: string; description: string }[] = [
+    {
+      value: 'blur',
+      label: t('settings.content.policyBlur'),
+      description: t('settings.content.policyBlurDescription'),
+    },
+    {
+      value: 'hide',
+      label: t('settings.content.policyHide'),
+      description: t('settings.content.policyHideDescription'),
+    },
+    {
+      value: 'show',
+      label: t('settings.content.policyShow'),
+      description: t('settings.content.policyShowDescription'),
+    },
+  ];
 
   const handlePolicyChange = async (value: string) => {
     const policy = value as ContentWarningPolicy;
@@ -916,7 +925,7 @@ export function SensitiveContentSection() {
   return (
     <div>
       <p className="text-xs text-muted-foreground px-3 pt-3 pb-1">
-        How to display posts their author marked as sensitive (NSFW, spoilers, etc).
+        {t('settings.content.sensitiveDescription')}
       </p>
 
       {/* Policy options — consistent row style with other settings */}
@@ -925,7 +934,7 @@ export function SensitiveContentSection() {
         onValueChange={handlePolicyChange}
         className="gap-0"
       >
-        {CW_POLICY_OPTIONS.map((option) => (
+        {policyOptions.map((option) => (
           <label
             key={option.value}
             className="flex items-center justify-between py-3.5 px-3 border-b border-border last:border-b-0 cursor-pointer hover:bg-muted/20 transition-colors"
@@ -949,6 +958,7 @@ export function SensitiveContentSection() {
  * (muted hashtags and words). Explicit user and thread mutes still apply.
  */
 export function MuteFollowExemptionSection() {
+  const { t } = useTranslation();
   const { config, updateConfig } = useAppContext();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
@@ -965,9 +975,9 @@ export function MuteFollowExemptionSection() {
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="space-y-0.5">
-        <Label className="text-sm font-medium">Don't filter people you follow</Label>
+        <Label className="text-sm font-medium">{t('settings.content.exemptFollows')}</Label>
         <p className="text-xs text-muted-foreground">
-          Muted hashtags and words won't hide posts from accounts you follow. Muted users and threads still apply.
+          {t('settings.content.exemptFollowsDescription')}
         </p>
       </div>
       <Switch
@@ -978,42 +988,50 @@ export function MuteFollowExemptionSection() {
   );
 }
 
-const MUTE_TYPE_CONFIG = {
-  pubkey: {
-    icon: <UserX className="size-5" />,
-    label: 'Users',
-    inputLabel: 'Public Key (hex or npub)',
-    placeholder: 'npub1... or hex pubkey',
-  },
-  hashtag: {
-    icon: <Hash className="size-5" />,
-    label: 'Hashtags',
-    inputLabel: 'Hashtag (without #)',
-    placeholder: 'hashtag (without #)',
-  },
-  word: {
-    icon: <MessageSquareOff className="size-5" />,
-    label: 'Words',
-    inputLabel: 'Word or Phrase',
-    placeholder: 'word or phrase',
-  },
-  thread: {
-    icon: <MessageSquareOff className="size-5" />,
-    label: 'Threads',
-    inputLabel: 'Event ID (hex or note)',
-    placeholder: 'note1... or hex event ID',
-  },
-};
+interface MuteTypeConfig {
+  icon: ReactNode;
+  label: string;
+  inputLabel: string;
+  placeholder: string;
+}
 
 export function MuteSettingsInternals() {
+  const { t } = useTranslation();
   const { muteItems, isLoading, addMute, removeMute } = useMuteList();
   const { toast } = useToast();
   const [newMuteType, setNewMuteType] = useState<MuteListItem['type']>('pubkey');
   const [newMuteValue, setNewMuteValue] = useState('');
 
+  const muteTypeConfig: Record<MuteListItem['type'], MuteTypeConfig> = {
+    pubkey: {
+      icon: <UserX className="size-5" />,
+      label: t('settings.content.muteTypes.users'),
+      inputLabel: t('settings.content.muteInput.pubkey'),
+      placeholder: t('settings.content.mutePlaceholder.pubkey'),
+    },
+    hashtag: {
+      icon: <Hash className="size-5" />,
+      label: t('settings.content.muteTypes.hashtags'),
+      inputLabel: t('settings.content.muteInput.hashtag'),
+      placeholder: t('settings.content.mutePlaceholder.hashtag'),
+    },
+    word: {
+      icon: <MessageSquareOff className="size-5" />,
+      label: t('settings.content.muteTypes.words'),
+      inputLabel: t('settings.content.muteInput.word'),
+      placeholder: t('settings.content.mutePlaceholder.word'),
+    },
+    thread: {
+      icon: <MessageSquareOff className="size-5" />,
+      label: t('settings.content.muteTypes.threads'),
+      inputLabel: t('settings.content.muteInput.thread'),
+      placeholder: t('settings.content.mutePlaceholder.thread'),
+    },
+  };
+
   const handleAddMute = async () => {
     if (!newMuteValue.trim()) {
-      toast({ title: 'Error', description: 'Please enter a value', variant: 'destructive' });
+      toast({ title: t('settings.content.error'), description: t('settings.content.enterValue'), variant: 'destructive' });
       return;
     }
 
@@ -1023,12 +1041,12 @@ export function MuteSettingsInternals() {
         value: newMuteValue.trim(),
       });
 
-      toast({ title: 'Success', description: 'Mute added successfully' });
+      toast({ title: t('settings.content.success'), description: t('settings.content.muteAdded') });
       setNewMuteValue('');
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to add mute',
+        title: t('settings.content.error'),
+        description: error instanceof Error ? error.message : t('settings.content.addMuteFailed'),
         variant: 'destructive',
       });
     }
@@ -1037,11 +1055,11 @@ export function MuteSettingsInternals() {
   const handleRemoveMute = async (item: MuteListItem) => {
     try {
       await removeMute.mutateAsync(item);
-      toast({ title: 'Success', description: 'Mute removed successfully' });
+      toast({ title: t('settings.content.success'), description: t('settings.content.muteRemoved') });
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to remove mute',
+        title: t('settings.content.error'),
+        description: error instanceof Error ? error.message : t('settings.content.removeMuteFailed'),
         variant: 'destructive',
       });
     }
@@ -1061,32 +1079,32 @@ export function MuteSettingsInternals() {
       <div className="px-3 py-4 border-b border-border">
         <div className="grid gap-2 sm:grid-cols-[10rem_1fr_auto]">
           <Select value={newMuteType} onValueChange={(value) => setNewMuteType(value as MuteListItem['type'])}>
-            <SelectTrigger id="mute-type" aria-label="What to mute" className="h-9">
+            <SelectTrigger id="mute-type" aria-label={t('settings.content.whatToMute')} className="h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="pubkey">
                 <div className="flex items-center gap-2">
                   <UserX className="h-4 w-4" />
-                  User
+                  {t('settings.content.muteTypeOptions.user')}
                 </div>
               </SelectItem>
               <SelectItem value="hashtag">
                 <div className="flex items-center gap-2">
                   <Hash className="h-4 w-4" />
-                  Hashtag
+                  {t('settings.content.muteTypeOptions.hashtag')}
                 </div>
               </SelectItem>
               <SelectItem value="word">
                 <div className="flex items-center gap-2">
                   <MessageSquareOff className="h-4 w-4" />
-                  Word/Phrase
+                  {t('settings.content.muteTypeOptions.word')}
                 </div>
               </SelectItem>
               <SelectItem value="thread">
                 <div className="flex items-center gap-2">
                   <MessageSquareOff className="h-4 w-4" />
-                  Thread
+                  {t('settings.content.muteTypeOptions.thread')}
                 </div>
               </SelectItem>
             </SelectContent>
@@ -1094,13 +1112,13 @@ export function MuteSettingsInternals() {
 
           <Input
             id="mute-value"
-            aria-label={MUTE_TYPE_CONFIG[newMuteType].inputLabel}
+            aria-label={muteTypeConfig[newMuteType].inputLabel}
             value={newMuteValue}
             onChange={(e) => setNewMuteValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleAddMute();
             }}
-            placeholder={MUTE_TYPE_CONFIG[newMuteType].placeholder}
+            placeholder={muteTypeConfig[newMuteType].placeholder}
             className="h-9"
           />
 
@@ -1111,7 +1129,7 @@ export function MuteSettingsInternals() {
             className="h-9"
           >
             <Plus className="mr-1.5 h-4 w-4" />
-            Add
+            {t('common.add')}
           </Button>
         </div>
       </div>
@@ -1130,13 +1148,13 @@ export function MuteSettingsInternals() {
         </div>
       ) : muteItems.length === 0 ? (
         <p className="text-muted-foreground text-center py-8 text-sm">
-          No muted items yet
+          {t('settings.content.noMutedItems')}
         </p>
       ) : (
         <Accordion type="multiple">
           {Object.entries(groupedMutes).map(([type, items]) => {
             if (items.length === 0) return null;
-            const config = MUTE_TYPE_CONFIG[type as MuteListItem['type']];
+            const config = muteTypeConfig[type as MuteListItem['type']];
 
             return (
               <MuteTypeSection
@@ -1157,10 +1175,11 @@ export function MuteSettingsInternals() {
 
 /** Renders a muted user's avatar and display name instead of a raw hex pubkey. */
 function MutedUserProfile({ pubkey }: { pubkey: string }) {
+  const { t } = useTranslation();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
+  const displayName = metadata?.name ?? metadata?.display_name ?? t('common.anonymous');
 
   if (author.isLoading) {
     return (
@@ -1209,11 +1228,13 @@ function MuteTypeSection({
   isPending,
 }: {
   type: MuteListItem['type'];
-  config: typeof MUTE_TYPE_CONFIG[keyof typeof MUTE_TYPE_CONFIG];
+  config: MuteTypeConfig;
   items: MuteListItem[];
   onRemove: (item: MuteListItem) => void;
   isPending: boolean;
 }) {
+  const { t } = useTranslation();
+
   return (
     <AccordionItem value={type} className="border-b border-border last:border-b-0">
       <AccordionTrigger className="px-3 py-3.5 hover:no-underline hover:bg-muted/20 transition-colors">
@@ -1246,7 +1267,7 @@ function MuteTypeSection({
                 size="sm"
                 onClick={() => onRemove(item)}
                 disabled={isPending}
-                aria-label={`Remove mute for ${item.value}`}
+                aria-label={t('settings.content.removeMuteFor', { value: item.value })}
                 className="shrink-0 h-8 w-8 p-0"
               >
                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -1260,6 +1281,7 @@ function MuteTypeSection({
 }
 
 export function VideoAutoplaySection() {
+  const { t } = useTranslation();
   const { config, updateConfig } = useAppContext();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
@@ -1276,8 +1298,8 @@ export function VideoAutoplaySection() {
   return (
     <div className="flex items-center justify-between">
       <div className="space-y-0.5">
-        <Label className="text-sm font-medium">Autoplay videos</Label>
-        <p className="text-xs text-muted-foreground">Automatically play videos (muted) in feeds and previews</p>
+        <Label className="text-sm font-medium">{t('settings.content.autoplayVideos')}</Label>
+        <p className="text-xs text-muted-foreground">{t('settings.content.autoplayVideosDescription')}</p>
       </div>
       <Switch
         checked={autoplay}
@@ -1288,6 +1310,7 @@ export function VideoAutoplaySection() {
 }
 
 export function ThemePreferencesSection() {
+  const { t } = useTranslation();
   const { feedSettings, updateFeedSettings } = useFeedSettings();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
@@ -1305,8 +1328,8 @@ export function ThemePreferencesSection() {
   return (
     <div className="flex items-center justify-between">
       <div className="space-y-0.5">
-        <Label className="text-sm font-medium">Show custom profile themes</Label>
-        <p className="text-xs text-muted-foreground">Display other users' custom themes when visiting their profiles</p>
+        <Label className="text-sm font-medium">{t('settings.content.showCustomThemes')}</Label>
+        <p className="text-xs text-muted-foreground">{t('settings.content.showCustomThemesDescription')}</p>
       </div>
       <Switch
         checked={showOnProfiles}
@@ -1317,6 +1340,7 @@ export function ThemePreferencesSection() {
 }
 
 function HomePageSetting() {
+  const { t } = useTranslation();
   const { config, updateConfig } = useAppContext();
   const { user } = useCurrentUser();
   const { updateSettings } = useEncryptedSettings();
@@ -1328,7 +1352,7 @@ function HomePageSetting() {
       await updateSettings.mutateAsync({ homePage: value });
     }
     const item = SIDEBAR_ITEMS.find((s) => s.id === value);
-    toast({ title: `Homepage set to ${item?.label ?? value}` });
+    toast({ title: t('settings.feed.homepageSet', { label: item?.label ?? value }) });
   };
 
   return (
@@ -1337,10 +1361,10 @@ function HomePageSetting() {
         <div className="min-w-0 flex-1">
           <Label className="text-sm font-medium flex items-center gap-2">
             <Home className="size-4" />
-            Homepage
+            {t('settings.feed.homepage')}
           </Label>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Choose which page to display when you open the app
+            {t('settings.feed.homepageDescription')}
           </p>
         </div>
         <Select value={config.homePage} onValueChange={handleHomePageChange}>

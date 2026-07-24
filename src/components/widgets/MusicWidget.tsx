@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Play, Pause, Music, Clock } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -22,6 +23,7 @@ import { cn } from '@/lib/utils';
 
 /** Rich music widget showing the latest track with playback controls. */
 export function MusicWidget() {
+  const { t } = useTranslation();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
@@ -56,18 +58,19 @@ export function MusicWidget() {
   }
 
   if (!event) {
-    return <p className="text-sm text-muted-foreground p-1">No music yet.</p>;
+    return <p className="text-sm text-muted-foreground p-1">{t('widgets.music.empty')}</p>;
   }
 
   return <MusicCard event={event} />;
 }
 
 function MusicCard({ event }: { event: NostrEvent }) {
+  const { t } = useTranslation();
   const player = useAudioPlayer();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || t('common.anonymous');
 
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
   const encodedId = useMemo(() => {

@@ -8,6 +8,92 @@
     "save": "保存",
     "searchPlaceholder": "検索..."
   },
+  "editProfile": {
+    "about": {
+      "description": "自分についての短い紹介文。",
+      "label": "自己紹介",
+      "placeholder": "あなたについて教えてください"
+    },
+    "advanced": "詳細設定",
+    "banner": {
+      "description": "プロフィール用の横長バナー画像",
+      "label": "バナー画像"
+    },
+    "bot": {
+      "description": "このアカウントを自動化アカウントまたはボットとしてマーク",
+      "label": "ボットアカウント"
+    },
+    "cropBannerTitle": "バナー画像をトリミング",
+    "cropPictureTitle": "プロフィール画像をトリミング",
+    "fields": {
+      "addField": "フィールドを追加",
+      "description": "ソーシャルリンク、Bitcoinアドレス、その他の情報などのカスタムフィールドを追加",
+      "label": "プロフィールフィールド",
+      "labelPlaceholder": "ラベル",
+      "removeField": "フィールドを削除",
+      "valuePlaceholder": "値またはURL"
+    },
+    "identity": {
+      "description": "名前、自己紹介、画像、認証でプロフィールをカスタマイズします。これがNostrで他の人から見えるあなたの姿です。",
+      "title": "あなたのアイデンティティ"
+    },
+    "lud16": {
+      "description": "ザップを受け取るためのライトニングアドレス",
+      "label": "ライトニングアドレス"
+    },
+    "name": {
+      "description": "他の人に表示されるあなたの表示名です。",
+      "label": "名前",
+      "placeholder": "あなたの名前"
+    },
+    "nip05": {
+      "description": "認証済みのNostr識別子",
+      "label": "NIP-05識別子"
+    },
+    "picture": {
+      "description": "画像をアップロードするかURLを指定",
+      "label": "プロフィール画像"
+    },
+    "previewAlt": "{{label}}のプレビュー",
+    "save": "プロフィールを保存",
+    "toast": {
+      "bannerUploadFailed": "バナーのアップロードに失敗しました。もう一度お試しください。",
+      "bannerUploaded": "バナーをアップロードしました",
+      "error": "エラー",
+      "notLoggedIn": "プロフィールを更新するにはログインが必要です",
+      "pictureUploadFailed": "プロフィール画像のアップロードに失敗しました。もう一度お試しください。",
+      "pictureUploaded": "プロフィール画像をアップロードしました",
+      "profileUpdated": "プロフィールを更新しました",
+      "success": "成功",
+      "updateFailed": "プロフィールの更新に失敗しました。もう一度お試しください。"
+    },
+    "uploadCrop": "アップロードしてトリミング",
+    "website": {
+      "description": "個人のウェブサイトまたはソーシャルリンク",
+      "label": "ウェブサイト"
+    }
+  },
+  "imageCrop": {
+    "apply": "トリミングを適用",
+    "hint": "ドラッグで位置調整 · ピンチまたはスクロールでズーム",
+    "processing": "処理中…",
+    "reset": "リセット",
+    "title": "画像をトリミング"
+  },
+  "muteRecovery": {
+    "current": "現在",
+    "decryptionFailed": "プライベートアイテムを復号できませんでした",
+    "description": "ミュートリストの過去のバージョンを閲覧・復元します。",
+    "empty": "ミュートリストの履歴が見つかりません。リレーが過去のイベントを保存していない可能性があります。",
+    "mutedItems_other": "{{formatted}}件のミュート項目",
+    "restore": "復元",
+    "restoreFailed": "復元に失敗しました",
+    "restoreFailedDescription": "ミュートリストを再公開できませんでした。もう一度お試しください。",
+    "restored": "ミュートリストを復元しました",
+    "restoredDescription": "{{date}}のバージョンから復元しました。",
+    "threadCount": "{{count}}件のスレッド",
+    "title": "ミュートリストの復元"
+  },
   "nav": {
     "ai-chat": "AIチャット",
     "archive": "アーカイブ",
@@ -15,8 +101,8 @@
     "badges": "バッジ",
     "blobbi": "ブロッビ",
     "bluesky": "Bluesky",
-    "books": "本",
     "bookmarks": "ブックマーク",
+    "books": "本",
     "cards": "メモリーカード",
     "changelog": "更新履歴",
     "colors": "カラーモーメント",
@@ -49,32 +135,188 @@
     "wikipedia": "ウィキペディア",
     "world": "ワールド"
   },
-  "sidebar": {
-    "addAccount": "別のアカウントを追加",
-    "addDivider": "区切り線を追加",
-    "addLink": "リンクを追加",
-    "addToSidebar": "{{label}}をサイドバーに追加",
-    "doneEditing": "完了",
-    "editSidebar": "サイドバーを編集",
-    "invalidCountryCode": "無効な国/地域コードです",
-    "invalidIdentifier": "無効な識別子です",
-    "invalidNsite": "無効なnsite識別子です（名前付きサイトのみサポートされています）",
-    "join": "参加",
-    "linkInputPlaceholder": "URL, npub1..., nsite://..., ...",
-    "logOutAs": "@{{name}}をログアウト",
-    "more": "もっと見る...",
-    "removeDivider": "区切り線を削除",
-    "removeItem": "{{label}}を削除",
-    "setStatus": "ステータスを設定",
-    "shareProfile": "プロフィールを共有",
-    "statusCleared": "ステータスをクリアしました",
-    "statusPlaceholder": "いまどうしてる？",
-    "statusUpdated": "ステータスを更新しました",
-    "unsupportedIdentifier": "サポートされていない識別子タイプです"
+  "paymentTargets": {
+    "addDonation": "ドネーションを追加",
+    "addMethod": "支払い方法を追加",
+    "addressAriaLabel": "{{method}}アドレス",
+    "description": "サポーターから暗号通貨やチップを受け取れるようにします。",
+    "error": "エラー",
+    "invalidAddress": {
+      "description": "「{{authority}}」は有効な{{method}}アドレスではないようです。",
+      "descriptionHandle": "「{{authority}}」は有効な{{method}}アドレス／ハンドルではないようです。",
+      "title": "無効な{{method}}アドレス"
+    },
+    "loading": "読み込み中…",
+    "remove": "{{method}}を削除",
+    "saveFailed": "支払い方法の保存に失敗しました。",
+    "title": "ドネーションを受け付ける"
   },
   "settings": {
+    "advanced": {
+      "corsProxyDescription": "クロスオリジンリクエスト用のプロキシ（NIP-05フォールバック）。ターゲットURLのプレースホルダーとして<code>{href}</code>を使用します。",
+      "corsProxyLabel": "CORSプロキシ",
+      "corsProxyUpdated": "CORSプロキシを更新しました",
+      "currency": "通貨",
+      "currencyDisplayDescription": "ザップの合計、残高、その他の金額をアプリ全体でどう表示するか選択します。USDは現在のBTC価格でsatsから換算され、価格が取得できない場合は自動的にsatsにフォールバックします。",
+      "currencyDisplayLabel": "金額の表示通貨",
+      "currencyExample": "例：",
+      "currencySats": "satoshi",
+      "currencyUpdated": "通貨表示を更新しました",
+      "currencyUpdatedSats": "金額をsatoshiで表示します。",
+      "currencyUpdatedUsd": "金額を米ドルで表示します。",
+      "currencyUsd": "米ドル",
+      "dangerZone": "危険ゾーン",
+      "defaultLabel": "デフォルト：",
+      "deleteAccountDescription": "プロフィール、投稿、リアクション、ダイレクトメッセージを含むデータをネットワークから完全に削除します。この操作は元に戻せません。",
+      "errorReporting": "エラーレポート",
+      "faviconUrlDescription": "サイトのファビコンを取得するためのURIテンプレート。RFC 6570変数に対応：<code>{href}</code>、<code>{hostname}</code>、<code>{origin}</code>など。",
+      "faviconUrlLabel": "ファビコンURL",
+      "faviconUrlUpdated": "ファビコンURLを更新しました",
+      "introDescription": "ウォレット接続、システム設定、その他の詳細オプション。",
+      "introTitle": "パワーユーザー設定",
+      "linkPreviewUrlDescription": "リンクプレビューを取得するためのURIテンプレート（OEmbed JSONを返します）。RFC 6570変数に対応：<code>{url}</code>、<code>{hostname}</code>、<code>{origin}</code>など。",
+      "linkPreviewUrlLabel": "リンクプレビューURL",
+      "linkPreviewUrlUpdated": "リンクプレビューURLを更新しました",
+      "metaDescription": "ウォレット、システム、パワーユーザー向けの詳細設定",
+      "modifiedFromDefault": "デフォルトから変更済み",
+      "restoreToDefault": "デフォルトに戻す",
+      "sentryDsnCleared": "Sentry DSNをクリアしました",
+      "sentryDsnDescription": "エラーレポート用のSentry Data Source Name（DSN）。空のままにするとSentryは無効になります。",
+      "sentryDsnRestored": "Sentry DSNをデフォルトに戻しました",
+      "sentryDsnUpdated": "Sentry DSNを更新しました",
+      "shareErrorReports": "エラーレポートを共有",
+      "shareErrorReportsDescription": "クラッシュやエラーのレポートを自動送信して、アプリの改善に協力します。",
+      "statsPubkeyDescription": "事前計算されたエンゲージメント統計（いいね、リポスト、コメント）の信頼できる公開鍵。",
+      "statsPubkeyError": "公開鍵は64文字の16進数である必要があります",
+      "statsPubkeyLabel": "NIP-85統計公開鍵",
+      "statsPubkeyPlaceholder": "64文字の16進数公開鍵を入力",
+      "statsSourceCleared": "統計ソースをクリアしました",
+      "statsSourceUpdated": "統計ソースを更新しました",
+      "statsSourceUpdatedDescription": "この公開鍵のNIP-85統計を使用しています。",
+      "subtitle": "パワーユーザー向けのウォレット接続、システム設定、その他の詳細オプション。",
+      "system": "システム",
+      "title": "詳細"
+    },
     "codex": "設定の書",
+    "content": {
+      "addMuteFailed": "ミュートの追加に失敗しました",
+      "autoplayVideos": "動画の自動再生",
+      "autoplayVideosDescription": "フィードやプレビューで動画を自動再生します（ミュート）",
+      "contentControl": "コンテンツコントロール",
+      "contentControlDescription": "フィードに表示するものをあなたが決められます。",
+      "enterValue": "値を入力してください",
+      "error": "エラー",
+      "exemptFollows": "フォロー中の人をフィルタリングしない",
+      "exemptFollowsDescription": "ミュートしたハッシュタグや単語は、フォロー中のアカウントの投稿を隠しません。ミュートしたユーザーとスレッドは引き続き適用されます。",
+      "muteAdded": "ミュートを追加しました",
+      "muteInput": {
+        "hashtag": "ハッシュタグ（#なし）",
+        "pubkey": "公開鍵（hexまたはnpub）",
+        "thread": "イベントID（hexまたはnote）",
+        "word": "単語またはフレーズ"
+      },
+      "mutePlaceholder": {
+        "hashtag": "ハッシュタグ（#なし）",
+        "pubkey": "npub1... またはhex公開鍵",
+        "thread": "note1... またはhexイベントID",
+        "word": "単語またはフレーズ"
+      },
+      "muteRemoved": "ミュートを削除しました",
+      "muteTypeOptions": {
+        "hashtag": "ハッシュタグ",
+        "thread": "スレッド",
+        "user": "ユーザー",
+        "word": "単語／フレーズ"
+      },
+      "muteTypes": {
+        "hashtags": "ハッシュタグ",
+        "threads": "スレッド",
+        "users": "ユーザー",
+        "words": "単語"
+      },
+      "mutedContent": "ミュートしたコンテンツ",
+      "noMutedItems": "ミュートした項目はまだありません",
+      "pageDescription": "ユーザー、ハッシュタグ、単語をミュートし、センシティブコンテンツの表示方法を選択します。ミュートは暗号化され非公開です。",
+      "policyBlur": "表示するまでぼかす",
+      "policyBlurDescription": "表示を選択するまで警告の後ろに隠されます。",
+      "policyHide": "完全に非表示",
+      "policyHideDescription": "フィードから完全に取り除かれます。",
+      "policyShow": "常に表示",
+      "policyShowDescription": "警告なしで通常どおり表示されます。",
+      "recovery": "復元",
+      "removeMuteFailed": "ミュートの削除に失敗しました",
+      "removeMuteFor": "{{value}}のミュートを解除",
+      "sensitiveContent": "センシティブコンテンツ",
+      "sensitiveDescription": "投稿者がセンシティブ（NSFW、ネタバレなど）としてマークした投稿の表示方法。",
+      "showCustomThemes": "カスタムプロフィールテーマを表示",
+      "showCustomThemesDescription": "他のユーザーのプロフィールを訪れたときにカスタムテーマを表示します",
+      "success": "成功",
+      "viewingPreferences": "表示設定",
+      "whatToMute": "ミュートする対象"
+    },
     "deleteAccount": "アカウントを削除",
+    "feed": {
+      "addTab": "タブを追加",
+      "appFeed": "{{appName}}フィード",
+      "appFeedDescription": "{{appName}}リレーからトレンドや厳選コンテンツを表示",
+      "authorCount_other": "{{count}}人の投稿者",
+      "community": "コミュニティ",
+      "communityDescription": "コミュニティドメインを設定します。NIP-05ユーザーリストをダウンロードして、認証済みメンバーの投稿のみを表示します。",
+      "communityFeed": "コミュニティフィード",
+      "communityFeedActive": "{{domain}}ユーザーに「{{label}}」タブを表示",
+      "communityFeedInactive": "このフィードを有効にするには下でコミュニティを設定してください",
+      "communityRemoved": "コミュニティを削除しました",
+      "communityRemovedDescription": "コミュニティフィードをクリアしました",
+      "communitySet": "コミュニティを設定しました",
+      "communitySetDescription": "{{label}}（{{count}}人のユーザー）",
+      "customTabs": "カスタムタブ",
+      "domainRequired": "ドメインが必要です",
+      "domainRequiredDescription": "ドメイン名を入力してください",
+      "downloadFailed": "ダウンロードに失敗しました",
+      "downloadFailedDescription": "コミュニティデータを取得できませんでした",
+      "edit": "編集",
+      "enabledOf": "{{total}}件中{{enabled}}件が有効",
+      "feedNavigation": "フィードナビゲーション",
+      "feedNavigationDescription": "ホームフィードの上部に表示するタブを選択します。",
+      "follows": "フォロー",
+      "geohashPlaceholder": "ジオハッシュ（例：u4pru）",
+      "globalFeed": "グローバルフィード",
+      "globalFeedDescription": "ネットワーク全体の全ユーザーの投稿を表示",
+      "hashtagAdded": "#{{tag}}をフィードタブに追加しました",
+      "hashtagAlreadyFollowed": "#{{tag}}はすでにフォローしています",
+      "hashtagRemoved": "#{{tag}}をフィードタブから削除しました",
+      "hashtags": "ハッシュタグ",
+      "homeFeedTabs": "ホームフィードタブ",
+      "homepage": "ホームページ",
+      "homepageDescription": "アプリを開いたときに表示するページを選択",
+      "homepageSet": "ホームページを{{label}}に設定しました",
+      "interestTabs": "興味タブ",
+      "interestTabsDescription": "フォローしているハッシュタグと場所がホームフィードのタブとして表示されます。",
+      "kindCount": "{{count}}種類",
+      "kindLabel": "Kind {{kind}}",
+      "locationAdded": "{{tag}}をフィードタブに追加しました",
+      "locationAlreadyFollowed": "{{tag}}はすでにフォローしています",
+      "locationRemoved": "{{tag}}をフィードタブから削除しました",
+      "locations": "場所",
+      "moreContentTypes": "その他のコンテンツタイプ",
+      "noCustomTabs": "カスタムタブはまだありません。検索ページで検索を保存するか、上で追加してください。",
+      "noHashtags": "フォロー中のハッシュタグはまだありません。",
+      "noLocations": "フォロー中の場所はまだありません。",
+      "otherStuff": "その他",
+      "otherStuffDescription": "Nostrはテキスト投稿だけではありません。ホームフィードに他に何を表示するか選びましょう。",
+      "pageDescription": "Nostrはテキスト投稿以外にも多くのコンテンツタイプをサポートしています。ホームフィードに表示するものをカスタマイズしましょう。",
+      "postTypes": "投稿タイプ",
+      "postTypesDescription": "ホームフィードに表示される基本的なコンテンツタイプ。",
+      "remove": "削除",
+      "removeHashtag": "#{{tag}}を削除",
+      "removeLocation": "{{tag}}を削除",
+      "savedFeedAdded": "「{{label}}」をホームフィードタブに追加しました",
+      "savedFeedRemoved": "「{{label}}」を削除しました",
+      "savedFeedUpdated": "フィードを更新しました",
+      "showReplies": "フィードに返信を表示",
+      "showRepliesDescription": "トップレベルの投稿だけでなく、フォロー中の人の返信も含めます",
+      "userCount_other": "{{count}}人のユーザー"
+    },
     "intro": "アイデンティティを形作り、フィードを調整し、Nostrネットワークへのつながり方を管理しましょう。",
     "introSub": "この場所をあなたらしくするために必要なものがすべてここにあります。",
     "language": {
@@ -82,10 +324,283 @@
       "label": "言語",
       "system": "システムのデフォルト"
     },
+    "magic": {
+      "introDescription": "デバイスの神秘的なエネルギーを操りましょう。カーソルに元素の炎を宿し、すべての操作を魔法のように感じさせます。",
+      "introTitle": "秘術の設定",
+      "magicMouse": "マジックマウス",
+      "magicMouseDescription": "カーソル（タッチデバイスでは指）がプライマリカラーの輝きで魔法の炎を放ちます。意図を持って動かしましょう。描く軌跡のすべてが炎の道となります。",
+      "metaDescription": "魔法のカーソルエフェクトと神秘的なインターフェースの設定",
+      "subtitle": "デバイスの神秘的なエネルギーを操りましょう。カーソルに元素の炎を宿します。",
+      "title": "マジック"
+    },
     "magicUnlocked": "✨ 魔法の力が解放されました",
     "magicUnlockedDescription": "あなたは秘術に目覚めました。カーソルが魔法の炎に包まれます。",
     "metaDescription": "{{appName}}の設定を管理",
+    "network": {
+      "appBlossomDescription": "信頼性の高いメディアホスティングのためのデフォルトのファイルアップロードサーバー。有効な場合、個人サーバーと併用されます。",
+      "appBlossomDisabled": "アプリのBlossomサーバーを無効にしました",
+      "appBlossomDisabledDescription": "個人のBlossomサーバーのみが使用されます。",
+      "appBlossomEnabled": "アプリのBlossomサーバーを有効にしました",
+      "appBlossomEnabledDescription": "アプリのBlossomサーバーが個人サーバーと併用されます。",
+      "appBlossomServers": "アプリのBlossomサーバー",
+      "appRelays": "アプリのリレー",
+      "appRelaysDescription": "安定した接続のためのデフォルトリレー。有効な場合、個人リレーと併用されます。",
+      "appRelaysDisabled": "アプリのリレーを無効にしました",
+      "appRelaysDisabledDescription": "個人リレーのみが使用されます。",
+      "appRelaysEnabled": "アプリのリレーを有効にしました",
+      "appRelaysEnabledDescription": "アプリのリレーが個人リレーと併用されます。",
+      "auth": "認証",
+      "blossomListPublishFailed": "Blossomサーバーリストの公開に失敗しました",
+      "blossomListPublishFailedDescription": "サーバーリストをNostrに公開する際にエラーが発生しました。",
+      "blossomListPublished": "Blossomサーバーリストを公開しました",
+      "blossomListPublishedDescription": "BlossomサーバーリストがNostrに公開されました。",
+      "blossomServerUrl": "BlossomサーバーURL",
+      "blossomServers": "Blossomサーバー",
+      "disabled": "無効",
+      "enabled": "有効",
+      "imageQuality": {
+        "compressed": "圧縮",
+        "original": "オリジナル"
+      },
+      "imageUploads": "画像のアップロード",
+      "invalidRelayUrl": "無効なリレーURLです",
+      "invalidRelayUrlDescription": "有効なリレーURLを入力してください（例：wss://relay.example.com）",
+      "invalidServerUrl": "無効なサーバーURLです",
+      "invalidServerUrlDescription": "有効なHTTPS URLを入力してください（例：https://blossom.example.com/）",
+      "loginToSync": "ログインしてリレーリストをNostrと同期",
+      "loginToSyncBlossom": "ログインしてBlossomサーバーリストをNostrと同期",
+      "metaDescription": "リレーとファイルアップロードサーバーを管理",
+      "networkConnections": "ネットワーク接続",
+      "networkConnectionsDescription": "リレー接続を管理します。リレーはNostrイベントをネットワーク全体で保存・配信するサーバーです。",
+      "noBlossomServers": "個人のBlossomサーバーが設定されていません。下でサーバーを追加するか、上でアプリのBlossomサーバーを有効にしてください。",
+      "noRelays": "個人リレーが設定されていません。下でリレーを追加してください。",
+      "noRelaysWithAppRelays": "個人リレーが設定されていません。下でリレーを追加するか、上でアプリのリレーを有効のままにしてください。",
+      "pageDescription": "リレーはNostrネットワーク全体でコンテンツを保存・配信するサーバーです。Blossomサーバーはファイルのアップロードを処理します。",
+      "paid": "有料",
+      "read": "読み取り",
+      "relayExists": "リレーはすでに存在します",
+      "relayExistsDescription": "このリレーはすでにリストにあります。",
+      "relayIcon": "{{name}}のアイコン",
+      "relayListPublishFailed": "リレーリストの公開に失敗しました",
+      "relayListPublishFailedDescription": "リレーリストをNostrに公開する際にエラーが発生しました。",
+      "relayListPublished": "リレーリストを公開しました",
+      "relayListPublishedDescription": "リレーリストがNostrに公開されました。",
+      "relayUrl": "リレーURL",
+      "relays": "リレー",
+      "serverAlreadyAdded": "サーバーはすでに追加されています",
+      "uploadQuality": "アップロード品質",
+      "uploadQualityDescription": "圧縮は大きな画像をリサイズして最小のフォーマットを選びます。オリジナルは画像をそのままアップロードします。",
+      "userRelaysDisabled": "個人リレーを無効にしました",
+      "userRelaysDisabledDescription": "個人リレーは使用されません。アプリのリレーのみがクエリされます。",
+      "userRelaysEnabled": "個人リレーを有効にしました",
+      "userRelaysEnabledDescription": "有効な場合、個人リレーがアプリのリレーと併用されます。",
+      "write": "書き込み",
+      "yourBlossomDescription": "個人のBlossomサーバーリスト（BUD-03）。ログイン時にkind 10063としてNostrに同期されます。",
+      "yourBlossomServers": "あなたのBlossomサーバー",
+      "yourRelays": "あなたのリレー",
+      "yourRelaysDescription": "個人のリレーリスト。デフォルトでは無効です。有効にするとクエリや公開にあなたのリレーが含まれます。",
+      "yourRelaysLogin": "ログインしてリストをNostrに同期します。",
+      "yourRelaysSynced": "ログイン時は引き続きリストがNostrに同期されます。"
+    },
+    "notifications": {
+      "batteryWarning": "{{appName}}でバッテリー最適化が有効になっています。Androidがバックグラウンドのリレー接続を切断し、再起動後に再接続できなくなる可能性があります。",
+      "blocked": "通知がブロックされています。ブラウザの設定でこのサイトからの通知を許可してください。",
+      "deliveryMethod": "配信方法",
+      "deliveryMethodDescription": "通知をデバイスに配信する方法を選択します。",
+      "disableBatteryOptimization": "バッテリー最適化を無効にする",
+      "enableFailed": "通知の有効化に失敗しました",
+      "enableFailedDescription": "もう一度お試しください。",
+      "enablePush": "プッシュ通知を有効にする",
+      "enablePushDescription": "投稿へのアクティビティの通知を受け取ります",
+      "filter": "フィルター",
+      "metaDescription": "通知設定を構成",
+      "notSupported": "お使いのブラウザはプッシュ通知に対応していません。",
+      "notifyMeAbout": "通知する項目",
+      "onlyFollowing": "フォロー中の人からのみ",
+      "onlyFollowingDescription": "フォローしていないアカウントからの通知を隠します",
+      "pushTitle": "プッシュ通知",
+      "stylePersistent": "常駐",
+      "stylePersistentDescription": "バックグラウンドでリレー接続を維持し、通知が即座に届きます。プッシュ通知に対応していないデバイスで確実に配信するにはこれを使用してください。",
+      "stylePush": "プッシュ",
+      "stylePushDescription": "標準の通知。常駐のステータスバーアイコンはありません。",
+      "subtitle": "受け取る通知をカスタマイズします。",
+      "title": "通知",
+      "type": {
+        "badges": {
+          "description": "誰かがあなたにバッジを授与したとき",
+          "label": "バッジの授与"
+        },
+        "comments": {
+          "description": "誰かがあなたの投稿にコメントや返信をしたとき",
+          "label": "コメントと返信"
+        },
+        "highlights": {
+          "description": "誰かがあなたのコンテンツをハイライトしたとき",
+          "label": "ハイライト"
+        },
+        "letters": {
+          "description": "誰かがあなたに手紙を送ったとき",
+          "label": "手紙"
+        },
+        "mentions": {
+          "description": "誰かがノートであなたにメンションしたとき",
+          "label": "メンション"
+        },
+        "quizzes": {
+          "description": "誰かがあなたのクイズに答えたとき",
+          "label": "クイズ"
+        },
+        "reactions": {
+          "description": "誰かがあなたの投稿にリアクションしたとき",
+          "label": "リアクション"
+        },
+        "reposts": {
+          "description": "誰かがあなたのノートをリポストしたとき",
+          "label": "リポスト"
+        },
+        "zaps": {
+          "description": "誰かがあなたにライトニングまたはオンチェーンザップを送ったとき",
+          "label": "ザップ"
+        }
+      },
+      "types": "種類"
+    },
     "openMagic": "マジック設定を開く",
+    "profile": {
+      "advanced": "詳細",
+      "backupKey": {
+        "bunkerNote": "リモート署名者（NIP-46）でログインしています。秘密鍵は署名者が保持しており、{{appName}}からエクスポートできません。",
+        "button": "鍵をバックアップ",
+        "copyAriaLabel": "秘密鍵をコピー",
+        "copyFailed": "コピーに失敗しました",
+        "copyFailedDescription": "クリップボードにアクセスできませんでした。鍵を表示して手動でコピーしてください。",
+        "description": "この秘密鍵は{{appName}}のあなたのアカウントを制御します。これを持つ人は誰でも投稿、DMの閲覧、あなたへのなりすましができます。パスワードマネージャーなど、あなただけがアクセスできる場所に保管してください。",
+        "extensionNote": "ブラウザ拡張機能（NIP-07）でログインしています。秘密鍵はそこに保存されています。拡張機能自体から管理・エクスポートしてください。",
+        "hideAriaLabel": "秘密鍵を隠す",
+        "inputAriaLabel": "あなたの秘密鍵",
+        "revealAriaLabel": "秘密鍵を表示",
+        "saveFailed": "保存に失敗しました",
+        "saveFailedDescription": "鍵を保存できませんでした。手動でコピーしてください。",
+        "saved": "秘密鍵を保存しました",
+        "savedToFileDescription": "秘密鍵がデバイスのドキュメントフォルダーに保存されました。",
+        "saving": "保存中…",
+        "title": "あなたの鍵",
+        "warning": "秘密鍵は絶対に誰とも共有しないでください。スクリーンショットや、パスワードマネージャー以外への貼り付けは避けてください。共有すると、他人があなたのアカウントにアクセスできるようになります。"
+      },
+      "bannerUpdated": "バナーを更新しました",
+      "birthday": {
+        "dayAriaLabel": "誕生日の日",
+        "dayPlaceholder": "日",
+        "description": "プロフィールに表示されます。当日に訪れた友達には紙吹雪とバースデーソングが届きます。すべての項目は任意です。年齢を公開したくない場合は年を省略してください。",
+        "error": "エラー",
+        "errorDescription": "誕生日の保存に失敗しました。",
+        "monthAriaLabel": "誕生日の月",
+        "monthPlaceholder": "月",
+        "months": {
+          "april": "4月",
+          "august": "8月",
+          "december": "12月",
+          "february": "2月",
+          "january": "1月",
+          "july": "7月",
+          "june": "6月",
+          "march": "3月",
+          "may": "5月",
+          "november": "11月",
+          "october": "10月",
+          "september": "9月"
+        },
+        "removeAriaLabel": "誕生日を削除",
+        "removed": "誕生日を削除しました",
+        "saved": "誕生日を保存しました",
+        "title": "誕生日",
+        "yearAriaLabel": "誕生日の年（任意）",
+        "yearError": "1900年から{{year}}年までの4桁の年を入力するか、空欄のままにしてください。",
+        "yearPlaceholder": "年（任意）"
+      },
+      "bot": {
+        "description": "このアカウントを自動化アカウントとしてマーク",
+        "label": "ボットアカウント"
+      },
+      "cropBannerTitle": "バナーをトリミング",
+      "cropPictureTitle": "プロフィール画像をトリミング",
+      "fields": {
+        "addressPlaceholder": "アドレス",
+        "labelPlaceholder": "ラベル",
+        "lightningLabel": "ライトニング",
+        "mediaPlaceholder": "ファイルをアップロードするか直接リンクを貼り付け",
+        "presets": {
+          "custom": {
+            "description": "任意のカスタムフィールドを作成",
+            "label": "カスタム"
+          },
+          "email": {
+            "defaultLabel": "メール",
+            "description": "連絡先メールアドレス",
+            "label": "メール"
+          },
+          "link": {
+            "description": "任意のウェブサイトやプロフィールへのリンク",
+            "label": "リンク"
+          },
+          "music": {
+            "description": "曲やオーディオクリップをアップロード",
+            "label": "音楽",
+            "placeholder": "オーディオをアップロードするか直接リンクを貼り付け"
+          },
+          "photo": {
+            "description": "画像をアップロード",
+            "label": "写真",
+            "placeholder": "画像をアップロードするか直接リンクを貼り付け"
+          },
+          "video": {
+            "description": "動画クリップをアップロード",
+            "label": "動画",
+            "placeholder": "動画をアップロードするか直接リンクを貼り付け"
+          },
+          "wallet": {
+            "description": "暗号通貨ウォレットアドレス",
+            "label": "ウォレット"
+          },
+          "weather": {
+            "defaultLabel": "天気",
+            "description": "Nostr気象ステーションを接続",
+            "label": "天気",
+            "placeholder": "npub1... またはnaddr1...（#station-idは任意）"
+          }
+        },
+        "previewTitle": "プロフィールフィールドのプレビュー",
+        "tickerPlaceholder": "ティッカー",
+        "title": "プロフィールフィールド",
+        "uploadTooltip": "アップロードするファイルを選択",
+        "uploadTooltipMedia": "アップロードするメディアファイルを選択",
+        "valueOrUrlPlaceholder": "値またはURL",
+        "warnings": {
+          "audioMaybe": "このURLはオーディオプレイヤーとして動作しない可能性があります。最良の結果を得るには、ボタンでファイルをアップロードするか、オーディオファイルへの直接リンクを貼り付けてください。",
+          "audioMismatch": "このURLはオーディオファイルを指していません。オーディオファイルをアップロードするか、.mp3、.ogg、.wavなどで終わる直接リンクを使用してください。",
+          "imageMaybe": "このURLは画像として表示されない可能性があります。最良の結果を得るには、ボタンでファイルをアップロードするか、画像ファイルへの直接リンクを貼り付けてください。",
+          "imageMismatch": "このURLは画像を指していません。画像をアップロードするか、.jpg、.png、.webpなどで終わる直接リンクを使用してください。",
+          "videoMaybe": "このURLは動画として表示されない可能性があります。最良の結果を得るには、ボタンでファイルをアップロードするか、動画ファイルへの直接リンクを貼り付けてください。",
+          "videoMismatch": "このURLは動画を指していません。動画をアップロードするか、.mp4、.webm、.movなどで終わる直接リンクを使用してください。"
+        },
+        "websiteLabel": "ウェブサイト"
+      },
+      "identity": {
+        "description": "カード上の任意のフィールドをタップして編集します。アバターやバナーをクリックして新しい画像をアップロード・トリミングします。",
+        "title": "あなたのアイデンティティ"
+      },
+      "mediaUploaded": "メディアファイルをアップロードしました",
+      "metaDescription": "{{appName}}プロフィールを編集",
+      "pictureUpdated": "プロフィール画像を更新しました",
+      "saveError": "エラー",
+      "saveErrorDescription": "プロフィールの保存に失敗しました。",
+      "saved": "プロフィールを保存しました",
+      "title": "プロフィール",
+      "uploadFailed": "アップロードに失敗しました",
+      "uploadFailedDescription": "もう一度お試しください。",
+      "uploaded": "アップロードしました",
+      "uploading": "アップロード中…"
+    },
     "sections": {
       "advanced": {
         "description": "ウォレット、システム、パワーユーザー向けの設定",
@@ -117,6 +632,188 @@
       }
     },
     "title": "設定",
-    "unlockMagic": "魔法の力を解放する"
+    "unlockMagic": "魔法の力を解放する",
+    "wallet": {
+      "active": "有効",
+      "activeWalletChanged": "アクティブウォレットを変更しました",
+      "activeWalletChangedDescription": "選択したウォレットがザップで有効になりました。",
+      "alreadyInList": "すでにリストにあります",
+      "apisRestored": "Bitcoin APIをデフォルトに戻しました",
+      "bitcoinApiUrlLabel": "Bitcoin API URL",
+      "bitcoinApis": "Bitcoin API",
+      "bitcoinApisDescription": "ウォレット、オンチェーンザップ、tx／アドレスページで使用されるEsplora互換のBitcoin RESTエンドポイント。順番に試行され、先頭がレート制限やダウンの場合は自動的に次が試行されます。優先するエンドポイントが先頭になるよう並べ替えてください。",
+      "connect": "接続",
+      "connectDialogDescription": "NWC互換ウォレットから接続文字列を貼り付けてください。",
+      "connectDialogTitle": "NWCウォレットを接続",
+      "connecting": "接続中...",
+      "connectionUriRequired": "接続URIが必要です",
+      "connectionUriRequiredDescription": "有効なNWC接続URIを入力してください。",
+      "fallback": "フォールバック{{index}}",
+      "installHelp": "ザップを送るには、WebLNブラウザ拡張機能をインストールするか、NWCウォレットを接続してください。",
+      "invalidApiUrl": "無効なAPI URLです",
+      "invalidApiUrlDescription": "有効なHTTPS URLを入力してください（例：https://mempool.space/api）",
+      "lightningWallet": "ライトニングウォレット",
+      "metaDescription": "ウォレット接続を管理",
+      "moveDown": "下に移動",
+      "moveUp": "上に移動",
+      "noWallets": "接続されているウォレットはありません",
+      "noWalletsDescription": "NWC接続を追加して即時ザップを有効にしましょう。",
+      "none": "なし",
+      "notFound": "見つかりません",
+      "nwcConnection": "NWC接続",
+      "oneApiRequired": "少なくとも1つのAPIが必要です",
+      "oneApiRequiredDescription": "このエンドポイントを削除する前に別のエンドポイントを追加するか、デフォルトに戻してください。",
+      "primary": "プライマリ",
+      "ready": "準備完了",
+      "remoteWalletConnection": "リモートウォレット接続",
+      "remove": "削除",
+      "removeWallet": "ウォレットを削除",
+      "restoreDefaults": "デフォルトに戻す",
+      "restoreDefaultsTitle": "デフォルトのmempool.space → mempool.emzy.de → blockstream.infoのリストに戻す",
+      "setAsActive": "アクティブに設定",
+      "status": "ステータス",
+      "subtitle": "ウォレット接続と支払いを管理",
+      "title": "ウォレット",
+      "walletNamePlaceholder": "ウォレット名（任意）",
+      "walletsConnected_other": "{{count}}個のウォレットが接続中",
+      "weblnDescription": "ブラウザ拡張機能"
+    }
+  },
+  "sidebar": {
+    "addAccount": "別のアカウントを追加",
+    "addDivider": "区切り線を追加",
+    "addLink": "リンクを追加",
+    "addToSidebar": "{{label}}をサイドバーに追加",
+    "doneEditing": "完了",
+    "editSidebar": "サイドバーを編集",
+    "invalidCountryCode": "無効な国/地域コードです",
+    "invalidIdentifier": "無効な識別子です",
+    "invalidNsite": "無効なnsite識別子です（名前付きサイトのみサポートされています）",
+    "join": "参加",
+    "linkInputPlaceholder": "URL, npub1..., nsite://..., ...",
+    "logOutAs": "@{{name}}をログアウト",
+    "more": "もっと見る...",
+    "removeDivider": "区切り線を削除",
+    "removeItem": "{{label}}を削除",
+    "setStatus": "ステータスを設定",
+    "shareProfile": "プロフィールを共有",
+    "statusCleared": "ステータスをクリアしました",
+    "statusPlaceholder": "いまどうしてる？",
+    "statusUpdated": "ステータスを更新しました",
+    "unsupportedIdentifier": "サポートされていない識別子タイプです"
+  },
+  "widgets": {
+    "aiChat": {
+      "creditsPost": "で入手して、Dorkとチャットしましょう。",
+      "creditsPre": "クレジットを",
+      "description": "シェイクスピアAIとチャット",
+      "emptyPrompt": "何でも聞いてください...",
+      "errorMessage": "申し訳ありません。問題が発生しました。もう一度お試しください。",
+      "loginPrompt": "ログインしてDorkとチャット",
+      "messagePlaceholder": "メッセージ...",
+      "open": "AIチャットを開く",
+      "title": "AIチャット"
+    },
+    "articles": {
+      "description": "フィードからの長文記事",
+      "title": "記事",
+      "viewAll": "すべての記事を見る"
+    },
+    "blobbi": {
+      "actionFailed": "アクションに失敗しました",
+      "companionSet": "コンパニオンに設定しました！",
+      "companionSetDesc": "{{name}}があなたのコンパニオンになりました",
+      "companionUnset": "コンパニオンを解除しました",
+      "companionUnsetDesc": "{{name}}はコンパニオンではなくなりました",
+      "companionUpdateFailed": "コンパニオンの更新に失敗しました",
+      "description": "あなたのバーチャルペットコンパニオン",
+      "hatch": "ブロッビを孵化させる",
+      "hatchDesc": "バーチャルペットコンパニオンを手に入れよう",
+      "loginPrompt": "ログインしてブロッビを孵化させよう",
+      "resting": "休憩中...",
+      "switch": "ブロッビを切り替え",
+      "switchTo": "{{name}}に切り替え",
+      "takeAlong": "連れていく",
+      "title": "ブロッビ",
+      "withYou": "同行中",
+      "wokeUp": "起きた！"
+    },
+    "bluesky": {
+      "description": "Blueskyのトレンド投稿",
+      "empty": "現在トレンドの投稿はありません。",
+      "loadFailed": "Blueskyの投稿を読み込めませんでした。",
+      "title": "Bluesky",
+      "viewMore": "Blueskyでもっと見る"
+    },
+    "categories": {
+      "content": "コンテンツ",
+      "discovery": "発見",
+      "personal": "パーソナル"
+    },
+    "common": {
+      "addWidget": "ウィジェットを追加",
+      "close": "閉じる",
+      "loadFailed": "{{name}}の読み込みに失敗しました。",
+      "media": "（メディア）",
+      "reloadPage": "ページを再読み込み",
+      "removeWidget": "ウィジェットを削除",
+      "unknownWidget": "不明なウィジェットです。"
+    },
+    "events": {
+      "description": "今後のカレンダーイベント",
+      "title": "イベント",
+      "viewAll": "すべてのイベントを見る"
+    },
+    "feed": {
+      "empty": "まだコンテンツがありません。"
+    },
+    "hotPosts": {
+      "description": "ホットフィードの人気投稿",
+      "empty": "現在ホットな投稿はありません。",
+      "title": "ホットな投稿",
+      "viewAll": "トレンドですべて見る"
+    },
+    "music": {
+      "description": "フィードからの音楽トラック",
+      "empty": "まだ音楽がありません。",
+      "title": "音楽"
+    },
+    "nostrClients": {
+      "description": "過去30日間のクライアント別ユニーク投稿者数",
+      "title": "Nostrクライアント"
+    },
+    "photo": {
+      "alt": "写真",
+      "description": "フィードからの最近の写真",
+      "empty": "まだ写真がありません。",
+      "title": "写真"
+    },
+    "picker": {
+      "title": "ウィジェットを追加"
+    },
+    "status": {
+      "clearFailed": "ステータスのクリアに失敗しました",
+      "cleared": "ステータスをクリアしました",
+      "description": "現在のステータス。インラインで編集可能",
+      "loginPrompt": "ログインしてステータスを設定",
+      "placeholder": "いまどうしてる？",
+      "setPrompt": "クリックしてステータスを設定...",
+      "title": "ステータス",
+      "updateFailed": "ステータスの更新に失敗しました",
+      "updated": "ステータスを更新しました"
+    },
+    "trending": {
+      "description": "スパークラインチャート付きのトップトレンドハッシュタグ",
+      "empty": "利用できるトレンドがありません。",
+      "peopleTalking": "人が話題にしています",
+      "title": "トレンド",
+      "viewAll": "すべてのトレンドを見る"
+    },
+    "wikipedia": {
+      "description": "ウィキペディアの今日の特集記事",
+      "empty": "今日の特集記事はありません。",
+      "loadFailed": "特集記事を読み込めませんでした。",
+      "title": "ウィキペディア"
+    }
   }
 }

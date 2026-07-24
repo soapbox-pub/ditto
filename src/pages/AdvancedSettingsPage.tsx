@@ -1,4 +1,5 @@
 import { useSeoMeta } from '@/hooks/useSeoMeta';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/PageHeader';
 import { IntroImage } from '@/components/IntroImage';
 import { AdvancedSettings } from '@/components/AdvancedSettings';
@@ -11,13 +12,14 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 
 export function AdvancedSettingsPage() {
+  const { t } = useTranslation();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const [walletOpen, setWalletOpen] = useState(false);
 
   useSeoMeta({
-    title: `Advanced | Settings | ${config.appName}`,
-    description: 'Advanced settings for wallet, system, and power user configuration',
+    title: `${t('settings.advanced.title')} | ${t('settings.title')} | ${config.appName}`,
+    description: t('settings.advanced.metaDescription'),
   });
 
   return (
@@ -28,9 +30,9 @@ export function AdvancedSettingsPage() {
         alwaysShowBack
         titleContent={
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold">Advanced</h1>
+            <h1 className="text-xl font-bold">{t('settings.advanced.title')}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Wallet connections, system configuration, and other advanced options for power users.
+              {t('settings.advanced.subtitle')}
             </p>
           </div>
         }
@@ -41,9 +43,9 @@ export function AdvancedSettingsPage() {
         <div className="flex items-center gap-4 px-3 pt-2 pb-4">
           <IntroImage src="/advanced-intro.png" />
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold">Power User Settings</h2>
+            <h2 className="text-sm font-semibold">{t('settings.advanced.introTitle')}</h2>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Wallet connections, system configuration, and other advanced options.
+              {t('settings.advanced.introDescription')}
             </p>
           </div>
         </div>
@@ -56,7 +58,7 @@ export function AdvancedSettingsPage() {
                 variant="ghost"
                 className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
               >
-                <span className="text-base font-semibold">Wallet</span>
+                <span className="text-base font-semibold">{t('settings.wallet.title')}</span>
                 {walletOpen ? (
                   <ChevronUp className="h-4 w-4 text-muted-foreground" />
                 ) : (

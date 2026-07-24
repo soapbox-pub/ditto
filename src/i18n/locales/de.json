@@ -8,6 +8,93 @@
     "save": "Speichern",
     "searchPlaceholder": "Suchen..."
   },
+  "editProfile": {
+    "about": {
+      "description": "Eine kurze Beschreibung über dich.",
+      "label": "Bio",
+      "placeholder": "Erzähl anderen von dir"
+    },
+    "advanced": "Erweiterte Einstellungen",
+    "banner": {
+      "description": "Breites Bannerbild für dein Profil",
+      "label": "Bannerbild"
+    },
+    "bot": {
+      "description": "Dieses Konto als automatisiert oder als Bot markieren",
+      "label": "Bot-Konto"
+    },
+    "cropBannerTitle": "Bannerbild zuschneiden",
+    "cropPictureTitle": "Profilbild zuschneiden",
+    "fields": {
+      "addField": "Feld hinzufügen",
+      "description": "Füge eigene Felder wie Social-Links, deine Bitcoin-Adresse oder andere Infos hinzu",
+      "label": "Profilfelder",
+      "labelPlaceholder": "Beschriftung",
+      "removeField": "Feld entfernen",
+      "valuePlaceholder": "Wert oder URL"
+    },
+    "identity": {
+      "description": "Gestalte dein Profil mit Name, Bio, Bildern und Verifizierung. So sehen dich andere auf Nostr.",
+      "title": "Deine Identität"
+    },
+    "lud16": {
+      "description": "Deine Lightning-Adresse zum Empfangen von Zaps",
+      "label": "Lightning-Adresse"
+    },
+    "name": {
+      "description": "Dies ist dein Anzeigename, der anderen angezeigt wird.",
+      "label": "Name",
+      "placeholder": "Dein Name"
+    },
+    "nip05": {
+      "description": "Deine verifizierte Nostr-Kennung",
+      "label": "NIP-05-Kennung"
+    },
+    "picture": {
+      "description": "Lade ein Bild hoch oder gib eine URL an",
+      "label": "Profilbild"
+    },
+    "previewAlt": "{{label}}-Vorschau",
+    "save": "Profil speichern",
+    "toast": {
+      "bannerUploadFailed": "Banner konnte nicht hochgeladen werden. Bitte versuche es erneut.",
+      "bannerUploaded": "Banner erfolgreich hochgeladen",
+      "error": "Fehler",
+      "notLoggedIn": "Du musst eingeloggt sein, um dein Profil zu aktualisieren",
+      "pictureUploadFailed": "Profilbild konnte nicht hochgeladen werden. Bitte versuche es erneut.",
+      "pictureUploaded": "Profilbild erfolgreich hochgeladen",
+      "profileUpdated": "Dein Profil wurde aktualisiert",
+      "success": "Erfolg",
+      "updateFailed": "Profil konnte nicht aktualisiert werden. Bitte versuche es erneut."
+    },
+    "uploadCrop": "Hochladen & Zuschneiden",
+    "website": {
+      "description": "Deine persönliche Website oder dein Social-Link",
+      "label": "Website"
+    }
+  },
+  "imageCrop": {
+    "apply": "Zuschnitt übernehmen",
+    "hint": "Ziehen zum Positionieren · Mit Kneifgeste oder Scrollen zoomen",
+    "processing": "Wird verarbeitet…",
+    "reset": "Zurücksetzen",
+    "title": "Bild zuschneiden"
+  },
+  "muteRecovery": {
+    "current": "Aktuell",
+    "decryptionFailed": "Private Einträge konnten nicht entschlüsselt werden",
+    "description": "Durchsuche frühere Versionen deiner Mute-Liste und stelle sie wieder her.",
+    "empty": "Kein Verlauf der Mute-Liste gefunden. Dein Relay speichert möglicherweise keine historischen Ereignisse.",
+    "mutedItems_one": "{{formatted}} stummgeschalteter Eintrag",
+    "mutedItems_other": "{{formatted}} stummgeschaltete Einträge",
+    "restore": "Wiederherstellen",
+    "restoreFailed": "Wiederherstellung fehlgeschlagen",
+    "restoreFailedDescription": "Die Mute-Liste konnte nicht erneut veröffentlicht werden. Bitte versuche es erneut.",
+    "restored": "Mute-Liste wiederhergestellt",
+    "restoredDescription": "Erfolgreich vom {{date}} wiederhergestellt.",
+    "threadCount": "{{count}} Threads",
+    "title": "Wiederherstellung der Mute-Liste"
+  },
   "nav": {
     "ai-chat": "KI-Chat",
     "archive": "Archiv",
@@ -15,8 +102,8 @@
     "badges": "Abzeichen",
     "blobbi": "Blobbi",
     "bluesky": "Bluesky",
-    "books": "Bücher",
     "bookmarks": "Lesezeichen",
+    "books": "Bücher",
     "cards": "Memory-Karten",
     "changelog": "Changelog",
     "colors": "Farbmomente",
@@ -49,32 +136,190 @@
     "wikipedia": "Wikipedia",
     "world": "Welt"
   },
-  "sidebar": {
-    "addAccount": "Weiteres Konto hinzufügen",
-    "addDivider": "Trennlinie hinzufügen",
-    "addLink": "Link hinzufügen",
-    "addToSidebar": "{{label}} zur Seitenleiste hinzufügen",
-    "doneEditing": "Fertig",
-    "editSidebar": "Seitenleiste bearbeiten",
-    "invalidCountryCode": "Ungültiger Länder-/Regionscode",
-    "invalidIdentifier": "Ungültige Kennung",
-    "invalidNsite": "Ungültige nsite-Kennung (nur benannte Seiten werden unterstützt)",
-    "join": "Beitreten",
-    "linkInputPlaceholder": "URL, npub1..., nsite://..., ...",
-    "logOutAs": "@{{name}} abmelden",
-    "more": "Mehr...",
-    "removeDivider": "Trennlinie entfernen",
-    "removeItem": "{{label}} entfernen",
-    "setStatus": "Status festlegen",
-    "shareProfile": "Profil teilen",
-    "statusCleared": "Status geleert",
-    "statusPlaceholder": "Was machst du gerade?",
-    "statusUpdated": "Status aktualisiert",
-    "unsupportedIdentifier": "Nicht unterstützter Kennungstyp"
+  "paymentTargets": {
+    "addDonation": "Spende hinzufügen",
+    "addMethod": "Methode hinzufügen",
+    "addressAriaLabel": "{{method}}-Adresse",
+    "description": "Lass Unterstützer dir Krypto und Trinkgeld senden.",
+    "error": "Fehler",
+    "invalidAddress": {
+      "description": "„{{authority}}“ sieht nicht wie eine gültige {{method}}-Adresse aus.",
+      "descriptionHandle": "„{{authority}}“ sieht nicht wie eine gültige {{method}}-Adresse oder ein gültiger {{method}}-Handle aus.",
+      "title": "Ungültige {{method}}-Adresse"
+    },
+    "loading": "Laden…",
+    "remove": "{{method}} entfernen",
+    "saveFailed": "Zahlungsmethoden konnten nicht gespeichert werden.",
+    "title": "Spenden akzeptieren"
   },
   "settings": {
+    "advanced": {
+      "corsProxyDescription": "Proxy für Cross-Origin-Anfragen (NIP-05-Fallback). Verwende <code>{href}</code> als Platzhalter für die Ziel-URL.",
+      "corsProxyLabel": "CORS-Proxy",
+      "corsProxyUpdated": "CORS-Proxy aktualisiert",
+      "currency": "Währung",
+      "currencyDisplayDescription": "Wähle, wie Zap-Summen, Guthaben und andere Geldbeträge in der App angezeigt werden. USD wird mit dem aktuellen BTC-Kurs aus Satoshis umgerechnet; ist der Kurs nicht verfügbar, wird automatisch auf Satoshis umgestellt.",
+      "currencyDisplayLabel": "Beträge anzeigen in",
+      "currencyExample": "z. B.",
+      "currencySats": "Satoshis",
+      "currencyUpdated": "Währungsanzeige aktualisiert",
+      "currencyUpdatedSats": "Beträge werden in Satoshis angezeigt.",
+      "currencyUpdatedUsd": "Beträge werden in US-Dollar angezeigt.",
+      "currencyUsd": "US-Dollar",
+      "dangerZone": "Gefahrenzone",
+      "defaultLabel": "Standard:",
+      "deleteAccountDescription": "Lösche deine Daten dauerhaft aus dem Netzwerk, einschließlich Profil, Beiträge, Reaktionen und Direktnachrichten. Diese Aktion kann nicht rückgängig gemacht werden.",
+      "errorReporting": "Fehlerberichte",
+      "faviconUrlDescription": "URI-Vorlage zum Abrufen von Website-Favicons. Unterstützt RFC-6570-Variablen: <code>{href}</code>, <code>{hostname}</code>, <code>{origin}</code> usw.",
+      "faviconUrlLabel": "Favicon-URL",
+      "faviconUrlUpdated": "Favicon-URL aktualisiert",
+      "introDescription": "Wallet-Verbindungen, Systemkonfiguration und andere erweiterte Optionen.",
+      "introTitle": "Power-User-Einstellungen",
+      "linkPreviewUrlDescription": "URI-Vorlage zum Abrufen von Link-Vorschauen (liefert OEmbed-JSON). Unterstützt RFC-6570-Variablen: <code>{url}</code>, <code>{hostname}</code>, <code>{origin}</code> usw.",
+      "linkPreviewUrlLabel": "Link-Vorschau-URL",
+      "linkPreviewUrlUpdated": "Link-Vorschau-URL aktualisiert",
+      "metaDescription": "Erweiterte Einstellungen für Wallet, System und Power-User-Konfiguration",
+      "modifiedFromDefault": "Vom Standard geändert",
+      "restoreToDefault": "Auf Standard zurücksetzen",
+      "sentryDsnCleared": "Sentry-DSN geleert",
+      "sentryDsnDescription": "Sentry Data Source Name (DSN) für Fehlerberichte. Leer lassen, um Sentry zu deaktivieren.",
+      "sentryDsnRestored": "Sentry-DSN auf Standard zurückgesetzt",
+      "sentryDsnUpdated": "Sentry-DSN aktualisiert",
+      "shareErrorReports": "Fehlerberichte teilen",
+      "shareErrorReportsDescription": "Hilf, diese App zu verbessern, indem du automatisch Absturz- und Fehlerberichte sendest.",
+      "statsPubkeyDescription": "Vertrauenswürdiger Pubkey für vorberechnete Engagement-Statistiken (Likes, Reposts, Kommentare).",
+      "statsPubkeyError": "Der Pubkey muss genau 64 Hexadezimalzeichen lang sein",
+      "statsPubkeyLabel": "NIP-85-Statistik-Pubkey",
+      "statsPubkeyPlaceholder": "64-stelligen Hex-Pubkey eingeben",
+      "statsSourceCleared": "Statistikquelle geleert",
+      "statsSourceUpdated": "Statistikquelle aktualisiert",
+      "statsSourceUpdatedDescription": "NIP-85-Statistiken werden von diesem Pubkey bezogen.",
+      "subtitle": "Wallet-Verbindungen, Systemkonfiguration und andere erweiterte Optionen für Power-User.",
+      "system": "System",
+      "title": "Erweitert"
+    },
     "codex": "Kodex der Konfiguration",
+    "content": {
+      "addMuteFailed": "Stummschaltung konnte nicht hinzugefügt werden",
+      "autoplayVideos": "Videos automatisch abspielen",
+      "autoplayVideosDescription": "Videos in Feeds und Vorschauen automatisch (stumm) abspielen",
+      "contentControl": "Inhaltskontrolle",
+      "contentControlDescription": "Du entscheidest, was in deinen Feeds erscheint.",
+      "enterValue": "Bitte gib einen Wert ein",
+      "error": "Fehler",
+      "exemptFollows": "Personen, denen du folgst, nicht filtern",
+      "exemptFollowsDescription": "Stummgeschaltete Hashtags und Wörter verbergen keine Beiträge von Konten, denen du folgst. Stummgeschaltete Nutzer und Threads gelten weiterhin.",
+      "muteAdded": "Stummschaltung erfolgreich hinzugefügt",
+      "muteInput": {
+        "hashtag": "Hashtag (ohne #)",
+        "pubkey": "Öffentlicher Schlüssel (Hex oder npub)",
+        "thread": "Event-ID (Hex oder note)",
+        "word": "Wort oder Phrase"
+      },
+      "mutePlaceholder": {
+        "hashtag": "hashtag (ohne #)",
+        "pubkey": "npub1... oder Hex-Pubkey",
+        "thread": "note1... oder Hex-Event-ID",
+        "word": "Wort oder Phrase"
+      },
+      "muteRemoved": "Stummschaltung erfolgreich entfernt",
+      "muteTypeOptions": {
+        "hashtag": "Hashtag",
+        "thread": "Thread",
+        "user": "Nutzer",
+        "word": "Wort/Phrase"
+      },
+      "muteTypes": {
+        "hashtags": "Hashtags",
+        "threads": "Threads",
+        "users": "Nutzer",
+        "words": "Wörter"
+      },
+      "mutedContent": "Stummgeschaltete Inhalte",
+      "noMutedItems": "Noch keine stummgeschalteten Einträge",
+      "pageDescription": "Schalte Nutzer, Hashtags oder Wörter stumm und wähle, wie sensible Inhalte angezeigt werden. Stummschaltungen sind verschlüsselt und privat.",
+      "policyBlur": "Bis zum Aufdecken verwischen",
+      "policyBlurDescription": "Hinter einer Warnung verborgen, bis du es ansehen möchtest.",
+      "policyHide": "Komplett ausblenden",
+      "policyHideDescription": "Vollständig aus deinen Feeds entfernt.",
+      "policyShow": "Immer anzeigen",
+      "policyShowDescription": "Wird normal angezeigt, ohne Warnung.",
+      "recovery": "Wiederherstellung",
+      "removeMuteFailed": "Stummschaltung konnte nicht entfernt werden",
+      "removeMuteFor": "Stummschaltung für {{value}} entfernen",
+      "sensitiveContent": "Sensible Inhalte",
+      "sensitiveDescription": "Wie Beiträge angezeigt werden, die ihr Autor als sensibel markiert hat (NSFW, Spoiler usw.).",
+      "showCustomThemes": "Benutzerdefinierte Profildesigns anzeigen",
+      "showCustomThemesDescription": "Die benutzerdefinierten Designs anderer Nutzer anzeigen, wenn du ihre Profile besuchst",
+      "success": "Erfolg",
+      "viewingPreferences": "Anzeigeeinstellungen",
+      "whatToMute": "Was stummschalten"
+    },
     "deleteAccount": "Konto löschen",
+    "feed": {
+      "addTab": "Tab hinzufügen",
+      "appFeed": "{{appName}}-Feed",
+      "appFeedDescription": "Trendende und kuratierte Inhalte vom {{appName}}-Relay anzeigen",
+      "authorCount_one": "{{count}} Autor",
+      "authorCount_other": "{{count}} Autoren",
+      "community": "Community",
+      "communityDescription": "Lege eine Community-Domain fest. Wir laden die NIP-05-Nutzerliste herunter, um nur Beiträge von verifizierten Mitgliedern anzuzeigen.",
+      "communityFeed": "Community-Feed",
+      "communityFeedActive": "„{{label}}“-Tab für {{domain}}-Nutzer anzeigen",
+      "communityFeedInactive": "Lege unten eine Community fest, um diesen Feed zu aktivieren",
+      "communityRemoved": "Community entfernt",
+      "communityRemovedDescription": "Community-Feed geleert",
+      "communitySet": "Community festgelegt",
+      "communitySetDescription": "{{label}} mit {{count}} Nutzern",
+      "customTabs": "Eigene Tabs",
+      "domainRequired": "Domain erforderlich",
+      "domainRequiredDescription": "Bitte gib einen Domainnamen ein",
+      "downloadFailed": "Download fehlgeschlagen",
+      "downloadFailedDescription": "Community-Daten konnten nicht abgerufen werden",
+      "edit": "Bearbeiten",
+      "enabledOf": "{{enabled}} von {{total}} aktiv",
+      "feedNavigation": "Feed-Navigation",
+      "feedNavigationDescription": "Wähle, welche Tabs oben in deinem Startseiten-Feed erscheinen.",
+      "follows": "Gefolgte",
+      "geohashPlaceholder": "Geohash (z. B. u4pru)",
+      "globalFeed": "Globaler Feed",
+      "globalFeedDescription": "Beiträge von allen Nutzern im gesamten Netzwerk anzeigen",
+      "hashtagAdded": "#{{tag}} zu den Feed-Tabs hinzugefügt",
+      "hashtagAlreadyFollowed": "#{{tag}} wird bereits gefolgt",
+      "hashtagRemoved": "#{{tag}} aus den Feed-Tabs entfernt",
+      "hashtags": "Hashtags",
+      "homeFeedTabs": "Startseiten-Feed-Tabs",
+      "homepage": "Startseite",
+      "homepageDescription": "Wähle, welche Seite beim Öffnen der App angezeigt wird",
+      "homepageSet": "Startseite auf {{label}} festgelegt",
+      "interestTabs": "Interessen-Tabs",
+      "interestTabsDescription": "Hashtags und Orte, denen du folgst, erscheinen als Tabs im Startseiten-Feed.",
+      "kindCount": "{{count}} Kinds",
+      "kindLabel": "Kind {{kind}}",
+      "locationAdded": "{{tag}} zu den Feed-Tabs hinzugefügt",
+      "locationAlreadyFollowed": "{{tag}} wird bereits gefolgt",
+      "locationRemoved": "{{tag}} aus den Feed-Tabs entfernt",
+      "locations": "Orte",
+      "moreContentTypes": "Weitere Inhaltstypen",
+      "noCustomTabs": "Noch keine eigenen Tabs. Speichere eine Suche auf der Suchseite oder füge oben einen hinzu.",
+      "noHashtags": "Du folgst noch keinen Hashtags.",
+      "noLocations": "Du folgst noch keinen Orten.",
+      "otherStuff": "Anderes Zeug",
+      "otherStuffDescription": "Nostr ist nicht nur Textbeiträge: Wähle, was sonst noch in deinem Startseiten-Feed erscheint.",
+      "pageDescription": "Nostr unterstützt viele Inhaltstypen jenseits von Textbeiträgen. Passe an, welche in deinem Startseiten-Feed erscheinen.",
+      "postTypes": "Beitragstypen",
+      "postTypesDescription": "Zentrale Inhaltstypen, die in deinem Startseiten-Feed erscheinen.",
+      "remove": "Entfernen",
+      "removeHashtag": "#{{tag}} entfernen",
+      "removeLocation": "{{tag}} entfernen",
+      "savedFeedAdded": "„{{label}}“ zu den Startseiten-Feed-Tabs hinzugefügt",
+      "savedFeedRemoved": "„{{label}}“ entfernt",
+      "savedFeedUpdated": "Feed aktualisiert",
+      "showReplies": "Antworten im Feed anzeigen",
+      "showRepliesDescription": "Antworten von Personen, denen du folgst, einbeziehen, nicht nur Top-Level-Beiträge",
+      "userCount_one": "{{count}} Nutzer",
+      "userCount_other": "{{count}} Nutzer"
+    },
     "intro": "Gestalte deine Identität, stimme deinen Feed ab und verwalte, wie du dich mit dem Nostr-Netzwerk verbindest.",
     "introSub": "Alles, was du brauchst, damit sich dieser Ort wie deiner anfühlt.",
     "language": {
@@ -82,10 +327,283 @@
       "label": "Sprache",
       "system": "Systemstandard"
     },
+    "magic": {
+      "introDescription": "Nutze die mystischen Energien deines Geräts. Hülle deinen Cursor in elementares Feuer und lass jede Interaktion verzaubert wirken.",
+      "introTitle": "Arkane Konfiguration",
+      "magicMouse": "Magische Maus",
+      "magicMouseDescription": "Dein Cursor (oder dein Finger auf Touch-Geräten) verströmt magisches Feuer im Glanz deiner Primärfarbe. Bewege dich mit Bedacht: Jeder Weg, den du zeichnest, wird zu einer Flammenspur.",
+      "metaDescription": "Magische Cursor-Effekte und verzauberte Interface-Einstellungen",
+      "subtitle": "Nutze die mystischen Energien deines Geräts. Hülle deinen Cursor in elementares Feuer.",
+      "title": "Magie"
+    },
     "magicUnlocked": "✨ Magisches Potenzial freigeschaltet",
     "magicUnlockedDescription": "Du hast das Arkane erweckt. Dein Cursor brennt nun mit verzaubertem Feuer.",
     "metaDescription": "{{appName}}-Einstellungen verwalten",
+    "network": {
+      "appBlossomDescription": "Standard-Datei-Upload-Server für zuverlässiges Media-Hosting. Werden bei Aktivierung zusammen mit deinen persönlichen Servern verwendet.",
+      "appBlossomDisabled": "App-Blossom-Server deaktiviert",
+      "appBlossomDisabledDescription": "Es werden nur deine persönlichen Blossom-Server verwendet.",
+      "appBlossomEnabled": "App-Blossom-Server aktiviert",
+      "appBlossomEnabledDescription": "App-Blossom-Server werden zusammen mit deinen persönlichen Servern verwendet.",
+      "appBlossomServers": "App-Blossom-Server",
+      "appRelays": "App-Relays",
+      "appRelaysDescription": "Standard-Relays für zuverlässige Verbindungen. Werden bei Aktivierung zusammen mit deinen persönlichen Relays verwendet.",
+      "appRelaysDisabled": "App-Relays deaktiviert",
+      "appRelaysDisabledDescription": "Es werden nur deine persönlichen Relays verwendet.",
+      "appRelaysEnabled": "App-Relays aktiviert",
+      "appRelaysEnabledDescription": "App-Relays werden zusammen mit deinen persönlichen Relays verwendet.",
+      "auth": "Auth",
+      "blossomListPublishFailed": "Blossom-Serverliste konnte nicht veröffentlicht werden",
+      "blossomListPublishFailedDescription": "Beim Veröffentlichen deiner Serverliste auf Nostr ist ein Fehler aufgetreten.",
+      "blossomListPublished": "Blossom-Serverliste veröffentlicht",
+      "blossomListPublishedDescription": "Deine Blossom-Serverliste wurde auf Nostr veröffentlicht.",
+      "blossomServerUrl": "Blossom-Server-URL",
+      "blossomServers": "Blossom-Server",
+      "disabled": "Deaktiviert",
+      "enabled": "Aktiviert",
+      "imageQuality": {
+        "compressed": "komprimiert",
+        "original": "Original"
+      },
+      "imageUploads": "Bild-Uploads",
+      "invalidRelayUrl": "Ungültige Relay-URL",
+      "invalidRelayUrlDescription": "Bitte gib eine gültige Relay-URL ein (z. B. wss://relay.example.com)",
+      "invalidServerUrl": "Ungültige Server-URL",
+      "invalidServerUrlDescription": "Bitte gib eine gültige HTTPS-URL ein (z. B. https://blossom.example.com/)",
+      "loginToSync": "Logge dich ein, um deine Relay-Liste mit Nostr zu synchronisieren",
+      "loginToSyncBlossom": "Logge dich ein, um deine Blossom-Serverliste mit Nostr zu synchronisieren",
+      "metaDescription": "Relays und Datei-Upload-Server verwalten",
+      "networkConnections": "Netzwerkverbindungen",
+      "networkConnectionsDescription": "Verwalte deine Relay-Verbindungen. Relays sind Server, die Nostr-Events speichern und im Netzwerk verteilen.",
+      "noBlossomServers": "Keine persönlichen Blossom-Server konfiguriert. Füge unten einen Server hinzu oder aktiviere oben die App-Blossom-Server.",
+      "noRelays": "Keine persönlichen Relays konfiguriert. Füge unten Relays hinzu.",
+      "noRelaysWithAppRelays": "Keine persönlichen Relays konfiguriert. Füge unten Relays hinzu oder lasse oben die App-Relays aktiviert.",
+      "pageDescription": "Relays sind Server, die Inhalte im Nostr-Netzwerk speichern und verteilen. Blossom-Server kümmern sich um Datei-Uploads.",
+      "paid": "Kostenpflichtig",
+      "read": "Lesen",
+      "relayExists": "Relay bereits vorhanden",
+      "relayExistsDescription": "Dieses Relay ist bereits in deiner Liste.",
+      "relayIcon": "{{name}}-Symbol",
+      "relayListPublishFailed": "Relay-Liste konnte nicht veröffentlicht werden",
+      "relayListPublishFailedDescription": "Beim Veröffentlichen deiner Relay-Liste auf Nostr ist ein Fehler aufgetreten.",
+      "relayListPublished": "Relay-Liste veröffentlicht",
+      "relayListPublishedDescription": "Deine Relay-Liste wurde auf Nostr veröffentlicht.",
+      "relayUrl": "Relay-URL",
+      "relays": "Relays",
+      "serverAlreadyAdded": "Server bereits hinzugefügt",
+      "uploadQuality": "Upload-Qualität",
+      "uploadQualityDescription": "Komprimiert verkleinert große Bilder und wählt das kleinste Format. Original lädt Bilder exakt so hoch, wie sie sind.",
+      "userRelaysDisabled": "Deine Relays deaktiviert",
+      "userRelaysDisabledDescription": "Deine persönlichen Relays werden nicht verwendet. Es werden nur App-Relays abgefragt.",
+      "userRelaysEnabled": "Deine Relays aktiviert",
+      "userRelaysEnabledDescription": "Deine persönlichen Relays werden zusammen mit den App-Relays verwendet, wenn diese aktiviert sind.",
+      "write": "Schreiben",
+      "yourBlossomDescription": "Deine persönliche Blossom-Serverliste (BUD-03). Wird als Kind 10063 auf Nostr synchronisiert, wenn du eingeloggt bist.",
+      "yourBlossomServers": "Deine Blossom-Server",
+      "yourRelays": "Deine Relays",
+      "yourRelaysDescription": "Deine persönliche Relay-Liste. Standardmäßig deaktiviert: Aktiviere sie, um deine Relays in Abfragen und Veröffentlichungen einzubeziehen.",
+      "yourRelaysLogin": "Logge dich ein, um deine Liste mit Nostr zu synchronisieren.",
+      "yourRelaysSynced": "Deine Liste wird weiterhin mit Nostr synchronisiert, wenn du eingeloggt bist."
+    },
+    "notifications": {
+      "batteryWarning": "Die Akkuoptimierung ist für {{appName}} aktiviert. Android kann die Hintergrund-Relay-Verbindung trennen und verhindern, dass sie nach einem Neustart wiederhergestellt wird.",
+      "blocked": "Benachrichtigungen sind blockiert. Ändere deine Browser-Einstellungen, um Benachrichtigungen von dieser Seite zu erlauben.",
+      "deliveryMethod": "Zustellmethode",
+      "deliveryMethodDescription": "Wähle, wie Benachrichtigungen auf dein Gerät zugestellt werden.",
+      "disableBatteryOptimization": "Akkuoptimierung deaktivieren",
+      "enableFailed": "Benachrichtigungen konnten nicht aktiviert werden",
+      "enableFailedDescription": "Bitte versuche es erneut.",
+      "enablePush": "Push-Benachrichtigungen aktivieren",
+      "enablePushDescription": "Benachrichtigungen über Aktivitäten zu deinen Beiträgen erhalten",
+      "filter": "Filter",
+      "metaDescription": "Benachrichtigungseinstellungen konfigurieren",
+      "notSupported": "Dein Browser unterstützt keine Push-Benachrichtigungen.",
+      "notifyMeAbout": "Benachrichtige mich über",
+      "onlyFollowing": "Nur von Personen, denen ich folge",
+      "onlyFollowingDescription": "Benachrichtigungen von Konten ausblenden, denen du nicht folgst",
+      "pushTitle": "Push-Benachrichtigungen",
+      "stylePersistent": "Dauerhaft",
+      "stylePersistentDescription": "Hält eine offene Relay-Verbindung im Hintergrund, damit Benachrichtigungen sofort ankommen. Nutze dies für zuverlässige Zustellung auf Geräten ohne Unterstützung für Push-Benachrichtigungen.",
+      "stylePush": "Push",
+      "stylePushDescription": "Standard-Benachrichtigungen. Kein dauerhaftes Symbol in der Statusleiste.",
+      "subtitle": "Passe an, welche Benachrichtigungen du erhältst.",
+      "title": "Benachrichtigungen",
+      "type": {
+        "badges": {
+          "description": "Wenn dir jemand ein Abzeichen verleiht",
+          "label": "Abzeichen-Verleihungen"
+        },
+        "comments": {
+          "description": "Wenn jemand deine Beiträge kommentiert oder darauf antwortet",
+          "label": "Kommentare & Antworten"
+        },
+        "highlights": {
+          "description": "Wenn jemand deine Inhalte hervorhebt",
+          "label": "Highlights"
+        },
+        "letters": {
+          "description": "Wenn dir jemand einen Brief schickt",
+          "label": "Briefe"
+        },
+        "mentions": {
+          "description": "Wenn dich jemand in einer Notiz erwähnt",
+          "label": "Erwähnungen"
+        },
+        "quizzes": {
+          "description": "Wenn jemand dein Quiz spielt",
+          "label": "Quizze"
+        },
+        "reactions": {
+          "description": "Wenn jemand auf deine Beiträge reagiert",
+          "label": "Reaktionen"
+        },
+        "reposts": {
+          "description": "Wenn jemand deine Notizen repostet",
+          "label": "Reposts"
+        },
+        "zaps": {
+          "description": "Wenn dir jemand einen Lightning- oder On-Chain-Zap schickt",
+          "label": "Zaps"
+        }
+      },
+      "types": "Typen"
+    },
     "openMagic": "Magie-Einstellungen öffnen",
+    "profile": {
+      "advanced": "Erweitert",
+      "backupKey": {
+        "bunkerNote": "Du bist mit einem Remote-Signer (NIP-46) angemeldet. Dein geheimer Schlüssel wird von diesem Signer verwahrt und kann nicht aus {{appName}} exportiert werden.",
+        "button": "Schlüssel sichern",
+        "copyAriaLabel": "Geheimen Schlüssel kopieren",
+        "copyFailed": "Kopieren fehlgeschlagen",
+        "copyFailedDescription": "Auf die Zwischenablage konnte nicht zugegriffen werden. Blende den Schlüssel ein und kopiere ihn manuell.",
+        "description": "Dieser geheime Schlüssel kontrolliert dein Konto auf {{appName}}. Jeder, der ihn besitzt, kann Beiträge veröffentlichen, deine DMs lesen und sich als du ausgeben. Bewahre ihn in einem Passwort-Manager oder an einem anderen Ort auf, zu dem nur du Zugang hast.",
+        "extensionNote": "Du bist mit einer Browser-Erweiterung (NIP-07) angemeldet. Dein geheimer Schlüssel ist dort gespeichert: Verwalte oder exportiere ihn direkt in der Erweiterung.",
+        "hideAriaLabel": "Geheimen Schlüssel ausblenden",
+        "inputAriaLabel": "Dein geheimer Schlüssel",
+        "revealAriaLabel": "Geheimen Schlüssel anzeigen",
+        "saveFailed": "Speichern fehlgeschlagen",
+        "saveFailedDescription": "Der Schlüssel konnte nicht gespeichert werden. Bitte kopiere ihn manuell.",
+        "saved": "Geheimer Schlüssel gespeichert",
+        "savedToFileDescription": "Dein geheimer Schlüssel wurde im Ordner „Dokumente“ auf deinem Gerät gespeichert.",
+        "saving": "Speichern…",
+        "title": "Dein Schlüssel",
+        "warning": "Teile deinen geheimen Schlüssel NIEMALS mit anderen. Vermeide es, Screenshots davon zu machen oder ihn irgendwo einzufügen, außer in einem Passwort-Manager. Wenn er geteilt wird, können andere auf dein Konto zugreifen."
+      },
+      "bannerUpdated": "Banner aktualisiert",
+      "birthday": {
+        "dayAriaLabel": "Tag des Geburtstags",
+        "dayPlaceholder": "Tag",
+        "description": "Wird auf deinem Profil angezeigt: Freunde bekommen Konfetti und ein Geburtstagslied, wenn sie an dem Tag vorbeischauen. Jedes Feld ist optional; lass das Jahr weg, wenn du dein Alter lieber privat hältst.",
+        "error": "Fehler",
+        "errorDescription": "Geburtstag konnte nicht gespeichert werden.",
+        "monthAriaLabel": "Monat des Geburtstags",
+        "monthPlaceholder": "Monat",
+        "months": {
+          "april": "April",
+          "august": "August",
+          "december": "Dezember",
+          "february": "Februar",
+          "january": "Januar",
+          "july": "Juli",
+          "june": "Juni",
+          "march": "März",
+          "may": "Mai",
+          "november": "November",
+          "october": "Oktober",
+          "september": "September"
+        },
+        "removeAriaLabel": "Geburtstag entfernen",
+        "removed": "Geburtstag entfernt",
+        "saved": "Geburtstag gespeichert",
+        "title": "Geburtstag",
+        "yearAriaLabel": "Jahr des Geburtstags (optional)",
+        "yearError": "Gib ein vierstelliges Jahr zwischen 1900 und {{year}} ein oder lasse das Feld leer.",
+        "yearPlaceholder": "Jahr (optional)"
+      },
+      "bot": {
+        "description": "Dieses Konto als automatisiert markieren",
+        "label": "Bot-Konto"
+      },
+      "cropBannerTitle": "Banner zuschneiden",
+      "cropPictureTitle": "Profilbild zuschneiden",
+      "fields": {
+        "addressPlaceholder": "Adresse",
+        "labelPlaceholder": "Beschriftung",
+        "lightningLabel": "Lightning",
+        "mediaPlaceholder": "Datei hochladen oder direkten Datei-Link einfügen",
+        "presets": {
+          "custom": {
+            "description": "Beliebiges eigenes Feld erstellen",
+            "label": "Eigenes"
+          },
+          "email": {
+            "defaultLabel": "E-Mail",
+            "description": "E-Mail-Adresse für Kontakt",
+            "label": "E-Mail"
+          },
+          "link": {
+            "description": "Link zu einer beliebigen Website oder einem Profil",
+            "label": "Link"
+          },
+          "music": {
+            "description": "Einen Song oder Audioclip hochladen",
+            "label": "Musik",
+            "placeholder": "Audio hochladen oder direkten Datei-Link einfügen"
+          },
+          "photo": {
+            "description": "Ein Bild hochladen",
+            "label": "Foto",
+            "placeholder": "Bild hochladen oder direkten Datei-Link einfügen"
+          },
+          "video": {
+            "description": "Einen Videoclip hochladen",
+            "label": "Video",
+            "placeholder": "Video hochladen oder direkten Datei-Link einfügen"
+          },
+          "wallet": {
+            "description": "Wallet-Adresse für Kryptowährungen",
+            "label": "Wallet"
+          },
+          "weather": {
+            "defaultLabel": "Wetter",
+            "description": "Eine Nostr-Wetterstation verbinden",
+            "label": "Wetter",
+            "placeholder": "npub1... oder naddr1... (#stations-id optional)"
+          }
+        },
+        "previewTitle": "Vorschau der Profilfelder",
+        "tickerPlaceholder": "Ticker",
+        "title": "Profilfelder",
+        "uploadTooltip": "Datei zum Hochladen auswählen",
+        "uploadTooltipMedia": "Mediendatei zum Hochladen auswählen",
+        "valueOrUrlPlaceholder": "Wert oder URL",
+        "warnings": {
+          "audioMaybe": "Diese URL funktioniert möglicherweise nicht als Audio-Player. Für beste Ergebnisse lade eine Datei über den Button hoch oder füge einen direkten Link zu einer Audiodatei ein.",
+          "audioMismatch": "Diese URL verweist nicht auf eine Audiodatei. Lade eine Audiodatei hoch oder verwende einen direkten Link mit der Endung .mp3, .ogg, .wav usw.",
+          "imageMaybe": "Diese URL wird möglicherweise nicht als Bild angezeigt. Für beste Ergebnisse lade eine Datei über den Button hoch oder füge einen direkten Link zu einer Bilddatei ein.",
+          "imageMismatch": "Diese URL verweist nicht auf ein Bild. Lade ein Bild hoch oder verwende einen direkten Link mit der Endung .jpg, .png, .webp usw.",
+          "videoMaybe": "Diese URL wird möglicherweise nicht als Video angezeigt. Für beste Ergebnisse lade eine Datei über den Button hoch oder füge einen direkten Link zu einer Videodatei ein.",
+          "videoMismatch": "Diese URL verweist nicht auf ein Video. Lade ein Video hoch oder verwende einen direkten Link mit der Endung .mp4, .webm, .mov usw."
+        },
+        "websiteLabel": "Website"
+      },
+      "identity": {
+        "description": "Tippe auf ein beliebiges Feld auf der Karte, um es zu bearbeiten. Klicke auf deinen Avatar oder dein Banner, um ein neues Bild hochzuladen und zuzuschneiden.",
+        "title": "Deine Identität"
+      },
+      "mediaUploaded": "Mediendatei hochgeladen",
+      "metaDescription": "Dein {{appName}}-Profil bearbeiten",
+      "pictureUpdated": "Profilbild aktualisiert",
+      "saveError": "Fehler",
+      "saveErrorDescription": "Profil konnte nicht gespeichert werden.",
+      "saved": "Profil gespeichert",
+      "title": "Profil",
+      "uploadFailed": "Hochladen fehlgeschlagen",
+      "uploadFailedDescription": "Bitte versuche es erneut.",
+      "uploaded": "Hochgeladen",
+      "uploading": "Hochladen…"
+    },
     "sections": {
       "advanced": {
         "description": "Wallet-, System- und Power-User-Einstellungen",
@@ -117,6 +635,189 @@
       }
     },
     "title": "Einstellungen",
-    "unlockMagic": "Magisches Potenzial freischalten"
+    "unlockMagic": "Magisches Potenzial freischalten",
+    "wallet": {
+      "active": "Aktiv",
+      "activeWalletChanged": "Aktives Wallet geändert",
+      "activeWalletChangedDescription": "Das ausgewählte Wallet ist jetzt für Zaps aktiv.",
+      "alreadyInList": "Bereits in der Liste",
+      "apisRestored": "Bitcoin-APIs auf Standard zurückgesetzt",
+      "bitcoinApiUrlLabel": "Bitcoin-API-URL",
+      "bitcoinApis": "Bitcoin-APIs",
+      "bitcoinApisDescription": "Esplora-kompatible Bitcoin-REST-Endpunkte, die vom Wallet, von On-Chain-Zaps und von den Transaktions-/Adressseiten verwendet werden. Sie werden der Reihe nach versucht: Ist der oberste limitiert oder nicht erreichbar, wird automatisch der nächste versucht. Sortiere so, dass dein bevorzugter Endpunkt ganz oben steht.",
+      "connect": "Verbinden",
+      "connectDialogDescription": "Füge einen Verbindungs-String aus deinem NWC-kompatiblen Wallet ein.",
+      "connectDialogTitle": "NWC-Wallet verbinden",
+      "connecting": "Verbinden...",
+      "connectionUriRequired": "Verbindungs-URI erforderlich",
+      "connectionUriRequiredDescription": "Bitte gib eine gültige NWC-Verbindungs-URI ein.",
+      "fallback": "Fallback {{index}}",
+      "installHelp": "Installiere eine WebLN-Browser-Erweiterung oder verbinde ein NWC-Wallet, um Zaps zu senden.",
+      "invalidApiUrl": "Ungültige API-URL",
+      "invalidApiUrlDescription": "Gib eine gültige HTTPS-URL ein (z. B. https://mempool.space/api)",
+      "lightningWallet": "Lightning-Wallet",
+      "metaDescription": "Wallet-Verbindungen verwalten",
+      "moveDown": "Nach unten",
+      "moveUp": "Nach oben",
+      "noWallets": "Keine Wallets verbunden",
+      "noWalletsDescription": "Füge eine NWC-Verbindung hinzu, um sofortige Zaps zu aktivieren.",
+      "none": "Keine",
+      "notFound": "Nicht gefunden",
+      "nwcConnection": "NWC-Verbindung",
+      "oneApiRequired": "Mindestens eine API ist erforderlich",
+      "oneApiRequiredDescription": "Füge einen weiteren Endpunkt hinzu, bevor du diesen entfernst, oder stelle die Standardwerte wieder her.",
+      "primary": "Primär",
+      "ready": "Bereit",
+      "remoteWalletConnection": "Remote-Wallet-Verbindung",
+      "remove": "Entfernen",
+      "removeWallet": "Wallet entfernen",
+      "restoreDefaults": "Standards wiederherstellen",
+      "restoreDefaultsTitle": "Die Standardliste mempool.space → mempool.emzy.de → blockstream.info wiederherstellen",
+      "setAsActive": "Als aktiv festlegen",
+      "status": "Status",
+      "subtitle": "Wallet-Verbindungen und Zahlungen verwalten",
+      "title": "Wallet",
+      "walletNamePlaceholder": "Wallet-Name (optional)",
+      "walletsConnected_one": "{{count}} Wallet verbunden",
+      "walletsConnected_other": "{{count}} Wallets verbunden",
+      "weblnDescription": "Browser-Erweiterung"
+    }
+  },
+  "sidebar": {
+    "addAccount": "Weiteres Konto hinzufügen",
+    "addDivider": "Trennlinie hinzufügen",
+    "addLink": "Link hinzufügen",
+    "addToSidebar": "{{label}} zur Seitenleiste hinzufügen",
+    "doneEditing": "Fertig",
+    "editSidebar": "Seitenleiste bearbeiten",
+    "invalidCountryCode": "Ungültiger Länder-/Regionscode",
+    "invalidIdentifier": "Ungültige Kennung",
+    "invalidNsite": "Ungültige nsite-Kennung (nur benannte Seiten werden unterstützt)",
+    "join": "Beitreten",
+    "linkInputPlaceholder": "URL, npub1..., nsite://..., ...",
+    "logOutAs": "@{{name}} abmelden",
+    "more": "Mehr...",
+    "removeDivider": "Trennlinie entfernen",
+    "removeItem": "{{label}} entfernen",
+    "setStatus": "Status festlegen",
+    "shareProfile": "Profil teilen",
+    "statusCleared": "Status geleert",
+    "statusPlaceholder": "Was machst du gerade?",
+    "statusUpdated": "Status aktualisiert",
+    "unsupportedIdentifier": "Nicht unterstützter Kennungstyp"
+  },
+  "widgets": {
+    "aiChat": {
+      "creditsPost": ", um mit Dork zu chatten.",
+      "creditsPre": "Hol dir Credits auf",
+      "description": "Chat mit Shakespeare AI",
+      "emptyPrompt": "Frag mich alles...",
+      "errorMessage": "Entschuldigung, etwas ist schiefgelaufen. Bitte versuche es erneut.",
+      "loginPrompt": "Logge dich ein, um mit Dork zu chatten",
+      "messagePlaceholder": "Nachricht...",
+      "open": "KI-Chat öffnen",
+      "title": "KI-Chat"
+    },
+    "articles": {
+      "description": "Longform-Artikel aus deinem Feed",
+      "title": "Artikel",
+      "viewAll": "Alle Artikel ansehen"
+    },
+    "blobbi": {
+      "actionFailed": "Aktion fehlgeschlagen",
+      "companionSet": "Begleiter festgelegt!",
+      "companionSetDesc": "{{name}} ist jetzt dein Begleiter",
+      "companionUnset": "Begleiter entfernt",
+      "companionUnsetDesc": "{{name}} ist nicht mehr dein Begleiter",
+      "companionUpdateFailed": "Begleiter konnte nicht aktualisiert werden",
+      "description": "Dein virtuelles Haustier",
+      "hatch": "Lass deinen Blobbi schlüpfen",
+      "hatchDesc": "Hol dir deinen virtuellen Begleiter",
+      "loginPrompt": "Logge dich ein, um deinen Blobbi schlüpfen zu lassen",
+      "resting": "Ruht...",
+      "switch": "Blobbi wechseln",
+      "switchTo": "Zu {{name}} wechseln",
+      "takeAlong": "Mitnehmen",
+      "title": "Blobbi",
+      "withYou": "Bei dir",
+      "wokeUp": "Aufgewacht!"
+    },
+    "bluesky": {
+      "description": "Trendende Beiträge von Bluesky",
+      "empty": "Gerade keine trendenden Beiträge.",
+      "loadFailed": "Bluesky-Beiträge konnten nicht geladen werden.",
+      "title": "Bluesky",
+      "viewMore": "Mehr auf Bluesky ansehen"
+    },
+    "categories": {
+      "content": "Inhalte",
+      "discovery": "Entdecken",
+      "personal": "Persönlich"
+    },
+    "common": {
+      "addWidget": "Widget hinzufügen",
+      "close": "Schließen",
+      "loadFailed": "{{name}} konnte nicht geladen werden.",
+      "media": "(Medien)",
+      "reloadPage": "Seite neu laden",
+      "removeWidget": "Widget entfernen",
+      "unknownWidget": "Unbekanntes Widget."
+    },
+    "events": {
+      "description": "Anstehende Veranstaltungen",
+      "title": "Veranstaltungen",
+      "viewAll": "Alle Veranstaltungen ansehen"
+    },
+    "feed": {
+      "empty": "Noch keine Inhalte."
+    },
+    "hotPosts": {
+      "description": "Top-Beiträge aus dem Hot-Feed",
+      "empty": "Gerade keine angesagten Beiträge.",
+      "title": "Angesagte Beiträge",
+      "viewAll": "Alle auf Trends ansehen"
+    },
+    "music": {
+      "description": "Musiktracks aus deinem Feed",
+      "empty": "Noch keine Musik.",
+      "title": "Musik"
+    },
+    "nostrClients": {
+      "description": "Unterschiedliche Autoren pro Client in den letzten 30 Tagen",
+      "title": "Nostr-Clients"
+    },
+    "photo": {
+      "alt": "Foto",
+      "description": "Neueste Fotos aus deinem Feed",
+      "empty": "Noch keine Fotos.",
+      "title": "Fotos"
+    },
+    "picker": {
+      "title": "Widget hinzufügen"
+    },
+    "status": {
+      "clearFailed": "Status konnte nicht geleert werden",
+      "cleared": "Status geleert",
+      "description": "Dein aktueller Status, direkt bearbeitbar",
+      "loginPrompt": "Logge dich ein, um einen Status festzulegen.",
+      "placeholder": "Was machst du gerade?",
+      "setPrompt": "Klicke, um einen Status festzulegen...",
+      "title": "Status",
+      "updateFailed": "Status konnte nicht aktualisiert werden",
+      "updated": "Status aktualisiert"
+    },
+    "trending": {
+      "description": "Die angesagtesten Hashtags mit Sparkline-Charts",
+      "empty": "Keine Trends verfügbar.",
+      "peopleTalking": "Personen sprechen darüber",
+      "title": "Trends",
+      "viewAll": "Alle Trends ansehen"
+    },
+    "wikipedia": {
+      "description": "Der Artikel des Tages von Wikipedia",
+      "empty": "Heute kein Artikel des Tages.",
+      "loadFailed": "Artikel des Tages konnte nicht geladen werden.",
+      "title": "Wikipedia"
+    }
   }
 }

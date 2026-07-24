@@ -5,6 +5,7 @@
 
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -33,12 +34,15 @@ interface FeedWidgetProps {
 }
 
 /** Compact feed widget showing recent events for given kind(s). */
-export function FeedWidget({ kinds, feedPath, feedLabel, limit = 5, emptyMessage = 'No content yet.' }: FeedWidgetProps) {
+export function FeedWidget({ kinds, feedPath, feedLabel, limit = 5, emptyMessage }: FeedWidgetProps) {
+  const { t } = useTranslation();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
   const { data: curatorFollows } = useCuratorFollowList();
   const followPubkeys = followData?.pubkeys;
+
+  const emptyText = emptyMessage ?? t('widgets.feed.empty');
 
   const kindsKey = kinds.join(',');
 
@@ -75,7 +79,7 @@ export function FeedWidget({ kinds, feedPath, feedLabel, limit = 5, emptyMessage
   }
 
   if (filtered.length === 0) {
-    return <p className="text-sm text-muted-foreground p-1">{emptyMessage}</p>;
+    return <p className="text-sm text-muted-foreground p-1">{emptyText}</p>;
   }
 
   return (
@@ -92,22 +96,23 @@ export function FeedWidget({ kinds, feedPath, feedLabel, limit = 5, emptyMessage
 
 /** Minimal event card for sidebar widgets. */
 function CompactEventCard({ event }: { event: NostrEvent }) {
+  const { t } = useTranslation();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || t('common.anonymous');
   const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
 
   // Try to get a title from tags (articles, events, etc.)
-  const title = event.tags.find(([t]) => t === 'title')?.[1];
+  const title = event.tags.find(([name]) => name === 'title')?.[1];
 
   // Build a snippet from content
   const snippet = useMemo(() => {
     if (title) return title;
     const clean = event.content.replace(/https?:\/\/\S+/g, '').trim();
     if (clean.length > 100) return clean.slice(0, 100) + '...';
-    return clean || '(media)';
-  }, [event.content, title]);
+    return clean || t('widgets.common.media');
+  }, [event.content, title, t]);
 
   return (
     <Link
