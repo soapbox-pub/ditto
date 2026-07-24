@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { FormattedMessage } from 'react-intl';
 import { MessageCircle, Repeat2, Heart } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
@@ -61,11 +62,11 @@ export function BlueskyWidget() {
   }
 
   if (isError) {
-    return <p className="text-sm text-muted-foreground p-1">Failed to load Bluesky posts.</p>;
+    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.bluesky.loadFailed" defaultMessage={"Failed to load Bluesky posts."} /></p>;
   }
 
   if (!posts || posts.length === 0) {
-    return <p className="text-sm text-muted-foreground p-1">No trending posts right now.</p>;
+    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.bluesky.empty" defaultMessage={"No trending posts right now."} /></p>;
   }
 
   return (
@@ -74,7 +75,7 @@ export function BlueskyWidget() {
         <BlueskyPostCard key={post.cid} post={post} />
       ))}
       <div className="pt-1 px-2">
-        <Link to="/bluesky" className="text-xs text-primary hover:underline">View more on Bluesky</Link>
+        <Link to="/bluesky" className="text-xs text-primary hover:underline"><FormattedMessage id="widgets.bluesky.viewMore" defaultMessage={"View more on Bluesky"} /></Link>
       </div>
     </div>
   );

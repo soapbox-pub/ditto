@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, lazy, Suspense, memo } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import {
   DndContext,
   closestCenter,
@@ -22,7 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
-import { getWidgetDefinition } from '@/lib/sidebarWidgets';
+import { getWidgetDefinition, useWidgetLabel } from '@/lib/sidebarWidgets';
 import type { WidgetConfig } from '@/contexts/AppContext';
 import type { WidgetDefinition } from '@/lib/sidebarWidgets';
 
@@ -45,6 +46,8 @@ const WidgetPickerDialog = lazy(() => import('@/components/WidgetPickerDialog').
 // ── Widget content resolver ──────────────────────────────────────────────────
 
 function WidgetContent({ id }: { id: string }) {
+  const intl = useIntl();
+
   switch (id) {
     case 'trends':
       return <TrendingWidget />;
@@ -67,12 +70,12 @@ function WidgetContent({ id }: { id: string }) {
     case 'feed:music':
       return <MusicWidget />;
     case 'feed:articles':
-      return <FeedWidget kinds={[30023]} feedPath="/articles" feedLabel="View all articles" />;
+      return <FeedWidget kinds={[30023]} feedPath="/articles" feedLabel={intl.formatMessage({ id: 'widgets.articles.viewAll', defaultMessage: "View all articles" })} />;
     case 'feed:events':
-      return <FeedWidget kinds={[31922, 31923]} feedPath="/events" feedLabel="View all events" />;
+      return <FeedWidget kinds={[31922, 31923]} feedPath="/events" feedLabel={intl.formatMessage({ id: 'widgets.events.viewAll', defaultMessage: "View all events" })} />;
 
     default:
-      return <p className="text-xs text-muted-foreground p-1">Unknown widget.</p>;
+      return <p className="text-xs text-muted-foreground p-1"><FormattedMessage id="widgets.common.unknownWidget" defaultMessage={"Unknown widget."} /></p>;
   }
 }
 
@@ -91,12 +94,12 @@ function WidgetSkeleton() {
 function WidgetErrorFallback({ name }: { name: string }) {
   return (
     <div className="flex flex-col items-center gap-2 py-4 px-3 text-center">
-      <p className="text-xs text-muted-foreground">{name} failed to load.</p>
+      <p className="text-xs text-muted-foreground"><FormattedMessage id="widgets.common.loadFailed" defaultMessage={"{name} failed to load."} values={{ name }} /></p>
       <button
         onClick={() => window.location.reload()}
         className="text-xs text-primary hover:underline"
       >
-        Reload page
+        <FormattedMessage id="widgets.common.reloadPage" defaultMessage={"Reload page"} />
       </button>
     </div>
   );
@@ -112,6 +115,7 @@ interface SortableWidgetProps {
 }
 
 const SortableWidget = memo(function SortableWidget({ config, definition, onRemove, onHeightChange }: SortableWidgetProps) {
+  const label = useWidgetLabel(definition.id);
   const {
     attributes,
     listeners,
@@ -137,7 +141,7 @@ const SortableWidget = memo(function SortableWidget({ config, definition, onRemo
         isDragging={isDragging}
         dragHandleProps={listeners}
       >
-        <ErrorBoundary fallback={<WidgetErrorFallback name={definition.label} />} reportToSentry>
+        <ErrorBoundary fallback={<WidgetErrorFallback name={label} />} reportToSentry>
           <Suspense fallback={<WidgetSkeleton />}>
             <WidgetContent id={config.id} />
           </Suspense>
@@ -238,7 +242,7 @@ export function WidgetSidebar() {
               className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-background/85 text-muted-foreground hover:text-foreground hover:bg-background transition-colors text-xs"
             >
               <Plus className="size-3.5" />
-              Add widget
+              <FormattedMessage id="widgets.common.addWidget" defaultMessage={"Add widget"} />
             </button>
           </div>
         </SortableContext>

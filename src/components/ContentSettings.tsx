@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { IntroImage } from '@/components/IntroImage';
 import {
   Users, Download, Loader2, X, Pencil, Home, Globe, MapPin,
@@ -35,6 +36,7 @@ import type { SavedFeed, TabFilter, ContentWarningPolicy } from '@/contexts/AppC
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 
 export function ContentSettings() {
+
   return (
     <div>
       {/* Homepage Section */}
@@ -43,7 +45,7 @@ export function ContentSettings() {
       {/* Feed Tabs Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">Home Feed Tabs</h2>
+          <h2 className="text-base font-semibold"><FormattedMessage id="settings.feed.homeFeedTabs" defaultMessage={"Home Feed Tabs"} /></h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
@@ -54,13 +56,13 @@ export function ContentSettings() {
       {/* Notes Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">Post Types</h2>
+          <h2 className="text-base font-semibold"><FormattedMessage id="settings.feed.postTypes" defaultMessage={"Post Types"} /></h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
           <div className="px-3 pt-3 pb-2">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Core content types that appear in your home feed.
+              <FormattedMessage id="settings.feed.postTypesDescription" defaultMessage={"Core content types that appear in your home feed."} />
             </p>
           </div>
 
@@ -71,7 +73,7 @@ export function ContentSettings() {
       {/* Other Stuff Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">More Content Types</h2>
+          <h2 className="text-base font-semibold"><FormattedMessage id="settings.feed.moreContentTypes" defaultMessage={"More Content Types"} /></h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
@@ -79,9 +81,9 @@ export function ContentSettings() {
           <div className="flex items-center gap-4 px-3 pt-3 pb-2">
             <IntroImage src="/feed-intro.png" size="w-28" />
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold">Other Stuff</h3>
+              <h3 className="text-sm font-semibold"><FormattedMessage id="settings.feed.otherStuff" defaultMessage={"Other Stuff"} /></h3>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Nostr isn't just text posts — pick what else shows up in your home feed.
+                <FormattedMessage id="settings.feed.otherStuffDescription" defaultMessage={"Nostr isn't just text posts — pick what else shows up in your home feed."} />
               </p>
             </div>
           </div>
@@ -238,7 +240,7 @@ function FeedSettingsFormInternals() {
               <span className="flex items-center gap-3 min-w-0">
                 <span className="text-sm font-medium">{SECTION_LABELS[section]}</span>
                 <Badge variant="secondary" className="shrink-0 font-normal">
-                  {enabled} of {total} on
+                  <FormattedMessage id="settings.feed.enabledOf" defaultMessage={"{enabled} of {total} on"} values={{ enabled, total }} />
                 </Badge>
               </span>
             </AccordionTrigger>
@@ -258,6 +260,7 @@ function FeedSettingsFormInternals() {
 
 // Feed Tabs Section Component
 function FeedTabsSection() {
+  const intl = useIntl();
   const { toast } = useToast();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
@@ -309,8 +312,8 @@ function FeedTabsSection() {
   const handleDownloadCommunity = async () => {
     if (!communityDomain.trim()) {
       toast({
-        title: 'Domain required',
-        description: 'Please enter a domain name',
+        title: intl.formatMessage({ id: 'settings.feed.domainRequired', defaultMessage: "Domain required" }),
+        description: intl.formatMessage({ id: 'settings.feed.domainRequiredDescription', defaultMessage: "Please enter a domain name" }),
         variant: 'destructive',
       });
       return;
@@ -367,16 +370,16 @@ function FeedTabsSection() {
       }
 
       toast({
-        title: 'Community set',
-        description: `${label} with ${userCount} users`,
+        title: intl.formatMessage({ id: 'settings.feed.communitySet', defaultMessage: "Community set" }),
+        description: intl.formatMessage({ id: 'settings.feed.communitySetDescription', defaultMessage: "{label} with {count} users" }, { label, count: userCount }),
       });
 
       setCommunityDomain('');
     } catch (error) {
       console.error('Failed to download community:', error);
       toast({
-        title: 'Failed to download',
-        description: error instanceof Error ? error.message : 'Could not fetch community data',
+        title: intl.formatMessage({ id: 'settings.feed.downloadFailed', defaultMessage: "Failed to download" }),
+        description: error instanceof Error ? error.message : intl.formatMessage({ id: 'settings.feed.downloadFailedDescription', defaultMessage: "Could not fetch community data" }),
         variant: 'destructive',
       });
     } finally {
@@ -398,8 +401,8 @@ function FeedTabsSection() {
     }
     
     toast({
-      title: 'Community removed',
-      description: 'Community feed cleared',
+      title: intl.formatMessage({ id: 'settings.feed.communityRemoved', defaultMessage: "Community removed" }),
+      description: intl.formatMessage({ id: 'settings.feed.communityRemovedDescription', defaultMessage: "Community feed cleared" }),
     });
   };
 
@@ -409,9 +412,9 @@ function FeedTabsSection() {
       <div className="flex items-center gap-4 px-3 pt-3 pb-2">
         <IntroImage src="/community-intro.png" size="w-28" />
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold">Feed Navigation</h3>
+          <h3 className="text-sm font-semibold"><FormattedMessage id="settings.feed.feedNavigation" defaultMessage={"Feed Navigation"} /></h3>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Choose which tabs appear at the top of your home feed.
+            <FormattedMessage id="settings.feed.feedNavigationDescription" defaultMessage={"Choose which tabs appear at the top of your home feed."} />
           </p>
         </div>
       </div>
@@ -420,8 +423,8 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">Show replies in feed</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">Include replies from people you follow, not just top-level posts</p>
+            <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.showReplies" defaultMessage={"Show replies in feed"} /></Label>
+            <p className="text-xs text-muted-foreground mt-0.5"><FormattedMessage id="settings.feed.showRepliesDescription" defaultMessage={"Include replies from people you follow, not just top-level posts"} /></p>
           </div>
           <Switch
             checked={feedSettings.followsFeedShowReplies}
@@ -439,8 +442,8 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">{config.appName} Feed</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">Show trending and curated content from the {config.appName} relay</p>
+            <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.appFeed" defaultMessage={"{appName} Feed"} values={{ appName: config.appName }} /></Label>
+            <p className="text-xs text-muted-foreground mt-0.5"><FormattedMessage id="settings.feed.appFeedDescription" defaultMessage={"Show trending and curated content from the {appName} relay"} values={{ appName: config.appName }} /></p>
           </div>
           <Switch
             checked={showDittoFeed}
@@ -453,8 +456,8 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">Global Feed</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">Show posts from all users across the network</p>
+            <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.globalFeed" defaultMessage={"Global Feed"} /></Label>
+            <p className="text-xs text-muted-foreground mt-0.5"><FormattedMessage id="settings.feed.globalFeedDescription" defaultMessage={"Show posts from all users across the network"} /></p>
           </div>
           <Switch
             checked={showGlobalFeed}
@@ -467,11 +470,11 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">Community Feed</Label>
+            <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.communityFeed" defaultMessage={"Community Feed"} /></Label>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {community 
-                ? `Show "${community.label}" tab for ${community.domain} users`
-                : 'Set a community below to enable this feed'}
+              {community
+                ? <FormattedMessage id="settings.feed.communityFeedActive" defaultMessage={"Show \"{label}\" tab for {domain} users"} values={{ label: community.label, domain: community.domain }} />
+                : <FormattedMessage id="settings.feed.communityFeedInactive" defaultMessage={"Set a community below to enable this feed"} />}
             </p>
           </div>
           <Switch
@@ -490,10 +493,10 @@ function FeedTabsSection() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Users className="h-4 w-4 text-muted-foreground" />
-            <Label className="text-sm font-medium">Community</Label>
+            <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.community" defaultMessage={"Community"} /></Label>
           </div>
           <p className="text-xs text-muted-foreground">
-            Set a community domain. We'll download the NIP-05 user list to show posts only from verified members.
+            <FormattedMessage id="settings.feed.communityDescription" defaultMessage={"Set a community domain. We'll download the NIP-05 user list to show posts only from verified members."} />
           </p>
         </div>
 
@@ -530,7 +533,7 @@ function FeedTabsSection() {
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{community.label}</p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {community.domain} • {community.userCount} {community.userCount === 1 ? 'user' : 'users'}
+                  {community.domain} • <FormattedMessage id="settings.feed.userCount" defaultMessage={"{count, plural, one {{count} user} other {{count} users}}"} values={{ count: community.userCount }} />
                 </p>
               </div>
             </div>
@@ -559,6 +562,7 @@ function FeedTabsSection() {
 // ─── Interests Section ───────────────────────────────────────────────────────
 
 function InterestsSection() {
+  const intl = useIntl();
   const { toast } = useToast();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
@@ -573,44 +577,44 @@ function InterestsSection() {
 
   const handleRemoveHashtag = async (tag: string) => {
     await removeHashtag.mutateAsync(tag);
-    toast({ title: `#${tag} removed from feed tabs` });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.hashtagRemoved', defaultMessage: "#{tag} removed from feed tabs" }, { tag }) });
   };
 
   const handleRemoveGeotag = async (tag: string) => {
     await removeGeotag.mutateAsync(tag);
-    toast({ title: `${tag} removed from feed tabs` });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.locationRemoved', defaultMessage: "{tag} removed from feed tabs" }, { tag }) });
   };
 
   const handleAddHashtag = async () => {
     const tag = newHashtag.trim().toLowerCase().replace(/^#/, '');
     if (!tag) return;
     if (hashtags.includes(tag)) {
-      toast({ title: `#${tag} is already followed`, variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'settings.feed.hashtagAlreadyFollowed', defaultMessage: "#{tag} is already followed" }, { tag }), variant: 'destructive' });
       return;
     }
     await addHashtag.mutateAsync(tag);
     setNewHashtag('');
-    toast({ title: `#${tag} added to feed tabs` });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.hashtagAdded', defaultMessage: "#{tag} added to feed tabs" }, { tag }) });
   };
 
   const handleAddGeotag = async () => {
     const tag = newGeotag.trim().toLowerCase();
     if (!tag) return;
     if (geotags.includes(tag)) {
-      toast({ title: `${tag} is already followed`, variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'settings.feed.locationAlreadyFollowed', defaultMessage: "{tag} is already followed" }, { tag }), variant: 'destructive' });
       return;
     }
     await addGeotag.mutateAsync(tag);
     setNewGeotag('');
-    toast({ title: `${tag} added to feed tabs` });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.locationAdded', defaultMessage: "{tag} added to feed tabs" }, { tag }) });
   };
 
   return (
     <div className="px-3 py-4 space-y-4 border-t border-border">
       <div>
-        <h3 className="text-sm font-semibold">Interest Tabs</h3>
+        <h3 className="text-sm font-semibold"><FormattedMessage id="settings.feed.interestTabs" defaultMessage={"Interest Tabs"} /></h3>
         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Hashtags and locations you follow appear as tabs on the home feed.
+          <FormattedMessage id="settings.feed.interestTabsDescription" defaultMessage={"Hashtags and locations you follow appear as tabs on the home feed."} />
         </p>
       </div>
 
@@ -618,7 +622,7 @@ function InterestsSection() {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Hash className="size-4 text-muted-foreground shrink-0" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hashtags</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"><FormattedMessage id="settings.feed.hashtags" defaultMessage={"Hashtags"} /></span>
         </div>
 
         <div className="flex gap-2">
@@ -645,7 +649,7 @@ function InterestsSection() {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : hashtags.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No followed hashtags yet.</p>
+          <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.feed.noHashtags" defaultMessage={"No followed hashtags yet."} /></p>
         ) : (
           <div className="space-y-1.5">
             {hashtags.map((tag) => (
@@ -660,7 +664,7 @@ function InterestsSection() {
                     onClick={() => handleRemoveHashtag(tag)}
                     disabled={removeHashtag.isPending}
                     className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
-                    aria-label={`Remove #${tag}`}
+                    aria-label={intl.formatMessage({ id: 'settings.feed.removeHashtag', defaultMessage: "Remove #{tag}" }, { tag })}
                   >
                     <X className="size-3.5" strokeWidth={4} />
                   </button>
@@ -675,12 +679,12 @@ function InterestsSection() {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <MapPin className="size-4 text-muted-foreground shrink-0" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Locations</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"><FormattedMessage id="settings.feed.locations" defaultMessage={"Locations"} /></span>
         </div>
 
         <div className="flex gap-2">
           <Input
-            placeholder="geohash (e.g. u4pru)"
+            placeholder={intl.formatMessage({ id: 'settings.feed.geohashPlaceholder', defaultMessage: "geohash (e.g. u4pru)" })}
             value={newGeotag}
             onChange={(e) => setNewGeotag(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleAddGeotag(); }}
@@ -702,7 +706,7 @@ function InterestsSection() {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : geotags.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No followed locations yet.</p>
+          <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.feed.noLocations" defaultMessage={"No followed locations yet."} /></p>
         ) : (
           <div className="space-y-1.5">
             {geotags.map((tag) => (
@@ -717,7 +721,7 @@ function InterestsSection() {
                     onClick={() => handleRemoveGeotag(tag)}
                     disabled={removeGeotag.isPending}
                     className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
-                    aria-label={`Remove ${tag}`}
+                    aria-label={intl.formatMessage({ id: 'settings.feed.removeLocation', defaultMessage: "Remove {tag}" }, { tag })}
                   >
                     <X className="size-3.5" strokeWidth={4} />
                   </button>
@@ -734,6 +738,7 @@ function InterestsSection() {
 // ─── Saved Feeds Section ─────────────────────────────────────────────────────
 
 function SavedFeedsSection() {
+  const intl = useIntl();
   const { savedFeeds, addSavedFeed, removeSavedFeed, updateSavedFeed, isPending } = useSavedFeeds();
   const { toast } = useToast();
   const [addFeedModalOpen, setAddFeedModalOpen] = useState(false);
@@ -743,25 +748,25 @@ function SavedFeedsSection() {
 
   const handleAddFeed = async (label: string, filter: TabFilter, vars: SavedFeed['vars']) => {
     await addSavedFeed(label, filter, vars);
-    toast({ title: `"${label}" added to home feed tabs` });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.savedFeedAdded', defaultMessage: "\"{label}\" added to home feed tabs" }, { label }) });
   };
 
   const handleEditFeed = async (label: string, filter: TabFilter, vars: SavedFeed['vars']) => {
     if (!editingFeed) return;
     await updateSavedFeed(editingFeed.id, { label, filter, vars });
-    toast({ title: 'Feed updated' });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.savedFeedUpdated', defaultMessage: "Feed updated" }) });
     setEditingFeed(null);
   };
 
   const handleRemove = async (feed: SavedFeed) => {
     await removeSavedFeed(feed.id);
-    toast({ title: `"${feed.label}" removed` });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.savedFeedRemoved', defaultMessage: "\"{label}\" removed" }, { label: feed.label }) });
   };
 
   return (
     <div className="px-3 py-4 space-y-3 border-t border-border">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Custom Tabs</h3>
+        <h3 className="text-sm font-semibold"><FormattedMessage id="settings.feed.customTabs" defaultMessage={"Custom Tabs"} /></h3>
         <Button
           variant="outline"
           size="sm"
@@ -769,13 +774,13 @@ function SavedFeedsSection() {
           onClick={() => setAddFeedModalOpen(true)}
         >
           <Plus className="size-3.5" />
-          Add tab
+          <FormattedMessage id="settings.feed.addTab" defaultMessage={"Add tab"} />
         </Button>
       </div>
 
       {feedTabs.length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          No custom tabs yet. Save a search from the search page, or add one above.
+          <FormattedMessage id="settings.feed.noCustomTabs" defaultMessage={"No custom tabs yet. Save a search from the search page, or add one above."} />
         </p>
       ) : (
         <div className="space-y-1.5">
@@ -824,21 +829,22 @@ function SavedFeedRow({
   onRemove: () => void;
   isPending: boolean;
 }) {
+  const intl = useIntl();
   const search = typeof feed.filter.search === 'string' ? feed.filter.search : '';
   const authors = Array.isArray(feed.filter.authors) ? feed.filter.authors as string[] : [];
   const kinds = Array.isArray(feed.filter.kinds) ? feed.filter.kinds as number[] : [];
 
   const scopeLabel = authors.includes('$follows')
-    ? 'Follows'
+    ? intl.formatMessage({ id: 'settings.feed.follows', defaultMessage: "Follows" })
     : authors.length > 0
-      ? `${authors.length} author${authors.length > 1 ? 's' : ''}`
+      ? intl.formatMessage({ id: 'settings.feed.authorCount', defaultMessage: "{count, plural, one {{count} author} other {{count} authors}}" }, { count: authors.length })
       : null;
 
   const kindLabel = kinds.length === 0
     ? null
     : kinds.length === 1
-      ? (kindOptions.find((o) => o.value === String(kinds[0]))?.label ?? `Kind ${kinds[0]}`)
-      : `${kinds.length} kinds`;
+      ? (kindOptions.find((o) => o.value === String(kinds[0]))?.label ?? intl.formatMessage({ id: 'settings.feed.kindLabel', defaultMessage: "Kind {kind}" }, { kind: kinds[0] }))
+      : intl.formatMessage({ id: 'settings.feed.kindCount', defaultMessage: "{count} kinds" }, { count: kinds.length });
 
   return (
     <div className="rounded-lg border border-border/50 bg-secondary/30 group">
@@ -864,7 +870,7 @@ function SavedFeedRow({
           <button
             onClick={onEdit}
             className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            aria-label="Edit"
+            aria-label={intl.formatMessage({ id: 'settings.feed.edit', defaultMessage: "Edit" })}
           >
             <Pencil className="size-3.5" />
           </button>
@@ -872,7 +878,7 @@ function SavedFeedRow({
             onClick={onRemove}
             disabled={isPending}
             className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
-            aria-label="Remove"
+            aria-label={intl.formatMessage({ id: 'settings.feed.remove', defaultMessage: "Remove" })}
           >
             <X className="size-3.5" />
           </button>
@@ -882,28 +888,29 @@ function SavedFeedRow({
   );
 }
 
-const CW_POLICY_OPTIONS: { value: ContentWarningPolicy; label: string; description: string }[] = [
-  {
-    value: 'blur',
-    label: 'Blur until revealed',
-    description: 'Hidden behind a warning until you choose to view it.',
-  },
-  {
-    value: 'hide',
-    label: 'Hide completely',
-    description: 'Removed from your feeds entirely.',
-  },
-  {
-    value: 'show',
-    label: 'Always show',
-    description: 'Displayed normally, without a warning.',
-  },
-];
-
 export function SensitiveContentSection() {
+  const intl = useIntl();
   const { config, updateConfig } = useAppContext();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
+
+  const policyOptions: { value: ContentWarningPolicy; label: string; description: string }[] = [
+    {
+      value: 'blur',
+      label: intl.formatMessage({ id: 'settings.content.policyBlur', defaultMessage: "Blur until revealed" }),
+      description: intl.formatMessage({ id: 'settings.content.policyBlurDescription', defaultMessage: "Hidden behind a warning until you choose to view it." }),
+    },
+    {
+      value: 'hide',
+      label: intl.formatMessage({ id: 'settings.content.policyHide', defaultMessage: "Hide completely" }),
+      description: intl.formatMessage({ id: 'settings.content.policyHideDescription', defaultMessage: "Removed from your feeds entirely." }),
+    },
+    {
+      value: 'show',
+      label: intl.formatMessage({ id: 'settings.content.policyShow', defaultMessage: "Always show" }),
+      description: intl.formatMessage({ id: 'settings.content.policyShowDescription', defaultMessage: "Displayed normally, without a warning." }),
+    },
+  ];
 
   const handlePolicyChange = async (value: string) => {
     const policy = value as ContentWarningPolicy;
@@ -916,7 +923,7 @@ export function SensitiveContentSection() {
   return (
     <div>
       <p className="text-xs text-muted-foreground px-3 pt-3 pb-1">
-        How to display posts their author marked as sensitive (NSFW, spoilers, etc).
+        <FormattedMessage id="settings.content.sensitiveDescription" defaultMessage={"How to display posts their author marked as sensitive (NSFW, spoilers, etc)."} />
       </p>
 
       {/* Policy options — consistent row style with other settings */}
@@ -925,7 +932,7 @@ export function SensitiveContentSection() {
         onValueChange={handlePolicyChange}
         className="gap-0"
       >
-        {CW_POLICY_OPTIONS.map((option) => (
+        {policyOptions.map((option) => (
           <label
             key={option.value}
             className="flex items-center justify-between py-3.5 px-3 border-b border-border last:border-b-0 cursor-pointer hover:bg-muted/20 transition-colors"
@@ -965,9 +972,9 @@ export function MuteFollowExemptionSection() {
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="space-y-0.5">
-        <Label className="text-sm font-medium">Don't filter people you follow</Label>
+        <Label className="text-sm font-medium"><FormattedMessage id="settings.content.exemptFollows" defaultMessage={"Don't filter people you follow"} /></Label>
         <p className="text-xs text-muted-foreground">
-          Muted hashtags and words won't hide posts from accounts you follow. Muted users and threads still apply.
+          <FormattedMessage id="settings.content.exemptFollowsDescription" defaultMessage={"Muted hashtags and words won't hide posts from accounts you follow. Muted users and threads still apply."} />
         </p>
       </div>
       <Switch
@@ -978,42 +985,50 @@ export function MuteFollowExemptionSection() {
   );
 }
 
-const MUTE_TYPE_CONFIG = {
-  pubkey: {
-    icon: <UserX className="size-5" />,
-    label: 'Users',
-    inputLabel: 'Public Key (hex or npub)',
-    placeholder: 'npub1... or hex pubkey',
-  },
-  hashtag: {
-    icon: <Hash className="size-5" />,
-    label: 'Hashtags',
-    inputLabel: 'Hashtag (without #)',
-    placeholder: 'hashtag (without #)',
-  },
-  word: {
-    icon: <MessageSquareOff className="size-5" />,
-    label: 'Words',
-    inputLabel: 'Word or Phrase',
-    placeholder: 'word or phrase',
-  },
-  thread: {
-    icon: <MessageSquareOff className="size-5" />,
-    label: 'Threads',
-    inputLabel: 'Event ID (hex or note)',
-    placeholder: 'note1... or hex event ID',
-  },
-};
+interface MuteTypeConfig {
+  icon: ReactNode;
+  label: string;
+  inputLabel: string;
+  placeholder: string;
+}
 
 export function MuteSettingsInternals() {
+  const intl = useIntl();
   const { muteItems, isLoading, addMute, removeMute } = useMuteList();
   const { toast } = useToast();
   const [newMuteType, setNewMuteType] = useState<MuteListItem['type']>('pubkey');
   const [newMuteValue, setNewMuteValue] = useState('');
 
+  const muteTypeConfig: Record<MuteListItem['type'], MuteTypeConfig> = {
+    pubkey: {
+      icon: <UserX className="size-5" />,
+      label: intl.formatMessage({ id: 'settings.content.muteTypes.users', defaultMessage: "Users" }),
+      inputLabel: intl.formatMessage({ id: 'settings.content.muteInput.pubkey', defaultMessage: "Public Key (hex or npub)" }),
+      placeholder: intl.formatMessage({ id: 'settings.content.mutePlaceholder.pubkey', defaultMessage: "npub1... or hex pubkey" }),
+    },
+    hashtag: {
+      icon: <Hash className="size-5" />,
+      label: intl.formatMessage({ id: 'settings.content.muteTypes.hashtags', defaultMessage: "Hashtags" }),
+      inputLabel: intl.formatMessage({ id: 'settings.content.muteInput.hashtag', defaultMessage: "Hashtag (without #)" }),
+      placeholder: intl.formatMessage({ id: 'settings.content.mutePlaceholder.hashtag', defaultMessage: "hashtag (without #)" }),
+    },
+    word: {
+      icon: <MessageSquareOff className="size-5" />,
+      label: intl.formatMessage({ id: 'settings.content.muteTypes.words', defaultMessage: "Words" }),
+      inputLabel: intl.formatMessage({ id: 'settings.content.muteInput.word', defaultMessage: "Word or Phrase" }),
+      placeholder: intl.formatMessage({ id: 'settings.content.mutePlaceholder.word', defaultMessage: "word or phrase" }),
+    },
+    thread: {
+      icon: <MessageSquareOff className="size-5" />,
+      label: intl.formatMessage({ id: 'settings.content.muteTypes.threads', defaultMessage: "Threads" }),
+      inputLabel: intl.formatMessage({ id: 'settings.content.muteInput.thread', defaultMessage: "Event ID (hex or note)" }),
+      placeholder: intl.formatMessage({ id: 'settings.content.mutePlaceholder.thread', defaultMessage: "note1... or hex event ID" }),
+    },
+  };
+
   const handleAddMute = async () => {
     if (!newMuteValue.trim()) {
-      toast({ title: 'Error', description: 'Please enter a value', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'settings.content.error', defaultMessage: "Error" }), description: intl.formatMessage({ id: 'settings.content.enterValue', defaultMessage: "Please enter a value" }), variant: 'destructive' });
       return;
     }
 
@@ -1023,12 +1038,12 @@ export function MuteSettingsInternals() {
         value: newMuteValue.trim(),
       });
 
-      toast({ title: 'Success', description: 'Mute added successfully' });
+      toast({ title: intl.formatMessage({ id: 'settings.content.success', defaultMessage: "Success" }), description: intl.formatMessage({ id: 'settings.content.muteAdded', defaultMessage: "Mute added successfully" }) });
       setNewMuteValue('');
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to add mute',
+        title: intl.formatMessage({ id: 'settings.content.error', defaultMessage: "Error" }),
+        description: error instanceof Error ? error.message : intl.formatMessage({ id: 'settings.content.addMuteFailed', defaultMessage: "Failed to add mute" }),
         variant: 'destructive',
       });
     }
@@ -1037,11 +1052,11 @@ export function MuteSettingsInternals() {
   const handleRemoveMute = async (item: MuteListItem) => {
     try {
       await removeMute.mutateAsync(item);
-      toast({ title: 'Success', description: 'Mute removed successfully' });
+      toast({ title: intl.formatMessage({ id: 'settings.content.success', defaultMessage: "Success" }), description: intl.formatMessage({ id: 'settings.content.muteRemoved', defaultMessage: "Mute removed successfully" }) });
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to remove mute',
+        title: intl.formatMessage({ id: 'settings.content.error', defaultMessage: "Error" }),
+        description: error instanceof Error ? error.message : intl.formatMessage({ id: 'settings.content.removeMuteFailed', defaultMessage: "Failed to remove mute" }),
         variant: 'destructive',
       });
     }
@@ -1061,32 +1076,32 @@ export function MuteSettingsInternals() {
       <div className="px-3 py-4 border-b border-border">
         <div className="grid gap-2 sm:grid-cols-[10rem_1fr_auto]">
           <Select value={newMuteType} onValueChange={(value) => setNewMuteType(value as MuteListItem['type'])}>
-            <SelectTrigger id="mute-type" aria-label="What to mute" className="h-9">
+            <SelectTrigger id="mute-type" aria-label={intl.formatMessage({ id: 'settings.content.whatToMute', defaultMessage: "What to mute" })} className="h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="pubkey">
                 <div className="flex items-center gap-2">
                   <UserX className="h-4 w-4" />
-                  User
+                  <FormattedMessage id="settings.content.muteTypeOptions.user" defaultMessage={"User"} />
                 </div>
               </SelectItem>
               <SelectItem value="hashtag">
                 <div className="flex items-center gap-2">
                   <Hash className="h-4 w-4" />
-                  Hashtag
+                  <FormattedMessage id="settings.content.muteTypeOptions.hashtag" defaultMessage={"Hashtag"} />
                 </div>
               </SelectItem>
               <SelectItem value="word">
                 <div className="flex items-center gap-2">
                   <MessageSquareOff className="h-4 w-4" />
-                  Word/Phrase
+                  <FormattedMessage id="settings.content.muteTypeOptions.word" defaultMessage={"Word/Phrase"} />
                 </div>
               </SelectItem>
               <SelectItem value="thread">
                 <div className="flex items-center gap-2">
                   <MessageSquareOff className="h-4 w-4" />
-                  Thread
+                  <FormattedMessage id="settings.content.muteTypeOptions.thread" defaultMessage={"Thread"} />
                 </div>
               </SelectItem>
             </SelectContent>
@@ -1094,13 +1109,13 @@ export function MuteSettingsInternals() {
 
           <Input
             id="mute-value"
-            aria-label={MUTE_TYPE_CONFIG[newMuteType].inputLabel}
+            aria-label={muteTypeConfig[newMuteType].inputLabel}
             value={newMuteValue}
             onChange={(e) => setNewMuteValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleAddMute();
             }}
-            placeholder={MUTE_TYPE_CONFIG[newMuteType].placeholder}
+            placeholder={muteTypeConfig[newMuteType].placeholder}
             className="h-9"
           />
 
@@ -1111,7 +1126,7 @@ export function MuteSettingsInternals() {
             className="h-9"
           >
             <Plus className="mr-1.5 h-4 w-4" />
-            Add
+            <FormattedMessage id="common.add" defaultMessage={"Add"} />
           </Button>
         </div>
       </div>
@@ -1130,13 +1145,13 @@ export function MuteSettingsInternals() {
         </div>
       ) : muteItems.length === 0 ? (
         <p className="text-muted-foreground text-center py-8 text-sm">
-          No muted items yet
+          <FormattedMessage id="settings.content.noMutedItems" defaultMessage={"No muted items yet"} />
         </p>
       ) : (
         <Accordion type="multiple">
           {Object.entries(groupedMutes).map(([type, items]) => {
             if (items.length === 0) return null;
-            const config = MUTE_TYPE_CONFIG[type as MuteListItem['type']];
+            const config = muteTypeConfig[type as MuteListItem['type']];
 
             return (
               <MuteTypeSection
@@ -1157,10 +1172,11 @@ export function MuteSettingsInternals() {
 
 /** Renders a muted user's avatar and display name instead of a raw hex pubkey. */
 function MutedUserProfile({ pubkey }: { pubkey: string }) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
+  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
 
   if (author.isLoading) {
     return (
@@ -1209,11 +1225,13 @@ function MuteTypeSection({
   isPending,
 }: {
   type: MuteListItem['type'];
-  config: typeof MUTE_TYPE_CONFIG[keyof typeof MUTE_TYPE_CONFIG];
+  config: MuteTypeConfig;
   items: MuteListItem[];
   onRemove: (item: MuteListItem) => void;
   isPending: boolean;
 }) {
+  const intl = useIntl();
+
   return (
     <AccordionItem value={type} className="border-b border-border last:border-b-0">
       <AccordionTrigger className="px-3 py-3.5 hover:no-underline hover:bg-muted/20 transition-colors">
@@ -1246,7 +1264,7 @@ function MuteTypeSection({
                 size="sm"
                 onClick={() => onRemove(item)}
                 disabled={isPending}
-                aria-label={`Remove mute for ${item.value}`}
+                aria-label={intl.formatMessage({ id: 'settings.content.removeMuteFor', defaultMessage: "Remove mute for {value}" }, { value: item.value })}
                 className="shrink-0 h-8 w-8 p-0"
               >
                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -1276,8 +1294,8 @@ export function VideoAutoplaySection() {
   return (
     <div className="flex items-center justify-between">
       <div className="space-y-0.5">
-        <Label className="text-sm font-medium">Autoplay videos</Label>
-        <p className="text-xs text-muted-foreground">Automatically play videos (muted) in feeds and previews</p>
+        <Label className="text-sm font-medium"><FormattedMessage id="settings.content.autoplayVideos" defaultMessage={"Autoplay videos"} /></Label>
+        <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.content.autoplayVideosDescription" defaultMessage={"Automatically play videos (muted) in feeds and previews"} /></p>
       </div>
       <Switch
         checked={autoplay}
@@ -1305,8 +1323,8 @@ export function ThemePreferencesSection() {
   return (
     <div className="flex items-center justify-between">
       <div className="space-y-0.5">
-        <Label className="text-sm font-medium">Show custom profile themes</Label>
-        <p className="text-xs text-muted-foreground">Display other users' custom themes when visiting their profiles</p>
+        <Label className="text-sm font-medium"><FormattedMessage id="settings.content.showCustomThemes" defaultMessage={"Show custom profile themes"} /></Label>
+        <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.content.showCustomThemesDescription" defaultMessage={"Display other users' custom themes when visiting their profiles"} /></p>
       </div>
       <Switch
         checked={showOnProfiles}
@@ -1317,6 +1335,7 @@ export function ThemePreferencesSection() {
 }
 
 function HomePageSetting() {
+  const intl = useIntl();
   const { config, updateConfig } = useAppContext();
   const { user } = useCurrentUser();
   const { updateSettings } = useEncryptedSettings();
@@ -1328,7 +1347,7 @@ function HomePageSetting() {
       await updateSettings.mutateAsync({ homePage: value });
     }
     const item = SIDEBAR_ITEMS.find((s) => s.id === value);
-    toast({ title: `Homepage set to ${item?.label ?? value}` });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.homepageSet', defaultMessage: "Homepage set to {label}" }, { label: item?.label ?? value }) });
   };
 
   return (
@@ -1337,10 +1356,10 @@ function HomePageSetting() {
         <div className="min-w-0 flex-1">
           <Label className="text-sm font-medium flex items-center gap-2">
             <Home className="size-4" />
-            Homepage
+            <FormattedMessage id="settings.feed.homepage" defaultMessage={"Homepage"} />
           </Label>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Choose which page to display when you open the app
+            <FormattedMessage id="settings.feed.homepageDescription" defaultMessage={"Choose which page to display when you open the app"} />
           </p>
         </div>
         <Select value={config.homePage} onValueChange={handleHomePageChange}>

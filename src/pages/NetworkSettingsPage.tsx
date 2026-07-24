@@ -1,4 +1,5 @@
 import { useSeoMeta } from '@/hooks/useSeoMeta';
+import { defineMessage, FormattedMessage, useIntl, type MessageDescriptor } from 'react-intl';
 import { Navigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { RelayListManager } from '@/components/RelayListManager';
@@ -9,14 +10,21 @@ import { Label } from '@/components/ui/label';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { cn } from '@/lib/utils';
+import type { AppConfig } from '@/contexts/AppContext';
+
+const IMAGE_QUALITY_OPTIONS: { value: AppConfig['imageQuality']; label: MessageDescriptor }[] = [
+  { value: 'compressed', label: defineMessage({ id: 'settings.network.imageQuality.compressed', defaultMessage: 'Compressed' }) },
+  { value: 'original', label: defineMessage({ id: 'settings.network.imageQuality.original', defaultMessage: 'Original' }) },
+];
 
 export function NetworkSettingsPage() {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
 
   useSeoMeta({
-    title: `Network | Settings | ${config.appName}`,
-    description: 'Manage relays and file upload servers',
+    title: `${intl.formatMessage({ id: 'settings.sections.network.label', defaultMessage: "Network" })} | ${intl.formatMessage({ id: 'settings.title', defaultMessage: "Settings" })} | ${config.appName}`,
+    description: intl.formatMessage({ id: 'settings.network.metaDescription', defaultMessage: "Manage relays and file upload servers" }),
   });
 
   if (!user) {
@@ -31,9 +39,9 @@ export function NetworkSettingsPage() {
         alwaysShowBack
         titleContent={
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold flex items-center gap-1.5">Network <HelpTip faqId="what-is-nostr" /></h1>
+            <h1 className="text-xl font-bold flex items-center gap-1.5"><FormattedMessage id="settings.sections.network.label" defaultMessage={"Network"} /> <HelpTip faqId="what-is-nostr" /></h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Relays are servers that store and distribute content across the Nostr network. Blossom servers handle file uploads.
+              <FormattedMessage id="settings.network.pageDescription" defaultMessage={"Relays are servers that store and distribute content across the Nostr network. Blossom servers handle file uploads."} />
             </p>
           </div>
         }
@@ -44,9 +52,9 @@ export function NetworkSettingsPage() {
         <div className="flex items-center gap-4 px-3 pt-2 pb-4">
           <IntroImage src="/relay-intro.png" />
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold">Network Connections</h2>
+            <h2 className="text-sm font-semibold"><FormattedMessage id="settings.network.networkConnections" defaultMessage={"Network Connections"} /></h2>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Manage your relay connections. Relays are servers that store and distribute Nostr events across the network.
+              <FormattedMessage id="settings.network.networkConnectionsDescription" defaultMessage={"Manage your relay connections. Relays are servers that store and distribute Nostr events across the network."} />
             </p>
           </div>
         </div>
@@ -54,7 +62,7 @@ export function NetworkSettingsPage() {
         {/* Relays */}
         <div>
           <div className="relative px-3 py-3.5">
-            <h2 className="text-base font-semibold flex items-center gap-1.5">Relays <HelpTip faqId="what-are-relays" /></h2>
+            <h2 className="text-base font-semibold flex items-center gap-1.5"><FormattedMessage id="settings.network.relays" defaultMessage={"Relays"} /> <HelpTip faqId="what-are-relays" /></h2>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
           </div>
           <div className="pt-2 pb-4">
@@ -65,7 +73,7 @@ export function NetworkSettingsPage() {
         {/* Blossom Servers */}
         <div>
           <div className="relative px-3 py-3.5">
-            <h2 className="text-base font-semibold flex items-center gap-1.5">Blossom Servers <HelpTip faqId="what-are-blossom" /></h2>
+            <h2 className="text-base font-semibold flex items-center gap-1.5"><FormattedMessage id="settings.network.blossomServers" defaultMessage={"Blossom Servers"} /> <HelpTip faqId="what-are-blossom" /></h2>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
           </div>
           <div className="pt-2 pb-4">
@@ -76,29 +84,29 @@ export function NetworkSettingsPage() {
         {/* Image Upload Quality */}
         <div>
           <div className="relative px-3 py-3.5">
-            <h2 className="text-base font-semibold">Image Uploads</h2>
+            <h2 className="text-base font-semibold"><FormattedMessage id="settings.network.imageUploads" defaultMessage={"Image Uploads"} /></h2>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
           </div>
           <div className="pt-4 pb-4 px-3 space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Upload quality</Label>
+              <Label className="text-sm font-medium"><FormattedMessage id="settings.network.uploadQuality" defaultMessage={"Upload quality"} /></Label>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Compressed resizes large images and picks the smallest format. Original uploads images exactly as-is.
+                <FormattedMessage id="settings.network.uploadQualityDescription" defaultMessage={"Compressed resizes large images and picks the smallest format. Original uploads images exactly as-is."} />
               </p>
             </div>
             <div className="inline-flex items-center gap-0.5 p-1 bg-muted/50 rounded-lg">
-              {(['compressed', 'original'] as const).map((value) => (
+              {IMAGE_QUALITY_OPTIONS.map(({ value, label }) => (
                 <button
                   key={value}
                   onClick={() => updateConfig((prev) => ({ ...prev, imageQuality: value }))}
                   className={cn(
-                    'px-4 py-1.5 text-sm font-medium rounded-md transition-all capitalize',
+                    'px-4 py-1.5 text-sm font-medium rounded-md transition-all',
                     config.imageQuality === value
                       ? 'bg-background text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  {value}
+                  <FormattedMessage {...label} />
                 </button>
               ))}
             </div>

@@ -280,6 +280,11 @@ export interface AppConfig {
   client?: string;
   /** Enable Magic Mouse mode: cursor/finger emanates magical fire in the primary color */
   magicMouse: boolean;
+  /**
+   * Interface language, e.g. "en", "de", "ja". When unset, the browser/OS
+   * locale is used (the "System default" option in the language picker).
+   */
+  locale?: string;
   /** Current theme */
   theme: Theme;
   /** Custom theme config (colors, fonts, background). Only used when theme === "custom". */

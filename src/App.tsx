@@ -4,6 +4,7 @@
 import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppProvider } from "@/components/AppProvider";
+import { I18nProvider } from "@/components/I18nProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
 import { NativeNotifications } from "@/components/NativeNotifications";
 import NostrProvider from "@/components/NostrProvider";
@@ -218,14 +219,15 @@ export function App() {
 
   return (
     <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
-      <SentryProvider>
-        <PlausibleProvider>
-          <QueryClientProvider client={queryClient}>
-            <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
-              <NostrProvider>
-                <NostrSync />
-                <NativeNotifications />
-                <NotificationStream />
+      <I18nProvider>
+        <SentryProvider>
+          <PlausibleProvider>
+            <QueryClientProvider client={queryClient}>
+              <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
+                <NostrProvider>
+                  <NostrSync />
+                  <NativeNotifications />
+                  <NotificationStream />
 
                   <NWCProvider>
                     <EmotionDevProvider>
@@ -236,11 +238,12 @@ export function App() {
                       </TooltipProvider>
                     </EmotionDevProvider>
                   </NWCProvider>
-              </NostrProvider>
-            </NostrLoginProvider>
-          </QueryClientProvider>
-        </PlausibleProvider>
-      </SentryProvider>
+                </NostrProvider>
+              </NostrLoginProvider>
+            </QueryClientProvider>
+          </PlausibleProvider>
+        </SentryProvider>
+      </I18nProvider>
     </AppProvider>
   );
 }

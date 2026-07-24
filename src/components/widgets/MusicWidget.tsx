@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Play, Pause, Music, Clock } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -56,18 +57,19 @@ export function MusicWidget() {
   }
 
   if (!event) {
-    return <p className="text-sm text-muted-foreground p-1">No music yet.</p>;
+    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.music.empty" defaultMessage={"No music yet."} /></p>;
   }
 
   return <MusicCard event={event} />;
 }
 
 function MusicCard({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const player = useAudioPlayer();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
 
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
   const encodedId = useMemo(() => {
