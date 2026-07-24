@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
 import { GripVertical, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove, CSS,
   type DragEndEvent,
 } from '@/lib/sortable';
-import { sidebarItemIcon, itemLabel, itemPath, isSidebarDivider, isNostrUri, isExternalUri, isNsiteUri } from '@/lib/sidebarItems';
+import { sidebarItemIcon, itemPath, useItemLabel, isSidebarDivider, isNostrUri, isExternalUri, isNsiteUri } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 import { useCallback } from 'react';
 import { NostrEventSidebarItem } from '@/components/NostrEventSidebarItem';
@@ -34,8 +35,9 @@ export function SidebarNavItem({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !editing });
   const style = { transform: CSS.Transform.toString(transform), transition };
   const icon = sidebarItemIcon(id);
-  const label = itemLabel(id);
+  const label = useItemLabel(id);
   const path = itemPath(id, profilePath, homePage);
+  const { t } = useTranslation();
 
   return (
     <div
@@ -76,7 +78,7 @@ export function SidebarNavItem({
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(id); }}
           className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          title={`Remove ${label}`}
+          title={t('sidebar.removeItem', { label })}
         >
           <X className="size-4" />
         </button>
@@ -96,6 +98,7 @@ interface SidebarDividerItemProps {
 function SidebarDividerItem({ sortableId, editing, onRemove }: SidebarDividerItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sortableId, disabled: !editing });
   const style = { transform: CSS.Transform.toString(transform), transition };
+  const { t } = useTranslation();
 
   return (
     <div
@@ -119,7 +122,7 @@ function SidebarDividerItem({ sortableId, editing, onRemove }: SidebarDividerIte
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
           className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          title="Remove divider"
+          title={t('sidebar.removeDivider')}
         >
           <X className="size-4" />
         </button>

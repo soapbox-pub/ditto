@@ -1,0 +1,122 @@
+{
+  "common": {
+    "add": "Add",
+    "anonymous": "Anonymous",
+    "cancel": "Cancel",
+    "clear": "Clear",
+    "noResults": "No results",
+    "save": "Save",
+    "searchPlaceholder": "Search..."
+  },
+  "nav": {
+    "ai-chat": "AI Chat",
+    "archive": "Archive",
+    "articles": "Articles",
+    "badges": "Badges",
+    "blobbi": "Blobbi",
+    "bluesky": "Bluesky",
+    "books": "Books",
+    "bookmarks": "Bookmarks",
+    "cards": "Memory Cards",
+    "changelog": "Changelog",
+    "colors": "Color Moments",
+    "decks": "Magic Decks",
+    "development": "Development",
+    "emojis": "Emojis",
+    "events": "Events",
+    "feed": "Feed",
+    "help": "Help",
+    "highlights": "Highlights",
+    "letters": "Letters",
+    "lists": "Lists",
+    "music": "Music",
+    "notifications": "Notifications",
+    "packs": "Follow Packs",
+    "photos": "Photos",
+    "podcasts": "Podcasts",
+    "polls": "Polls",
+    "profile": "Profile",
+    "quizzes": "Quizzes",
+    "search": "Search",
+    "settings": "Settings",
+    "themes": "Themes",
+    "treasures": "Treasures",
+    "trends": "Trends",
+    "videos": "Videos",
+    "vines": "Shorts",
+    "wallet": "Wallet",
+    "webxdc": "Webxdc",
+    "wikipedia": "Wikipedia",
+    "world": "World"
+  },
+  "sidebar": {
+    "addAccount": "Add another account",
+    "addDivider": "Add divider",
+    "addLink": "Add link",
+    "addToSidebar": "Add {{label}} to sidebar",
+    "doneEditing": "Done editing",
+    "editSidebar": "Edit sidebar",
+    "invalidCountryCode": "Invalid country/region code",
+    "invalidIdentifier": "Invalid identifier",
+    "invalidNsite": "Invalid nsite identifier (only named sites are supported)",
+    "join": "Join",
+    "linkInputPlaceholder": "URL, npub1..., nsite://..., ...",
+    "logOutAs": "Log out @{{name}}",
+    "more": "More...",
+    "removeDivider": "Remove divider",
+    "removeItem": "Remove {{label}}",
+    "setStatus": "Set a status",
+    "shareProfile": "Share profile",
+    "statusCleared": "Status cleared",
+    "statusPlaceholder": "What are you up to?",
+    "statusUpdated": "Status updated",
+    "unsupportedIdentifier": "Unsupported identifier type"
+  },
+  "settings": {
+    "codex": "Codex of Configuration",
+    "deleteAccount": "Delete Account",
+    "intro": "Shape your identity, tune your feed, and manage how you connect to the Nostr network.",
+    "introSub": "Everything you need to make this place feel like yours.",
+    "language": {
+      "description": "Choose your preferred interface language",
+      "label": "Language",
+      "system": "System default"
+    },
+    "magicUnlocked": "✨ Magical potential unlocked",
+    "magicUnlockedDescription": "You have awakened the arcane. Your cursor now burns with enchanted fire.",
+    "metaDescription": "Manage your {{appName}} settings",
+    "openMagic": "Open Magic settings",
+    "sections": {
+      "advanced": {
+        "description": "Wallet, system, and power user settings",
+        "label": "Advanced"
+      },
+      "content": {
+        "description": "Muted users, hashtags, and sensitive content settings",
+        "label": "Content"
+      },
+      "feed": {
+        "description": "Choose what types of posts appear in your home feed",
+        "label": "Home Feed"
+      },
+      "magic": {
+        "description": "Enchanted cursor effects and mystical interface powers",
+        "label": "Magic"
+      },
+      "network": {
+        "description": "Relays and file upload servers",
+        "label": "Network"
+      },
+      "notifications": {
+        "description": "Configure push notification preferences",
+        "label": "Notifications"
+      },
+      "profile": {
+        "description": "Edit your display name, bio, and avatar",
+        "label": "Profile"
+      }
+    },
+    "title": "Settings",
+    "unlockMagic": "Unlock magical potential"
+  }
+}

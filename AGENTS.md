@@ -269,6 +269,28 @@ The router provides automatic scroll-to-top on navigation and a 404 `NotFound` p
 - Component-based architecture with hooks
 - **Never use the `any` type.**
 
+## Internationalization (i18n)
+
+UI strings go through `react-i18next`. The shared instance is initialized in `src/i18n/index.ts` (imported for side effects in `main.tsx` and `src/test/setup.ts`) with catalogs bundled per locale in `src/i18n/locales/`. `en.json` is the source of truth; every key must exist there. Language detection follows the explicit picker choice in localStorage, then the browser/OS locale; the picker lives on the Settings page and `setLanguage('system')` from `@/i18n` restores OS-following.
+
+```tsx
+import { useTranslation } from 'react-i18next';
+
+function SaveButton() {
+  const { t } = useTranslation();
+  return <button>{t('common.save')}</button>;
+}
+```
+
+Rules:
+
+- **Never hardcode user-visible strings in new code.** Use `t()` with a `area.key` name (`common`, `nav`, `sidebar`, `settings`, ...). Add the key to `en.json` and to every other catalog in `src/i18n/locales/`.
+- Sidebar/nav labels come from `useItemLabel(id)` in `@/lib/sidebarItems` (looks up `nav.<id>`, falling back to the registry's English label). Use `t('nav.<id>', { defaultValue: item.label })` when you only have the item object.
+- Interpolation: `t('sidebar.logOutAs', { name })` for `Log out @{{name}}`. React already escapes values (`escapeValue: false` is set deliberately); never build HTML from translations.
+- When adding a locale, create its JSON catalog, register it in `resources`, and add it to `LANGUAGE_OPTIONS` and `supportedLngs` in `src/i18n/index.ts`.
+
+Not yet migrated (hardcoded English remains, translate opportunistically when touching these areas): `src/lib/extraKinds.ts` labels (feed page headers), most page bodies, toasts, and dialogs outside the app chrome.
+
 ## Design Standards
 
 Designs should be polished and production-ready. Concrete rules:

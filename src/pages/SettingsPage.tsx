@@ -1,20 +1,21 @@
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
-import { ChevronRight, Settings } from 'lucide-react';
+import { ChevronRight, Languages, Settings } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/PageHeader';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { IntroImage } from '@/components/IntroImage';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { toast } from '@/hooks/useToast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { isUsingSystemLanguage, LANGUAGE_OPTIONS, setLanguage } from '@/i18n';
 
 const RequestToVanishDialog = lazy(() => import('@/components/RequestToVanishDialog').then(m => ({ default: m.RequestToVanishDialog })));
 
 interface SettingsSection {
   id: string;
-  label: string;
-  description: string;
   illustration?: string;
   path: string;
   requiresAuth?: boolean;
@@ -23,65 +24,53 @@ interface SettingsSection {
 const settingsSections: SettingsSection[] = [
   {
     id: 'profile',
-    label: 'Profile',
-    description: 'Edit your display name, bio, and avatar',
     illustration: '/profile-intro.png',
     path: '/settings/profile',
     requiresAuth: true,
   },
   {
     id: 'feed',
-    label: 'Home Feed',
-    description: 'Choose what types of posts appear in your home feed',
     illustration: '/community-intro.png',
     path: '/settings/feed',
   },
   {
     id: 'content',
-    label: 'Content',
-    description: 'Muted users, hashtags, and sensitive content settings',
     illustration: '/mute-intro.png',
     path: '/settings/content',
   },
   {
     id: 'network',
-    label: 'Network',
-    description: 'Relays and file upload servers',
     illustration: '/relay-intro.png',
     path: '/settings/network',
     requiresAuth: true,
   },
   {
     id: 'notifications',
-    label: 'Notifications',
-    description: 'Configure push notification preferences',
     illustration: '/notification-intro.png',
     path: '/settings/notifications',
     requiresAuth: true,
   },
   {
     id: 'advanced',
-    label: 'Advanced',
-    description: 'Wallet, system, and power user settings',
     illustration: '/advanced-intro.png',
     path: '/settings/advanced',
   },
   {
     id: 'magic',
-    label: 'Magic',
-    description: 'Enchanted cursor effects and mystical interface powers',
     illustration: '/magic-intro.png',
     path: '/settings/magic',
   },
 ];
 
 export function SettingsPage() {
+  const { t, i18n } = useTranslation();
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
   const navigate = useNavigate();
   const [sigilFlash, setSigilFlash] = useState(false);
   const [sigilVisible, setSigilVisible] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [systemLanguage, setSystemLanguage] = useState(isUsingSystemLanguage());
   const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -94,8 +83,8 @@ export function SettingsPage() {
   useLayoutOptions({});
 
   useSeoMeta({
-    title: `Settings | ${config.appName}`,
-    description: `Manage your ${config.appName} settings`,
+    title: `${t('settings.title')} | ${config.appName}`,
+    description: t('settings.metaDescription', { appName: config.appName }),
   });
 
   // Magic section only appears in the menu once unlocked
@@ -112,22 +101,22 @@ export function SettingsPage() {
     setTimeout(() => setSigilFlash(false), 1000);
     updateConfig((c) => ({ ...c, magicMouse: true }));
     toast({
-      title: '✨ Magical potential unlocked',
-      description: 'You have awakened the arcane. Your cursor now burns with enchanted fire.',
+      title: t('settings.magicUnlocked'),
+      description: t('settings.magicUnlockedDescription'),
     });
   }
 
   return (
     <main className="relative min-h-screen pb-16 sidebar:pb-0">
       {/* Page header */}
-      <PageHeader title="Settings" icon={<Settings className="size-5" />} backTo="/" />
+      <PageHeader title={t('settings.title')} icon={<Settings className="size-5" />} backTo="/" />
 
       {/* Codex heading + exposition */}
       <div className="px-7 pb-4 pt-4 text-center space-y-2.5">
         <p className="text-xs text-muted-foreground leading-relaxed select-none">
-          Shape your identity, tune your feed, and manage how you connect to the Nostr network.<br />Everything you need to make this place feel like yours.
+          {t('settings.intro')}<br />{t('settings.introSub')}
         </p>
-        <p className="text-[10px] tracking-[0.5em] uppercase text-primary/60 select-none pt-6">Codex of Configuration</p>
+        <p className="text-[10px] tracking-[0.5em] uppercase text-primary/60 select-none pt-6">{t('settings.codex')}</p>
       </div>
 
       {/* Tome ornament */}
@@ -152,9 +141,9 @@ export function SettingsPage() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{section.label}</p>
+                  <p className="text-sm font-semibold">{t(`settings.sections.${section.id}.label`)}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {section.description}
+                    {t(`settings.sections.${section.id}.description`)}
                   </p>
                 </div>
                 <ChevronRight className="size-4 text-primary/40 shrink-0 group-hover:text-primary/70 transition-colors" strokeWidth={4} />
@@ -167,6 +156,40 @@ export function SettingsPage() {
         })}
       </div>
 
+      {/* Language picker */}
+      <div className="px-4 pt-5">
+        <div className="flex items-center gap-4 px-3 py-2 rounded-xl">
+          <div className="flex items-center justify-center size-20 shrink-0">
+            <Languages className="size-8 text-primary/70" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold">{t('settings.language.label')}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {t('settings.language.description')}
+            </p>
+          </div>
+          <Select
+            value={systemLanguage ? 'system' : (i18n.resolvedLanguage ?? 'en').split('-')[0]}
+            onValueChange={(value) => {
+              setLanguage(value);
+              setSystemLanguage(value === 'system');
+            }}
+          >
+            <SelectTrigger className="w-[9.5rem] shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="system">{t('settings.language.system')}</SelectItem>
+              {LANGUAGE_OPTIONS.map((lang) => (
+                <SelectItem key={lang.code} value={lang.code}>
+                  {lang.nativeName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       {/* Delete Account */}
       {user && (
         <div className="flex justify-center pt-4 pb-1">
@@ -174,7 +197,7 @@ export function SettingsPage() {
             onClick={() => setDeleteAccountOpen(true)}
             className="text-xs text-destructive-foreground bg-destructive/80 hover:bg-destructive rounded-full px-4 py-1.5 transition-colors"
           >
-            Delete Account
+            {t('settings.deleteAccount')}
           </button>
         </div>
       )}
@@ -202,7 +225,7 @@ export function SettingsPage() {
         <button
           onClick={unlockMagic}
           className="relative group focus:outline-none"
-          aria-label={config.magicMouse ? 'Open Magic settings' : 'Unlock magical potential'}
+          aria-label={config.magicMouse ? t('settings.openMagic') : t('settings.unlockMagic')}
         >
           {/* Ambient radial glow pool — tight, close to the image */}
           <div

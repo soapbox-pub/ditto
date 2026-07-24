@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   UserPlus, LogOut,
@@ -35,6 +36,7 @@ import { Input } from '@/components/ui/input';
 
 
 export function LeftSidebar() {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const { user, metadata, event: currentUserEvent, isLoading: isProfileLoading } = useCurrentUser();
@@ -75,7 +77,7 @@ export function LeftSidebar() {
     }
   }, [location.pathname]);
 
-  const getDisplayName = (account: Account) => account.metadata.name || account.metadata.display_name || 'Anonymous';
+  const getDisplayName = (account: Account) => account.metadata.name || account.metadata.display_name || t('common.anonymous');
 
   const handleLogout = async () => {
     setAccountPopoverOpen(false);
@@ -96,7 +98,7 @@ export function LeftSidebar() {
 
       {/* Search */}
       <div className="px-2 py-4">
-        <ProfileSearchDropdown placeholder="Search..." inputClassName="py-3.5" enableTextSearch />
+        <ProfileSearchDropdown placeholder={t('common.searchPlaceholder')} inputClassName="py-3.5" enableTextSearch />
       </div>
 
       {/* Nav */}
@@ -133,7 +135,7 @@ export function LeftSidebar() {
             onClick={() => setLoginDialogOpen(true)}
             className="flex items-center justify-center w-full h-10 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors cursor-pointer"
           >
-            Join
+            {t('sidebar.join')}
           </button>
         </div>
       )}
@@ -150,7 +152,7 @@ export function LeftSidebar() {
                   <Avatar shape={currentUserAvatarShape} className="size-10 shrink-0">
                     <AvatarImage src={metadata?.picture} alt={metadata?.name} />
                     <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                      {(metadata?.name || metadata?.display_name || 'Anonymous')[0]?.toUpperCase() ?? '?'}
+                      {(metadata?.name || metadata?.display_name || t('common.anonymous'))[0]?.toUpperCase() ?? '?'}
                     </AvatarFallback>
                   </Avatar>
                 )}
@@ -162,7 +164,7 @@ export function LeftSidebar() {
                       <span className="font-semibold text-sm truncate">
                         {currentUserEvent && (metadata?.name || metadata?.display_name)
                           ? <EmojifiedText tags={currentUserEvent.tags}>{metadata.name || metadata.display_name || ''}</EmojifiedText>
-                          : (metadata?.name || metadata?.display_name || 'Anonymous')}
+                          : (metadata?.name || metadata?.display_name || t('common.anonymous'))}
                       </span>
                       {metadata?.nip05 && (
                         <VerifiedNip05Text nip05={metadata.nip05} pubkey={user.pubkey} className="text-xs text-muted-foreground truncate" />
@@ -198,7 +200,7 @@ export function LeftSidebar() {
                     <Input
                       value={statusDraft}
                       onChange={(e) => setStatusDraft(e.target.value.slice(0, 80))}
-                      placeholder="What are you up to?"
+                      placeholder={t('sidebar.statusPlaceholder')}
                       className="h-8 text-base md:text-sm"
                       maxLength={80}
                       autoFocus
@@ -209,7 +211,7 @@ export function LeftSidebar() {
                           publishStatus.mutateAsync({ status: text }).then(() => {
                             setStatusEditing(false);
                             setStatusDraft('');
-                            toast({ title: text ? 'Status updated' : 'Status cleared' });
+                            toast({ title: text ? t('sidebar.statusUpdated') : t('sidebar.statusCleared') });
                           });
                         } else if (e.key === 'Escape') {
                           setStatusEditing(false);
@@ -224,13 +226,13 @@ export function LeftSidebar() {
                           publishStatus.mutateAsync({ status: text }).then(() => {
                             setStatusEditing(false);
                             setStatusDraft('');
-                            toast({ title: text ? 'Status updated' : 'Status cleared' });
+                            toast({ title: text ? t('sidebar.statusUpdated') : t('sidebar.statusCleared') });
                           });
                         }}
                         disabled={publishStatus.isPending}
                         className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
                       >
-                        {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : 'Save'}
+                        {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : t('common.save')}
                       </button>
                       {userStatus.status && (
                         <button
@@ -238,20 +240,20 @@ export function LeftSidebar() {
                             publishStatus.mutateAsync({ status: '' }).then(() => {
                               setStatusEditing(false);
                               setStatusDraft('');
-                              toast({ title: 'Status cleared' });
+                              toast({ title: t('sidebar.statusCleared') });
                             });
                           }}
                           disabled={publishStatus.isPending}
                           className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
                         >
-                          Clear
+                          {t('common.clear')}
                         </button>
                       )}
                       <button
                         onClick={() => { setStatusEditing(false); setStatusDraft(''); }}
                         className="text-xs text-muted-foreground hover:underline ml-auto"
                       >
-                        Cancel
+                        {t('common.cancel')}
                       </button>
                     </div>
                   </div>
@@ -266,7 +268,7 @@ export function LeftSidebar() {
                     {userStatus.status ? (
                       <span className="truncate text-muted-foreground italic text-xs pr-1">{userStatus.status}</span>
                     ) : (
-                      <span className="text-muted-foreground">Set a status</span>
+                      <span className="text-muted-foreground">{t('sidebar.setStatus')}</span>
                     )}
                   </button>
                 )}
@@ -296,15 +298,15 @@ export function LeftSidebar() {
               <div className="py-1">
                 <button onClick={() => { setAccountPopoverOpen(false); setFollowQROpen(true); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 transition-colors">
                   <QrCode className="size-4 text-muted-foreground" />
-                  <span>Share profile</span>
+                  <span>{t('sidebar.shareProfile')}</span>
                 </button>
                 <button onClick={() => { setAccountPopoverOpen(false); setLoginDialogOpen(true); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 transition-colors">
                   <UserPlus className="size-4 text-muted-foreground" />
-                  <span>Add another account</span>
+                  <span>{t('sidebar.addAccount')}</span>
                 </button>
                 <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors">
                   <LogOut className="size-4" />
-                  <span>Log out @{metadata?.name || metadata?.display_name || 'Anonymous'}</span>
+                  <span>{t('sidebar.logOutAs', { name: metadata?.name || metadata?.display_name || t('common.anonymous') })}</span>
                 </button>
               </div>
             </PopoverContent>

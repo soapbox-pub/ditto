@@ -1,0 +1,122 @@
+{
+  "common": {
+    "add": "Hinzufügen",
+    "anonymous": "Anonym",
+    "cancel": "Abbrechen",
+    "clear": "Leeren",
+    "noResults": "Keine Ergebnisse",
+    "save": "Speichern",
+    "searchPlaceholder": "Suchen..."
+  },
+  "nav": {
+    "ai-chat": "KI-Chat",
+    "archive": "Archiv",
+    "articles": "Artikel",
+    "badges": "Abzeichen",
+    "blobbi": "Blobbi",
+    "bluesky": "Bluesky",
+    "books": "Bücher",
+    "bookmarks": "Lesezeichen",
+    "cards": "Memory-Karten",
+    "changelog": "Changelog",
+    "colors": "Farbmomente",
+    "decks": "Zauberdecks",
+    "development": "Entwicklung",
+    "emojis": "Emojis",
+    "events": "Veranstaltungen",
+    "feed": "Feed",
+    "help": "Hilfe",
+    "highlights": "Highlights",
+    "letters": "Briefe",
+    "lists": "Listen",
+    "music": "Musik",
+    "notifications": "Benachrichtigungen",
+    "packs": "Follow-Packs",
+    "photos": "Fotos",
+    "podcasts": "Podcasts",
+    "polls": "Umfragen",
+    "profile": "Profil",
+    "quizzes": "Quizze",
+    "search": "Suche",
+    "settings": "Einstellungen",
+    "themes": "Designs",
+    "treasures": "Schätze",
+    "trends": "Trends",
+    "videos": "Videos",
+    "vines": "Kurzvideos",
+    "wallet": "Wallet",
+    "webxdc": "Webxdc",
+    "wikipedia": "Wikipedia",
+    "world": "Welt"
+  },
+  "sidebar": {
+    "addAccount": "Weiteres Konto hinzufügen",
+    "addDivider": "Trennlinie hinzufügen",
+    "addLink": "Link hinzufügen",
+    "addToSidebar": "{{label}} zur Seitenleiste hinzufügen",
+    "doneEditing": "Fertig",
+    "editSidebar": "Seitenleiste bearbeiten",
+    "invalidCountryCode": "Ungültiger Länder-/Regionscode",
+    "invalidIdentifier": "Ungültige Kennung",
+    "invalidNsite": "Ungültige nsite-Kennung (nur benannte Seiten werden unterstützt)",
+    "join": "Beitreten",
+    "linkInputPlaceholder": "URL, npub1..., nsite://..., ...",
+    "logOutAs": "@{{name}} abmelden",
+    "more": "Mehr...",
+    "removeDivider": "Trennlinie entfernen",
+    "removeItem": "{{label}} entfernen",
+    "setStatus": "Status festlegen",
+    "shareProfile": "Profil teilen",
+    "statusCleared": "Status geleert",
+    "statusPlaceholder": "Was machst du gerade?",
+    "statusUpdated": "Status aktualisiert",
+    "unsupportedIdentifier": "Nicht unterstützter Kennungstyp"
+  },
+  "settings": {
+    "codex": "Kodex der Konfiguration",
+    "deleteAccount": "Konto löschen",
+    "intro": "Gestalte deine Identität, stimme deinen Feed ab und verwalte, wie du dich mit dem Nostr-Netzwerk verbindest.",
+    "introSub": "Alles, was du brauchst, damit sich dieser Ort wie deiner anfühlt.",
+    "language": {
+      "description": "Wähle deine bevorzugte Sprache für die Benutzeroberfläche",
+      "label": "Sprache",
+      "system": "Systemstandard"
+    },
+    "magicUnlocked": "✨ Magisches Potenzial freigeschaltet",
+    "magicUnlockedDescription": "Du hast das Arkane erweckt. Dein Cursor brennt nun mit verzaubertem Feuer.",
+    "metaDescription": "{{appName}}-Einstellungen verwalten",
+    "openMagic": "Magie-Einstellungen öffnen",
+    "sections": {
+      "advanced": {
+        "description": "Wallet-, System- und Power-User-Einstellungen",
+        "label": "Erweitert"
+      },
+      "content": {
+        "description": "Stummgeschaltete Nutzer, Hashtags und Einstellungen für sensible Inhalte",
+        "label": "Inhalte"
+      },
+      "feed": {
+        "description": "Wähle, welche Arten von Beiträgen in deinem Feed erscheinen",
+        "label": "Startseiten-Feed"
+      },
+      "magic": {
+        "description": "Verzauberte Cursor-Effekte und mystische Interface-Kräfte",
+        "label": "Magie"
+      },
+      "network": {
+        "description": "Relays und Datei-Upload-Server",
+        "label": "Netzwerk"
+      },
+      "notifications": {
+        "description": "Push-Benachrichtigungen konfigurieren",
+        "label": "Benachrichtigungen"
+      },
+      "profile": {
+        "description": "Anzeigename, Biografie und Avatar bearbeiten",
+        "label": "Profil"
+      }
+    },
+    "title": "Einstellungen",
+    "unlockMagic": "Magisches Potenzial freischalten"
+  }
+}

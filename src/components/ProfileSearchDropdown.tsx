@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Search, UserRoundCheck, MessageSquare, FileText, Hash, Archive, Newspaper, List as ListIcon, Users, SmilePlus } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Input } from '@/components/ui/input';
@@ -547,6 +548,8 @@ function NavItem({
   isSelected: boolean;
   onClick: (item: SidebarItemDef) => void;
 }) {
+  const { t } = useTranslation();
+  const label = t(`nav.${item.id}`, { defaultValue: item.label });
   const Icon = item.icon;
 
   return (
@@ -569,7 +572,7 @@ function NavItem({
       >
         <Icon className={cn('size-4', isSelected ? 'text-accent-foreground' : 'text-primary')} />
       </div>
-      <span className="font-semibold text-sm truncate">{item.label}</span>
+      <span className="font-semibold text-sm truncate">{label}</span>
     </button>
   );
 }

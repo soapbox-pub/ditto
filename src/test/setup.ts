@@ -2,6 +2,10 @@ import '@testing-library/jest-dom';
 import 'fake-indexeddb/auto';
 import { vi } from 'vitest';
 
+// Initialize the shared i18n instance so components using useTranslation()
+// render with the English catalog in tests.
+import '@/i18n';
+
 // jsdom replaces the global TextEncoder with an implementation whose output is
 // a `Uint8Array` from a *different realm* — `instanceof Uint8Array` is false in
 // test code. Libraries like @noble/hashes guard with `instanceof Uint8Array`

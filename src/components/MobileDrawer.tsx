@@ -1,4 +1,5 @@
 import { useState, useId, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronUp, LogOut, UserPlus, Loader2, QrCode } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -44,6 +45,7 @@ interface MobileDrawerProps {
 }
 
 export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
+  const { t } = useTranslation();
   const clipId = `${useId()}-drawer-arc-clip`;
   const clipStyle = drawerClipStyle(clipId);
   const location = useLocation();
@@ -109,8 +111,8 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
   const handleClose = () => { onOpenChange(false); setMoreMenuOpen(false); };
   const handleLogout = async () => { await logout(); handleClose(); navigate('/'); };
-  const getDisplayName = (account: Account) => account.metadata.name || account.metadata.display_name || 'Anonymous';
-  const displayName = metadata?.name || metadata?.display_name || (user ? 'Anonymous' : 'Anonymous');
+  const getDisplayName = (account: Account) => account.metadata.name || account.metadata.display_name || t('common.anonymous');
+  const displayName = metadata?.name || metadata?.display_name || t('common.anonymous');
 
   return (
     <>
@@ -184,7 +186,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                         <Input
                           value={statusDraft}
                           onChange={(e) => setStatusDraft(e.target.value.slice(0, 80))}
-                          placeholder="What are you up to?"
+                          placeholder={t('sidebar.statusPlaceholder')}
                           className="h-8 text-base md:text-sm"
                           maxLength={80}
                           autoFocus
@@ -195,7 +197,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                               publishStatus.mutateAsync({ status: text }).then(() => {
                                 setStatusEditing(false);
                                 setStatusDraft('');
-                                toast({ title: text ? 'Status updated' : 'Status cleared' });
+                                toast({ title: text ? t('sidebar.statusUpdated') : t('sidebar.statusCleared') });
                               });
                             } else if (e.key === 'Escape') {
                               setStatusEditing(false);
@@ -210,13 +212,13 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                               publishStatus.mutateAsync({ status: text }).then(() => {
                                 setStatusEditing(false);
                                 setStatusDraft('');
-                                toast({ title: text ? 'Status updated' : 'Status cleared' });
+                                toast({ title: text ? t('sidebar.statusUpdated') : t('sidebar.statusCleared') });
                               });
                             }}
                             disabled={publishStatus.isPending}
                             className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
                           >
-                            {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : 'Save'}
+                            {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : t('common.save')}
                           </button>
                           {userStatus.status && (
                             <button
@@ -224,20 +226,20 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                                 publishStatus.mutateAsync({ status: '' }).then(() => {
                                   setStatusEditing(false);
                                   setStatusDraft('');
-                                  toast({ title: 'Status cleared' });
+                                  toast({ title: t('sidebar.statusCleared') });
                                 });
                               }}
                               disabled={publishStatus.isPending}
                               className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
                             >
-                              Clear
+                              {t('common.clear')}
                             </button>
                           )}
                           <button
                             onClick={() => { setStatusEditing(false); setStatusDraft(''); }}
                             className="text-xs text-muted-foreground hover:underline ml-auto"
                           >
-                            Cancel
+                            {t('common.cancel')}
                           </button>
                         </div>
                       </div>
@@ -252,7 +254,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                         {userStatus.status ? (
                           <span className="truncate text-muted-foreground italic text-xs pr-1">{userStatus.status}</span>
                         ) : (
-                          <span className="text-muted-foreground">Set a status</span>
+                          <span className="text-muted-foreground">{t('sidebar.setStatus')}</span>
                         )}
                       </button>
                     )}
@@ -286,21 +288,21 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-muted-foreground hover:bg-secondary/60 transition-colors"
                   >
                     <QrCode className="size-5 shrink-0" />
-                    <span>Share profile</span>
+                    <span>{t('sidebar.shareProfile')}</span>
                   </button>
                   <button
                     onClick={() => { handleClose(); setLoginDialogOpen(true); }}
                     className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-muted-foreground hover:bg-secondary/60 transition-colors"
                   >
                     <UserPlus className="size-5 shrink-0" />
-                    <span>Add another account</span>
+                    <span>{t('sidebar.addAccount')}</span>
                   </button>
                   <button
                     onClick={handleLogout}
                     className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-destructive hover:bg-destructive/10 transition-colors"
                   >
                     <LogOut className="size-5 shrink-0" />
-                    <span>Log out @{metadata?.name || metadata?.display_name || 'Anonymous'}</span>
+                    <span>{t('sidebar.logOutAs', { name: metadata?.name || metadata?.display_name || t('common.anonymous') })}</span>
                   </button>
                 </div>
               )}

@@ -49,6 +49,7 @@ import {
   User,
   Zap,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
 import { PlanetIcon } from "@/components/icons/PlanetIcon";
@@ -265,6 +266,18 @@ export function sidebarItemIcon(
 /** Lookup display label for a sidebar item ID. */
 export function itemLabel(id: string): string {
   return SIDEBAR_ITEM_MAP.get(id)?.label ?? id;
+}
+
+/**
+ * Translated display label for a sidebar item ID, for use in components.
+ * Looks up `nav.<id>` in the active locale and falls back to the registry's
+ * English label when the key is missing. Non-registry IDs (URIs, dividers)
+ * pass through untranslated.
+ */
+export function useItemLabel(id: string): string {
+  const { t } = useTranslation();
+  const fallback = SIDEBAR_ITEM_MAP.get(id)?.label;
+  return fallback ? t(`nav.${id}`, { defaultValue: fallback }) : id;
 }
 
 /** Lookup navigation path for a sidebar item ID. */

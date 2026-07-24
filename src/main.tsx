@@ -7,6 +7,9 @@ import './lib/polyfills.ts';
 import { hydrateNip05Cache } from '@/lib/nip05Cache';
 hydrateNip05Cache();
 
+// Initialize the i18n instance (side effect) before any component renders.
+import '@/i18n';
+
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import App from './App.tsx';
 import './index.css';

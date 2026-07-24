@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Bell, Home, Search, User } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -31,9 +32,10 @@ export function MobileBottomNav() {
   const profileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
 
   const { config } = useAppContext();
+  const { t } = useTranslation();
   const homeItem = getSidebarItem(config.homePage);
   const HomeIcon = homeItem?.icon ?? Home;
-  const homeLabel = homeItem?.label ?? 'Home';
+  const homeLabel = homeItem ? t(`nav.${homeItem.id}`, { defaultValue: homeItem.label }) : t('nav.feed');
   const homePath = homeItem?.path;
 
   const [searchOpen, setSearchOpen] = useState(false);
@@ -97,7 +99,7 @@ export function MobileBottomNav() {
             )}
           >
             <Search className="size-5" />
-            <span className="text-[10px] font-medium">Search</span>
+            <span className="text-[10px] font-medium">{t('nav.search')}</span>
           </button>
 
           {/* Notifications */}
@@ -116,7 +118,7 @@ export function MobileBottomNav() {
                   <span className="absolute -top-1 right-0 size-2 bg-primary rounded-full" />
                 )}
               </span>
-              <span className="text-[10px] font-medium">Notifications</span>
+              <span className="text-[10px] font-medium">{t('nav.notifications')}</span>
             </Link>
           )}
 
@@ -136,7 +138,7 @@ export function MobileBottomNav() {
                   {displayName?.[0]?.toUpperCase() || <User className="size-3" />}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-[10px] font-medium">Profile</span>
+              <span className="text-[10px] font-medium">{t('nav.profile')}</span>
             </Link>
           ) : (
             <Link
@@ -144,7 +146,7 @@ export function MobileBottomNav() {
               className="flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors text-muted-foreground"
             >
               <User className="size-5" />
-              <span className="text-[10px] font-medium">Profile</span>
+              <span className="text-[10px] font-medium">{t('nav.profile')}</span>
             </Link>
           )}
 
