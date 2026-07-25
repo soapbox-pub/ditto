@@ -1,6 +1,8 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 
 /** Max rounds of recursive fetching to avoid runaway loops. */
 const MAX_FETCH_DEPTH = 5;
@@ -16,6 +18,7 @@ const MAX_FETCH_DEPTH = 5;
  */
 export function useReplies(eventId: string | undefined) {
   const { nostr } = useNostr();
+  const { store } = useNostrStorage();
 
   return useQuery<NostrEvent[]>({
     queryKey: ['replies', eventId ?? ''],
@@ -26,17 +29,22 @@ export function useReplies(eventId: string | undefined) {
       let idsToQuery = [eventId];
 
       for (let depth = 0; depth < MAX_FETCH_DEPTH && idsToQuery.length > 0; depth++) {
-        const events = await nostr.query(
-          [
-            { kinds: [1, 1111], '#e': idsToQuery, limit: 200 },
-            { kinds: [1111], '#E': idsToQuery, limit: 200 },
-          ],
-          { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
-        );
+        const filters: NostrFilter[] = [
+          { kinds: [1, 1111], '#e': idsToQuery, limit: 200 },
+          { kinds: [1111], '#E': idsToQuery, limit: 200 },
+        ];
+
+        // Read the local store alongside the relays and merge. The store only
+        // holds the user's OWN events (see AppPool.shouldCache) — precisely
+        // what a relay may not have indexed yet moments after replying.
+        const [cached, remote] = await Promise.all([
+          store.query(filters, { signal }).catch(() => [] as NostrEvent[]),
+          nostr.query(filters, { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) }),
+        ]);
 
         // Collect newly discovered event IDs for the next round
         const newIds: string[] = [];
-        for (const e of events) {
+        for (const e of [...cached, ...remote]) {
           if (!seen.has(e.id)) {
             seen.set(e.id, e);
             newIds.push(e.id);

@@ -3,6 +3,8 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 
+import { useNostrStorage } from '@/hooks/useNostrStorage';
+
 /** A thread root, normalized to the identifiers needed to query and group its comments. */
 type RootRef =
   | { type: 'external'; value: string }
@@ -28,6 +30,7 @@ export function useComments(
   extraKinds?: number[],
 ) {
   const { nostr } = useNostr();
+  const { store } = useNostrStorage();
 
   // Reduce the root to primitives so `ref` — and therefore `select` — stays
   // referentially stable across renders even when the root object doesn't.
@@ -91,12 +94,18 @@ export function useComments(
         for (const filter of filters) filter.limit = limit;
       }
 
-      // Query for all comments that reference this root regardless of depth
+      // Query for all comments that reference this root regardless of depth.
+      // The local store is read alongside the relays and merged: it only holds
+      // the user's OWN events (see AppPool.shouldCache), which is precisely
+      // what a relay may not have indexed yet moments after commenting.
       const abort = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
-      const rawEvents = await nostr.query(filters, { signal: abort });
+      const [cached, remote] = await Promise.all([
+        store.query(filters, { signal }).catch(() => [] as NostrEvent[]),
+        nostr.query(filters, { signal: abort }),
+      ]);
 
       // Dedupe — the same comment usually matches several of the filters above
-      return [...new Map(rawEvents.map((e) => [e.id, e])).values()];
+      return [...new Map([...cached, ...remote].map((e) => [e.id, e])).values()];
     },
     select,
     enabled: !!root,
