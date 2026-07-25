@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.34.0] - 2026-07-24
+
+Ditto speaks your language. Settings, profile editing, navigation, and sidebar widgets are now translated into German and Japanese, with a language picker under Settings → Advanced — or leave it on System default and Ditto follows your device. Replies got quicker too: post one and it shows up in the thread right away, and it stays there after a refresh instead of disappearing until the network catches up.
+
+### Added
+- German and Japanese translations across settings, profile editing, navigation, and sidebar widgets
+- A language picker in Settings → Advanced, including a System default option that follows your device language
+
+### Fixed
+- Replies appear in the thread the moment you post them, including replies to replies and voice replies
+- Your own replies stay visible after a refresh instead of vanishing until the network catches up
+
 ## [2.33.0] - 2026-07-24
 
 Memory cards are here. Ditto now speaks PlayStation 1: upload a memory card image and it goes up block by block, animated save icons and all. Browse cards from people you follow or from the whole network, watch the icons spin, copy a save onto your own card, or download the whole thing as a file you can drop straight into an emulator. This release also unfreezes the Add custom tab dialog on your profile and fixes Android sign-in with Amber on relays that ask you to authenticate.
