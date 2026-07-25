@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
-import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle, Coins } from 'lucide-react';
+import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle, Coins, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { RequestToVanishDialog } from '@/components/RequestToVanishDialog';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useLanguage } from '@/hooks/useLanguage';
+import { LANGUAGE_OPTIONS } from '@/i18n/language';
 import type { CurrencyDisplay } from '@/contexts/AppContext';
 
 /** The build-time default DSN from the environment variable. */
@@ -23,7 +26,9 @@ export function AdvancedSettings() {
   const { toast } = useToast();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
+  const { locale, system, setLanguage } = useLanguage();
   const [systemOpen, setSystemOpen] = useState(true);
+  const [languageOpen, setLanguageOpen] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [sentryOpen, setSentryOpen] = useState(false);
   const [dangerOpen, setDangerOpen] = useState(false);
@@ -203,6 +208,59 @@ export function AdvancedSettings() {
                   <span className="font-medium"><FormattedMessage id="settings.advanced.defaultLabel" defaultMessage={"Default:"} />{' '}</span>
                   <span className="font-mono break-all">https://proxy.shakespeare.diy/?url={'{href}'}</span>
                 </div>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+
+      {/* Language Section */}
+      <div>
+        <Collapsible open={languageOpen} onOpenChange={setLanguageOpen}>
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
+            >
+              <span className="flex items-center gap-2 text-base font-semibold">
+                <Languages className="h-4 w-4" />
+                <FormattedMessage id="settings.language.label" defaultMessage={"Language"} />
+              </span>
+              {languageOpen ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="px-3 pt-3 pb-4 space-y-3">
+              <div>
+                <Label htmlFor="ui-language" className="text-sm font-medium">
+                  <FormattedMessage id="settings.language.label" defaultMessage={"Language"} />
+                </Label>
+                <p className="text-xs text-muted-foreground mt-1 mb-2">
+                  <FormattedMessage id="settings.language.description" defaultMessage={"Choose your preferred interface language"} />
+                </p>
+                {/* 'system' isn't a supported code, so storing it falls back to
+                    the browser/OS locale — see useLanguage. */}
+                <Select
+                  value={system ? 'system' : locale}
+                  onValueChange={setLanguage}
+                >
+                  <SelectTrigger id="ui-language" className="w-full max-w-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="system"><FormattedMessage id="settings.language.system" defaultMessage={"System default"} /></SelectItem>
+                    {LANGUAGE_OPTIONS.map((lang) => (
+                      <SelectItem key={lang.code} value={lang.code}>
+                        {lang.nativeName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </CollapsibleContent>

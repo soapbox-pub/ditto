@@ -1,6 +1,6 @@
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
-import { ChevronRight, Languages, Settings } from 'lucide-react';
+import { ChevronRight, Settings } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { defineMessage, FormattedMessage, useIntl, type MessageDescriptor } from 'react-intl';
 import { PageHeader } from '@/components/PageHeader';
@@ -9,9 +9,6 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { IntroImage } from '@/components/IntroImage';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { toast } from '@/hooks/useToast';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useLanguage } from '@/hooks/useLanguage';
-import { LANGUAGE_OPTIONS } from '@/i18n/language';
 
 const RequestToVanishDialog = lazy(() => import('@/components/RequestToVanishDialog').then(m => ({ default: m.RequestToVanishDialog })));
 
@@ -81,7 +78,6 @@ const settingsSections: SettingsSection[] = [
 
 export function SettingsPage() {
   const intl = useIntl();
-  const { locale, system, setLanguage } = useLanguage();
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
   const navigate = useNavigate();
@@ -171,37 +167,6 @@ export function SettingsPage() {
             </div>
           );
         })}
-      </div>
-
-      {/* Language picker */}
-      <div className="px-4 pt-5">
-        <div className="flex items-center gap-4 px-3 py-2 rounded-xl">
-          <div className="flex items-center justify-center size-20 shrink-0">
-            <Languages className="size-8 text-primary/70" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold"><FormattedMessage id="settings.language.label" defaultMessage={"Language"} /></p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              <FormattedMessage id="settings.language.description" defaultMessage={"Choose your preferred interface language"} />
-            </p>
-          </div>
-          <Select
-            value={system ? 'system' : locale}
-            onValueChange={setLanguage}
-          >
-            <SelectTrigger className="w-[9.5rem] shrink-0">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="system"><FormattedMessage id="settings.language.system" defaultMessage={"System default"} /></SelectItem>
-              {LANGUAGE_OPTIONS.map((lang) => (
-                <SelectItem key={lang.code} value={lang.code}>
-                  {lang.nativeName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       {/* Delete Account */}
