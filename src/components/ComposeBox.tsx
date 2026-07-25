@@ -33,6 +33,7 @@ import { usePostComment } from '@/hooks/usePostComment';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
 import { prependEventToFeeds } from '@/lib/feedUtils';
+import { insertReplyIntoThreads } from '@/lib/insertReply';
 import { useToast } from '@/hooks/useToast';
 import { ToastAction } from '@/components/ui/toast';
 import { tryNeventEncode } from '@/lib/safeNip19';
@@ -758,6 +759,9 @@ export function ComposeBox({
       const isNip22Reply = replyTo && (isExternalRoot(replyTo) || replyTo.kind !== 1);
       const isKind1Reply = replyTo && !isExternalRoot(replyTo) && replyTo.kind === 1;
 
+      /** Set when this voice message is a reply, so it can be shown in the open thread. */
+      let publishedReply: NostrEvent | undefined;
+
       if (isNip22Reply) {
         // NIP-22 voice reply (kind 1244) — use postComment infrastructure
         // but we need to publish kind 1244 directly since postComment uses kind 1111
@@ -787,7 +791,7 @@ export function ComposeBox({
           voiceTags.push(['p', replyTo.pubkey]);
         }
 
-        await createEvent({
+        publishedReply = await createEvent({
           kind: 1244,
           content: audioUrl,
           tags: voiceTags,
@@ -804,7 +808,7 @@ export function ComposeBox({
         }
         voiceTags.push(['p', replyTo.pubkey]);
 
-        await createEvent({
+        publishedReply = await createEvent({
           kind: 1222,
           content: audioUrl,
           tags: voiceTags,
@@ -830,13 +834,10 @@ export function ComposeBox({
         if (!isExternalRoot(replyTo)) {
           rebroadcastEvent(nostr, replyTo);
         }
-        if (isExternalRoot(replyTo)) {
-          queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
-        } else {
-          queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
-          if (replyTo.kind !== 1) {
-            queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
-          }
+        if (publishedReply) {
+          // Show the voice reply in the open thread right away. Voice replies
+          // always tag `replyTo` as the root, whatever its type.
+          insertReplyIntoThreads(queryClient, publishedReply, replyTo);
         }
       }
       notificationSuccess();
@@ -1007,6 +1008,8 @@ export function ComposeBox({
 
 
       let published: NostrEvent;
+      /** The NIP-22 thread root, which isn't always the event being replied to. */
+      let threadRoot: NostrEvent | URL | `#${string}` | undefined;
       if (isNip22Reply) {
         // NIP-22: use usePostComment for non-kind-1 targets and URL roots
         // Determine root and reply params for the comment hook
@@ -1082,6 +1085,7 @@ export function ComposeBox({
           root = replyTo;
         }
 
+        threadRoot = root;
         published = await postComment({ root, reply, content: finalContent, tags });
       } else {
         published = await createEvent({
@@ -1121,17 +1125,10 @@ export function ComposeBox({
         queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
       }
       if (replyTo) {
-        if (isExternalRoot(replyTo)) {
-          queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
-        } else {
-          queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
-          // Invalidate the event-comments cache used by CommentsSheet
-          if (replyTo.kind !== 1) {
-            const dTag = replyTo.tags.find(([n]) => n === 'd')?.[1] ?? '';
-            const aTag = `${replyTo.kind}:${replyTo.pubkey}:${dTag}`;
-            queryClient.invalidateQueries({ queryKey: ['event-comments', aTag] });
-          }
-        }
+        // Show the reply in the open thread right away. Keying off `replyTo.id`
+        // alone isn't enough: reply lists are keyed by the thread ROOT, so
+        // replying to a sub-reply would miss the query being displayed.
+        insertReplyIntoThreads(queryClient, published, threadRoot ?? replyTo);
       }
       if (quotedEvent) {
         queryClient.invalidateQueries({ queryKey: ['event-stats', quotedEvent.id] });
