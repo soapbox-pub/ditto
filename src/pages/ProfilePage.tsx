@@ -24,6 +24,7 @@ import { NoteCard } from '@/components/NoteCard';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ProfileLoveButton } from '@/components/ProfileLoveButton';
+import { ProfileNsiteButton } from '@/components/ProfileNsiteButton';
 import { CelebrationOverlay, CELEBRATION_DURATION_MS } from '@/components/CelebrationOverlay';
 import { BirthdayRain, PartyHat } from '@/components/BirthdayRain';
 import { ZapDialog } from '@/components/ZapDialog';
@@ -2337,6 +2338,8 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                   >
                     <MoreHorizontal className="size-5" />
                   </Button>
+                  {/* NIP-5A root site, if they've published one */}
+                  <ProfileNsiteButton pubkey={pubkey} displayName={displayName} />
                   {/* Follow QR code button (own profile only) */}
                   {isOwnProfile && (
                     <Button
