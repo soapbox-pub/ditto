@@ -71,9 +71,7 @@ export function useFormatMoney(): FormatMoneyResult {
   const [wantsPrice, setWantsPrice] = useState(false);
   // No dependency array is intentional (see comment above): the effect must
   // run after every commit to notice the ref latch. The `!wantsPrice` guard
-  // makes the state update fire at most once, so there is no update loop —
-  // which is the risk exhaustive-deps warns about here.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // makes the state update fire at most once, so there is no update loop.
   useEffect(() => {
     if (wantsPriceRef.current && !wantsPrice) {
       setWantsPrice(true);
