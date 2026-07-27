@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
-import { Award, CalendarClock, ClipboardList, HandHeart, MessageSquareOff, Video } from 'lucide-react';
+import { Award, CalendarClock, ClipboardList, HandHeart, MessageSquareOff, Music, SmilePlus, Video } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const BlobbiStateCard = lazy(() => import('@/components/BlobbiStateCard').then(m => ({ default: m.BlobbiStateCard })));
@@ -195,6 +195,14 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
   // but wouldn't show the question count or the "Quiz" label.
   if (event.kind === QUIZ_KIND) {
     return <EmbeddedQuizCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-38 user statuses (kind 30315) get a compact card showing the status
+  // type pill + the status text. The generic naddr card would treat the
+  // free-form status content as a "description", but this keeps it visually
+  // consistent with how statuses render in the feed and detail page.
+  if (event.kind === 30315) {
+    return <EmbeddedStatusCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // NIP-53 Meeting Spaces (30312) and Meeting Room events (30313) get a
@@ -727,6 +735,65 @@ function EmbeddedRoomCard({
       {summary && (
         <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words">
           {summary}
+        </p>
+      )}
+    </EmbeddedCardShell>
+  );
+}
+
+/**
+ * Compact inline card for NIP-38 user statuses (kind 30315). Shows a
+ * type pill ("Status" / "Listening to" / "<type> status") and the status
+ * text. Custom emoji in the status render inline via {@link EmojifiedText}.
+ */
+function EmbeddedStatusCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? 'general';
+  const isMusic = dTag === 'music';
+  const text = event.content.trim();
+
+  const isExpired = useMemo(() => {
+    const expTag = event.tags.find(([n]) => n === 'expiration')?.[1];
+    if (!expTag) return false;
+    const t = parseInt(expTag, 10);
+    return !Number.isNaN(t) && Math.floor(Date.now() / 1000) > t;
+  }, [event.tags]);
+
+  const naddrId = useMemo(() => {
+    const d = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+    return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: d });
+  }, [event]);
+
+  const Icon = isMusic ? Music : SmilePlus;
+  const label = isMusic ? 'Listening to' : dTag === 'general' ? 'Status' : `${dTag} status`;
+  const cleared = !text || isExpired;
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={naddrId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <Icon className="size-3 shrink-0" />
+        {label}
+      </div>
+      {cleared ? (
+        <p className="text-xs italic text-muted-foreground">
+          {isExpired ? 'This status has expired' : 'No status set'}
+        </p>
+      ) : (
+        <p dir="auto" className="text-sm font-medium leading-snug break-words line-clamp-3 text-foreground">
+          <EmojifiedText tags={event.tags}>{text}</EmojifiedText>
         </p>
       )}
     </EmbeddedCardShell>

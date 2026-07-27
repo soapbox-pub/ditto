@@ -91,6 +91,7 @@ const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ defau
 import { PrUpdateCard } from "@/components/PrUpdateCard";
 import { RepoStateCard } from "@/components/RepoStateCard";
 import { HighlightContent } from "@/components/HighlightContent";
+import { StatusContent } from "@/components/StatusContent";
 import { InteractiveRoomContent } from "@/components/InteractiveRoomContent";
 import { QuizContent } from "@/components/quiz/QuizContent";
 import { QuizResultContent } from "@/components/quiz/QuizResultContent";
@@ -582,6 +583,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isLetter = event.kind === 8211;
   const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
+  const isStatus = event.kind === 30315;
   const isAttestation = event.kind === ATTESTATION_KIND;
   const isCampaign = event.kind === 33863;
   const isQuiz = event.kind === QUIZ_KIND;
@@ -644,6 +646,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     !isLetter &&
     !isLoveList &&
     !isHighlight &&
+    !isStatus &&
     !isAttestation &&
     !isCampaign &&
     !isQuiz &&
@@ -895,6 +898,8 @@ const NoteCardImpl = memo(function NoteCardImpl({
           <LoveListContent event={event} compact />
         ) : isHighlight ? (
           <HighlightContent event={event} />
+        ) : isStatus ? (
+          <StatusContent event={event} />
         ) : isRoom ? (
           <InteractiveRoomContent event={event} />
         ) : isAttestation ? (
@@ -2324,6 +2329,11 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: (event) => publishedAtAction(event, { created: "created an", updated: "updated an", fallback: "shared an" }),
     noun: "emoji pack",
     nounRoute: "/emojis",
+  },
+  30315: {
+    icon: SmilePlus,
+    action: "updated their",
+    noun: "status",
   },
   8: {
     icon: Award,
