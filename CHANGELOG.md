@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.34.1] - 2026-07-26
+
+Profiles can be planets now. If someone has published their own website to Nostr, a little globe button appears on their profile — tap it and the whole site opens right inside Ditto, no browser tab required. Go wander around someone's corner of the internet without ever leaving the feed.
+
+### Added
+- A globe button on profiles that opens the person's published website inside Ditto
+
 ## [2.34.0] - 2026-07-24
 
 Ditto speaks your language. Settings, profile editing, navigation, and sidebar widgets are now translated into German and Japanese, with a language picker under Settings → Advanced — or leave it on System default and Ditto follows your device. Replies got quicker too: post one and it shows up in the thread right away, and it stays there after a refresh instead of disappearing until the network catches up.
