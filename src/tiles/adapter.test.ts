@@ -1,8 +1,25 @@
 import type { NostrEvent, UnsignedEvent } from 'nostr-tools';
+import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
+import type { NavigateTarget } from '@soapbox.pub/nostr-canvas';
 import { describe, expect, it, vi } from 'vitest';
 import { createCanvasAdapter } from './adapter';
 
 const PUBKEY = 'a'.repeat(64);
+
+// Valid NIP-19 identifiers derived from a deterministic key for testing.
+const SECKEY_BYTES = generateSecretKey();
+const DERIVED_PUBKEY = getPublicKey(SECKEY_BYTES);
+const VALID_NSEC = nip19.nsecEncode(SECKEY_BYTES);
+const VALID_NPUB = nip19.npubEncode(DERIVED_PUBKEY);
+const VALID_NOTE = nip19.noteEncode('b'.repeat(64));
+
+function makeAdapter(opts: { openPath?: (path: string) => void; notify?: (message: string, variant: string) => void } = {}) {
+  return createCanvasAdapter({
+    subscribe: () => () => {},
+    openPath: opts.openPath ?? vi.fn(),
+    notify: opts.notify,
+  });
+}
 
 function event(): NostrEvent {
   return {
@@ -106,13 +123,87 @@ describe('createCanvasAdapter', () => {
     await expect(adapter.fetch?.({ url: 'https://weather.example/api' })).resolves.toMatchObject({ ok: true });
   });
 
-  it('routes tile notifications through Ditto and rejects navigation', async () => {
+  it('routes tile notifications through Ditto and rejects identifier navigation', async () => {
     const notify = vi.fn();
-    const adapter = createCanvasAdapter({ subscribe: () => () => {}, notify });
+    const openPath = vi.fn();
+    const adapter = makeAdapter({ notify, openPath });
 
     adapter.notify?.('Weather updated', 'success');
+    // identifier targets are out of scope — always not_implemented
     await expect(adapter.navigate?.({ identifier: 'alice@example.com:weather' })).resolves.toEqual({ ok: false, reason: 'not_implemented' });
     expect(notify).toHaveBeenCalledWith('Weather updated', 'success');
+    expect(openPath).not.toHaveBeenCalled();
+  });
+
+  describe('navigate – url targets', () => {
+    it('opens an https URL via the /i/ internal browser path', async () => {
+      const openPath = vi.fn();
+      const adapter = makeAdapter({ openPath });
+
+      await expect(adapter.navigate?.({ url: 'https://en.wikipedia.org/wiki/Main_Page' })).resolves.toEqual({ ok: true });
+      expect(openPath).toHaveBeenCalledWith('/i/https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FMain_Page');
+    });
+
+    it('rejects http URLs', async () => {
+      const openPath = vi.fn();
+      const adapter = makeAdapter({ openPath });
+
+      await expect(adapter.navigate?.({ url: 'http://insecure.example' })).resolves.toEqual({ ok: false, reason: 'rejected' });
+      expect(openPath).not.toHaveBeenCalled();
+    });
+
+    it('rejects javascript URLs', async () => {
+      const openPath = vi.fn();
+      const adapter = makeAdapter({ openPath });
+
+      await expect(adapter.navigate?.({ url: 'javascript:alert(1)' })).resolves.toEqual({ ok: false, reason: 'rejected' });
+      expect(openPath).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('navigate – pointer targets', () => {
+    it('opens an npub via the root path', async () => {
+      const openPath = vi.fn();
+      const adapter = makeAdapter({ openPath });
+
+      await expect(adapter.navigate?.({ pointer: VALID_NPUB })).resolves.toEqual({ ok: true });
+      expect(openPath).toHaveBeenCalledWith(`/${VALID_NPUB}`);
+    });
+
+    it('opens a note nevent via the root path', async () => {
+      const openPath = vi.fn();
+      const adapter = makeAdapter({ openPath });
+
+      await expect(adapter.navigate?.({ pointer: VALID_NOTE })).resolves.toEqual({ ok: true });
+      expect(openPath).toHaveBeenCalledWith(`/${VALID_NOTE}`);
+    });
+
+    it('rejects nsec pointers', async () => {
+      const openPath = vi.fn();
+      const adapter = makeAdapter({ openPath });
+
+      await expect(adapter.navigate?.({ pointer: VALID_NSEC })).resolves.toEqual({ ok: false, reason: 'rejected' });
+      expect(openPath).not.toHaveBeenCalled();
+    });
+
+    it('handles the `nostr` key (wasm/Lua field name)', async () => {
+      const openPath = vi.fn();
+      const adapter = makeAdapter({ openPath });
+
+      // The wasm runtime forwards the Lua field name `nostr`; the TS type
+      // uses `pointer`. Verify we handle both keys.
+      const target = { nostr: VALID_NPUB } as unknown as NavigateTarget;
+      await expect(adapter.navigate?.(target)).resolves.toEqual({ ok: true });
+      expect(openPath).toHaveBeenCalledWith(`/${VALID_NPUB}`);
+    });
+  });
+
+  describe('navigate – not implemented when no openPath', () => {
+    it('leaves navigate unset when no openPath service is provided', () => {
+      const adapter = createCanvasAdapter({ subscribe: () => () => {} });
+      // The runtime falls back to not_implemented when navigate is absent.
+      expect(adapter.navigate).toBeUndefined();
+    });
   });
 
   it('routes image uploads through the host upload service', async () => {

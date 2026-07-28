@@ -5,6 +5,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Capability, GrantBackend, TileRuntime } from '@soapbox.pub/nostr-canvas';
 import { createCanvasAdapter, type CanvasAdapter, type CanvasAdapterServices } from '@/tiles/adapter';
+import { canvasNavigateTo } from '@/lib/canvasNavigateRef';
 import { CanvasTileInstallationsProvider } from '@/components/CanvasTileInstallationsProvider';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -138,6 +139,7 @@ export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
       const tags = await uploadFile.mutateAsync(file);
       return tags[0][1];
     },
+    openPath: (path) => canvasNavigateTo(path),
   };
 
   if (!adapterRef.current) {
@@ -154,6 +156,7 @@ export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
       corsProxy: () => servicesRef.current!.corsProxy!(),
       notify: (message, variant) => servicesRef.current!.notify!(message, variant),
       uploadImage: (options) => servicesRef.current!.uploadImage!(options),
+      openPath: (path) => servicesRef.current!.openPath!(path),
     });
   }
   if (!storageRef.current) storageRef.current = withoutDefinitionStorage(localStorage);

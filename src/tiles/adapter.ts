@@ -1,7 +1,45 @@
-import type { FetchResult, RuntimeAdapter, NotifyVariant } from '@soapbox.pub/nostr-canvas';
+import type { FetchResult, RuntimeAdapter, NotifyVariant, NavigateResult, NavigateTarget } from '@soapbox.pub/nostr-canvas';
 import type { NostrEvent, UnsignedEvent } from 'nostr-tools';
+import { nip19 } from 'nostr-tools';
 import { proxyUrl } from '@/lib/proxyUrl';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+
+/** Narrow structural type for checking both ``pointer`` (TS type) and ``nostr`` (wasm/Lua field). */
+interface NavigateTargetLike {
+  url?: string;
+  pointer?: string;
+  nostr?: string;
+  identifier?: string;
+  props?: Record<string, unknown>;
+}
+
+function handleNavigate(target: NavigateTarget, openPath: (path: string) => void): NavigateResult {
+  const t = target as NavigateTargetLike;
+
+  if (t.url !== undefined) {
+    const safe = sanitizeUrl(t.url);
+    if (!safe) return { ok: false, reason: 'rejected' };
+    openPath(`/i/${encodeURIComponent(safe)}`);
+    return { ok: true };
+  }
+
+  // The wasm runtime forwards the Lua field name `nostr`, while the TS type
+  // uses `pointer`. Check both defensively.
+  const pointer = t.pointer ?? t.nostr;
+  if (pointer !== undefined) {
+    try {
+      const decoded = nip19.decode(pointer);
+      if (decoded.type === 'nsec') return { ok: false, reason: 'rejected' };
+    } catch {
+      return { ok: false, reason: 'rejected' };
+    }
+    openPath(`/${pointer}`);
+    return { ok: true };
+  }
+
+  // identifier-based targets are out of scope for now.
+  return { ok: false, reason: 'not_implemented' };
+}
 
 export interface CanvasAdapter extends RuntimeAdapter {
   notify?: (message: string, variant: NotifyVariant) => void;
@@ -24,6 +62,7 @@ export interface CanvasAdapterServices {
   corsProxy?: () => string;
   notify?: (message: string, variant: NotifyVariant) => void;
   uploadImage?: NonNullable<RuntimeAdapter['uploadImage']>;
+  openPath?: (path: string) => void;
 }
 
 /** Creates the Canvas adapter from Ditto-owned services. */
@@ -43,7 +82,11 @@ export function createCanvasAdapter(services: CanvasAdapterServices): CanvasAdap
   if (services.notify) adapter.notify = services.notify;
   if (services.uploadImage) adapter.uploadImage = services.uploadImage;
 
-  adapter.navigate = async () => ({ ok: false, reason: 'not_implemented' });
+  if (services.openPath) {
+    adapter.navigate = async (target) => {
+      return handleNavigate(target, services.openPath!);
+    };
+  }
   if (services.fetch) adapter.fetch = createSafeFetch(services.fetch, services.corsProxy);
 
   return adapter;
