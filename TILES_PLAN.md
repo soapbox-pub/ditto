@@ -216,16 +216,16 @@ mid-flow request).
         widgets (reuse `widgetAccentVars` + border/handle-tint treatment).
       - **Verified badge → icon** (e.g. `BadgeCheck`) next to the tile
         name, tooltip for the meaning; no text badge.
-      - **Sparkle icon** next to the title when the tile declares views
-        beyond the sidebar widget (i.e. supports more views in other
-        apps); tooltip explains. *(Open q for phase start: which
-        definition field(s) indicate extra views — enumerate from
-        nostr-canvas `TileDefinition` views/entry points.)*
+      - **Sparkle icon** next to the title when the tile declares **more
+        than one view** in its `TileDefinition` (resolved 2026-07-28) —
+        tooltip explains it supports more views in other apps.
       - **Permissions in one single row** per card: the two most
         important perms shown first as compact chips, remainder collapsed
         to a `+N` chip that reveals the rest on hover (tooltip/popover).
-        *(Open q for phase start: capability importance ranking — e.g.
-        bitcoin-sign-psbt / event publishing first, cosmetic ones last.)*
+        Importance ranking (proposed, pending user sign-off):
+        `bitcoin-sign-psbt` > `publish-event` > `nip44-decrypt` >
+        `nip44-encrypt` > `fetch` > `get-pubkey` > `feed-action` >
+        `navigate`.
       *Eval:* manual across mobile/desktop widths; `npm run test`.
 - [ ] **T4.2 Install UX on the list.** Installed / update-available badges
       per card (via `installations` cache vs marketplace event timestamps);
