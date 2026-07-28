@@ -12,6 +12,8 @@ export interface TileDefinition {
   language: string;
   script: string;
   image?: string;
+  /** All sanitised `image` tag URLs (may include the header image). */
+  images?: string[];
   summary?: string;
   description?: string;
   /** NIP-99 published_at tag value (Unix timestamp), if present. */
@@ -33,9 +35,15 @@ export function parseTileDefinition(_event: NostrEvent): TileDefinition | null {
   const publishedAtTag = _event.tags.find(([tag]) => tag === 'published_at')?.[1];
   const publishedAt = publishedAtTag ? Number(publishedAtTag) : undefined;
 
+  const images = _event.tags
+    .filter(([tag]) => tag === 'image')
+    .map(([, url]) => sanitizeUrl(url))
+    .filter(Boolean) as string[];
+
   return {
     ...tile,
     image: sanitizeUrl(tile.image),
+    images: images.length > 0 ? images : undefined,
     publishedAt: publishedAt && !isNaN(publishedAt) ? publishedAt : undefined,
   };
 }
