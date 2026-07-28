@@ -208,13 +208,6 @@ export function getWidgetDefinition(id: string): WidgetDefinition | undefined {
   return WIDGET_MAP.get(id);
 }
 
-/** Category labels for display in the picker. */
-export const WIDGET_CATEGORIES: Record<string, string> = {
-  personal: 'Personal',
-  content: 'Content',
-  discovery: 'Discovery',
-};
-
 // ── Translated labels ─────────────────────────────────────────────────────────
 
 /** Maps registry widget IDs to their i18n key stem under `widgets.*`. */
@@ -263,12 +256,3 @@ export function useWidgetDescription(id: string): string {
   return intl.formatMessage({ id: `widgets.${widgetI18nStem(id)}.description`, defaultMessage: def.description });
 }
 
-/**
- * Translated category label for the widget picker.
- * Looks up `widgets.categories.<category>` and falls back to the English
- * label from WIDGET_CATEGORIES when the key is missing.
- */
-export function useWidgetCategoryLabel(category: string): string {
-  const intl = useIntl();
-  return intl.formatMessage({ id: `widgets.categories.${category}`, defaultMessage: WIDGET_CATEGORIES[category] ?? category });
-}
