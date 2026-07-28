@@ -2,6 +2,7 @@ import type { ImageUploadNode, InputNode, TileOutput } from '@soapbox.pub/nostr-
 import { decodeQrHandle, isQrHandle } from '@soapbox.pub/nostr-canvas';
 import { useNostrCanvas } from '@soapbox.pub/nostr-canvas/react';
 import { useRef, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import { Button } from '@/components/ui/button';
@@ -32,9 +33,12 @@ function TileNode({ node, onInput, inForm = false }: { node: TileOutput; onInput
       return <TileLayout node={node} onInput={onInput} row />;
     case 'spoiler':
       return (
-        <Collapsible defaultOpen={node.open}>
-          <CollapsibleTrigger className="text-sm font-medium">{node.title}</CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2 pt-2">{node.children.map((child, index) => <TileNode key={child.id ?? index} node={child} onInput={onInput} />)}</CollapsibleContent>
+        <Collapsible defaultOpen={node.open} className="rounded-lg border">
+          <CollapsibleTrigger className="group flex w-full items-center gap-1.5 px-3 py-2 text-sm font-medium text-left">
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90 motion-reduce:transition-none" />
+            {node.title}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-2 px-3 pb-3">{node.children.map((child, index) => <TileNode key={child.id ?? index} node={child} onInput={onInput} />)}</CollapsibleContent>
         </Collapsible>
       );
     case 'text':
