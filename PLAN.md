@@ -40,6 +40,15 @@ repo it touches.
   no `react` peer dependency, no `./devkit/react` subpath. Each consuming host (tile-studio,
   Ditto) writes its own thin hook around the core class, adapted to that app's own state model.
   This makes devkit a pluggable piece usable by any host, React or not.
+- **Transport-agnostic guardrail** (grilled 2026-07-28): beyond tile-studio/Ditto, the user
+  intends to build other bots on devkit later — concretely, a bot for Armada/Concord (Soapbox's
+  E2E-encrypted, serverless Nostr community-chat protocol), which would feed decrypted channel
+  messages into `AgentSession` and publish its output as gift-wrapped events, with no browser UI
+  at all. The current `getSnapshot()`/`subscribe()`-driven design (no assumed UI, no assumed
+  request/response timing) already accommodates this — confirmed no design change needed. Kept
+  as a standing constraint during T1.3/T1.4 implementation: no tool or agent-loop output should
+  assume a rendered chat UI is consuming it (e.g. hashline diffs/markdown formatting are a
+  presentation concern for the *host* to apply, not baked into what devkit returns).
 - **devkit v1 tool list**: all 11 of tile-studio's tools minus the 2 already cut (lint,
   capability-nudge) — `read_code`, `write_code`, `edit_code`, `read_spec`, `read_examples`,
   `search_nips`, `fetch_nip`, `set_tile`, `get_tile`, `preview_tile`, `set_notes`. Confirmed, no
