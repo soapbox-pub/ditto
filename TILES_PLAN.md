@@ -122,32 +122,29 @@ plus the NIP.md link refresh.
   (4) image-upload button in a tile uploads via Blossom; (5) prod
   `vite preview` — wasm loads (no 404) when a tile page opens.
 
-## Phase 1.5 — Follow-up fixes (user-reported) — `pending`
+## Phase 1.5 — Follow-up fixes (user-reported) — `done` (pending manual check)
 
-- [ ] **T1.6 Spoiler node styling broken.** `spoiler` nodes in
-      `TileOutputView` render with broken styling (user-reported after the
-      0.12 port). Diagnose against the reference renderer's spoiler
-      treatment (`dist/react/TileView.js`) and 0.12's `SpoilerNode` type —
-      check whether the node schema changed (e.g. new/renamed fields) or
-      whether the Collapsible-based rendering regressed. *Eval:* manual: a
-      tile emitting a spoiler renders a collapsed/expandable section that
-      looks right in light+dark; `npm run test`.
-- [ ] **T1.7 Never offer `bitcoin-sign-psbt` as a permanent grant.** The
-      install permissions dialog currently lists `bitcoin-sign-psbt` as a
-      grantable capability, but bitcoin signing must never be permanently
-      granted (same posture as the Phase 7 curator tier: bitcoin/publish
-      always prompt). Exclude it from the grantable set in the consent
-      dialog UI, and defensively filter it in the grant-persistence layer
-      (`setGrantedCapabilities` / `getStoredGrants` in
-      `src/tiles/installations.ts`) so a stored or synced grant can never
-      reach the runtime's grant override. Ditto's adapter implements no
-      `signPsbt` today; if/when it does, it gets a per-call confirmation
-      dialog instead of an install-time grant. Show the capability in the
-      dialog as informational ("always asks") rather than silently hiding
-      it, so users still see what the tile declares. *Eval:* unit test:
-      stored grants containing `bitcoin-sign-psbt` are filtered out of
-      `getStoredGrants`; manual: dialog shows the capability as
-      non-grantable/always-ask; `npm run test`.
+- [x] **T1.6 Spoiler node styling.** Root cause: the trigger never rendered a
+      chevron at all. Now: bordered `rounded-lg` container, full-width
+      trigger with a rotating `ChevronDown` (closed → -90°,
+      `motion-reduce`-safe), padded content. Commit `e340da35`.
+- [x] **T1.7 `bitcoin-sign-psbt` never permanently grantable.** New exported
+      `ALWAYS_PROMPT_CAPABILITIES: ReadonlySet<Capability>` in
+      `src/tiles/installations.ts`; filtered in `writeGrants` (covers
+      `install()` + `setGrantedCapabilities()`) and defensively in
+      `getStoredGrants` (legacy/hand-crafted localStorage grants can't reach
+      the runtime grantBackend). Install dialog (`TileDetailPage`) and
+      settings page (`TileSettingsPage`) render it as a muted "Always asks"
+      row instead of checkbox/switch; install path also filters it from
+      `approvedPermissions`. 2 new unit tests (418 total green). Commits
+      `aceec3e8`, `0e3cfce6`.
+- [x] **T1.8 Install-dialog overflow (user-reported).** Raw author pubkey
+      hex overflowed the dialog description. Now a truncated npub
+      (`npub1…` head/tail, full value in `title`) via `tryNpubEncode`, with
+      `break-all` on the description. Commit `0e3cfce6`.
+- **⚠ Manual check outstanding (user):** spoiler renders with visible
+  arrow + border in light/dark; install dialog for a tile declaring
+  `bitcoin-sign-psbt` shows "Always asks" and no overflow.
 
 ## Phase 2 — Widget frame redesign & double-title fix — `pending`
 
