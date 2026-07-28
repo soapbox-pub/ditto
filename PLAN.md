@@ -107,41 +107,89 @@ The primary session's own independent-verification duty (per root `AGENTS.md`) i
 reading the test-writer's actual test file (a concrete artifact, not a self-report) and the
 verifier's real run output — not by re-deriving either from scratch.
 
-Goal: a host-agnostic library (no React required for the core, React bindings as an optional
-subpath) providing everything an AI agent needs to write/edit/preview a nostr-canvas Lua tile,
-extracted and generalized from tile-studio's already-mostly-pure `src/lib/*`.
+Goal: a host-agnostic library (no React dependency at all — see decision record) providing
+everything an AI agent needs to write/edit/preview a nostr-canvas Lua tile, extracted and
+generalized from tile-studio's already-mostly-pure `src/lib/*`.
 
-- [ ] **T1.1 Workspace scaffolding.** Add `packages/devkit` to `pnpm-workspace.yaml`; new
-      `package.json` (name TBD — propose `@soapbox.pub/nostr-canvas-devkit` or a subpath of the
-      main package, confirm naming with user) depending on the existing nostr-canvas package via
-      `workspace:*`; `openai`, `zod`, `zod-to-json-schema` as deps. Empty `src/index.ts` +
-      build/test wiring matching the main package's conventions (tsc, vitest).
-      *Eval:* TBD with user before dispatch — proposed: `pnpm -w build` succeeds, new package
-      produces output, existing main-package tests still pass.
-- [ ] **T1.2 Port the AI-provider layer.** `AIProvider`/`AIModel` types, default-providers list,
-      `createAIClient`, `fetchModels`, `isAnthropicModel`, the reactive settings store — generalized
-      to not assume tile-studio's own settings shape (host provides its own persistence).
-      *Eval:* TBD — proposed: unit tests for `createAIClient`/`fetchModels`/`isAnthropicModel`
-      ported/adapted from tile-studio's own (if any), no React import in this module.
-- [ ] **T1.3 Port the `Tool` framework + tile-authoring toolset.** `Tool` interface,
-      `toolToOpenAI`, hashline utilities, and the 11 in-scope tools (see open question above for
-      the exact list) — `read_spec`/`read_examples` re-sourced from nostr-canvas's own bundled
-      `./tips/*` export (matching the installed version) instead of tile-studio's separate
-      bundling step.
-      *Eval:* TBD — proposed: unit test per tool's `execute()` against a fixture tile state;
-      `read_spec` test confirms it reads the *installed* package's TIP files, not a copy.
-- [ ] **T1.4 Port the agent loop.** Generalize `useAISession`'s 700-line `runTurns` logic into a
-      framework-agnostic class/function (event-driven, no `useState`/`useCallback`), with token
-      pruning/dedup logic retained (compaction still matters even without static analysis).
-      Ship a React hook wrapper if T1's open question resolves that way.
-      *Eval:* TBD — proposed: unit tests simulating a multi-turn tool-calling exchange with a
-      mocked OpenAI client (no real API calls in CI).
+- [ ] **T1.1 Subpath scaffolding.** New `./devkit` export entry in the main package's
+      `package.json` `exports` map (types + import conditions) pointing at a new `src/devkit/`
+      source tree, built by the existing build pipeline (no separate `package.json`, no
+      `pnpm-workspace.yaml` entry — see decision record). `openai`, `zod`, `zod-to-json-schema`
+      added as deps of the main package if not already present. Empty `src/devkit/index.ts` to
+      start.
+      *Eval:* a test importing from the package's own `./devkit` export condition (subpath
+      resolution, not a relative path into `src/`) asserts the module loads without error; the
+      main package's existing test suite still passes unmodified.
+- [ ] **T1.2 Port the AI-provider layer (pure functions only).** `AIProvider`/`AIModel` types,
+      `DEFAULT_PROVIDERS`, `createAIClient`, `fetchModels`, `isAnthropicModel`,
+      `parseSelectedModel` — ported as-is with no storage/persistence code (settings/backfill/
+      reactive-store logic found in tile-studio's `ai-client.ts` stays 100% host-side, per
+      decision record). `createAIClient`/`fetchModels` take an explicit `{ referer, title }`
+      param for the OpenRouter attribution headers (currently hardcoded to tile-studio's own
+      identity) instead of a hardcoded app name; headers omitted if not supplied. Also export a
+      minimal `KvStore` interface type (`get`/`set` shape only, no implementation) as a shared
+      convention other devkit modules (e.g. T1.4's agent state) may optionally reuse — T1.2
+      itself performs no storage.
+      *Eval:* `isAnthropicModel` — table of model-id → boolean cases. `parseSelectedModel` —
+      table of `"providerId/modelId"` → parts, including no-slash and slash-inside-modelId edge
+      cases. `createAIClient` — mocked fetch asserts baseURL/apiKey wiring and that referer/title
+      headers appear on the outgoing request only when supplied, absent otherwise. `fetchModels`
+      — mocked fetch with a fixture `/models` response asserts the tool-calling filter, both
+      field-mapping variants (`context_length` vs `max_context_window`), and an error-path test
+      for a non-OK response. No real network calls in any test.
+- [ ] **T1.3 Port the `Tool` framework + tile-authoring toolset.** `Tool` interface, `toolToOpenAI`,
+      hashline utilities, and all 11 in-scope tools (`read_code`, `write_code`, `edit_code`,
+      `read_spec`, `read_examples`, `search_nips`, `fetch_nip`, `set_tile`, `get_tile`,
+      `preview_tile`, `set_notes`). Notable deltas from tile-studio's originals:
+      - `write_code`/`edit_code` **drop** their inline `luaLint()`/`capabilityNudge()` calls and
+        appended diagnostics entirely — consistent with the "skip static analysis for v1"
+        decision applying to embedded diagnostics too, not just the two already-cut standalone
+        lint/capability-nudge tools.
+      - `read_spec`: bundles only the existing lightweight `TIPS` metadata array (already
+        generated at nostr-canvas build time) directly in devkit. Full per-TIP markdown and
+        PHILOSOPHY.md content are **not** bundled — fetched on-demand, once per section actually
+        requested, via a new shipped `createGitLabTipFetcher()` (pluggable — accepts a `fetch`
+        implementation, defaults to global `fetch`) pointed at nostr-canvas's own GitLab repo,
+        pinned to the ref matching the installed package version.
+      - `read_examples`: the 10 example `.lua` files move from tile-studio's
+        `src/lib/tool_examples/` into nostr-canvas (new `examples/` dir alongside `tips/`), with
+        a small bundled metadata index (name + description, mirroring `TIPS`) generated the same
+        way; full `.lua` content fetched on-demand via the same GitLab fetcher.
+      - `search_nips`/`fetch_nip`: ported as-is — already self-contained (hardcoded relay list +
+        `SimplePool`, hardcoded `raw.githubusercontent.com` URL respectively), no host injection
+        needed.
+      - `set_tile`/`get_tile`/`preview_tile`: their in-memory `Map`-by-`projectId` state pattern
+        ports as-is (runtime session state, not persisted config — doesn't implicate the
+        host-persistence decision from T1.2).
+      *Eval:* one unit test per tool's `execute()` against a fixture tile-state/mocked
+      dependency — no real network anywhere (`search_nips`, `fetch_nip`, the GitLab fetcher all
+      mocked). Plus: a hashline round-trip test (parse → apply ops → result matches expected); a
+      test asserting `write_code`/`edit_code` output contains no lint/capability-nudge text at
+      all; a test confirming `read_spec`/`read_examples` table-of-contents comes from the bundled
+      index while full section content only appears after the (mocked) fetcher resolves.
+- [ ] **T1.4 Port the agent loop.** Generalize `useAISession`'s 700-line `runTurns`/`send`/
+      `compact` logic into a framework-agnostic `AgentSession` class — no `useState`/
+      `useCallback`/React imports at all. Exposes state via `getSnapshot()` + `subscribe(listener)`
+      (the shape `useSyncExternalStore` expects), matching the convention already used by
+      `SetTileTool`'s tile-state store and tile-studio's AI-settings store — any host can poll or
+      subscribe without devkit importing `react`; a React host gets a one-line
+      `useSyncExternalStore` wrapper for free (no hook shipped from devkit itself, per the
+      earlier decision). Token pruning/dedup and compaction logic ports as-is (still matters
+      independent of the static-analysis-skip decision).
+      *Eval:* unit tests simulating a multi-turn tool-calling exchange against a mocked OpenAI
+      client (no real API calls). Cover: a single tool-call round-trip resolves correctly;
+      compaction triggers and `getSnapshot()` reflects the compacted history; `stop()` aborts an
+      in-flight turn; a context-length error triggers pruning rather than surfacing as a hard
+      failure; `subscribe`'s listener fires on every state transition (streaming delta, tool
+      call, completion, error).
 - [ ] **T1.5 Port the preview/runtime driver.** `StubAdapter` + "build tile-def event from
       source, register into a fresh isolated runtime, get output, tear down on next edit" as a
       headless function, independent of tile-studio's `TilePreviewCard` React component.
-      *Eval:* TBD — proposed: a test that builds a trivial tile from Lua source, drives the
-      preview function, and asserts an output node comes back; manual smoke-test once T2 wires
-      it into tile-studio's client.
+      *Eval:* a test that builds a trivial tile from Lua source, drives the preview function, and
+      asserts an output node comes back; a second test confirming the stub adapter never calls
+      real signing/publishing/encryption (spy assertions); a third confirming a second
+      preview call tears down the prior runtime instance before starting the next (no leaked
+      workers). Manual smoke-test once T2 wires it into tile-studio's client.
 - [ ] **T1.6 Release.** Version bump + `npm publish`, matching the 0.12.3/0.12.4 pipeline exercised
       today.
       *Eval:* package installable from the registry; `npm view` shows the new version.
