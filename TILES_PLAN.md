@@ -91,7 +91,7 @@ integration (`canvas:` ids, recovery states), feed `TilePublishCard`,
 settings page, browser gating, a11y pass. Commits `c32a2a3e`…`43c875f0`.
 `feed`/`comments`/`nevent` nodes fail closed; `ctx.navigate()` no-op.
 
-## Phase 1 — nostr-canvas 0.12 upgrade — `done` (pending manual check)
+## Phase 1 — nostr-canvas 0.12 upgrade — `done` (human-verified 2026-07-28)
 
 Bumped to **0.12.1** (0.12.1 = 0.12.0 + wasm bundled in the package).
 Commits `2d8cffaa` (core port), `8459e6a3` (QR handles / password inputs /
@@ -115,14 +115,14 @@ plus the NIP.md link refresh.
   node_modules (prod build otherwise 404s the wasm — emitted as hashed
   asset, verified in dist). Fixed T1.1 regression: installations closures
   captured first-render null runtime (registration permanent no-op).
-- **⚠ Manual check outstanding (user):** dev server — (1) no
+- **Manual check:** ✔ passed (user, 2026-07-28). Was: dev server — (1) no
   `nc-worker`/wasm network fetch on `/` with no tiles installed; (2) visit a
   tile detail page → runtime boots, tile installs/renders and responds to
   input; (3) sidebar tile of an already-installed account still renders;
   (4) image-upload button in a tile uploads via Blossom; (5) prod
   `vite preview` — wasm loads (no 404) when a tile page opens.
 
-## Phase 1.5 — Follow-up fixes (user-reported) — `done` (pending manual check)
+## Phase 1.5 — Follow-up fixes (user-reported) — `done` (human-verified 2026-07-28)
 
 - [x] **T1.6 Spoiler node styling.** Root cause: the trigger never rendered a
       chevron at all. Now: bordered `rounded-lg` container, full-width
@@ -142,11 +142,11 @@ plus the NIP.md link refresh.
       hex overflowed the dialog description. Now a truncated npub
       (`npub1…` head/tail, full value in `title`) via `tryNpubEncode`, with
       `break-all` on the description. Commit `0e3cfce6`.
-- **⚠ Manual check outstanding (user):** spoiler renders with visible
+- **Manual check:** ✔ passed (user, 2026-07-28). Was: spoiler renders with visible
   arrow + border in light/dark; install dialog for a tile declaring
   `bitcoin-sign-psbt` shows "Always asks" and no overflow.
 
-## Phase 2 — Widget frame redesign & double-title fix — `done` (pending manual check)
+## Phase 2 — Widget frame redesign & double-title fix — `done` (human-verified 2026-07-28)
 
 - [x] **T2.1 Thin frame.** `WidgetCard` reworked (commit `398b3d94`): slim
       always-visible `h-7` handle bar — icon, builtin-only `text-xs` muted
@@ -168,12 +168,12 @@ plus the NIP.md link refresh.
 - [x] **T2.3 Detail-page double title.** `PageHeader` now static "Tile"
       (renamed in Phase 3); the in-card name demoted to `<h2>` so the page
       keeps a single `h1` (commit `67fc03dc`).
-- **⚠ Manual check outstanding (user):** frames in light/dark/custom —
+- **Manual check:** ✔ passed (user, 2026-07-28). Was: frames in light/dark/custom —
   distinct, thicker/brighter borders look right; canvas tile shows no Ditto
   title + hover tooltip shows name; builtin shows small handle title;
   drag/resize via pointer *and* keyboard; single title on `/tiles/:naddr`.
 
-## Phase 3 — User-facing rename to "Widgets" — `done` (pending manual check)
+## Phase 3 — User-facing rename to "Widgets" — `done` (human-verified 2026-07-28)
 
 All in commit `7bb2da20` (plus `fc92763d` picker flattening, a user
 mid-flow request).
@@ -201,7 +201,7 @@ mid-flow request).
       renders one flat list — widgets still grouped by category order but
       no heading separators; dead `WIDGET_CATEGORIES` removed
       (`fc92763d`).
-- **⚠ Manual check outstanding (user):** old `/tiles`, `/tiles/:naddr`,
+- **Manual check:** ✔ passed (user, 2026-07-28). Was: old `/tiles`, `/tiles/:naddr`,
   `/settings/tiles` URLs redirect; nav/settings/notifications/comment
   context read "widget"; add-widget modal shows flat list, grouped order
   intact.
@@ -230,13 +230,9 @@ Detail page: actions right-aligned, description renders GFM tables
 Collapsible "Source code" spoiler (`fa841e9d`, TileOutputView spoiler
 pattern — pulls that item forward out of T4.5). 442 tests green.
 
-**Manual checks (user, 2026-07-28):** detail page, sort control,
-marketplace colors, detail view all checked OK. Found: short cards left
-dead space in their grid row — fixed in `3a3c498b` (wrapper+CardContent
-`h-full`, perms/footer pinned with `mt-auto pt-3`); needs a quick
-re-look. Still unchecked: tooltips, sparkle on a multi-view tile,
-install/update from list on a real tile, expand/collapse feel, GFM
-table in a description, ~360px.
+**Manual checks (user):** all Phase 4 work through T4.3c/T4.4 confirmed
+good and human-tested 2026-07-28 (detail page, sort control, marketplace
+colors, expand/collapse, grid stretch fix `3a3c498b`).
 
 - [x] **T4.3c Detail-page back button + author chip + actions/comments
       (user, 2026-07-28 — this was the "other changes").** Done in
@@ -249,9 +245,7 @@ table in a description, ~360px.
       the standard `useComments`+mute-filter → `ComposeBox compact` +
       `FlatThreadedReplyList` recipe (BadgeDetailContent pattern) with
       skeleton/empty states. Stats/zaps handle addressable events
-      automatically (`useEventStats`/`useZaps` addr-aware). *Manual
-      check outstanding:* back nav, author hover card, action bar
-      counts/zap, posting a comment.
+      automatically (`useEventStats`/`useZaps` addr-aware). *Manual check:* ✔ passed (user, 2026-07-28).
 - [x] **T4.3 Sort + search.** Done in `a5cb6eaa` + `3ce8345e`.
       `sortMarketplaceTiles(tiles, order)` /
       `MarketplaceSortOrder = 'newest' | 'recently-updated' | 'name'` in
@@ -265,7 +259,7 @@ table in a description, ~360px.
       5 sort tests added (443 total green). Same commit compacted the
       card perms row per user: single 11px muted text line — two perm
       names `·`-joined + dotted-underline `+N` tooltip span (Badge chips
-      removed). *Manual check outstanding:* sort orders on real data,
+      removed). *Manual check:* ✔ passed (user, 2026-07-28). Was: sort orders on real data,
       ~360px toolbar wrap, perms row fit.
 - [x] **T4.3b Unified detail page (user direction, 2026-07-28).** Done in
       `28b2c56f`. Disparate Cards replaced by one accent-framed container
@@ -274,8 +268,7 @@ table in a description, ~360px.
       sections (header w/ actions, Description, Permissions, Source-code
       spoiler) flow inside with `--widget-accent /0.25` hairline dividers
       and `text-xs uppercase tracking-wide` micro-labels. All logic
-      (install dialog, login gating, SEO meta) untouched. *Manual check
-      outstanding:* light/dark + ~360px.
+      (install dialog, login gating, SEO meta) untouched. *Manual check:* ✔ passed (user, 2026-07-28).
 - [x] **T4.4 Social signals — resolved as detail-page-only (user,
       2026-07-28).** An action bar on the list cards was built then
       **rejected by the user** ("Actions row should only be in the
