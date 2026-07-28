@@ -238,14 +238,20 @@ re-look. Still unchecked: tooltips, sparkle on a multi-view tile,
 install/update from list on a real tile, expand/collapse feel, GFM
 table in a description, ~360px.
 
-- [ ] **T4.3c Detail-page back button + "other changes" (user,
-      2026-07-28).** Add a back button to the widget detail view
-      (navigate(-1)-style with a sensible `/widgets` fallback, matching
-      whatever back-button pattern other Ditto detail pages use). User
-      also said "implement the other changes i mentioned" — **ambiguous:
-      confirm with user whether that means the remaining Phase 4 tickets
-      (T4.4–T4.6) or something else** before assuming. *Eval:* manual;
-      `npm run test`.
+- [x] **T4.3c Detail-page back button + author chip + actions/comments
+      (user, 2026-07-28 — this was the "other changes").** Done in
+      `24e43547`. PageHeader `onBack` (history>1 ? -1 : `/widgets`) +
+      `alwaysShowBack`; `ActorRow` (from NoteCard, label "published",
+      NoteCard-style name derivation) in the header block;
+      `PostActionBar` (raw 30207 event, replyLabel "Comments", onReply
+      scrolls to comments, `NoteMoreMenu` wired) as its own hairline
+      section inside the accent surface; comments below the surface via
+      the standard `useComments`+mute-filter → `ComposeBox compact` +
+      `FlatThreadedReplyList` recipe (BadgeDetailContent pattern) with
+      skeleton/empty states. Stats/zaps handle addressable events
+      automatically (`useEventStats`/`useZaps` addr-aware). *Manual
+      check outstanding:* back nav, author hover card, action bar
+      counts/zap, posting a comment.
 - [x] **T4.3 Sort + search.** Done in `a5cb6eaa` + `3ce8345e`.
       `sortMarketplaceTiles(tiles, order)` /
       `MarketplaceSortOrder = 'newest' | 'recently-updated' | 'name'` in
@@ -270,14 +276,11 @@ table in a description, ~360px.
       and `text-xs uppercase tracking-wide` micro-labels. All logic
       (install dialog, login gating, SEO meta) untouched. *Manual check
       outstanding:* light/dark + ~360px.
-- [ ] **T4.4 Social signals + zaps.** Reaction/zap/comment counts on cards
-      and detail page via existing stats hooks (NIP-85 where available);
-      comments section on detail page (nostr-comments pattern). Zap action
-      on the detail page (and card, if it fits the redesign) targeting the
-      30207 event via `useZaps`, so zap totals feed the same counts.
-      *Eval:* manual: counts render for a tile with known engagement; zap
-      flow reaches invoice for an author with lightning configured;
-      `npm run test`.
+- [ ] **T4.4 Social signals on marketplace cards.** Detail page got its
+      action bar/comments/zaps in T4.3c. Remaining: reaction/zap/comment
+      counts on the **list cards**, if they fit the compact redesign —
+      confirm desired placement with user first. *Eval:* manual: counts
+      render for a tile with known engagement; `npm run test`.
 - [ ] **T4.5 Detail-page upgrades.** Image/gallery from `image` tag(s),
       version history of the 30207 coordinate (prior events), tiny
       source-code highlighter only if ~zero-cost (spoiler itself done in
