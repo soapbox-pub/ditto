@@ -1,4 +1,7 @@
-import type { TileOutput } from '@soapbox.pub/nostr-canvas';
+import type { ImageUploadNode, InputNode, TileOutput } from '@soapbox.pub/nostr-canvas';
+import { decodeQrHandle, isQrHandle } from '@soapbox.pub/nostr-canvas';
+import { useNostrCanvas } from '@soapbox.pub/nostr-canvas/react';
+import { useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import { Button } from '@/components/ui/button';
@@ -6,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { QRCodeCanvas } from '@/components/ui/qrcode';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
@@ -38,6 +42,15 @@ function TileNode({ node, onInput, inForm = false }: { node: TileOutput; onInput
     case 'markdown':
       return <TileMarkdown content={node.content} />;
     case 'image': {
+      if (isQrHandle(node.url)) {
+        const qrPayload = decodeQrHandle(node.url);
+        if (qrPayload === null) return null;
+        return (
+          <div className={cn(node.avatar && 'size-10 rounded-full overflow-hidden')} style={{ maxWidth: node.max_width, maxHeight: node.max_height }}>
+            <QRCodeCanvas value={qrPayload} className="max-w-full rounded-md object-contain" />
+          </div>
+        );
+      }
       const url = sanitizeUrl(node.url);
       return url ? <img src={url} alt="Tile image" className={cn('max-w-full rounded-md object-contain', node.avatar && 'size-10 rounded-full')} style={{ maxWidth: node.max_width, maxHeight: node.max_height }} /> : <UnsupportedTileFeature />;
     }
@@ -52,7 +65,7 @@ function TileNode({ node, onInput, inForm = false }: { node: TileOutput; onInput
     case 'form':
       return <TileForm node={node} onInput={onInput} />;
     case 'input':
-      return <label className="grid gap-1 text-sm"><span>{node.label}</span><Input name={node.name} placeholder={node.placeholder} defaultValue={node.default_value} /></label>;
+      return <TileInput node={node} />;
     case 'dropdown':
       return <label className="grid gap-1 text-sm"><span>{node.label}</span><select name={node.name} defaultValue={node.default_value} className="h-9 rounded-md border border-input bg-background px-3 text-sm">{node.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>;
     case 'checkbox':
@@ -60,7 +73,7 @@ function TileNode({ node, onInput, inForm = false }: { node: TileOutput; onInput
     case 'color_picker':
       return <label className="grid gap-1 text-sm"><span>{node.label}</span><Input name={node.name} type="color" defaultValue={toColorValue(node.default_value)} /></label>;
     case 'image_upload':
-      return <p className="text-sm text-muted-foreground">{node.label ?? node.text ?? 'Image upload is not supported yet.'}</p>;
+      return <TileImageUpload node={node} inForm={inForm} />;
     case 'feed':
     case 'comments':
     case 'nevent':
@@ -85,6 +98,74 @@ function TileForm({ node, onInput }: { node: Extract<TileOutput, { type: 'form' 
     for (const checkbox of event.currentTarget.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')) payload[checkbox.name] = checkbox.checked;
     onInput?.(handler, payload);
   }}>{node.children.map((child, index) => <TileNode key={child.id ?? index} node={child} onInput={onInput} inForm />)}</form>;
+}
+
+function TileInput({ node }: { node: InputNode }) {
+  const inputAttrs = inputAttrsFor(node);
+  return (
+    <label className="grid gap-1 text-sm">
+      <span>{node.label}</span>
+      <Input name={node.name} placeholder={node.placeholder} defaultValue={node.default_value} {...inputAttrs} />
+    </label>
+  );
+}
+
+/** Translate an input node's `input_type` hint into DOM attributes. */
+function inputAttrsFor(node: InputNode): Record<string, string | boolean | undefined> {
+  const inputType = node.input_type ?? 'text';
+  switch (inputType) {
+    case 'password':
+      return { type: 'password' };
+    case 'number':
+      return { type: 'text', inputMode: 'numeric', autoComplete: 'off' };
+    case 'bitcoin_address':
+    case 'nostr_address':
+      return { type: 'text', autoCapitalize: 'none', autoComplete: 'off', spellCheck: false };
+    default:
+      return { type: 'text' };
+  }
+}
+
+function TileImageUpload({ node, inForm }: { node: ImageUploadNode; inForm?: boolean }) {
+  const { runtime } = useNostrCanvas();
+  const [url, setUrl] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const aliveRef = useRef(true);
+
+  if (!inForm) {
+    return (
+      <div className="grid gap-1">
+        {node.label && <span className="text-sm">{node.label}</span>}
+        <Button type="button" variant="secondary" disabled>
+          {node.text ?? 'Upload image'}
+        </Button>
+      </div>
+    );
+  }
+
+  const handleUpload = () => {
+    if (!runtime || loading) return;
+    setLoading(true);
+    runtime.requestImageUpload().then((uploadedUrl) => {
+      if (!aliveRef.current) return;
+      setUrl(sanitizeUrl(uploadedUrl) ?? '');
+      setLoading(false);
+    }, () => {
+      if (!aliveRef.current) return;
+      setLoading(false);
+    });
+  };
+
+  return (
+    <div className="grid gap-1">
+      {node.label && <span className="text-sm">{node.label}</span>}
+      <input type="hidden" name={node.name} value={url} />
+      <Button type="button" variant="secondary" onClick={handleUpload} disabled={loading}>
+        {node.text ?? 'Upload image'}
+      </Button>
+      {url && <img src={url} alt="" className="max-w-full rounded-md object-contain max-h-40" />}
+    </div>
+  );
 }
 
 function TileMarkdown({ content }: { content: string }) {

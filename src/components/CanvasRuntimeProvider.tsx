@@ -9,6 +9,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
+import { useUploadFile } from '@/hooks/useUploadFile';
 
 export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
   const { nostr } = useNostr();
@@ -16,6 +17,7 @@ export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
   const { config } = useAppContext();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
+  const uploadFile = useUploadFile();
   const servicesRef = useRef<CanvasAdapterServices | undefined>(undefined);
   const adapterRef = useRef<CanvasAdapter | undefined>(undefined);
   const grantBackendRef = useRef<GrantBackend>({ get: () => undefined, set: () => {}, delete: () => {} });
@@ -59,6 +61,14 @@ export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
     fetch: (input, init) => globalThis.fetch(input, init),
     corsProxy: () => config.corsProxy,
     notify: (message, variant) => toast({ title: message, variant: variant === 'danger' ? 'destructive' : 'default' }),
+    uploadImage: async (options) => {
+      if (!user) throw new Error('Must be logged in to upload files.');
+      const signal = options?.signal;
+      const file = await pickFileFromUser(signal);
+      if (signal?.aborted) throw new Error('Upload cancelled');
+      const tags = await uploadFile.mutateAsync(file);
+      return tags[0][1];
+    },
   };
 
   if (!adapterRef.current) {
@@ -74,6 +84,7 @@ export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
       fetch: (input, init) => servicesRef.current!.fetch!(input, init),
       corsProxy: () => servicesRef.current!.corsProxy!(),
       notify: (message, variant) => servicesRef.current!.notify!(message, variant),
+      uploadImage: (options) => servicesRef.current!.uploadImage!(options),
     });
   }
   if (!storageRef.current) storageRef.current = withoutDefinitionStorage(localStorage);
@@ -140,4 +151,50 @@ function subscribeToProfile(nostr: ReturnType<typeof useNostr>['nostr'], pubkey:
     }
   })();
   return () => controller.abort();
+}
+
+/** Open a browser file picker and resolve with the chosen File, or reject if dismissed or aborted. */
+function pickFileFromUser(signal?: AbortSignal): Promise<File> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+
+    const abortHandler = () => {
+      reject(signal?.reason ?? new DOMException('Aborted', 'AbortError'));
+      cleanup();
+    };
+
+    const cancelHandler = () => {
+      reject(new Error('No file selected'));
+      cleanup();
+    };
+
+    const changeHandler = () => {
+      const file = input.files?.[0];
+      if (file) {
+        resolve(file);
+      } else {
+        cancelHandler();
+      }
+      cleanup();
+    };
+
+    const cleanup = () => {
+      signal?.removeEventListener('abort', abortHandler);
+      input.removeEventListener('change', changeHandler);
+      input.removeEventListener('cancel', cancelHandler);
+      input.remove();
+    };
+
+    signal?.addEventListener('abort', abortHandler, { once: true });
+    input.addEventListener('change', changeHandler);
+    input.addEventListener('cancel', cancelHandler);
+    input.click();
+  });
 }

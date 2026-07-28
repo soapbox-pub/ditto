@@ -114,4 +114,12 @@ describe('createCanvasAdapter', () => {
     await expect(adapter.navigate?.({ identifier: 'alice@example.com:weather' })).resolves.toEqual({ ok: false, reason: 'not_implemented' });
     expect(notify).toHaveBeenCalledWith('Weather updated', 'success');
   });
+
+  it('routes image uploads through the host upload service', async () => {
+    const uploadImage = vi.fn().mockResolvedValue('https://blossom.example/my-file.png');
+    const adapter = createCanvasAdapter({ subscribe: () => () => {}, uploadImage });
+
+    await expect(adapter.uploadImage?.()).resolves.toBe('https://blossom.example/my-file.png');
+    expect(uploadImage).toHaveBeenCalledOnce();
+  });
 });

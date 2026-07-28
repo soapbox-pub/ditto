@@ -23,6 +23,7 @@ export interface CanvasAdapterServices {
   fetch?: typeof globalThis.fetch;
   corsProxy?: () => string;
   notify?: (message: string, variant: NotifyVariant) => void;
+  uploadImage?: NonNullable<RuntimeAdapter['uploadImage']>;
 }
 
 /** Creates the Canvas adapter from Ditto-owned services. */
@@ -40,6 +41,7 @@ export function createCanvasAdapter(services: CanvasAdapterServices): CanvasAdap
   if (services.nip44Encrypt) adapter.nip44Encrypt = services.nip44Encrypt;
   if (services.nip44Decrypt) adapter.nip44Decrypt = services.nip44Decrypt;
   if (services.notify) adapter.notify = services.notify;
+  if (services.uploadImage) adapter.uploadImage = services.uploadImage;
 
   adapter.navigate = async () => ({ ok: false, reason: 'not_implemented' });
   if (services.fetch) adapter.fetch = createSafeFetch(services.fetch, services.corsProxy);
