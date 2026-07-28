@@ -5,7 +5,6 @@ import { BadgeCheck, Check, CircleArrowUp, LayoutGrid, RefreshCw, Search, Sparkl
 import { Link } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { PageHeader } from '@/components/PageHeader';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,6 +12,13 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { TileInstallDialog } from '@/components/TileInstallDialog';
 import { useCanvasTileInstallations } from '@/components/CanvasTileInstallationsProvider';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -24,7 +30,7 @@ import { getBackgroundThemeMode } from '@/lib/colorUtils';
 import { cn } from '@/lib/utils';
 import { widgetAccentVars } from '@/lib/widgetAccent';
 import { canvasWidgetId } from '@/tiles/sidebarWidgets';
-import { getTileNip05, getNewestTileDefinitions, searchMarketplaceTiles } from '@/tiles/marketplace';
+import { getTileNip05, getNewestTileDefinitions, searchMarketplaceTiles, sortMarketplaceTiles, type MarketplaceSortOrder } from '@/tiles/marketplace';
 import { countTileViews, parseTileDefinition, type TileDefinition } from '@/tiles/definition';
 import { sortCapabilities } from '@/tiles/capabilities';
 import { nip19 } from 'nostr-tools';
@@ -126,20 +132,16 @@ function TileMarketplaceCard({ tile, showUnverified, onInstall, expanded, onTogg
               <span className={cn('shrink-0 text-xs', expanded ? 'opacity-70' : 'text-muted-foreground')}>v{tile.version}</span>
             </div>
             {tile.summary && <p className={cn('mt-1 line-clamp-2 text-sm', expanded ? 'opacity-80' : 'text-muted-foreground')}>{tile.summary}</p>}
-            <div className="mt-3 flex items-center gap-1.5 overflow-hidden">
+            <div className={cn('mt-3 flex items-center gap-1 overflow-hidden whitespace-nowrap text-[11px] leading-4', expanded ? 'text-[hsl(var(--widget-accent-surface-foreground)/0.75)]' : 'text-muted-foreground')}>
               {tile.perms.length > 0 ? (
                 <>
-                  {shownPerms.map((perm) => (
-                    <Badge key={perm} variant="outline" className={cn('shrink-0 text-xs', expanded && 'border-[hsl(var(--widget-accent-surface-foreground)/0.3)] text-[hsl(var(--widget-accent-surface-foreground)/0.85)]')}>
-                      {perm}
-                    </Badge>
-                  ))}
+                  <span className="truncate">{shownPerms.join(' · ')}</span>
                   {extraPerms.length > 0 && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Badge variant="outline" className={cn('shrink-0 text-xs cursor-default', expanded && 'border-[hsl(var(--widget-accent-surface-foreground)/0.3)] text-[hsl(var(--widget-accent-surface-foreground)/0.85)]')} tabIndex={0}>
+                        <span className="shrink-0 cursor-default underline decoration-dotted underline-offset-2" tabIndex={0}>
                           +{extraPerms.length}
-                        </Badge>
+                        </span>
                       </TooltipTrigger>
                       <TooltipContent className="space-y-0.5">
                         {extraPerms.map((perm) => (
@@ -150,7 +152,7 @@ function TileMarketplaceCard({ tile, showUnverified, onInstall, expanded, onTogg
                   )}
                 </>
               ) : (
-                <Badge variant="secondary" className={cn('shrink-0 text-xs text-muted-foreground', expanded && 'text-[hsl(var(--widget-accent-surface-foreground)/0.6)]')}>No special permissions</Badge>
+                <span className={cn(expanded && 'text-[hsl(var(--widget-accent-surface-foreground)/0.6)]')}>No special permissions</span>
               )}
             </div>
             {expanded ? (
@@ -200,6 +202,7 @@ export function TilesPage() {
   const [showUnverified, setShowUnverified] = useState(false);
   const [installTarget, setInstallTarget] = useState<{ tile: TileDefinition; event: NostrEvent } | undefined>();
   const [expandedId, setExpandedId] = useState<string | undefined>();
+  const [sortOrder, setSortOrder] = useState<MarketplaceSortOrder>('newest');
   const deferredQuery = useDeferredValue(query);
   const tilesQuery = useQuery({
     queryKey: ['nostr-canvas', 'marketplace', 3],
@@ -211,10 +214,10 @@ export function TilesPage() {
     retry: 2,
     retryDelay: (attempt) => Math.min(1_000 * 2 ** attempt, 10_000),
   });
-  const tiles = useMemo(
-    () => searchMarketplaceTiles(getNewestTileDefinitions(tilesQuery.data ?? []), deferredQuery),
-    [deferredQuery, tilesQuery.data],
-  );
+  const tiles = useMemo(() => {
+    const searched = searchMarketplaceTiles(getNewestTileDefinitions(tilesQuery.data ?? []), deferredQuery);
+    return sortMarketplaceTiles(searched, sortOrder);
+  }, [deferredQuery, tilesQuery.data, sortOrder]);
 
   const eventMap = useMemo(() => {
     const map = new Map<string, NostrEvent>();
@@ -261,11 +264,23 @@ export function TilesPage() {
       <PageHeader title="Widgets" icon={<LayoutGrid className="size-5" />} backTo="/" />
       <div className="space-y-6 px-4 pb-8">
         <p className="max-w-2xl text-sm text-muted-foreground">Discover Nostr Canvas widgets. Review each widget's requested capabilities before installing it.</p>
-        <label className="relative block">
-          <span className="sr-only">Search widgets</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search widgets" className="pl-9" />
-        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="relative flex-1 min-w-[200px]">
+            <span className="sr-only">Search widgets</span>
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search widgets" className="pl-9" />
+          </label>
+          <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as MarketplaceSortOrder)}>
+            <SelectTrigger className="w-[160px] shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest</SelectItem>
+              <SelectItem value="recently-updated">Recently updated</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
           <div className="space-y-1">
             <Label htmlFor="show-unverified-tiles">Show unverified widgets</Label>
