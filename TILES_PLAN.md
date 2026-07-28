@@ -208,25 +208,17 @@ mid-flow request).
 
 ## Phase 4 — Marketplace TLC — `pending`
 
-- [ ] **T4.1 List redesign.** Rework `/widgets` grid cards: accent-colored
-      frames (T2.2), hero/header polish, loading skeletons, dashed-card
-      empty state, ~360px-wide mobile layout. **Icon-first simplification
-      (user direction, 2026-07-28):**
-      - Cards **tinted with the widget accent** exactly like sidebar
-        widgets (reuse `widgetAccentVars` + border/handle-tint treatment).
-      - **Verified badge → icon** (e.g. `BadgeCheck`) next to the tile
-        name, tooltip for the meaning; no text badge.
-      - **Sparkle icon** next to the title when the tile declares **more
-        than one view** in its `TileDefinition` (resolved 2026-07-28) —
-        tooltip explains it supports more views in other apps.
-      - **Permissions in one single row** per card: the two most
-        important perms shown first as compact chips, remainder collapsed
-        to a `+N` chip that reveals the rest on hover (tooltip/popover).
-        Importance ranking (user-approved 2026-07-28):
-        `bitcoin-sign-psbt` > `publish-event` > `nip44-decrypt` >
-        `nip44-encrypt` > `fetch` > `get-pubkey` > `feed-action` >
-        `navigate`.
-      *Eval:* manual across mobile/desktop widths; `npm run test`.
+- [x] **T4.1 List redesign.** Done in `d178c5d9`. Cards reuse the sidebar
+      accent (`widgetAccentVars` keyed by `canvasWidgetId(identifier)` so
+      hues match the sidebar frame): `border-2` `/0.65` + `/0.06` bg tint,
+      theme-change subscription à la WidgetCard. Verified text badge →
+      `BadgeCheck` icon + tooltip next to the name; `Sparkles` icon +
+      tooltip when `countTileViews(tile) > 1` (new helper; `render`/`nav`
+      added to `TileDefinition`). Perms = single row, top-2 by new
+      `CAPABILITY_RANK` (`src/tiles/capabilities.ts`, 6 unit tests) +
+      focusable `+N` tooltip chip. Old Widget/perm badge pile removed.
+      434 tests green. *Manual check outstanding:* card look across
+      themes + ~360px, tooltips, sparkle on a multi-view tile.
 - [ ] **T4.2 Install UX on the list.** Installed / update-available badges
       per card (via `installations` cache vs marketplace event timestamps);
       install directly from the list through the existing capability-consent
