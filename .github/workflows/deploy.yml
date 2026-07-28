@@ -1,9 +1,9 @@
 name: Deploy to GitHub Pages
 
 on:
-  # Runs on pushes targeting the default branch
+  # Runs on pushes to the tiles-v3-widgetonly branch (branch preview for testers)
   push:
-    branches: ["main"]
+    branches: ["tiles-v3-widgetonly"]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -37,14 +37,15 @@ jobs:
           node-version: "22"
           cache: npm
 
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
       - name: Install dependencies and build
         run: |
           npm install
-          npm run build
+          npx vite build -l error --base="${{ steps.pages.outputs.base_path }}"
           cp dist/index.html dist/404.html
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
