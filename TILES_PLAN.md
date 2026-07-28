@@ -230,12 +230,22 @@ Detail page: actions right-aligned, description renders GFM tables
 Collapsible "Source code" spoiler (`fa841e9d`, TileOutputView spoiler
 pattern — pulls that item forward out of T4.5). 442 tests green.
 
-**⚠ Manual check outstanding (user):** card look across themes/~360px,
-tooltips, sparkle on a multi-view tile; install/update from list on a
-real tile; expand/collapse feel (scale overlap, no grid shift,
-translucent surface readability, button contrast); a table-bearing
-description on the detail page.
+**Manual checks (user, 2026-07-28):** detail page, sort control,
+marketplace colors, detail view all checked OK. Found: short cards left
+dead space in their grid row — fixed in `3a3c498b` (wrapper+CardContent
+`h-full`, perms/footer pinned with `mt-auto pt-3`); needs a quick
+re-look. Still unchecked: tooltips, sparkle on a multi-view tile,
+install/update from list on a real tile, expand/collapse feel, GFM
+table in a description, ~360px.
 
+- [ ] **T4.3c Detail-page back button + "other changes" (user,
+      2026-07-28).** Add a back button to the widget detail view
+      (navigate(-1)-style with a sensible `/widgets` fallback, matching
+      whatever back-button pattern other Ditto detail pages use). User
+      also said "implement the other changes i mentioned" — **ambiguous:
+      confirm with user whether that means the remaining Phase 4 tickets
+      (T4.4–T4.6) or something else** before assuming. *Eval:* manual;
+      `npm run test`.
 - [x] **T4.3 Sort + search.** Done in `a5cb6eaa` + `3ce8345e`.
       `sortMarketplaceTiles(tiles, order)` /
       `MarketplaceSortOrder = 'newest' | 'recently-updated' | 'name'` in
