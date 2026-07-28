@@ -281,13 +281,15 @@ colors, expand/collapse, grid stretch fix `3a3c498b`).
       source-code highlighter only if ~zero-cost (spoiler itself done in
       `fa841e9d`), clearer per-permission explanation copy. *Eval:*
       manual on a real marketplace tile; `npm run test`.
-- [ ] **T4.6 First-open marketplace nag.** "New: Widget marketplace" hover
-      nag over the `/widgets` view on first open, localStorage-tracked,
-      expandable to a caution note: widgets are user-contributed, not part
-      of Ditto nor made by Soapbox — exercise caution. Dismissible,
-      accessible (focusable, `aria-live` polite). *Eval:* manual: appears
-      once, expand shows caution copy, never returns after dismissal;
-      `npm run test`.
+- [x] **T4.6 First-open marketplace nag.** Done in `8c0833d5`.
+      `src/components/MarketplaceNag.tsx` rendered by TilesPage: fixed
+      bottom overlay (max-w-md), Sparkles + "New: Widget marketplace",
+      X dismiss (aria-label), "Learn more" expander (aria-expanded,
+      grid-rows animation, motion-safe) revealing the user-contributed /
+      not-Ditto / not-Soapbox caution copy; role="status" aria-live.
+      localStorage key `ditto:marketplace-nag-dismissed`, but
+      **`ALWAYS_SHOW_NAG = true` temporary flag per user — flip to
+      false later to restore first-open-only gating.**
 
 ## Phase 5 — Tile-claimed kinds in feeds (native generic cards) — `pending`
 
