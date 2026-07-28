@@ -276,11 +276,13 @@ table in a description, ~360px.
       and `text-xs uppercase tracking-wide` micro-labels. All logic
       (install dialog, login gating, SEO meta) untouched. *Manual check
       outstanding:* light/dark + ~360px.
-- [ ] **T4.4 Social signals on marketplace cards.** Detail page got its
-      action bar/comments/zaps in T4.3c. Remaining: reaction/zap/comment
-      counts on the **list cards**, if they fit the compact redesign —
-      confirm desired placement with user first. *Eval:* manual: counts
-      render for a tile with known engagement; `npm run test`.
+- [x] **T4.4 Social signals — resolved as detail-page-only (user,
+      2026-07-28).** An action bar on the list cards was built then
+      **rejected by the user** ("Actions row should only be in the
+      detail page, not the main marketplace view") and reverted before
+      commit. The PostActionBar + comments on the detail page (T4.3c,
+      `24e43547`) fully covers this ticket. Don't re-add signals to
+      list cards.
 - [ ] **T4.5 Detail-page upgrades.** Image/gallery from `image` tag(s),
       version history of the 30207 coordinate (prior events), tiny
       source-code highlighter only if ~zero-cost (spoiler itself done in
