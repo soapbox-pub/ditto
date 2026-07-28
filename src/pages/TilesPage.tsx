@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { TileInstallDialog } from '@/components/TileInstallDialog';
+import { MarketplaceNag } from '@/components/MarketplaceNag';
 import { useCanvasTileInstallations } from '@/components/CanvasTileInstallationsProvider';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
@@ -318,6 +319,7 @@ export function TilesPage() {
         )}
       </div>
       <TileInstallDialog tile={installTarget?.tile} tileEvent={installTarget?.event} open={!!installTarget} onOpenChange={(open) => { if (!open) setInstallTarget(undefined); }} />
+      <MarketplaceNag />
     </main>
   );
 }
