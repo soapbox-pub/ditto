@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, lazy, Suspense, memo } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
-import { useNostrCanvas } from '@soapbox.pub/nostr-canvas/react';
+import { useOptionalCanvasRuntime } from '@/components/CanvasRuntimeProvider';
 import {
   DndContext,
   closestCenter,
@@ -27,7 +27,7 @@ import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { getWidgetDefinition, useWidgetLabel, WIDGET_DEFINITIONS } from '@/lib/sidebarWidgets';
 import type { WidgetConfig } from '@/contexts/AppContext';
 import type { WidgetDefinition } from '@/lib/sidebarWidgets';
-import { useCanvasTileInstallations } from '@/components/CanvasTileInstallationsProvider';
+import { useOptionalCanvasTileInstallations } from '@/components/CanvasTileInstallationsProvider';
 import { CanvasTileWidget } from '@/components/CanvasTileWidget';
 import { CanvasWidgetRecovery } from '@/components/CanvasWidgetRecovery';
 import { parseTileDefinition } from '@/tiles/definition';
@@ -89,8 +89,8 @@ function WidgetContent({ id }: { id: string }) {
 
 function useCanvasWidgetCatalog() {
   const { config } = useAppContext();
-  const installations = useCanvasTileInstallations();
-  const { runtime } = useNostrCanvas();
+  const installations = useOptionalCanvasTileInstallations();
+  const runtime = useOptionalCanvasRuntime();
   const [runtimeVersion, setRuntimeVersion] = useState(0);
 
   useEffect(() => {
@@ -100,11 +100,13 @@ function useCanvasWidgetCatalog() {
 
   const eligible = new Set(runtime?.getWidgetEligibleIdentifiers() ?? []);
   const installedIdentifiers = new Set(config.installedCanvasTiles.map((coordinate) => coordinate.identifier));
-  const definitions = config.installedCanvasTiles.flatMap((coordinate) => {
-    const event = installations.getCachedDefinition(coordinate);
-    const tile = event && parseTileDefinition(event);
-    return tile && eligible.has(tile.identifier) ? [canvasWidgetDefinition(tile)].filter((definition): definition is WidgetDefinition => !!definition) : [];
-  });
+  const definitions = (!installations || !runtime)
+    ? []
+    : config.installedCanvasTiles.flatMap((coordinate) => {
+      const event = installations.getCachedDefinition(coordinate);
+      const tile = event && parseTileDefinition(event);
+      return tile && eligible.has(tile.identifier) ? [canvasWidgetDefinition(tile)].filter((definition): definition is WidgetDefinition => !!definition) : [];
+    });
   return { definitions, installedIdentifiers, runtimeVersion };
 }
 

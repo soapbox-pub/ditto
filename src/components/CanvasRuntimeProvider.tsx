@@ -1,8 +1,9 @@
+/* eslint-disable react-refresh/only-export-components -- the provider, activation gate, and consumer hooks form one Canvas boundary */
 import { NostrCanvasProvider, useNostrCanvas } from '@soapbox.pub/nostr-canvas/react';
 import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-import type { Capability, GrantBackend } from '@soapbox.pub/nostr-canvas';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import type { Capability, GrantBackend, TileRuntime } from '@soapbox.pub/nostr-canvas';
 import { createCanvasAdapter, type CanvasAdapter, type CanvasAdapterServices } from '@/tiles/adapter';
 import { CanvasTileInstallationsProvider } from '@/components/CanvasTileInstallationsProvider';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -10,6 +11,74 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
 import { useUploadFile } from '@/hooks/useUploadFile';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// The worker resolves its wasm binary relative to its own script URL by
+// default, which breaks once Vite emits the worker as a hashed chunk without
+// the neighboring .wasm file. The package's exports map doesn't expose the
+// wasm as a subpath, so reference it through node_modules directly — Vite's
+// `new URL(…, import.meta.url)` asset handling emits (and hashes) it in
+// production and serves it from node_modules in dev, keeping the binary in
+// lockstep with the installed package version.
+const WASM_URL = new URL(
+  '../../node_modules/@soapbox.pub/nostr-canvas/dist/worker/nostr_canvas_core_bg.wasm',
+  import.meta.url,
+).href;
+
+// ── Optional runtime context ─────────────────────────────────────────────────
+// Allows components on general pages (where the provider stack may be absent)
+// to access the TileRuntime without throwing.
+
+const OptionalCanvasRuntimeContext = createContext<TileRuntime | null>(null);
+
+/** Returns the `TileRuntime` from the nearest active provider, or `null` when Canvas is inactive. */
+export function useOptionalCanvasRuntime(): TileRuntime | null {
+  return useContext(OptionalCanvasRuntimeContext);
+}
+
+// ── Activation gate ──────────────────────────────────────────────────────────
+
+interface Activation {
+  active: boolean;
+  activate: () => void;
+}
+
+const ActivationContext = createContext<Activation | undefined>(undefined);
+
+export function useCanvasActivation(): Activation {
+  const ctx = useContext(ActivationContext);
+  if (!ctx) throw new Error('useCanvasActivation must be used inside CanvasRuntimeProvider');
+  return ctx;
+}
+
+// ── Bridge component: reads useNostrCanvas.runtime → OptionalCanvasRuntimeContext ──
+
+function OptionalCanvasRuntimeBridge({ children }: { children: ReactNode }) {
+  const { runtime } = useNostrCanvas();
+  return (
+    <OptionalCanvasRuntimeContext.Provider value={runtime ?? null}>
+      {children}
+    </OptionalCanvasRuntimeContext.Provider>
+  );
+}
+
+// ── RequireCanvas wrapper ────────────────────────────────────────────────────
+/** Activates the Canvas runtime on mount, rendering children only once active. */
+export function RequireCanvas({ children }: { children: ReactNode }) {
+  const { active, activate } = useCanvasActivation();
+
+  useEffect(() => {
+    if (!active) activate();
+  }, [active, activate]);
+
+  if (!active) {
+    return <Skeleton className="h-72 rounded-xl" />;
+  }
+
+  return <>{children}</>;
+}
+
+// ── Main provider ────────────────────────────────────────────────────────────
 
 export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
   const { nostr } = useNostr();
@@ -95,14 +164,38 @@ export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
     delete(identifier: string) { grantBackendRef.current.delete(identifier); },
   }), []);
 
-  return (
-    <NostrCanvasProvider adapter={adapterRef.current} options={{ storage: storageRef.current, grantBackend }}>
-      <CanvasTileInstallationsProvider grantBackendRef={grantBackendRef}>
-        <CanvasNotifications notify={toast}>
+  // ── Activation gate ──────────────────────────────────────────────────────
+  const [demanded, setDemanded] = useState(false);
+  const active = demanded || config.installedCanvasTiles.length > 0;
+  const activate = useCallback(() => setDemanded(true), []);
+  const activation: Activation = useMemo(() => ({ active, activate }), [active, activate]);
+
+  // The two branches intentionally differ in shape, so the whole child tree
+  // remounts when `active` flips. That flip happens at most once per session,
+  // adjacent to already-disruptive moments (first visit to a tile page, or
+  // login-time settings sync), and never flips back.
+  if (!active) {
+    return (
+      <ActivationContext.Provider value={activation}>
+        <OptionalCanvasRuntimeContext.Provider value={null}>
           {children}
-        </CanvasNotifications>
-      </CanvasTileInstallationsProvider>
-    </NostrCanvasProvider>
+        </OptionalCanvasRuntimeContext.Provider>
+      </ActivationContext.Provider>
+    );
+  }
+
+  return (
+    <ActivationContext.Provider value={activation}>
+      <NostrCanvasProvider adapter={adapterRef.current} options={{ storage: storageRef.current, grantBackend, wasmUrl: WASM_URL }}>
+        <OptionalCanvasRuntimeBridge>
+          <CanvasTileInstallationsProvider grantBackendRef={grantBackendRef}>
+            <CanvasNotifications notify={toast}>
+              {children}
+            </CanvasNotifications>
+          </CanvasTileInstallationsProvider>
+        </OptionalCanvasRuntimeBridge>
+      </NostrCanvasProvider>
+    </ActivationContext.Provider>
   );
 }
 

@@ -18,6 +18,11 @@ export function CanvasTileInstallationsProvider({ children, grantBackendRef }: {
   const { updateSettings } = useEncryptedSettings();
   const currentRef = useRef({ user, updateConfig, updateSettings });
   currentRef.current = { user, updateConfig, updateSettings };
+  // The runtime is constructed inside NostrCanvasProvider's mount effect, so it
+  // is null on the first render — read it through a ref so the closures below
+  // (captured once at CanvasTileInstallations construction) see the live value.
+  const runtimeRef = useRef(runtime);
+  runtimeRef.current = runtime;
   const installationsRef = useRef<CanvasTileInstallations | undefined>(undefined);
 
   if (!installationsRef.current) {
@@ -25,13 +30,12 @@ export function CanvasTileInstallationsProvider({ children, grantBackendRef }: {
       storage: localStorage,
       runtime: {
         registerFromEvent: (event) => {
-          if (!runtime) return;
           const parsed = parseTileDefEvent(event);
-          if (parsed) runtime.registerFromEvent(parsed);
+          if (parsed) runtimeRef.current?.registerFromEvent(parsed);
         },
-        uninstallTile: (identifier) => runtime?.uninstallTile(identifier),
-        setScope: (pubkey) => runtime?.setScope(pubkey),
-        saveSettings: (identifier, values) => runtime?.saveSettings(identifier, values),
+        uninstallTile: (identifier) => runtimeRef.current?.uninstallTile(identifier),
+        setScope: (pubkey) => runtimeRef.current?.setScope(pubkey),
+        saveSettings: (identifier, values) => runtimeRef.current?.saveSettings(identifier, values),
       },
       saveCoordinates: (coordinates) => {
         const current = currentRef.current;
@@ -57,7 +61,9 @@ export function CanvasTileInstallationsProvider({ children, grantBackendRef }: {
   useEffect(() => {
     installations.setAccount(user?.pubkey ?? null);
     void installations.restore(user ? config.installedCanvasTiles : [], user ? config.canvasTileSettings : []);
-  }, [installations, user, config.installedCanvasTiles, config.canvasTileSettings]);
+    // `runtime` is a dep so restore re-runs once the worker-backed runtime
+    // exists (it is null on mount); registrations no-op until then.
+  }, [installations, user, config.installedCanvasTiles, config.canvasTileSettings, runtime]);
 
   return <CanvasTileInstallationsContext.Provider value={installations}>{children}</CanvasTileInstallationsContext.Provider>;
 }
@@ -66,4 +72,9 @@ export function useCanvasTileInstallations(): CanvasTileInstallations {
   const installations = useContext(CanvasTileInstallationsContext);
   if (!installations) throw new Error('useCanvasTileInstallations must be used inside CanvasTileInstallationsProvider');
   return installations;
+}
+
+/** Returns the nearest `CanvasTileInstallations` or `null` when the provider stack is absent. */
+export function useOptionalCanvasTileInstallations(): CanvasTileInstallations | null {
+  return useContext(CanvasTileInstallationsContext) ?? null;
 }

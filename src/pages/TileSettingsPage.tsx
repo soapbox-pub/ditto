@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { RequireCanvas } from '@/components/CanvasRuntimeProvider';
 import { useCanvasTileInstallations } from '@/components/CanvasTileInstallationsProvider';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
@@ -29,6 +30,14 @@ const CAPABILITY_LABELS: Record<Capability, string> = {
 };
 
 export function TileSettingsPage() {
+  return (
+    <RequireCanvas>
+      <TileSettingsInner />
+    </RequireCanvas>
+  );
+}
+
+function TileSettingsInner() {
   const { config } = useAppContext();
   const installations = useCanvasTileInstallations();
   const [drafts, setDrafts] = useState<Record<string, string>>({});

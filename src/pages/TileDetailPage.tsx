@@ -14,12 +14,21 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RequireCanvas } from '@/components/CanvasRuntimeProvider';
 import { parseTileDefinition } from '@/tiles/definition';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useCanvasTileInstallations } from '@/components/CanvasTileInstallationsProvider';
 import { canUseCanvasTiles } from '@/lib/canvasPlatform';
 
 export function TileDetailPage() {
+  return (
+    <RequireCanvas>
+      <TileDetailInner />
+    </RequireCanvas>
+  );
+}
+
+function TileDetailInner() {
   const { naddr } = useParams<{ naddr: string }>();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
