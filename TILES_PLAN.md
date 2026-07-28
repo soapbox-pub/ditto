@@ -251,15 +251,15 @@ description on the detail page.
       names `·`-joined + dotted-underline `+N` tooltip span (Badge chips
       removed). *Manual check outstanding:* sort orders on real data,
       ~360px toolbar wrap, perms row fit.
-- [ ] **T4.3b Unified detail page (user direction, 2026-07-28).** The
-      detail page currently reads as floaty, disparate panels (separate
-      Cards for header/description/permissions/source). Redesign into
-      **one unified sleek surface**: single cohesive layout — accent-
-      framed container matching the marketplace/sidebar accent language,
-      sections flowing with dividers instead of separate floating cards.
-      Keep all existing content/behavior (actions, install dialog, GFM
-      description, perms list, source spoiler, SEO meta). *Eval:* manual
-      light/dark + ~360px; `npm run test`.
+- [x] **T4.3b Unified detail page (user direction, 2026-07-28).** Done in
+      `28b2c56f`. Disparate Cards replaced by one accent-framed container
+      (`border-2` `/0.65` + `/0.06` tint via `widgetAccentVars` keyed by
+      `canvasWidgetId`, theme subscription like the marketplace cards);
+      sections (header w/ actions, Description, Permissions, Source-code
+      spoiler) flow inside with `--widget-accent /0.25` hairline dividers
+      and `text-xs uppercase tracking-wide` micro-labels. All logic
+      (install dialog, login gating, SEO meta) untouched. *Manual check
+      outstanding:* light/dark + ~360px.
 - [ ] **T4.4 Social signals + zaps.** Reaction/zap/comment counts on cards
       and detail page via existing stats hooks (NIP-85 where available);
       comments section on detail page (nostr-comments pattern). Zap action
