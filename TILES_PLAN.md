@@ -289,17 +289,32 @@ mid-flow request).
 
 Ordering: after Phases 1–6 (needs 0.12 runtime, frames, feed nodes).
 
-- [ ] **T7.1 Publish script.** `scripts/publish-widget-tile` modeled on
-      nostr-canvas's `publish-tile.js`: takes Lua path, metadata, identifier
-      (`<nip05>:<slug>`), key (nsec/bunker) as parameters. Curator identity
-      itself **deferred**. *Eval:* dry-run signs + prints a valid 30207
-      (parses via `parseTileDefEvent`); publishes to a test relay.
-- [ ] **T7.2 Curator trust tier.** Config knob for curator pubkey; tiles
-      signed by it are auto-installed (defaults: trends, hot-posts,
+- [ ] **T7.1 Publish script.** Builtin widget Lua sources live in
+      **`~/repos/nostr-canvas`** (not this repo) so other tile clients
+      benefit; published with nostr-canvas's own tooling
+      (`publish-tile.js`), signed by the curator key, each tagged
+      `["t", "DITTO_BUILTIN_TILE"]`. Ditto-side script only if something
+      extra is needed. *Eval:* published 30207 parses via
+      `parseTileDefEvent`, carries the `t` tag, and lands on the test
+      relay.
+- [ ] **T7.2 Curator trust tier.** Curator pubkey is a **dedicated
+      AppConfig arg of its own** (e.g. `widgetCuratorPubkey`: real hex
+      pubkey; interface + Zod schema + default — the usual AppConfig
+      triple). Default for now: the canvas marketplace test pubkey
+      `373afc3c69a920ba526292ac5f2b315c523631faefbf8a4706ea6f22ba0bd867`
+      (`canvas-marketplace-test@shantaram.xyz`, `NSEC` in
+      `~/repos/nostr-canvas/.env` — NIP-05 verified 2026-07-28). A tile is
+      "builtin/curated" **only if** `event.pubkey === curator` (query
+      filtered by `authors`, per nostr-security) **and** it has the
+      `t: DITTO_BUILTIN_TILE` tag — the tag alone grants nothing.
+      Curated tiles are auto-installed (defaults: trends, hot-posts,
       wikipedia) and auto-granted declared capabilities **except**
       bitcoin/PSBT signing and event publishing, which always prompt.
-      *Eval:* unit tests: auto-grant set excludes sign/publish; consent
-      dialog still fires for those; `npm run test`.
+      *(Open q: lowercase `t` value convention — `ditto-builtin-tile`? —
+      confirm with user before publishing anything.)*
+      *Eval:* unit tests: curated-detection requires pubkey+tag; auto-grant
+      set excludes sign/publish; consent dialog still fires for those;
+      `npm run test`.
 - [ ] **T7.3–T7.9 Port seven widgets** (one ticket each): trends,
       hot-posts, wikipedia, bluesky, nostr-clients, blobbi, status. Each:
       Lua source in-repo, parity with the React widget's data + layout via
