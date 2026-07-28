@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { LayoutGrid } from 'lucide-react';
+import { LayoutGrid, ChevronDown } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { useParams } from 'react-router-dom';
 import Markdown from 'react-markdown';
@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RequireCanvas } from '@/components/CanvasRuntimeProvider';
 import { TileInstallDialog } from '@/components/TileInstallDialog';
@@ -84,7 +85,17 @@ function TileDetailInner() {
               </div>
             </CardContent></Card>
             {tile.description && <Card><CardContent className="prose prose-sm max-w-none p-5 dark:prose-invert"><Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>{tile.description}</Markdown></CardContent></Card>}
-            <Card><CardContent className="p-0"><pre className="max-h-[32rem] overflow-auto p-5 text-xs leading-relaxed"><code>{tile.script}</code></pre></CardContent></Card>
+            <Card><CardContent className="p-3">
+              <Collapsible className="rounded-lg border">
+                <CollapsibleTrigger className="group flex w-full items-center gap-1.5 px-3 py-2 text-sm font-medium text-left">
+                  <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90 motion-reduce:transition-none" />
+                  Source code
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <pre className="max-h-[32rem] overflow-auto px-3 pb-3 text-xs leading-relaxed"><code>{tile.script}</code></pre>
+                </CollapsibleContent>
+              </Collapsible>
+            </CardContent></Card>
           </>
         )}
       </div>
