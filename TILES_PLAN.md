@@ -364,24 +364,31 @@ Ordering: after Phases 1–6 (needs 0.12 runtime, frames, feed nodes).
       output nodes / safe fetch, widget tag for sidebar placement.
       *Eval per tile:* side-by-side manual comparison against the native
       widget; `npm run test`.
-      - **Wikipedia demo pulled forward (user, 2026-07-28), PREPARED but
-        unpublished/uncommitted in `~/repos/nostr-canvas`:**
-        `tiles/wikipedia/README.md` (frontmatter: identifier wikipedia,
-        v1.0.0, widget entry, perms `fetch` only — `ctx.navigate` can't
-        open external URLs per TIP-19, so no article link) +
-        `tiles/wikipedia/script.lua` (~176 lines; same REST API
-        `en.wikipedia.org/api/rest_v1/feed/featured/{y}/{m}/{d}` as
-        Ditto's `src/components/widgets/WikipediaWidget.tsx` /
-        `useWikipediaFeatured`; same image/title fallback chains, 200-char
-        excerpt; fetch only in `ready()` per TIP-02; `luac -p` clean).
-        **Publish requires a one-line patch** in
-        `scripts/publish-tile.js` (~line 248, after `buildTileDefEvent`):
-        `unsigned.tags.push(["t", "ditto-builtin-tile"]);` — the builder
-        only auto-adds `["t","nostr-canvas-tile"]`. Then:
-        `cd ~/repos/nostr-canvas && pnpm run build && node
-        scripts/publish-tile.js tiles/wikipedia` (interactive y/N;
-        default relay `wss://bruh.samt.st`, override `RELAYS=` env).
-        Awaiting user go-ahead to patch/publish/commit in that repo.
+      - **Wikipedia demo DONE + WORKING (human-verified 2026-07-28).**
+        `~/repos/nostr-canvas` `tiles/wikipedia/` v1.0.1, published to
+        `wss://bruh.samt.st` as event `816a91b9…cf810` (perms fetch +
+        navigate, t-tags `nostr-canvas-tile` + `ditto-builtin-tile` via
+        new frontmatter `tags:` support in publish-tile.js). Required two
+        nostr-canvas releases along the way:
+        - **0.12.3** — engine fix: `os.date`/`os.time` errored on wasm
+          ("current time not available in this host") because omnilua's
+          `HostHooks::unix_time` was never installed; `new_tile_lua()` in
+          engine.rs now installs a `js_sys::Date::now()`-backed hook
+          (native mirrors the stdlib fallback).
+        - **0.12.4** — `NavigateTarget` gains a `{ url: string }` variant
+          (TIP-19 updated: https only, client MUST sanitize); wikipedia
+          tile gains a ghost "Read article" button →
+          `ctx.navigate({ url = article_url })`.
+        Ditto side (`cbc336e3`): `adapter.navigate` implements `url`
+        (sanitizeUrl → `/i/${encodeURIComponent(url)}` internal
+        commentable browser, same as native WikipediaWidget) and
+        NIP-19 `pointer` targets (nsec rejected); `identifier` targets
+        still not_implemented. openPath = module-level navigate ref
+        captured by `CanvasNavigateBridge` mounted inside BrowserRouter
+        (CanvasRuntimeProvider sits outside the router). 8 new adapter
+        tests. **Known upstream mismatch: wasm runtime forwards the Lua
+        field `nostr` but the TS NavigateTarget says `pointer` — Ditto
+        checks both; fix properly in nostr-canvas someday.**
 - [ ] **T7.10 Migration + retirement.** Sidebar config migration builtin-id
       → `canvas:` id for ported widgets; remove retired React widget code;
       fresh-install defaults point at curator tiles. AI chat + feed widgets
