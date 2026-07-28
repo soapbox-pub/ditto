@@ -222,7 +222,7 @@ mid-flow request).
       - **Permissions in one single row** per card: the two most
         important perms shown first as compact chips, remainder collapsed
         to a `+N` chip that reveals the rest on hover (tooltip/popover).
-        Importance ranking (proposed, pending user sign-off):
+        Importance ranking (user-approved 2026-07-28):
         `bitcoin-sign-psbt` > `publish-event` > `nip44-decrypt` >
         `nip44-encrypt` > `fetch` > `get-pubkey` > `feed-action` >
         `navigate`.
