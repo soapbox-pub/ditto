@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
+import { useAppContext } from '@/hooks/useAppContext';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { getTileNip05, getNewestTileDefinitions, searchMarketplaceTiles } from '@/tiles/marketplace';
 import type { TileDefinition } from '@/tiles/definition';
 import { nip19 } from 'nostr-tools';
@@ -25,7 +27,7 @@ function TileMarketplaceCard({ tile, showUnverified }: { tile: TileDefinition; s
 
   const naddr = nip19.naddrEncode({ kind: 30207, pubkey: tile.pubkey, identifier: tile.identifier });
   return (
-    <Link to={`/tiles/${naddr}`} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl">
+    <Link to={`/widgets/${naddr}`} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl">
       <Card className="h-full overflow-hidden transition-colors hover:bg-secondary/40">
         <CardContent className="flex gap-3 p-4">
           <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-primary">
@@ -51,6 +53,7 @@ function TileMarketplaceCard({ tile, showUnverified }: { tile: TileDefinition; s
 
 export function TilesPage() {
   const { nostr } = useNostr();
+  const { config } = useAppContext();
   const [query, setQuery] = useState('');
   const [showUnverified, setShowUnverified] = useState(false);
   const deferredQuery = useDeferredValue(query);
@@ -69,35 +72,40 @@ export function TilesPage() {
     [deferredQuery, tilesQuery.data],
   );
 
+  useSeoMeta({
+    title: `Widgets | ${config.appName}`,
+    description: 'Browse and install Nostr Canvas widgets for your feed and sidebar.',
+  });
+
   return (
     <main className="mx-auto w-full max-w-5xl">
-      <PageHeader title="Tiles" icon={<LayoutGrid className="size-5" />} backTo="/" />
+      <PageHeader title="Widgets" icon={<LayoutGrid className="size-5" />} backTo="/" />
       <div className="space-y-6 px-4 pb-8">
-        <p className="max-w-2xl text-sm text-muted-foreground">Discover Nostr Canvas tiles. Review each tile's requested capabilities before installing it.</p>
+        <p className="max-w-2xl text-sm text-muted-foreground">Discover Nostr Canvas widgets. Review each widget's requested capabilities before installing it.</p>
         <label className="relative block">
-          <span className="sr-only">Search tiles</span>
+          <span className="sr-only">Search widgets</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search tiles" className="pl-9" />
+          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search widgets" className="pl-9" />
         </label>
         <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
           <div className="space-y-1">
-            <Label htmlFor="show-unverified-tiles">Show unverified tiles</Label>
-            <p className="text-xs text-muted-foreground">Unverified tiles are not associated with the NIP-05 identity in their identifier.</p>
+            <Label htmlFor="show-unverified-tiles">Show unverified widgets</Label>
+            <p className="text-xs text-muted-foreground">Unverified widgets are not associated with the NIP-05 identity in their identifier.</p>
           </div>
           <Switch id="show-unverified-tiles" checked={showUnverified} onCheckedChange={setShowUnverified} />
         </div>
         <div className="flex justify-end">
           <Button variant="outline" size="sm" onClick={() => void tilesQuery.refetch()} disabled={tilesQuery.isFetching}>
             <RefreshCw className="size-4" />
-            {tilesQuery.isFetching ? 'Checking relays' : 'Refresh tiles'}
+            {tilesQuery.isFetching ? 'Checking relays' : 'Refresh widgets'}
           </Button>
         </div>
         {tilesQuery.isLoading ? (
           <div className="grid gap-3 sm:grid-cols-2"><Skeleton className="h-36 rounded-xl" /><Skeleton className="h-36 rounded-xl" /></div>
         ) : tilesQuery.isError ? (
-          <Card className="border-dashed"><CardContent className="py-12 text-center text-muted-foreground">Tiles could not be loaded from your relays.</CardContent></Card>
+          <Card className="border-dashed"><CardContent className="py-12 text-center text-muted-foreground">Widgets could not be loaded from your relays.</CardContent></Card>
         ) : tiles.length === 0 ? (
-          <Card className="border-dashed"><CardContent className="py-12 text-center text-muted-foreground">No matching tiles found.</CardContent></Card>
+          <Card className="border-dashed"><CardContent className="py-12 text-center text-muted-foreground">No matching widgets found.</CardContent></Card>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">{tiles.map((tile) => <TileMarketplaceCard key={`${tile.pubkey}:${tile.identifier}`} tile={tile} showUnverified={showUnverified} />)}</div>
         )}

@@ -62,10 +62,10 @@ const settingsSections: SettingsSection[] = [
   },
   {
     id: 'tiles',
-    label: 'Tiles',
-    description: 'Configure installed tiles and manage their permissions',
+    label: 'Widgets',
+    description: 'Configure installed widgets and manage their permissions',
     illustration: '/tiles-palette-intro.png',
-    path: '/settings/tiles',
+    path: '/settings/widgets',
     requiresAuth: true,
   },
   {

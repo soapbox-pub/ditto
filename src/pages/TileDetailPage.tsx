@@ -21,6 +21,8 @@ import { useCanvasTileInstallations } from '@/components/CanvasTileInstallations
 import { canUseCanvasTiles } from '@/lib/canvasPlatform';
 import { ALWAYS_PROMPT_CAPABILITIES } from '@/tiles/installations';
 import { tryNpubEncode } from '@/lib/safeNip19';
+import { useAppContext } from '@/hooks/useAppContext';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 
 export function TileDetailPage() {
   return (
@@ -34,6 +36,7 @@ function TileDetailInner() {
   const { naddr } = useParams<{ naddr: string }>();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const installations = useCanvasTileInstallations();
   const [permissionsOpen, setPermissionsOpen] = useState(false);
   const [mobileAvailabilityOpen, setMobileAvailabilityOpen] = useState(false);
@@ -57,6 +60,11 @@ function TileDetailInner() {
   const updateAvailable = !!installed && !!tile && installed.id !== tile.id;
   const authorNpub = tryNpubEncode(tile?.pubkey);
 
+  useSeoMeta({
+    title: tile ? `${tile.name} | Widgets | ${config.appName}` : `Widgets | ${config.appName}`,
+    description: tile?.summary ?? 'View and install a Nostr Canvas widget.',
+  });
+
   const install = () => {
     if (!canUseCanvasTiles()) {
       setPermissionsOpen(false);
@@ -74,10 +82,10 @@ function TileDetailInner() {
 
   return (
     <main className="mx-auto w-full max-w-3xl">
-      <PageHeader title="Tile" icon={<LayoutGrid className="size-5" />} backTo="/tiles" />
+      <PageHeader title="Widget" icon={<LayoutGrid className="size-5" />} backTo="/widgets" />
       <div className="space-y-5 px-4 pb-8">
         {eventQuery.isLoading ? <Skeleton className="h-72 rounded-xl" /> : !tile ? (
-          <Card className="border-dashed"><CardContent className="py-12 text-center text-muted-foreground">This tile is unavailable or invalid.</CardContent></Card>
+          <Card className="border-dashed"><CardContent className="py-12 text-center text-muted-foreground">This widget is unavailable or invalid.</CardContent></Card>
         ) : (
           <>
             <Card><CardContent className="space-y-4 p-5">
@@ -89,9 +97,9 @@ function TileDetailInner() {
               </div>
               <div className="flex flex-wrap gap-2">{tile.perms.map((permission) => <Badge key={permission} variant="outline">{permission}</Badge>)}{tile.widget && <Badge variant="secondary">Widget: {tile.widget.label}</Badge>}</div>
               <div className="flex flex-wrap gap-2">
-                {installed ? <Button variant="outline" onClick={() => installations.uninstall({ pubkey: tile.pubkey, identifier: tile.identifier })}>Remove tile</Button> : <Button onClick={openInstall} disabled={!user && canUseCanvasTiles()}>Install tile</Button>}
-                {updateAvailable && <Button onClick={openInstall}>Update tile</Button>}
-                {!user && <p className="self-center text-sm text-muted-foreground">Log in to install tiles.</p>}
+                {installed ? <Button variant="outline" onClick={() => installations.uninstall({ pubkey: tile.pubkey, identifier: tile.identifier })}>Remove widget</Button> : <Button onClick={openInstall} disabled={!user && canUseCanvasTiles()}>Install widget</Button>}
+                {updateAvailable && <Button onClick={openInstall}>Update widget</Button>}
+                {!user && <p className="self-center text-sm text-muted-foreground">Log in to install widgets.</p>}
               </div>
             </CardContent></Card>
             {tile.description && <Card><CardContent className="prose prose-sm max-w-none p-5 dark:prose-invert"><Markdown rehypePlugins={[rehypeSanitize]}>{tile.description}</Markdown></CardContent></Card>}
@@ -108,7 +116,7 @@ function TileDetailInner() {
               if (alwaysAsks) return <div key={permission} className="flex items-center gap-3 text-sm"><span>{permission}</span><span className="text-xs text-muted-foreground">Always asks</span></div>;
               const id = `tile-permission-${permission}`;
               return <label key={permission} htmlFor={id} className="flex items-center gap-3 text-sm"><Checkbox id={id} checked={approvedPermissions.includes(permission)} onCheckedChange={(checked) => setApprovedPermissions((current) => checked ? [...current, permission] : current.filter((item) => item !== permission))} />{permission}</label>;
-            }) : <p className="text-sm text-muted-foreground">This tile does not request any capabilities.</p>}
+            }) : <p className="text-sm text-muted-foreground">This widget does not request any capabilities.</p>}
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setPermissionsOpen(false)}>Cancel</Button><Button onClick={install}>Install</Button></DialogFooter>
         </DialogContent>
@@ -116,8 +124,8 @@ function TileDetailInner() {
       <Dialog open={mobileAvailabilityOpen} onOpenChange={setMobileAvailabilityOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tiles are coming soon</DialogTitle>
-            <DialogDescription>Installing and running tiles is not available in the Ditto mobile apps yet. You can browse tiles here and install them from a web browser.</DialogDescription>
+            <DialogTitle>Widgets are coming soon</DialogTitle>
+            <DialogDescription>Installing and running widgets is not available in the Ditto mobile apps yet. You can browse widgets here and install them from a web browser.</DialogDescription>
           </DialogHeader>
           <DialogFooter><Button onClick={() => setMobileAvailabilityOpen(false)}>Close</Button></DialogFooter>
         </DialogContent>

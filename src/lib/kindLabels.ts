@@ -313,6 +313,8 @@ export const KIND_LABELS: Record<number, string> = {
   30078: 'App settings',
   // NIP-66
   30166: 'Relay discovery',
+  // Nostr Canvas
+  30207: 'Widget',
   // NIP-51
   30267: 'App curation set',
   // NIP-53

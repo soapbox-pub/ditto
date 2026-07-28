@@ -12,7 +12,7 @@ export function TilePublishCard(_props: TilePublishCardProps) {
   const tile = parseTileDefinition(_props.event);
   if (!tile) return null;
 
-  const href = `/tiles/${nip19.naddrEncode({
+  const href = `/widgets/${nip19.naddrEncode({
     kind: _props.event.kind,
     pubkey: _props.event.pubkey,
     identifier: tile.identifier,
@@ -32,7 +32,7 @@ export function TilePublishCard(_props: TilePublishCardProps) {
           <span className="shrink-0 text-xs text-muted-foreground">v{tile.version}</span>
         </div>
         {tile.summary && <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{tile.summary}</p>}
-        <span className="mt-2 inline-flex text-xs font-medium text-primary">View tile</span>
+        <span className="mt-2 inline-flex text-xs font-medium text-primary">View widget</span>
       </div>
     </Link>
   );

@@ -45,8 +45,8 @@ function TileSettingsInner() {
   const [, setPermissionsUpdated] = useState(0);
 
   useSeoMeta({
-    title: `Tiles | Settings | ${config.appName}`,
-    description: 'Manage installed Nostr Canvas tiles, their permissions, and settings.',
+    title: `Widgets | Settings | ${config.appName}`,
+    description: 'Manage installed Nostr Canvas widgets, their permissions, and settings.',
   });
 
   const tiles = useMemo(() => config.installedCanvasTiles.map((coordinate) => {
@@ -68,21 +68,21 @@ function TileSettingsInner() {
 
   return (
     <main className="mx-auto w-full max-w-3xl">
-      <PageHeader title="Tiles" icon={<LayoutGrid className="size-5" />} backTo="/settings" />
+      <PageHeader title="Widgets" icon={<LayoutGrid className="size-5" />} backTo="/settings" />
       <div className="space-y-6 px-4 pb-8">
         <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-background to-background">
           <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
             <img src="/tiles-palette-intro.png" alt="" className="mx-auto size-28 object-contain sm:mx-0" />
             <div className="space-y-2">
-              <h1 className="text-xl font-semibold">Your installed tiles</h1>
-              <p className="text-sm text-muted-foreground">Review each tile's capabilities and configure the settings its author declared.</p>
-              <Button asChild size="sm" variant="outline"><Link to="/tiles">Browse tiles</Link></Button>
+              <h1 className="text-xl font-semibold">Your installed widgets</h1>
+              <p className="text-sm text-muted-foreground">Review each widget's capabilities and configure the settings its author declared.</p>
+              <Button asChild size="sm" variant="outline"><Link to="/widgets">Browse widgets</Link></Button>
             </div>
           </CardContent>
         </Card>
 
         {tiles.length === 0 ? (
-          <Card className="border-dashed"><CardContent className="space-y-3 py-12 text-center"><p className="text-sm text-muted-foreground">No tiles are installed yet.</p><Button asChild variant="outline"><Link to="/tiles">Browse tiles</Link></Button></CardContent></Card>
+          <Card className="border-dashed"><CardContent className="space-y-3 py-12 text-center"><p className="text-sm text-muted-foreground">No widgets are installed yet.</p><Button asChild variant="outline"><Link to="/widgets">Browse widgets</Link></Button></CardContent></Card>
         ) : tiles.map(({ coordinate, definition, saved }) => {
           if (!definition) return <UnavailableTileCard key={`${coordinate.pubkey}:${coordinate.identifier}`} coordinate={coordinate} onRemove={() => installations.uninstall(coordinate)} />;
           const granted = installations.getGrantedCapabilities(definition.identifier, definition.perms);
@@ -93,7 +93,7 @@ function TileSettingsInner() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-primary">{definition.image ? <img src={definition.image} alt="" className="size-full object-cover" /> : <LayoutGrid className="size-6" />}</div>
                   <div className="min-w-0 flex-1"><h2 className="truncate font-semibold">{definition.name}</h2><p className="truncate font-mono text-xs text-muted-foreground">{definition.identifier}</p></div>
-                  <Button asChild size="sm" variant="outline"><Link to={`/tiles/${nip19.naddrEncode({ kind: 30207, pubkey: coordinate.pubkey, identifier: coordinate.identifier })}`}>Details</Link></Button>
+                  <Button asChild size="sm" variant="outline"><Link to={`/widgets/${nip19.naddrEncode({ kind: 30207, pubkey: coordinate.pubkey, identifier: coordinate.identifier })}`}>Details</Link></Button>
                 </div>
 
                 {fields.length > 0 && <section className="space-y-3 border-t pt-5"><h3 className="text-sm font-medium">Settings</h3>{fields.map((field) => <TileSettingField key={field.key} field={field} value={valueFor(coordinate, field, saved)} onChange={(value) => setValue(coordinate, field, value)} />)}<div className="flex justify-end"><Button size="sm" onClick={() => {
@@ -111,8 +111,8 @@ function TileSettingsInner() {
                   }} aria-label={`${enabled ? 'Revoke' : 'Grant'} ${CAPABILITY_LABELS[permission]}`} /></div>;
                 })}</div></section>}
 
-                {fields.length === 0 && definition.perms.length === 0 && <p className="border-t pt-5 text-sm text-muted-foreground">This tile has no configurable settings or requested permissions.</p>}
-                <div className="flex justify-end border-t pt-5"><Button size="sm" variant="ghost" className="gap-2 text-destructive hover:text-destructive" onClick={() => installations.uninstall(coordinate)}><Trash2 className="size-4" />Remove tile</Button></div>
+                {fields.length === 0 && definition.perms.length === 0 && <p className="border-t pt-5 text-sm text-muted-foreground">This widget has no configurable settings or requested permissions.</p>}
+                <div className="flex justify-end border-t pt-5"><Button size="sm" variant="ghost" className="gap-2 text-destructive hover:text-destructive" onClick={() => installations.uninstall(coordinate)}><Trash2 className="size-4" />Remove widget</Button></div>
               </CardContent>
             </Card>
           );
@@ -130,7 +130,7 @@ function TileSettingField({ field, value, onChange }: { field: SettingsField; va
 }
 
 function UnavailableTileCard({ coordinate, onRemove }: { coordinate: InstalledCanvasTile; onRemove: () => void }) {
-  return <Card className="border-dashed"><CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="font-medium">Tile definition unavailable</p><p className="truncate font-mono text-xs text-muted-foreground">{coordinate.identifier}</p><p className="mt-2 text-sm text-muted-foreground">Reconnect to the tile's relay or browse the marketplace to restore its definition.</p></div><div className="flex gap-2"><Button asChild size="sm" variant="outline"><Link to="/tiles">Browse tiles</Link></Button><Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={onRemove}>Remove</Button></div></CardContent></Card>;
+  return <Card className="border-dashed"><CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="font-medium">Widget definition unavailable</p><p className="truncate font-mono text-xs text-muted-foreground">{coordinate.identifier}</p><p className="mt-2 text-sm text-muted-foreground">Reconnect to the widget's relay or browse the marketplace to restore its definition.</p></div><div className="flex gap-2"><Button asChild size="sm" variant="outline"><Link to="/widgets">Browse widgets</Link></Button><Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={onRemove}>Remove</Button></div></CardContent></Card>;
 }
 
 function fieldDefault(field: SettingsField): string {

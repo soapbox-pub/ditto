@@ -167,8 +167,8 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     kind: 30207,
     id: 'tiles',
     feedKey: 'feedIncludeTiles',
-    label: 'Tiles',
-    description: 'Nostr Canvas programmable tiles',
+    label: 'Widgets',
+    description: 'Nostr Canvas programmable widgets',
     addressable: true,
     section: 'feed',
     feedOnly: true,
@@ -940,7 +940,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   31990: 'app',
   30063: 'Zapstore release',
   3063: 'Zapstore asset',
-  30207: 'tile',
+  30207: 'widget',
 };
 
 /**

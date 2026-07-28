@@ -97,7 +97,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   30008: 'badge set',
   30009: 'badge',
   30023: 'article',
-  30207: 'tile',
+  30207: 'widget',
   33953: 'ebook',
   34609: 'magazine',
   39731: 'magazine issue',

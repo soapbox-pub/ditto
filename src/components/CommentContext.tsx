@@ -153,7 +153,7 @@ const KIND_LABELS: Record<number, string> = {
   30008: 'a badge set',
   30009: 'a badge',
   30023: 'an article',
-  30207: 'a tile',
+  30207: 'a widget',
   33953: 'an ebook',
   34609: 'a magazine',
   39731: 'a magazine issue',

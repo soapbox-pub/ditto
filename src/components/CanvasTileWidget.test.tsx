@@ -40,7 +40,7 @@ describe('CanvasTileWidget', () => {
 
     render(<CanvasTileWidget identifier="weather@example.com:forecast" />);
 
-    expect(screen.getByText('Loading tile...')).toBeInTheDocument();
+    expect(screen.getByText('Loading widget...')).toBeInTheDocument();
   });
 
   it('does not mount a tile engine in a native app', () => {
@@ -49,6 +49,6 @@ describe('CanvasTileWidget', () => {
     render(<CanvasTileWidget identifier="weather@example.com:forecast" />);
 
     expect(useTile).not.toHaveBeenCalled();
-    expect(screen.getByText('Tiles on mobile apps are coming soon.')).toBeInTheDocument();
+    expect(screen.getByText('Widgets on mobile apps are coming soon.')).toBeInTheDocument();
   });
 });

@@ -2574,8 +2574,8 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   30207: {
     icon: FileCode,
     action: (event) => publishedAtAction(event, { created: "published a", updated: "updated a", fallback: "published a" }),
-    noun: "tile",
-    nounRoute: "/tiles",
+    noun: "widget",
+    nounRoute: "/widgets",
   },
   15128: {
     icon: Rocket,

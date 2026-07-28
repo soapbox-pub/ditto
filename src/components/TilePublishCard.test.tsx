@@ -35,7 +35,7 @@ describe('TilePublishCard', () => {
     expect(screen.getByText('Weather')).toBeInTheDocument();
     expect(screen.getByText('Local weather at a glance')).toBeInTheDocument();
     expect(screen.queryByText(/This Lua source/)).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /weather/i })).toHaveAttribute('href', expect.stringMatching(/^\/tiles\/naddr1/));
+    expect(screen.getByRole('link', { name: /weather/i })).toHaveAttribute('href', expect.stringMatching(/^\/widgets\/naddr1/));
   });
 
   it('hides malformed definitions instead of rendering their source as a text note', () => {

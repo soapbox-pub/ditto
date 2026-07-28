@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
 import { BackButtonHandler } from "@/components/BackButtonHandler";
 import { DeepLinkHandler } from "@/components/DeepLinkHandler";
@@ -125,6 +125,12 @@ function ProfileRedirect() {
   return <Navigate to={profileUrl} replace />;
 }
 
+/** Redirects /tiles/:naddr → /widgets/:naddr, preserving the path param. */
+function TilesRedirect() {
+  const { naddr } = useParams<{ naddr: string }>();
+  return <Navigate to={`/widgets/${naddr ?? ''}`} replace />;
+}
+
 export function AppRouter() {
   return (
     <AudioPlayerProvider>
@@ -171,7 +177,7 @@ export function AppRouter() {
             <Route path="/settings/magic" element={<MagicSettingsPage />} />
             <Route path="/settings/network" element={<NetworkSettingsPage />} />
             <Route path="/settings/ai" element={<SettingsAIPage />} />
-            <Route path="/settings/tiles" element={<TileSettingsPage />} />
+            <Route path="/settings/widgets" element={<TileSettingsPage />} />
             <Route path="/lists" element={<UserListsPage />} />
             <Route path="/events" element={<EventsFeedPage />} />
             <Route path="/photos" element={<PhotosFeedPage />} />
@@ -181,6 +187,10 @@ export function AppRouter() {
               path="/streams"
               element={<Navigate to="/videos" replace />}
             />
+            {/* Old tile paths — redirect to /widgets */}
+            <Route path="/tiles" element={<Navigate to="/widgets" replace />} />
+            <Route path="/tiles/:naddr" element={<TilesRedirect />} />
+            <Route path="/settings/tiles" element={<Navigate to="/settings/widgets" replace />} />
             <Route path="/shorts" element={<VinesFeedPage />} />
             {/* /vines and /divines redirect to /shorts for backward compatibility */}
             <Route path="/vines" element={<Navigate to="/shorts" replace />} />
@@ -262,8 +272,8 @@ export function AppRouter() {
               }
             />
             <Route path="/themes" element={<ThemesPage />} />
-            <Route path="/tiles" element={<TilesPage />} />
-            <Route path="/tiles/:naddr" element={<TileDetailPage />} />
+            <Route path="/widgets" element={<TilesPage />} />
+            <Route path="/widgets/:naddr" element={<TileDetailPage />} />
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/bookmarks" element={<BookmarksPage />} />
             <Route path="/ai-chat" element={<AIChatPage />} />
