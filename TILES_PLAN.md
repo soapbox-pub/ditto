@@ -219,11 +219,33 @@ mid-flow request).
       focusable `+N` tooltip chip. Old Widget/perm badge pile removed.
       434 tests green. *Manual check outstanding:* card look across
       themes + ~360px, tooltips, sparkle on a multi-view tile.
-- [ ] **T4.2 Install UX on the list.** Installed / update-available badges
-      per card (via `installations` cache vs marketplace event timestamps);
-      install directly from the list through the existing capability-consent
-      dialog. *Eval:* manual: fresh tile installs from list w/ consent
-      dialog; updated tile shows badge; `npm run test`.
+- [x] **T4.2 Install UX on the list.** Done in `c87e212e`. Consent +
+      mobile-availability dialogs extracted to shared
+      `TileInstallDialog` (used by list + detail; `approvedPermissions`
+      reset on open; ALWAYS_PROMPT filtering preserved). Cards get
+      Install/Update buttons (preventDefault so the Link doesn't fire) or
+      a muted Check+"Installed" indicator; empty perms → greyed "No
+      special permissions" badge; dialog author line resolves
+      `@name` → nip05 → truncated npub via `useAuthor` (never
+      display_name), full npub in `title`. *Manual check outstanding:*
+      install/update from list on a real marketplace tile.
+- [ ] **T4.2b Card focus/expand interaction (user direction,
+      2026-07-28).** Collapsed cards show **no action buttons** — only
+      status where the footer indicator sits today: Check+"Installed" or
+      "Update available" (icon + `text-xs` muted). Clicking a card
+      **expands it in place** (one at a time, motion-safe grow, siblings
+      stay put; Escape / outside click collapses): solid
+      `--widget-accent` background with contrast foreground (export
+      `contrastForeground` from colorUtils; new
+      `--widget-accent-foreground` var in `widgetAccentVars`), action
+      buttons appear — Install / Update and **"View"** (navigates to
+      `/widgets/:naddr`; card itself is no longer a Link). Keyboard:
+      card focusable, Enter/Space toggles, `aria-expanded`. *Eval:*
+      manual expand/collapse + contrast in light/dark; `npm run test`.
+- [ ] **T4.2c Detail description tables.** Add `remark-gfm` (real dep;
+      currently only transitive) to the detail-page description
+      `Markdown` so tables render; prose styles cover them. *Eval:*
+      manual with a table-bearing description; `npm run test`.
 - [ ] **T4.3 Sort + search.** Sort control (newest / recently updated /
       name); keep search; **no category filters**. Clean up or remove the
       unused `getMarketplaceTiles`/`getMarketplaceTileStatus` helpers in
