@@ -91,34 +91,36 @@ integration (`canvas:` ids, recovery states), feed `TilePublishCard`,
 settings page, browser gating, a11y pass. Commits `c32a2a3e`…`43c875f0`.
 `feed`/`comments`/`nevent` nodes fail closed; `ctx.navigate()` no-op.
 
-## Phase 1 — nostr-canvas 0.12.0 upgrade — `pending`
+## Phase 1 — nostr-canvas 0.12 upgrade — `done` (pending manual check)
 
-Foundation for everything else; do first.
+Bumped to **0.12.1** (0.12.1 = 0.12.0 + wasm bundled in the package).
+Commits `2d8cffaa` (core port), `8459e6a3` (QR handles / password inputs /
+uploadImage via Blossom + `image_upload` nodes), `8721a34a` (lazy runtime),
+plus the NIP.md link refresh.
 
-- [ ] **T1.1 Core port.** Bump to `0.12.0`. Remove `RustWorkerPool`
-      construction/teardown (runtime owns one worker); rename
-      `NostrAdapter` → `RuntimeAdapter` type refs; drop any `resolveHandle`;
-      await now-async `createTile`/`renderEvent` call sites if used; check
-      `useEventTileOptions.timeoutMs` removal. Files:
-      `CanvasRuntimeProvider.tsx`, `src/tiles/adapter.ts`, tests.
-      *Eval:* `npm run test`; manual: an installed tile renders and responds
-      to input in the sidebar.
-- [ ] **T1.2 Renderer updates.** `TileOutputView`: use `isQrHandle`/
-      `decodeQrHandle` for `image` nodes (render QR for handles, URL fetch
-      otherwise); replace removed input `hidden` with `input_type:
-      "password"` masking. *Eval:* `npm run test` incl. updated
-      `TileOutputView.test.tsx`; manual: password field masks input.
-- [ ] **T1.3 `uploadImage` via Blossom.** Implement the new adapter method
-      through the `useUploadFile` pipeline, gated on the tile's grant.
-      *Eval:* adapter unit test (grant honored, URL returned, rejection when
-      ungranted); `npm run test`.
-- [ ] **T1.4 Wasm lazy-load audit.** Ensure the Rust wasm engine + worker
-      load only when a tile actually mounts, not at app boot
-      (`CanvasRuntimeProvider` mounts in `App.tsx`). Restructure with dynamic
-      import/lazy provider if needed. *Eval:* `vite build` chunk inspection +
-      dev-server network tab: no wasm fetch on `/` without a tile installed.
-- [ ] **T1.5 Spec link refresh.** `NIP.md` 30207 row → 0.12 TIP index (link
-      currently pins 0.11.0). *Eval:* link resolves; `npm run test`.
+- T1.1 Core port: RustWorkerPool removed; `NostrAdapter`→`RuntimeAdapter`;
+  `onGrantDecision`→`grantBackend` (raw stored grants; worker clamps to
+  declared — verified in worker source); runtime is now `TileRuntime | null`
+  (constructed in a mount effect), all consumers null-guarded.
+- T1.2/T1.3: QR handles render via existing `QRCodeCanvas` (corrupt handles
+  render nothing, never fetch); `input_type` hints honored; `uploadImage`
+  adapter method = file picker (native `cancel` event, abort-signal aware) +
+  `useUploadFile`; `image_upload` nodes with in-flight disable and
+  sanitizeUrl-gated preview. Review findings (dropped AbortSignal, missing
+  loading state, focus-heuristic race) fixed.
+- T1.4: activation gate in `CanvasRuntimeProvider` — worker+wasm boot only
+  when tiles are installed or a tile page mounts (`RequireCanvas`); new
+  `useCanvasActivation` / `useOptionalCanvasRuntime` /
+  `useOptionalCanvasTileInstallations`; explicit `wasmUrl` resolved from
+  node_modules (prod build otherwise 404s the wasm — emitted as hashed
+  asset, verified in dist). Fixed T1.1 regression: installations closures
+  captured first-render null runtime (registration permanent no-op).
+- **⚠ Manual check outstanding (user):** dev server — (1) no
+  `nc-worker`/wasm network fetch on `/` with no tiles installed; (2) visit a
+  tile detail page → runtime boots, tile installs/renders and responds to
+  input; (3) sidebar tile of an already-installed account still renders;
+  (4) image-upload button in a tile uploads via Blossom; (5) prod
+  `vite preview` — wasm loads (no 404) when a tile page opens.
 
 ## Phase 2 — Widget frame redesign & double-title fix — `pending`
 
