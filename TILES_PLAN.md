@@ -146,25 +146,32 @@ plus the NIP.md link refresh.
   arrow + border in light/dark; install dialog for a tile declaring
   `bitcoin-sign-psbt` shows "Always asks" and no overflow.
 
-## Phase 2 — Widget frame redesign & double-title fix — `pending`
+## Phase 2 — Widget frame redesign & double-title fix — `done` (pending manual check)
 
-- [ ] **T2.1 Thin frame.** Rework `WidgetCard`: slim top handle bar carrying
-      drag grip, icon, remove, resize affordances. Canvas tiles: no label
-      text (label stays as `aria-label`/picker name). Builtins: small
-      muted-foreground title inside the handle bar. Keep keyboard drag/resize
-      and reduced-motion behavior. *Eval:* `npm run test`; manual: tile shows
-      no Ditto title (self-titles only), builtin shows small handle title,
-      drag/resize work via pointer and keyboard.
-- [ ] **T2.2 Accent frame colors.** Deterministic hash(identifier) → hue;
-      build border/handle tint via theme-token conventions (saturation/
-      lightness from the active theme, à la `coreToTokens`) so frames pop in
-      light, dark, and custom themes. Apply to widget frames (and reuse in
-      marketplace cards, Phase 4). *Eval:* unit test for stable hash→hue;
-      manual: distinct frame colors per widget, legible in light/dark/custom
-      theme, WCAG ≥3:1 for UI chrome.
-- [ ] **T2.3 Detail-page double title.** `TileDetailPage` renders
-      `PageHeader title={tile.name}` *and* an in-card `<h1>` — keep one.
-      *Eval:* manual: single title on `/widgets/:naddr`; `npm run test`.
+- [x] **T2.1 Thin frame.** `WidgetCard` reworked (commit `398b3d94`): slim
+      always-visible `h-7` handle bar — icon, builtin-only `text-xs` muted
+      title (still a `<Link>` when `href`), flex-1 drag button (grip icon,
+      `dragHandleProps` spread, keyboard reorder intact), compact remove
+      button. Canvas widgets (`hideTitle` prop from the `canvas:` id prefix)
+      render no title; **hovering the drag region shows a tooltip with the
+      widget name** (global `TooltipProvider` already in App.tsx). All ARIA
+      contracts preserved (remove/reorder labels, resize separator slider
+      semantics, both fillHeight/ScrollArea content modes).
+- [x] **T2.2 Accent frame colors.** New `src/lib/widgetAccent.ts`: djb2
+      `hashWidgetId` → `widgetAccentHue` (0-359) → `widgetAccentVars` inline
+      `--widget-accent` HSL triple (ScopedTheme pattern). S/L per mode:
+      dark 55%/55%, light 70%/45% (brightened per user feedback). Frame =
+      `border-2` at `/0.65` alpha; handle bar tint `/0.12`. WidgetCard
+      subscribes to `config.theme` via `useAppContext` so the accent
+      re-derives on theme switches despite the memoized `SortableWidget`.
+      10 unit tests in `widgetAccent.test.ts` (428 total green).
+- [x] **T2.3 Detail-page double title.** `PageHeader` now static "Tile"
+      (renamed in Phase 3); the in-card name demoted to `<h2>` so the page
+      keeps a single `h1` (commit `67fc03dc`).
+- **⚠ Manual check outstanding (user):** frames in light/dark/custom —
+  distinct, thicker/brighter borders look right; canvas tile shows no Ditto
+  title + hover tooltip shows name; builtin shows small handle title;
+  drag/resize via pointer *and* keyboard; single title on `/tiles/:naddr`.
 
 ## Phase 3 — User-facing rename to "Widgets" — `pending`
 
