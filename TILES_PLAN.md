@@ -206,46 +206,36 @@ mid-flow request).
   context read "widget"; add-widget modal shows flat list, grouped order
   intact.
 
-## Phase 4 — Marketplace TLC — `pending`
+## Phase 4 — Marketplace TLC — `in_progress`
 
-- [x] **T4.1 List redesign.** Done in `d178c5d9`. Cards reuse the sidebar
-      accent (`widgetAccentVars` keyed by `canvasWidgetId(identifier)` so
-      hues match the sidebar frame): `border-2` `/0.65` + `/0.06` bg tint,
-      theme-change subscription à la WidgetCard. Verified text badge →
-      `BadgeCheck` icon + tooltip next to the name; `Sparkles` icon +
-      tooltip when `countTileViews(tile) > 1` (new helper; `render`/`nav`
-      added to `TileDefinition`). Perms = single row, top-2 by new
-      `CAPABILITY_RANK` (`src/tiles/capabilities.ts`, 6 unit tests) +
-      focusable `+N` tooltip chip. Old Widget/perm badge pile removed.
-      434 tests green. *Manual check outstanding:* card look across
-      themes + ~360px, tooltips, sparkle on a multi-view tile.
-- [x] **T4.2 Install UX on the list.** Done in `c87e212e`. Consent +
-      mobile-availability dialogs extracted to shared
-      `TileInstallDialog` (used by list + detail; `approvedPermissions`
-      reset on open; ALWAYS_PROMPT filtering preserved). Cards get
-      Install/Update buttons (preventDefault so the Link doesn't fire) or
-      a muted Check+"Installed" indicator; empty perms → greyed "No
-      special permissions" badge; dialog author line resolves
-      `@name` → nip05 → truncated npub via `useAuthor` (never
-      display_name), full npub in `title`. *Manual check outstanding:*
-      install/update from list on a real marketplace tile.
-- [ ] **T4.2b Card focus/expand interaction (user direction,
-      2026-07-28).** Collapsed cards show **no action buttons** — only
-      status where the footer indicator sits today: Check+"Installed" or
-      "Update available" (icon + `text-xs` muted). Clicking a card
-      **expands it in place** (one at a time, motion-safe grow, siblings
-      stay put; Escape / outside click collapses): solid
-      `--widget-accent` background with contrast foreground (export
-      `contrastForeground` from colorUtils; new
-      `--widget-accent-foreground` var in `widgetAccentVars`), action
-      buttons appear — Install / Update and **"View"** (navigates to
-      `/widgets/:naddr`; card itself is no longer a Link). Keyboard:
-      card focusable, Enter/Space toggles, `aria-expanded`. *Eval:*
-      manual expand/collapse + contrast in light/dark; `npm run test`.
-- [ ] **T4.2c Detail description tables.** Add `remark-gfm` (real dep;
-      currently only transitive) to the detail-page description
-      `Markdown` so tables render; prose styles cover them. *Eval:*
-      manual with a table-bearing description; `npm run test`.
+Done so far (T4.1 `d178c5d9`, T4.2 `c87e212e`, T4.2b+c `95904cae`):
+icon-first list cards with the sidebar accent (`widgetAccentVars` keyed
+by `canvasWidgetId(identifier)`; `border-2 /0.65` + `/0.06` tint;
+`BadgeCheck` verified icon, `Sparkles` when `countTileViews(tile) > 1`,
+top-2 perms by user-approved `CAPABILITY_RANK`
+(`src/tiles/capabilities.ts`) + `+N` tooltip chip, greyed "No special
+permissions" badge when empty). Shared `TileInstallDialog` (consent +
+mobile dialogs; ALWAYS_PROMPT filtering preserved; author line resolves
+`@name` → nip05 → truncated npub via `useAuthor`, never display_name).
+Click-to-expand cards (no longer Links): one at a time, center
+`scale-105` + `z-10` over siblings, fixed `h-9` footer rows so the grid
+never shifts; collapsed = status text only (Installed / Update
+available), expanded = translucent accent surface
+(`--widget-accent-surface` `/0.9`, deeper S/L: dark 45/32, light 55/42,
+`contrastForeground` now exported) with theme-inverted neutral
+Install/Update/**View** buttons (dark: white/black, light: black/white);
+Escape / outside-click collapses; Enter/Space + `aria-expanded`.
+Detail page: actions right-aligned, description renders GFM tables
+(`remark-gfm` added as a real dep); source code collapsed behind a
+Collapsible "Source code" spoiler (`fa841e9d`, TileOutputView spoiler
+pattern — pulls that item forward out of T4.5). 442 tests green.
+
+**⚠ Manual check outstanding (user):** card look across themes/~360px,
+tooltips, sparkle on a multi-view tile; install/update from list on a
+real tile; expand/collapse feel (scale overlap, no grid shift,
+translucent surface readability, button contrast); a table-bearing
+description on the detail page.
+
 - [ ] **T4.3 Sort + search.** Sort control (newest / recently updated /
       name); keep search; **no category filters**. Clean up or remove the
       unused `getMarketplaceTiles`/`getMarketplaceTileStatus` helpers in
@@ -260,10 +250,10 @@ mid-flow request).
       flow reaches invoice for an author with lightning configured;
       `npm run test`.
 - [ ] **T4.5 Detail-page upgrades.** Image/gallery from `image` tag(s),
-      version history of the 30207 coordinate (prior events), collapsible
-      escaped source viewer (tiny highlighter only if ~zero-cost, else
-      plain), clearer per-permission explanation copy. *Eval:* manual on a
-      real marketplace tile; `npm run test`.
+      version history of the 30207 coordinate (prior events), tiny
+      source-code highlighter only if ~zero-cost (spoiler itself done in
+      `fa841e9d`), clearer per-permission explanation copy. *Eval:*
+      manual on a real marketplace tile; `npm run test`.
 - [ ] **T4.6 First-open marketplace nag.** "New: Widget marketplace" hover
       nag over the `/widgets` view on first open, localStorage-tracked,
       expandable to a caution note: widgets are user-contributed, not part
