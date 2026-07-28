@@ -29,10 +29,19 @@ repo it touches.
   **and** user-supplied OpenAI-compatible providers (own API key, like tile-studio's settings
   panel today). Needs new settings UI in Ditto; provider configs + keys are small/bounded, held
   in `localStorage` (no encryption, matching tile-studio's own posture — see open question below).
-- **Library home**: `packages/devkit` inside `~/repos/nostr-canvas` (not a new tile-studio
-  monorepo package, not a new repo). Depends on the existing `.` and `./react` exports of the
-  main package. Published as part of nostr-canvas's normal release (same pipeline exercised for
-  0.12.3/0.12.4 today — bump version, `npm publish`).
+- **Library home**: a new `./devkit` subpath export of the existing main `@soapbox.pub/nostr-canvas`
+  package (not a separate `packages/devkit` workspace package, not a new repo, not its own
+  `package.json`/version) — always in lockstep with the main package's version. Published as
+  part of nostr-canvas's normal release (same pipeline exercised for 0.12.3/0.12.4 — bump
+  version, `npm publish`).
+- **React hook**: devkit ships **no** React hook. It's a plain, framework-agnostic TS library —
+  no `react` peer dependency, no `./devkit/react` subpath. Each consuming host (tile-studio,
+  Ditto) writes its own thin hook around the core class, adapted to that app's own state model.
+  This makes devkit a pluggable piece usable by any host, React or not.
+- **devkit v1 tool list**: all 11 of tile-studio's tools minus the 2 already cut (lint,
+  capability-nudge) — `read_code`, `write_code`, `edit_code`, `read_spec`, `read_examples`,
+  `search_nips`, `fetch_nip`, `set_tile`, `get_tile`, `preview_tile`, `set_notes`. Confirmed, no
+  further scoping needed for T1.3.
 - **Live preview**: yes, in v1 (tile-studio's live-updating preview-as-you-edit experience,
   not deferred).
 - **Preview runtime isolation**: the chat's preview mounts its **own separate**
@@ -69,16 +78,34 @@ repo it touches.
   `localStorage` under the same threat model (nostr-security skill) — is a third-party LLM API
   key at the same risk tier acceptable, or does it need something better (still local-only, but
   e.g. gated behind a "these are stored in plaintext" warning)? Confirm before T3.1.
-- Does `devkit`'s agent-loop/session class ship a ready React hook (mirroring nostr-canvas's own
-  `./react` subpath convention), or just the framework-agnostic class with each consumer (both
-  tile-studio and Ditto) writing its own thin wrapper? Proposed default: ship the hook too
-  (`devkit/react` or similar) since both current consumers are React. Confirm during T1 design.
-- Exact tool list for `devkit` v1: tile-studio has 12 (read_code, write_code, edit_code,
-  read_spec, read_examples, search_nips, fetch_nip, set_tile, get_tile, preview_tile, set_notes,
-  plus lint/capability-nudge which are already cut). Default: port all 12 minus the two cut ones
-  = 11. Confirm during T1.2.
 
-## Phase 1 — `nostr-canvas`: extract `packages/devkit` — `pending`
+## Working conventions for this effort
+
+Everything else in the root `AGENTS.md`/skills applies as normal (dispatch to `coder`/`tester`/
+`researcher`, `npm run test` gate in Ditto, commit per ticket, independent verification before
+closing a ticket). Phase 1/2 work happens in the other two repos directly (not through Ditto's
+`npm run test`) — each of those tickets' eval criteria should specify that repo's own test/build
+command once nailed down.
+
+**TDD is the standing workflow for every ticket in every phase** (grilled 2026-07-28): before any
+implementation, grill the specific test scope for that ticket with the user; write the failing
+tests first (red); implement until green; close with a manual review checklist. Each ticket's
+own `*Eval:*` line names what the tests must cover — it does not restate this process.
+
+**Three-agent split per ticket**, so the primary session's own verification burden stays small
+(read the test diff + the tester's report, rather than re-running everything by hand):
+1. **Test-writer** (`coder`, dispatched with only the ticket spec + grilled test scope, no
+   implementation to peek at) writes the failing test file(s). Confirmed red via a `tester` run
+   before moving on — a test suite that's green before any implementation exists is a bug in the
+   tests themselves.
+2. **Implementer** (`coder`, given the ticket spec + the now-frozen test files, forbidden from
+   editing the tests) writes code until the suite is green.
+3. **Verifier** (`tester`) runs the full relevant suite/build/lint (not just the new tests) and
+   reports pass/fail with any failure detail.
+
+The primary session's own independent-verification duty (per root `AGENTS.md`) is satisfied by
+reading the test-writer's actual test file (a concrete artifact, not a self-report) and the
+verifier's real run output — not by re-deriving either from scratch.
 
 Goal: a host-agnostic library (no React required for the core, React bindings as an optional
 subpath) providing everything an AI agent needs to write/edit/preview a nostr-canvas Lua tile,
