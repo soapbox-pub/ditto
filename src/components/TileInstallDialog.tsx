@@ -8,6 +8,7 @@ import { useCanvasTileInstallations } from '@/components/CanvasTileInstallations
 import { useAuthor } from '@/hooks/useAuthor';
 import { canUseCanvasTiles } from '@/lib/canvasPlatform';
 import { ALWAYS_PROMPT_CAPABILITIES } from '@/tiles/installations';
+import { CAPABILITY_DESCRIPTIONS } from '@/tiles/capabilities';
 import { tryNpubEncode } from '@/lib/safeNip19';
 import type { TileDefinition } from '@/tiles/definition';
 
@@ -80,15 +81,20 @@ export function TileInstallDialog({ tile, tileEvent, open, onOpenChange }: TileI
                 const alwaysAsks = ALWAYS_PROMPT_CAPABILITIES.has(permission);
                 if (alwaysAsks) {
                   return (
-                    <div key={permission} className="flex items-center gap-3 text-sm">
-                      <span>{permission}</span>
-                      <span className="text-xs text-muted-foreground">Always asks</span>
+                    <div key={permission} className="text-sm">
+                      <div className="flex items-center gap-3">
+                        <span>{permission}</span>
+                        <span className="text-xs text-muted-foreground">Always asks</span>
+                      </div>
+                      {CAPABILITY_DESCRIPTIONS[permission] && (
+                        <p className="mt-1 text-xs text-muted-foreground">{CAPABILITY_DESCRIPTIONS[permission]}</p>
+                      )}
                     </div>
                   );
                 }
                 const id = `tile-install-permission-${permission}`;
                 return (
-                  <label key={permission} htmlFor={id} className="flex items-center gap-3 text-sm">
+                  <label key={permission} htmlFor={id} className="flex items-start gap-3 text-sm">
                     <Checkbox
                       id={id}
                       checked={approvedPermissions.includes(permission)}
@@ -97,8 +103,14 @@ export function TileInstallDialog({ tile, tileEvent, open, onOpenChange }: TileI
                           checked ? [...current, permission] : current.filter((item) => item !== permission),
                         )
                       }
+                      className="mt-0.5"
                     />
-                    {permission}
+                    <div>
+                      <span>{permission}</span>
+                      {CAPABILITY_DESCRIPTIONS[permission] && (
+                        <p className="text-xs text-muted-foreground">{CAPABILITY_DESCRIPTIONS[permission]}</p>
+                      )}
+                    </div>
                   </label>
                 );
               }) : <p className="text-sm text-muted-foreground">This widget does not request any capabilities.</p>}

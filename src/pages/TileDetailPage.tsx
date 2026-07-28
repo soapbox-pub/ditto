@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RequireCanvas } from '@/components/CanvasRuntimeProvider';
 import { TileInstallDialog } from '@/components/TileInstallDialog';
@@ -20,6 +21,7 @@ import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ComposeBox } from '@/components/ComposeBox';
 import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { parseTileDefinition } from '@/tiles/definition';
+import { CAPABILITY_DESCRIPTIONS } from '@/tiles/capabilities';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useCanvasTileInstallations } from '@/components/CanvasTileInstallationsProvider';
@@ -72,6 +74,15 @@ function TileDetailInner() {
   const tileEvent = eventQuery.data?.find((event) => parseTileDefinition(event)?.identifier === tile?.identifier);
   const installed = tile ? installations.getCachedDefinition({ pubkey: tile.pubkey, identifier: tile.identifier }) : undefined;
   const updateAvailable = !!installed && !!tile && installed.id !== tile.id;
+
+  const [lightboxImage, setLightboxImage] = useState<string | undefined>();
+
+  // Version history
+  const historyQuery = useQuery({
+    queryKey: ['tile-history', tile?.pubkey, tile?.identifier],
+    enabled: !!tile,
+    queryFn: ({ signal }) => nostr.query([{ kinds: [30207], authors: [tile!.pubkey], '#d': [tile!.identifier], limit: 20 }], { signal }),
+  });
 
   // Widget accent — same pattern as the marketplace cards.
   const mode = getBackgroundThemeMode();
@@ -197,18 +208,75 @@ function TileDetailInner() {
                 </>
               )}
 
+              {/* ── Gallery ── */}
+              {tile.images && tile.images.length > 0 && (
+                <>
+                  <div className="border-t border-[hsl(var(--widget-accent)/0.25)]" />
+                  <div className="p-5 sm:p-6">
+                    <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Screenshots</h3>
+                    <div className="flex gap-3 overflow-x-auto pb-1">
+                      {tile.images.map((url) => (
+                        <button key={url} type="button" onClick={() => setLightboxImage(url)} className="shrink-0">
+                          <img src={url} alt="" className="h-40 w-auto rounded-lg object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
               {/* ── Permissions ── */}
               <div className="border-t border-[hsl(var(--widget-accent)/0.25)]" />
               <div className="p-5 sm:p-6">
                 <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Permissions</h3>
-                <div className="flex flex-wrap gap-2">
-                  {tile.perms.length > 0 ? (
-                    tile.perms.map((permission) => <Badge key={permission} variant="outline">{permission}</Badge>)
-                  ) : (
-                    <span className="text-sm text-muted-foreground">No special permissions</span>
-                  )}
-                  {tile.widget && <Badge variant="secondary">Widget: {tile.widget.label}</Badge>}
-                </div>
+                {tile.perms.length > 0 ? (
+                  <div className="space-y-3">
+                    {tile.perms.map((permission) => (
+                      <div key={permission}>
+                        <p className="text-sm font-medium">{permission}</p>
+                        {CAPABILITY_DESCRIPTIONS[permission] && (
+                          <p className="text-xs text-muted-foreground">{CAPABILITY_DESCRIPTIONS[permission]}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">No special permissions</span>
+                )}
+                {tile.widget && (
+                  <div className="mt-3">
+                    <Badge variant="secondary">Widget: {tile.widget.label}</Badge>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Version history ── */}
+              <div className="border-t border-[hsl(var(--widget-accent)/0.25)]" />
+              <div className="p-5 sm:p-6">
+                <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Version history</h3>
+                {historyQuery.isLoading ? (
+                  <Skeleton className="h-12 w-full" />
+                ) : (
+                  <div className="space-y-2">
+                    {[...(historyQuery.data ?? [])]
+                      .sort((a, b) => b.created_at - a.created_at)
+                      .map((event, i) => {
+                        const versionTag = event.tags.find(([t]) => t === 'v')?.[1];
+                        const isCurrent = i === 0;
+                        return (
+                          <div key={event.id} className="flex items-center gap-3 text-sm">
+                            <span className="font-mono text-xs">v{versionTag ?? '—'}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(event.created_at * 1000).toLocaleDateString()}
+                            </span>
+                            {isCurrent && (
+                              <Badge variant="secondary" className="h-5 py-0 text-xs">current</Badge>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
               </div>
 
               {/* ── Source code ── */}
@@ -251,6 +319,13 @@ function TileDetailInner() {
       </div>
       <TileInstallDialog tile={tile} tileEvent={tileEvent} open={installDialogOpen} onOpenChange={setInstallDialogOpen} />
       {tileEvent && <NoteMoreMenu event={tileEvent} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />}
+      {lightboxImage && (
+        <Dialog open={!!lightboxImage} onOpenChange={() => setLightboxImage(undefined)}>
+          <DialogContent className="max-w-4xl p-1">
+            <img src={lightboxImage} alt="" className="w-full rounded-lg" />
+          </DialogContent>
+        </Dialog>
+      )}
     </main>
   );
 }
