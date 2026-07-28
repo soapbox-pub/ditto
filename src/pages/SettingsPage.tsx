@@ -62,8 +62,8 @@ const settingsSections: SettingsSection[] = [
   },
   {
     id: 'tiles',
-    label: 'Widgets',
-    description: 'Configure installed widgets and manage their permissions',
+    label: defineMessage({ id: 'settings.sections.tiles.label', defaultMessage: 'Widgets' }),
+    description: defineMessage({ id: 'settings.sections.tiles.description', defaultMessage: 'Configure installed widgets and manage their permissions' }),
     illustration: '/tiles-palette-intro.png',
     path: '/settings/widgets',
     requiresAuth: true,
