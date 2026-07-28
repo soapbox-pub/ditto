@@ -276,11 +276,16 @@ colors, expand/collapse, grid stretch fix `3a3c498b`).
       commit. The PostActionBar + comments on the detail page (T4.3c,
       `24e43547`) fully covers this ticket. Don't re-add signals to
       list cards.
-- [ ] **T4.5 Detail-page upgrades.** Image/gallery from `image` tag(s),
-      version history of the 30207 coordinate (prior events), tiny
-      source-code highlighter only if ~zero-cost (spoiler itself done in
-      `fa841e9d`), clearer per-permission explanation copy. *Eval:*
-      manual on a real marketplace tile; `npm run test`.
+- [x] **T4.5 Detail-page upgrades.** Done in `15ce8070` + `31151932`.
+      `TileDefinition.images` (all sanitized `image` tags); Screenshots
+      section (h-40 thumbnail scroll row → Dialog lightbox); Version
+      history section (`['tile-history', pubkey, identifier]` query,
+      authors-filtered, v-tag + date rows, "current" marker);
+      `CAPABILITY_DESCRIPTIONS` sentences per perm on the detail page
+      and under each row in TileInstallDialog (ALWAYS_PROMPT rows
+      intact). Source highlighter skipped (decided). 457 tests green.
+      *Manual check outstanding:* gallery/lightbox + history on a real
+      multi-image tile.
 - [x] **T4.6 First-open marketplace nag.** Done in `8c0833d5`.
       `src/components/MarketplaceNag.tsx` rendered by TilesPage: fixed
       bottom overlay (max-w-md), Sparkles + "New: Widget marketplace",
@@ -293,13 +298,20 @@ colors, expand/collapse, grid stretch fix `3a3c498b`).
 
 ## Phase 5 — Tile-claimed kinds in feeds (native generic cards) — `pending`
 
-- [ ] **T5.1 Kind collection + settings.** Gather `k` kinds from installed
-      definitions carrying `render:in_feed=true`; feed them into
-      `getEnabledFeedKinds` consumers behind a feed toggle. Conflict rule:
-      kinds Ditto already renders natively are excluded by default; advanced
-      setting (AppConfig triple: interface + Zod schema + default) chooses
-      native-only / show-both / generic-overrides. *Eval:* unit tests for
-      collection + conflict logic; `npm run test`.
+- [x] **T5.1 Kind collection + settings.** Done in `6b79a50e`.
+      `src/tiles/feedKinds.ts`: pure `getTileFeedKinds(defs, nativeKinds,
+      mode)` (render.inFeed kinds, deduped; native kinds derived from
+      EXTRA_KINDS incl. extraFeedKinds/subKinds) + `useTileFeedKinds()`
+      (config.installedCanvasTiles →
+      `useOptionalCanvasTileInstallations().getCachedDefinition` →
+      parse), unit-tested (feedKinds.test.ts). New AppConfig triple
+      `tileKindConflictMode: 'native-only' | 'show-both' |
+      'generic-overrides'` (default native-only; type lives in
+      AppContext.ts only). Wired via new optional `extraKinds` param on
+      `getEnabledFeedKinds` (gated on `feedSettings.feedIncludeTiles`)
+      through useFeed / useFeedStream / useProfileFeed / useStreamPosts /
+      ClientFeedPage; TestApp config updated. *Note:* show-both vs
+      generic-overrides only affect the render side — that's T5.2.
 - [ ] **T5.2 Generic widget-interaction card.** Native feed card for such
       events: "@author used <Widget name>" with widget icon/accent color,
       best-effort content/alt summary, link to `/widgets/:naddr`. No Lua in
@@ -307,7 +319,7 @@ colors, expand/collapse, grid stretch fix `3a3c498b`).
       *Eval:* manual: publish a test event of a claimed kind, see the card
       in feed; `npm run test`.
 
-## Phase 6 — `feed` and `nevent` output nodes — `pending`
+## Phase 6 — `feed` and `nevent` output nodes — `deferred` (user, 2026-07-28: not urgent; do after Phase 7's wikipedia demo)
 
 - [ ] **T6.1 `feed` node.** Render TIP-16 feed nodes as native mini info
       cards: ~12 events, paginated 3 pages (4/page), author avatar + name +
@@ -352,6 +364,24 @@ Ordering: after Phases 1–6 (needs 0.12 runtime, frames, feed nodes).
       output nodes / safe fetch, widget tag for sidebar placement.
       *Eval per tile:* side-by-side manual comparison against the native
       widget; `npm run test`.
+      - **Wikipedia demo pulled forward (user, 2026-07-28), PREPARED but
+        unpublished/uncommitted in `~/repos/nostr-canvas`:**
+        `tiles/wikipedia/README.md` (frontmatter: identifier wikipedia,
+        v1.0.0, widget entry, perms `fetch` only — `ctx.navigate` can't
+        open external URLs per TIP-19, so no article link) +
+        `tiles/wikipedia/script.lua` (~176 lines; same REST API
+        `en.wikipedia.org/api/rest_v1/feed/featured/{y}/{m}/{d}` as
+        Ditto's `src/components/widgets/WikipediaWidget.tsx` /
+        `useWikipediaFeatured`; same image/title fallback chains, 200-char
+        excerpt; fetch only in `ready()` per TIP-02; `luac -p` clean).
+        **Publish requires a one-line patch** in
+        `scripts/publish-tile.js` (~line 248, after `buildTileDefEvent`):
+        `unsigned.tags.push(["t", "ditto-builtin-tile"]);` — the builder
+        only auto-adds `["t","nostr-canvas-tile"]`. Then:
+        `cd ~/repos/nostr-canvas && pnpm run build && node
+        scripts/publish-tile.js tiles/wikipedia` (interactive y/N;
+        default relay `wss://bruh.samt.st`, override `RELAYS=` env).
+        Awaiting user go-ahead to patch/publish/commit in that repo.
 - [ ] **T7.10 Migration + retirement.** Sidebar config migration builtin-id
       → `canvas:` id for ported widgets; remove retired React widget code;
       fresh-install defaults point at curator tiles. AI chat + feed widgets
