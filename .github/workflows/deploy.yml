@@ -1,9 +1,9 @@
 name: Deploy to GitHub Pages
 
 on:
-  # Runs on pushes targeting the default branch
+  # Runs on pushes to the ai-chat-tlc branch (branch preview for testers)
   push:
-    branches: ["main"]
+    branches: ["ai-chat-tlc"]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -40,7 +40,7 @@ jobs:
       - name: Install dependencies and build
         run: |
           npm install
-          npm run build
+          npx vite build -l error --mode ghpages
           cp dist/index.html dist/404.html
 
       - name: Setup Pages

@@ -169,7 +169,14 @@ export default defineConfig(({ mode }) => {
   // ~one-third the files. Every other build keeps fine-grained lazy loading.
   const isNsite = mode === 'nsite';
 
+  // GitHub Pages serves this as a project page (github.io/ditto/), not from
+  // the domain root, so asset URLs need the /ditto/ prefix. `import.meta.env.BASE_URL`
+  // (set from this `base`) is passed to <BrowserRouter basename> in AppRouter.tsx
+  // so client-side routing matches. Every other build mode stays at the domain root.
+  const isGhPages = mode === 'ghpages';
+
   return {
+  base: isGhPages ? '/ditto/' : '/',
   server: {
     host: "::",
     port: 8080,
