@@ -7,7 +7,7 @@
 // border + subtle handle-bar tint meets WCAG 2.1 3:1 minimum contrast against
 // the background in both modes.
 
-import { formatHsl } from '@/lib/colorUtils';
+import { contrastForeground, formatHsl } from '@/lib/colorUtils';
 
 // ─── Per-mode saturation/lightness constants ───────────────────────────
 
@@ -20,6 +20,16 @@ const DARK_ACCENT_LIGHTNESS = 55;
 const LIGHT_ACCENT_SATURATION = 70;
 /** Lightness for the widget accent in light mode (percent, 0-100). */
 const LIGHT_ACCENT_LIGHTNESS = 45;
+
+/** Saturation for the widget surface fill in dark mode (percent, 0-100). */
+const DARK_SURFACE_SATURATION = 45;
+/** Lightness for the widget surface fill in dark mode (percent, 0-100). */
+const DARK_SURFACE_LIGHTNESS = 32;
+
+/** Saturation for the widget surface fill in light mode (percent, 0-100). */
+const LIGHT_SURFACE_SATURATION = 55;
+/** Lightness for the widget surface fill in light mode (percent, 0-100). */
+const LIGHT_SURFACE_LIGHTNESS = 42;
 
 const DJB2_SEED = 5381;
 const UINT32_MASK = 0xffffffff;
@@ -62,6 +72,15 @@ export function widgetAccentVars(
   const hue = widgetAccentHue(id);
   const saturation = mode === 'dark' ? DARK_ACCENT_SATURATION : LIGHT_ACCENT_SATURATION;
   const lightness = mode === 'dark' ? DARK_ACCENT_LIGHTNESS : LIGHT_ACCENT_LIGHTNESS;
+  const accent = formatHsl(hue, saturation, lightness);
+  const surfaceSaturation = mode === 'dark' ? DARK_SURFACE_SATURATION : LIGHT_SURFACE_SATURATION;
+  const surfaceLightness = mode === 'dark' ? DARK_SURFACE_LIGHTNESS : LIGHT_SURFACE_LIGHTNESS;
+  const surface = formatHsl(hue, surfaceSaturation, surfaceLightness);
 
-  return { '--widget-accent': formatHsl(hue, saturation, lightness) };
+  return {
+    '--widget-accent': accent,
+    '--widget-accent-foreground': contrastForeground(accent),
+    '--widget-accent-surface': surface,
+    '--widget-accent-surface-foreground': contrastForeground(surface),
+  };
 }

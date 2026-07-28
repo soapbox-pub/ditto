@@ -45,10 +45,13 @@ describe('widgetAccentHue', () => {
 });
 
 describe('widgetAccentVars', () => {
-  it('returns a record with the --widget-accent key', () => {
+  it('returns a record with all accent and surface keys', () => {
     const vars = widgetAccentVars('trends', 'dark');
     expect(vars).toHaveProperty('--widget-accent');
-    expect(Object.keys(vars)).toHaveLength(1);
+    expect(vars).toHaveProperty('--widget-accent-foreground');
+    expect(vars).toHaveProperty('--widget-accent-surface');
+    expect(vars).toHaveProperty('--widget-accent-surface-foreground');
+    expect(Object.keys(vars)).toHaveLength(4);
   });
 
   it('returns a bare HSL triple in the format "h s% l%"', () => {
@@ -76,5 +79,39 @@ describe('widgetAccentVars', () => {
     const hueA = Number(a.split(' ')[0]);
     const hueB = Number(b.split(' ')[0]);
     expect(hueA).not.toBe(hueB);
+  });
+
+  it('--widget-accent-foreground is one of the two contrast triples', () => {
+    const contrastValues = ['222.2 84% 4.9%', '0 0% 100%'];
+    for (const mode of ['dark', 'light'] as const) {
+      for (const id of ['trends', 'canvas:a', '', 'zzz']) {
+        const vars = widgetAccentVars(id, mode);
+        expect(contrastValues).toContain(vars['--widget-accent-foreground']);
+      }
+    }
+  });
+
+  it('--widget-accent-foreground is deterministic per id+mode', () => {
+    expect(widgetAccentVars('trends', 'dark')['--widget-accent-foreground'])
+      .toBe(widgetAccentVars('trends', 'dark')['--widget-accent-foreground']);
+    expect(widgetAccentVars('canvas:x', 'light')['--widget-accent-foreground'])
+      .toBe(widgetAccentVars('canvas:x', 'light')['--widget-accent-foreground']);
+  });
+
+  it('--widget-accent-surface-foreground is one of the two contrast triples', () => {
+    const contrastValues = ['222.2 84% 4.9%', '0 0% 100%'];
+    for (const mode of ['dark', 'light'] as const) {
+      for (const id of ['trends', 'canvas:a', '', 'zzz']) {
+        const vars = widgetAccentVars(id, mode);
+        expect(contrastValues).toContain(vars['--widget-accent-surface-foreground']);
+      }
+    }
+  });
+
+  it('--widget-accent-surface is a bare HSL triple', () => {
+    for (const mode of ['dark', 'light'] as const) {
+      const vars = widgetAccentVars('trends', mode);
+      expect(vars['--widget-accent-surface']).toMatch(/^\d+(\.\d+)? \d+(\.\d+)?% \d+(\.\d+)?%$/);
+    }
   });
 });

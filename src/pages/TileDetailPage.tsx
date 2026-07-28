@@ -6,6 +6,7 @@ import { nip19 } from 'nostr-tools';
 import { useParams } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
+import remarkGfm from 'remark-gfm';
 import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -76,13 +77,13 @@ function TileDetailInner() {
                 <div className="min-w-0"><h2 className="text-2xl font-bold">{tile.name}</h2><p className="mt-1 text-sm text-muted-foreground">{tile.identifier} · v{tile.version}</p>{tile.summary && <p className="mt-3">{tile.summary}</p>}</div>
               </div>
               <div className="flex flex-wrap gap-2">{tile.perms.map((permission) => <Badge key={permission} variant="outline">{permission}</Badge>)}{tile.widget && <Badge variant="secondary">Widget: {tile.widget.label}</Badge>}</div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
+                {!user && <p className="self-center text-sm text-muted-foreground">Log in to install widgets.</p>}
                 {installed ? <Button variant="outline" onClick={() => installations.uninstall({ pubkey: tile.pubkey, identifier: tile.identifier })}>Remove widget</Button> : <Button onClick={openInstall} disabled={!user && canUseCanvasTiles()}>Install widget</Button>}
                 {updateAvailable && <Button onClick={openInstall}>Update widget</Button>}
-                {!user && <p className="self-center text-sm text-muted-foreground">Log in to install widgets.</p>}
               </div>
             </CardContent></Card>
-            {tile.description && <Card><CardContent className="prose prose-sm max-w-none p-5 dark:prose-invert"><Markdown rehypePlugins={[rehypeSanitize]}>{tile.description}</Markdown></CardContent></Card>}
+            {tile.description && <Card><CardContent className="prose prose-sm max-w-none p-5 dark:prose-invert"><Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>{tile.description}</Markdown></CardContent></Card>}
             <Card><CardContent className="p-0"><pre className="max-h-[32rem] overflow-auto p-5 text-xs leading-relaxed"><code>{tile.script}</code></pre></CardContent></Card>
           </>
         )}

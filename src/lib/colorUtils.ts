@@ -151,7 +151,7 @@ function darken(hsl: string, amount: number): string {
 }
 
 /** Get a contrast foreground (white or dark) for a given background. */
-function contrastForeground(bgHsl: string): string {
+export function contrastForeground(bgHsl: string): string {
   const { h, s, l } = parseHsl(bgHsl);
   const [r, g, b] = hslToRgb(h, s, l);
   // Choose text color by the perceptual luminance midpoint (0.5): light

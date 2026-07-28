@@ -1,7 +1,7 @@
-import { useCallback, useDeferredValue, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { BadgeCheck, Check, LayoutGrid, RefreshCw, Search, Sparkles } from 'lucide-react';
+import { BadgeCheck, Check, CircleArrowUp, LayoutGrid, RefreshCw, Search, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { PageHeader } from '@/components/PageHeader';
@@ -21,6 +21,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { canUseCanvasTiles } from '@/lib/canvasPlatform';
 import { getBackgroundThemeMode } from '@/lib/colorUtils';
+import { cn } from '@/lib/utils';
 import { widgetAccentVars } from '@/lib/widgetAccent';
 import { canvasWidgetId } from '@/tiles/sidebarWidgets';
 import { getTileNip05, getNewestTileDefinitions, searchMarketplaceTiles } from '@/tiles/marketplace';
@@ -28,7 +29,7 @@ import { countTileViews, parseTileDefinition, type TileDefinition } from '@/tile
 import { sortCapabilities } from '@/tiles/capabilities';
 import { nip19 } from 'nostr-tools';
 
-function TileMarketplaceCard({ tile, showUnverified, onInstall }: { tile: TileDefinition; showUnverified: boolean; onInstall: (tile: TileDefinition) => void }) {
+function TileMarketplaceCard({ tile, showUnverified, onInstall, expanded, onToggle }: { tile: TileDefinition; showUnverified: boolean; onInstall: (tile: TileDefinition) => void; expanded: boolean; onToggle: () => void }) {
   const nip05 = getTileNip05(tile.identifier);
   const verified = useNip05Verify(nip05, tile.pubkey);
   const installations = useCanvasTileInstallations();
@@ -50,18 +51,39 @@ function TileMarketplaceCard({ tile, showUnverified, onInstall }: { tile: TileDe
   const installed = installations.getCachedDefinition({ pubkey: tile.pubkey, identifier: tile.identifier });
   const updateAvailable = !!installed && installed.id !== tile.id;
 
+  const tileId = `${tile.pubkey}:${tile.identifier}`;
+
   if (verified.isLoading) return <Skeleton className="h-36 rounded-xl" />;
   if (!isVerified && !showUnverified) return null;
 
   const naddr = nip19.naddrEncode({ kind: 30207, pubkey: tile.pubkey, identifier: tile.identifier });
   return (
-    <Link to={`/widgets/${naddr}`} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl">
+    <div
+      data-tile-card={tileId}
+      role="button"
+      tabIndex={0}
+      aria-expanded={expanded}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
+      onClick={onToggle}
+      className={cn(
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl motion-safe:transition-transform',
+        expanded && 'relative z-10 motion-safe:scale-105',
+      )}
+    >
       <Card
-        className="border-2 border-[hsl(var(--widget-accent)/0.65)] bg-[hsl(var(--widget-accent)/0.06)] rounded-xl overflow-hidden h-full transition-colors hover:bg-[hsl(var(--widget-accent)/0.1)]"
+        className={cn(
+          'border-2 border-[hsl(var(--widget-accent)/0.65)] rounded-xl overflow-hidden h-full transition-colors',
+          expanded
+            ? 'bg-[hsl(var(--widget-accent-surface)/0.9)]'
+            : 'bg-[hsl(var(--widget-accent)/0.06)] hover:bg-[hsl(var(--widget-accent)/0.1)]',
+        )}
         style={accentVars as React.CSSProperties}
       >
-        <CardContent className="flex gap-3 p-4">
-          <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-primary">
+        <CardContent className={cn('flex gap-3 p-4', expanded && 'text-[hsl(var(--widget-accent-surface-foreground))]')}>
+          <div className={cn(
+            'flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl',
+            expanded ? 'bg-[hsl(var(--widget-accent-surface-foreground)/0.15)] text-[hsl(var(--widget-accent-surface-foreground))]' : 'bg-primary/10 text-primary',
+          )}>
             {tile.image ? <img src={tile.image} alt="" className="size-full object-cover" /> : <LayoutGrid className="size-7" />}
           </div>
           <div className="min-w-0 flex-1">
@@ -73,7 +95,7 @@ function TileMarketplaceCard({ tile, showUnverified, onInstall }: { tile: TileDe
                     <TooltipTrigger asChild>
                       <span tabIndex={-1}>
                         <BadgeCheck
-                          className="size-4 shrink-0 text-[hsl(var(--widget-accent))]"
+                          className={cn('size-4 shrink-0', expanded ? 'opacity-70' : 'text-[hsl(var(--widget-accent))]')}
                           aria-label="Verified — publisher matches the widget's NIP-05"
                         />
                         <span className="sr-only">Verified — publisher matches the widget's NIP-05</span>
@@ -89,7 +111,7 @@ function TileMarketplaceCard({ tile, showUnverified, onInstall }: { tile: TileDe
                     <TooltipTrigger asChild>
                       <span tabIndex={-1}>
                         <Sparkles
-                          className="size-4 shrink-0 text-muted-foreground"
+                          className={cn('size-4 shrink-0', expanded ? 'opacity-50' : 'text-muted-foreground')}
                           aria-label="Supports more views in other apps"
                         />
                         <span className="sr-only">Supports more views in other apps</span>
@@ -101,21 +123,21 @@ function TileMarketplaceCard({ tile, showUnverified, onInstall }: { tile: TileDe
                   </Tooltip>
                 )}
               </div>
-              <span className="shrink-0 text-xs text-muted-foreground">v{tile.version}</span>
+              <span className={cn('shrink-0 text-xs', expanded ? 'opacity-70' : 'text-muted-foreground')}>v{tile.version}</span>
             </div>
-            {tile.summary && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{tile.summary}</p>}
+            {tile.summary && <p className={cn('mt-1 line-clamp-2 text-sm', expanded ? 'opacity-80' : 'text-muted-foreground')}>{tile.summary}</p>}
             <div className="mt-3 flex items-center gap-1.5 overflow-hidden">
               {tile.perms.length > 0 ? (
                 <>
                   {shownPerms.map((perm) => (
-                    <Badge key={perm} variant="outline" className="shrink-0 text-xs">
+                    <Badge key={perm} variant="outline" className={cn('shrink-0 text-xs', expanded && 'border-[hsl(var(--widget-accent-surface-foreground)/0.3)] text-[hsl(var(--widget-accent-surface-foreground)/0.85)]')}>
                       {perm}
                     </Badge>
                   ))}
                   {extraPerms.length > 0 && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Badge variant="outline" className="shrink-0 text-xs cursor-default" tabIndex={0}>
+                        <Badge variant="outline" className={cn('shrink-0 text-xs cursor-default', expanded && 'border-[hsl(var(--widget-accent-surface-foreground)/0.3)] text-[hsl(var(--widget-accent-surface-foreground)/0.85)]')} tabIndex={0}>
                           +{extraPerms.length}
                         </Badge>
                       </TooltipTrigger>
@@ -128,38 +150,46 @@ function TileMarketplaceCard({ tile, showUnverified, onInstall }: { tile: TileDe
                   )}
                 </>
               ) : (
-                <Badge variant="secondary" className="shrink-0 text-xs text-muted-foreground">No special permissions</Badge>
+                <Badge variant="secondary" className={cn('shrink-0 text-xs text-muted-foreground', expanded && 'text-[hsl(var(--widget-accent-surface-foreground)/0.6)]')}>No special permissions</Badge>
               )}
             </div>
-            <div className="mt-2 flex items-center justify-end gap-2">
-              {installed ? (
-                updateAvailable ? (
-                  <Button
-                    size="sm"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onInstall(tile); }}
-                  >
+            {expanded ? (
+              <div className="mt-2 flex h-9 items-center justify-end gap-2">
+                {!installed && (
+                  <Button size="sm" variant="ghost" className={cn(mode === 'dark' ? 'bg-white text-black hover:bg-white/85' : 'bg-black text-white hover:bg-black/85')} disabled={!user && canUseCanvasTiles()} onClick={(e) => { e.stopPropagation(); onInstall(tile); }}>
+                    Install
+                  </Button>
+                )}
+                {updateAvailable && (
+                  <Button size="sm" variant="ghost" className={cn(mode === 'dark' ? 'bg-white text-black hover:bg-white/85' : 'bg-black text-white hover:bg-black/85')} onClick={(e) => { e.stopPropagation(); onInstall(tile); }}>
                     Update
                   </Button>
-                ) : (
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Check className="size-3.5" />
-                    Installed
-                  </span>
-                )
-              ) : (
-                <Button
-                  size="sm"
-                  disabled={!user && canUseCanvasTiles()}
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onInstall(tile); }}
-                >
-                  Install
+                )}
+                <Button size="sm" variant="ghost" className={cn(mode === 'dark' ? 'bg-white text-black hover:bg-white/85' : 'bg-black text-white hover:bg-black/85')} asChild onClick={(e) => e.stopPropagation()}>
+                  <Link to={`/widgets/${naddr}`}>View</Link>
                 </Button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="mt-2 flex h-9 items-center justify-end gap-2">
+                {installed && (
+                  updateAvailable ? (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <CircleArrowUp className="size-3.5" />
+                      Update available
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Check className="size-3.5" />
+                      Installed
+                    </span>
+                  )
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
-    </Link>
+    </div>
   );
 }
 
@@ -169,6 +199,7 @@ export function TilesPage() {
   const [query, setQuery] = useState('');
   const [showUnverified, setShowUnverified] = useState(false);
   const [installTarget, setInstallTarget] = useState<{ tile: TileDefinition; event: NostrEvent } | undefined>();
+  const [expandedId, setExpandedId] = useState<string | undefined>();
   const deferredQuery = useDeferredValue(query);
   const tilesQuery = useQuery({
     queryKey: ['nostr-canvas', 'marketplace', 3],
@@ -198,6 +229,27 @@ export function TilesPage() {
     const event = eventMap.get(tile.id);
     if (event) setInstallTarget({ tile, event });
   }, [eventMap]);
+
+  // Collapse on Escape
+  useEffect(() => {
+    if (!expandedId) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExpandedId(undefined);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [expandedId]);
+
+  // Collapse when clicking outside the grid cards
+  useEffect(() => {
+    if (!expandedId) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-tile-card]')) setExpandedId(undefined);
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [expandedId]);
 
   useSeoMeta({
     title: `Widgets | ${config.appName}`,
@@ -234,7 +286,20 @@ export function TilesPage() {
         ) : tiles.length === 0 ? (
           <Card className="border-dashed"><CardContent className="py-12 text-center text-muted-foreground">No matching widgets found.</CardContent></Card>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">{tiles.map((tile) => <TileMarketplaceCard key={`${tile.pubkey}:${tile.identifier}`} tile={tile} showUnverified={showUnverified} onInstall={handleInstall} />)}</div>
+          <div className="grid gap-3 sm:grid-cols-2">{tiles.map((tile) => {
+          const tileId = `${tile.pubkey}:${tile.identifier}`;
+          const isExpanded = expandedId === tileId;
+          return (
+            <TileMarketplaceCard
+              key={tileId}
+              tile={tile}
+              showUnverified={showUnverified}
+              onInstall={handleInstall}
+              expanded={isExpanded}
+              onToggle={() => setExpandedId(isExpanded ? undefined : tileId)}
+            />
+          );
+        })}</div>
         )}
       </div>
       <TileInstallDialog tile={installTarget?.tile} tileEvent={installTarget?.event} open={!!installTarget} onOpenChange={(open) => { if (!open) setInstallTarget(undefined); }} />
