@@ -19,6 +19,8 @@ import { parseTileDefinition } from '@/tiles/definition';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useCanvasTileInstallations } from '@/components/CanvasTileInstallationsProvider';
 import { canUseCanvasTiles } from '@/lib/canvasPlatform';
+import { ALWAYS_PROMPT_CAPABILITIES } from '@/tiles/installations';
+import { tryNpubEncode } from '@/lib/safeNip19';
 
 export function TileDetailPage() {
   return (
@@ -53,6 +55,7 @@ function TileDetailInner() {
   const tileEvent = eventQuery.data?.find((event) => parseTileDefinition(event)?.identifier === tile?.identifier);
   const installed = tile ? installations.getCachedDefinition({ pubkey: tile.pubkey, identifier: tile.identifier }) : undefined;
   const updateAvailable = !!installed && !!tile && installed.id !== tile.id;
+  const authorNpub = tryNpubEncode(tile?.pubkey);
 
   const install = () => {
     if (!canUseCanvasTiles()) {
@@ -61,7 +64,7 @@ function TileDetailInner() {
       return;
     }
     if (!tileEvent || !tile) return;
-    installations.install(tileEvent, approvedPermissions.filter((permission) => tile.perms.includes(permission)));
+    installations.install(tileEvent, approvedPermissions.filter((permission) => tile.perms.includes(permission) && !ALWAYS_PROMPT_CAPABILITIES.has(permission)));
     setPermissionsOpen(false);
   };
   const openInstall = () => {
@@ -98,9 +101,11 @@ function TileDetailInner() {
       </div>
       <Dialog open={permissionsOpen} onOpenChange={setPermissionsOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Install {tile?.name}</DialogTitle><DialogDescription>Review the capabilities requested by {tile?.identifier}. {tile?.pubkey}</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>Install {tile?.name}</DialogTitle><DialogDescription className="break-all">Review the capabilities requested by {tile?.identifier}{authorNpub && <> by <span title={authorNpub}>{authorNpub.slice(0, 12)}…{authorNpub.slice(-6)}</span></>}.</DialogDescription></DialogHeader>
           <div className="space-y-3">
             {tile?.perms.length ? tile.perms.map((permission) => {
+              const alwaysAsks = ALWAYS_PROMPT_CAPABILITIES.has(permission);
+              if (alwaysAsks) return <div key={permission} className="flex items-center gap-3 text-sm"><span>{permission}</span><span className="text-xs text-muted-foreground">Always asks</span></div>;
               const id = `tile-permission-${permission}`;
               return <label key={permission} htmlFor={id} className="flex items-center gap-3 text-sm"><Checkbox id={id} checked={approvedPermissions.includes(permission)} onCheckedChange={(checked) => setApprovedPermissions((current) => checked ? [...current, permission] : current.filter((item) => item !== permission))} />{permission}</label>;
             }) : <p className="text-sm text-muted-foreground">This tile does not request any capabilities.</p>}
