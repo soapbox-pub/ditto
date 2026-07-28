@@ -6,21 +6,17 @@ import { nip19 } from 'nostr-tools';
 import { useParams } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import type { Capability } from '@soapbox.pub/nostr-canvas';
 import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RequireCanvas } from '@/components/CanvasRuntimeProvider';
+import { TileInstallDialog } from '@/components/TileInstallDialog';
 import { parseTileDefinition } from '@/tiles/definition';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useCanvasTileInstallations } from '@/components/CanvasTileInstallationsProvider';
 import { canUseCanvasTiles } from '@/lib/canvasPlatform';
-import { ALWAYS_PROMPT_CAPABILITIES } from '@/tiles/installations';
-import { tryNpubEncode } from '@/lib/safeNip19';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 
@@ -38,9 +34,7 @@ function TileDetailInner() {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const installations = useCanvasTileInstallations();
-  const [permissionsOpen, setPermissionsOpen] = useState(false);
-  const [mobileAvailabilityOpen, setMobileAvailabilityOpen] = useState(false);
-  const [approvedPermissions, setApprovedPermissions] = useState<Capability[]>([]);
+  const [installDialogOpen, setInstallDialogOpen] = useState(false);
   const address = useMemo(() => {
     try {
       const decoded = nip19.decode(naddr ?? '');
@@ -54,31 +48,17 @@ function TileDetailInner() {
     enabled: !!address,
     queryFn: ({ signal }) => nostr.query([{ kinds: [30207], authors: [address!.pubkey], '#d': [address!.identifier], limit: 1 }], { signal }),
   });
-  const tile = eventQuery.data?.map(parseTileDefinition).find(Boolean);
+  const tile = eventQuery.data?.flatMap((event) => { const def = parseTileDefinition(event); return def ? [def] : []; })[0];
   const tileEvent = eventQuery.data?.find((event) => parseTileDefinition(event)?.identifier === tile?.identifier);
   const installed = tile ? installations.getCachedDefinition({ pubkey: tile.pubkey, identifier: tile.identifier }) : undefined;
   const updateAvailable = !!installed && !!tile && installed.id !== tile.id;
-  const authorNpub = tryNpubEncode(tile?.pubkey);
 
   useSeoMeta({
     title: tile ? `${tile.name} | Widgets | ${config.appName}` : `Widgets | ${config.appName}`,
     description: tile?.summary ?? 'View and install a Nostr Canvas widget.',
   });
 
-  const install = () => {
-    if (!canUseCanvasTiles()) {
-      setPermissionsOpen(false);
-      setMobileAvailabilityOpen(true);
-      return;
-    }
-    if (!tileEvent || !tile) return;
-    installations.install(tileEvent, approvedPermissions.filter((permission) => tile.perms.includes(permission) && !ALWAYS_PROMPT_CAPABILITIES.has(permission)));
-    setPermissionsOpen(false);
-  };
-  const openInstall = () => {
-    if (canUseCanvasTiles()) setPermissionsOpen(true);
-    else setMobileAvailabilityOpen(true);
-  };
+  const openInstall = () => setInstallDialogOpen(true);
 
   return (
     <main className="mx-auto w-full max-w-3xl">
@@ -107,29 +87,7 @@ function TileDetailInner() {
           </>
         )}
       </div>
-      <Dialog open={permissionsOpen} onOpenChange={setPermissionsOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Install {tile?.name}</DialogTitle><DialogDescription className="break-all">Review the capabilities requested by {tile?.identifier}{authorNpub && <> by <span title={authorNpub}>{authorNpub.slice(0, 12)}…{authorNpub.slice(-6)}</span></>}.</DialogDescription></DialogHeader>
-          <div className="space-y-3">
-            {tile?.perms.length ? tile.perms.map((permission) => {
-              const alwaysAsks = ALWAYS_PROMPT_CAPABILITIES.has(permission);
-              if (alwaysAsks) return <div key={permission} className="flex items-center gap-3 text-sm"><span>{permission}</span><span className="text-xs text-muted-foreground">Always asks</span></div>;
-              const id = `tile-permission-${permission}`;
-              return <label key={permission} htmlFor={id} className="flex items-center gap-3 text-sm"><Checkbox id={id} checked={approvedPermissions.includes(permission)} onCheckedChange={(checked) => setApprovedPermissions((current) => checked ? [...current, permission] : current.filter((item) => item !== permission))} />{permission}</label>;
-            }) : <p className="text-sm text-muted-foreground">This widget does not request any capabilities.</p>}
-          </div>
-          <DialogFooter><Button variant="outline" onClick={() => setPermissionsOpen(false)}>Cancel</Button><Button onClick={install}>Install</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={mobileAvailabilityOpen} onOpenChange={setMobileAvailabilityOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Widgets are coming soon</DialogTitle>
-            <DialogDescription>Installing and running widgets is not available in the Ditto mobile apps yet. You can browse widgets here and install them from a web browser.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter><Button onClick={() => setMobileAvailabilityOpen(false)}>Close</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TileInstallDialog tile={tile} tileEvent={tileEvent} open={installDialogOpen} onOpenChange={setInstallDialogOpen} />
     </main>
   );
 }

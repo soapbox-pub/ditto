@@ -1,8 +1,9 @@
-import { useDeferredValue, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
-import { BadgeCheck, LayoutGrid, RefreshCw, Search, Sparkles } from 'lucide-react';
+import { BadgeCheck, Check, LayoutGrid, RefreshCw, Search, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { PageHeader } from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,20 +13,26 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { TileInstallDialog } from '@/components/TileInstallDialog';
+import { useCanvasTileInstallations } from '@/components/CanvasTileInstallationsProvider';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
+import { canUseCanvasTiles } from '@/lib/canvasPlatform';
 import { getBackgroundThemeMode } from '@/lib/colorUtils';
 import { widgetAccentVars } from '@/lib/widgetAccent';
 import { canvasWidgetId } from '@/tiles/sidebarWidgets';
 import { getTileNip05, getNewestTileDefinitions, searchMarketplaceTiles } from '@/tiles/marketplace';
-import { countTileViews, type TileDefinition } from '@/tiles/definition';
+import { countTileViews, parseTileDefinition, type TileDefinition } from '@/tiles/definition';
 import { sortCapabilities } from '@/tiles/capabilities';
 import { nip19 } from 'nostr-tools';
 
-function TileMarketplaceCard({ tile, showUnverified }: { tile: TileDefinition; showUnverified: boolean }) {
+function TileMarketplaceCard({ tile, showUnverified, onInstall }: { tile: TileDefinition; showUnverified: boolean; onInstall: (tile: TileDefinition) => void }) {
   const nip05 = getTileNip05(tile.identifier);
   const verified = useNip05Verify(nip05, tile.pubkey);
+  const installations = useCanvasTileInstallations();
+  const { user } = useCurrentUser();
 
   // Accent tint matching the same tile's sidebar frame
   const { config: appConfig } = useAppContext();
@@ -39,6 +46,9 @@ function TileMarketplaceCard({ tile, showUnverified }: { tile: TileDefinition; s
   const sortedPerms = sortCapabilities(tile.perms);
   const shownPerms = sortedPerms.slice(0, 2);
   const extraPerms = sortedPerms.slice(2);
+
+  const installed = installations.getCachedDefinition({ pubkey: tile.pubkey, identifier: tile.identifier });
+  const updateAvailable = !!installed && installed.id !== tile.id;
 
   if (verified.isLoading) return <Skeleton className="h-36 rounded-xl" />;
   if (!isVerified && !showUnverified) return null;
@@ -94,29 +104,58 @@ function TileMarketplaceCard({ tile, showUnverified }: { tile: TileDefinition; s
               <span className="shrink-0 text-xs text-muted-foreground">v{tile.version}</span>
             </div>
             {tile.summary && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{tile.summary}</p>}
-            {tile.perms.length > 0 && (
-              <div className="mt-3 flex items-center gap-1.5 overflow-hidden">
-                {shownPerms.map((perm) => (
-                  <Badge key={perm} variant="outline" className="shrink-0 text-xs">
-                    {perm}
-                  </Badge>
-                ))}
-                {extraPerms.length > 0 && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge variant="outline" className="shrink-0 text-xs cursor-default" tabIndex={0}>
-                        +{extraPerms.length}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent className="space-y-0.5">
-                      {extraPerms.map((perm) => (
-                        <p key={perm}>{perm}</p>
-                      ))}
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-              </div>
-            )}
+            <div className="mt-3 flex items-center gap-1.5 overflow-hidden">
+              {tile.perms.length > 0 ? (
+                <>
+                  {shownPerms.map((perm) => (
+                    <Badge key={perm} variant="outline" className="shrink-0 text-xs">
+                      {perm}
+                    </Badge>
+                  ))}
+                  {extraPerms.length > 0 && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="shrink-0 text-xs cursor-default" tabIndex={0}>
+                          +{extraPerms.length}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="space-y-0.5">
+                        {extraPerms.map((perm) => (
+                          <p key={perm}>{perm}</p>
+                        ))}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </>
+              ) : (
+                <Badge variant="secondary" className="shrink-0 text-xs text-muted-foreground">No special permissions</Badge>
+              )}
+            </div>
+            <div className="mt-2 flex items-center justify-end gap-2">
+              {installed ? (
+                updateAvailable ? (
+                  <Button
+                    size="sm"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onInstall(tile); }}
+                  >
+                    Update
+                  </Button>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Check className="size-3.5" />
+                    Installed
+                  </span>
+                )
+              ) : (
+                <Button
+                  size="sm"
+                  disabled={!user && canUseCanvasTiles()}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onInstall(tile); }}
+                >
+                  Install
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -129,6 +168,7 @@ export function TilesPage() {
   const { config } = useAppContext();
   const [query, setQuery] = useState('');
   const [showUnverified, setShowUnverified] = useState(false);
+  const [installTarget, setInstallTarget] = useState<{ tile: TileDefinition; event: NostrEvent } | undefined>();
   const deferredQuery = useDeferredValue(query);
   const tilesQuery = useQuery({
     queryKey: ['nostr-canvas', 'marketplace', 3],
@@ -144,6 +184,20 @@ export function TilesPage() {
     () => searchMarketplaceTiles(getNewestTileDefinitions(tilesQuery.data ?? []), deferredQuery),
     [deferredQuery, tilesQuery.data],
   );
+
+  const eventMap = useMemo(() => {
+    const map = new Map<string, NostrEvent>();
+    for (const event of tilesQuery.data ?? []) {
+      const def = parseTileDefinition(event);
+      if (def) map.set(def.id, event);
+    }
+    return map;
+  }, [tilesQuery.data]);
+
+  const handleInstall = useCallback((tile: TileDefinition) => {
+    const event = eventMap.get(tile.id);
+    if (event) setInstallTarget({ tile, event });
+  }, [eventMap]);
 
   useSeoMeta({
     title: `Widgets | ${config.appName}`,
@@ -180,9 +234,10 @@ export function TilesPage() {
         ) : tiles.length === 0 ? (
           <Card className="border-dashed"><CardContent className="py-12 text-center text-muted-foreground">No matching widgets found.</CardContent></Card>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">{tiles.map((tile) => <TileMarketplaceCard key={`${tile.pubkey}:${tile.identifier}`} tile={tile} showUnverified={showUnverified} />)}</div>
+          <div className="grid gap-3 sm:grid-cols-2">{tiles.map((tile) => <TileMarketplaceCard key={`${tile.pubkey}:${tile.identifier}`} tile={tile} showUnverified={showUnverified} onInstall={handleInstall} />)}</div>
         )}
       </div>
+      <TileInstallDialog tile={installTarget?.tile} tileEvent={installTarget?.event} open={!!installTarget} onOpenChange={(open) => { if (!open) setInstallTarget(undefined); }} />
     </main>
   );
 }
