@@ -163,6 +163,8 @@ const SortableWidget = memo(function SortableWidget({ config, definition, unavai
     zIndex: isDragging ? 10 : undefined,
   };
 
+  const isCanvas = !!canvasWidgetIdentifier(config.id);
+
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
       <WidgetCard
@@ -172,6 +174,7 @@ const SortableWidget = memo(function SortableWidget({ config, definition, unavai
         onHeightChange={(h) => onHeightChange(config.id, h)}
         isDragging={isDragging}
         dragHandleProps={listeners}
+        hideTitle={isCanvas}
       >
         {unavailableCanvasWidget ? <CanvasWidgetRecovery /> : (
           <ErrorBoundary fallback={<WidgetErrorFallback name={label} />} reportToSentry>

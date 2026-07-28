@@ -4,8 +4,12 @@ import { GripVertical, X } from 'lucide-react';
 import { useIntl } from 'react-intl';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useWidgetLabel, type WidgetDefinition } from '@/lib/sidebarWidgets';
+import { getBackgroundThemeMode } from '@/lib/colorUtils';
+import { useAppContext } from '@/hooks/useAppContext';
+import { widgetAccentVars } from '@/lib/widgetAccent';
+import type { WidgetDefinition } from '@/lib/sidebarWidgets';
 import type { WidgetConfig } from '@/contexts/AppContext';
 
 interface WidgetCardProps {
@@ -16,9 +20,11 @@ interface WidgetCardProps {
   isDragging?: boolean;
   dragHandleProps?: Record<string, unknown>;
   children: ReactNode;
+  /** When true, title text is hidden; the widget label is shown via tooltip on the drag area instead. */
+  hideTitle?: boolean;
 }
 
-/** Wrapper for each widget in the sidebar — header, height control. */
+/** Wrapper for each widget in the sidebar — thin frame, thumb handle bar, deterministic accent. */
 export function WidgetCard({
   definition,
   config,
@@ -27,11 +33,11 @@ export function WidgetCard({
   isDragging,
   dragHandleProps,
   children,
+  hideTitle = false,
 }: WidgetCardProps) {
   const configHeight = config.height ?? definition.defaultHeight;
   const Icon = definition.icon;
   const intl = useIntl();
-  const label = useWidgetLabel(definition.id);
 
   // Local height for smooth resize — only commits to config on pointer up.
   const [liveHeight, setLiveHeight] = useState(configHeight);
@@ -84,64 +90,102 @@ export function WidgetCard({
     onHeightChange(height);
   }, [definition.minHeight, definition.maxHeight, onHeightChange]);
 
+  // ── Accent colour ──────────────────────────────────────────────────────
+
+  // Subscribing to config.theme makes the card re-render on theme changes
+  // (SortableWidget is memoized, but context updates pierce memo); the theme
+  // CSS vars are applied synchronously before that re-render, so reading the
+  // live --background here yields the new mode.
+  const { config: appConfig } = useAppContext();
+  void appConfig.theme;
+  const mode = getBackgroundThemeMode();
+  const accentVars = widgetAccentVars(definition.id, mode);
+
+  // ── Handle bar sub-elements ────────────────────────────────────────────
+
+  // The central drag region: a generous flex-1 button spanning the
+  // middle of the bar, with the grip icon right-aligned inside it.
+  const dragButton = (
+    <button
+      type="button"
+      className="flex-1 min-w-0 flex items-center justify-end cursor-grab rounded px-0.5 text-muted-foreground/50 transition-colors hover:text-muted-foreground active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      {...dragHandleProps}
+      aria-label={`Reorder ${definition.label} widget`}
+    >
+      <GripVertical className="size-3.5" />
+    </button>
+  );
+
+  // Title label — shown for builtin widgets, hidden for canvas widgets.
+  const titleContent = hideTitle ? null : definition.href ? (
+    <Link
+      to={definition.href}
+      className="min-w-0 shrink text-xs font-medium text-muted-foreground truncate transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm px-0.5"
+    >
+      {definition.label}
+    </Link>
+  ) : (
+    <span className="min-w-0 shrink text-xs font-medium text-muted-foreground truncate px-0.5">
+      {definition.label}
+    </span>
+  );
+
   return (
     <div
       className={cn(
-        'bg-background/85 rounded-xl overflow-hidden motion-safe:transition-shadow',
+        'border-2 border-[hsl(var(--widget-accent)/0.65)] bg-background/85 rounded-xl overflow-hidden motion-safe:transition-shadow',
         isDragging && 'shadow-lg ring-1 ring-primary/20',
         resizing && 'select-none',
       )}
+      style={accentVars as React.CSSProperties}
     >
-      {/* Header */}
-      <div className="flex items-center gap-1.5 px-3 py-2">
-        {/* Icon + label */}
-        {definition.href ? (
-          <Link to={definition.href} className="flex min-w-0 flex-1 items-center gap-1.5 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <Icon className="size-5 text-muted-foreground shrink-0" />
-            <span className="text-xl font-semibold truncate">{label}</span>
-          </Link>
+      {/* ── Handle bar (always visible) ──────────────────────────────── */}
+      <div className="flex items-center gap-0.5 px-2 h-7 bg-[hsl(var(--widget-accent)/0.12)]">
+        {/* Widget icon */}
+        <Icon className="size-3.5 text-muted-foreground shrink-0" />
+
+        {/* Title (builtin only) */}
+        {titleContent}
+
+        {/* Drag region — wrapped in Tooltip for canvas widgets */}
+        {hideTitle ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {dragButton}
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {definition.label}
+            </TooltipContent>
+          </Tooltip>
         ) : (
-          <>
-            <Icon className="size-5 text-muted-foreground shrink-0" />
-            <span className="text-xl font-semibold flex-1 truncate">{label}</span>
-          </>
+          dragButton
         )}
 
         {/* Remove */}
         <button
           type="button"
           onClick={onRemove}
-          className="rounded p-0.5 text-muted-foreground transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={intl.formatMessage({ id: 'widgets.common.removeWidget', defaultMessage: "Remove widget" })}
         >
           <X className="size-3.5" />
         </button>
-
-        {/* Drag handle */}
-        <button
-          type="button"
-          className="cursor-grab rounded p-0.5 text-muted-foreground/50 transition-colors hover:text-muted-foreground active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          {...dragHandleProps}
-          aria-label={`Reorder ${definition.label} widget`}
-        >
-          <GripVertical className="size-3.5" />
-        </button>
       </div>
 
-      {/* Content */}
+      {/* ── Content ──────────────────────────────────────────────────── */}
       {definition.fillHeight ? (
         <div style={{ height: liveHeight }} className={cn('p-2', !resizing && 'motion-safe:transition-[height] motion-safe:duration-200')}>
           {children}
         </div>
       ) : (
-          <ScrollArea style={{ maxHeight: liveHeight }} className={cn(!resizing && 'motion-safe:transition-[max-height] motion-safe:duration-200')}>
+        <ScrollArea style={{ maxHeight: liveHeight }} className={cn(!resizing && 'motion-safe:transition-[max-height] motion-safe:duration-200')}>
           <div className="p-2">
             {children}
           </div>
         </ScrollArea>
       )}
 
-      {/* Resize handle */}
+      {/* ── Resize handle ────────────────────────────────────────────── */}
       <div
         onPointerDown={handleResizeStart}
         onKeyDown={handleResizeKeyDown}
