@@ -77,8 +77,6 @@ repo it touches.
   read_spec, read_examples, search_nips, fetch_nip, set_tile, get_tile, preview_tile, set_notes,
   plus lint/capability-nudge which are already cut). Default: port all 12 minus the two cut ones
   = 11. Confirm during T1.2.
-- `ai-chat-tlc` → `main` merge order and the tiles branch rebase are the user's to execute;
-  not a ticket here, just noted so it isn't forgotten once Phase 3 ships.
 
 ## Phase 1 — `nostr-canvas`: extract `packages/devkit` — `pending`
 
@@ -150,9 +148,30 @@ Goal: on this branch, using the now-proven `devkit`. Sub-tickets TBD in detail (
 own short grilling pass on eval criteria before dispatch, per the plan skill) — placeholder
 breakdown below, to be refined into full tickets before Phase 3 starts:
 
-- [ ] **T3.1 Provider settings UI.** Add-a-provider form (base URL, API key, models), stored in
-      `localStorage`; Shakespeare remains the zero-config default. Resolve the plaintext-storage
-      open question first.
+- [ ] **T3.0 Experimental gate + AI settings entry.** New "Experimental" collapsible in
+      `AdvancedSettings.tsx` (same Collapsible pattern as System/Language/Currency/Sentry) with a
+      "Custom AI" toggle → `config.experimentalCustomAI: boolean` (AppConfig triple: interface +
+      Zod + default `false`). New `settingsSections` entry (`id: 'ai'`, `path: '/settings/ai'`,
+      illustration `/ai-intro.png` — placeholder curled from an MDI robot icon via Iconify +
+      ImageMagick, `31151932`-style intro image, user will replace with real art later), filtered
+      into `visibleSections` only when `config.experimentalCustomAI` is true (same gating pattern
+      as `magicMouse`/the Magic section).
+- [ ] **T3.1 AI provider profiles CRUD (`/settings/ai`).** List UI (RelayListManager's add/
+      remove-list pattern) of provider profiles. Each profile: type = **OpenRouter** / **OpenAI-
+      compatible** (generic, user supplies base URL) / **DeepSeek** — the first and third are
+      presets with a fixed base URL, only the API key is entered; "OpenAI-compatible" is fully
+      generic (base URL + key). Multiple profiles of any type allowed. Each profile has a
+      **"Sync via encrypted settings" checkbox**: when on, the profile (including its API key)
+      is folded into the existing `EncryptedSettings` blob (`useEncryptedSettings`, kind 30078,
+      NIP-44-to-self) as a new bounded field — fine for this data since profiles are small,
+      unlike chat transcripts; when off, the profile lives in `localStorage` only. Resolves the
+      earlier open question about key-storage risk tier: sync is opt-in per profile, not
+      all-or-nothing.
+- [ ] **T3.1b Mid-session provider/model switcher.** Dropdown near/below the chat textarea in
+      `AIChatPage.tsx`, listing Shakespeare (always available, zero-config) plus every configured
+      profile (synced + local, merged). Selectable mid-session — switching does not reset the
+      conversation; the next turn just calls the newly selected provider/model. Depends on T3.1
+      (profiles must exist) and `devkit`'s provider abstraction supporting a live client swap.
 - [ ] **T3.2 Tool registry framework.** Generalize `AIChatPage.tsx`'s single hardcoded
       `set_theme` tool into a registry others can append to; wire `devkit`'s `Tool` interface as
       the shape; port `set_theme` itself onto the new framework as the first non-tile example.
@@ -165,6 +184,31 @@ breakdown below, to be refined into full tickets before Phase 3 starts:
 - [ ] **T3.6 Publish flow.** Once an AI-authored tile looks right in preview, a path to actually
       publish it as a real kind 30207 event (presumably reusing existing marketplace
       publish/install plumbing) — needs its own scoping pass.
+
+## Phase 4 — Merge, then rebase `tiles-v3-widgetonly` — `pending`
+
+Goal: land this effort on `main`, then bring the Tiles branch/MR forward onto it, ending with a
+single living plan doc again (this one — the Tiles branch's own `PLAN.md`, tracking Phases 1–8
+of the Tiles/Widgets effort, does not carry forward as a second file).
+
+- [ ] **T4.1 Merge `ai-chat-tlc` to `main`.** Standard MR review/merge once Phases 1–3 are done
+      and this repo's `npm run test` is green.
+      *Eval:* merged; `main` contains this work.
+- [ ] **T4.2 Combine the two plan docs.** First step of the rebase, before touching any code:
+      starting from `tiles-v3-widgetonly`'s current `PLAN.md` (Phases 1–8 of the Tiles/Widgets
+      effort, several already `done`), fold in whatever is still relevant from this file (this
+      PLAN.md's own effort will be fully `done` by this point, so it collapses to a short
+      historical summary per the plan skill's compaction rule, appended as a new
+      already-`done` phase in the Tiles doc — not kept as a separate file). Commit the combined
+      `PLAN.md` as the first commit of the rebase.
+      *Eval:* exactly one `PLAN.md` exists after this ticket; it reads as self-contained per the
+      plan skill's own bar (someone with no other context can follow it).
+- [ ] **T4.3 Rebase `tiles-v3-widgetonly` onto the new `main`.** Standard rebase (or a fresh
+      branch cut from the new `main` with the Tiles commits reapplied, whichever produces a
+      cleaner history — decide at the time) so the Tiles MR is based on top of this work instead
+      of the old, now-stale `main`.
+      *Eval:* `git merge-base main tiles-v3-widgetonly` (or its successor branch) equals the new
+      `main` tip; `npm run test` still green post-rebase.
 
 ## Working conventions for this effort
 
