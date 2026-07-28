@@ -74,7 +74,7 @@ function TileDetailInner() {
 
   return (
     <main className="mx-auto w-full max-w-3xl">
-      <PageHeader title={tile?.name ?? 'Tile'} icon={<LayoutGrid className="size-5" />} backTo="/tiles" />
+      <PageHeader title="Tile" icon={<LayoutGrid className="size-5" />} backTo="/tiles" />
       <div className="space-y-5 px-4 pb-8">
         {eventQuery.isLoading ? <Skeleton className="h-72 rounded-xl" /> : !tile ? (
           <Card className="border-dashed"><CardContent className="py-12 text-center text-muted-foreground">This tile is unavailable or invalid.</CardContent></Card>
@@ -85,7 +85,7 @@ function TileDetailInner() {
                 <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-primary">
                   {tile.image ? <img src={tile.image} alt="" className="size-full object-cover" /> : <LayoutGrid className="size-8" />}
                 </div>
-                <div className="min-w-0"><h1 className="text-2xl font-bold">{tile.name}</h1><p className="mt-1 text-sm text-muted-foreground">{tile.identifier} · v{tile.version}</p>{tile.summary && <p className="mt-3">{tile.summary}</p>}</div>
+                <div className="min-w-0"><h2 className="text-2xl font-bold">{tile.name}</h2><p className="mt-1 text-sm text-muted-foreground">{tile.identifier} · v{tile.version}</p>{tile.summary && <p className="mt-3">{tile.summary}</p>}</div>
               </div>
               <div className="flex flex-wrap gap-2">{tile.perms.map((permission) => <Badge key={permission} variant="outline">{permission}</Badge>)}{tile.widget && <Badge variant="secondary">Widget: {tile.widget.label}</Badge>}</div>
               <div className="flex flex-wrap gap-2">
