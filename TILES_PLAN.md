@@ -173,29 +173,60 @@ plus the NIP.md link refresh.
   title + hover tooltip shows name; builtin shows small handle title;
   drag/resize via pointer *and* keyboard; single title on `/tiles/:naddr`.
 
-## Phase 3 — User-facing rename to "Widgets" — `pending`
+## Phase 3 — User-facing rename to "Widgets" — `done` (pending manual check)
 
-- [ ] **T3.1 Routes.** `/widgets`, `/widgets/:naddr`, `/settings/widgets`
-      canonical; `/tiles/*` 301-style client redirects. Update internal
-      `Link`s, `nounRoute` in `KIND_HEADER_MAP`, recovery-card links.
-      *Eval:* manual: old `/tiles/:naddr` URL lands on `/widgets/:naddr`;
-      `npm run test`.
-- [ ] **T3.2 Strings & maps.** Nav item (sidebar entry reads **"Widgets"**),
-      page titles/headers, buttons, settings section, `KIND_HEADER_MAP`
-      noun, `NOTIFICATION_KIND_NOUNS`, `CommentContext` labels,
-      `KIND_SPECIFIC_LABELS`, feed-settings toggle label — all say
-      "widget". Add the missing 30207 entry to `src/lib/kindLabels.ts`
-      (currently falls back to "Kind 30207").
-      *Eval:* `rg -i '\btile' src/` review shows only internal identifiers /
-      library API remain; manual: nav + notifications + comment context read
-      "widget"; `npm run test`.
+All in commit `7bb2da20` (plus `fc92763d` picker flattening, a user
+mid-flow request).
+
+- [x] **T3.1 Routes.** `/widgets`, `/widgets/:naddr`, `/settings/widgets`
+      canonical in `AppRouter.tsx`; `<Navigate replace>` redirects from all
+      three old `/tiles*` paths (`TilesRedirect` wrapper forwards `:naddr`,
+      mirroring `ProfileRedirect`). All internal links updated: sidebar
+      nav, marketplace cards, detail `backTo`, settings links,
+      `TilePublishCard` href, recovery card, `nounRoute` in
+      `KIND_HEADER_MAP`, `/settings/tiles` entry in SettingsPage.
+- [x] **T3.2 Strings & maps.** Every user-visible string on
+      TilesPage / TileDetailPage / TileSettingsPage / TilePublishCard /
+      CanvasTileWidget / CanvasWidgetRecovery says widget; sidebar +
+      settings labels read "Widgets"; `NOTIFICATION_KIND_NOUNS`,
+      `CommentContext`, `KIND_HEADER_MAP` noun, `KIND_SPECIFIC_LABELS`,
+      feed-toggle label + description updated. Added missing
+      `30207: 'Widget'` to `KIND_LABELS` (numeric order). Added
+      `useSeoMeta` to TilesPage ("Widgets | appName") and TileDetailPage
+      (tile name | Widgets | appName). Three stale test assertions
+      updated. `rg` audit: only internal identifiers remain. Internal
+      code (`src/tiles/`, component/type names, localStorage keys,
+      `feedIncludeTiles`, ids) untouched. 428 tests green.
+- [x] **T3.3 Picker flattening (user request).** `WidgetPickerDialog`
+      renders one flat list — widgets still grouped by category order but
+      no heading separators; dead `WIDGET_CATEGORIES` removed
+      (`fc92763d`).
+- **⚠ Manual check outstanding (user):** old `/tiles`, `/tiles/:naddr`,
+  `/settings/tiles` URLs redirect; nav/settings/notifications/comment
+  context read "widget"; add-widget modal shows flat list, grouped order
+  intact.
 
 ## Phase 4 — Marketplace TLC — `pending`
 
 - [ ] **T4.1 List redesign.** Rework `/widgets` grid cards: accent-colored
       frames (T2.2), hero/header polish, loading skeletons, dashed-card
-      empty state, ~360px-wide mobile layout. *Eval:* manual across mobile/
-      desktop widths; `npm run test`.
+      empty state, ~360px-wide mobile layout. **Icon-first simplification
+      (user direction, 2026-07-28):**
+      - Cards **tinted with the widget accent** exactly like sidebar
+        widgets (reuse `widgetAccentVars` + border/handle-tint treatment).
+      - **Verified badge → icon** (e.g. `BadgeCheck`) next to the tile
+        name, tooltip for the meaning; no text badge.
+      - **Sparkle icon** next to the title when the tile declares views
+        beyond the sidebar widget (i.e. supports more views in other
+        apps); tooltip explains. *(Open q for phase start: which
+        definition field(s) indicate extra views — enumerate from
+        nostr-canvas `TileDefinition` views/entry points.)*
+      - **Permissions in one single row** per card: the two most
+        important perms shown first as compact chips, remainder collapsed
+        to a `+N` chip that reveals the rest on hover (tooltip/popover).
+        *(Open q for phase start: capability importance ranking — e.g.
+        bitcoin-sign-psbt / event publishing first, cosmetic ones last.)*
+      *Eval:* manual across mobile/desktop widths; `npm run test`.
 - [ ] **T4.2 Install UX on the list.** Installed / update-available badges
       per card (via `installations` cache vs marketplace event timestamps);
       install directly from the list through the existing capability-consent
