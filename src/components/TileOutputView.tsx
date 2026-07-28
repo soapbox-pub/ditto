@@ -41,8 +41,10 @@ function TileNode({ node, onInput, inForm = false }: { node: TileOutput; onInput
       const url = sanitizeUrl(node.url);
       return url ? <img src={url} alt="Tile image" className={cn('max-w-full rounded-md object-contain', node.avatar && 'size-10 rounded-full')} style={{ maxWidth: node.max_width, maxHeight: node.max_height }} /> : <UnsupportedTileFeature />;
     }
-    case 'button':
-      return <Button type={node.submit_form && inForm ? 'submit' : 'button'} variant={node.variant === 'danger' ? 'destructive' : node.variant === 'ghost' ? 'ghost' : 'default'} data-canvas-handler={node.onclick} onClick={node.submit_form && inForm ? undefined : () => onInput?.(node.onclick, asPayload(node.payload))}>{node.text}</Button>;
+    case 'button': {
+      const handler = node.onclick;
+      return <Button type={node.submit_form && inForm ? 'submit' : 'button'} variant={node.variant === 'danger' ? 'destructive' : node.variant === 'ghost' ? 'ghost' : 'default'} data-canvas-handler={handler} onClick={node.submit_form && inForm ? undefined : handler ? () => onInput?.(handler, asPayload(node.payload)) : undefined}>{node.text}</Button>;
+    }
     case 'divider':
       return <Separator />;
     case 'color':
@@ -50,7 +52,7 @@ function TileNode({ node, onInput, inForm = false }: { node: TileOutput; onInput
     case 'form':
       return <TileForm node={node} onInput={onInput} />;
     case 'input':
-      return <label className={cn('grid gap-1 text-sm', node.hidden && 'hidden')}><span>{node.label}</span><Input name={node.name} placeholder={node.placeholder} defaultValue={node.default_value} /></label>;
+      return <label className="grid gap-1 text-sm"><span>{node.label}</span><Input name={node.name} placeholder={node.placeholder} defaultValue={node.default_value} /></label>;
     case 'dropdown':
       return <label className="grid gap-1 text-sm"><span>{node.label}</span><select name={node.name} defaultValue={node.default_value} className="h-9 rounded-md border border-input bg-background px-3 text-sm">{node.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>;
     case 'checkbox':

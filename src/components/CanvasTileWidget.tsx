@@ -31,7 +31,7 @@ function CanvasTileExecution({ identifier }: { identifier: string }) {
       output={output}
       tileId={tileId ?? undefined}
       onInput={(handler, payload) => {
-        if (tileId) runtime.deliverInputEvent(tileId, handler, payload);
+        if (tileId && runtime) runtime.deliverInputEvent(tileId, handler, payload);
       }}
     />
   );

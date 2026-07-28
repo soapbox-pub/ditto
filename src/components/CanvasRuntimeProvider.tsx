@@ -1,10 +1,9 @@
 import { NostrCanvasProvider, useNostrCanvas } from '@soapbox.pub/nostr-canvas/react';
-import { RustWorkerPool } from '@soapbox.pub/nostr-canvas';
 import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { useEffect, useRef, type ReactNode } from 'react';
-import type { Capability } from '@soapbox.pub/nostr-canvas';
-import { createCanvasAdapter, type CanvasAdapterServices } from '@/tiles/adapter';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import type { Capability, GrantBackend } from '@soapbox.pub/nostr-canvas';
+import { createCanvasAdapter, type CanvasAdapter, type CanvasAdapterServices } from '@/tiles/adapter';
 import { CanvasTileInstallationsProvider } from '@/components/CanvasTileInstallationsProvider';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -18,9 +17,8 @@ export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
   const servicesRef = useRef<CanvasAdapterServices | undefined>(undefined);
-  const adapterRef = useRef<ReturnType<typeof createCanvasAdapter> | undefined>(undefined);
-  const poolRef = useRef<RustWorkerPool | undefined>(undefined);
-  const grantDecisionRef = useRef<(identifier: string, declared: Capability[]) => Capability[]>(() => []);
+  const adapterRef = useRef<CanvasAdapter | undefined>(undefined);
+  const grantBackendRef = useRef<GrantBackend>({ get: () => undefined, set: () => {}, delete: () => {} });
   const storageRef = useRef<Storage | undefined>(undefined);
 
   servicesRef.current = {
@@ -78,12 +76,23 @@ export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
       notify: (message, variant) => servicesRef.current!.notify!(message, variant),
     });
   }
-  if (!poolRef.current) poolRef.current = RustWorkerPool.createPool();
   if (!storageRef.current) storageRef.current = withoutDefinitionStorage(localStorage);
 
-  useEffect(() => () => poolRef.current?.terminate(), []);
+  const grantBackend: GrantBackend = useMemo(() => ({
+    get(identifier: string) { return grantBackendRef.current.get(identifier); },
+    set(identifier: string, caps: Capability[]) { grantBackendRef.current.set(identifier, caps); },
+    delete(identifier: string) { grantBackendRef.current.delete(identifier); },
+  }), []);
 
-  return <NostrCanvasProvider adapter={adapterRef.current} workerPool={poolRef.current} options={{ storage: storageRef.current, onGrantDecision: (identifier, declared) => grantDecisionRef.current(identifier, declared) }}><CanvasTileInstallationsProvider grantDecisionRef={grantDecisionRef}><CanvasNotifications notify={toast}>{children}</CanvasNotifications></CanvasTileInstallationsProvider></NostrCanvasProvider>;
+  return (
+    <NostrCanvasProvider adapter={adapterRef.current} options={{ storage: storageRef.current, grantBackend }}>
+      <CanvasTileInstallationsProvider grantBackendRef={grantBackendRef}>
+        <CanvasNotifications notify={toast}>
+          {children}
+        </CanvasNotifications>
+      </CanvasTileInstallationsProvider>
+    </NostrCanvasProvider>
+  );
 }
 
 function withoutDefinitionStorage(storage: Storage): Storage {
@@ -100,7 +109,10 @@ function withoutDefinitionStorage(storage: Storage): Storage {
 
 function CanvasNotifications({ children, notify }: { children: ReactNode; notify: ReturnType<typeof useToast>['toast'] }) {
   const { runtime } = useNostrCanvas();
-  useEffect(() => runtime.on('notify', ({ message, variant }) => notify({ title: message, variant: variant === 'danger' ? 'destructive' : 'default' })), [runtime, notify]);
+  useEffect(() => {
+    if (!runtime) return;
+    return runtime.on('notify', ({ message, variant }) => notify({ title: message, variant: variant === 'danger' ? 'destructive' : 'default' }));
+  }, [runtime, notify]);
   return <>{children}</>;
 }
 

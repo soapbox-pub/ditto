@@ -1,9 +1,9 @@
-import type { FetchResult, NostrAdapter, NotifyVariant } from '@soapbox.pub/nostr-canvas';
+import type { FetchResult, RuntimeAdapter, NotifyVariant } from '@soapbox.pub/nostr-canvas';
 import type { NostrEvent, UnsignedEvent } from 'nostr-tools';
 import { proxyUrl } from '@/lib/proxyUrl';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
-export interface CanvasAdapter extends NostrAdapter {
+export interface CanvasAdapter extends RuntimeAdapter {
   notify?: (message: string, variant: NotifyVariant) => void;
 }
 
@@ -12,14 +12,14 @@ export interface CanvasAdapter extends NostrAdapter {
  * The adapter must remain the only bridge between a tile and Ditto services.
  */
 export interface CanvasAdapterServices {
-  subscribe: NostrAdapter['subscribe'];
+  subscribe: RuntimeAdapter['subscribe'];
   user?: { pubkey: string };
-  getPublicKey?: NonNullable<NostrAdapter['getPublicKey']>;
-  getContacts?: NonNullable<NostrAdapter['getContacts']>;
+  getPublicKey?: NonNullable<RuntimeAdapter['getPublicKey']>;
+  getContacts?: NonNullable<RuntimeAdapter['getContacts']>;
   publishEvent?: (draft: UnsignedEvent) => Promise<NostrEvent>;
-  getProfile?: NonNullable<NostrAdapter['getProfile']>;
-  nip44Encrypt?: NonNullable<NostrAdapter['nip44Encrypt']>;
-  nip44Decrypt?: NonNullable<NostrAdapter['nip44Decrypt']>;
+  getProfile?: NonNullable<RuntimeAdapter['getProfile']>;
+  nip44Encrypt?: NonNullable<RuntimeAdapter['nip44Encrypt']>;
+  nip44Decrypt?: NonNullable<RuntimeAdapter['nip44Decrypt']>;
   fetch?: typeof globalThis.fetch;
   corsProxy?: () => string;
   notify?: (message: string, variant: NotifyVariant) => void;
@@ -47,7 +47,7 @@ export function createCanvasAdapter(services: CanvasAdapterServices): CanvasAdap
   return adapter;
 }
 
-function createSafeFetch(fetcher: typeof globalThis.fetch, getCorsProxy?: () => string): NonNullable<NostrAdapter['fetch']> {
+function createSafeFetch(fetcher: typeof globalThis.fetch, getCorsProxy?: () => string): NonNullable<RuntimeAdapter['fetch']> {
   return async (request, options): Promise<FetchResult> => {
     const url = sanitizeUrl(request.url);
     if (!url) return { ok: false, error: 'Only HTTPS URLs are allowed.' };

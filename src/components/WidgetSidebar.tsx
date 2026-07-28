@@ -93,9 +93,12 @@ function useCanvasWidgetCatalog() {
   const { runtime } = useNostrCanvas();
   const [runtimeVersion, setRuntimeVersion] = useState(0);
 
-  useEffect(() => runtime.on('settings-fields-changed', () => setRuntimeVersion((version) => version + 1)), [runtime]);
+  useEffect(() => {
+    if (!runtime) return;
+    return runtime.on('settings-fields-changed', () => setRuntimeVersion((version) => version + 1));
+  }, [runtime]);
 
-  const eligible = new Set(runtime.getWidgetEligibleIdentifiers());
+  const eligible = new Set(runtime?.getWidgetEligibleIdentifiers() ?? []);
   const installedIdentifiers = new Set(config.installedCanvasTiles.map((coordinate) => coordinate.identifier));
   const definitions = config.installedCanvasTiles.flatMap((coordinate) => {
     const event = installations.getCachedDefinition(coordinate);

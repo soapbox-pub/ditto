@@ -25,6 +25,7 @@ const CAPABILITY_LABELS: Record<Capability, string> = {
   'bitcoin-sign-psbt': 'Sign Bitcoin PSBTs',
   fetch: 'Make network requests',
   navigate: 'Request navigation',
+  'feed-action': 'Publish feed actions',
 };
 
 export function TileSettingsPage() {

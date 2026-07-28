@@ -120,13 +120,17 @@ export class CanvasTileInstallations {
   }
 
   getGrantedCapabilities(identifier: string, declared: Capability[]): Capability[] {
+    return this.getStoredGrants(identifier).filter((capability) => declared.includes(capability));
+  }
+
+  getStoredGrants(identifier: string): Capability[] {
     if (!this.account) return [];
     const raw = this.get(GRANT_PREFIX + this.account);
     if (!raw) return [];
     try {
       const grants: unknown = JSON.parse(raw);
       const stored = typeof grants === 'object' && grants !== null ? (grants as Record<string, unknown>)[identifier] : undefined;
-      return Array.isArray(stored) ? stored.filter((value): value is Capability => typeof value === 'string' && declared.includes(value as Capability)) : [];
+      return Array.isArray(stored) ? stored.filter((value): value is Capability => typeof value === 'string') : [];
     } catch {
       return [];
     }

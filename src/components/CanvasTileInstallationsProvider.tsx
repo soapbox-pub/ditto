@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- the provider and its required consumer hook form one Canvas boundary */
 import { createContext, useContext, useEffect, useRef, type MutableRefObject, type ReactNode } from 'react';
 import { useNostr } from '@nostrify/react';
-import { parseTileDefEvent, type Capability } from '@soapbox.pub/nostr-canvas';
+import { parseTileDefEvent, type GrantBackend } from '@soapbox.pub/nostr-canvas';
 import { useNostrCanvas } from '@soapbox.pub/nostr-canvas/react';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -10,7 +10,7 @@ import { CanvasTileInstallations } from '@/tiles/installations';
 
 const CanvasTileInstallationsContext = createContext<CanvasTileInstallations | undefined>(undefined);
 
-export function CanvasTileInstallationsProvider({ children, grantDecisionRef }: { children: ReactNode; grantDecisionRef: MutableRefObject<(identifier: string, declared: Capability[]) => Capability[]> }) {
+export function CanvasTileInstallationsProvider({ children, grantBackendRef }: { children: ReactNode; grantBackendRef: MutableRefObject<GrantBackend> }) {
   const { runtime } = useNostrCanvas();
   const { nostr } = useNostr();
   const { config, updateConfig } = useAppContext();
@@ -25,12 +25,13 @@ export function CanvasTileInstallationsProvider({ children, grantDecisionRef }: 
       storage: localStorage,
       runtime: {
         registerFromEvent: (event) => {
+          if (!runtime) return;
           const parsed = parseTileDefEvent(event);
           if (parsed) runtime.registerFromEvent(parsed);
         },
-        uninstallTile: (identifier) => runtime.uninstallTile(identifier),
-        setScope: (pubkey) => runtime.setScope(pubkey),
-        saveSettings: (identifier, values) => runtime.saveSettings(identifier, values),
+        uninstallTile: (identifier) => runtime?.uninstallTile(identifier),
+        setScope: (pubkey) => runtime?.setScope(pubkey),
+        saveSettings: (identifier, values) => runtime?.saveSettings(identifier, values),
       },
       saveCoordinates: (coordinates) => {
         const current = currentRef.current;
@@ -47,7 +48,11 @@ export function CanvasTileInstallationsProvider({ children, grantDecisionRef }: 
   }
 
   const installations = installationsRef.current;
-  grantDecisionRef.current = (identifier, declared) => installations.getGrantedCapabilities(identifier, declared);
+  grantBackendRef.current = {
+    get: (identifier) => installations.getStoredGrants(identifier),
+    set: () => {},
+    delete: () => {},
+  };
 
   useEffect(() => {
     installations.setAccount(user?.pubkey ?? null);
