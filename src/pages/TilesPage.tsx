@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { TileInstallDialog } from '@/components/TileInstallDialog';
 import { MarketplaceNag } from '@/components/MarketplaceNag';
+import { RequireCanvas } from '@/components/CanvasRuntimeProvider';
 import { useCanvasTileInstallations } from '@/components/CanvasTileInstallationsProvider';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
@@ -197,6 +198,14 @@ function TileMarketplaceCard({ tile, showUnverified, onInstall, expanded, onTogg
 }
 
 export function TilesPage() {
+  return (
+    <RequireCanvas>
+      <TilesPageInner />
+    </RequireCanvas>
+  );
+}
+
+function TilesPageInner() {
   const { nostr } = useNostr();
   const { config } = useAppContext();
   const [query, setQuery] = useState('');
