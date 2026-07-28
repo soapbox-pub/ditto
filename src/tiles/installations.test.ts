@@ -167,4 +167,30 @@ describe('CanvasTileInstallations', () => {
     ]);
     expect(tileRuntime.saveSettings).toHaveBeenCalledWith(coordinate.identifier, { units: 'metric' });
   });
+
+  it('does not persist ALWAYS_PROMPT_CAPABILITIES even when approved at install time', () => {
+    const tileRuntime = runtime();
+    const installations = new CanvasTileInstallations({ storage: new Map(), runtime: tileRuntime, saveCoordinates: vi.fn() });
+    const event = tileEvent({
+      tags: [...tileEvent().tags, ['perm', 'bitcoin-sign-psbt']],
+    });
+
+    installations.setAccount(ALICE);
+    installations.install(event, ['fetch', 'bitcoin-sign-psbt']);
+
+    expect(installations.getGrantedCapabilities('alice@example.com:weather', ['fetch', 'bitcoin-sign-psbt'])).toEqual(['fetch']);
+    expect(installations.getStoredGrants('alice@example.com:weather')).toEqual(['fetch']);
+  });
+
+  it('filters ALWAYS_PROMPT_CAPABILITIES from legacy hand-crafted localStorage grants', () => {
+    const storage = new Map<string, string>();
+    const tileRuntime = runtime();
+    const installations = new CanvasTileInstallations({ storage, runtime: tileRuntime, saveCoordinates: vi.fn() });
+
+    const grantKey = `ditto:canvas-tile-grants:${ALICE}`;
+    storage.set(grantKey, JSON.stringify({ 'alice@example.com:weather': ['fetch', 'publish-event', 'bitcoin-sign-psbt'] }));
+
+    installations.setAccount(ALICE);
+    expect(installations.getStoredGrants('alice@example.com:weather')).toEqual(['fetch', 'publish-event']);
+  });
 });

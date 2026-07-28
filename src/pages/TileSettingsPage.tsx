@@ -17,6 +17,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { parseTileDefinition } from '@/tiles/definition';
 import type { InstalledCanvasTile } from '@/tiles/installations';
+import { ALWAYS_PROMPT_CAPABILITIES } from '@/tiles/installations';
 
 const CAPABILITY_LABELS: Record<Capability, string> = {
   'get-pubkey': 'Read your public key',
@@ -101,6 +102,8 @@ function TileSettingsInner() {
                 }}>Save settings</Button></div></section>}
 
                 {definition.perms.length > 0 && <section className="space-y-3 border-t pt-5"><h3 className="text-sm font-medium">Permissions</h3><p className="text-xs text-muted-foreground">Permissions are stored on this device and can be changed at any time.</p><div className="space-y-3">{definition.perms.map((permission) => {
+                  const alwaysAsks = ALWAYS_PROMPT_CAPABILITIES.has(permission);
+                  if (alwaysAsks) return <div key={permission} className="flex items-center justify-between gap-4"><div><p className="text-sm font-medium">{CAPABILITY_LABELS[permission]}</p><Badge className="mt-1" variant="outline">{permission}</Badge></div><span className="text-xs text-muted-foreground">Always asks</span></div>;
                   const enabled = granted.includes(permission);
                   return <div key={permission} className="flex items-center justify-between gap-4"><div><p className="text-sm font-medium">{CAPABILITY_LABELS[permission]}</p><Badge className="mt-1" variant="outline">{permission}</Badge></div><Switch checked={enabled} onCheckedChange={(checked) => {
                     installations.setGrantedCapabilities(coordinate, checked ? [...granted, permission] : granted.filter((item) => item !== permission));

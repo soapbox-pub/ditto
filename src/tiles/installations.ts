@@ -2,6 +2,9 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { parseTileDefEvent, type Capability, type SettingsField } from '@soapbox.pub/nostr-canvas';
 import { isNostrId } from '@/lib/nostrId';
 
+/** Capabilities that always require a per-use prompt and are never persisted as grants. */
+export const ALWAYS_PROMPT_CAPABILITIES: ReadonlySet<Capability> = new Set(['bitcoin-sign-psbt']);
+
 export interface InstalledCanvasTile {
   pubkey: string;
   identifier: string;
@@ -130,7 +133,8 @@ export class CanvasTileInstallations {
     try {
       const grants: unknown = JSON.parse(raw);
       const stored = typeof grants === 'object' && grants !== null ? (grants as Record<string, unknown>)[identifier] : undefined;
-      return Array.isArray(stored) ? stored.filter((value): value is Capability => typeof value === 'string') : [];
+      const parsed = Array.isArray(stored) ? stored.filter((value): value is Capability => typeof value === 'string') : [];
+      return parsed.filter((grant) => !ALWAYS_PROMPT_CAPABILITIES.has(grant));
     } catch {
       return [];
     }
@@ -167,7 +171,7 @@ export class CanvasTileInstallations {
     const key = GRANT_PREFIX + this.account;
     let stored: Record<string, Capability[]> = {};
     try { stored = JSON.parse(this.get(key) ?? '{}') as Record<string, Capability[]>; } catch { /* replace invalid grants */ }
-    this.set(key, JSON.stringify({ ...stored, [identifier]: grants }));
+    this.set(key, JSON.stringify({ ...stored, [identifier]: grants.filter((grant) => !ALWAYS_PROMPT_CAPABILITIES.has(grant)) }));
   }
 
   private removeGrant(identifier: string): void {
