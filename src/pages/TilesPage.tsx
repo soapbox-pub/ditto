@@ -72,7 +72,7 @@ function TileMarketplaceCard({ tile, showUnverified, onInstall, expanded, onTogg
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
       onClick={onToggle}
       className={cn(
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl motion-safe:transition-transform',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl motion-safe:transition-transform h-full',
         expanded && 'relative z-10 motion-safe:scale-105',
       )}
     >
@@ -85,14 +85,14 @@ function TileMarketplaceCard({ tile, showUnverified, onInstall, expanded, onTogg
         )}
         style={accentVars as React.CSSProperties}
       >
-        <CardContent className={cn('flex gap-3 p-4', expanded && 'text-[hsl(var(--widget-accent-surface-foreground))]')}>
+        <CardContent className={cn('flex h-full gap-3 p-4', expanded && 'text-[hsl(var(--widget-accent-surface-foreground))]')}>
           <div className={cn(
             'flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl',
             expanded ? 'bg-[hsl(var(--widget-accent-surface-foreground)/0.15)] text-[hsl(var(--widget-accent-surface-foreground))]' : 'bg-primary/10 text-primary',
           )}>
             {tile.image ? <img src={tile.image} alt="" className="size-full object-cover" /> : <LayoutGrid className="size-7" />}
           </div>
-          <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1 flex-col">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
                 <h2 className="truncate font-semibold">{tile.name}</h2>
@@ -132,7 +132,7 @@ function TileMarketplaceCard({ tile, showUnverified, onInstall, expanded, onTogg
               <span className={cn('shrink-0 text-xs', expanded ? 'opacity-70' : 'text-muted-foreground')}>v{tile.version}</span>
             </div>
             {tile.summary && <p className={cn('mt-1 line-clamp-2 text-sm', expanded ? 'opacity-80' : 'text-muted-foreground')}>{tile.summary}</p>}
-            <div className={cn('mt-3 flex items-center gap-1 overflow-hidden whitespace-nowrap text-[11px] leading-4', expanded ? 'text-[hsl(var(--widget-accent-surface-foreground)/0.75)]' : 'text-muted-foreground')}>
+            <div className={cn('mt-auto flex items-center gap-1 overflow-hidden whitespace-nowrap pt-3 text-[11px] leading-4', expanded ? 'text-[hsl(var(--widget-accent-surface-foreground)/0.75)]' : 'text-muted-foreground')}>
               {tile.perms.length > 0 ? (
                 <>
                   <span className="truncate">{shownPerms.join(' · ')}</span>
