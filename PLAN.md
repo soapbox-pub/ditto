@@ -27,8 +27,10 @@ repo it touches.
   the proven library into Ditto. Do not skip straight to Ditto integration.
 - **AI backend in Ditto**: both Shakespeare (Ditto's existing NIP-98 proxy, no user API keys)
   **and** user-supplied OpenAI-compatible providers (own API key, like tile-studio's settings
-  panel today). Needs new settings UI in Ditto; provider configs + keys are small/bounded, held
-  in `localStorage` (no encryption, matching tile-studio's own posture — see open question below).
+  panel today). Needs new settings UI in Ditto; provider configs + keys are small/bounded. Storage
+  risk-tier question resolved in T3.1: sync is opt-in per profile via the existing NIP-44
+  encrypted-settings blob, plaintext `localStorage` otherwise (matching tile-studio's own posture
+  for the non-synced case).
 - **Library home**: a new `./devkit` subpath export of the existing main `@soapbox.pub/nostr-canvas`
   package (not a separate `packages/devkit` workspace package, not a new repo, not its own
   `package.json`/version) — always in lockstep with the main package's version. Published as
@@ -71,14 +73,6 @@ repo it touches.
   (a `Tool` implementation + one line in a central registry file), not a runtime/dynamic plugin
   loader. Ditto is a compiled SPA; there's no live third-party plugin surface today.
 
-## Open questions (not yet resolved — surface before the relevant ticket starts)
-
-- Provider API keys in `localStorage`: plaintext, matching tile-studio's own posture (a pure
-  client-side dev tool). Ditto is a browser extension target with `nsec` already in
-  `localStorage` under the same threat model (nostr-security skill) — is a third-party LLM API
-  key at the same risk tier acceptable, or does it need something better (still local-only, but
-  e.g. gated behind a "these are stored in plaintext" warning)? Confirm before T3.1.
-
 ## Working conventions for this effort
 
 Everything else in the root `AGENTS.md`/skills applies as normal (dispatch to `coder`/`tester`/
@@ -106,6 +100,8 @@ own `*Eval:*` line names what the tests must cover — it does not restate this 
 The primary session's own independent-verification duty (per root `AGENTS.md`) is satisfied by
 reading the test-writer's actual test file (a concrete artifact, not a self-report) and the
 verifier's real run output — not by re-deriving either from scratch.
+
+## Phase 1 — `nostr-canvas`: extract `./devkit` subpath export — `pending`
 
 Goal: a host-agnostic library (no React dependency at all — see decision record) providing
 everything an AI agent needs to write/edit/preview a nostr-canvas Lua tile, extracted and
@@ -284,11 +280,3 @@ of the Tiles/Widgets effort, does not carry forward as a second file).
       of the old, now-stale `main`.
       *Eval:* `git merge-base main tiles-v3-widgetonly` (or its successor branch) equals the new
       `main` tip; `npm run test` still green post-rebase.
-
-## Working conventions for this effort
-
-Everything else in the root `AGENTS.md`/skills applies as normal (dispatch to `coder`/`tester`/
-`researcher`, `npm run test` gate in Ditto, commit per ticket, independent verification before
-closing a ticket). Phase 1/2 work happens in the other two repos directly (not through Ditto's
-`npm run test`) — each of those tickets' eval criteria should specify that repo's own test/build
-command once nailed down.
