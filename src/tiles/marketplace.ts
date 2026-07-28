@@ -2,18 +2,24 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import type { TileDefinition } from './definition';
 import { parseTileDefinition } from './definition';
 
-export interface InstalledTile {
-  eventId: string;
-  createdAt: number;
-}
+export type MarketplaceSortOrder = 'newest' | 'recently-updated' | 'name';
 
-export type MarketplaceTileStatus = 'install' | 'installed' | 'update';
-
-export function getMarketplaceTiles(_events: NostrEvent[], _verifiedAuthors: Map<string, string>): TileDefinition[] {
-  return getNewestTileDefinitions(_events).filter((tile) => {
-    const nip05 = getTileNip05(tile.identifier);
-    return !!nip05 && _verifiedAuthors.get(nip05) === tile.pubkey;
-  });
+/** Sort tiles by the given order. Returns a new array; does not mutate the input. */
+export function sortMarketplaceTiles(tiles: TileDefinition[], order: MarketplaceSortOrder): TileDefinition[] {
+  const sorted = [...tiles];
+  switch (order) {
+    case 'newest':
+      // Prefer the NIP-99 published_at tag, falling back to the event's created_at.
+      sorted.sort((a, b) => (b.publishedAt ?? b.createdAt) - (a.publishedAt ?? a.createdAt));
+      break;
+    case 'recently-updated':
+      sorted.sort((a, b) => b.createdAt - a.createdAt);
+      break;
+    case 'name':
+      sorted.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+      break;
+  }
+  return sorted;
 }
 
 export function getNewestTileDefinitions(events: NostrEvent[]): TileDefinition[] {
@@ -36,13 +42,6 @@ export function searchMarketplaceTiles(tiles: TileDefinition[], _query: string):
 
   return tiles.filter((tile) => [tile.name, tile.summary, getTileNip05(tile.identifier)]
     .some((value) => value?.toLowerCase().includes(query)));
-}
-
-export function getMarketplaceTileStatus(_tile: TileDefinition, _installed: InstalledTile | undefined): MarketplaceTileStatus {
-  if (!_installed) return 'install';
-  return _installed.eventId === _tile.id && _installed.createdAt === _tile.createdAt
-    ? 'installed'
-    : 'update';
 }
 
 export function getTileNip05(identifier: string): string | undefined {

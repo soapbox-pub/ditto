@@ -14,6 +14,8 @@ export interface TileDefinition {
   image?: string;
   summary?: string;
   description?: string;
+  /** NIP-99 published_at tag value (Unix timestamp), if present. */
+  publishedAt?: number;
   perms: Capability[];
   settings?: SettingsField[];
   render?: RenderEntry;
@@ -28,9 +30,13 @@ export function parseTileDefinition(_event: NostrEvent): TileDefinition | null {
   const tile = parseTileDefEvent(_event);
   if (!tile) return null;
 
+  const publishedAtTag = _event.tags.find(([tag]) => tag === 'published_at')?.[1];
+  const publishedAt = publishedAtTag ? Number(publishedAtTag) : undefined;
+
   return {
     ...tile,
     image: sanitizeUrl(tile.image),
+    publishedAt: publishedAt && !isNaN(publishedAt) ? publishedAt : undefined,
   };
 }
 
