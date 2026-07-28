@@ -236,11 +236,30 @@ real tile; expand/collapse feel (scale overlap, no grid shift,
 translucent surface readability, button contrast); a table-bearing
 description on the detail page.
 
-- [ ] **T4.3 Sort + search.** Sort control (newest / recently updated /
-      name); keep search; **no category filters**. Clean up or remove the
-      unused `getMarketplaceTiles`/`getMarketplaceTileStatus` helpers in
-      `src/tiles/marketplace.ts` as part of wiring real status logic.
-      *Eval:* unit tests for sort orders; manual sanity; `npm run test`.
+- [x] **T4.3 Sort + search.** Done in `a5cb6eaa` + `3ce8345e`.
+      `sortMarketplaceTiles(tiles, order)` /
+      `MarketplaceSortOrder = 'newest' | 'recently-updated' | 'name'` in
+      `src/tiles/marketplace.ts` (newest = `publishedAt ?? createdAt`
+      desc — `TileDefinition.publishedAt` now parsed from the NIP-99
+      `published_at` tag; recently-updated = `createdAt` desc; name =
+      case-insensitive `localeCompare`); shadcn Select (w-160, default
+      Newest) next to search, sorting the search-filtered set. Dead
+      helpers removed (`getMarketplaceTiles`, `getMarketplaceTileStatus`,
+      `InstalledTile`, `MarketplaceTileStatus`) and their tests replaced;
+      5 sort tests added (443 total green). Same commit compacted the
+      card perms row per user: single 11px muted text line — two perm
+      names `·`-joined + dotted-underline `+N` tooltip span (Badge chips
+      removed). *Manual check outstanding:* sort orders on real data,
+      ~360px toolbar wrap, perms row fit.
+- [ ] **T4.3b Unified detail page (user direction, 2026-07-28).** The
+      detail page currently reads as floaty, disparate panels (separate
+      Cards for header/description/permissions/source). Redesign into
+      **one unified sleek surface**: single cohesive layout — accent-
+      framed container matching the marketplace/sidebar accent language,
+      sections flowing with dividers instead of separate floating cards.
+      Keep all existing content/behavior (actions, install dialog, GFM
+      description, perms list, source spoiler, SEO meta). *Eval:* manual
+      light/dark + ~360px; `npm run test`.
 - [ ] **T4.4 Social signals + zaps.** Reaction/zap/comment counts on cards
       and detail page via existing stats hooks (NIP-85 where available);
       comments section on detail page (nostr-comments pattern). Zap action
@@ -297,7 +316,7 @@ Ordering: after Phases 1–6 (needs 0.12 runtime, frames, feed nodes).
       **`~/repos/nostr-canvas`** (not this repo) so other tile clients
       benefit; published with nostr-canvas's own tooling
       (`publish-tile.js`), signed by the curator key, each tagged
-      `["t", "DITTO_BUILTIN_TILE"]`. Ditto-side script only if something
+      `["t", "ditto-builtin-tile"]` (lowercase confirmed by user 2026-07-28). Ditto-side script only if something
       extra is needed. *Eval:* published 30207 parses via
       `parseTileDefEvent`, carries the `t` tag, and lands on the test
       relay.
@@ -310,12 +329,10 @@ Ordering: after Phases 1–6 (needs 0.12 runtime, frames, feed nodes).
       `~/repos/nostr-canvas/.env` — NIP-05 verified 2026-07-28). A tile is
       "builtin/curated" **only if** `event.pubkey === curator` (query
       filtered by `authors`, per nostr-security) **and** it has the
-      `t: DITTO_BUILTIN_TILE` tag — the tag alone grants nothing.
+      `t: ditto-builtin-tile` tag — the tag alone grants nothing.
       Curated tiles are auto-installed (defaults: trends, hot-posts,
       wikipedia) and auto-granted declared capabilities **except**
       bitcoin/PSBT signing and event publishing, which always prompt.
-      *(Open q: lowercase `t` value convention — `ditto-builtin-tile`? —
-      confirm with user before publishing anything.)*
       *Eval:* unit tests: curated-detection requires pubkey+tag; auto-grant
       set excludes sign/publish; consent dialog still fires for those;
       `npm run test`.
