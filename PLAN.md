@@ -271,6 +271,16 @@ Goal: land this effort on `main`, then bring the Tiles branch/MR forward onto it
 single living plan doc again (this one — the Tiles branch's own `PLAN.md`, tracking Phases 1–8
 of the Tiles/Widgets effort, does not carry forward as a second file).
 
+**Sequencing refinement** (grilled 2026-07-28, urgency: user wants Tiles MR-ready this week):
+don't wait for `ai-chat-tlc` to actually land in `main` before touching Tiles. As soon as
+`ai-chat-tlc`'s own work is done (Phases 1–3 complete, its own MR opened against `main`),
+rebase `tiles-v3-widgetonly` onto the *tip of the `ai-chat-tlc` branch* (not the new `main` —
+that branch won't have merged yet) so the Tiles MR can be opened and reviewed in parallel
+rather than blocking on `ai-chat-tlc`'s review cycle. Whichever of the two merges to `main`
+first, the other gets a quick rebase to follow — small, mechanical, not a repeat of this
+combine-and-rebase ticket. Explicit goal: avoid one "PR monster" — keep the two MRs reviewable
+and mergeable independently, each scoped to its own effort, rather than force-serializing them.
+
 - [ ] **T4.1 Merge `ai-chat-tlc` to `main`.** Standard MR review/merge once Phases 1–3 are done
       and this repo's `npm run test` is green.
       *Eval:* merged; `main` contains this work.
@@ -283,9 +293,14 @@ of the Tiles/Widgets effort, does not carry forward as a second file).
       `PLAN.md` as the first commit of the rebase.
       *Eval:* exactly one `PLAN.md` exists after this ticket; it reads as self-contained per the
       plan skill's own bar (someone with no other context can follow it).
-- [ ] **T4.3 Rebase `tiles-v3-widgetonly` onto the new `main`.** Standard rebase (or a fresh
-      branch cut from the new `main` with the Tiles commits reapplied, whichever produces a
-      cleaner history — decide at the time) so the Tiles MR is based on top of this work instead
-      of the old, now-stale `main`.
-      *Eval:* `git merge-base main tiles-v3-widgetonly` (or its successor branch) equals the new
-      `main` tip; `npm run test` still green post-rebase.
+- [ ] **T4.3 Rebase `tiles-v3-widgetonly` onto `ai-chat-tlc` (don't wait for `main`).** Once
+      `ai-chat-tlc`'s Phases 1–3 are done and its own MR is opened (not necessarily merged yet),
+      rebase Tiles onto that branch's tip — standard rebase, or a fresh branch cut from
+      `ai-chat-tlc`'s tip with the Tiles commits reapplied, whichever produces cleaner history.
+      This unblocks opening the Tiles MR (targeting `main`, based on `ai-chat-tlc`) the same
+      week, without waiting on `ai-chat-tlc`'s own review/merge latency. If `ai-chat-tlc` merges
+      to `main` first, Tiles' MR base updates automatically (nothing to redo — GitLab tracks the
+      new common ancestor); if Tiles merges first, `ai-chat-tlc` gets a short follow-up rebase
+      before its own merge.
+      *Eval:* `git merge-base ai-chat-tlc tiles-v3-widgetonly` (or its successor branch) equals
+      `ai-chat-tlc`'s tip; `npm run test` still green post-rebase; Tiles MR opened in GitLab.
