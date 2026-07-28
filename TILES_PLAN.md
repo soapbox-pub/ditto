@@ -122,6 +122,33 @@ plus the NIP.md link refresh.
   (4) image-upload button in a tile uploads via Blossom; (5) prod
   `vite preview` — wasm loads (no 404) when a tile page opens.
 
+## Phase 1.5 — Follow-up fixes (user-reported) — `pending`
+
+- [ ] **T1.6 Spoiler node styling broken.** `spoiler` nodes in
+      `TileOutputView` render with broken styling (user-reported after the
+      0.12 port). Diagnose against the reference renderer's spoiler
+      treatment (`dist/react/TileView.js`) and 0.12's `SpoilerNode` type —
+      check whether the node schema changed (e.g. new/renamed fields) or
+      whether the Collapsible-based rendering regressed. *Eval:* manual: a
+      tile emitting a spoiler renders a collapsed/expandable section that
+      looks right in light+dark; `npm run test`.
+- [ ] **T1.7 Never offer `bitcoin-sign-psbt` as a permanent grant.** The
+      install permissions dialog currently lists `bitcoin-sign-psbt` as a
+      grantable capability, but bitcoin signing must never be permanently
+      granted (same posture as the Phase 7 curator tier: bitcoin/publish
+      always prompt). Exclude it from the grantable set in the consent
+      dialog UI, and defensively filter it in the grant-persistence layer
+      (`setGrantedCapabilities` / `getStoredGrants` in
+      `src/tiles/installations.ts`) so a stored or synced grant can never
+      reach the runtime's grant override. Ditto's adapter implements no
+      `signPsbt` today; if/when it does, it gets a per-call confirmation
+      dialog instead of an install-time grant. Show the capability in the
+      dialog as informational ("always asks") rather than silently hiding
+      it, so users still see what the tile declares. *Eval:* unit test:
+      stored grants containing `bitcoin-sign-psbt` are filtered out of
+      `getStoredGrants`; manual: dialog shows the capability as
+      non-grantable/always-ask; `npm run test`.
+
 ## Phase 2 — Widget frame redesign & double-title fix — `pending`
 
 - [ ] **T2.1 Thin frame.** Rework `WidgetCard`: slim top handle bar carrying
