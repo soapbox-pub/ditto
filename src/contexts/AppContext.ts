@@ -29,6 +29,14 @@ export type NsfwPolicy = "blur" | "hide" | "show";
  */
 export type CurrencyDisplay = "usd" | "sats";
 
+/**
+ * How tile-claimed feed kinds interact with kinds Ditto already renders
+ * natively. `native-only` (default) drops any kind Ditto handles itself;
+ * `show-both` shows the native card + generic widget card; `generic-overrides`
+ * replaces the native renderer with the generic widget-interaction card.
+ */
+export type TileKindConflictMode = "native-only" | "show-both" | "generic-overrides";
+
 export interface RelayMetadata {
   /** List of relays with read/write permissions */
   relays: { url: string; read: boolean; write: boolean }[];
@@ -384,6 +392,13 @@ export interface AppConfig {
   currencyDisplay: CurrencyDisplay;
   /** Ordered list of right sidebar widget configs. Each entry is a widget type ID with optional display settings. */
   sidebarWidgets: WidgetConfig[];
+  /**
+   * How tile-claimed feed kinds interact with kinds Ditto already renders
+   * natively. `native-only` (default) drops any kind Ditto handles itself;
+   * `show-both` shows the native card + generic widget card; `generic-overrides`
+   * replaces the native renderer with the generic widget-interaction card.
+   */
+  tileKindConflictMode: TileKindConflictMode;
   /** Installed Canvas tiles, synchronized as author-bound coordinates through encrypted settings. */
   installedCanvasTiles: InstalledCanvasTile[];
   /** Values for declared Canvas tile settings, synchronized through encrypted settings. */

@@ -312,6 +312,7 @@ export const AppConfigSchema = z.object({
   sandboxDomain: z.string().optional(),
   esploraApis: z.array(z.string().url()).min(1),
   currencyDisplay: z.enum(['usd', 'sats']).optional(),
+  tileKindConflictMode: z.enum(['native-only', 'show-both', 'generic-overrides']).optional(),
   sidebarWidgets: z.array(z.object({
     id: z.string(),
     height: z.number().optional(),

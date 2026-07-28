@@ -185,6 +185,7 @@ const hardcodedConfig: AppConfig = {
   sandboxDomain: 'iframe.diy',
   esploraApis: [...DEFAULT_ESPLORA_APIS],
   currencyDisplay: 'usd',
+  tileKindConflictMode: 'native-only',
   sidebarWidgets: DEFAULT_SIDEBAR_WIDGETS,
   installedCanvasTiles: [],
   canvasTileSettings: [],

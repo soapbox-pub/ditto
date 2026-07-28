@@ -4,6 +4,7 @@ import { useFeedSettings } from './useFeedSettings';
 import { useMuteFilter } from './useMuteFilter';
 import { useContentFilters } from './useContentFilters';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { useTileFeedKinds } from '@/tiles/feedKinds';
 import { isRepostKind } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
@@ -152,6 +153,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { feedSettings } = useFeedSettings();
   const { isMuted } = useMuteFilter();
   const { shouldFilterEvent } = useContentFilters();
+  const tileFeedKinds = useTileFeedKinds();
   const [allEvents, setAllEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   // Buffer for streamed events — held separately until user scrolls back up
@@ -226,7 +228,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // These mediaTypes query dedicated event kinds rather than filtering kind 1
   const isDedicatedKindQuery = !options.kindsOverride && (options.mediaType === 'vines' || options.mediaType === 'images' || options.mediaType === 'videos');
 
-  const enabledKinds = getEnabledFeedKinds(feedSettings);
+  const enabledKinds = getEnabledFeedKinds(feedSettings, tileFeedKinds);
   const kindsKey = [...enabledKinds].sort().join(',');
 
   // Stable key for protocols so it can be a useEffect dependency

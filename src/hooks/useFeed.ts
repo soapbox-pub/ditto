@@ -10,6 +10,7 @@ import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { parseAuthorEvent } from './useAuthor';
 import { useNostrStorage } from './useNostrStorage';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { useTileFeedKinds } from '@/tiles/feedKinds';
 import {
   getPaginationCursor,
   isRepostKind,
@@ -87,12 +88,13 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
   const { excludeMuted, mutedKey } = useMutedAuthorFilter();
   const { feedSettings } = useFeedSettings();
   const { store } = useNostrStorage();
+  const tileFeedKinds = useTileFeedKinds();
 
   // Build the full kinds list from user settings, or use the override.
   // When replies are hidden, NIP-22 comment kinds (1111 / 1244) are dropped
   // from settings-derived queries entirely — every comment is a reply, so
   // fetching them only wastes bandwidth on events the filter discards.
-  const settingsKinds = getEnabledFeedKinds(feedSettings);
+  const settingsKinds = getEnabledFeedKinds(feedSettings, tileFeedKinds);
   const allKinds = options?.kinds ??
     (feedSettings.followsFeedShowReplies ? settingsKinds : settingsKinds.filter((k) => k !== 1111 && k !== 1244));
 

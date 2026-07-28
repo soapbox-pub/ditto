@@ -8,6 +8,7 @@ import { ClientMetrics } from '@/components/ClientMetrics';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { useTileFeedKinds } from '@/tiles/feedKinds';
 import { isReactionKind, isRepostKind } from '@/lib/feedUtils';
 
 /** Feed of posts published by a given client application (NIP-89 `client` tag). */
@@ -16,6 +17,7 @@ export function ClientFeedPage() {
   const { name } = useParams<{ name: string }>();
   const [searchParams] = useSearchParams();
   const { feedSettings } = useFeedSettings();
+  const tileFeedKinds = useTileFeedKinds();
 
   // The primary `#client` tag is the path segment; additional tags for the same
   // client (e.g. "Primal Web" + "Primal Android") arrive as `client` query
@@ -35,8 +37,8 @@ export function ClientFeedPage() {
   // event, which may have been published with a different client, so they
   // don't belong on a client-specific feed.
   const kinds = useMemo(
-    () => getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k) && !isReactionKind(k)),
-    [feedSettings],
+    () => getEnabledFeedKinds(feedSettings, tileFeedKinds).filter((k) => !isRepostKind(k) && !isReactionKind(k)),
+    [feedSettings, tileFeedKinds],
   );
 
   const tagFilters = useMemo(() => ({ '#client': clientTags }), [clientTags]);

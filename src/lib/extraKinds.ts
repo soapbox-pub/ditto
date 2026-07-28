@@ -850,7 +850,7 @@ export function getExtraKindDef(id: string): ExtraKindDef | undefined {
 export const FEED_KINDS: ExtraKindDef[] = EXTRA_KINDS.filter((def) => def.section === 'feed');
 
 /** Return the kind numbers the user has opted to include in mixed feeds. */
-export function getEnabledFeedKinds(feedSettings: FeedSettings): number[] {
+export function getEnabledFeedKinds(feedSettings: FeedSettings, extraKinds?: number[]): number[] {
   const kinds: number[] = [];
 
   for (const def of EXTRA_KINDS) {
@@ -869,6 +869,11 @@ export function getEnabledFeedKinds(feedSettings: FeedSettings): number[] {
         kinds.push(...def.extraFeedKinds);
       }
     }
+  }
+
+  // Merge in tile-claimed feed kinds (behind the feedIncludeTiles toggle in T5.1).
+  if (feedSettings.feedIncludeTiles && extraKinds?.length) {
+    kinds.push(...extraKinds);
   }
 
   return kinds;

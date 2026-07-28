@@ -2,6 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useFeedSettings } from './useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { useTileFeedKinds } from '@/tiles/feedKinds';
 import {
   getPaginationCursor,
   shouldHideFeedEvent,
@@ -92,8 +93,9 @@ export function useProfileFeed(pubkey: string | undefined, activeTab: ProfileTab
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { feedSettings } = useFeedSettings();
+  const tileFeedKinds = useTileFeedKinds();
 
-  const allKinds = getEnabledFeedKinds(feedSettings);
+  const allKinds = getEnabledFeedKinds(feedSettings, tileFeedKinds);
   const profileKinds = getKindsForTab(allKinds, activeTab);
   const kindsKey = [...profileKinds].sort().join(',');
 
@@ -274,8 +276,9 @@ export function useTabFeed(
 ) {
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
+  const tileFeedKinds = useTileFeedKinds();
 
-  const defaultKinds = getEnabledFeedKinds(feedSettings);
+  const defaultKinds = getEnabledFeedKinds(feedSettings, tileFeedKinds);
   const defaultKindsKey = [...defaultKinds].sort().join(',');
 
   // Stable string keys for query cache invalidation

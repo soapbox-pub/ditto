@@ -151,6 +151,7 @@ export function TestApp({ children }: TestAppProps) {
     sandboxDomain: 'iframe.diy',
     esploraApis: ['https://mempool.space/api'],
     currencyDisplay: 'usd',
+    tileKindConflictMode: 'native-only',
     sidebarWidgets: [],
     installedCanvasTiles: [],
     canvasTileSettings: [],
