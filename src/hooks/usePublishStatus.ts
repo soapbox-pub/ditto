@@ -57,6 +57,7 @@ export function usePublishStatus() {
       queryClient.setQueryData<UserStatus>(key, {
         status: trimmed ? trimmed : null,
         url: trimmed ? (sanitizeUrl(url) ?? null) : null,
+        tags: snapshot?.tags ?? [],
       });
       return { snapshot, key };
     },
