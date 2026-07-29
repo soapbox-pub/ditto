@@ -15,7 +15,6 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { StorageItem } from '@blobbi-kit/core/blobbi';
 import {
   useStartIncubation as useStartIncubationBase,
   useStopIncubation as useStopIncubationBase,
@@ -46,16 +45,6 @@ interface CanonicalActionResult {
   content: string;
   allTags: string[][];
   profileAllTags: string[][];
-  /**
-   * Legacy consumable storage from pre-existing kind:11125 `storage` tags.
-   * Unused by Ditto's incubation/evolution flows and no longer an active
-   * inventory source. Retained only because blobbi-kit 0.2.0 still requires this
-   * field on its `CanonicalIncubationResult` contract (deprecated there,
-   * scheduled for removal in a future kit major release).
-   *
-   * @deprecated Do not read. Kept only for the kit's backward-compatible contract.
-   */
-  profileStorage: StorageItem[];
 }
 
 /** Parameters for start incubation hook (Ditto public API). */
