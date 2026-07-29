@@ -2307,17 +2307,20 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     </div>
                   )}
 
-                  {/* NIP-38 thought bubble — floats beside the avatar over the banner */}
+                  {/* NIP-38 thought bubble — floats beside the avatar over the banner.
+                      `w-max` is load-bearing: `left` puts this past the right edge of its
+                      relative parent, so the available width for shrink-to-fit clamps to 0
+                      and a status that is only a custom-emoji image collapses to nothing. */}
                   {feedSettings.showUserStatuses !== false && profileStatus.status && (
-                    <div className="absolute top-3 md:top-4 left-[calc(100%+8px)] z-10 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
+                    <div className="absolute top-3 md:top-4 left-[calc(100%+8px)] z-10 w-max max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
                       <div className="relative bg-background/90 backdrop-blur-sm border border-border rounded-xl px-3 py-1.5 shadow-lg">
-                        <p className="text-xs md:text-sm text-foreground italic truncate pr-1">
+                        <p className="text-xs md:text-sm text-foreground italic truncate">
                           {profileStatus.url ? (
                             <a href={profileStatus.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                              {profileStatus.status}
+                              <EmojifiedText tags={profileStatus.tags}>{profileStatus.status}</EmojifiedText>
                             </a>
                           ) : (
-                            profileStatus.status
+                            <EmojifiedText tags={profileStatus.tags}>{profileStatus.status}</EmojifiedText>
                           )}
                         </p>
                         {/* Speech bubble triangle tail — bottom-left corner, points diagonally down-left toward avatar */}

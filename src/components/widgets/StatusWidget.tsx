@@ -3,6 +3,7 @@ import { FormattedMessage, useIntl } from 'react-intl';
 import { Loader2 } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
+import { EmojifiedText } from '@/components/CustomEmoji';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserStatus } from '@/hooks/useUserStatus';
 import { usePublishStatus } from '@/hooks/usePublishStatus';
@@ -105,7 +106,7 @@ export function StatusWidget() {
       className="flex items-center w-full px-1 py-1 text-sm hover:bg-secondary/40 rounded-lg transition-colors text-left"
     >
       {userStatus.status ? (
-        <span className="truncate text-muted-foreground italic text-xs">{userStatus.status}</span>
+        <span className="truncate text-muted-foreground italic text-xs"><EmojifiedText tags={userStatus.tags}>{userStatus.status}</EmojifiedText></span>
       ) : (
         <span className="text-muted-foreground text-xs"><FormattedMessage id="widgets.status.setPrompt" defaultMessage={"Click to set a status..."} /></span>
       )}

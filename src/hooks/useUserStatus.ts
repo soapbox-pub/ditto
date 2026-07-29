@@ -8,6 +8,8 @@ export interface UserStatus {
   status: string | null;
   /** Optional URL linked from the status (from `r` tag). */
   url: string | null;
+  /** The status event's tags, for resolving NIP-30 custom emoji. */
+  tags: string[][];
 }
 
 /**
@@ -22,14 +24,14 @@ export function useUserStatus(pubkey: string | undefined): UserStatus & { isLoad
   const query = useQuery({
     queryKey: ['user-status', pubkey ?? ''],
     queryFn: async ({ signal }) => {
-      if (!pubkey) return { status: null, url: null };
+      if (!pubkey) return { status: null, url: null, tags: [] };
 
       const events = await nostr.query(
         [{ kinds: [30315], authors: [pubkey], '#d': ['general'], limit: 1 }],
         { signal },
       );
 
-      if (events.length === 0) return { status: null, url: null };
+      if (events.length === 0) return { status: null, url: null, tags: [] };
 
       const event = events[0];
 
@@ -38,17 +40,17 @@ export function useUserStatus(pubkey: string | undefined): UserStatus & { isLoad
       if (expTag) {
         const expTime = parseInt(expTag, 10);
         if (!isNaN(expTime) && Math.floor(Date.now() / 1000) > expTime) {
-          return { status: null, url: null };
+          return { status: null, url: null, tags: [] };
         }
       }
 
       // Empty content = status cleared
       const content = event.content.trim();
-      if (!content) return { status: null, url: null };
+      if (!content) return { status: null, url: null, tags: [] };
 
       const url = sanitizeUrl(event.tags.find(([n]) => n === 'r')?.[1]) ?? null;
 
-      return { status: content, url };
+      return { status: content, url, tags: event.tags };
     },
     enabled: !!pubkey,
     staleTime: 60_000,
@@ -58,6 +60,7 @@ export function useUserStatus(pubkey: string | undefined): UserStatus & { isLoad
   return {
     status: query.data?.status ?? null,
     url: query.data?.url ?? null,
+    tags: query.data?.tags ?? [],
     isLoading: query.isLoading,
   };
 }
