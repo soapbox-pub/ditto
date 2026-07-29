@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.34.2] - 2026-07-29
+
+User statuses now appear as cards in feeds and embeds, with custom emoji, expiration, and optional links. Zaps with comments show up as replies under posts. Wikipedia searches appear in your preferred language, and external links open in your phone's browser. Several fixes smooth out homepage navigation, live-stream search, and emoji loading.
+
+### Added
+- User status cards in feeds, detail pages, and quote embeds, with custom emoji, expiration support, and link previews
+- Zaps with comments now appear as replies under posts
+- Emoji pack creation improvements
+
+### Changed
+- Wikipedia results now appear in your preferred language
+
+### Fixed
+- External links now open in the phone's browser instead of the share sheet
+- Homepage setting no longer silently falls back to the Feed tab for certain page types
+- Search page no longer lags during live streams
+- Broken-image icons no longer appear when a custom emoji fails to load
+
 ## [2.34.1] - 2026-07-26
 
 Profiles can be planets now. If someone has published their own website to Nostr, a little globe button appears on their profile — tap it and the whole site opens right inside Ditto, no browser tab required. Go wander around someone's corner of the internet without ever leaving the feed.
