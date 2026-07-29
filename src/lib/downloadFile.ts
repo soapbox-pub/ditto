@@ -78,16 +78,21 @@ export async function downloadBinaryFile(filename: string, bytes: Uint8Array): P
 }
 
 /**
- * Open a URL in a new browser tab, or present the native share sheet on Capacitor.
+ * Open a URL in the phone's external browser (or a new tab on the web).
  *
  * The programmatic `<a target="_blank">` click pattern doesn't work inside
- * WKWebView on iOS. On native platforms this presents the share sheet instead,
- * letting the user open, save, or share the resource.
+ * WKWebView on iOS. On native platforms this hands the URL to the OS default
+ * handler via `@capacitor/app-launcher`, so `https:` links open in the real
+ * browser (which then handles file downloads natively) and custom schemes
+ * like `lightning:` / `bitcoin:` route to the associated wallet app.
+ *
+ * Previously this presented the native share sheet, which meant navigation
+ * links and download buttons showed a "share" prompt instead of opening.
  */
 export async function openUrl(url: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
-    const { Share } = await import('@capacitor/share');
-    await Share.share({ url });
+    const { AppLauncher } = await import('@capacitor/app-launcher');
+    await AppLauncher.openUrl({ url });
   } else {
     window.open(url, '_blank', 'noopener,noreferrer');
   }

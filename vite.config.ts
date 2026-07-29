@@ -242,7 +242,7 @@ export default defineConfig(({ mode }) => {
     },
   },
   optimizeDeps: {
-    exclude: ['@capacitor/filesystem', '@capacitor/share'],
+    exclude: ['@capacitor/filesystem', '@capacitor/share', '@capacitor/app-launcher'],
   },
   resolve: {
     alias: [
