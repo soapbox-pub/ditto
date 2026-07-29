@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { useLanguage } from '@/hooks/useLanguage';
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -64,14 +66,14 @@ export interface WikipediaFeaturedFeed {
 // Fetcher
 // ---------------------------------------------------------------------------
 
-async function fetchFeaturedFeed(signal?: AbortSignal): Promise<WikipediaFeaturedFeed> {
+async function fetchFeaturedFeed(lang: string, signal?: AbortSignal): Promise<WikipediaFeaturedFeed> {
   const now = new Date();
   const yyyy = now.getUTCFullYear();
   const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
   const dd = String(now.getUTCDate()).padStart(2, '0');
 
   const res = await fetch(
-    `https://en.wikipedia.org/api/rest_v1/feed/featured/${yyyy}/${mm}/${dd}`,
+    `https://${lang}.wikipedia.org/api/rest_v1/feed/featured/${yyyy}/${mm}/${dd}`,
     {
       signal,
       headers: { Accept: 'application/json' },
@@ -95,9 +97,11 @@ async function fetchFeaturedFeed(signal?: AbortSignal): Promise<WikipediaFeature
  * In the News, Did You Know, and Picture of the Day.
  */
 export function useWikipediaFeatured() {
+  const { locale } = useLanguage();
+
   return useQuery({
-    queryKey: ['wikipedia-featured', new Date().toISOString().slice(0, 10)],
-    queryFn: ({ signal }) => fetchFeaturedFeed(signal),
+    queryKey: ['wikipedia-featured', locale, new Date().toISOString().slice(0, 10)],
+    queryFn: ({ signal }) => fetchFeaturedFeed(locale, signal),
     staleTime: 1000 * 60 * 30, // 30 minutes
     gcTime: 1000 * 60 * 60 * 2, // 2 hours
     retry: 2,
