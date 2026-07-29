@@ -401,11 +401,33 @@ export function SearchPage() {
   // Re-runs only when the set of post ids changes (not on every reorder).
   const { nostr } = useNostr();
   const postsKey = useMemo(() => posts.map((p) => p.id).join(','), [posts]);
+  // Incremental build cache: source event id → the FeedItems it produced.
+  // The stream appends posts continuously, so rebuilding from scratch on every
+  // postsKey change would re-run buildFeedItems (including its missing-target
+  // relay query) over the whole list once per streamed event.
+  const builtItemsRef = useRef(new Map<string, FeedItem[]>());
   const { data: feedItems = [] } = useQuery<FeedItem[]>({
     queryKey: ['search-feed-items', postsKey],
     queryFn: async ({ signal }) => {
-      const items = await buildFeedItems(posts, nostr, signal);
-      return dedupeFeedItems(items);
+      const cache = builtItemsRef.current;
+      const newPosts = posts.filter((p) => !cache.has(p.id));
+      if (newPosts.length > 0) {
+        const built = await buildFeedItems(newPosts, nostr, signal);
+        // An aborted signal means buildFeedItems may have silently dropped
+        // wrappers whose target fetch was cancelled — don't cache that.
+        if (signal.aborted) throw new Error('aborted');
+        const bySource = new Map<string, FeedItem[]>(newPosts.map((p) => [p.id, []]));
+        for (const item of built) {
+          // Recover which input event produced this item: wrappers carry the
+          // wrapper event; direct posts and profile-zap fallbacks are the
+          // event itself.
+          const sourceId = item.repostEvent?.id ?? item.reactedBy?.event.id ?? item.zappedBy?.event.id ?? item.event.id;
+          const list = bySource.get(sourceId);
+          if (list) list.push(item);
+        }
+        for (const [id, items] of bySource) cache.set(id, items);
+      }
+      return dedupeFeedItems(posts.flatMap((p) => cache.get(p.id) ?? []));
     },
     enabled: posts.length > 0,
     staleTime: 60_000,

@@ -347,11 +347,12 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     }
 
     // Buffer streamed events only when user is scrolled down to avoid scroll jumps.
+    // The buffer count is committed to React state by the batched timer in
+    // addStreamedEvent, not here, so a busy relay can't re-render per event.
     if (isStreamed && initialLoadDoneRef.current && isScrolledRef.current) {
       if (knownIdsRef.current.has(dedupeKey)) return false;
       knownIdsRef.current.add(dedupeKey);
       streamBufferRef.current = [...streamBufferRef.current, event];
-      setStreamBufferCount(streamBufferRef.current.length);
       return false;
     }
 
@@ -368,11 +369,26 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     return true;
   }, []);
 
-  /** Add a single streamed event and flush immediately. */
+  // Batch streamed events into a single state commit per interval. Flushing
+  // per event makes a busy relay re-sort the whole array and re-render the
+  // page for every message it delivers.
+  const streamMapDirtyRef = useRef(false);
+  const commitTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  /** Add a single streamed event; commit to React state on a trailing timer. */
   const addStreamedEvent = useCallback((event: NostrEvent) => {
     if (ingestEvent(event, true)) {
-      flushEventMap();
+      streamMapDirtyRef.current = true;
     }
+    if (commitTimerRef.current !== undefined) return;
+    commitTimerRef.current = setTimeout(() => {
+      commitTimerRef.current = undefined;
+      setStreamBufferCount(streamBufferRef.current.length);
+      if (streamMapDirtyRef.current) {
+        streamMapDirtyRef.current = false;
+        flushEventMap();
+      }
+    }, 1000);
   }, [ingestEvent, flushEventMap]);
 
   useEffect(() => {
@@ -390,6 +406,9 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     setStreamBufferCount(0);
     eventMapRef.current = new Map();
     knownIdsRef.current = new Set();
+    clearTimeout(commitTimerRef.current);
+    commitTimerRef.current = undefined;
+    streamMapDirtyRef.current = false;
 
     const { searchFilter, streamFilter } = paginationFilter;
 
@@ -460,6 +479,8 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     return () => {
       alive = false;
       ac.abort();
+      clearTimeout(commitTimerRef.current);
+      commitTimerRef.current = undefined;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- ingestEvent/flushEventMap/addStreamedEvent are stable ref-based callbacks
   }, [nostr, paginationFilter]);
@@ -502,16 +523,17 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const flushStreamBuffer = doFlush;
 
   // Shared predicate for client-side filtering (mute, content, search, media, author, etc.)
+  const authorSet = useMemo(
+    () => resolvedAuthorPubkeys ? new Set(resolvedAuthorPubkeys) : undefined,
+    [resolvedAuthorPubkeys],
+  );
   const matchesFilters = useCallback((event: NostrEvent) => {
     if (isMuted(event)) return false;
     if (shouldFilterEvent(event)) return false;
-    if (resolvedAuthorPubkeys) {
-      const authorSet = new Set(resolvedAuthorPubkeys);
-      if (!authorSet.has(event.pubkey)) return false;
-    }
+    if (authorSet && !authorSet.has(event.pubkey)) return false;
     return filterEvent(event, options, query);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific options fields instead of the whole object for granular reactivity
-  }, [options.includeReplies, options.mediaType, protocolsKey, query, isMuted, resolvedAuthorPubkeys, shouldFilterEvent, authorPubkeysKey, clientTagsKey]);
+  }, [options.includeReplies, options.mediaType, protocolsKey, query, isMuted, authorSet, shouldFilterEvent, authorPubkeysKey, clientTagsKey]);
 
   // Apply client-side filters (including mute filtering and content filters) without restarting the stream
   const posts = useMemo(() => {
