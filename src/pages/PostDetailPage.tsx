@@ -209,10 +209,11 @@ import { useAuthor } from "@/hooks/useAuthor";
 import { useComments } from "@/hooks/useComments";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEventInteractions, extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
-import { extractOnchainZapClaimedAmount, extractOnchainZapRecipients, useVerifiedOnchainZap } from "@/hooks/useOnchainZaps";
+import { extractOnchainZapClaimedAmount, extractOnchainZapRecipients, useOnchainZaps, useVerifiedOnchainZap } from "@/hooks/useOnchainZaps";
 import { useMuteFilter } from "@/hooks/useMuteFilter";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useReplies } from "@/hooks/useReplies";
+import { useZapReplies } from "@/hooks/useZapReplies";
 import { useShareOrigin } from "@/hooks/useShareOrigin";
 import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
@@ -1562,7 +1563,36 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     event.kind === 37516 ? [7516] : undefined,
   );
 
+  // Zaps that carry a comment surface inline as replies under the post
+  // (Lightning kind 9735 + verified on-chain kind 8333).
+  const { data: lightningZapReplies } = useZapReplies(event);
+  const { zaps: onchainZaps } = useOnchainZaps(event);
+
   const repliesLoading = isKind1 ? kind1RepliesLoading : commentsLoading;
+
+  const zapReplyNodes = useMemo((): ReplyNode[] => {
+    const nodes: ReplyNode[] = [];
+    const seen = new Set<string>();
+
+    for (const zap of lightningZapReplies ?? []) {
+      if (seen.has(zap.id)) continue;
+      // Mute by the zap sender, not the LNURL provider that signs the receipt.
+      const sender = extractZapSender(zap);
+      if (isMuted({ ...zap, pubkey: sender || zap.pubkey, content: extractZapMessage(zap) })) continue;
+      seen.add(zap.id);
+      nodes.push({ event: zap, children: [] });
+    }
+
+    for (const oz of onchainZaps) {
+      if (!oz.comment.trim()) continue;
+      if (seen.has(oz.event.id)) continue;
+      if (isMuted(oz.event)) continue;
+      seen.add(oz.event.id);
+      nodes.push({ event: oz.event, children: [] });
+    }
+
+    return nodes;
+  }, [lightningZapReplies, onchainZaps, isMuted]);
 
   const replies = useMemo(() => {
     const source = isKind1 ? rawReplies : commentsData?.allComments;
@@ -1570,8 +1600,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     return source.filter((r) => !isMuted(r));
   }, [isKind1, rawReplies, commentsData?.allComments, isMuted]);
 
-  // Build a full reply tree for recursive threaded rendering.
-  const replyTree = useMemo((): ReplyNode[] => {
+  // Build the text-reply roots (NIP-10 for kind 1, NIP-22 comments otherwise).
+  const buildTextReplyRoots = useCallback((): ReplyNode[] => {
     if (!replies || replies.length === 0) return [];
 
     if (isKind1) {
@@ -1637,6 +1667,16 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const filtered = topLevel.filter((r) => !isMuted(r));
     return [...filtered].sort((a, b) => a.created_at - b.created_at).map((r) => buildNode(r));
   }, [isKind1, isComment, replies, event.id, commentsData, isMuted]);
+
+  // Weave zaps that carry a comment in among the text replies, ordered
+  // oldest-first alongside everything else.
+  const replyTree = useMemo((): ReplyNode[] => {
+    const textRoots = buildTextReplyRoots();
+    if (zapReplyNodes.length === 0) return textRoots;
+    return [...textRoots, ...zapReplyNodes].sort(
+      (a, b) => a.event.created_at - b.event.created_at,
+    );
+  }, [buildTextReplyRoots, zapReplyNodes]);
 
   // Seed the NIP-85 stats cache with client-side reply counts for each comment
   // in the thread. NIP-85 may not have stats for kind 1111 events, so this

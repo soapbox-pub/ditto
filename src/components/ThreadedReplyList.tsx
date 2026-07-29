@@ -1,6 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useState } from 'react';
 import { NoteCard } from '@/components/NoteCard';
+import { ZAP_KINDS } from '@/lib/feedUtils';
 import { cn } from '@/lib/utils';
 
 /** Maximum nesting depth before collapsing the rest of the thread. */
@@ -41,7 +42,8 @@ function ReplyThread({ node, depth, depthless }: { node: ReplyNode; depth: numbe
   }
 
   if (!hasChildren) {
-    return <NoteCard event={node.event} />;
+    // Zaps injected into the thread as leaf nodes render like a normal reply.
+    return <NoteCard event={node.event} zapAsReply={ZAP_KINDS.has(node.event.kind)} />;
   }
 
   // Once expanded past the depth cap, skip further caps for this subtree

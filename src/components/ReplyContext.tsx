@@ -16,6 +16,9 @@ interface ReplyContextProps {
   parentRelayHint?: string;
   /** Author pubkey hint for NIP-65 outbox resolution of the parent event. */
   parentAuthorHint?: string;
+  /** Leading verb phrase before the author names. Defaults to "Replying to";
+   *  pass e.g. "Zapping" to reuse this row for a zap's target. */
+  label?: string;
   className?: string;
 }
 
@@ -24,7 +27,7 @@ interface ReplyContextProps {
  * When parentEventId is provided, hovering over the line shows an embedded preview of the parent post.
  * Used consistently across NoteCard and notification views.
  */
-export function ReplyContext({ pubkeys, parentEventId, parentRelayHint, parentAuthorHint, className }: ReplyContextProps) {
+export function ReplyContext({ pubkeys, parentEventId, parentRelayHint, parentAuthorHint, label = 'Replying to', className }: ReplyContextProps) {
   // Filter out any undefined/empty pubkeys defensively
   const validPubkeys = pubkeys.filter(Boolean);
   // Show max 2 authors for cleaner UI
@@ -33,7 +36,7 @@ export function ReplyContext({ pubkeys, parentEventId, parentRelayHint, parentAu
   const replyingToLabel = parentEventId ? (
     <HoverCard openDelay={300} closeDelay={150}>
       <HoverCardTrigger asChild>
-        <span className="shrink-0 cursor-pointer hover:underline">Replying to</span>
+        <span className="shrink-0 cursor-pointer hover:underline">{label}</span>
       </HoverCardTrigger>
       <HoverCardContent
         side="bottom"
@@ -52,7 +55,7 @@ export function ReplyContext({ pubkeys, parentEventId, parentRelayHint, parentAu
       </HoverCardContent>
     </HoverCard>
   ) : (
-    <span className="shrink-0">Replying to</span>
+    <span className="shrink-0">{label}</span>
   );
 
   return (

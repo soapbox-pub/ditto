@@ -328,6 +328,11 @@ interface NoteCardProps {
   highlight?: boolean;
   /** If true, suppress the kind-derived action header (e.g. "created a badge"). Used when the parent already provides context. */
   hideKindHeader?: boolean;
+  /** If true and `event` is a zap (kind 9735/8333), render it like a normal
+   *  reply — sender avatar + the zap comment as body text with a small amber
+   *  amount badge — instead of the compact zap activity card. Used in reply
+   *  threads where a zap-with-comment reads better as a reply. */
+  zapAsReply?: boolean;
 }
 
 /** Gets a tag value by name. */
@@ -386,6 +391,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   threadedLast,
   highlight,
   hideKindHeader,
+  zapAsReply,
 }: NoteCardProps) {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
@@ -420,6 +426,15 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const { data: recipientNip05Verified, isPending: recipientNip05Pending } = useNip05Verify(
     recipientNip05,
     profileZapRecipient,
+  );
+
+  // Zap sender's nip05 — verified so the zap-as-reply layout can show the
+  // sender's username line just like a normal reply. Hook runs unconditionally
+  // with `undefined` when the card isn't a zap.
+  const zapSenderNip05 = zapSenderMeta?.nip05;
+  const { data: zapSenderNip05Verified, isPending: zapSenderNip05Pending } = useNip05Verify(
+    zapSenderNip05,
+    zapSenderPubkey || undefined,
   );
 
   const pollVoteLabel = usePollVoteLabel(event);
@@ -1243,6 +1258,101 @@ const NoteCardImpl = memo(function NoteCardImpl({
   // author block, with the standard action bar attached to the
   // recipient's kind-0 event below. Clicking the card navigates to
   // the recipient's profile.
+  // ── Zap-as-reply layout (kind 9735 / 8333) ──
+  // In a reply thread, a zap that carries a comment reads better as a normal
+  // reply: the sender's avatar and name head the card, the comment is the
+  // body, and a small amber badge marks it (and shows the amount) as a zap.
+  if (isZap && zapAsReply) {
+    const zapAmountSats = getZapAmountSats(event);
+    const zapMessage = extractZapMessage(event) || (event.kind === 8333 ? event.content : "");
+    // Who/what is being zapped — the `p` recipients (validated, sender excluded)
+    // and the zapped event, mirroring a reply's "Replying to" context row.
+    const zapRecipients = [
+      ...new Set(event.tags.filter(([n]) => n === "p").map(([, v]) => v).filter(isNostrId)),
+    ].filter((pk) => pk !== zapSenderPubkey);
+    const zappedEventId = event.tags.find(([n]) => n === "e")?.[1];
+    return (
+      <article
+        className={cn(
+          "relative px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          highlight && "animate-highlight-fade",
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
+      >
+        {/* Header: sender avatar + name/badge stacked (normal-reply style) */}
+        <div className="flex items-center gap-3">
+          {zapSender.isLoading ? (
+            <Skeleton className="size-11 rounded-full shrink-0" />
+          ) : (
+            <ProfileHoverCard pubkey={zapSenderPubkey} asChild>
+              <Link to={zapSenderUrl} className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+                <Avatar shape={zapSenderShape} className="size-11">
+                  <AvatarImage src={zapSenderMeta?.picture} alt={zapSenderName} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                    {zapSenderName[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
+            </ProfileHoverCard>
+          )}
+          <div className="min-w-0 flex-1 min-h-[42px] flex flex-col justify-center">
+            <div className="flex items-center gap-1.5">
+              <ProfileHoverCard pubkey={zapSenderPubkey} asChild>
+                <Link
+                  to={zapSenderUrl}
+                  className="font-bold text-[15px] hover:underline truncate"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {zapSender.data?.event ? (
+                    <EmojifiedText tags={zapSender.data.event.tags}>{zapSenderName}</EmojifiedText>
+                  ) : (
+                    zapSenderName
+                  )}
+                </Link>
+              </ProfileHoverCard>
+              <span className="inline-flex items-center gap-1 text-sm font-semibold text-amber-500 shrink-0">
+                <Zap className="size-3.5 fill-amber-500" />
+                {zapAmountSats > 0 ? formatMoney(zapAmountSats) : "zapped"}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 pr-2">
+              {zapSenderNip05 && zapSenderNip05Pending && <Skeleton className="h-3 w-24" />}
+              {zapSenderNip05 && zapSenderNip05Pending && <span className="shrink-0">·</span>}
+              {zapSenderNip05 && zapSenderNip05Verified && (
+                <Nip05Badge nip05={zapSenderNip05} pubkey={zapSenderPubkey} />
+              )}
+              {zapSenderNip05 && zapSenderNip05Verified && <span className="shrink-0">·</span>}
+              <span className="shrink-0 whitespace-nowrap">{timeAgo(event.created_at)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* "Zapping @recipient" context, mirroring a reply's "Replying to" row */}
+        {zapRecipients.length > 0 && (
+          <ReplyContext
+            label="Zapping"
+            pubkeys={zapRecipients}
+            parentEventId={isNostrId(zappedEventId) ? zappedEventId : undefined}
+          />
+        )}
+
+        {/* The zap comment, rendered as normal reply body text */}
+        {zapMessage && (
+          <div className="mt-2 whitespace-pre-wrap break-words">
+            <NoteContent event={{ ...event, content: zapMessage }} className="text-[15px] leading-relaxed" />
+          </div>
+        )}
+
+        {/* Standard reply interaction bar, bound to the zap event */}
+        {actionButtons}
+        <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+        <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+      </article>
+    );
+  }
+
   if (isZap && profileZapRecipient && !isMultiRecipientOnchainZap) {
     const zapSats = getZapAmountSats(event);
     // Kind 8333: event.pubkey is the sender. Kind 9735: P tag / description.pubkey.
