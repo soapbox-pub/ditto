@@ -29,7 +29,7 @@ These event kinds were created by community contributors and are supported by Di
 | 8211  | Encrypted Letter       | Encrypted personal letter with visual stationery                 | [NIP](https://gitlab.com/chad.curtis/lief/-/blob/main/NIP.md)                            |
 | 1124  | Blobbi Social Interaction | Immutable interaction log for Blobbi social interactions       | See [Blobbi Social Interaction](#kind-1124-blobbi-social-interaction) below                |
 | 10133 | Payment Targets        | Donation endpoints (Bitcoin, Lightning, Monero, …) per RFC-8905 | [NIP-A3](https://github.com/ATXMJ/nips/blob/main/A3.md); see [Kind 10133](#kind-10133-payment-targets-nip-a3) below |
-| 11125 | Blobbonaut Profile     | Owner profile with coins, achievements, and inventory            | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
+| 11125 | Blobbonaut Profile     | Owner profile with coins, achievements, and progression          | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14919 | Blobbi Interaction     | Individual pet interaction (feed, play, clean, etc.)             | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14920 | Blobbi Breeding        | Breeding event between two adult Blobbis                         | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14921 | Blobbi Record          | Immutable lifecycle record (birth, evolution, adoption)          | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
@@ -666,7 +666,15 @@ Kind 16158 (replaceable) describes a weather station's configuration: name, geoh
 **App:** https://nostr-pet.vercel.app
 **See also:** [Blobbi tag schema](docs/blobbi/blobbi-tag-schema.md) (Ditto-specific integration details)
 
-NIP-BB defines a virtual pet lifecycle on Nostr. Kind 31124 (addressable) holds the current pet state across three stages (egg, baby, adult) with stats, appearance, and personality traits. Kind 14919 logs individual interactions, kind 14920 records breeding events, kind 14921 stores immutable lifecycle records, and kind 11125 (replaceable) holds the owner's profile with coins, achievements, and inventory.
+NIP-BB defines a virtual pet lifecycle on Nostr. Kind 31124 (addressable) holds the current pet state across three stages (egg, baby, adult) with stats, appearance, and personality traits. Kind 14919 logs individual interactions, kind 14920 records breeding events, kind 14921 stores immutable lifecycle records, and kind 11125 (replaceable) holds the owner's profile with coins, achievements, and progression.
+
+#### Consumable inventory is not part of Ditto's kind 11125 model
+
+Kind 11125 stores Blobbi owner profile data such as coins, achievements, XP, level, owned Blobbis, and room selection. **Ditto does not read or write consumable inventory on this event.** Care items are free and infinitely available, so there is no quantity, stock, or consumption model: nothing decrements on use and nothing is written on purchase.
+
+Pre-existing `storage` tags, written by earlier Ditto versions, are **preserved opaquely as unknown extension tags**. They are not in the managed tag set, so profile republishes carry them through tag-for-tag, in order, without parsing, normalizing, or deleting them — and a republish can never create or mutate them. Consumable inventory is no longer part of Ditto's active kind 11125 model.
+
+This is scoped to *consumable* inventory only. Other item-like concepts are unaffected and live elsewhere: room customization (`room_layouts`, `room_furniture` in `content`, documented below), owned Blobbis (`has` tags), and any host-specific cosmetic or accessory extension tags — such as Blobbi Island's `inv` tag, which Ditto neither writes nor interprets — remain independent of this event's consumable-inventory semantics.
 
 #### Kind 11125 `content` JSON — `missions` field
 
@@ -680,7 +688,7 @@ The `content` of kind 11125 is a JSON object. Ditto extends it with a `missions`
     "evolution": [ /* Mission[] — active hatch/evolve tasks, cleared on stage transition */ ],
     "rerolls": 2                // remaining daily mission rerolls
   }
-  // ...other profile fields (coins, achievements, inventory, etc.)
+  // ...other profile fields (coins, achievements, room customization, etc.)
 }
 ```
 
