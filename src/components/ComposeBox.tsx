@@ -266,6 +266,7 @@ export function ComposeBox({
   /** Maps .xdc URLs to extracted metadata (name + icon URL). */
   const [webxdcMetas, setWebxdcMetas] = useState<Map<string, { name?: string; iconUrl?: string }>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { insertAtCursor, insertEmoji: insertEmojiAtCursor } = useInsertText(textareaRef, setContent);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -310,10 +311,36 @@ export function ComposeBox({
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+    // In full-screen (forceExpanded) mode the textarea grows inside an
+    // overflow-y-auto container. Momentarily resetting the height to 'auto'
+    // collapses the textarea, which makes the container's content shorter than
+    // its viewport and clamps scrollTop back to 0 — the "jumps back up" bug.
+    // Capture the scroll position up front so we can restore it afterwards.
+    const container = scrollContainerRef.current;
+    const prevScrollTop = container?.scrollTop ?? 0;
     // Reset to auto so shrinking is detected correctly
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
-  }, [content, previewMode]);
+    if (forceExpanded && container) {
+      // Undo the scroll clamp caused by the 'auto' reset above.
+      container.scrollTop = prevScrollTop;
+      // When typing at the end, follow the caret so newly typed text stays
+      // visible once the textarea grows past the bottom of the viewport.
+      const caretAtEnd =
+        el.selectionStart === el.selectionEnd &&
+        el.selectionStart === el.value.length;
+      if (caretAtEnd) {
+        const containerRect = container.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const textareaBottom =
+          elRect.bottom - containerRect.top + container.scrollTop;
+        const desired = textareaBottom - container.clientHeight;
+        if (desired > container.scrollTop) {
+          container.scrollTop = desired;
+        }
+      }
+    }
+  }, [content, previewMode, forceExpanded]);
 
   // Auto-save draft content to localStorage (debounced to avoid thrashing)
   useEffect(() => {
@@ -1277,7 +1304,7 @@ export function ComposeBox({
 
         <div className={cn("flex-1 min-w-0", forceExpanded && "flex flex-col min-h-0")}>
           {/* Scrollable content area (textarea, poll, CW, quoted event) */}
-          <div className={cn(forceExpanded && "flex-1 min-h-0 overflow-y-auto")}>
+          <div ref={scrollContainerRef} className={cn(forceExpanded && "flex-1 min-h-0 overflow-y-auto")}>
           {!previewMode ? (
           /* ── Edit mode — Textarea ────────────────────────────── */
           <div className="relative">
