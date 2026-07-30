@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.34.3] - 2026-07-30
+
+Profile tabs are now shareable — link directly to someone's photos, articles, or any other tab. Media downloads now save to your device instead of opening in a new browser tab. Also includes fixes for the Lightning Wallet button on web and the compose textarea scrolling issue.
+
+### Added
+- Share and link directly to specific profile tabs via the URL
+
+### Changed
+- Images and media now save to your device when downloaded, instead of opening in a new tab
+
+### Fixed
+- Open in Lightning Wallet button not working on web
+- Full-screen compose textarea jumping to the top when typing at the bottom
+
 ## [2.34.2] - 2026-07-29
 
 User statuses now appear as cards in feeds and embeds, with custom emoji, expiration, and optional links. Zaps with comments show up as replies under posts. Wikipedia searches appear in your preferred language, and external links open in your phone's browser. Several fixes smooth out homepage navigation, live-stream search, and emoji loading.
