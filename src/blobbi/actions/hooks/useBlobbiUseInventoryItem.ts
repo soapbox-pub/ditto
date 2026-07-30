@@ -66,17 +66,6 @@ export interface UseBlobbiUseInventoryItemParams {
     allTags: string[][];
     /** Latest profile tags */
     profileAllTags: string[][];
-    /**
-     * Legacy consumable storage, read from pre-existing kind:11125 `storage`
-     * tags. Never read by Ditto — care items are free and infinitely available,
-     * so no inventory lookup, quantity check, or consumption happens here. This
-     * field only exists to satisfy the shape the kit still requires on the
-     * shared `ensureCanonicalBeforeAction` result (deprecated in blobbi-kit
-     * 0.2.0, scheduled for removal in a future kit major release).
-     *
-     * @deprecated Do not read. Kept only for the kit's backward-compatible contract.
-     */
-    profileStorage: import('@blobbi-kit/core/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;

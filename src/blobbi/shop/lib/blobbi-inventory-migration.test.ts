@@ -25,7 +25,7 @@ import type { BlobbiStats } from '@blobbi-kit/core/blobbi';
  * These assert OBSERVABLE behavior:
  *  - the care catalog is free/infinite (no quantity, no price gate on use);
  *  - kind:11125 profile writers never emit or mutate `storage` and preserve
- *    unknown extension tags (the kit's 0.2.0 contract, exercised directly);
+ *    unknown extension tags (the kit's 0.3.0 contract, exercised directly);
  *  - care-effect resolution stays catalog-driven and unchanged;
  *  - no reachable Ditto source imports deprecated storage APIs or writes storage;
  *  - no orphaned purchase system remains and no UI tells users to buy care items.
