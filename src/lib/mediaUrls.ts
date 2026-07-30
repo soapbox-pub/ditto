@@ -69,7 +69,8 @@ export function mimeFromExt(ext: string): string {
     case 'avi':  return 'video/x-msvideo';
     case 'mkv':  return 'video/x-matroska';
     case 'flv':  return 'video/x-flv';
-    case 'mp3':  return 'audio/mpeg';
+    case 'mp3':
+    case 'mpga': return 'audio/mpeg';
     case 'wav':  return 'audio/wav';
     case 'ogg':  return 'audio/ogg';
     case 'flac': return 'audio/flac';

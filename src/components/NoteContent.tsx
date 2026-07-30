@@ -827,7 +827,7 @@ export function NoteContent({
             const imeta = imetaMap.get(token.url);
             const mime = imeta?.mime ?? '';
             const isWebxdc = mime === 'application/x-webxdc' || mime === 'application/vnd.webxdc+zip' || token.url.endsWith('.xdc');
-            const isAudio = mime.startsWith('audio/') || /\.(mp3|wav|ogg|flac|m4a|aac|opus)(\?[^\s]*)?$/i.test(token.url);
+            const isAudio = mime.startsWith('audio/') || /\.(mp3|mpga|wav|ogg|flac|m4a|aac|opus)(\?[^\s]*)?$/i.test(token.url);
             if (isWebxdc && imeta) {
               return <WebxdcEmbed key={i} url={token.url} uuid={imeta.webxdc} name={imeta.summary} icon={imeta.thumbnail} />;
             }
