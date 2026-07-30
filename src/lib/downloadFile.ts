@@ -104,17 +104,66 @@ function filenameFromUrl(url: string): string {
  * {@link downloadBinaryFile}, which uses the `<a download>` blob trick on the
  * web and `Filesystem.writeFile` to Documents on native.
  *
- * If the fetch fails (e.g. CORS on a cross-origin host, or offline), we fall
- * back to {@link openUrl} so the user can still reach the file manually.
+ * Returns how the file was delivered so callers can give accurate feedback:
+ * `'downloaded'` when it was saved to disk, or `'opened'` when we had to fall
+ * back to opening it in a new tab / the external browser. Throws only if even
+ * the fallback fails.
+ *
+ * Platform notes:
+ * - **Android:** hands the URL to the system `DownloadManager` (via the native
+ *   `DittoDownload` plugin), which saves into the public Downloads folder with
+ *   a download notification. This is the only reliable way to reach Downloads
+ *   under scoped storage, and it fetches natively so it isn't subject to
+ *   WebView CORS.
+ * - **iOS:** uses `Filesystem.downloadFile` (a native HTTP GET, also CORS-free)
+ *   into the app's Documents directory — the sandbox forbids a true top-level
+ *   or system Downloads folder. `UIFileSharingEnabled` /
+ *   `LSSupportsOpeningDocumentsInPlace` in Info.plist surface that directory
+ *   as the "Ditto" folder in the Files app so the file is reachable.
+ * - **Web:** fetches the bytes and saves them via the `<a download>` blob
+ *   trick. Browsers only allow a page to read (and therefore save) a
+ *   cross-origin resource when the host sends CORS headers; when it doesn't,
+ *   the fetch throws and we fall back to opening the file in a new tab, since
+ *   there is no client-side way to force a download of an unreadable resource.
  */
-export async function downloadUrl(url: string, filename?: string): Promise<void> {
+export async function downloadUrl(url: string, filename?: string): Promise<'downloaded' | 'opened'> {
+  const name = filename ?? filenameFromUrl(url);
+
+  if (Capacitor.getPlatform() === 'android') {
+    try {
+      const { DittoDownloader } = await import('./dittoDownloader');
+      await DittoDownloader.download({ url, filename: name });
+      return 'downloaded';
+    } catch {
+      await openUrl(url);
+      return 'opened';
+    }
+  }
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const { Filesystem, Directory } = await import('@capacitor/filesystem');
+      await Filesystem.downloadFile({
+        url,
+        path: name,
+        directory: Directory.Documents,
+      });
+      return 'downloaded';
+    } catch {
+      await openUrl(url);
+      return 'opened';
+    }
+  }
+
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
     const bytes = new Uint8Array(await res.arrayBuffer());
-    await downloadBinaryFile(filename ?? filenameFromUrl(url), bytes);
+    await downloadBinaryFile(name, bytes);
+    return 'downloaded';
   } catch {
     await openUrl(url);
+    return 'opened';
   }
 }
 

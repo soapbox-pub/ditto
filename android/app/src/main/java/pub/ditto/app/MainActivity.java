@@ -20,6 +20,7 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         // Register native plugins before super.onCreate.
         registerPlugin(DittoNotificationPlugin.class);
+        registerPlugin(DittoDownloadPlugin.class);
 
         super.onCreate(savedInstanceState);
 

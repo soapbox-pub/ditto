@@ -21,7 +21,7 @@ import { readFileSync, writeFileSync, rmSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
 /** Local plugin class names to ensure are registered. */
-const LOCAL_PLUGINS = ['SandboxPlugin', 'DittoNotificationPlugin'];
+const LOCAL_PLUGINS = ['SandboxPlugin', 'DittoNotificationPlugin', 'DittoDownloadPlugin'];
 
 /**
  * Web-only files that `cap sync` copies from dist/ but that have no purpose
