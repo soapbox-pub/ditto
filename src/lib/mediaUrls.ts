@@ -5,7 +5,7 @@ export const IMAGE_EXTS = 'jpg|jpeg|png|gif|webp|svg|avif';
 export const VIDEO_EXTS = 'mp4|webm|mov|qt|avi|mkv|flv';
 
 /** Audio extensions rendered as players. */
-export const AUDIO_EXTS = 'mp3|wav|ogg|flac|m4a|aac|opus';
+export const AUDIO_EXTS = 'mp3|mpga|wav|ogg|flac|m4a|aac|opus';
 
 /** All media extensions (image + video + audio + webxdc). */
 export const ALL_MEDIA_EXTS = `${IMAGE_EXTS}|${VIDEO_EXTS}|${AUDIO_EXTS}|xdc`;
