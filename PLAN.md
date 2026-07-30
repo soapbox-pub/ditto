@@ -62,9 +62,16 @@ repo it touches.
   carrying the whole batch, not one call per question. This requires `AgentSession` (T1.4) to
   expose a generic "pending host input" tool-result state (not hardcoded to this one tool) —
   a tool's `execute()` can pause a turn, surface structured data via `getSnapshot()` for the
-  host UI to render, and resume once the host supplies an answer. Ditto's tool-registry
-  framework (T3.2) and chat surface need UI support for rendering this pending-question state
-  (exact UI TBD, needs its own grilling pass alongside the rest of Phase 3). Shipped alongside
+  host UI to render, and resume once the host supplies an answer. Refined 2026-07-30 to be
+  persistence-safe: since chat sessions are `localStorage`-persisted and reloadable mid-
+  conversation (see the "chat history" decision above), and OpenAI's tool-calling protocol
+  requires every `tool_calls` entry get a matching `tool`-role result before the model can be
+  called again, the pending state cannot be an in-memory-only suspended `Promise` (that would
+  orphan the tool call permanently on reload) — it must be plain, serializable data included
+  in whatever gets persisted, so a reload restores the outstanding question. See Ticket D4 in
+  `nostr-canvas`'s `PLAN.md` for the exact API shape. Ditto's tool-registry framework (T3.2)
+  and chat surface need UI support for rendering this pending-question state (exact UI TBD,
+  needs its own grilling pass alongside the rest of Phase 3). Shipped alongside
   a shared, devkit-exported widget-creation system prompt (`getWidgetCreationSystemPrompt()` or
   similar) so both tile-studio (Phase 2) and Ditto (Phase 3) get the same battle-tested
   requirements-gathering workflow rather than each writing their own: ask 3-5 scoping questions
@@ -210,9 +217,13 @@ generalized from tile-studio's already-mostly-pure `src/lib/*`.
       compaction triggers and `getSnapshot()` reflects the compacted history; `stop()` aborts an
       in-flight turn; a context-length error triggers pruning rather than surfacing as a hard
       failure; `subscribe`'s listener fires on every state transition (streaming delta, tool
-      call, completion, error). Also introduces the generic pending-host-input tool-result
-      state (see decision record) — a test that a tool requesting pending-host-input pauses
-      the turn, surfaces via `getSnapshot()`, and resumes correctly once the host resolves it.
+      call, completion, error). Also introduces the generic, persistence-safe pending-host-
+      input tool-result state (see decision record) — a test that a tool requesting
+      pending-host-input pauses the turn (assistant `tool_calls` message already in history,
+      no further model call), surfaces via `getSnapshot()`, and resumes correctly once the
+      host resolves it; a serialize/deserialize round-trip test confirming a snapshot taken
+      while `pendingInput` is set survives being written to and restored from a plain JSON
+      store, and that a freshly restored session can still be resolved from that state.
 - [ ] **T1.5 `ask_questions` tool + widget-creation system prompt.** (grilled 2026-07-30) The
       12th devkit tool: the AI calls `ask_questions` with a batch of 3-5 short, plain-English
       clarifying questions (optionally with suggested multiple-choice-style answers) to pause
