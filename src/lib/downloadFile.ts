@@ -78,6 +78,47 @@ export async function downloadBinaryFile(filename: string, bytes: Uint8Array): P
 }
 
 /**
+ * Derive a sensible download filename from a URL.
+ *
+ * Uses the last non-empty path segment (query string stripped). Falls back to
+ * a generic name when the URL has no usable path (e.g. bare host, or a hash
+ * that isn't a real filename).
+ */
+function filenameFromUrl(url: string): string {
+  try {
+    const { pathname } = new URL(url);
+    const segment = pathname.split('/').filter(Boolean).pop();
+    if (segment) return decodeURIComponent(segment);
+  } catch {
+    // fall through
+  }
+  return 'download';
+}
+
+/**
+ * Download the contents of a URL to the user's device.
+ *
+ * Unlike {@link openUrl}, this saves the file rather than navigating to it —
+ * on the web a bare `openUrl` just opens the image/asset in a new tab instead
+ * of triggering a download. We fetch the bytes and hand them to
+ * {@link downloadBinaryFile}, which uses the `<a download>` blob trick on the
+ * web and `Filesystem.writeFile` to Documents on native.
+ *
+ * If the fetch fails (e.g. CORS on a cross-origin host, or offline), we fall
+ * back to {@link openUrl} so the user can still reach the file manually.
+ */
+export async function downloadUrl(url: string, filename?: string): Promise<void> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    await downloadBinaryFile(filename ?? filenameFromUrl(url), bytes);
+  } catch {
+    await openUrl(url);
+  }
+}
+
+/**
  * Open a URL in the phone's external browser (or a new tab on the web).
  *
  * The programmatic `<a target="_blank">` click pattern doesn't work inside

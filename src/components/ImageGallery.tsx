@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
 import { isValidBlurhash } from '@/lib/blurhash';
-import { openUrl } from '@/lib/downloadFile';
+import { downloadUrl } from '@/lib/downloadFile';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { VideoPlayer } from '@/components/VideoPlayer';
@@ -533,7 +533,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation(); e.preventDefault();
-    openUrl(currentUrl);
+    downloadUrl(currentUrl);
   };
 
   // Only render the current image and its immediate neighbours
@@ -564,7 +564,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
           )}
           <div className="flex items-center gap-1">
             {showDownload && (
-              <button onClick={handleDownload} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="Open original">
+              <button onClick={handleDownload} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="Download">
                 <Download className="size-5" />
               </button>
             )}
