@@ -1339,6 +1339,10 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   // The active tab is mirrored to the URL hash as a lowercase slug so a profile
   // tab can be linked and shared, e.g. `/npub1…#cool-stuff`. The first (default)
   // tab keeps a clean, hash-free URL.
+  //
+  // Only `selectTab` (invoked from user gestures) writes the URL; the effect
+  // below is strictly read-only (hash → active tab). Keeping navigation out of
+  // the effect is what prevents an activeTab↔hash update loop.
   const hashSlug = useMemo(() => {
     let raw = location.hash.replace(/^#/, '');
     if (!raw) return null;
@@ -1350,28 +1354,24 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     return slugifyTabLabel(raw) || null;
   }, [location.hash]);
 
-  // Gate the outward activeTab→hash sync until the incoming hash has been read,
-  // so a shared `#tab` link isn't clobbered by the default selection on mount.
-  const tabHashInitialized = useRef(false);
-
   // Select the tab whose slug matches the URL hash once tabs are known; fall back
-  // to the leftmost tab. Re-runs on hash changes too, so back/forward works.
+  // to the leftmost tab. Re-runs on hash changes too, so back/forward works. This
+  // never navigates, so it can't feed back into selectTab's writes.
   useEffect(() => {
     if (!profileTabsQuery.isFetched) return;
     const match = hashSlug ? viewTabs.find((t) => slugifyTabLabel(t.label) === hashSlug) : undefined;
     const targetId = match ? (CORE_TAB_IDS[match.label] ?? match.label) : firstTabId;
     setActiveTab((prev) => (prev === targetId ? prev : targetId));
-    tabHashInitialized.current = true;
   }, [profileTabsQuery.isFetched, hashSlug, viewTabs, firstTabId]);
 
-  // Mirror the active tab back into the URL hash so the current tab is always
-  // shareable. Uses `replace` so switching tabs doesn't spam browser history.
-  useEffect(() => {
-    if (!tabHashInitialized.current) return;
-    const label = CORE_ID_TO_LABEL[activeTab] ?? activeTab;
-    const desiredSlug = activeTab === firstTabId ? '' : slugifyTabLabel(label);
+  // Switch tabs from a user gesture: update state and mirror the tab into the URL
+  // hash. The first/default tab clears the hash for a clean, shareable base URL.
+  const selectTab = useCallback((tabId: string) => {
+    setActiveTab(tabId);
+    const label = CORE_ID_TO_LABEL[tabId] ?? tabId;
+    const desiredSlug = tabId === firstTabId ? '' : slugifyTabLabel(label);
     // Compare against the live hash normalized back to a slug, so browser
-    // percent-encoding of the hash doesn't trigger a redundant re-navigation.
+    // percent-encoding never triggers a redundant navigation.
     let currentRaw = window.location.hash.replace(/^#/, '');
     try {
       currentRaw = decodeURIComponent(currentRaw);
@@ -1381,7 +1381,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     if (slugifyTabLabel(currentRaw) !== desiredSlug) {
       navigate({ hash: desiredSlug ? `#${desiredSlug}` : '' }, { replace: true, preventScrollReset: true });
     }
-  }, [activeTab, firstTabId, navigate]);
+  }, [firstTabId, navigate]);
 
   const enterTabEditMode = () => {
     setLocalTabs(viewTabs);
@@ -1424,7 +1424,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     // If the active tab was removed, fall back to the first remaining tab
     const remainingIds = localTabs.map((t) => CORE_TAB_IDS[t.label] ?? t.label);
     if (!remainingIds.includes(activeTab)) {
-      setActiveTab(remainingIds[0] ?? 'posts');
+      selectTab(remainingIds[0] ?? 'posts');
     }
     setTabEditMode(false);
   };
@@ -1456,7 +1456,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   useEffect(() => {
     const isCoreTab = ['posts', 'replies', 'media', 'badges', 'likes', 'wall'].includes(activeTab);
     if (!isCoreTab && !profileSavedTabs.find((t) => t.label === activeTab)) {
-      setActiveTab(firstTabId);
+      selectTab(firstTabId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileSavedTabs, firstTabId]);
@@ -2055,9 +2055,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const openWallCompose = useCallback(() => setWallComposeOpen(true), []);
 
   const handleSidebarMediaClick = useCallback((url: string) => {
-    setActiveTab('media');
+    selectTab('media');
     setSidebarMediaUrl(url);
-  }, []);
+  }, [selectTab]);
 
   useLayoutOptions(pubkey ? {
     rightSidebar: <ProfileRightSidebar fields={fields} pubkey={pubkey} onMediaClick={handleSidebarMediaClick} />,
@@ -2610,7 +2610,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 label={tabDisplayLabel(tab.label)}
                 active={activeTab === tabId}
                 onClick={() => {
-                  setActiveTab(tabId);
+                  selectTab(tabId);
                   if (tab.label === 'Media') setSidebarMediaUrl(null);
                 }}
                 className="flex-initial shrink-0 px-4"
@@ -2632,7 +2632,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                           key={tab.label}
                           tab={tab}
                           active={activeTab === tabId}
-                          onSelect={() => setActiveTab(tabId)}
+                          onSelect={() => selectTab(tabId)}
                           onRemove={() => handleRemoveLocalTab(tab.label)}
                           onEdit={!tab.isCore && tab.tab ? () => { setEditingTab(tab.tab); setTabModalOpen(true); } : undefined}
                         />
@@ -2664,7 +2664,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     {missingDefaults.map((label) => {
                       const tabId = CORE_TAB_IDS[label] ?? label;
                       return (
-                        <DropdownMenuItem key={label} onClick={() => setActiveTab(tabId)}>
+                        <DropdownMenuItem key={label} onClick={() => selectTab(tabId)}>
                           {tabDisplayLabel(label)}
                         </DropdownMenuItem>
                       );
