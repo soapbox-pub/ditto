@@ -514,9 +514,17 @@ export function ZapDialogImpl({
     }
   };
 
-  const openInWallet = () => {
+  const openInWallet = async () => {
     if (invoice) {
-      openUrl(`lightning:${invoice}`);
+      try {
+        await openUrl(`lightning:${invoice}`);
+      } catch {
+        toast({
+          title: 'Could not open wallet',
+          description: 'No lightning wallet app is installed to handle this invoice.',
+          variant: 'destructive',
+        });
+      }
     }
   };
 

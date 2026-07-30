@@ -134,7 +134,14 @@ export async function openUrl(url: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
     const { AppLauncher } = await import('@capacitor/app-launcher');
     await AppLauncher.openUrl({ url });
-  } else {
+  } else if (/^https?:/i.test(url)) {
+    // Web pages: open in a new tab.
     window.open(url, '_blank', 'noopener,noreferrer');
+  } else {
+    // Custom schemes (lightning:, bitcoin:, monero:, …) don't launch their
+    // registered handler from a `_blank` popup — browsers only invoke the
+    // protocol handler on a top-level navigation. Assigning `location.href`
+    // triggers the external app without actually unloading the current page.
+    window.location.href = url;
   }
 }
