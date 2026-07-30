@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useInView } from '@/hooks/useInView';
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -969,6 +969,21 @@ const CORE_TAB_IDS: Record<string, string> = {
   'Media': 'media', 'Badges': 'badges', 'Likes': 'likes', 'Wall': 'wall',
 };
 
+// Reverse of CORE_TAB_IDS: internal tab id → canonical label. Used to derive the
+// shareable URL slug for the active core tab (custom tabs use their label as-is).
+const CORE_ID_TO_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(CORE_TAB_IDS).map(([label, id]) => [id, label]),
+);
+
+// Turn a tab label into a lowercase, URL-friendly slug for the shareable hash,
+// e.g. 'Posts & replies' → 'posts-replies', 'Cool Stuff' → 'cool-stuff'. Unicode
+// letters/numbers are preserved (lowercased) so non-Latin labels still slug.
+const slugifyTabLabel = (label: string): string =>
+  label
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '');
+
 // Map a canonical tab label to its user-facing display text. The canonical
 // label (e.g. 'Posts') is kept for the internal tab id and the serialized
 // kind 16769 event (cross-client interop); only the rendered text differs.
@@ -1019,6 +1034,8 @@ function ProfilePageInner() {
   const { config } = useAppContext();
   const params = useParams();
   const npub = params.npub ?? params.nip19;
+  const navigate = useNavigate();
+  const location = useLocation();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { toast } = useToast();
@@ -1318,12 +1335,53 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     return CORE_TAB_IDS[first.label] ?? first.label;
   }, [viewTabs]);
 
-  // When profile tabs finish loading, focus the leftmost tab.
-  useEffect(() => {
-    if (profileTabsQuery.isFetched) {
-      setActiveTab(firstTabId);
+  // ── Deep-linkable tabs ──────────────────────────────────────────────────────
+  // The active tab is mirrored to the URL hash as a lowercase slug so a profile
+  // tab can be linked and shared, e.g. `/npub1…#cool-stuff`. The first (default)
+  // tab keeps a clean, hash-free URL.
+  const hashSlug = useMemo(() => {
+    let raw = location.hash.replace(/^#/, '');
+    if (!raw) return null;
+    try {
+      raw = decodeURIComponent(raw);
+    } catch {
+      // keep the raw (already-decoded) value
     }
-  }, [profileTabsQuery.isFetched, firstTabId]);
+    return slugifyTabLabel(raw) || null;
+  }, [location.hash]);
+
+  // Gate the outward activeTab→hash sync until the incoming hash has been read,
+  // so a shared `#tab` link isn't clobbered by the default selection on mount.
+  const tabHashInitialized = useRef(false);
+
+  // Select the tab whose slug matches the URL hash once tabs are known; fall back
+  // to the leftmost tab. Re-runs on hash changes too, so back/forward works.
+  useEffect(() => {
+    if (!profileTabsQuery.isFetched) return;
+    const match = hashSlug ? viewTabs.find((t) => slugifyTabLabel(t.label) === hashSlug) : undefined;
+    const targetId = match ? (CORE_TAB_IDS[match.label] ?? match.label) : firstTabId;
+    setActiveTab((prev) => (prev === targetId ? prev : targetId));
+    tabHashInitialized.current = true;
+  }, [profileTabsQuery.isFetched, hashSlug, viewTabs, firstTabId]);
+
+  // Mirror the active tab back into the URL hash so the current tab is always
+  // shareable. Uses `replace` so switching tabs doesn't spam browser history.
+  useEffect(() => {
+    if (!tabHashInitialized.current) return;
+    const label = CORE_ID_TO_LABEL[activeTab] ?? activeTab;
+    const desiredSlug = activeTab === firstTabId ? '' : slugifyTabLabel(label);
+    // Compare against the live hash normalized back to a slug, so browser
+    // percent-encoding of the hash doesn't trigger a redundant re-navigation.
+    let currentRaw = window.location.hash.replace(/^#/, '');
+    try {
+      currentRaw = decodeURIComponent(currentRaw);
+    } catch {
+      // keep the raw value
+    }
+    if (slugifyTabLabel(currentRaw) !== desiredSlug) {
+      navigate({ hash: desiredSlug ? `#${desiredSlug}` : '' }, { replace: true, preventScrollReset: true });
+    }
+  }, [activeTab, firstTabId, navigate]);
 
   const enterTabEditMode = () => {
     setLocalTabs(viewTabs);
