@@ -52,7 +52,29 @@ repo it touches.
 - **devkit v1 tool list**: all 11 of tile-studio's tools minus the 2 already cut (lint,
   capability-nudge) — `read_code`, `write_code`, `edit_code`, `read_spec`, `read_examples`,
   `search_nips`, `fetch_nip`, `set_tile`, `get_tile`, `preview_tile`, `set_notes`. Confirmed, no
-  further scoping needed for T1.3.
+  further scoping needed for T1.3. Plus a 12th tool added later (grilled 2026-07-30): see
+  `ask_questions` below.
+- **`ask_questions` tool + requirements-gathering workflow** (grilled 2026-07-30): the tile-
+  authoring toolset gains a 12th tool, `ask_questions` — the AI calls it with a small batch
+  (3-5) of short, plain-English clarifying questions (optionally with a few suggested
+  multiple-choice-style answers, matching this environment's own `question` tool UX) to pause
+  the turn and collect structured answers before writing any code. Single blocking call
+  carrying the whole batch, not one call per question. This requires `AgentSession` (T1.4) to
+  expose a generic "pending host input" tool-result state (not hardcoded to this one tool) —
+  a tool's `execute()` can pause a turn, surface structured data via `getSnapshot()` for the
+  host UI to render, and resume once the host supplies an answer. Ditto's tool-registry
+  framework (T3.2) and chat surface need UI support for rendering this pending-question state
+  (exact UI TBD, needs its own grilling pass alongside the rest of Phase 3). Shipped alongside
+  a shared, devkit-exported widget-creation system prompt (`getWidgetCreationSystemPrompt()` or
+  similar) so both tile-studio (Phase 2) and Ditto (Phase 3) get the same battle-tested
+  requirements-gathering workflow rather than each writing their own: ask 3-5 scoping questions
+  in plain English (via `ask_questions`) to turn a vague user request into concrete
+  requirements — most users driving this won't be engineers — → read relevant TIPs
+  (`read_spec`/`read_examples`) → explain in plain English what the tile will do → write the
+  code (`write_code`/`edit_code`) and iterate against `preview_tile`. Ships with one fully
+  worked example session embedded as a few-shot (vague widget request → clarifying questions →
+  TIP lookups → plain-English explanation → resulting code). Tracked as Ticket D5 in
+  `nostr-canvas`'s own `PLAN.md` (Phase 6), shifting that repo's former D5/D6 to D6/D7.
 - **Live preview**: yes, in v1 (tile-studio's live-updating preview-as-you-edit experience,
   not deferred).
 - **Preview runtime isolation**: the chat's preview mounts its **own separate**
@@ -145,7 +167,9 @@ generalized from tile-studio's already-mostly-pure `src/lib/*`.
 - [ ] **T1.3 Port the `Tool` framework + tile-authoring toolset.** `Tool` interface, `toolToOpenAI`,
       hashline utilities, and all 11 in-scope tools (`read_code`, `write_code`, `edit_code`,
       `read_spec`, `read_examples`, `search_nips`, `fetch_nip`, `set_tile`, `get_tile`,
-      `preview_tile`, `set_notes`). Notable deltas from tile-studio's originals:
+      `preview_tile`, `set_notes`). A 12th tool, `ask_questions`, is added later as its own
+      ticket (T1.5, once T1.4's pending-host-input mechanism exists — see decision record).
+      Notable deltas from tile-studio's originals:
       - `write_code`/`edit_code` **drop** their inline `luaLint()`/`capabilityNudge()` calls and
         appended diagnostics entirely — consistent with the "skip static analysis for v1"
         decision applying to embedded diagnostics too, not just the two already-cut standalone
@@ -186,8 +210,25 @@ generalized from tile-studio's already-mostly-pure `src/lib/*`.
       compaction triggers and `getSnapshot()` reflects the compacted history; `stop()` aborts an
       in-flight turn; a context-length error triggers pruning rather than surfacing as a hard
       failure; `subscribe`'s listener fires on every state transition (streaming delta, tool
-      call, completion, error).
-- [ ] **T1.5 Port the preview/runtime driver.** `StubAdapter` + "build tile-def event from
+      call, completion, error). Also introduces the generic pending-host-input tool-result
+      state (see decision record) — a test that a tool requesting pending-host-input pauses
+      the turn, surfaces via `getSnapshot()`, and resumes correctly once the host resolves it.
+- [ ] **T1.5 `ask_questions` tool + widget-creation system prompt.** (grilled 2026-07-30) The
+      12th devkit tool: the AI calls `ask_questions` with a batch of 3-5 short, plain-English
+      clarifying questions (optionally with suggested multiple-choice-style answers) to pause
+      the turn via T1.4's pending-host-input state and collect structured answers before
+      writing any code — single blocking call for the whole batch, not one call per question.
+      Alongside it, a shared `getWidgetCreationSystemPrompt()` (or similar) export describing
+      the requirements-gathering workflow any host wires up: ask scoping questions → read
+      relevant TIPs (`read_spec`/`read_examples`) → explain in plain English what the tile will
+      do → write the code and iterate against `preview_tile`. Includes one fully worked example
+      session as a few-shot. Tracked in detail as Ticket D5 in `nostr-canvas`'s own `PLAN.md`.
+      *Eval:* proposed — unit tests against a mocked `AgentSession` asserting the turn pauses
+      with the given questions, resolves once answers are supplied, and validates malformed
+      input (empty array, more than 5 questions, missing text); a snapshot/golden test that the
+      exported prompt contains all four workflow stages plus the embedded example session; no
+      live-model test (Phase 2/3's own manual smoke tests cover that).
+- [ ] **T1.6 Port the preview/runtime driver.** `StubAdapter` + "build tile-def event from
       source, register into a fresh isolated runtime, get output, tear down on next edit" as a
       headless function, independent of tile-studio's `TilePreviewCard` React component.
       *Eval:* a test that builds a trivial tile from Lua source, drives the preview function, and
@@ -195,7 +236,7 @@ generalized from tile-studio's already-mostly-pure `src/lib/*`.
       real signing/publishing/encryption (spy assertions); a third confirming a second
       preview call tears down the prior runtime instance before starting the next (no leaked
       workers). Manual smoke-test once T2 wires it into tile-studio's client.
-- [ ] **T1.6 Release.** Version bump + `npm publish`, matching the 0.12.3/0.12.4 pipeline exercised
+- [ ] **T1.7 Release.** Version bump + `npm publish`, matching the 0.12.3/0.12.4 pipeline exercised
       today.
       *Eval:* package installable from the registry; `npm view` shows the new version.
 
