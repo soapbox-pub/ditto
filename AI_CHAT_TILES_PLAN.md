@@ -338,7 +338,7 @@ before T9.1-T9.3 can use the same TDD dispatch pattern.
       harness + baseline tests for pre-devkit-migration code (T9.0)"). 14 test files, 100 tests,
       covering the 11 tool classes + `openai-adapter.ts`. No baseline test for `useAISession.ts`
       itself (the hook) — noted as a gap when T9.1 was scoped 2026-07-31, see T9.1's note below.
-- [ ] **T9.1 Swap session + tools + AI provider — split into (a)/(b)/(c), (a) done 2026-08-01.**
+- [ ] **T9.1 Swap session + tools + AI provider — split into (a)/(b)/(c), (a)+(b) done 2026-08-01.**
       Scope (locked 2026-07-31, see prior git history for the full API-gap research if needed):
       `useAISession.ts` → devkit's `AgentSession` via a new `useAgentSession.ts` hook
       (`useSyncExternalStore`-based); 9 of 11 local tool classes (`ReadCodeTool`, `WriteCodeTool`,
@@ -368,21 +368,40 @@ before T9.1-T9.3 can use the same TDD dispatch pattern.
             to `ChatCompletionMessageParam` usage elsewhere). Fixed the `ChatPane.tsx:1090`
             `ActionEntry.kind`-missing build error as part of the same commit. Gate: 120/120
             vitest, clean `tsc -b`, clean `eslint .` (0 errors), clean `vite build`.
-      - [ ] **(b) not started** — add `ask_questions` (devkit's 12th tool, pauses a turn via
-            `ToolPendingInputResult`/`resolvePendingInput`, already exposed by `useAgentSession.ts`'s
-            `pendingInput`/`resolvePendingInput` return fields from (a)) to the `EditorPage.tsx`
-            tools map, plus a minimal pending-input UI in `ChatPane.tsx` (question(s) + optional
-            suggestions + text input, blocks further sends until answered). Same full TDD pattern.
+      - [x] **(b) done — committed `b385164`, pushed.** Registered devkit's `AskQuestionsTool`
+            in the tools map. Added `PendingQuestionsCard` to `ChatPane.tsx` (per-question text
+            input + optional suggestion pills reusing the existing `pillClassName` helper, submit
+            disabled until every question is answered). Wired `pendingInput`/`resolvePendingInput`
+            (already exposed since (a)) through to `ChatPane`; `ChatInput` disabled while a
+            pending input is unresolved. Added a short "Clarifying questions" subsection to
+            `system-prompt.ts`. Full TDD cycle only on the one piece of real pure logic —
+            `src/lib/pending-input.ts` (`parseAskQuestionsData`: defensive runtime validation of
+            the tool's `data: unknown` payload; `formatQuestionsAnswer`: composes per-question
+            answers into the `resolvePendingInput` tool-result string) — 23 frozen tests,
+            test-writer → independent tester confirmed clean red → implementer (same dispatch also
+            did the UI/wiring, which has no test precedent in this repo — `ChatPane.tsx` has zero
+            component-test coverage) → primary read the full diff directly and caught one real bug
+            self-report missed: the new `handleAnswerQuestions` callback's dep array used
+            `session.resolvePendingInput` instead of `session` itself, a *new*
+            `react-hooks/exhaustive-deps` warning the coder's self-report mischaracterized as
+            pre-existing — independently confirmed via `git show HEAD:...` that the line didn't
+            exist before this diff, fixed directly to match the file's existing `session`-in-deps
+            convention → independent `tester` re-ran the full gate (143/143, clean tsc/eslint/
+            build) → independent `researcher` review (skill: review) clean. No live end-to-end
+            manual QA session was run (would need a real AI provider key + browser interaction,
+            outside this environment) — flagged to the user as a manual follow-up before treating
+            the `ask_questions` UX as fully verified.
       - [ ] **(c) not started** — delete `useAISession.ts` and the 9 replaced local tool files
             (`ReadCodeTool.ts`, `WriteCodeTool.ts`, `EditCodeTool.ts`, `SearchNIPsTool.ts`,
             `FetchNIPTool.ts`, `GetTileTool.ts`, `PreviewTileTool.ts`, `SetNotesTool.ts`,
             `SetTileTool.ts`) + their now-orphaned `__tests__/*.test.ts` files; confirm no dead
             code/imports remain; final full green `pnpm test`/`pnpm build`/`pnpm lint`.
       *Eval:* T9.0's tool/adapter baseline tests for the 9 swapped tools retired (deleted in (c)
-      alongside the files they tested); `useAgentSession.ts`'s own new test suite (from (a)) plus
-      (b)'s `ask_questions`/pending-input tests pass; manual end-to-end session: ask the AI to
-      write a trivial tile, confirm tool calls execute, code updates in the editor, and an
-      `ask_questions` call pauses correctly and resumes on answer.
+      alongside the files they tested); `useAgentSession.ts`'s own test suite (a) plus
+      `pending-input.ts`'s test suite (b) pass — both done. Still outstanding: a manual
+      end-to-end session (ask the AI to write a trivial tile, confirm tool calls execute, code
+      updates in the editor, and an `ask_questions` call pauses correctly and resumes on answer)
+      — needs a real provider key + browser, do before calling T9.1 fully verified.
 - [ ] **T9.2 Swap the preview driver.** `StubAdapter` + `TilePreview.tsx`'s build/register/
       teardown logic → devkit's `PreviewSession` + `PreviewAdapter`, wrapped around
       tile-studio's **existing** real adapter (`src/lib/adapter.ts`) — no new login/signer work
