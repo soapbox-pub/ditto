@@ -24,6 +24,13 @@ public class MainActivity extends BridgeActivity {
 
         super.onCreate(savedInstanceState);
 
+        // The Android WebView draws its own native overlay scrollbar on the
+        // document scroller, independent of the page's CSS (which already hides
+        // all web scrollbars). Disable it at the View level so long feeds don't
+        // show a scrollbar.
+        getBridge().getWebView().setVerticalScrollBarEnabled(false);
+        getBridge().getWebView().setHorizontalScrollBarEnabled(false);
+
         // Route SPA paths (e.g. /alex@gleasonator.com) back to index.html. Without
         // this, Capacitor treats any path with a dotted final segment as a static
         // file request and the WebView fails with net::ERR_INVALID_RESPONSE instead
