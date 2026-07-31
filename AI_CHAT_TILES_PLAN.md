@@ -334,25 +334,59 @@ infra. tile-studio also has **zero test infrastructure today** (no test script, 
 `*.test.ts` files anywhere) — unlike nostr-canvas's D4-D6 work, so a harness has to be stood up
 before T9.1-T9.3 can use the same TDD dispatch pattern.
 
-- [ ] **T9.0 Stand up vitest in tile-studio.** New ticket, added 2026-07-31. Installs vitest +
-      config, and writes baseline tests characterizing *current* pre-migration behavior
-      (`useAISession.ts`, `StubAdapter`, `src/lib/tools/*`) as a regression safety net before
-      T9.1/T9.2 replace those files wholesale. **Dispatch pattern differs from T9.1-T9.3:**
-      single coder dispatch (harness + baseline tests together, since there's no not-yet-built
-      contract to freeze tests against — the current code already defines the expected
-      behavior) + a separate verifier confirming the tests are meaningful (not tautological) and
-      passing. No test-writer/red-confirm split. *Eval:* `pnpm test` (or equivalent) runs and
-      passes against current code; verifier confirms the baseline tests would actually fail if
-      the characterized behavior changed (not just trivially-true assertions).
-- [ ] **T9.1 Swap session + tools + AI provider.** `useAISession.ts` → devkit's `AgentSession`;
-      `src/lib/tools/*` → devkit's 11 (+`ask_questions`) tools; `openai-adapter.ts` → devkit's
-      `ai-provider.ts`. Delete all replaced local files. Full TDD dispatch pattern (test-writer →
-      primary reads → independent tester confirms red → implementer → primary re-verifies →
-      separate verifier), same as D4-D6. *Eval:* TBD, needs its own short grilling pass right
-      before dispatch (per the grilling skill) — proposed: T9.0's baseline tests for these files
-      are retired/rewritten against the new implementation and pass; manual end-to-end session:
-      ask the AI to write a trivial tile, confirm tool calls execute and code updates in the
-      editor.
+- [x] **T9.0 Stand up vitest in tile-studio — done.** Committed `4398767` ("test: stand up vitest
+      harness + baseline tests for pre-devkit-migration code (T9.0)"). 14 test files, 100 tests,
+      covering the 11 tool classes + `openai-adapter.ts`. No baseline test for `useAISession.ts`
+      itself (the hook) — noted as a gap when T9.1 was scoped 2026-07-31, see T9.1's note below.
+- [ ] **T9.1 Swap session + tools + AI provider — scoped 2026-07-31, not yet implemented.**
+      `useAISession.ts` → devkit's `AgentSession`; `src/lib/tools/*` → devkit's 11 (+
+      `ask_questions`) tools; `openai-adapter.ts` → devkit's `ai-provider.ts`. Delete all replaced
+      local files. Full TDD dispatch pattern (test-writer → primary reads → independent tester
+      confirms red → implementer → primary re-verifies → separate verifier), same as D4-D6.
+
+      **API-gap research done 2026-07-31** (dispatched researcher, full comparison in that
+      session's transcript, summarized here for continuity):
+      - `AgentSession` is a plain, host-agnostic class (`subscribe`/`getSnapshot`/`send`/`stop`/
+        `compact`/`serialize`/`deserialize`/`resolvePendingInput`), not a hook — tile-studio needs
+        a **new `useAgentSession.ts`** bridging it via `useSyncExternalStore(session.subscribe,
+        session.getSnapshot)`. Devkit's `./devkit` subpath is confirmed React-free.
+      - Of the 11 current tool classes, 8 are byte-identical to their devkit counterparts
+        (`ReadCodeTool`, `WriteCodeTool`, `EditCodeTool`, `SearchNIPsTool`, `FetchNIPTool`,
+        `GetTileTool`, `PreviewTileTool`, `SetNotesTool`) — pure swap, no adaptation needed.
+        `SetTileTool`'s `actionSchema` gained devkit's `kind`/`t` fields (matches 0.13.x's
+        `ActionEntry`). `ReadSpecTool`/`ReadExamplesTool` need a `TipFetcher` callback instead of
+        tile-studio's current pre-bundled Vite `?raw` imports — **decision: write a local
+        `TipFetcher` wrapping the existing bundled content**, not devkit's
+        `createGitLabTipFetcher`, to keep current instant/offline behavior and avoid losing
+        `ChatPane`'s `READ_SPEC_META_TAG` pill-rendering (devkit's own output format has no
+        marker tags).
+      - **Decision: keep tile-studio's own `makeSystemPrompt`** (has tile-studio-UI-specific
+        workflow instructions), not devkit's `getWidgetCreationSystemPrompt` — pass it to
+        `AgentSession` via `updateSystemPrompt()`. `setNotes` is a no-op on `AgentSession` itself;
+        the hook must recompute the full prompt and call `updateSystemPrompt` when notes change.
+      - **Decision: keep tile-studio's own `ai-client.ts`** (settings storage + React-reactive
+        subscriptions) for creating the `OpenAI` client — devkit's `ai-provider.ts` has no storage
+        layer at all, so this isn't actually replaced by the migration, only `AgentSession` +
+        tools + `openai-adapter.ts`'s `toolToOpenAI` are.
+      - **Decision: include `ask_questions` now** (devkit's new 12th tool, pauses a turn via
+        `ToolPendingInputResult`/`resolvePendingInput`) rather than deferring it — needs a minimal
+        pending-input UI in `ChatPane.tsx` (question + text input, blocks further sends until
+        answered).
+      - Two build errors surface from the `nostr-canvas` dep bump alone (before any of the above
+        is implemented), both `ActionEntry` "Property 'kind' is missing": `SetTileTool.ts:239`
+        (resolved by deletion — file is replaced) and `ChatPane.tsx:1090`'s `setTileMetadata`
+        helper (survives the migration, needs a small ~2-line patch extracting `kind` from the
+        raw `set_tile` tool-call args).
+      - Dependency bump to `@soapbox.pub/nostr-canvas@^0.13.1` done in the working tree
+        (`pnpm add @soapbox.pub/nostr-canvas@0.13.1`), **deliberately left uncommitted** — `pnpm
+        test` is green (100/100) but `pnpm build` isn't (the two errors above), and committing a
+        broken build violates this repo's own "each ticket lands a working `main`" convention.
+        Fold the dep bump into T9.1's own first commit, which fixes both errors as a byproduct.
+      *Eval:* T9.0's tool/adapter baseline tests retired/rewritten against the new devkit-backed
+      implementation and pass; new tests for `useAgentSession.ts` (no baseline existed for the old
+      hook) and the local `TipFetcher`; manual end-to-end session: ask the AI to write a trivial
+      tile, confirm tool calls execute, code updates in the editor, and an `ask_questions` call
+      pauses correctly and resumes on answer.
 - [ ] **T9.2 Swap the preview driver.** `StubAdapter` + `TilePreview.tsx`'s build/register/
       teardown logic → devkit's `PreviewSession` + `PreviewAdapter`, wrapped around
       tile-studio's **existing** real adapter (`src/lib/adapter.ts`) — no new login/signer work
