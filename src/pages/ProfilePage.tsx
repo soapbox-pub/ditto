@@ -72,6 +72,7 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useNip85UserStats } from '@/hooks/useNip85Stats';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { useBackDismiss } from '@/hooks/useBackDismiss';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 
@@ -828,6 +829,10 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
       document.body.style.overflow = original;
     };
   }, []);
+
+  // Back gesture (iOS edge-swipe / Android) closes the viewer instead of
+  // navigating the page away.
+  useBackDismiss(onClose);
 
   // Safety: clear animating lock on unmount so stale refs can't block controls
   useEffect(() => () => { animatingRef.current = false; }, []);

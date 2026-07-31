@@ -14,6 +14,7 @@ import { VideoPlayer } from '@/components/VideoPlayer';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getAvatarShape } from '@/lib/avatarShape';
+import { useBackDismiss } from '@/hooks/useBackDismiss';
 
 /** Minimal imeta fields needed for pre-load sizing. */
 interface ImetaDimensions {
@@ -346,6 +347,10 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = original; };
   }, []);
+
+  // Back gesture (iOS edge-swipe / Android) closes the lightbox instead of
+  // navigating the page away.
+  useBackDismiss(onClose);
 
   // Keyboard navigation
   useEffect(() => {
