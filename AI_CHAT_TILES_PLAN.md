@@ -338,89 +338,51 @@ before T9.1-T9.3 can use the same TDD dispatch pattern.
       harness + baseline tests for pre-devkit-migration code (T9.0)"). 14 test files, 100 tests,
       covering the 11 tool classes + `openai-adapter.ts`. No baseline test for `useAISession.ts`
       itself (the hook) — noted as a gap when T9.1 was scoped 2026-07-31, see T9.1's note below.
-- [ ] **T9.1 Swap session + tools + AI provider — scoped 2026-07-31, not yet implemented.**
-      `useAISession.ts` → devkit's `AgentSession`; `src/lib/tools/*` → devkit's 11 (+
-      `ask_questions`) tools; `openai-adapter.ts` → devkit's `ai-provider.ts`. Delete all replaced
-      local files. Full TDD dispatch pattern (test-writer → primary reads → independent tester
-      confirms red → implementer → primary re-verifies → separate verifier), same as D4-D6.
+- [ ] **T9.1 Swap session + tools + AI provider — split into (a)/(b)/(c), (a) done 2026-08-01.**
+      Scope (locked 2026-07-31, see prior git history for the full API-gap research if needed):
+      `useAISession.ts` → devkit's `AgentSession` via a new `useAgentSession.ts` hook
+      (`useSyncExternalStore`-based); 9 of 11 local tool classes (`ReadCodeTool`, `WriteCodeTool`,
+      `EditCodeTool`, `SearchNIPsTool`, `FetchNIPTool`, `GetTileTool`, `PreviewTileTool`,
+      `SetNotesTool`, `SetTileTool`) → devkit equivalents. `ReadSpecTool`/`ReadExamplesTool` stay
+      local/unswapped (pre-bundled Vite `?raw` content + `ReadSpecTool`'s `READ_SPEC_META_TAG`
+      pill-rendering has no devkit equivalent — same "keep tile-studio's own X" precedent as
+      `makeSystemPrompt`/`ai-client.ts`, both also kept local). Landed as 3 separately-verified
+      sub-commits to avoid ever merging a state where the AI can call a tool the UI can't handle:
+      **(a)** hook + 9 tool swaps, no `ask_questions` yet; **(b)** `ask_questions` tool + its
+      pending-input UI in `ChatPane.tsx`, landed together; **(c)** cleanup (delete `useAISession.ts`
+      + the 9 replaced local tool files, final green `pnpm test`/`build`/`lint`).
 
-      **API-gap research done 2026-07-31** (dispatched researcher, full comparison in that
-      session's transcript, summarized here for continuity):
-      - `AgentSession` is a plain, host-agnostic class (`subscribe`/`getSnapshot`/`send`/`stop`/
-        `compact`/`serialize`/`deserialize`/`resolvePendingInput`), not a hook — tile-studio needs
-        a **new `useAgentSession.ts`** bridging it via `useSyncExternalStore(session.subscribe,
-        session.getSnapshot)`. Devkit's `./devkit` subpath is confirmed React-free.
-      - Of the 11 current tool classes, 9 are byte-identical (or near-identical) to their devkit
-        counterparts (`ReadCodeTool`, `WriteCodeTool`, `EditCodeTool`, `SearchNIPsTool`,
-        `FetchNIPTool`, `GetTileTool`, `PreviewTileTool`, `SetNotesTool`, `SetTileTool`) — pure
-        swap, no adaptation needed. `SetTileTool`'s `actionSchema` gains devkit's `kind`/`t`
-        fields as a byproduct (matches 0.13.x's `ActionEntry`).
-      - **Superseded 2026-07-31 (file-level re-read, not just the researcher's earlier API-shape
-        comparison):** the "write a local `TipFetcher`" plan above is dropped. `ReadSpecTool` and
-        `ReadExamplesTool` **stay as tile-studio's own local implementations, unswapped** — same
-        files, same tests, no devkit import at all. Reasons: (1) tile-studio's versions take
-        pre-bundled content directly in their constructors (`ReadSpecTool(specSources)`,
-        `ReadExamplesTool()`), not an async `TipFetcher` callback, so there's nothing to adapt if
-        the classes themselves aren't swapped; (2) `ReadSpecTool` emits a `READ_SPEC_META_TAG`
-        structured-metadata payload that `ChatPane.tsx` parses to render TIP status/requires/
-        capabilities as pills (recent tile-studio-only feature) — devkit's `ReadSpecTool` has no
-        such output and swapping would silently regress it; (3) devkit's versions are
-        architected around lazy GitLab fetches for consumers that don't want to bundle every TIP
-        (the marketplace app), which is the opposite of tile-studio's eager-bundle-for-offline
-        design. This extends the already-locked "keep tile-studio's own X" precedent (system
-        prompt, `ai-client.ts`) to these two tools as well. Net effect: **12 target tools = 9
-        devkit swaps + 2 kept-local (`ReadSpecTool`, `ReadExamplesTool`) + 1 new (`ask_questions`
-        from devkit)**, and the local-`TipFetcher` work item is removed from scope entirely.
-      - **Decision: keep tile-studio's own `makeSystemPrompt`** (has tile-studio-UI-specific
-        workflow instructions), not devkit's `getWidgetCreationSystemPrompt` — pass it to
-        `AgentSession` via `updateSystemPrompt()`. `setNotes` is a no-op on `AgentSession` itself;
-        the hook must recompute the full prompt and call `updateSystemPrompt` when notes change.
-      - **Decision: keep tile-studio's own `ai-client.ts`** (settings storage + React-reactive
-        subscriptions) for creating the `OpenAI` client — devkit's `ai-provider.ts` has no storage
-        layer at all, so this isn't actually replaced by the migration, only `AgentSession` +
-        tools + `openai-adapter.ts`'s `toolToOpenAI` are.
-      - **Decision: include `ask_questions` now** (devkit's new 12th tool, pauses a turn via
-        `ToolPendingInputResult`/`resolvePendingInput`) rather than deferring it — needs a minimal
-        pending-input UI in `ChatPane.tsx` (question + text input, blocks further sends until
-        answered).
-      - **`useAgentSession.ts` design decision (2026-07-31, resolves a real behavior-preservation
-        gap, not just an API-shape swap):** `AgentSession` binds `client`/`modelId`/`contextWindow`
-        once at construction, unlike `useAISession`'s `send()`, which re-reads
-        `loadAISettings()`/re-resolves the provider fresh on every call — so switching AI
-        provider/model mid-conversation today takes effect on the very next message, with the
-        `messages` array (plain React state) untouched. A naive single long-lived `AgentSession`
-        instance would freeze the model/client at first construction and silently ignore later
-        model switches. Fix: `useAgentSession.ts` holds the `AgentSession` in a ref and
-        reconstructs it (new instance) whenever the resolved provider/model changes (subscribes
-        to the same `subscribeSettings`/`getSettingsSnapshot` the old hook used), carrying full
-        state across via `oldSession.serialize()` → `newSession.deserialize()` (covers messages
-        *and* any in-flight `pendingInput`/`pendingToolCalls`, unlike `loadMessages` alone). System
-        prompt is recomputed and pushed via `session.updateSystemPrompt()` immediately before every
-        `send()`/`resolvePendingInput()` call, mirroring the old cached-recompute-per-send
-        behavior, since `AgentSession` has no reactive prompt input of its own.
-      - **T9.1 dispatch split (revised from "one ticket"):** land as **two** separately-verified
-        sub-commits to avoid ever merging a state where the AI can call a tool the UI can't
-        handle: **(a)** new `useAgentSession.ts` hook + the 9 mechanical tool swaps + `EditorPage`
-        wiring — does **not** register `ask_questions` yet; **(b)** add `ask_questions` to the
-        tools map + the pending-input UI in `ChatPane.tsx`, landed together. A separate **(c)**
-        cleanup pass (delete `useAISession.ts`, confirm no dead code, final full green
-        `pnpm test`/`pnpm build`/`pnpm lint`) closes out T9.1. Each of (a)/(b)/(c) gets its own
-        TDD cycle per the pattern above.
-      - Two build errors surface from the `nostr-canvas` dep bump alone (before any of the above
-        is implemented), both `ActionEntry` "Property 'kind' is missing": `SetTileTool.ts:239`
-        (resolved by deletion — file is replaced) and `ChatPane.tsx:1090`'s `setTileMetadata`
-        helper (survives the migration, needs a small ~2-line patch extracting `kind` from the
-        raw `set_tile` tool-call args).
-      - Dependency bump to `@soapbox.pub/nostr-canvas@^0.13.1` done in the working tree
-        (`pnpm add @soapbox.pub/nostr-canvas@0.13.1`), **deliberately left uncommitted** — `pnpm
-        test` is green (100/100) but `pnpm build` isn't (the two errors above), and committing a
-        broken build violates this repo's own "each ticket lands a working `main`" convention.
-        Fold the dep bump into T9.1's own first commit, which fixes both errors as a byproduct.
-      *Eval:* T9.0's tool/adapter baseline tests retired/rewritten against the new devkit-backed
-      implementation and pass; new tests for `useAgentSession.ts` (no baseline existed for the old
-      hook) and the local `TipFetcher`; manual end-to-end session: ask the AI to write a trivial
-      tile, confirm tool calls execute, code updates in the editor, and an `ask_questions` call
-      pauses correctly and resumes on answer.
+      - [x] **(a) done — committed `bb91830`, pushed.** Full TDD cycle (test-writer →
+            primary read + fixed a `vi.mock`/TDZ hoisting bug in the frozen test file (a plain
+            `class` referenced from a hoisted `vi.mock` factory needs to live inside `vi.hoisted()`
+            itself) → independent tester confirmed clean red → implementer → primary caught two
+            real implementation issues on review (a `buildClient()` that silently reimplemented
+            `createAIClient()` instead of reusing it, and a bare `any` cast) and sent both back for
+            a fix → re-verified independently → dispatched `researcher` review, one non-blocking
+            cosmetic duplicate-comment finding, fixed directly). `useAgentSession.ts` reconstructs
+            the `AgentSession` (via the real async `createAIClient`, not a duplicate) whenever
+            provider/model changes, carrying state via `serialize()`/`deserialize()`; the
+            `client as unknown as AgentSessionClient` cast is narrow and documents a genuine
+            openai v4 (tile-studio) vs v6 (devkit peer dep) cross-package version mismatch —
+            confirmed via each package's `package.json`, not a v4→v6 bump (out of scope, real risk
+            to `ChatCompletionMessageParam` usage elsewhere). Fixed the `ChatPane.tsx:1090`
+            `ActionEntry.kind`-missing build error as part of the same commit. Gate: 120/120
+            vitest, clean `tsc -b`, clean `eslint .` (0 errors), clean `vite build`.
+      - [ ] **(b) not started** — add `ask_questions` (devkit's 12th tool, pauses a turn via
+            `ToolPendingInputResult`/`resolvePendingInput`, already exposed by `useAgentSession.ts`'s
+            `pendingInput`/`resolvePendingInput` return fields from (a)) to the `EditorPage.tsx`
+            tools map, plus a minimal pending-input UI in `ChatPane.tsx` (question(s) + optional
+            suggestions + text input, blocks further sends until answered). Same full TDD pattern.
+      - [ ] **(c) not started** — delete `useAISession.ts` and the 9 replaced local tool files
+            (`ReadCodeTool.ts`, `WriteCodeTool.ts`, `EditCodeTool.ts`, `SearchNIPsTool.ts`,
+            `FetchNIPTool.ts`, `GetTileTool.ts`, `PreviewTileTool.ts`, `SetNotesTool.ts`,
+            `SetTileTool.ts`) + their now-orphaned `__tests__/*.test.ts` files; confirm no dead
+            code/imports remain; final full green `pnpm test`/`pnpm build`/`pnpm lint`.
+      *Eval:* T9.0's tool/adapter baseline tests for the 9 swapped tools retired (deleted in (c)
+      alongside the files they tested); `useAgentSession.ts`'s own new test suite (from (a)) plus
+      (b)'s `ask_questions`/pending-input tests pass; manual end-to-end session: ask the AI to
+      write a trivial tile, confirm tool calls execute, code updates in the editor, and an
+      `ask_questions` call pauses correctly and resumes on answer.
 - [ ] **T9.2 Swap the preview driver.** `StubAdapter` + `TilePreview.tsx`'s build/register/
       teardown logic → devkit's `PreviewSession` + `PreviewAdapter`, wrapped around
       tile-studio's **existing** real adapter (`src/lib/adapter.ts`) — no new login/signer work
