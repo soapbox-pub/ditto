@@ -114,6 +114,16 @@ below) alongside Phases 8-10's now-`done` summary.
 > `nip44-encrypt/decrypt`, `get_profile` during preview, with `publish_event` specifically
 > sign-for-real-then-review-before-broadcast rather than fully faked).
 
+> **Superseded 2026-07-31 decision**: the original Phase 9 text called for D7 (nostr-canvas
+> 0.13.0 npm publish) to gate the start of Phase 9, with the whole migration landing as one
+> coherent diff rather than piece-by-piece. Re-grilled 2026-07-31 and **replaced**: D7 now runs
+> *first and immediately* (not deferred) specifically to unblock Phase 9 against a real registry
+> version instead of a local `file:`/`link:` workaround, and Phase 9 itself is split into four
+> separately-dispatched, separately-verified tickets (T9.0-T9.3) — same granularity D4-D6 used in
+> nostr-canvas, rather than one big migration. Driver: tile-studio has zero test infrastructure
+> today, so a new T9.0 ticket stands up vitest + baseline tests against current pre-migration
+> behavior before T9.1/T9.2 can use the same TDD dispatch pattern as D4-D6.
+
 ## Carried-forward security posture (from 0.11 integration)
 
 - The runtime is an extension of Ditto, not a second Nostr stack: adapter delegates to
@@ -306,8 +316,13 @@ drift from the source of truth.
 ## Phase 9 — tile-studio: rewrite the client on `devkit` — `pending`
 
 Goal: prove the extraction by making tile-studio a `devkit` consumer, deleting the local code it
-replaces. Gated on Phase 8 (D7) actually publishing 0.13.0 — **not** started incrementally
-piece-by-piece, one coherent migration once the full library is out (grilled 2026-07-31).
+replaces. Re-grilled 2026-07-31 — **supersedes the earlier "one coherent migration" call**: D7
+(nostr-canvas 0.13.0 npm publish) now runs *first*, immediately, specifically to unblock Phase 9
+against a real registry version rather than a local link — and Phase 9 itself is now split into
+four separately-dispatched, separately-verified tickets (T9.0-T9.3), same granularity as D4-D6,
+rather than landing as one big diff. Each ticket commits directly to tile-studio's `main` as it
+lands (matches tile-studio's existing convention — it has no feature-branch history to deviate
+from).
 
 tile-studio today: depends on `@soapbox.pub/nostr-canvas@^0.12.0`; has its own hand-rolled
 `useAISession.ts` (700 lines), `src/lib/tools/*.ts` (~2100 lines, 11 tool classes),
@@ -315,26 +330,44 @@ tile-studio today: depends on `@soapbox.pub/nostr-canvas@^0.12.0`; has its own h
 **already has real Nostr login/signer infrastructure** (`src/lib/signer.ts`,
 `useSignerContext.ts`, `useNostrLogin.ts`, `src/lib/adapter.ts`) — Phase 9 wires that existing
 real adapter into the new `PreviewAdapter`/`PreviewSession`, it does not build new identity
-infra.
+infra. tile-studio also has **zero test infrastructure today** (no test script, no vitest, no
+`*.test.ts` files anywhere) — unlike nostr-canvas's D4-D6 work, so a harness has to be stood up
+before T9.1-T9.3 can use the same TDD dispatch pattern.
 
+- [ ] **T9.0 Stand up vitest in tile-studio.** New ticket, added 2026-07-31. Installs vitest +
+      config, and writes baseline tests characterizing *current* pre-migration behavior
+      (`useAISession.ts`, `StubAdapter`, `src/lib/tools/*`) as a regression safety net before
+      T9.1/T9.2 replace those files wholesale. **Dispatch pattern differs from T9.1-T9.3:**
+      single coder dispatch (harness + baseline tests together, since there's no not-yet-built
+      contract to freeze tests against — the current code already defines the expected
+      behavior) + a separate verifier confirming the tests are meaningful (not tautological) and
+      passing. No test-writer/red-confirm split. *Eval:* `pnpm test` (or equivalent) runs and
+      passes against current code; verifier confirms the baseline tests would actually fail if
+      the characterized behavior changed (not just trivially-true assertions).
 - [ ] **T9.1 Swap session + tools + AI provider.** `useAISession.ts` → devkit's `AgentSession`;
       `src/lib/tools/*` → devkit's 11 (+`ask_questions`) tools; `openai-adapter.ts` → devkit's
-      `ai-provider.ts`. Delete all replaced local files. *Eval:* TBD, needs its own short
-      grilling pass right before dispatch (per the grilling skill) — proposed: tile-studio's
-      existing test suite (if any) still passes; manual end-to-end session: ask the AI to write
-      a trivial tile, confirm tool calls execute and code updates in the editor.
+      `ai-provider.ts`. Delete all replaced local files. Full TDD dispatch pattern (test-writer →
+      primary reads → independent tester confirms red → implementer → primary re-verifies →
+      separate verifier), same as D4-D6. *Eval:* TBD, needs its own short grilling pass right
+      before dispatch (per the grilling skill) — proposed: T9.0's baseline tests for these files
+      are retired/rewritten against the new implementation and pass; manual end-to-end session:
+      ask the AI to write a trivial tile, confirm tool calls execute and code updates in the
+      editor.
 - [ ] **T9.2 Swap the preview driver.** `StubAdapter` + `TilePreview.tsx`'s build/register/
       teardown logic → devkit's `PreviewSession` + `PreviewAdapter`, wrapped around
       tile-studio's **existing** real adapter (`src/lib/adapter.ts`) — no new login/signer work
       needed, it's already there. `TilePreviewCard`'s React rendering (tabs, syntax
       highlighting, play overlay, settings panel) stays untouched, only the underlying
-      build/output/teardown plumbing swaps out. *Eval:* TBD — proposed: manual: live preview
-      still updates as the AI edits code, matching pre-rewrite behavior; a granted capability
-      (e.g. `fetch`) actually runs for real in preview; `publish_event` shows the sign-then-
-      review flow instead of silently faking a publish.
+      build/output/teardown plumbing swaps out. Full TDD dispatch pattern, same as T9.1. *Eval:*
+      TBD — proposed: manual: live preview still updates as the AI edits code, matching
+      pre-rewrite behavior; a granted capability (e.g. `fetch`) actually runs for real in
+      preview; `publish_event` shows the sign-then-review flow instead of silently faking a
+      publish.
 - [ ] **T9.3 Cleanup.** Remove dead local files; confirm no leftover duplicate implementations;
-      update `package.json` deps to `@soapbox.pub/nostr-canvas@^0.13.0`. *Eval:* `git diff
-      --stat` shows net deletions in `src/lib/`; build passes.
+      update `package.json` deps to `@soapbox.pub/nostr-canvas@^0.13.0`. Full TDD dispatch
+      pattern where applicable (mostly deletions + a dep bump, so tests are thin, but same
+      dispatch discipline). *Eval:* `git diff --stat` shows net deletions in `src/lib/`; build
+      passes; `pnpm test` (T9.0's harness) still passes.
 
 ## Phase 10 — Ditto: AI chat "Tiles" ability — `pending`
 
