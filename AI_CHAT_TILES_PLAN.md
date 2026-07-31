@@ -350,16 +350,27 @@ before T9.1-T9.3 can use the same TDD dispatch pattern.
         `compact`/`serialize`/`deserialize`/`resolvePendingInput`), not a hook — tile-studio needs
         a **new `useAgentSession.ts`** bridging it via `useSyncExternalStore(session.subscribe,
         session.getSnapshot)`. Devkit's `./devkit` subpath is confirmed React-free.
-      - Of the 11 current tool classes, 8 are byte-identical to their devkit counterparts
-        (`ReadCodeTool`, `WriteCodeTool`, `EditCodeTool`, `SearchNIPsTool`, `FetchNIPTool`,
-        `GetTileTool`, `PreviewTileTool`, `SetNotesTool`) — pure swap, no adaptation needed.
-        `SetTileTool`'s `actionSchema` gained devkit's `kind`/`t` fields (matches 0.13.x's
-        `ActionEntry`). `ReadSpecTool`/`ReadExamplesTool` need a `TipFetcher` callback instead of
-        tile-studio's current pre-bundled Vite `?raw` imports — **decision: write a local
-        `TipFetcher` wrapping the existing bundled content**, not devkit's
-        `createGitLabTipFetcher`, to keep current instant/offline behavior and avoid losing
-        `ChatPane`'s `READ_SPEC_META_TAG` pill-rendering (devkit's own output format has no
-        marker tags).
+      - Of the 11 current tool classes, 9 are byte-identical (or near-identical) to their devkit
+        counterparts (`ReadCodeTool`, `WriteCodeTool`, `EditCodeTool`, `SearchNIPsTool`,
+        `FetchNIPTool`, `GetTileTool`, `PreviewTileTool`, `SetNotesTool`, `SetTileTool`) — pure
+        swap, no adaptation needed. `SetTileTool`'s `actionSchema` gains devkit's `kind`/`t`
+        fields as a byproduct (matches 0.13.x's `ActionEntry`).
+      - **Superseded 2026-07-31 (file-level re-read, not just the researcher's earlier API-shape
+        comparison):** the "write a local `TipFetcher`" plan above is dropped. `ReadSpecTool` and
+        `ReadExamplesTool` **stay as tile-studio's own local implementations, unswapped** — same
+        files, same tests, no devkit import at all. Reasons: (1) tile-studio's versions take
+        pre-bundled content directly in their constructors (`ReadSpecTool(specSources)`,
+        `ReadExamplesTool()`), not an async `TipFetcher` callback, so there's nothing to adapt if
+        the classes themselves aren't swapped; (2) `ReadSpecTool` emits a `READ_SPEC_META_TAG`
+        structured-metadata payload that `ChatPane.tsx` parses to render TIP status/requires/
+        capabilities as pills (recent tile-studio-only feature) — devkit's `ReadSpecTool` has no
+        such output and swapping would silently regress it; (3) devkit's versions are
+        architected around lazy GitLab fetches for consumers that don't want to bundle every TIP
+        (the marketplace app), which is the opposite of tile-studio's eager-bundle-for-offline
+        design. This extends the already-locked "keep tile-studio's own X" precedent (system
+        prompt, `ai-client.ts`) to these two tools as well. Net effect: **12 target tools = 9
+        devkit swaps + 2 kept-local (`ReadSpecTool`, `ReadExamplesTool`) + 1 new (`ask_questions`
+        from devkit)**, and the local-`TipFetcher` work item is removed from scope entirely.
       - **Decision: keep tile-studio's own `makeSystemPrompt`** (has tile-studio-UI-specific
         workflow instructions), not devkit's `getWidgetCreationSystemPrompt` — pass it to
         `AgentSession` via `updateSystemPrompt()`. `setNotes` is a no-op on `AgentSession` itself;
@@ -372,6 +383,29 @@ before T9.1-T9.3 can use the same TDD dispatch pattern.
         `ToolPendingInputResult`/`resolvePendingInput`) rather than deferring it — needs a minimal
         pending-input UI in `ChatPane.tsx` (question + text input, blocks further sends until
         answered).
+      - **`useAgentSession.ts` design decision (2026-07-31, resolves a real behavior-preservation
+        gap, not just an API-shape swap):** `AgentSession` binds `client`/`modelId`/`contextWindow`
+        once at construction, unlike `useAISession`'s `send()`, which re-reads
+        `loadAISettings()`/re-resolves the provider fresh on every call — so switching AI
+        provider/model mid-conversation today takes effect on the very next message, with the
+        `messages` array (plain React state) untouched. A naive single long-lived `AgentSession`
+        instance would freeze the model/client at first construction and silently ignore later
+        model switches. Fix: `useAgentSession.ts` holds the `AgentSession` in a ref and
+        reconstructs it (new instance) whenever the resolved provider/model changes (subscribes
+        to the same `subscribeSettings`/`getSettingsSnapshot` the old hook used), carrying full
+        state across via `oldSession.serialize()` → `newSession.deserialize()` (covers messages
+        *and* any in-flight `pendingInput`/`pendingToolCalls`, unlike `loadMessages` alone). System
+        prompt is recomputed and pushed via `session.updateSystemPrompt()` immediately before every
+        `send()`/`resolvePendingInput()` call, mirroring the old cached-recompute-per-send
+        behavior, since `AgentSession` has no reactive prompt input of its own.
+      - **T9.1 dispatch split (revised from "one ticket"):** land as **two** separately-verified
+        sub-commits to avoid ever merging a state where the AI can call a tool the UI can't
+        handle: **(a)** new `useAgentSession.ts` hook + the 9 mechanical tool swaps + `EditorPage`
+        wiring — does **not** register `ask_questions` yet; **(b)** add `ask_questions` to the
+        tools map + the pending-input UI in `ChatPane.tsx`, landed together. A separate **(c)**
+        cleanup pass (delete `useAISession.ts`, confirm no dead code, final full green
+        `pnpm test`/`pnpm build`/`pnpm lint`) closes out T9.1. Each of (a)/(b)/(c) gets its own
+        TDD cycle per the pattern above.
       - Two build errors surface from the `nostr-canvas` dep bump alone (before any of the above
         is implemented), both `ActionEntry` "Property 'kind' is missing": `SetTileTool.ts:239`
         (resolved by deletion — file is replaced) and `ChatPane.tsx:1090`'s `setTileMetadata`
