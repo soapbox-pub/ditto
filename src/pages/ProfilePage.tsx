@@ -489,7 +489,7 @@ function SortableTabChip({
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
         className="py-3.5 pr-1"
       >
-        {tabDisplayLabel(tab.label)}
+        {tab.label}
       </button>
 
       {/* Edit — only rendered for active custom (non-core) tabs */}
@@ -965,12 +965,12 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
 
 // ----- Main Component -----
 
-const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
-const DEFAULT_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'];
+const CORE_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
+const DEFAULT_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Likes', 'Wall'];
 
-// Map from display label → internal tab id for core tabs
+// Map from canonical label → internal tab id for core tabs
 const CORE_TAB_IDS: Record<string, string> = {
-  'Posts': 'posts', 'Posts & replies': 'replies',
+  'Feed': 'posts', 'Posts & replies': 'replies',
   'Media': 'media', 'Badges': 'badges', 'Likes': 'likes', 'Wall': 'wall',
 };
 
@@ -988,15 +988,6 @@ const slugifyTabLabel = (label: string): string =>
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, '-')
     .replace(/^-+|-+$/g, '');
-
-// Map a canonical tab label to its user-facing display text. The canonical
-// label (e.g. 'Posts') is kept for the internal tab id and the serialized
-// kind 16769 event (cross-client interop); only the rendered text differs.
-const TAB_DISPLAY_LABELS: Record<string, string> = {
-  'Posts': 'Feed',
-};
-
-const tabDisplayLabel = (label: string): string => TAB_DISPLAY_LABELS[label] ?? label;
 
 /**
  * Commit a cheap static skeleton first, then mount the heavy body from an
@@ -1411,7 +1402,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   // Canonical NIP-01 filters for core tabs so other clients can interpret the event.
   // Values are interpolated with the actual pubkey (not $me) since these are concrete filters.
   const CORE_TAB_FILTERS: Record<string, TabFilter> = pubkey ? {
-    'Posts': { kinds: [1, 6], authors: [pubkey] },
+    'Feed': { kinds: [1, 6], authors: [pubkey] },
     'Posts & replies': { authors: [pubkey] },
     'Media': { kinds: [1], authors: [pubkey] },
     'Badges': { kinds: [10008, 30008], authors: [pubkey] },
@@ -2612,7 +2603,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             return (
               <TabButton
                 key={tab.label}
-                label={tabDisplayLabel(tab.label)}
+                label={tab.label}
                 active={activeTab === tabId}
                 onClick={() => {
                   selectTab(tabId);
@@ -2670,7 +2661,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       const tabId = CORE_TAB_IDS[label] ?? label;
                       return (
                         <DropdownMenuItem key={label} onClick={() => selectTab(tabId)}>
-                          {tabDisplayLabel(label)}
+                          {label}
                         </DropdownMenuItem>
                       );
                     })}
@@ -2712,7 +2703,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                           {present
                             ? <Check className="size-3.5 mr-2 opacity-60" strokeWidth={4} />
                             : <Plus className="size-3.5 mr-2" strokeWidth={4} />}
-                          {tabDisplayLabel(name)}
+                          {name}
                         </DropdownMenuItem>
                       );
                     })}

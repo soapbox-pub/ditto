@@ -86,6 +86,78 @@ export function parseProfileTabs(event: NostrEvent): ProfileTabsData {
   return { tabs, vars };
 }
 
+// ─── Core "Feed" tab interop ─────────────────────────────────────────────────
+//
+// Ditto's built-in feed tab (a user's posts + reposts) is serialized with the
+// label "Posts" for cross-client interop — other clients read the kind 16769
+// event and show a "Posts" tab. Internally Ditto uses "Feed" as the canonical
+// label so users are free to create their OWN custom tab named "Posts" without
+// colliding with the built-in one. The two are told apart by their filter: the
+// built-in tab always carries the canonical feed filter below.
+
+/** Internal canonical label for the built-in feed tab. */
+export const CORE_FEED_LABEL = 'Feed';
+/** Wire label the built-in feed tab is serialized as (legacy, for interop). */
+export const CORE_FEED_WIRE_LABEL = 'Posts';
+
+/** The canonical NIP-01 filter for the built-in feed tab, for a given owner. */
+function coreFeedFilter(ownerPubkey: string): TabFilter {
+  return { kinds: [1, 6], authors: [ownerPubkey] };
+}
+
+/** Order-independent structural equality for two plain filter objects. */
+function filtersEqual(a: TabFilter, b: TabFilter): boolean {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  for (const key of aKeys) {
+    if (!(key in b)) return false;
+    const av = a[key];
+    const bv = b[key];
+    if (Array.isArray(av) && Array.isArray(bv)) {
+      if (av.length !== bv.length) return false;
+      const as = av.map((x) => JSON.stringify(x)).sort();
+      const bs = bv.map((x) => JSON.stringify(x)).sort();
+      if (as.some((x, i) => x !== bs[i])) return false;
+    } else if (JSON.stringify(av) !== JSON.stringify(bv)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** True if a tab is the built-in feed tab (matching label + canonical filter). */
+function isCoreFeedTab(tab: ProfileTab, ownerPubkey: string, label: string): boolean {
+  return tab.label === label && filtersEqual(tab.filter, coreFeedFilter(ownerPubkey));
+}
+
+/**
+ * Translate a freshly-parsed kind 16769 event into Ditto's internal model: the
+ * built-in feed tab's wire label ("Posts") becomes the canonical "Feed" so it
+ * no longer collides with a user's own custom tab named "Posts".
+ */
+export function fromWireProfileTabs(data: ProfileTabsData, ownerPubkey: string): ProfileTabsData {
+  return {
+    ...data,
+    tabs: data.tabs.map((tab) =>
+      isCoreFeedTab(tab, ownerPubkey, CORE_FEED_WIRE_LABEL) ? { ...tab, label: CORE_FEED_LABEL } : tab,
+    ),
+  };
+}
+
+/**
+ * Translate Ditto's internal tab model back to the wire format before
+ * publishing: the built-in feed tab's canonical "Feed" label becomes "Posts".
+ */
+export function toWireProfileTabs(data: ProfileTabsData, ownerPubkey: string): ProfileTabsData {
+  return {
+    ...data,
+    tabs: data.tabs.map((tab) =>
+      isCoreFeedTab(tab, ownerPubkey, CORE_FEED_LABEL) ? { ...tab, label: CORE_FEED_WIRE_LABEL } : tab,
+    ),
+  };
+}
+
 // ─── Building ────────────────────────────────────────────────────────────────
 
 /** Build event tags for a kind 16769 event from ProfileTabsData. */
