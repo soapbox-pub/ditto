@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.34.4] - 2026-07-30
+
+Post-login setup is now guided with clear steps instead of silent prompts. Your audio player now handles mpga files.
+
+### Added
+- Support for mpga audio format
+
+### Changed
+- Post-login setup now uses a guided flow instead of silent prompts for notifications and battery optimization
+
 ## [2.34.3] - 2026-07-30
 
 Profile tabs are now shareable — link directly to someone's photos, articles, or any other tab. Media downloads now save to your device instead of opening in a new browser tab. Also includes fixes for the Lightning Wallet button on web and the compose textarea scrolling issue.
