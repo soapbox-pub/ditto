@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.34.5] - 2026-07-31
+
+Customize your profile tabs with any name you want — even "Posts" if that's your vibe. Image lightbox now plays nice with the back gesture. Android scrollbars got tamed. Polish everywhere.
+
+### Added
+- Custom profile tabs can now be named anything you want
+
+### Changed
+- Image lightbox now closes when you tap the back gesture
+
+### Fixed
+- Cleaned up Android WebView scrollbars for a smoother appearance
+
 ## [2.34.4] - 2026-07-30
 
 Post-login setup is now guided with clear steps instead of silent prompts. Your audio player now handles mpga files.
