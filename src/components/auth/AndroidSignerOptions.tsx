@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Capacitor } from '@capacitor/core';
 import type { AppInfo } from 'capacitor-plugin-nostr-signer';
 import { Loader2 } from 'lucide-react';
@@ -89,10 +90,12 @@ export function AndroidSignerOptions({ onLogin }: AndroidSignerOptionsProps) {
               )}
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm truncate">
-                  {connecting ? 'Connecting…' : `Log in with ${app.name}`}
+                  {connecting
+                    ? <FormattedMessage id="androidSigner.connecting" defaultMessage="Connecting…" />
+                    : <FormattedMessage id="androidSigner.logInWith" defaultMessage="Log in with {name}" values={{ name: app.name }} />}
                 </div>
                 <div className="text-xs text-muted-foreground truncate">
-                  Use the {app.name} app on your device.
+                  <FormattedMessage id="androidSigner.useApp" defaultMessage="Use the {name} app on your device." values={{ name: app.name }} />
                 </div>
               </div>
               {connecting && (
