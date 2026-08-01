@@ -391,6 +391,34 @@ before T9.1-T9.3 can use the same TDD dispatch pattern.
             manual QA session was run (would need a real AI provider key + browser interaction,
             outside this environment) — flagged to the user as a manual follow-up before treating
             the `ask_questions` UX as fully verified.
+      - [x] **Live QA on tile-studio caught a real crash — fixed 2026-08-01, `@soapbox.pub/
+            nostr-canvas@0.13.2`.** First real `write_code`/`edit_code` call in an actual browser
+            (not vitest) threw `ReferenceError: process is not defined` inside fengari — devkit's
+            `WriteCodeTool`/`EditCodeTool` (swapped in during (a)) call `luaLint()` internally,
+            which imported raw `fengari`; several of fengari's own files read
+            `process.env`/`process.versions`/`global`/`fs.constants` unguarded at module scope
+            (`luaconf.js`, `liolib.js`, `loadlib.js`, ...), which don't exist in a browser. **This
+            was never catchable by this repo's own test gate** — `process`/`global` are real Node
+            globals inside `vitest` regardless of `node`/`jsdom` environment, so 120/120 and
+            143/143 passing proved nothing about actual browser behavior; only a real tab (or a
+            headless-browser check, which is what actually caught and then confirmed the fix) does.
+            Fixed in nostr-canvas itself (not a per-consumer Vite polyfill workaround — tried
+            `vite-plugin-node-polyfills` first, it papered over `process`/`global` but a *further*
+            crash (`os.getenv` missing, `luacheck.format`'s color-detection code) proved the
+            polyfill-everything approach was open-ended whack-a-mole): `lua-lint.ts` now imports
+            `fengari-web` (fengari's own maintainers' browser build, already resolves the Node
+            globals) instead of raw `fengari`, plus a one-line `os.getenv = function() return nil
+            end` patch in `initEngine()` for the one real stdlib gap fengari-web leaves (no
+            `os.getenv` at all — correct for a browser, luacheck just needs it to not be missing
+            entirely). Verified end-to-end with a headless Playwright check (page-console capture +
+            calling `WriteCodeTool.execute()` directly) against a `pnpm link`ed local nostr-canvas
+            build before publishing, then again against the real published `0.13.2` — both zero
+            errors. 841/841 nostr-canvas suite, 143/143 tile-studio suite, clean tsc/eslint/build on
+            both. **Methodology note for future sub-cycles/T9.2/T10**: this class of bug (Node
+            globals leaking into a browser bundle) is structurally invisible to `vitest run`
+            regardless of test count — worth a real headless-browser smoke check (Playwright, cheap
+            here since nostr-canvas already has it cached) as a gate item once T9.2's `PreviewSession`
+            work lands actual Lua *execution* in-browser, not just linting.
       - [ ] **(c) not started** — delete `useAISession.ts` and the 9 replaced local tool files
             (`ReadCodeTool.ts`, `WriteCodeTool.ts`, `EditCodeTool.ts`, `SearchNIPsTool.ts`,
             `FetchNIPTool.ts`, `GetTileTool.ts`, `PreviewTileTool.ts`, `SetNotesTool.ts`,
