@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
 import { Plus, Pencil, Check, SeparatorHorizontal, Search, ChevronDown, ChevronUp, LinkIcon } from 'lucide-react';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { sidebarItemIcon, itemPath } from '@/lib/sidebarItems';
+import { sidebarItemIcon, itemPath, SIDEBAR_SECTION_ORDER, type SidebarSection } from '@/lib/sidebarItems';
+import { cn } from '@/lib/utils';
 import type { HiddenSidebarItem } from '@/hooks/useFeedSettings';
 import { nip19 } from 'nostr-tools';
 import { parseNsiteSubdomain } from '@/lib/nsiteSubdomain';
@@ -81,6 +82,37 @@ function ScrollCaret({ direction, onMouseEnter, onMouseLeave }: { direction: 'up
     <button className="flex cursor-default items-center justify-center py-1 w-full shrink-0" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       {direction === 'up' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
     </button>
+  );
+}
+
+const sectionMessages = defineMessages({
+  app: { id: 'sidebar.section.app', defaultMessage: "Pages" },
+  social: { id: 'sidebar.section.social', defaultMessage: "Social" },
+  media: { id: 'sidebar.section.media', defaultMessage: "Media" },
+  reading: { id: 'sidebar.section.reading', defaultMessage: "Reading" },
+  fun: { id: 'sidebar.section.fun', defaultMessage: "Fun" },
+  tools: { id: 'sidebar.section.tools', defaultMessage: "Tools" },
+});
+
+/** Bucket items by section, dropping empty sections and preserving section order. */
+function groupBySection(items: HiddenSidebarItem[]): Array<[SidebarSection, HiddenSidebarItem[]]> {
+  const groups = new Map<SidebarSection, HiddenSidebarItem[]>();
+  for (const item of items) {
+    const bucket = groups.get(item.section);
+    if (bucket) bucket.push(item);
+    else groups.set(item.section, [item]);
+  }
+  return SIDEBAR_SECTION_ORDER.flatMap((section) => {
+    const bucket = groups.get(section);
+    return bucket ? [[section, bucket] as [SidebarSection, HiddenSidebarItem[]]] : [];
+  });
+}
+
+function SectionHeader({ section, first }: { section: SidebarSection; first?: boolean }) {
+  return (
+    <div className={cn('px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70', first ? 'pt-1' : 'pt-3')}>
+      <FormattedMessage {...sectionMessages[section]} />
+    </div>
   );
 }
 
@@ -220,7 +252,12 @@ export function SidebarMoreMenu({
             <div className="h-px bg-border mb-1 shrink-0" />
             {add.canScrollUp && <ScrollCaret direction="up" onMouseEnter={() => add.startScroll('up')} onMouseLeave={add.stopScroll} />}
             <div ref={add.refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={add.onScroll}>
-              {addFiltered.map((item) => <ItemRow key={item.id} item={item} onAdd={onAdd} onClose={() => setAddMenuOpen(false)} />)}
+              {groupBySection(addFiltered).map(([section, items], i) => (
+                <div key={section}>
+                  <SectionHeader section={section} first={i === 0} />
+                  {items.map((item) => <ItemRow key={item.id} item={item} onAdd={onAdd} onClose={() => setAddMenuOpen(false)} />)}
+                </div>
+              ))}
               {addFiltered.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground text-center"><FormattedMessage id="common.noResults" defaultMessage={"No results"} /></p>}
             </div>
             {add.canScrollDown && <ScrollCaret direction="down" onMouseEnter={() => add.startScroll('down')} onMouseLeave={add.stopScroll} />}
@@ -301,15 +338,20 @@ export function SidebarMoreMenu({
         <div className="h-px bg-border mb-1 shrink-0" />
         {main.canScrollUp && <ScrollCaret direction="up" onMouseEnter={() => main.startScroll('up')} onMouseLeave={main.stopScroll} />}
         <div ref={main.refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={main.onScroll}>
-          {filtered.map((item) => (
-            <div key={item.id} className="flex items-center">
-              <Link to={itemPath(item.id, undefined, homePage)} onClick={() => { onOpenChange(false); onNavigate?.(); }} className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors">
-                {sidebarItemIcon(item.id, 'size-5 shrink-0')}
-                <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{labelOf(item)}</span>
-              </Link>
-              <button onClick={() => { onAdd(item.id); onOpenChange(false); }} className="size-8 flex items-center justify-center shrink-0 rounded-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title={intl.formatMessage({ id: 'sidebar.addToSidebar', defaultMessage: "Add {label} to sidebar" }, { label: labelOf(item) })}>
-                <Plus className="size-4" strokeWidth={4} />
-              </button>
+          {groupBySection(filtered).map(([section, items], i) => (
+            <div key={section}>
+              <SectionHeader section={section} first={i === 0} />
+              {items.map((item) => (
+                <div key={item.id} className="flex items-center">
+                  <Link to={itemPath(item.id, undefined, homePage)} onClick={() => { onOpenChange(false); onNavigate?.(); }} className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors">
+                    {sidebarItemIcon(item.id, 'size-5 shrink-0')}
+                    <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{labelOf(item)}</span>
+                  </Link>
+                  <button onClick={() => { onAdd(item.id); onOpenChange(false); }} className="size-8 flex items-center justify-center shrink-0 rounded-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title={intl.formatMessage({ id: 'sidebar.addToSidebar', defaultMessage: "Add {label} to sidebar" }, { label: labelOf(item) })}>
+                    <Plus className="size-4" strokeWidth={4} />
+                  </button>
+                </div>
+              ))}
             </div>
           ))}
           {filtered.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground text-center"><FormattedMessage id="common.noResults" defaultMessage={"No results"} /></p>}

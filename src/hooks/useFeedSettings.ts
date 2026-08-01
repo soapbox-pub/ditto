@@ -2,7 +2,7 @@ import { type FeedSettings } from "@/contexts/AppContext";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { SIDEBAR_ITEMS, SIDEBAR_ITEM_IDS, SIDEBAR_DIVIDER_ID, isNostrUri, isExternalUri, isNsiteUri } from "@/lib/sidebarItems";
+import { SIDEBAR_ITEMS, SIDEBAR_ITEM_IDS, SIDEBAR_DIVIDER_ID, isNostrUri, isExternalUri, isNsiteUri, type SidebarSection } from "@/lib/sidebarItems";
 import { useCallback, useMemo } from "react";
 
 // ── Order computation ─────────────────────────────────────────────────────────
@@ -67,6 +67,8 @@ export interface HiddenSidebarItem {
   id: string;
   /** Display label. */
   label: string;
+  /** Grouping used to organize the "More..." menu. */
+  section: SidebarSection;
 }
 
 function computeHiddenItems(
@@ -77,7 +79,7 @@ function computeHiddenItems(
 
   for (const item of SIDEBAR_ITEMS) {
     if (!visibleSet.has(item.id)) {
-      hidden.push({ id: item.id, label: item.label });
+      hidden.push({ id: item.id, label: item.label, section: item.section });
     }
   }
 

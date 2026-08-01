@@ -102,6 +102,31 @@ export function isExternalUri(id: string): boolean {
   );
 }
 
+/**
+ * Grouping used to organize items in the "More..." menu.
+ *
+ * Most items are hidden by default, so this menu is where users discover what
+ * Ditto can show. A flat list of 30+ entries is unscannable; these groups turn
+ * it into a handful of clusters.
+ */
+export type SidebarSection =
+  | "app"
+  | "social"
+  | "media"
+  | "reading"
+  | "fun"
+  | "tools";
+
+/** Display order of sections in the "More..." menu. */
+export const SIDEBAR_SECTION_ORDER: SidebarSection[] = [
+  "app",
+  "social",
+  "media",
+  "reading",
+  "fun",
+  "tools",
+];
+
 /** A sidebar-capable item with everything needed for display and navigation. */
 export interface SidebarItemDef {
   /** Unique identifier stored in sidebarOrder. */
@@ -114,6 +139,8 @@ export interface SidebarItemDef {
   icon: IconComponent;
   /** If true, only shown when a user is logged in. */
   requiresAuth?: boolean;
+  /** Grouping used to organize the "More..." menu. */
+  section: SidebarSection;
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────────
@@ -127,22 +154,24 @@ export interface SidebarItemDef {
  */
 export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   // System pages
-  { id: "feed", label: "Feed", path: "/feed", icon: PlanetIcon },
+  { id: "feed", label: "Feed", path: "/feed", icon: PlanetIcon, section: "app" },
   {
     id: "notifications",
     label: "Notifications",
     path: "/notifications",
     icon: Bell,
     requiresAuth: true,
+    section: "app",
   },
-  { id: "search", label: "Search", path: "/search", icon: Search },
-  { id: "trends", label: "Trends", path: "/trends", icon: TrendingUp },
+  { id: "search", label: "Search", path: "/search", icon: Search, section: "app" },
+  { id: "trends", label: "Trends", path: "/trends", icon: TrendingUp, section: "app" },
   {
     id: "bookmarks",
     label: "Bookmarks",
     path: "/bookmarks",
     icon: Bookmark,
     requiresAuth: true,
+    section: "app",
   },
   {
     id: "profile",
@@ -150,6 +179,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     path: "/profile",
     icon: User,
     requiresAuth: true,
+    section: "app",
   },
   {
     id: "lists",
@@ -157,22 +187,25 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     path: "/lists",
     icon: Scroll,
     requiresAuth: true,
+    section: "app",
   },
-  { id: "settings", label: "Settings", path: "/settings", icon: Settings },
+  { id: "settings", label: "Settings", path: "/settings", icon: Settings, section: "app" },
   {
     id: "wallet",
     label: "Wallet",
     path: "/wallet",
     icon: Wallet,
     requiresAuth: true,
+    section: "app",
   },
-  { id: "changelog", label: "Changelog", path: "/changelog", icon: ScrollText },
+  { id: "changelog", label: "Changelog", path: "/changelog", icon: ScrollText, section: "app" },
   {
     id: "letters",
     label: "Letters",
     path: "/letters",
     icon: MailboxIcon,
     requiresAuth: true,
+    section: "social",
   },
   {
     id: "ai-chat",
@@ -180,36 +213,37 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     path: "/ai-chat",
     icon: Bot,
     requiresAuth: true,
+    section: "tools",
   },
-  { id: 'blobbi', label: 'Blobbi', path: '/blobbi', icon: Egg, requiresAuth: true },
-  { id: "help", label: "Help", path: "/help", icon: HelpCircle },
+  { id: 'blobbi', label: 'Blobbi', path: '/blobbi', icon: Egg, requiresAuth: true, section: "fun" },
+  { id: "help", label: "Help", path: "/help", icon: HelpCircle, section: "app" },
   // Content types
-  { id: "events", label: "Events", path: "/events", icon: CalendarDays },
-  { id: "photos", label: "Photos", path: "/photos", icon: Camera },
-  { id: "videos", label: "Videos", path: "/videos", icon: Film },
-  { id: "articles", label: "Articles", path: "/articles", icon: BookOpen },
-  { id: "highlights", label: "Highlights", path: "/highlights", icon: Quote },
-  { id: "books", label: "Books", path: "/books", icon: BookMarked },
-  { id: "vines", label: "Shorts", path: "/shorts", icon: Clapperboard },
-  { id: "music", label: "Music", path: "/music", icon: Music },
-  { id: "podcasts", label: "Podcasts", path: "/podcasts", icon: Podcast },
+  { id: "events", label: "Events", path: "/events", icon: CalendarDays, section: "social" },
+  { id: "photos", label: "Photos", path: "/photos", icon: Camera, section: "media" },
+  { id: "videos", label: "Videos", path: "/videos", icon: Film, section: "media" },
+  { id: "articles", label: "Articles", path: "/articles", icon: BookOpen, section: "reading" },
+  { id: "highlights", label: "Highlights", path: "/highlights", icon: Quote, section: "reading" },
+  { id: "books", label: "Books", path: "/books", icon: BookMarked, section: "reading" },
+  { id: "vines", label: "Shorts", path: "/shorts", icon: Clapperboard, section: "media" },
+  { id: "music", label: "Music", path: "/music", icon: Music, section: "media" },
+  { id: "podcasts", label: "Podcasts", path: "/podcasts", icon: Podcast, section: "media" },
 
-  { id: "webxdc", label: "Webxdc", path: "/webxdc", icon: Blocks },
-  { id: "themes", label: "Themes", path: "/themes", icon: Sparkles },
-  { id: "polls", label: "Polls", path: "/polls", icon: BarChart3 },
-  { id: "packs", label: "Follow Packs", path: "/packs", icon: PartyPopper },
-  { id: "colors", label: "Color Moments", path: "/colors", icon: Palette },
-  { id: "decks", label: "Magic Decks", path: "/decks", icon: CardsIcon },
-  { id: "treasures", label: "Treasures", path: "/treasures", icon: ChestIcon },
-  { id: "quizzes", label: "Quizzes", path: "/quizzes", icon: ClipboardList },
-  { id: "cards", label: "Memory Cards", path: "/memory-cards", icon: Gamepad2 },
-  { id: "emojis", label: "Emojis", path: "/emojis", icon: SmilePlus },
-  { id: "development", label: "Development", path: "/development", icon: Code },
-  { id: "badges", label: "Badges", path: "/badges", icon: Award },
-  { id: "world", label: "World", path: "/world", icon: Earth },
-  { id: "archive", label: "Archive", path: "/archive", icon: Archive },
-  { id: "wikipedia", label: "Wikipedia", path: "/wikipedia", icon: WikipediaIcon },
-  { id: "bluesky", label: "Bluesky", path: "/bluesky", icon: BlueskyIcon },
+  { id: "webxdc", label: "Webxdc", path: "/webxdc", icon: Blocks, section: "tools" },
+  { id: "themes", label: "Themes", path: "/themes", icon: Sparkles, section: "tools" },
+  { id: "polls", label: "Polls", path: "/polls", icon: BarChart3, section: "social" },
+  { id: "packs", label: "Follow Packs", path: "/packs", icon: PartyPopper, section: "social" },
+  { id: "colors", label: "Color Moments", path: "/colors", icon: Palette, section: "fun" },
+  { id: "decks", label: "Magic Decks", path: "/decks", icon: CardsIcon, section: "fun" },
+  { id: "treasures", label: "Treasures", path: "/treasures", icon: ChestIcon, section: "fun" },
+  { id: "quizzes", label: "Quizzes", path: "/quizzes", icon: ClipboardList, section: "fun" },
+  { id: "cards", label: "Memory Cards", path: "/memory-cards", icon: Gamepad2, section: "fun" },
+  { id: "emojis", label: "Emojis", path: "/emojis", icon: SmilePlus, section: "tools" },
+  { id: "development", label: "Development", path: "/development", icon: Code, section: "tools" },
+  { id: "badges", label: "Badges", path: "/badges", icon: Award, section: "fun" },
+  { id: "world", label: "World", path: "/world", icon: Earth, section: "social" },
+  { id: "archive", label: "Archive", path: "/archive", icon: Archive, section: "reading" },
+  { id: "wikipedia", label: "Wikipedia", path: "/wikipedia", icon: WikipediaIcon, section: "reading" },
+  { id: "bluesky", label: "Bluesky", path: "/bluesky", icon: BlueskyIcon, section: "social" },
 ];
 
 /** Set of all known sidebar item IDs for quick lookup. */
