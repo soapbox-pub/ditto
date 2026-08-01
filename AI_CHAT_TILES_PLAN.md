@@ -419,16 +419,34 @@ below is the first to have gone through that pass and is ready to dispatch.
       reasonable. Manual (user will run before closing): add one profile of each kind (OpenRouter,
       generic, DeepSeek) with a real API key, use "Detect models" on each, save, reload the page,
       confirm all three persist with their models.
-- [ ] **T10.1 Abilities menu + mode-scoped sessions.** Hamburger/menu near the chat textarea
-      toggling available abilities per session; enabling "Tiles" starts a **fresh session**
-      (own conversation, own system prompt = D5's widget-creation prompt constrained to
-      `placement: "widget"`, own tool bundle = devkit's 12 tools) rather than mutating the
-      current thread. Mid-session provider/model switching (Shakespeare always available,
-      zero-config, plus configured profiles) — switching doesn't reset the conversation.
-      **Grilled 2026-08-02, locked for this ticket's design**: session creation must support an
-      optional pre-seeded starting code/metadata argument from the start (not retrofitted later)
-      — marketplace remix (T10.7+, see below) reuses this exact "Tiles" ability, just with a
-      target tile's existing code loaded instead of starting empty.
+- [ ] **T10.1 Abilities menu + mode-scoped sessions — grilled 2026-08-02, ready to dispatch.**
+      Icon button beside the chat textarea opens a popover with a checkbox list of toggleable
+      abilities. Today the only real toggle is **Tiles**; base chat and `set_theme` stay
+      always-on regardless of ability selection (T10.2 ports `set_theme` onto the new tool
+      registry as the baseline non-tile example — it is not something the user can turn off).
+      The popover is a multi-select from day one (checkboxes, not radio) so future abilities
+      compose additively, even though only one is real right now.
+
+      Checking "Tiles" immediately forks a **new session/tab** — no confirm step, no mutation of
+      the current thread — with its own conversation, own system prompt (D5's widget-creation
+      prompt constrained to `placement: "widget"`), and own tool bundle (devkit's 12 tools). An
+      enabled ability set is **locked for that session's lifetime**: switching abilities always
+      means starting a new session, never retoggling an existing one mid-thread.
+
+      Provider/model selection is a **separate**, always-visible control — a small selector row
+      near the textarea, not inside the abilities popover — listing Shakespeare (zero-config, the
+      logged-in user's NIP-98 signer) plus any configured profile from T10.0. Mid-session
+      provider/model switching is allowed and does not reset the conversation.
+
+      Session creation takes an optional pre-seeded starting code/metadata argument from the
+      start (not retrofitted later) — marketplace remix (T10.7+) reuses this exact "Tiles"
+      ability with a target tile's existing code loaded instead of starting empty; see T10.7+ for
+      the seeding mechanism.
+      *Eval:* automated — component tests for the popover (toggle → fork behavior, ability-set
+      lock, provider switch not resetting history). Manual (user will run before closing): toggle
+      Tiles on, confirm a new tab forks with the right system prompt/tools, send a message, switch
+      provider mid-session, confirm history is preserved and the next reply uses the new
+      provider.
 - [ ] **T10.2 Tool registry framework.** Generalize the existing hardcoded `set_theme` tool into
       a registry others can append to, using devkit's `Tool` interface as the shape; port
       `set_theme` itself onto the new framework as the non-tile example; register devkit's 12
@@ -449,16 +467,30 @@ below is the first to have gone through that pass and is ready to dispatch.
       preview.
 - [ ] **T10.6 Discovery toast.** "New: Create with Ditto" overlay on the AI chat widget's first
       open, dismissed state in `localStorage`.
-- [ ] **T10.7+ Marketplace remix — scoping locked 2026-08-02, ticket-level detail and eval
-      criteria not yet grilled (do so immediately before dispatch, once T10.0-T10.6 land).**
-      New tickets inside this phase (not a separate phase), ordered last since it depends on
-      publish (T10.5) already working. Locked so far: a "Remix with AI" entry point (exact
-      placement TBD) starts the same "Tiles" ability session as any AI-authored widget, except
-      pre-seeded with the target marketplace tile's existing code/metadata instead of an empty
-      draft — reuses T10.1's session-creation seed argument, not a separate flow. Everything
-      else (where the entry point lives on the marketplace detail page, fork-vs-edit-in-place
-      semantics and ownership/d-tag handling, attribution to the original tile, whether remix
-      requires the user to already have a NIP-05) is open.
+- [ ] **T10.7+ Marketplace remix — scoping grilled 2026-08-02, mostly ready to dispatch (two
+      items still open, see below).** New tickets inside this phase (not a separate phase),
+      ordered last since it depends on publish (T10.5) already working.
+
+      Entry point: a "Remix with AI" button on the tile's marketplace detail page, alongside the
+      existing "Install" action. It opens the AI chat widget and forks a new "Tiles" session via
+      T10.1's pre-seed argument — same ability, same tool bundle, not a separate flow.
+
+      Pre-seed mechanism: confirmed against the actual devkit tool source
+      (`devkit/tools/read-code.ts`, `write-code.ts`) — `read_code`/`write_code` are backed by
+      host-supplied `getCode`/`setCode` closures over wherever Ditto keeps the session's code
+      state, not a chat-message injection. Remix initializes that state with the target tile's
+      existing Lua source directly (so `read_code` returns it from turn one), plus one added line
+      in the system/user prompt telling the AI to call `read_code` to see the current tile before
+      making changes.
+
+      Publish semantics: remix always forks. Publishing creates a **brand-new** kind 30207 event
+      under the remixing user's own `nip05:slug` identifier — new slug, current user as author —
+      regardless of who authored the original. No update-in-place option, no ownership check; this
+      matches how T10.5 already treats any AI-drafted tile.
+
+      Still open (grill immediately before dispatch): whether remix requires the user to already
+      have a NIP-05 before starting (vs. only gating at publish time, same as T10.5), and whether
+      the published tile carries any attribution/reference back to the original.
 
 **Open items, not yet scoped in detail:**
 - Image generation via `gpt-image-1` as its own devkit tool/skill, for T10.5's AI-generated tile
