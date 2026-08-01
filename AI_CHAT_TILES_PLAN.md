@@ -313,186 +313,46 @@ drift from the source of truth.
       commit + manual `npm publish` (no CI publish job exists in this repo's `.gitlab-ci.yml`).
       *Eval:* package installable from the registry; `npm view` shows 0.13.0.
 
-## Phase 9 — tile-studio: rewrite the client on `devkit` — `pending`
+## Phase 9 — tile-studio: rewrite the client on `devkit` — `done`, pending final human click-through (see Human review queue)
 
-Goal: prove the extraction by making tile-studio a `devkit` consumer, deleting the local code it
-replaces. Re-grilled 2026-07-31 — **supersedes the earlier "one coherent migration" call**: D7
-(nostr-canvas 0.13.0 npm publish) now runs *first*, immediately, specifically to unblock Phase 9
-against a real registry version rather than a local link — and Phase 9 itself is now split into
-four separately-dispatched, separately-verified tickets (T9.0-T9.3), same granularity as D4-D6,
-rather than landing as one big diff. Each ticket commits directly to tile-studio's `main` as it
-lands (matches tile-studio's existing convention — it has no feature-branch history to deviate
-from).
+Rewrote tile-studio's AI-authoring IDE onto devkit, deleting the local code it replaced. Landed
+as four tickets (T9.0-T9.3), each separately dispatched/verified, committing directly to
+tile-studio's `main` (its existing no-feature-branch convention).
 
-tile-studio today: depends on `@soapbox.pub/nostr-canvas@^0.12.0`; has its own hand-rolled
-`useAISession.ts` (700 lines), `src/lib/tools/*.ts` (~2100 lines, 11 tool classes),
-`openai-adapter.ts`, and `StubAdapter`/`TilePreview.tsx`'s bespoke preview-build logic. It
-**already has real Nostr login/signer infrastructure** (`src/lib/signer.ts`,
-`useSignerContext.ts`, `useNostrLogin.ts`, `src/lib/adapter.ts`) — Phase 9 wires that existing
-real adapter into the new `PreviewAdapter`/`PreviewSession`, it does not build new identity
-infra. tile-studio also has **zero test infrastructure today** (no test script, no vitest, no
-`*.test.ts` files anywhere) — unlike nostr-canvas's D4-D6 work, so a harness has to be stood up
-before T9.1-T9.3 can use the same TDD dispatch pattern.
+- **T9.0** stood up vitest (`4398767`) — 14 files, 100 baseline tests; tile-studio had zero test
+  infrastructure before this.
+- **T9.1** swapped `useAISession.ts` → devkit's `AgentSession` via a new `useAgentSession.ts`
+  hook; 9 of 11 local tool classes → devkit equivalents (`ReadSpecTool`/`ReadExamplesTool` stay
+  local — pre-bundled Vite `?raw` content, no devkit equivalent); added the `ask_questions` tool
+  + its pending-input UI. Landed as three sub-commits (`bb91830`, `b385164`, `cca8a83`) so no
+  intermediate state ever let the AI call a tool the UI couldn't handle.
+- **T9.2** swapped the preview driver: `StubAdapter` + `TilePreview.tsx`'s bespoke build/
+  register/teardown logic → devkit's `PreviewSession`/`PreviewAdapter`, wrapped around
+  tile-studio's real adapter via `usePreviewSession.ts` (`cf60023`, `507143e`).
+- **T9.3** cleanup: removed `stub-adapter.ts` + its tests, net -309 lines (`175df92`).
 
-- [x] **T9.0 Stand up vitest in tile-studio — done.** Committed `4398767` ("test: stand up vitest
-      harness + baseline tests for pre-devkit-migration code (T9.0)"). 14 test files, 100 tests,
-      covering the 11 tool classes + `openai-adapter.ts`. No baseline test for `useAISession.ts`
-      itself (the hook) — noted as a gap when T9.1 was scoped 2026-07-31, see T9.1's note below.
-- [ ] **T9.1 Swap session + tools + AI provider — split into (a)/(b)/(c), (a)+(b) done 2026-08-01.**
-      Scope (locked 2026-07-31, see prior git history for the full API-gap research if needed):
-      `useAISession.ts` → devkit's `AgentSession` via a new `useAgentSession.ts` hook
-      (`useSyncExternalStore`-based); 9 of 11 local tool classes (`ReadCodeTool`, `WriteCodeTool`,
-      `EditCodeTool`, `SearchNIPsTool`, `FetchNIPTool`, `GetTileTool`, `PreviewTileTool`,
-      `SetNotesTool`, `SetTileTool`) → devkit equivalents. `ReadSpecTool`/`ReadExamplesTool` stay
-      local/unswapped (pre-bundled Vite `?raw` content + `ReadSpecTool`'s `READ_SPEC_META_TAG`
-      pill-rendering has no devkit equivalent — same "keep tile-studio's own X" precedent as
-      `makeSystemPrompt`/`ai-client.ts`, both also kept local). Landed as 3 separately-verified
-      sub-commits to avoid ever merging a state where the AI can call a tool the UI can't handle:
-      **(a)** hook + 9 tool swaps, no `ask_questions` yet; **(b)** `ask_questions` tool + its
-      pending-input UI in `ChatPane.tsx`, landed together; **(c)** cleanup (delete `useAISession.ts`
-      + the 9 replaced local tool files, final green `pnpm test`/`build`/`lint`).
+Three real bugs surfaced only through live browser QA — structurally invisible to `vitest run`
+regardless of test count, confirming the standing methodology note about Node-globals-in-browser
+and cross-package schema-version bugs:
 
-      - [x] **(a) done — committed `bb91830`, pushed.** Full TDD cycle (test-writer →
-            primary read + fixed a `vi.mock`/TDZ hoisting bug in the frozen test file (a plain
-            `class` referenced from a hoisted `vi.mock` factory needs to live inside `vi.hoisted()`
-            itself) → independent tester confirmed clean red → implementer → primary caught two
-            real implementation issues on review (a `buildClient()` that silently reimplemented
-            `createAIClient()` instead of reusing it, and a bare `any` cast) and sent both back for
-            a fix → re-verified independently → dispatched `researcher` review, one non-blocking
-            cosmetic duplicate-comment finding, fixed directly). `useAgentSession.ts` reconstructs
-            the `AgentSession` (via the real async `createAIClient`, not a duplicate) whenever
-            provider/model changes, carrying state via `serialize()`/`deserialize()`; the
-            `client as unknown as AgentSessionClient` cast is narrow and documents a genuine
-            openai v4 (tile-studio) vs v6 (devkit peer dep) cross-package version mismatch —
-            confirmed via each package's `package.json`, not a v4→v6 bump (out of scope, real risk
-            to `ChatCompletionMessageParam` usage elsewhere). Fixed the `ChatPane.tsx:1090`
-            `ActionEntry.kind`-missing build error as part of the same commit. Gate: 120/120
-            vitest, clean `tsc -b`, clean `eslint .` (0 errors), clean `vite build`.
-      - [x] **(b) done — committed `b385164`, pushed.** Registered devkit's `AskQuestionsTool`
-            in the tools map. Added `PendingQuestionsCard` to `ChatPane.tsx` (per-question text
-            input + optional suggestion pills reusing the existing `pillClassName` helper, submit
-            disabled until every question is answered). Wired `pendingInput`/`resolvePendingInput`
-            (already exposed since (a)) through to `ChatPane`; `ChatInput` disabled while a
-            pending input is unresolved. Added a short "Clarifying questions" subsection to
-            `system-prompt.ts`. Full TDD cycle only on the one piece of real pure logic —
-            `src/lib/pending-input.ts` (`parseAskQuestionsData`: defensive runtime validation of
-            the tool's `data: unknown` payload; `formatQuestionsAnswer`: composes per-question
-            answers into the `resolvePendingInput` tool-result string) — 23 frozen tests,
-            test-writer → independent tester confirmed clean red → implementer (same dispatch also
-            did the UI/wiring, which has no test precedent in this repo — `ChatPane.tsx` has zero
-            component-test coverage) → primary read the full diff directly and caught one real bug
-            self-report missed: the new `handleAnswerQuestions` callback's dep array used
-            `session.resolvePendingInput` instead of `session` itself, a *new*
-            `react-hooks/exhaustive-deps` warning the coder's self-report mischaracterized as
-            pre-existing — independently confirmed via `git show HEAD:...` that the line didn't
-            exist before this diff, fixed directly to match the file's existing `session`-in-deps
-            convention → independent `tester` re-ran the full gate (143/143, clean tsc/eslint/
-            build) → independent `researcher` review (skill: review) clean. No live end-to-end
-            manual QA session was run (would need a real AI provider key + browser interaction,
-            outside this environment) — flagged to the user as a manual follow-up before treating
-            the `ask_questions` UX as fully verified.
-      - [x] **Live QA on tile-studio caught a real crash — fixed 2026-08-01, `@soapbox.pub/
-            nostr-canvas@0.13.2`.** First real `write_code`/`edit_code` call in an actual browser
-            (not vitest) threw `ReferenceError: process is not defined` inside fengari — devkit's
-            `WriteCodeTool`/`EditCodeTool` (swapped in during (a)) call `luaLint()` internally,
-            which imported raw `fengari`; several of fengari's own files read
-            `process.env`/`process.versions`/`global`/`fs.constants` unguarded at module scope
-            (`luaconf.js`, `liolib.js`, `loadlib.js`, ...), which don't exist in a browser. **This
-            was never catchable by this repo's own test gate** — `process`/`global` are real Node
-            globals inside `vitest` regardless of `node`/`jsdom` environment, so 120/120 and
-            143/143 passing proved nothing about actual browser behavior; only a real tab (or a
-            headless-browser check, which is what actually caught and then confirmed the fix) does.
-            Fixed in nostr-canvas itself (not a per-consumer Vite polyfill workaround — tried
-            `vite-plugin-node-polyfills` first, it papered over `process`/`global` but a *further*
-            crash (`os.getenv` missing, `luacheck.format`'s color-detection code) proved the
-            polyfill-everything approach was open-ended whack-a-mole): `lua-lint.ts` now imports
-            `fengari-web` (fengari's own maintainers' browser build, already resolves the Node
-            globals) instead of raw `fengari`, plus a one-line `os.getenv = function() return nil
-            end` patch in `initEngine()` for the one real stdlib gap fengari-web leaves (no
-            `os.getenv` at all — correct for a browser, luacheck just needs it to not be missing
-            entirely). Verified end-to-end with a headless Playwright check (page-console capture +
-            calling `WriteCodeTool.execute()` directly) against a `pnpm link`ed local nostr-canvas
-            build before publishing, then again against the real published `0.13.2` — both zero
-            errors. 841/841 nostr-canvas suite, 143/143 tile-studio suite, clean tsc/eslint/build on
-            both. **Methodology note for future sub-cycles/T9.2/T10**: this class of bug (Node
-            globals leaking into a browser bundle) is structurally invisible to `vitest run`
-            regardless of test count — worth a real headless-browser smoke check (Playwright, cheap
-            here since nostr-canvas already has it cached) as a gate item once T9.2's `PreviewSession`
-            work lands actual Lua *execution* in-browser, not just linting.
-      - [x] **(c) done — committed `cca8a83`, pushed, folded into a second live-QA bugfix.**
-            Second real crash on first live `write_code`/`edit_code`-triggering AI turn:
-            `can't access property "def", schema._zod is undefined`. Root cause: devkit's
-            `toolToOpenAI` (nostr-canvas, `zod@^4.4.3`) calls the Zod-v4-only `z.toJSONSchema()`
-            uniformly across *every* tool's `inputSchema` once `AgentSession` builds the full
-            tools array — including `ReadSpecTool`/`ReadExamplesTool`, tile-studio's own local
-            tools (kept local per the original T9.1 scope decision) still on `zod@^3.25.76`. A v3
-            schema object has no `_zod` (Zod v4's internal namespace), so the call threw
-            immediately. Fixed by bumping tile-studio's `zod` to `^4.4.3` (matching devkit) —
-            `ReadSpecTool`/`ReadExamplesTool`'s actual usage (`z.object`/`z.string()`) needed zero
-            changes for v3→v4. `openai@4.104.0`'s resulting `zod@^3.23.8` peer warning is benign:
-            confirmed nothing in tile-studio touches `openai`'s zod-dependent helpers
-            (`zodResponseFormat` etc.), only the plain `chat.completions.create()` API. Folded
-            (c)'s already-planned cleanup into the same commit rather than porting dead v3 code to
-            v4 just to delete it minutes later: deleted `useAISession.ts` (no runtime caller since
-            (a)), all 9 superseded local tool files + their tests, `openai-adapter.ts` + test
-            (dead once `useAISession.ts` was gone — its only importer), and the now-unreferenced
-            `tools/types.ts` (`SettingMeta` — `TilePreview.tsx` already uses devkit's own
-            `SettingMeta` export). Verified live in a real browser (not just vitest): called
-            `toolToOpenAI('read_spec', ...)`/`toolToOpenAI('read_examples', ...)` directly against
-            the actual reported crash path, zero errors. 87/87 vitest (down from 143 — the 9
-            deleted tool files' baseline tests), clean `tsc -b`, clean `eslint .` (0 problems, the
-            one remaining pre-existing warning was in the now-deleted `useAISession.ts`), clean
-            `vite build`.
-      *Eval:* T9.0's tool/adapter baseline tests for the 9 swapped tools retired (deleted in (c)
-      alongside the files they tested) — done. `useAgentSession.ts`'s own test suite (a) plus
-      `pending-input.ts`'s test suite (b) pass — done. Manual end-to-end session (ask the AI to
-      write a trivial tile, confirm tool calls execute, code updates in the editor, and an
-      `ask_questions` call pauses correctly and resumes on answer) — in progress via live user
-      testing on tile-studio's deployed dev instance; two real bugs found and fixed this way
-      already (fengari/browser-Node-globals, zod v3/v4 mismatch) that no amount of `vitest run`
-      would have caught, confirming the methodology note above. T9.1 as a whole (a+b+c) is code-
-      complete; still want a clean end-to-end run with no new errors before calling it fully done
-      — needs a real provider key + browser, do before calling T9.1 fully verified.
-- [x] **T9.2 Swap the preview driver — done, commit `507143e`, pushed.** `StubAdapter` +
-      `TilePreview.tsx`'s build/register/teardown logic → devkit's `PreviewSession` +
-      `PreviewAdapter`, wrapped around tile-studio's existing real adapter
-      (`src/lib/adapter.ts`) via the `usePreviewSession.ts` hook (landed separately as T9.2 part
-      1, commit `cf60023`). `TilePreviewCard`'s React rendering (tabs, syntax highlighting, play
-      overlay, settings panel) unchanged; only the underlying build/output/teardown plumbing
-      swapped. Extracted `src/lib/file-picker.ts` (`pickFile`) out of
-      `SimpleAdapter.uploadImage` so the real adapter and the new preview `onPickFile`
-      capability share one native-file-picker implementation. Capabilities are real during
-      preview except three explicit gates carried forward from the old `StubAdapter`: `navigate`
-      shows a warning instead of navigating, `publish_event` routes through
-      `PublishReviewDialog` (sign-then-review, never auto-approved), `uploadImage` opens a real
-      picker but returns a local blob URL instead of uploading. Needed four small devkit
-      extensions, all published to npm during T9.2 prep (nostr-canvas `main` `e3afff5`,
-      `@soapbox.pub/nostr-canvas@0.14.3`): `PreviewSession.build()` takes a `render` param
-      (placement/props, was hardcoded to `"main"`); `PreviewSession` defaults to a fresh
-      in-memory `MemoryStorage` instead of falling through to ambient browser `localStorage`;
-      `PreviewTileMetadata` threads `render`/`actions`/`nav`/`widget` into the synthesized
-      `TileDefEvent` (was hardcoded `actions: []`, no render/nav/widget); `PreviewSessionOptions`
-      gained `onDebug`. Gate green: `tsc -b`, 116/116 `vitest run`, clean `eslint .`, clean
-      `vite build`. *Eval:* automated gate — done. Manual (live preview still updates as code
-      changes, a granted capability like `fetch` runs for real, `publish_event` shows the
-      review dialog) — **not yet performed this session**; no browser-automation tool was
-      available, so the dev server was started (`localhost:5173`) for a live user check instead
-      of claiming unverified success. Note: `usePreviewSession`'s own hook tests (29/29) fully
-      mock `PreviewSession` by design (black-box wiring tests only) — real WASM/Lua execution
-      in-browser is still unverified by any automated check, same class of gap T9.1 flagged for
-      Node-globals-in-browser bugs. Treat the live QA pass as the actual gate for this ticket.
-- [x] **T9.3 Cleanup — done, commit `175df92`, pushed.** Removed `src/lib/stub-adapter.ts` +
-      `src/lib/__tests__/stub-adapter.test.ts` (net -309 lines) after confirming zero remaining
-      references anywhere in `src/`. No other orphaned local files from the swap — old
-      `TilePreview.tsx`'s other imports (`parseTileDefEvent`, `buildTileDefEvent`,
-      `CAPABILITIES`, `TileDefEvent`, devkit's own `SettingMeta`) are all still used elsewhere
-      (e.g. `PublishModal.tsx`), not dead. `package.json`'s `@soapbox.pub/nostr-canvas` dep was
-      already `^0.14.3` (bumped incrementally across four commits during T9.2 prep as each
-      devkit version published) — supersedes this ticket's original `^0.13.0` text, no further
-      bump needed. Gate green: 101/101 `vitest run` (down from 116 — the 15 deleted
-      stub-adapter tests), clean `eslint .`, clean `vite build`. *Eval:* `git diff --stat` shows
-      net deletions in `src/lib/` (309 deletions, 0 insertions) — done; build passes — done;
-      `pnpm test` still passes — done.
+1. **fengari in a browser bundle** — raw `fengari`'s own files read `process`/`global` unguarded
+   at module scope. Fixed in nostr-canvas (`fengari-web` swap + an `os.getenv` stdlib patch),
+   released `0.13.2`.
+2. **Zod v3/v4 schema mismatch** — devkit's `toolToOpenAI` calls the Zod-v4-only
+   `z.toJSONSchema()` across every tool, including tile-studio's two kept-local tools still on
+   Zod v3. Fixed by bumping tile-studio's `zod` to `^4.4.3`.
+3. **Preview interactions dispatched to the wrong runtime** — the more structural of the three.
+   `TilePreview.tsx` rendered preview output through the app's *ambient* `NostrCanvasProvider`
+   instead of the `PreviewSession`'s own private runtime, so button clicks / form submits never
+   reached the tile's Lua code at all — `deliverInputEvent` was posted to a worker that never
+   owned the preview's `tileId`, silently swallowed. Root-caused and fixed in nostr-canvas
+   (`TileView` gained a `runtime` override prop, `PreviewSession` gained `getRuntime()`; released
+   `0.14.5`, alongside an unrelated `input_type`-coercion bug caught in the same pass), then
+   wired through tile-studio (`usePreviewSession` → local `TileView` wrapper → `RunningPreview`;
+   `a445ac5`, `59ca481`; tracked in tile-studio's own `PLAN.md` as its Phase 2).
+
+Gate at final state: 104/104 `vitest run`, clean `tsc -b`, clean `eslint .`, clean `vite build`.
+See Human review queue below for the two manual checks still outstanding.
 
 ## Phase 10 — Ditto: AI chat "Tiles" ability — `pending`
 
@@ -550,6 +410,17 @@ DeepSeek, own API key) use devkit's `ai-provider.ts` factory directly, as origin
   2026-07-31 while discussing Phase 10 scope.
 
 ---
+
+## Human review queue
+
+- [ ] Phase 9 / T9.1 — full manual AI-authoring session on tile-studio's deployed dev instance:
+      ask the AI to write a trivial tile, confirm tool calls execute and code updates in the
+      editor, confirm an `ask_questions` call pauses correctly and resumes on answer, with no new
+      console errors.
+- [ ] Phase 9 / T9.2 — click-through confirmation of the interaction-dispatch fix (`a445ac5`):
+      edit a tile with a `Button`/`publish_event` handler, run the preview, confirm the click
+      actually fires (the review dialog appears / the tile's own state updates) instead of doing
+      nothing.
 
 ## Working agreement
 
