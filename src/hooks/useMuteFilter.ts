@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useAppContext } from '@/hooks/useAppContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useMuteList, type MuteListItem } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
@@ -11,9 +12,10 @@ export interface UseMuteFilterReturn {
   muteItems: MuteListItem[];
   /**
    * Whether an event should be hidden by the user's mute list.
-   * When the `exemptFollowsFromFilters` setting is enabled, muted hashtags
-   * and words are not applied to accounts the user follows — explicit pubkey
-   * and thread mutes still are.
+   * Muted hashtags and words are never applied to the current user's own
+   * posts. When the `exemptFollowsFromFilters` setting is enabled, they are
+   * likewise not applied to accounts the user follows — explicit pubkey and
+   * thread mutes still are.
    */
   isMuted: (event: NostrEvent) => boolean;
 }
@@ -27,6 +29,7 @@ export interface UseMuteFilterReturn {
  */
 export function useMuteFilter(): UseMuteFilterReturn {
   const { config } = useAppContext();
+  const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
   const { data: followList } = useFollowList();
 
@@ -40,11 +43,14 @@ export function useMuteFilter(): UseMuteFilterReturn {
     return new Set(followPubkeys);
   }, [exemptFollows, followPubkeys]);
 
+  const selfPubkey = user?.pubkey;
+
   const isMuted = useCallback((event: NostrEvent): boolean => {
     if (muteItems.length === 0) return false;
-    const skipContentMutes = exemptPubkeys?.has(event.pubkey) === true;
+    const skipContentMutes = event.pubkey === selfPubkey ||
+      exemptPubkeys?.has(event.pubkey) === true;
     return isEventMuted(event, muteItems, { skipContentMutes });
-  }, [muteItems, exemptPubkeys]);
+  }, [muteItems, exemptPubkeys, selfPubkey]);
 
   return { muteItems, isMuted };
 }
