@@ -86,7 +86,8 @@ function ScrollCaret({ direction, onMouseEnter, onMouseLeave }: { direction: 'up
 }
 
 const sectionMessages = defineMessages({
-  app: { id: 'sidebar.section.app', defaultMessage: "Pages" },
+  yours: { id: 'sidebar.section.yours', defaultMessage: "Yours" },
+  app: { id: 'sidebar.section.app', defaultMessage: "App" },
   social: { id: 'sidebar.section.social', defaultMessage: "Social" },
   media: { id: 'sidebar.section.media', defaultMessage: "Media" },
   reading: { id: 'sidebar.section.reading', defaultMessage: "Reading" },

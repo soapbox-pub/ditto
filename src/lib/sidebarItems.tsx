@@ -110,6 +110,7 @@ export function isExternalUri(id: string): boolean {
  * it into a handful of clusters.
  */
 export type SidebarSection =
+  | "yours"
   | "app"
   | "social"
   | "media"
@@ -120,6 +121,7 @@ export type SidebarSection =
 
 /** Display order of sections in the "More..." menu. */
 export const SIDEBAR_SECTION_ORDER: SidebarSection[] = [
+  "yours",
   "app",
   "social",
   "media",
@@ -163,7 +165,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     path: "/notifications",
     icon: Bell,
     requiresAuth: true,
-    section: "app",
+    section: "yours",
   },
   { id: "search", label: "Search", path: "/search", icon: Search, section: "app" },
   { id: "trends", label: "Trends", path: "/trends", icon: TrendingUp, section: "app" },
@@ -173,7 +175,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     path: "/bookmarks",
     icon: Bookmark,
     requiresAuth: true,
-    section: "app",
+    section: "yours",
   },
   {
     id: "profile",
@@ -181,7 +183,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     path: "/profile",
     icon: User,
     requiresAuth: true,
-    section: "app",
+    section: "yours",
   },
   {
     id: "lists",
@@ -189,7 +191,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     path: "/lists",
     icon: Scroll,
     requiresAuth: true,
-    section: "app",
+    section: "yours",
   },
   { id: "settings", label: "Settings", path: "/settings", icon: Settings, section: "app" },
   {
@@ -198,7 +200,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     path: "/wallet",
     icon: Wallet,
     requiresAuth: true,
-    section: "app",
+    section: "yours",
   },
   { id: "changelog", label: "Changelog", path: "/changelog", icon: ScrollText, section: "app" },
   {
