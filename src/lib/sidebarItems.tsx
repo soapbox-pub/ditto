@@ -115,6 +115,7 @@ export type SidebarSection =
   | "media"
   | "reading"
   | "fun"
+  | "personalize"
   | "tools";
 
 /** Display order of sections in the "More..." menu. */
@@ -124,6 +125,7 @@ export const SIDEBAR_SECTION_ORDER: SidebarSection[] = [
   "media",
   "reading",
   "fun",
+  "personalize",
   "tools",
 ];
 
@@ -229,7 +231,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "podcasts", label: "Podcasts", path: "/podcasts", icon: Podcast, section: "media" },
 
   { id: "webxdc", label: "Webxdc", path: "/webxdc", icon: Blocks, section: "tools" },
-  { id: "themes", label: "Themes", path: "/themes", icon: Sparkles, section: "tools" },
+  { id: "themes", label: "Themes", path: "/themes", icon: Sparkles, section: "personalize" },
   { id: "polls", label: "Polls", path: "/polls", icon: BarChart3, section: "social" },
   { id: "packs", label: "Follow Packs", path: "/packs", icon: PartyPopper, section: "social" },
   { id: "colors", label: "Color Moments", path: "/colors", icon: Palette, section: "fun" },
@@ -237,7 +239,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "treasures", label: "Treasures", path: "/treasures", icon: ChestIcon, section: "fun" },
   { id: "quizzes", label: "Quizzes", path: "/quizzes", icon: ClipboardList, section: "fun" },
   { id: "cards", label: "Memory Cards", path: "/memory-cards", icon: Gamepad2, section: "fun" },
-  { id: "emojis", label: "Emojis", path: "/emojis", icon: SmilePlus, section: "tools" },
+  { id: "emojis", label: "Emojis", path: "/emojis", icon: SmilePlus, section: "personalize" },
   { id: "development", label: "Development", path: "/development", icon: Code, section: "tools" },
   { id: "badges", label: "Badges", path: "/badges", icon: Award, section: "fun" },
   { id: "world", label: "World", path: "/world", icon: Earth, section: "social" },

@@ -91,6 +91,7 @@ const sectionMessages = defineMessages({
   media: { id: 'sidebar.section.media', defaultMessage: "Media" },
   reading: { id: 'sidebar.section.reading', defaultMessage: "Reading" },
   fun: { id: 'sidebar.section.fun', defaultMessage: "Fun" },
+  personalize: { id: 'sidebar.section.personalize', defaultMessage: "Personalize" },
   tools: { id: 'sidebar.section.tools', defaultMessage: "Tools" },
 });
 
