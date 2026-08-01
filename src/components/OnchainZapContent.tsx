@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { AlertTriangle, Loader2, Bitcoin, Copy, Check } from 'lucide-react';
+import { AlertTriangle, Loader2, Bitcoin, Copy, Check, MessageCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
@@ -125,6 +125,8 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
   const loginType = logins[0]?.type;
 
   const [usdAmount, setUsdAmount] = useState<number | string>(5);
+  const [comment, setComment] = useState('');
+  const [showComment, setShowComment] = useState(false);
   const [feeSpeed, setFeeSpeed] = useState<OnchainFeeSpeed>('halfHour');
   const [error, setError] = useState('');
   const [feePopoverOpen, setFeePopoverOpen] = useState(false);
@@ -284,7 +286,7 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
     }
 
     try {
-      await zapAsync({ amountSats, comment: '', feeSpeed });
+      await zapAsync({ amountSats, comment: comment.trim(), feeSpeed });
       // onSuccess (passed to useOnchainZap) closes the dialog; toast is shown by the hook.
     } catch (err) {
       // Capability errors flip the UI via `reportSignerUnsupported` in the
@@ -293,7 +295,7 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
       const isCapability = /does not support|doesn't support|signpsbt|sign_psbt/i.test(msg);
       if (!isCapability) setError(msg);
     }
-  }, [user, target.pubkey, campaign, btcPrice, amountSats, utxos, insufficient, zapAsync, feeSpeed, isLarge, confirmArmed]);
+  }, [user, target.pubkey, campaign, btcPrice, amountSats, utxos, insufficient, zapAsync, comment, feeSpeed, isLarge, confirmArmed]);
 
   // ── Signer not supported ──────────────────────────────────────
   // The user's signer can't sign PSBTs locally (extension without signPsbt,
@@ -393,7 +395,7 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
           <ToggleGroupItem
             key={v}
             value={String(v)}
-            className="h-8 min-w-0 text-xs font-semibold px-1"
+            className="h-8 min-w-0 rounded-full text-xs font-semibold px-1"
           >
             ${v}
           </ToggleGroupItem>
@@ -405,25 +407,53 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
         <p className="text-xs text-destructive">{error}</p>
       )}
 
-      <Button
-        onClick={handleZap}
-        disabled={!btcPrice || amountSats <= 0 || isZapping || insufficient}
-        variant={(insufficient || isLarge) && !isZapping ? 'destructive' : 'default'}
-        className="w-full"
-      >
-        {isZapping ? (
-          <>
-            <Loader2 className="size-4 mr-1.5 animate-spin" />
-            {progressLabel(progress)}
-          </>
-        ) : insufficient ? (
-          <>Not enough Bitcoin</>
-        ) : isLarge && confirmArmed ? (
-          <>Tap again to send {totalUsdString}</>
-        ) : (
-          <>Send {totalUsdString || (hasValidAmount ? `$${currentUsd}` : '')}</>
-        )}
-      </Button>
+      {/* Optional comment — becomes the kind 8333 receipt's content. Revealed
+          by the icon on the Send row so it costs no space until wanted. */}
+      {showComment && (
+        <Input
+          type="text"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Add a comment (optional)"
+          maxLength={280}
+          aria-label="Comment"
+          autoFocus
+          className="text-sm rounded-full motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-200"
+        />
+      )}
+
+      <div className="flex items-center gap-2">
+        <Button
+          onClick={handleZap}
+          disabled={!btcPrice || amountSats <= 0 || isZapping || insufficient}
+          variant={(insufficient || isLarge) && !isZapping ? 'destructive' : 'default'}
+          className="flex-1 rounded-full"
+        >
+          {isZapping ? (
+            <>
+              <Loader2 className="size-4 mr-1.5 animate-spin" />
+              {progressLabel(progress)}
+            </>
+          ) : insufficient ? (
+            <>Not enough Bitcoin</>
+          ) : isLarge && confirmArmed ? (
+            <>Tap again to send {totalUsdString}</>
+          ) : (
+            <>Send {totalUsdString || (hasValidAmount ? `$${currentUsd}` : '')}</>
+          )}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => setShowComment((v) => !v)}
+          aria-label="Add a comment"
+          aria-pressed={showComment}
+          className={`rounded-full ${comment.trim() ? 'text-primary' : 'text-muted-foreground'}`}
+        >
+          <MessageCircle className="size-4" />
+        </Button>
+      </div>
 
       {/* Fee line — click to open speed picker */}
       {amountSats > 0 && (
@@ -582,7 +612,7 @@ function UnsupportedSignerQR({
           <ToggleGroupItem
             key={v}
             value={String(v)}
-            className="h-8 min-w-0 text-xs font-semibold px-1"
+            className="h-8 min-w-0 rounded-full text-xs font-semibold px-1"
           >
             ${v}
           </ToggleGroupItem>

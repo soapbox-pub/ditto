@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback, forwardRef } from 'react';
-import { Copy, Check, ExternalLink, X, Loader2, ChevronDown } from 'lucide-react';
+import { Copy, Check, ExternalLink, X, Loader2, ChevronDown, MessageCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { openUrl } from '@/lib/downloadFile';
 import { impactMedium } from '@/lib/haptics';
@@ -98,6 +98,8 @@ function formatPresetLabel(usd: number): string {
 interface LightningZapContentProps {
   invoice: string | null;
   usdAmount: number | string;
+  comment: string;
+  setComment: (v: string) => void;
   amountSats: number;
   btcPrice: number | undefined;
   isZapping: boolean;
@@ -120,9 +122,10 @@ interface LightningZapContentProps {
 }
 
 /**
- * Lightning zap flow. Mirrors the onchain tab: one screen, one button, no
- * comment field. Amount is denominated in USD and converted to sats at
- * payment time using the same BTC price query the onchain tab uses.
+ * Lightning zap flow. Mirrors the onchain tab: one screen, one button, and an
+ * optional comment carried into the NIP-57 zap request. Amount is denominated
+ * in USD and converted to sats at payment time using the same BTC price query
+ * the onchain tab uses.
  *
  * Defined outside `ZapDialog` as a `forwardRef` to keep the amount input
  * from losing focus on parent re-renders.
@@ -130,6 +133,8 @@ interface LightningZapContentProps {
 const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>(({
   invoice,
   usdAmount,
+  comment,
+  setComment,
   amountSats,
   btcPrice,
   isZapping,
@@ -150,6 +155,7 @@ const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>
   commitAmountEdit,
   payWithWebLN,
 }, ref) => {
+  const [showComment, setShowComment] = useState(false);
   const currentUsd = typeof usdAmount === 'string' ? parseFloat(usdAmount) : usdAmount;
   const hasValidAmount = Number.isFinite(currentUsd) && currentUsd > 0;
   const usdString = btcPrice && amountSats > 0 ? satsToUSD(amountSats, btcPrice) : '';
@@ -294,7 +300,7 @@ const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>
           <ToggleGroupItem
             key={v}
             value={String(v)}
-            className="h-8 min-w-0 text-xs font-semibold px-1"
+            className="h-8 min-w-0 rounded-full text-xs font-semibold px-1"
           >
             {formatPresetLabel(v)}
           </ToggleGroupItem>
@@ -305,24 +311,52 @@ const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>
         <p className="text-xs text-destructive">{error}</p>
       )}
 
-      <Button
-        type="button"
-        onClick={handleZap}
-        disabled={!btcPrice || amountSats <= 0 || isZapping}
-        variant={isLarge && !isZapping ? 'destructive' : 'default'}
-        className="w-full"
-      >
-        {isZapping ? (
-          <>
-            <Loader2 className="size-4 mr-1.5 animate-spin" />
-            Creating invoice…
-          </>
-        ) : isLarge && confirmArmed ? (
-          <>Tap again to send {usdDisplay}</>
-        ) : (
-          <>Send {usdDisplay}</>
-        )}
-      </Button>
+      {/* Optional comment — carried into the NIP-57 zap request. Revealed by
+          the icon on the Send row so it costs no space until wanted. */}
+      {showComment && (
+        <Input
+          type="text"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Add a comment (optional)"
+          maxLength={280}
+          aria-label="Comment"
+          autoFocus
+          className="text-sm rounded-full motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-200"
+        />
+      )}
+
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          onClick={handleZap}
+          disabled={!btcPrice || amountSats <= 0 || isZapping}
+          variant={isLarge && !isZapping ? 'destructive' : 'default'}
+          className="flex-1 rounded-full"
+        >
+          {isZapping ? (
+            <>
+              <Loader2 className="size-4 mr-1.5 animate-spin" />
+              Creating invoice…
+            </>
+          ) : isLarge && confirmArmed ? (
+            <>Tap again to send {usdDisplay}</>
+          ) : (
+            <>Send {usdDisplay}</>
+          )}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => setShowComment((v) => !v)}
+          aria-label="Add a comment"
+          aria-pressed={showComment}
+          className={`rounded-full ${comment.trim() ? 'text-primary' : 'text-muted-foreground'}`}
+        >
+          <MessageCircle className="size-4" />
+        </Button>
+      </div>
     </div>
   );
 });
@@ -402,6 +436,7 @@ export function ZapDialogImpl({
   // USD-denominated state (matches OnchainZapContent). The sats amount is
   // derived just before we hit the LNURL endpoint.
   const [usdAmount, setUsdAmount] = useState<number | string>(0.5);
+  const [comment, setComment] = useState('');
   const [copied, setCopied] = useState(false);
   const [editingAmount, setEditingAmount] = useState(false);
   const [error, setError] = useState('');
@@ -531,6 +566,7 @@ export function ZapDialogImpl({
   useEffect(() => {
     if (open) {
       setUsdAmount(0.5);
+      setComment('');
       setInvoice(null);
       setCopied(false);
       setEditingAmount(false);
@@ -540,6 +576,7 @@ export function ZapDialogImpl({
       setActiveMethod(defaultMethodId);
     } else {
       setUsdAmount(0.5);
+      setComment('');
       setInvoice(null);
       setCopied(false);
       setEditingAmount(false);
@@ -571,18 +608,20 @@ export function ZapDialogImpl({
     }
 
     impactMedium();
-    zap(amountSats, '');
+    zap(amountSats, comment.trim());
   };
 
   const payWithWebLN = () => {
     if (amountSats > 0) {
-      zap(amountSats, '');
+      zap(amountSats, comment.trim());
     }
   };
 
   const lightningContentProps: LightningZapContentProps = {
     invoice,
     usdAmount,
+    comment,
+    setComment,
     amountSats,
     btcPrice,
     isZapping,
