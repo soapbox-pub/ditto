@@ -274,8 +274,15 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
     reader.onload = (event) => {
       const content = event.target?.result as string;
       if (content && validateNsec(content.trim())) {
-        setLoginInput(content.trim());
+        const key = content.trim();
+        // Populate the (masked) field for visual consistency, then log in
+        // directly. Without this the handler only filled the password input,
+        // leaving the user staring at masked dots after the file picker
+        // returned — "I uploaded the key and nothing happened" (notably on
+        // iOS Safari). Mirrors the stored-credential path above.
+        setLoginInput(key);
         setLoginError('');
+        executeLogin(key);
       } else {
         setLoginError('File does not contain a valid secret key.');
       }
