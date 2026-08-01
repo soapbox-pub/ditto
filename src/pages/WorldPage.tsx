@@ -42,7 +42,7 @@ export function WorldPage() {
             placeholder="Search countries..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className="pl-9 rounded-full"
           />
         </div>
       </div>
