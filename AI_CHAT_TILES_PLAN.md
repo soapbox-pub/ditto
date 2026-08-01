@@ -369,15 +369,66 @@ built with a custom `fetch` that signs a fresh NIP-98 token per request, exactly
 Shakespeare's per-request auth model. User-supplied providers (OpenRouter/OpenAI-compatible/
 DeepSeek, own API key) use devkit's `ai-provider.ts` factory directly, as originally designed.
 
-- [ ] **T10.0 Provider settings (`/settings/ai`).** Provider profile CRUD: OpenRouter / OpenAI-
-      compatible (generic) / DeepSeek preset, multiple profiles of any type, per-profile
-      "Sync via encrypted settings" checkbox (NIP-44 blob when on, `localStorage` when off).
+Execution order for Phase 10: T10.0 → T10.1 → T10.2 → T10.3 → T10.4 → T10.5 → T10.6 → remix
+(T10.7+, see below) — locked 2026-08-02, matches this doc's existing scoping order. Each ticket
+gets its own short grilling pass immediately before dispatch, per the working agreement; T10.0
+below is the first to have gone through that pass and is ready to dispatch.
+
+- [ ] **T10.0 Provider settings (`/settings/ai`) — grilled 2026-08-02, ready to dispatch.**
+      Facts confirmed first (not guessed): devkit's `AIProvider` type is `{ id, name, baseURL,
+      apiKey, models }` with no persistence opinion of its own ("host apps bring their own
+      settings" — `ai-provider.ts:3`); `createAIClient(provider)` returns a raw `OpenAI` client
+      and special-cases OpenRouter attribution headers by checking `provider.id === "openrouter"`
+      literally; devkit ships presets for `openrouter` and `openai-compatible` only, no DeepSeek
+      preset (`DEFAULT_PROVIDERS`, `ai-provider.ts:32-53`); DeepSeek's own docs confirm
+      `baseURL: https://api.deepseek.com`, standard OpenAI-SDK-compatible. Ditto's existing NIP-44
+      blob (`useEncryptedSettings`, kind 30078) already merges per-field on write with a
+      `lastSync` staleness guard, so per-profile opt-in sync is new field-level logic, not new
+      sync infrastructure.
+
+      Decisions:
+      - **Storage: a new dedicated hook/store** (e.g. `useAIProviders()`), own `localStorage` key,
+        reactive store mirroring tile-studio's `ai-client.ts` pattern — not an `AppConfig` field.
+        Chosen over `AppConfig` specifically to keep API keys out of a broad, generally-read
+        config object whose Zod schema also doubles as the build-time `ditto.json` validator.
+      - **Per-profile sync toggle**: when on, that profile is included in the `useEncryptedSettings`
+        NIP-44 blob as a new optional field/array entry; when off, it lives only in the new
+        dedicated `localStorage` key. Toggling is per-profile, not global.
+      - **Profile identity vs. devkit's `id`**: each stored profile gets its own stable UUID for
+        CRUD identity (add/edit/delete/duplicate). Devkit's `AIProvider.id` (which
+        `createAIClient` inspects for the literal string `"openrouter"`) is constructed separately
+        at call time from the profile's `kind` field, not read from the stored UUID — otherwise
+        two OpenRouter profiles couldn't have distinct CRUD identities.
+      - **Model list**: a "Detect models" button (devkit's `fetchModels()`, which hits the
+        provider's `/models` endpoint and filters to tool-calling-capable models) plus a manual
+        text-entry fallback for providers whose `/models` endpoint is missing or unreliable.
+      - **Security UX**: an inline warning next to the sync toggle when it's off — "stored
+        unencrypted on this device only" (same exposure class as an unsynced `nsec`).
+      - **Scope boundary**: T10.0 is profile CRUD only — no "default provider" selector on this
+        page. Every chat session explicitly picks its provider/model in T10.1; there is no
+        implicit default to keep in sync between two pages.
+      - **Add-profile UX**: one "Add profile" button opening a form with a provider-kind dropdown
+        (OpenRouter / OpenAI-compatible / DeepSeek); picking a kind pre-fills `baseURL` (and, for
+        OpenRouter, the attribution-header behavior at client-construction time). Not three
+        separate buttons.
+      - **Shakespeare is out of scope for this page** — it's zero-config (auth via the logged-in
+        user's NIP-98 signer, no API key, no profile to manage) and appears automatically as an
+        always-available option in T10.1's session picker, not as a CRUD'd profile here.
+      *Eval:* automated — unit tests for the new store (add/edit/delete/duplicate, per-profile
+      sync-toggle behavior including the field-merge into the NIP-44 blob), component tests where
+      reasonable. Manual (user will run before closing): add one profile of each kind (OpenRouter,
+      generic, DeepSeek) with a real API key, use "Detect models" on each, save, reload the page,
+      confirm all three persist with their models.
 - [ ] **T10.1 Abilities menu + mode-scoped sessions.** Hamburger/menu near the chat textarea
       toggling available abilities per session; enabling "Tiles" starts a **fresh session**
       (own conversation, own system prompt = D5's widget-creation prompt constrained to
       `placement: "widget"`, own tool bundle = devkit's 12 tools) rather than mutating the
       current thread. Mid-session provider/model switching (Shakespeare always available,
       zero-config, plus configured profiles) — switching doesn't reset the conversation.
+      **Grilled 2026-08-02, locked for this ticket's design**: session creation must support an
+      optional pre-seeded starting code/metadata argument from the start (not retrofitted later)
+      — marketplace remix (T10.7+, see below) reuses this exact "Tiles" ability, just with a
+      target tile's existing code loaded instead of starting empty.
 - [ ] **T10.2 Tool registry framework.** Generalize the existing hardcoded `set_theme` tool into
       a registry others can append to, using devkit's `Tool` interface as the shape; port
       `set_theme` itself onto the new framework as the non-tile example; register devkit's 12
@@ -398,6 +449,16 @@ DeepSeek, own API key) use devkit's `ai-provider.ts` factory directly, as origin
       preview.
 - [ ] **T10.6 Discovery toast.** "New: Create with Ditto" overlay on the AI chat widget's first
       open, dismissed state in `localStorage`.
+- [ ] **T10.7+ Marketplace remix — scoping locked 2026-08-02, ticket-level detail and eval
+      criteria not yet grilled (do so immediately before dispatch, once T10.0-T10.6 land).**
+      New tickets inside this phase (not a separate phase), ordered last since it depends on
+      publish (T10.5) already working. Locked so far: a "Remix with AI" entry point (exact
+      placement TBD) starts the same "Tiles" ability session as any AI-authored widget, except
+      pre-seeded with the target marketplace tile's existing code/metadata instead of an empty
+      draft — reuses T10.1's session-creation seed argument, not a separate flow. Everything
+      else (where the entry point lives on the marketplace detail page, fork-vs-edit-in-place
+      semantics and ownership/d-tag handling, attribution to the original tile, whether remix
+      requires the user to already have a NIP-05) is open.
 
 **Open items, not yet scoped in detail:**
 - Image generation via `gpt-image-1` as its own devkit tool/skill, for T10.5's AI-generated tile
