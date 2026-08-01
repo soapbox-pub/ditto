@@ -39,6 +39,8 @@ import {
   ReactionEmoji,
   RenderResolvedEmoji,
 } from "@/components/CustomEmoji";
+import { EmojiSourceFooter } from "@/components/EmojiSourceFooter";
+import { resolveReactionEmoji } from "@/lib/customEmoji";
 const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const BlobbiSocialActions = lazy(() => import("@/components/BlobbiSocialActions").then(m => ({ default: m.BlobbiSocialActions })));
 import { parseBlobbiEvent } from "@blobbi-kit/core/blobbi";
@@ -2068,6 +2070,21 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               )}
             </div>
           </div>
+
+          {/* Custom-emoji attribution — name the pack this reaction's emoji came
+              from and let the viewer add it. Renders nothing for unicode
+              reactions or packs we can't resolve. */}
+          {(() => {
+            const resolved = resolveReactionEmoji(event);
+            if (!resolved?.url) return null;
+            return (
+              <EmojiSourceFooter
+                url={resolved.url}
+                name={resolved.name}
+                className="mt-2 rounded-xl border border-border bg-secondary/30 px-3 py-2.5"
+              />
+            );
+          })()}
 
           {/* Stats + date row */}
           {statsAndDateRow}

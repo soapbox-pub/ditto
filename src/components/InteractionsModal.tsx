@@ -15,6 +15,7 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CustomEmojiImg, EmojifiedText } from '@/components/CustomEmoji';
+import { EmojiSourceFooter } from '@/components/EmojiSourceFooter';
 import { isCustomEmoji } from '@/lib/customEmoji';
 import { useEventInteractions, type RepostEntry, type QuoteEntry, type ReactionEntry, type ZapEntry } from '@/hooks/useEventInteractions';
 import { useOnchainZaps, type OnchainZapEntry } from '@/hooks/useOnchainZaps';
@@ -207,6 +208,18 @@ function ReactionsTab({ reactions }: { reactions: ReactionEntry[] }) {
       .sort((a, b) => b[1].count - a[1].count);
   }, [reactions]);
 
+  // Distinct custom emojis used, so each origin pack is named + addable once
+  // (rather than repeated per reactor row).
+  const customEmojis = useMemo(() => {
+    const seen = new Map<string, { url: string; name: string }>();
+    for (const [emoji, { url }] of emojiSummary) {
+      if (url && isCustomEmoji(emoji) && !seen.has(url)) {
+        seen.set(url, { url, name: emoji.slice(1, -1) });
+      }
+    }
+    return Array.from(seen.values());
+  }, [emojiSummary]);
+
   if (reactions.length === 0) {
     return <EmptyState message="No reactions yet" />;
   }
@@ -229,6 +242,16 @@ function ReactionsTab({ reactions }: { reactions: ReactionEntry[] }) {
               </span>
             );
           })}
+        </div>
+      )}
+
+      {/* Custom-emoji pack attribution — name each source pack and let the user
+          add it in a tap. Renders only for emojis whose pack we can resolve. */}
+      {customEmojis.length > 0 && (
+        <div className="divide-y divide-border border-b border-border">
+          {customEmojis.map((e) => (
+            <EmojiSourceFooter key={e.url} url={e.url} name={e.name} />
+          ))}
         </div>
       )}
 

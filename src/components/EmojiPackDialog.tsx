@@ -334,6 +334,8 @@ function EmojiPackForm({ editEvent, onDone }: { editEvent?: NostrEvent; onDone: 
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       queryClient.invalidateQueries({ queryKey: ['custom-emojis'] });
       queryClient.invalidateQueries({ queryKey: ['emoji-list'] });
+      queryClient.invalidateQueries({ queryKey: ['my-published-packs'] });
+      queryClient.invalidateQueries({ queryKey: ['emoji-pack-index'] });
 
       // Your own pack in your own emoji list (kind 10030) — an explicit opt-in
       // on this click, never automatic. A failure here must not read as a
@@ -343,6 +345,7 @@ function EmojiPackForm({ editEvent, onDone }: { editEvent?: NostrEvent; onDone: 
           await addPackToMyList(identifier);
           queryClient.invalidateQueries({ queryKey: ['emoji-list'] });
           queryClient.invalidateQueries({ queryKey: ['custom-emojis'] });
+          queryClient.invalidateQueries({ queryKey: ['my-emoji-packs'] });
           toast({ title: 'Emoji pack published', description: `${name.trim()} — added to your emojis` });
         } catch {
           toast({
