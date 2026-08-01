@@ -419,16 +419,39 @@ before T9.1-T9.3 can use the same TDD dispatch pattern.
             regardless of test count — worth a real headless-browser smoke check (Playwright, cheap
             here since nostr-canvas already has it cached) as a gate item once T9.2's `PreviewSession`
             work lands actual Lua *execution* in-browser, not just linting.
-      - [ ] **(c) not started** — delete `useAISession.ts` and the 9 replaced local tool files
-            (`ReadCodeTool.ts`, `WriteCodeTool.ts`, `EditCodeTool.ts`, `SearchNIPsTool.ts`,
-            `FetchNIPTool.ts`, `GetTileTool.ts`, `PreviewTileTool.ts`, `SetNotesTool.ts`,
-            `SetTileTool.ts`) + their now-orphaned `__tests__/*.test.ts` files; confirm no dead
-            code/imports remain; final full green `pnpm test`/`pnpm build`/`pnpm lint`.
+      - [x] **(c) done — committed `cca8a83`, pushed, folded into a second live-QA bugfix.**
+            Second real crash on first live `write_code`/`edit_code`-triggering AI turn:
+            `can't access property "def", schema._zod is undefined`. Root cause: devkit's
+            `toolToOpenAI` (nostr-canvas, `zod@^4.4.3`) calls the Zod-v4-only `z.toJSONSchema()`
+            uniformly across *every* tool's `inputSchema` once `AgentSession` builds the full
+            tools array — including `ReadSpecTool`/`ReadExamplesTool`, tile-studio's own local
+            tools (kept local per the original T9.1 scope decision) still on `zod@^3.25.76`. A v3
+            schema object has no `_zod` (Zod v4's internal namespace), so the call threw
+            immediately. Fixed by bumping tile-studio's `zod` to `^4.4.3` (matching devkit) —
+            `ReadSpecTool`/`ReadExamplesTool`'s actual usage (`z.object`/`z.string()`) needed zero
+            changes for v3→v4. `openai@4.104.0`'s resulting `zod@^3.23.8` peer warning is benign:
+            confirmed nothing in tile-studio touches `openai`'s zod-dependent helpers
+            (`zodResponseFormat` etc.), only the plain `chat.completions.create()` API. Folded
+            (c)'s already-planned cleanup into the same commit rather than porting dead v3 code to
+            v4 just to delete it minutes later: deleted `useAISession.ts` (no runtime caller since
+            (a)), all 9 superseded local tool files + their tests, `openai-adapter.ts` + test
+            (dead once `useAISession.ts` was gone — its only importer), and the now-unreferenced
+            `tools/types.ts` (`SettingMeta` — `TilePreview.tsx` already uses devkit's own
+            `SettingMeta` export). Verified live in a real browser (not just vitest): called
+            `toolToOpenAI('read_spec', ...)`/`toolToOpenAI('read_examples', ...)` directly against
+            the actual reported crash path, zero errors. 87/87 vitest (down from 143 — the 9
+            deleted tool files' baseline tests), clean `tsc -b`, clean `eslint .` (0 problems, the
+            one remaining pre-existing warning was in the now-deleted `useAISession.ts`), clean
+            `vite build`.
       *Eval:* T9.0's tool/adapter baseline tests for the 9 swapped tools retired (deleted in (c)
-      alongside the files they tested); `useAgentSession.ts`'s own test suite (a) plus
-      `pending-input.ts`'s test suite (b) pass — both done. Still outstanding: a manual
-      end-to-end session (ask the AI to write a trivial tile, confirm tool calls execute, code
-      updates in the editor, and an `ask_questions` call pauses correctly and resumes on answer)
+      alongside the files they tested) — done. `useAgentSession.ts`'s own test suite (a) plus
+      `pending-input.ts`'s test suite (b) pass — done. Manual end-to-end session (ask the AI to
+      write a trivial tile, confirm tool calls execute, code updates in the editor, and an
+      `ask_questions` call pauses correctly and resumes on answer) — in progress via live user
+      testing on tile-studio's deployed dev instance; two real bugs found and fixed this way
+      already (fengari/browser-Node-globals, zod v3/v4 mismatch) that no amount of `vitest run`
+      would have caught, confirming the methodology note above. T9.1 as a whole (a+b+c) is code-
+      complete; still want a clean end-to-end run with no new errors before calling it fully done
       — needs a real provider key + browser, do before calling T9.1 fully verified.
 - [ ] **T9.2 Swap the preview driver.** `StubAdapter` + `TilePreview.tsx`'s build/register/
       teardown logic → devkit's `PreviewSession` + `PreviewAdapter`, wrapped around
