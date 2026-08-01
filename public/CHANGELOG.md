@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.34.6] - 2026-08-01
+
+Sidebar got a makeover with clearer sections and easier access. Add comments to your zaps, manage your emoji packs, and enjoy better login flows. UI polish across search fields and feeds with full internationalization support.
+
+### Added
+- Optional comment field for Lightning and on-chain zaps
+- Emoji pack origin tracking and management
+
+### Changed
+- Sidebar reorganized: Pages section split into "Yours" and "App", Emojis and Themes moved out of Tools, "More..." menu grouped into sections
+- Search fields now have rounded corners across the app
+- Login and account-switcher UI now fully internationalized
+- Automatically log in after uploading a key file instead of requiring manual navigation
+- Articles, Highlights, and Polls tabs now hot-sort by latest activity
+
 ## [2.34.5] - 2026-07-31
 
 Customize your profile tabs with any name you want — even "Posts" if that's your vibe. Image lightbox now plays nice with the back gesture. Android scrollbars got tamed. Polish everywhere.
