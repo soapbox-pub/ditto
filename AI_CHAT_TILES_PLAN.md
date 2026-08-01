@@ -453,21 +453,46 @@ before T9.1-T9.3 can use the same TDD dispatch pattern.
       would have caught, confirming the methodology note above. T9.1 as a whole (a+b+c) is code-
       complete; still want a clean end-to-end run with no new errors before calling it fully done
       — needs a real provider key + browser, do before calling T9.1 fully verified.
-- [ ] **T9.2 Swap the preview driver.** `StubAdapter` + `TilePreview.tsx`'s build/register/
-      teardown logic → devkit's `PreviewSession` + `PreviewAdapter`, wrapped around
-      tile-studio's **existing** real adapter (`src/lib/adapter.ts`) — no new login/signer work
-      needed, it's already there. `TilePreviewCard`'s React rendering (tabs, syntax
-      highlighting, play overlay, settings panel) stays untouched, only the underlying
-      build/output/teardown plumbing swaps out. Full TDD dispatch pattern, same as T9.1. *Eval:*
-      TBD — proposed: manual: live preview still updates as the AI edits code, matching
-      pre-rewrite behavior; a granted capability (e.g. `fetch`) actually runs for real in
-      preview; `publish_event` shows the sign-then-review flow instead of silently faking a
-      publish.
-- [ ] **T9.3 Cleanup.** Remove dead local files; confirm no leftover duplicate implementations;
-      update `package.json` deps to `@soapbox.pub/nostr-canvas@^0.13.0`. Full TDD dispatch
-      pattern where applicable (mostly deletions + a dep bump, so tests are thin, but same
-      dispatch discipline). *Eval:* `git diff --stat` shows net deletions in `src/lib/`; build
-      passes; `pnpm test` (T9.0's harness) still passes.
+- [x] **T9.2 Swap the preview driver — done, commit `507143e`, pushed.** `StubAdapter` +
+      `TilePreview.tsx`'s build/register/teardown logic → devkit's `PreviewSession` +
+      `PreviewAdapter`, wrapped around tile-studio's existing real adapter
+      (`src/lib/adapter.ts`) via the `usePreviewSession.ts` hook (landed separately as T9.2 part
+      1, commit `cf60023`). `TilePreviewCard`'s React rendering (tabs, syntax highlighting, play
+      overlay, settings panel) unchanged; only the underlying build/output/teardown plumbing
+      swapped. Extracted `src/lib/file-picker.ts` (`pickFile`) out of
+      `SimpleAdapter.uploadImage` so the real adapter and the new preview `onPickFile`
+      capability share one native-file-picker implementation. Capabilities are real during
+      preview except three explicit gates carried forward from the old `StubAdapter`: `navigate`
+      shows a warning instead of navigating, `publish_event` routes through
+      `PublishReviewDialog` (sign-then-review, never auto-approved), `uploadImage` opens a real
+      picker but returns a local blob URL instead of uploading. Needed four small devkit
+      extensions, all published to npm during T9.2 prep (nostr-canvas `main` `e3afff5`,
+      `@soapbox.pub/nostr-canvas@0.14.3`): `PreviewSession.build()` takes a `render` param
+      (placement/props, was hardcoded to `"main"`); `PreviewSession` defaults to a fresh
+      in-memory `MemoryStorage` instead of falling through to ambient browser `localStorage`;
+      `PreviewTileMetadata` threads `render`/`actions`/`nav`/`widget` into the synthesized
+      `TileDefEvent` (was hardcoded `actions: []`, no render/nav/widget); `PreviewSessionOptions`
+      gained `onDebug`. Gate green: `tsc -b`, 116/116 `vitest run`, clean `eslint .`, clean
+      `vite build`. *Eval:* automated gate — done. Manual (live preview still updates as code
+      changes, a granted capability like `fetch` runs for real, `publish_event` shows the
+      review dialog) — **not yet performed this session**; no browser-automation tool was
+      available, so the dev server was started (`localhost:5173`) for a live user check instead
+      of claiming unverified success. Note: `usePreviewSession`'s own hook tests (29/29) fully
+      mock `PreviewSession` by design (black-box wiring tests only) — real WASM/Lua execution
+      in-browser is still unverified by any automated check, same class of gap T9.1 flagged for
+      Node-globals-in-browser bugs. Treat the live QA pass as the actual gate for this ticket.
+- [x] **T9.3 Cleanup — done, commit `175df92`, pushed.** Removed `src/lib/stub-adapter.ts` +
+      `src/lib/__tests__/stub-adapter.test.ts` (net -309 lines) after confirming zero remaining
+      references anywhere in `src/`. No other orphaned local files from the swap — old
+      `TilePreview.tsx`'s other imports (`parseTileDefEvent`, `buildTileDefEvent`,
+      `CAPABILITIES`, `TileDefEvent`, devkit's own `SettingMeta`) are all still used elsewhere
+      (e.g. `PublishModal.tsx`), not dead. `package.json`'s `@soapbox.pub/nostr-canvas` dep was
+      already `^0.14.3` (bumped incrementally across four commits during T9.2 prep as each
+      devkit version published) — supersedes this ticket's original `^0.13.0` text, no further
+      bump needed. Gate green: 101/101 `vitest run` (down from 116 — the 15 deleted
+      stub-adapter tests), clean `eslint .`, clean `vite build`. *Eval:* `git diff --stat` shows
+      net deletions in `src/lib/` (309 deletions, 0 insertions) — done; build passes — done;
+      `pnpm test` still passes — done.
 
 ## Phase 10 — Ditto: AI chat "Tiles" ability — `pending`
 
