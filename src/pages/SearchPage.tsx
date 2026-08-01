@@ -488,7 +488,7 @@ export function SearchPage() {
                 <PopoverTrigger asChild>
                   <button
                     className={cn(
-                      'shrink-0 h-10 w-10 rounded-lg border flex items-center justify-center transition-colors',
+                      'shrink-0 h-10 w-10 rounded-full border flex items-center justify-center transition-colors',
                       alreadySaved || savedJustNow
                         ? 'border-primary bg-primary/10 text-primary'
                         : 'border-border bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground',
@@ -547,7 +547,7 @@ export function SearchPage() {
               <PopoverTrigger asChild>
                 <button
                   className={cn(
-                    'shrink-0 h-10 w-10 rounded-lg border bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors',
+                    'shrink-0 h-10 w-10 rounded-full border bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors',
                     filtersOpen
                       ? 'border-2 border-primary bg-secondary text-primary'
                       : hasActiveFilters
@@ -1116,7 +1116,7 @@ function SearchInput({
         placeholder="Search"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
+        className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-full"
       />
       <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
     </div>
