@@ -551,7 +551,7 @@ function ArchiveSearchBar() {
             if (debouncedQuery.length >= 2) setDropdownOpen(true);
           }}
           onKeyDown={handleKeyDown}
-          className="pl-9 pr-9 h-9 text-base md:text-sm"
+          className="pl-9 pr-9 h-9 text-base md:text-sm rounded-full"
         />
         {query ? (
           <button
