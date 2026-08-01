@@ -60,6 +60,12 @@ interface UseFeedOptions {
   kinds?: number[];
   /** Additional tag filters to apply (e.g. `{ '#m': ['application/x-webxdc'] }`). */
   tagFilters?: Record<string, string[]>;
+  /**
+   * Apply `sort:hot` to the Global tab even on kind-specific pages. Keeps spam
+   * and low-quality events out of easy view on curated kind feeds (Articles,
+   * Highlights) the same way the homepage Global tab does.
+   */
+  hotGlobal?: boolean;
 }
 
 /** Hook to fetch the global, followed, loved, or communities feed with infinite scroll pagination. */
@@ -130,7 +136,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
     // on page load because feedSettings is read from localStorage
     // synchronously — the encrypted settings sync at ~5s only calls
     // updateConfig if values actually differ (NostrSync changed guard).
-    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, mutedKey],
+    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, mutedKey, options?.hotGlobal ?? false],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(8000);
       const now = Math.floor(Date.now() / 1000);
@@ -339,9 +345,11 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
         // unwrap step. Users will see those overlays on the Follows tab.
         const globalKinds = allKinds.filter((k) => !isRepostKind(k) && !isReactionKind(k) && !isZapKind(k));
         const filter: Record<string, unknown> = { kinds: globalKinds, limit: PAGE_SIZE, ...tagFilters };
-        // Use hot sorting on the homepage Global tab for better content quality,
-        // but not on kind-specific pages that pass custom kinds.
-        if (tab === 'global' && !options?.kinds) {
+        // Use hot sorting on the homepage Global tab for better content quality.
+        // Kind-specific pages normally show a raw chronological global feed, but
+        // can opt into hot sorting (e.g. Articles, Highlights) to keep spam and
+        // low-quality events out of easy view.
+        if (tab === 'global' && (!options?.kinds || options?.hotGlobal)) {
           filter.search = 'sort:hot protocol:nostr';
         }
         if (pageParam) {

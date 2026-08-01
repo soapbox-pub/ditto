@@ -66,9 +66,14 @@ interface FeedProps {
    * render it before Follows. Used by the client feed page.
    */
   globalFirst?: boolean;
+  /**
+   * Apply `sort:hot` to the Global tab on kind-specific pages to keep spam and
+   * low-quality events out of easy view (e.g. Articles, Highlights).
+   */
+  hotGlobal?: boolean;
 }
 
-export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home', globalFirst }: FeedProps = {}) {
+export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home', globalFirst, hotGlobal }: FeedProps = {}) {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { isMuted } = useMuteFilter();
@@ -163,7 +168,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       : 'global';
   const feedQuery = useFeed(
     isCoreFeedTab ? feedTabForQuery : 'global',
-    (kinds || tagFilters) ? { kinds, tagFilters } : undefined,
+    (kinds || tagFilters) ? { kinds, tagFilters, hotGlobal } : undefined,
   );
 
   // Curated Ditto feed: latest content from the curator's follow list.

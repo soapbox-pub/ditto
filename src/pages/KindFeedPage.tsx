@@ -31,9 +31,14 @@ interface KindFeedPageProps {
   onFabClick?: () => void;
   /** Whether to show the FAB (default: true). */
   showFAB?: boolean;
+  /**
+   * Apply `sort:hot` to the Global tab to keep spam and low-quality events out
+   * of easy view (e.g. Articles, Highlights).
+   */
+  hotGlobal?: boolean;
 }
 
-export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref, tagFilters, extra, onFabClick, showFAB = true, feedId }: KindFeedPageProps) {
+export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref, tagFilters, extra, onFabClick, showFAB = true, feedId, hotGlobal }: KindFeedPageProps) {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const primaryKind = Array.isArray(kind) ? kind[0] : kind;
@@ -55,11 +60,15 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
 
   const kinds = Array.isArray(kind) ? kind : [kind];
 
+  // A kind can declare `hotGlobal` on its definition; an explicit prop overrides it.
+  const effectiveHotGlobal = hotGlobal ?? resolvedDef?.hotGlobal;
+
   return (
     <>
       <Feed
         kinds={kinds}
         tagFilters={tagFilters}
+        hotGlobal={effectiveHotGlobal}
         hideCompose
         feedId={feedId ?? title.toLowerCase()}
         emptyMessage={emptyMessage ?? `No ${title.toLowerCase()} yet. Check back soon!`}

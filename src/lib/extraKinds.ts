@@ -74,6 +74,14 @@ export interface ExtraKindDef {
   blurb?: string;
   /** External sites where users can create or participate in this kind of content. */
   sites?: ExtraKindSite[];
+  /**
+   * Hot-sort the Global tab (via `sort:hot`) instead of showing a raw
+   * chronological feed, to keep spam and low-quality events out of easy view.
+   * Only set this on kinds the relay actually ranks with enough hot data to
+   * fill a page (e.g. articles, highlights, polls) — otherwise the tab ends up
+   * empty or truncated. Applied by KindFeedPage via the `useFeed` global branch.
+   */
+  hotGlobal?: boolean;
 }
 
 /** All supported extra content kinds, ordered by section (feed → media → social → whimsy). */
@@ -145,6 +153,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   {
     kind: 30023,
     id: 'articles',
+    hotGlobal: true,
     showKey: 'showArticles',
     feedKey: 'feedIncludeArticles',
     label: 'Articles',
@@ -352,6 +361,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   {
     kind: 1068,
     id: 'polls',
+    hotGlobal: true,
     showKey: 'showPolls',
     feedKey: 'feedIncludePolls',
     label: 'Polls',
@@ -565,6 +575,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   {
     kind: 9802,
     id: 'highlights',
+    hotGlobal: true,
     showKey: 'showHighlights',
     feedKey: 'feedIncludeHighlights',
     label: 'Highlights',
