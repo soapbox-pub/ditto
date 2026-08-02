@@ -405,9 +405,9 @@ T4.2/T4.3, for the full handoff). That effort split its own Phase 10 into two wa
 (provider settings, abilities menu, tool registry, tabs/history) ships in `ai-chat-tlc` itself;
 Wave B is the part that can only be built once **this** branch's marketplace/
 `CanvasRuntimeProvider` work exists — so it lands here instead, as this phase. Original ticket IDs
-were T10.4-T10.7+; renumbered T8.1-T8.4 to match this doc's scheme. T8.1 (preview) and T8.4
-(remix) carry real grilled detail already; T8.2/T8.3 still need their own grilling pass before
-dispatch, per this
+were T10.4-T10.7+; renumbered T8.1-T8.4 to match this doc's scheme. T8.1 (preview), T8.2
+(publish), and T8.4 (remix) carry real grilled detail already; T8.3 still needs its own grilling
+pass before dispatch, per this
 doc's working agreement — do that once this branch has rebased onto `ai-chat-tlc`.
 
 Devkit facts needed to read T8.1 (from `ai-chat-tlc`'s decision record, ticket D6, re-grilled
@@ -471,13 +471,53 @@ transparently re-wires across rebuilds), `destroy()`.
       Tiles ability to iterate on a widget 6+ times, confirm each `preview_tile` call produces its
       own card, the oldest freezes once the cap is hit, and clicking an older still-live card's
       button doesn't affect the newest card's state.
-- [ ] **T8.2 Publish flow** *(was T10.5)*. Once a drafted widget looks right in preview, publish
-      it as a real kind 30207 event — reusing this branch's marketplace publish/install plumbing,
-      gated on the user having a NIP-05 (identifiers are `nip05:slug`), with a d-tag collision
-      check. The "slug" the AI settles on early in the conversation (needed anyway per D5's
-      requirements-gathering flow — see `ai-chat-tlc`'s decision record) is the same value
-      threaded into D6's `computePreviewGrantKey` during preview. *Not yet grilled to
-      dispatch-ready.*
+- [ ] **T8.2 Publish flow — grilled 2026-08-02, ready to dispatch (one porting dependency, see
+      below)** *(was T10.5)*. Once a drafted widget looks right in preview, publish it as a real
+      kind 30207 event.
+
+      Facts confirmed first (not guessed): this branch (`tiles-v3-widgetonly`) currently has
+      **no** tile-authoring/publish code at all — `src/tiles/installations.ts` is install-only,
+      and there's no existing "publish plumbing" to reuse as the original ticket text assumed.
+      The real identifier-construction logic already exists, fully written, tested-in-spirit, and
+      documented, but on the **`integrate-tiles` branch** at `src/lib/nostr-canvas/
+      identifiers.ts` (confirmed via `git ls-tree` across branches — absent from `main`,
+      `tiles-v3-widgetonly`, and its backup) — and `tile-studio` independently ported a copy of it
+      (`tile-studio/src/lib/identifiers.ts`, docstring: "ported from Ditto's identifiers.ts").
+      That file already provides exactly what T8.2 needs:
+      - `buildLocalDraftIdentifier(pubkey, slug)` → `<pubkey12>@local:<slug>`, a placeholder
+        identifier that passes `parseTileDefEvent`'s validation (requires `@` before the colon)
+        but is syntactically unmistakable as non-publishable.
+      - `buildPublishableIdentifier(nip05, slug)` → validates the NIP-05 regex + normalizes/
+        validates the slug (`[a-z0-9-]`, ≤64 chars), returns `null` on invalid input.
+      - `canPublishTile(metadata)` → true iff `metadata.nip05` is syntactically valid.
+      - `verifyTileDTag`/`tileVerificationState` → three-state (`malformed`/`unverified`/
+        `verified`) classification already used for marketplace trust display.
+
+      Decisions:
+      - **Porting dependency**: `src/lib/nostr-canvas/identifiers.ts` needs porting from
+        `integrate-tiles` onto this branch before/as part of T8.2 — not written fresh. Check
+        whether `integrate-tiles` has diverged in ways that make a straight port unsafe; if so,
+        treat it as a reference implementation instead of a literal copy.
+      - **NIP-05 gating timing, resolved by the ported code's own design**: gating is
+        **publish-time only**, via `canPublishTile(metadata)`. A user without a NIP-05 can draft
+        and preview freely using `buildLocalDraftIdentifier`'s placeholder scheme; only the final
+        publish action is blocked, with a prompt to add a NIP-05 first. This also resolves T8.4's
+        still-open "does remix require a NIP-05 before starting" question: no, same publish-time
+        gate applies.
+      - **D-tag collision check**: before publish, query `{ kinds: [30207], authors: [pubkey],
+        '#d': [candidateIdentifier] }`. If a match already exists, **block** the publish action
+        and surface it back to the AI/user so a different slug gets chosen — never silently
+        replace an unrelated earlier tile the user forgot about.
+      - The "slug" the AI settles on early in the conversation (needed anyway per D5's
+        requirements-gathering flow — see `ai-chat-tlc`'s decision record) is the same value
+        threaded into D6's `computePreviewGrantKey` during preview, so a tile's preview-time
+        capability grants carry over cleanly once it's actually published.
+      *Eval:* automated — unit tests for the collision check (blocks on match, passes on no
+      match) and the publish-time-only gating (draft/preview succeeds with no NIP-05, publish
+      button disabled until one exists). Manual (user will run before closing): draft a tile via
+      Tiles ability with no NIP-05 set, confirm preview/iteration works and publish is blocked;
+      add a NIP-05, confirm publish succeeds and the tile appears in the marketplace as
+      `verified`.
 - [ ] **T8.3 Discovery toast** *(was T10.6)*. "New: Create with Ditto" overlay on the AI chat
       widget's first open, dismissed state in `localStorage`. *Not yet grilled to dispatch-ready.*
 - [ ] **T8.4 Marketplace remix — grilled 2026-08-02 on `ai-chat-tlc`, mostly ready to dispatch
