@@ -128,6 +128,9 @@ export function AIChatPage() {
   const hasCredits = useShakespeareCredits();
   const { profiles } = useAIProviders();
   const { activeSession, activeSessionId, sessions, createSession, setActiveSessionId, closeSession, updateSession } = useChatSessions(user?.pubkey, profiles);
+  // The shakespeare credit balance only gates sessions that actually run on
+  // the shakespeare provider; other providers are unaffected by it.
+  const isShakespeareSession = activeSession.providerId === 'shakespeare';
   const { buildSessionTools } = useToolRegistry();
 
   const [input, setInput] = useState('');
@@ -340,7 +343,7 @@ export function AIChatPage() {
           </h1>
         </div>
       }>
-        {hasCredits && (
+        {(!isShakespeareSession || hasCredits) && (
           <div className="flex items-center gap-2 ml-auto">
             <Button
               variant="ghost"
@@ -462,7 +465,7 @@ export function AIChatPage() {
       {/* Messages Area */}
       {messages.length === 0 ? (
         <div className="flex-1 min-h-0 flex items-center justify-center px-4">
-          <EmptyState hasCredits={hasCredits} />
+          <EmptyState showCreditsGate={isShakespeareSession && hasCredits === false} />
         </div>
       ) : (
         <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
@@ -494,8 +497,8 @@ export function AIChatPage() {
         </ScrollArea>
       )}
 
-      {/* Input Area — hidden when user has no credits */}
-      {(hasCredits || hasCredits === null) && (
+      {/* Input Area — hidden when a shakespeare session has no credits */}
+      {(!isShakespeareSession || hasCredits || hasCredits === null) && (
         <div className="shrink-0 px-4 pt-2 pb-4 sidebar:pb-3">
           <div className="max-w-2xl mx-auto">
             {/* Provider / model selector row */}
@@ -669,7 +672,7 @@ const DORK_GREETINGS = [
   defineMessage({ id: 'ai-chat.greeting.three', defaultMessage: "Hey, it's Dork! What do you want to do?" }),
 ];
 
-function EmptyState({ hasCredits }: { hasCredits: boolean | null }) {
+function EmptyState({ showCreditsGate }: { showCreditsGate: boolean }) {
   const greeting = useMemo(() => DORK_GREETINGS[Math.floor(Math.random() * DORK_GREETINGS.length)], []);
 
   return (
@@ -683,7 +686,7 @@ function EmptyState({ hasCredits }: { hasCredits: boolean | null }) {
           <FormattedMessage {...greeting} />
         </p>
       </div>
-      {hasCredits === false && (
+      {showCreditsGate && (
         <div className="flex flex-col items-center gap-4 max-w-xs">
           <p className="text-sm text-muted-foreground leading-relaxed">
             <FormattedMessage

@@ -30,6 +30,7 @@ const sendMessageMock = vi.hoisted(() => vi.fn());
 const clearActiveSessionMock = vi.hoisted(() => vi.fn());
 const useAIProvidersMock = vi.hoisted(() => vi.fn());
 const useCurrentUserMock = vi.hoisted(() => vi.fn());
+const useShakespeareCreditsMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/useShakespeare', () => ({
   useShakespeare: () => ({
@@ -43,7 +44,7 @@ vi.mock('@/hooks/useShakespeare', () => ({
     retryAfter: null,
     isAuthenticated: true,
   }),
-  useShakespeareCredits: () => true,
+  useShakespeareCredits: () => useShakespeareCreditsMock(),
 }));
 
 vi.mock('@/hooks/useAIProviders', () => ({
@@ -137,6 +138,8 @@ describe('AIChatPage', () => {
     clearActiveSessionMock.mockReset();
     useAIProvidersMock.mockReset();
     useCurrentUserMock.mockReset();
+    useShakespeareCreditsMock.mockReset();
+    useShakespeareCreditsMock.mockReturnValue(true); // default: shakespeare balance is fine
   });
 
   it("'New Chat' starts on the first configured provider, not the active session's provider", async () => {
@@ -182,5 +185,59 @@ describe('AIChatPage', () => {
 
     // The provider selector reflects the new default provider.
     expect(screen.getAllByRole('combobox')[0]).toHaveTextContent('My OpenRouter');
+  });
+
+  it("does not hide the input area when the active session is on a non-shakespeare provider with a zero shakespeare balance", async () => {
+    const profiles: AIProviderProfile[] = [
+      makeProfile({ id: 'provider-a', name: 'My OpenRouter' }),
+    ];
+    // The active session runs on a configured third-party provider, so the
+    // shakespeare credit balance is irrelevant to it.
+    const tab: PersistedTab = {
+      id: 'provider-tab',
+      title: 'Provider chat',
+      abilities: [],
+      providerId: 'provider-a',
+      modelId: 'provider-a/model-1',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      agent: { messages: [], pendingInput: null, pendingToolCalls: [] },
+    };
+    localStorage.setItem(`${TAB_STORAGE_PREFIX}${PUBKEY}.provider-tab`, JSON.stringify(tab));
+
+    useShakespeareCreditsMock.mockReturnValue(false);
+    useCurrentUserMock.mockReturnValue({ user: { pubkey: PUBKEY } });
+    useAIProvidersMock.mockReturnValue({ profiles });
+
+    renderPage();
+
+    // Let the mount-time model fetch settle so its state updates land inside act.
+    await waitFor(() => expect(getAvailableModelsMock).toHaveBeenCalled());
+
+    // The input area stays available: the credits gate is scoped to the
+    // active session's provider, not the shakespeare balance.
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+    // No "need credits" prompt on a provider that does not use the shakespeare balance.
+    expect(screen.queryByText(/You need credits to chat with Dork/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Get Credits/ })).not.toBeInTheDocument();
+  });
+
+  it("hides the input area and shows the credits prompt when the active session is on shakespeare with no credits", async () => {
+    // No profiles and no stored tabs: the bootstrap session lands on the
+    // zero-config shakespeare provider.
+    useShakespeareCreditsMock.mockReturnValue(false);
+    useCurrentUserMock.mockReturnValue({ user: { pubkey: PUBKEY } });
+    useAIProvidersMock.mockReturnValue({ profiles: [] });
+
+    renderPage();
+
+    // Let the mount-time model fetch settle so its state updates land inside act.
+    await waitFor(() => expect(getAvailableModelsMock).toHaveBeenCalled());
+
+    // A genuine shakespeare session out of credits keeps the gate: no input
+    // area, and the empty state prompts for credits.
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByText(/You need credits to chat with Dork/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Get Credits/ })).toBeInTheDocument();
   });
 });
