@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { SerializedSession } from '@soapbox.pub/nostr-canvas/devkit';
 
+import type { Ability } from '@/lib/abilities';
 import {
   getStoredTabs,
   saveTab,
@@ -27,8 +28,8 @@ export interface DisplayMessage {
   toolCalls?: ToolCall[];
 }
 
-/** An ability a chat session can be forked with. */
-export type Ability = 'tiles';
+/** An ability a chat session can be forked with. See `@/lib/abilities` for the canonical registry. */
+export type { Ability } from '@/lib/abilities';
 
 /** A single chat conversation. */
 export interface ChatSession {

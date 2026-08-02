@@ -38,6 +38,9 @@ import {
 
 import { cn } from '@/lib/utils';
 import { isAtTabCap, MAX_OPEN_TABS } from '@/lib/chatTabsStorage';
+import { ABILITIES } from '@/lib/abilities';
+import type { Ability } from '@/lib/abilities';
+import { buildSystemPrompt } from '@/lib/chatSystemPrompt';
 import { DorkThinking } from '@/components/DorkThinking';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 
@@ -106,13 +109,11 @@ function snapshotToDisplayMessages(msgs: SessionMessage[]): DisplayMessage[] {
 }
 
 // ─── System Prompt ───
-
-/** Build the system prompt with the configured app name woven in. */
-function buildSystemPrompt(appName: string): string {
-  return `You are Dork, extraordinaire. You are an AI assistant integrated into ${appName}, a Nostr social client. You can help users with questions, conversations, and tasks.
-
-Be concise and friendly. When you use a tool, briefly describe the theme you created.`;
-}
+//
+// The base system prompt (buildSystemPrompt) lives in `@/lib/chatSystemPrompt`
+// so the page file exports only components. It embeds the ability manifest
+// from `@/lib/abilities`; a tiles session overrides it with devkit's widget
+// creation prompt (see systemPromptFor below).
 
 // ─── Page Component ───
 
@@ -266,13 +267,15 @@ export function AIChatPage() {
 
   // Toggling an ability forks a new session carrying over the current
   // provider/model. The new session becomes active automatically.
-  const handleTilesToggle = useCallback((checked: boolean | 'indeterminate') => {
+  const handleAbilityToggle = useCallback((ability: Ability, checked: boolean | 'indeterminate') => {
     createSessionGuarded({
-      abilities: checked === true ? ['tiles'] : [],
+      abilities: checked === true
+        ? [...activeSession.abilities, ability]
+        : activeSession.abilities.filter((a) => a !== ability),
       providerId: activeSession.providerId,
       modelId: activeSession.modelId,
     });
-  }, [activeSession.providerId, activeSession.modelId, createSessionGuarded]);
+  }, [activeSession.providerId, activeSession.modelId, activeSession.abilities, createSessionGuarded]);
 
   const handleNewChat = useCallback(() => {
     createSessionGuarded({
@@ -523,22 +526,31 @@ export function AIChatPage() {
                     size="icon"
                     className={cn(
                       'size-11 shrink-0 rounded-xl',
-                      activeSession.abilities.includes('tiles') && 'text-primary',
+                      activeSession.abilities.length > 0 && 'text-primary',
                     )}
                     title="Abilities"
                   >
                     <Sparkles className="size-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="w-56">
+                <PopoverContent align="end" className="w-64">
                   <p className="text-xs font-medium text-muted-foreground mb-2">Abilities</p>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="ability-tiles"
-                      checked={activeSession.abilities.includes('tiles')}
-                      onCheckedChange={handleTilesToggle}
-                    />
-                    <Label htmlFor="ability-tiles" className="font-normal cursor-pointer">Tiles</Label>
+                  <div className="space-y-3">
+                    {ABILITIES.map((ability) => (
+                      <div key={ability.key} className="flex items-start gap-2">
+                        <Checkbox
+                          id={`ability-${ability.key}`}
+                          checked={activeSession.abilities.includes(ability.key)}
+                          onCheckedChange={(checked) => handleAbilityToggle(ability.key, checked)}
+                        />
+                        <div className="space-y-0.5">
+                          <Label htmlFor={`ability-${ability.key}`} className="font-normal cursor-pointer">
+                            {ability.label}
+                          </Label>
+                          <p className="text-xs text-muted-foreground leading-tight">{ability.description}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </PopoverContent>
               </Popover>

@@ -15,7 +15,7 @@ import {
 } from '@soapbox.pub/nostr-canvas/devkit';
 import type { Tool } from '@soapbox.pub/nostr-canvas/devkit';
 
-import type { Ability } from '@/hooks/useChatSessions';
+import type { Ability } from '@/lib/abilities';
 import type { ThemeConfig } from '@/themes';
 import { createSetThemeTool } from './setThemeTool';
 
@@ -131,8 +131,10 @@ function createPreviewTileStub(projectId: string): Tool {
 export type AbilityBundleBuilder = (opts: { projectId: string; seedCode?: string }) => ToolBundleEntry[];
 
 /**
- * One registration point per ability. A future ability adds a map entry and
- * automatically shows up in every session's tool concatenation.
+ * One bundle builder per ability, keyed by the canonical `ABILITIES` registry
+ * in `@/lib/abilities`. The Record<Ability, ...> type forces a builder for
+ * every registered ability, so a new ability shows up in the popover, the
+ * system-prompt manifest, and here from that single registration point.
  */
 export const ABILITY_BUNDLES: Record<Ability, AbilityBundleBuilder> = {
   tiles: (opts) => createTilesToolBundle(opts),
