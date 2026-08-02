@@ -1,26 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
 
-import { isFirstExchangeComplete, buildTitlePrompt, pickAutoTitleModel, AUTO_TITLE_MODEL_ID } from './autoTitle';
-import type { Model } from '@/hooks/useShakespeare';
-
-// ─── Fixtures ───────────────────────────────────────────────────────────────
-
-function model(overrides: Partial<Model>): Model {
-  return {
-    id: 'm',
-    name: 'M',
-    description: '',
-    object: 'model',
-    owned_by: 'shakespeare',
-    created: 0,
-    context_window: 1000,
-    pricing: { prompt: '1', completion: '2' },
-    provider: 'shakespeare',
-    fullId: 'shakespeare/m',
-    ...overrides,
-  };
-}
+import { isFirstExchangeComplete, buildTitlePrompt } from './autoTitle';
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
@@ -84,27 +65,5 @@ describe('buildTitlePrompt', () => {
     expect(prompt).not.toContain('tool:');
     expect(prompt).not.toContain(long);
     expect(prompt).toContain(long.slice(0, 300));
-  });
-});
-
-describe('pickAutoTitleModel', () => {
-  it('prefers the fixed cheap model when the live list has it', () => {
-    const models = [
-      model({ id: 'glm-4.5', fullId: 'shakespeare/glm-4.5', name: 'GLM-4.5', pricing: { prompt: '1.5', completion: '7.5' } }),
-      model({ id: 'claude-sonnet-4.5', fullId: 'shakespeare/claude-sonnet-4.5', name: 'Claude Sonnet 4.5', pricing: { prompt: '4', completion: '16' } }),
-    ];
-    expect(pickAutoTitleModel(models)?.id).toBe(AUTO_TITLE_MODEL_ID);
-  });
-
-  it('falls back to the cheapest model when the fixed id is absent', () => {
-    const models = [
-      model({ id: 'expensive', fullId: 'shakespeare/expensive', pricing: { prompt: '8', completion: '24' } }),
-      model({ id: 'cheap', fullId: 'shakespeare/cheap', pricing: { prompt: '0.5', completion: '1' } }),
-    ];
-    expect(pickAutoTitleModel(models)?.id).toBe('cheap');
-  });
-
-  it('returns undefined for an empty list', () => {
-    expect(pickAutoTitleModel([])).toBeUndefined();
   });
 });

@@ -31,10 +31,11 @@ class MockObserver implements ResizeObserver, IntersectionObserver {
 // useChatSessions and the tab persistence layer — stays real, so the test
 // observes actual "New Chat" behavior through localStorage. useAutoTitle is
 // NOT mocked: the auto-title regression test needs the real hook to observe a
-// session's completed exchange and fire the Shakespeare title-generation call.
+// session's completed exchange and fire the session-client title-generation
+// call.
 const getAvailableModelsMock = vi.hoisted(() => vi.fn());
 const sendMessageMock = vi.hoisted(() => vi.fn());
-const sendChatMessageMock = vi.hoisted(() => vi.fn());
+const createSessionOpenAIClientMock = vi.hoisted(() => vi.fn());
 const clearActiveSessionMock = vi.hoisted(() => vi.fn());
 const useAgentSessionsMock = vi.hoisted(() => vi.fn());
 const useAIProvidersMock = vi.hoisted(() => vi.fn());
@@ -44,7 +45,6 @@ const useShakespeareCreditsMock = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/useShakespeare', () => ({
   useShakespeare: () => ({
     getAvailableModels: getAvailableModelsMock,
-    sendChatMessage: sendChatMessageMock,
     sendStreamingMessage: vi.fn(),
     getCreditsBalance: vi.fn(),
     clearError: vi.fn(),
@@ -55,6 +55,13 @@ vi.mock('@/hooks/useShakespeare', () => ({
   }),
   useShakespeareCredits: () => useShakespeareCreditsMock(),
 }));
+
+// useAutoTitle builds each session's client via createSessionOpenAIClient;
+// sessionModelId stays real so the test exercises the real prefix stripping.
+vi.mock('@/lib/aiClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/aiClient')>();
+  return { ...actual, createSessionOpenAIClient: createSessionOpenAIClientMock };
+});
 
 vi.mock('@/hooks/useAIProviders', () => ({
   useAIProviders: () => useAIProvidersMock(),
@@ -173,8 +180,14 @@ describe('AIChatPage', () => {
     getAvailableModelsMock.mockReset();
     getAvailableModelsMock.mockResolvedValue({ object: 'list', data: [] });
     sendMessageMock.mockReset();
-    sendChatMessageMock.mockReset();
-    sendChatMessageMock.mockResolvedValue({ choices: [{ message: { content: 'Generated Title' } }] });
+    createSessionOpenAIClientMock.mockReset();
+    createSessionOpenAIClientMock.mockResolvedValue({
+      chat: {
+        completions: {
+          create: vi.fn().mockResolvedValue({ choices: [{ message: { content: 'Generated Title' } }] }),
+        },
+      },
+    });
     clearActiveSessionMock.mockReset();
     useAgentSessionsMock.mockReset();
     useAgentSessionsMock.mockReturnValue({
@@ -435,8 +448,8 @@ describe('AIChatPage', () => {
       expect(sessionTab!.modelId).toBe('model-1');
     });
 
-    // The completed exchange triggers useAutoTitle's Shakespeare title call.
-    await waitFor(() => expect(sendChatMessageMock).toHaveBeenCalled());
+    // The completed exchange triggers useAutoTitle's session-client title call.
+    await waitFor(() => expect(createSessionOpenAIClientMock).toHaveBeenCalled());
 
     // The generated title lands on the persisted tab.
     await waitFor(() => {

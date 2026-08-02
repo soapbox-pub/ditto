@@ -161,7 +161,7 @@ export function AIChatPage() {
     systemPromptFor,
   });
 
-  useAutoTitle({ sessions, snapshots, models, updateSession });
+  useAutoTitle({ sessions, snapshots, profiles, updateSession });
 
   const agentSnapshot = snapshots[activeSessionId] ?? null;
 

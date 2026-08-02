@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import type { AgentSession } from '@soapbox.pub/nostr-canvas/devkit';
 
+import { createSessionOpenAIClient, sessionModelId } from '@/lib/aiClient';
 import { useCurrentUser } from './useCurrentUser';
-import { useShakespeare, type Model } from './useShakespeare';
+import type { AIProviderProfile } from './useAIProviders';
 import type { ChatSession, SessionPatch } from './useChatSessions';
-import { buildTitlePrompt, cleanTitle, isFirstExchangeComplete, pickAutoTitleModel } from '@/lib/autoTitle';
+import { buildTitlePrompt, cleanTitle, isFirstExchangeComplete } from '@/lib/autoTitle';
 
 type AgentSnapshot = ReturnType<AgentSession['getSnapshot']>;
 
@@ -12,8 +13,8 @@ interface UseAutoTitleOptions {
   sessions: ChatSession[];
   /** Latest agent snapshot per session id, refreshed by useAgentSessions. */
   snapshots: Record<string, AgentSnapshot>;
-  /** Shakespeare model list (live, cost-sorted by the caller). */
-  models: Model[];
+  /** User-configured AI provider profiles, used to build each session's client. */
+  profiles: AIProviderProfile[];
   updateSession: (id: string, patch: SessionPatch) => void;
 }
 
@@ -21,14 +22,15 @@ interface UseAutoTitleOptions {
  * Generate tab titles in the background.
  *
  * Fires once per session, after its first full exchange (user message +
- * assistant reply) completes, using a fixed cheap utility model on the
- * Shakespeare endpoint — independent of the session's own provider/model. The
- * tab keeps its placeholder/spinner title until the request resolves. A failed
- * request leaves the placeholder so a later exchange retries.
+ * assistant reply) completes, using the session's own provider and model via
+ * createSessionOpenAIClient — the same client path real chat completions use,
+ * so a session on a custom provider is never at the mercy of the Shakespeare
+ * endpoint. The tab keeps its placeholder/spinner title until the request
+ * resolves. A failed request leaves the placeholder so a later exchange
+ * retries.
  */
-export function useAutoTitle({ sessions, snapshots, models, updateSession }: UseAutoTitleOptions): void {
+export function useAutoTitle({ sessions, snapshots, profiles, updateSession }: UseAutoTitleOptions): void {
   const { user } = useCurrentUser();
-  const { sendChatMessage } = useShakespeare();
   const inFlightRef = useRef(new Set<string>());
 
   useEffect(() => {
@@ -42,14 +44,16 @@ export function useAutoTitle({ sessions, snapshots, models, updateSession }: Use
       if (!snapshot) continue;
       if (!isFirstExchangeComplete(snapshot.messages)) continue;
 
-      const model = pickAutoTitleModel(models);
-      if (!model) continue;
-
       inFlightRef.current.add(session.id);
-      sendChatMessage([{ role: 'user', content: buildTitlePrompt(snapshot.messages) }], model.fullId, {
-        max_tokens: 12,
-        temperature: 0,
-      })
+      createSessionOpenAIClient(session, profiles, user)
+        .then((client) =>
+          client.chat.completions.create({
+            model: sessionModelId(session),
+            messages: [{ role: 'user', content: buildTitlePrompt(snapshot.messages) }],
+            max_tokens: 12,
+            temperature: 0,
+          }),
+        )
         .then((res) => {
           const title = cleanTitle(res.choices?.[0]?.message?.content ?? '');
           if (title) updateSession(session.id, { title });
@@ -61,5 +65,5 @@ export function useAutoTitle({ sessions, snapshots, models, updateSession }: Use
           inFlightRef.current.delete(session.id);
         });
     }
-  }, [sessions, snapshots, models, user, sendChatMessage, updateSession]);
+  }, [sessions, snapshots, profiles, user, updateSession]);
 }
