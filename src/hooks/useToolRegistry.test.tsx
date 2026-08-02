@@ -17,7 +17,7 @@ vi.mock('@nostrify/react', () => ({
   useNostr: () => ({ nostr: { query } }),
 }));
 
-const BASE_NAMES = ['set_theme', 'search_nips', 'fetch_nip'];
+const BASE_NAMES = ['set_theme', 'search_nips', 'fetch_nip', 'ask_questions'];
 
 const TILES_NAMES = [
   'read_code',
@@ -26,7 +26,6 @@ const TILES_NAMES = [
   'set_tile',
   'get_tile',
   'preview_tile',
-  'ask_questions',
   'set_notes',
   'read_spec',
   'read_examples',

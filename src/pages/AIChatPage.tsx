@@ -9,6 +9,7 @@ import { getWidgetCreationSystemPrompt, isCompactionMarker } from '@soapbox.pub/
 import type { SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
 
 import { PageHeader } from '@/components/PageHeader';
+import { PendingQuestionsCard } from '@/components/PendingQuestionsCard';
 import { useShakespeare, useShakespeareCredits, type Model } from '@/hooks/useShakespeare';
 import { useChatSessions, defaultProviderId, type DisplayMessage, type ToolCall, type ChatSession, type CreateSessionInput } from '@/hooks/useChatSessions';
 import { useAIProviders } from '@/hooks/useAIProviders';
@@ -498,6 +499,11 @@ export function AIChatPage() {
               <MessageBubble key={msg.id} message={msg} />
             ))}
 
+            {/* Pending user input surfaced by a tool (e.g. ask_questions) */}
+            {agentSnapshot?.pendingInput && (
+              <PendingQuestionsCard pendingInput={agentSnapshot.pendingInput} onAnswer={sendMessage} />
+            )}
+
             {/* Loading indicator */}
             {isLoading && messages[messages.length - 1]?.role === 'user' && (
               <DorkThinking className="text-sm" />
@@ -741,24 +747,23 @@ function MessageBubble({ message }: { message: DisplayMessage }) {
   return (
     <div className={cn('flex items-start', isUser && 'justify-end')}>
       <div className={cn('flex flex-col gap-1 max-w-[85%] min-w-0', isUser && 'items-end')}>
-        <div
-          className={cn(
-            'rounded-2xl px-4 py-2.5 text-sm',
-            isUser
-              ? 'bg-primary text-primary-foreground rounded-tr-md'
-              : 'bg-secondary/60 border border-border rounded-tl-md',
-          )}
-        >
-          {isUser ? (
+        {isUser ? (
+          <div className="rounded-2xl px-4 py-2.5 text-sm bg-primary text-primary-foreground rounded-tr-md">
             <p className="whitespace-pre-wrap break-words">{message.content}</p>
-          ) : (
-            <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
-              <Markdown rehypePlugins={[rehypeSanitize]}>
-                {message.content}
-              </Markdown>
+          </div>
+        ) : (
+          // Tool-call-only assistant messages have an empty content string;
+          // skip the bubble for those so no empty pill renders above the badges.
+          message.content && (
+            <div className="rounded-2xl px-4 py-2.5 text-sm bg-secondary/60 border border-border rounded-tl-md">
+              <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-muted prose-pre:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
+                <Markdown rehypePlugins={[rehypeSanitize]}>
+                  {message.content}
+                </Markdown>
+              </div>
             </div>
-          )}
-        </div>
+          )
+        )}
 
         {/* Tool call indicators */}
         {message.toolCalls && message.toolCalls.length > 0 && (

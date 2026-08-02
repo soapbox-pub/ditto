@@ -67,10 +67,13 @@ export const tileDraftStore: TileDraftStore = {
 
 /**
  * The always-on tools, present in every session regardless of abilities:
- * theme control and NIP lookups (community NIPs via search_nips, official
- * specs via fetch_nip). `nak` is not here: it pulls attacker-controlled
- * Nostr content into the model's context, so it lives behind the opt-in
- * 'nostr-lookup' ability instead.
+ * theme control, NIP lookups (community NIPs via search_nips, official
+ * specs via fetch_nip), and ask_questions (the pending-input tool that
+ * pauses a turn until the user answers clarifying questions — it needs no
+ * ability, so it lives in the base bundle rather than behind the 'tiles'
+ * ability). `nak` is not here: it pulls attacker-controlled Nostr content
+ * into the model's context, so it lives behind the opt-in 'nostr-lookup'
+ * ability instead.
  */
 export function createBaseToolBundle(opts: {
   applyCustomTheme: (config: ThemeConfig) => void;
@@ -79,6 +82,7 @@ export function createBaseToolBundle(opts: {
     { name: 'set_theme', tool: createSetThemeTool(opts.applyCustomTheme) },
     { name: 'search_nips', tool: new SearchNIPsTool() },
     { name: 'fetch_nip', tool: new FetchNIPTool() },
+    { name: 'ask_questions', tool: new AskQuestionsTool() },
   ];
 }
 
@@ -95,10 +99,12 @@ export function createNostrLookupToolBundle(opts: { nostr: NPool }): ToolBundleE
 }
 
 /**
- * Build the "tiles" ability's tool bundle — devkit's 10 tile-authoring
+ * Build the "tiles" ability's tool bundle — devkit's 9 tile-authoring
  * tools wired to this session's draft state. `preview_tile` is a stub:
  * live preview needs a RuntimeAdapter that does not exist in Ditto yet
- * (deferred to the widget branch).
+ * (deferred to the widget branch). `ask_questions` is not here: it ships
+ * in the base bundle, so a Tiles session does not get it registered twice
+ * (base + tiles bundles are concatenated for a session's final tool list).
  */
 export function createTilesToolBundle(opts: { projectId: string; seedCode?: string; store?: TileDraftStore }): ToolBundleEntry[] {
   const store = opts.store ?? tileDraftStore;
@@ -116,7 +122,6 @@ export function createTilesToolBundle(opts: { projectId: string; seedCode?: stri
     { name: 'set_tile', tool: new SetTileTool(projectId, getCode) },
     { name: 'get_tile', tool: new GetTileTool(projectId) },
     { name: 'preview_tile', tool: createPreviewTileStub(projectId) },
-    { name: 'ask_questions', tool: new AskQuestionsTool() },
     { name: 'set_notes', tool: new SetNotesTool((notes) => store.setNotes(projectId, notes)) },
     { name: 'read_spec', tool: new ReadSpecTool(tipFetcher) },
     { name: 'read_examples', tool: new ReadExamplesTool(tipFetcher) },

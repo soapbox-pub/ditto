@@ -11,7 +11,7 @@ import {
   type TileDraftStore,
 } from './toolRegistry';
 
-const BASE_NAMES = ['set_theme', 'search_nips', 'fetch_nip'];
+const BASE_NAMES = ['set_theme', 'search_nips', 'fetch_nip', 'ask_questions'];
 
 /** A nostr client stub; the bundles never query it at construction. */
 const mockNostr = { query: async () => [] } as unknown as NPool;
@@ -25,7 +25,6 @@ const TILES_NAMES = [
   'set_tile',
   'get_tile',
   'preview_tile',
-  'ask_questions',
   'set_notes',
   'read_spec',
   'read_examples',
@@ -120,7 +119,7 @@ describe('createTilesToolBundle', () => {
     setLuaLintEngine(null);
   });
 
-  it('contains the 10 devkit tools in order', () => {
+  it('contains the 9 devkit tools in order', () => {
     const bundle = createTilesToolBundle({ projectId: projectId() });
     expect(bundle.map((b) => b.name)).toEqual(TILES_NAMES);
   });
