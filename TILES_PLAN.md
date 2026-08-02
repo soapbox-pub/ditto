@@ -397,24 +397,85 @@ Ordering: after Phases 1–6 (needs 0.12 runtime, frames, feed nodes).
 
 ## Phase 8 — AI chat widget creation — `pending`
 
-- [ ] **T8.1 Discovery toast.** "New: Create with Ditto" overlay on the AI
-      chat widget's first open, dismissed state in localStorage.
-      *Eval:* manual: shows once, never again after dismiss; `npm run test`.
-- [ ] **T8.2 Creation mode.** AI chat mode that drafts tile Lua + metadata:
-      cheap model; system context assembled from the 0.12 `TIPS` index +
-      selected `tips/*` docs (subpath exports). *Eval:* manual: prompt →
-      syntactically valid Lua tile source; `npm run test`.
-- [ ] **T8.3 Embedded preview.** Render the drafted tile live inside the
-      chat pane via the runtime (sandboxed, ungranted capabilities fail
-      gracefully); iterate on feedback. Requires a local/unpublished
-      definition path (draft not yet a signed event). *Eval:* manual:
-      preview renders and updates across iterations; `npm run test`.
-- [ ] **T8.4 Publish flow.** AI generates name/summary/description
-      (+image via generation/upload if feasible); user reviews code +
-      requested capabilities; publish as kind 30207 via `useNostrPublish`
-      with d-tag collision check — **gated on the user having a NIP-05**
-      (identifier embeds it). *Eval:* manual: end-to-end create → publish →
-      visible in marketplace → installable; `npm run test`.
+Replaces the original T8.1-T8.4 draft below with the far more detailed version grilled on
+`ai-chat-tlc`'s `AI_CHAT_TILES_PLAN.md` (ported over 2026-08-02). Context: `ai-chat-tlc` ships a
+standalone AI chat modernization PR first and merges to `main` on its own; this branch
+(`tiles-v3-widgetonly`) then rebases onto it (see that repo's plan doc, or its own `PLAN.md`'s
+T4.2/T4.3, for the full handoff). That effort split its own Phase 10 into two waves: Wave A
+(provider settings, abilities menu, tool registry, tabs/history) ships in `ai-chat-tlc` itself;
+Wave B is the part that can only be built once **this** branch's marketplace/
+`CanvasRuntimeProvider` work exists — so it lands here instead, as this phase. Original ticket IDs
+were T10.4-T10.7+; renumbered T8.1-T8.4 to match this doc's scheme. T8.1 and T8.4 carry real
+grilled detail already; T8.2/T8.3 still need their own grilling pass before dispatch, per this
+doc's working agreement — do that once this branch has rebased onto `ai-chat-tlc`.
+
+Devkit facts needed to read T8.1 (from `ai-chat-tlc`'s decision record, ticket D6, re-grilled
+2026-07-31 — full detail in `nostr-canvas`'s own `PLAN.md`): `PreviewAdapter` wraps any real
+`RuntimeAdapter` — `publish_event` signs for real, then blocks on a host-supplied review callback
+(publish/discard) before actually broadcasting; `upload_image` never touches the real adapter,
+returns a local blob URL; `navigate` never navigates, calls a host-supplied toast callback
+instead; every other capability (`fetch`, `get_profile`, `subscribe`, `fetch_events`,
+`get_public_key`, `get_contacts`, `nip44_encrypt`/`decrypt`) passes straight through unmodified.
+`computePreviewGrantKey(slug, declaredCaps, version)` is a deterministic grant-store identifier;
+`version` lets future scheme changes invalidate old stored grants. An ephemeral-identity helper
+(`getOrCreateEphemeralIdentity(storage)`) generates/persists an nsec-backed signer via
+`nostr-tools` for hosts with no logged-in user. `PreviewSession` is a headless, stateful class:
+`new PreviewSession({ adapter, grantBackend, previewPubkey })` (adapter is the host's
+already-`PreviewAdapter`-wrapped real adapter), `build(code, settings, metadata)` →
+`{ ok: true, tileId } | { ok: false, error }`, `subscribe(cb)` (stable output subscription,
+transparently re-wires across rebuilds), `destroy()`.
+
+- [ ] **T8.1 Isolated preview panel** *(was T10.4)*. devkit's `PreviewSession`/`PreviewAdapter`
+      mounted in their own separate `NostrCanvasProvider` tree inside the chat UI (never shares
+      this app's own `CanvasRuntimeProvider`), wired to Ditto's **real** adapter/login
+      (`previewPubkey` = logged-in user's pubkey, or devkit's ephemeral-identity helper if logged
+      out) per D6's design above. Publish-review UI: shows the AI's signed event, user chooses
+      publish/discard. *Not yet grilled to dispatch-ready — do a short grilling pass before
+      dispatch.*
+- [ ] **T8.2 Publish flow** *(was T10.5)*. Once a drafted widget looks right in preview, publish
+      it as a real kind 30207 event — reusing this branch's marketplace publish/install plumbing,
+      gated on the user having a NIP-05 (identifiers are `nip05:slug`), with a d-tag collision
+      check. The "slug" the AI settles on early in the conversation (needed anyway per D5's
+      requirements-gathering flow — see `ai-chat-tlc`'s decision record) is the same value
+      threaded into D6's `computePreviewGrantKey` during preview. *Not yet grilled to
+      dispatch-ready.*
+- [ ] **T8.3 Discovery toast** *(was T10.6)*. "New: Create with Ditto" overlay on the AI chat
+      widget's first open, dismissed state in `localStorage`. *Not yet grilled to dispatch-ready.*
+- [ ] **T8.4 Marketplace remix — grilled 2026-08-02 on `ai-chat-tlc`, mostly ready to dispatch
+      (two items still open, see below)** *(was T10.7+)*. Depends on T8.2 (publish) already
+      working.
+
+      Entry point: a "Remix with AI" button on the tile's marketplace detail page, alongside the
+      existing "Install" action. It opens the AI chat widget and forks a new "Tiles" session via
+      `ai-chat-tlc`'s T10.1 pre-seed argument — same ability, same tool bundle, not a separate
+      flow.
+
+      Pre-seed mechanism: confirmed against the actual devkit tool source
+      (`devkit/tools/read-code.ts`, `write-code.ts`) — `read_code`/`write_code` are backed by
+      host-supplied `getCode`/`setCode` closures over wherever the session keeps its code state,
+      not a chat-message injection. Remix initializes that state with the target tile's existing
+      Lua source directly (so `read_code` returns it from turn one), plus one added line in the
+      system/user prompt telling the AI to call `read_code` to see the current tile before making
+      changes.
+
+      Publish semantics: remix always forks. Publishing creates a **brand-new** kind 30207 event
+      under the remixing user's own `nip05:slug` identifier — new slug, current user as author —
+      regardless of who authored the original. No update-in-place option, no ownership check; this
+      matches how T8.2 already treats any AI-drafted tile.
+
+      Still open (grill immediately before dispatch): whether remix requires the user to already
+      have a NIP-05 before starting (vs. only gating at publish time, same as T8.2), and whether
+      the published tile carries any attribution/reference back to the original.
+
+**Open items, not yet scoped in detail** *(carried over from `ai-chat-tlc`, surfaced 2026-07-31
+while discussing this phase's scope)*:
+- Image generation via `gpt-image-1` as its own devkit tool/skill, for T8.2's AI-generated tile
+  image.
+- A URL-scheme handler mechanism for tiles (e.g. a bitcoin tile handling `bitcoin:` URLs) as a
+  special case of the `navigate`/`nav` capability — touches the same capability surface D6/T8.1
+  rely on.
+- A nostr-canvas spec (TIP) clarification: `render_event`-placement tiles must not render their
+  own action buttons — that's the client's job (tile chrome and/or feed rendering).
 
 ---
 
