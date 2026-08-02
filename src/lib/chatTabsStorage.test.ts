@@ -69,6 +69,9 @@ function makePausedTab(overrides: Partial<PersistedTab> = {}): PersistedTab {
 
 const stubClient = {} as unknown as OpenAI;
 
+const PUBKEY_A = 'aa'.repeat(32);
+const PUBKEY_B = 'bb'.repeat(32);
+
 function makeAgent() {
   return new AgentSession({
     client: stubClient,
@@ -121,7 +124,7 @@ describe('chatTabsStorage', () => {
   it('getStoredTabs lists every stored tab and skips malformed entries', () => {
     saveTab(makePausedTab({ id: 'tab-1' }));
     saveTab(makePausedTab({ id: 'tab-2', abilities: [], modelId: 'shakespeare/x' }));
-    localStorage.setItem('ditto.ai-chat.tab.v1.broken', '{not json');
+    localStorage.setItem('ditto.ai-chat.tab.v1.anon.broken', '{not json');
     localStorage.setItem('unrelated-key', 'hello');
 
     const tabs = getStoredTabs();
@@ -131,7 +134,7 @@ describe('chatTabsStorage', () => {
   it('patchTabMetadata updates metadata and preserves the agent blob', () => {
     saveTab(makePausedTab());
 
-    const patched = patchTabMetadata('tab-1', { title: 'My title', modelId: 'shakespeare/other' }, 3_000_000);
+    const patched = patchTabMetadata('tab-1', { title: 'My title', modelId: 'shakespeare/other' }, 'anon', 3_000_000);
     expect(patched?.title).toBe('My title');
     expect(patched?.modelId).toBe('shakespeare/other');
     expect(patched?.updatedAt).toBe(3_000_000);
@@ -143,7 +146,7 @@ describe('chatTabsStorage', () => {
     saveTab(makePausedTab());
 
     const resumed = makeSerializedSession({ messages: [{ role: 'user', content: 'red' }] });
-    const patched = saveTabAgent('tab-1', resumed, 4_000_000);
+    const patched = saveTabAgent('tab-1', resumed, 'anon', 4_000_000);
     expect(patched?.agent).toEqual(resumed);
     expect(patched?.title).toBe('');
     expect(patched?.abilities).toEqual(['tiles']);
@@ -168,7 +171,7 @@ describe('chatTabsStorage', () => {
     saveTab(makePausedTab({ id: 'exactly-cutoff', updatedAt: now - TAB_MAX_AGE_MS }));
     saveTab(makePausedTab({ id: 'fresh', updatedAt: now - TAB_MAX_AGE_MS + 1 }));
 
-    const removed = pruneStaleTabs(now);
+    const removed = pruneStaleTabs('anon', now);
     expect(removed.sort()).toEqual(['exactly-cutoff', 'old']);
     expect(getStoredTab('old')).toBeNull();
     expect(getStoredTab('exactly-cutoff')).toBeNull();
@@ -185,5 +188,63 @@ describe('chatTabsStorage', () => {
     expect(isAtTabCap(MAX_OPEN_TABS - 1)).toBe(false);
     expect(isAtTabCap(MAX_OPEN_TABS)).toBe(true);
     expect(isAtTabCap(MAX_OPEN_TABS + 1)).toBe(true);
+  });
+
+  it('isolates tabs per pubkey: a tab saved under pubkey A is invisible under pubkey B', () => {
+    const tabA = makePausedTab({ id: 'tab-1', title: 'A chat' });
+    saveTab(tabA, PUBKEY_A);
+
+    expect(getStoredTab('tab-1', PUBKEY_A)).toEqual(tabA);
+    expect(getStoredTab('tab-1', PUBKEY_B)).toBeNull();
+    expect(getStoredTab('tab-1')).toBeNull(); // not in the anon scope either
+    expect(getStoredTabs(PUBKEY_A)).toEqual([tabA]);
+    expect(getStoredTabs(PUBKEY_B)).toEqual([]);
+  });
+
+  it('keeps each account tab list separate when both accounts have tabs', () => {
+    saveTab(makePausedTab({ id: 'a-1' }), PUBKEY_A);
+    saveTab(makePausedTab({ id: 'b-1' }), PUBKEY_B);
+    saveTab(makePausedTab({ id: 'anon-1' }));
+
+    expect(getStoredTabs(PUBKEY_A).map((t) => t.id)).toEqual(['a-1']);
+    expect(getStoredTabs(PUBKEY_B).map((t) => t.id)).toEqual(['b-1']);
+    expect(getStoredTabs().map((t) => t.id)).toEqual(['anon-1']);
+  });
+
+  it('removeTab deletes only the tab in the given pubkey scope', () => {
+    saveTab(makePausedTab({ id: 'tab-1' }), PUBKEY_A);
+    saveTab(makePausedTab({ id: 'tab-1' }), PUBKEY_B);
+
+    removeTab('tab-1', PUBKEY_A);
+
+    expect(getStoredTab('tab-1', PUBKEY_A)).toBeNull();
+    expect(getStoredTab('tab-1', PUBKEY_B)).not.toBeNull();
+  });
+
+  it('patchTabMetadata and saveTabAgent write within the given pubkey scope', () => {
+    saveTab(makePausedTab({ id: 'tab-1' }), PUBKEY_A);
+    saveTab(makePausedTab({ id: 'tab-1' }), PUBKEY_B);
+
+    const patched = patchTabMetadata('tab-1', { title: 'A title' }, PUBKEY_A, 3_000_000);
+    expect(patched?.title).toBe('A title');
+    expect(getStoredTab('tab-1', PUBKEY_B)?.title).toBe('');
+
+    const resumed = makeSerializedSession({ messages: [{ role: 'user', content: 'red' }] });
+    const saved = saveTabAgent('tab-1', resumed, PUBKEY_A, 4_000_000);
+    expect(saved?.agent).toEqual(resumed);
+    expect(getStoredTab('tab-1', PUBKEY_B)?.agent).toEqual(makePausedTab().agent);
+  });
+
+  it('pruneStaleTabs prunes only tabs in the given pubkey scope', () => {
+    const now = 10_000_000;
+    saveTab(makePausedTab({ id: 'old-a', updatedAt: now - TAB_MAX_AGE_MS - 1 }), PUBKEY_A);
+    saveTab(makePausedTab({ id: 'old-b', updatedAt: now - TAB_MAX_AGE_MS - 1 }), PUBKEY_B);
+    saveTab(makePausedTab({ id: 'fresh-a', updatedAt: now - 1 }), PUBKEY_A);
+
+    const removed = pruneStaleTabs(PUBKEY_A, now);
+    expect(removed).toEqual(['old-a']);
+    expect(getStoredTab('old-a', PUBKEY_A)).toBeNull();
+    expect(getStoredTab('old-b', PUBKEY_B)).not.toBeNull();
+    expect(getStoredTabs(PUBKEY_A).map((t) => t.id)).toEqual(['fresh-a']);
   });
 });

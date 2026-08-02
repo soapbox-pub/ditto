@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 /** A user-configured AI provider (OpenRouter, OpenAI-compatible, or DeepSeek). */
 export interface AIProviderProfile {
@@ -18,9 +19,19 @@ export type AIProviderKind = AIProviderProfile['kind'];
 
 const STORAGE_KEY = 'ditto:ai-providers';
 
-function loadProfiles(): AIProviderProfile[] {
+/**
+ * localStorage key holding a user's profiles, scoped per signed-in pubkey
+ * (`ditto:ai-providers-${pubkey}` when logged in, a fixed fallback key when
+ * logged out) so profiles — including plaintext apiKeys — never leak between
+ * simultaneously logged-in accounts on the same device.
+ */
+function storageKeyFor(pubkey: string | undefined): string {
+  return pubkey ? `${STORAGE_KEY}-${pubkey}` : STORAGE_KEY;
+}
+
+function loadProfiles(key: string): AIProviderProfile[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     return Array.isArray(parsed) ? (parsed as AIProviderProfile[]) : [];
@@ -29,9 +40,9 @@ function loadProfiles(): AIProviderProfile[] {
   }
 }
 
-function persistProfiles(profiles: AIProviderProfile[]): void {
+function persistProfiles(key: string, profiles: AIProviderProfile[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
+    localStorage.setItem(key, JSON.stringify(profiles));
   } catch {
     // localStorage may be unavailable (private mode etc.)
   }
@@ -39,27 +50,37 @@ function persistProfiles(profiles: AIProviderProfile[]): void {
 
 /**
  * LocalStorage-backed reactive store for AI provider profiles.
- * Profiles live in localStorage['ditto:ai-providers'] always; profiles with
+ * Profiles live in a per-pubkey localStorage key; profiles with
  * syncEnabled: true are additionally mirrored into the encrypted settings
  * blob (NIP-78) for cross-device sync.
  */
 export function useAIProviders() {
   const encryptedSettings = useEncryptedSettings();
-  const [profiles, setProfiles] = useState<AIProviderProfile[]>(() => loadProfiles());
+  const { user } = useCurrentUser();
+  const storageKey = storageKeyFor(user?.pubkey);
+  const [profiles, setProfiles] = useState<AIProviderProfile[]>(() => loadProfiles(storageKey));
 
-  // Keep a ref so mutation handlers always see the latest list.
+  // Keep refs so mutation handlers always see the latest list and key.
   const profilesRef = useRef(profiles);
+  const storageKeyRef = useRef(storageKey);
   useEffect(() => {
     profilesRef.current = profiles;
-  }, [profiles]);
+    storageKeyRef.current = storageKey;
+  }, [profiles, storageKey]);
 
-  // Merge profiles from the encrypted blob into local state. Blob versions
-  // win for matching ids; blob-only profiles are added; non-synced local
-  // profiles are left untouched.
+  // Reload from the current pubkey's key whenever the signed-in user changes
+  // (e.g. an account switch), so one account never sees another's profiles.
+  // Then merge profiles from the encrypted blob into local state. Blob
+  // versions win for matching ids; blob-only profiles are added; non-synced
+  // local profiles are left untouched.
   const blobProfiles = encryptedSettings.settings?.aiProviderProfiles;
   useEffect(() => {
-    if (!blobProfiles || blobProfiles.length === 0) return;
-    const merged = [...profilesRef.current];
+    const stored = loadProfiles(storageKey);
+    if (!blobProfiles || blobProfiles.length === 0) {
+      setProfiles(stored);
+      return;
+    }
+    const merged = [...stored];
     for (const blobProfile of blobProfiles) {
       const index = merged.findIndex((p) => p.id === blobProfile.id);
       if (index >= 0) {
@@ -69,8 +90,8 @@ export function useAIProviders() {
       }
     }
     setProfiles(merged);
-    persistProfiles(merged);
-  }, [blobProfiles]);
+    persistProfiles(storageKey, merged);
+  }, [storageKey, blobProfiles]);
 
   /** Mirror the current sync-enabled profiles into the encrypted blob. */
   function syncToBlob(nextProfiles: AIProviderProfile[]): void {
@@ -83,7 +104,7 @@ export function useAIProviders() {
     const profile: AIProviderProfile = { ...input, id: crypto.randomUUID() };
     const next = [...profilesRef.current, profile];
     setProfiles(next);
-    persistProfiles(next);
+    persistProfiles(storageKeyRef.current, next);
     if (profile.syncEnabled) syncToBlob(next);
     return profile;
   }
@@ -91,7 +112,7 @@ export function useAIProviders() {
   function updateProfile(id: string, patch: Partial<Omit<AIProviderProfile, 'id'>>): void {
     const next = profilesRef.current.map((p) => (p.id === id ? { ...p, ...patch } : p));
     setProfiles(next);
-    persistProfiles(next);
+    persistProfiles(storageKeyRef.current, next);
     const updated = next.find((p) => p.id === id);
     if (updated?.syncEnabled) syncToBlob(next);
   }
@@ -100,7 +121,7 @@ export function useAIProviders() {
     const removed = profilesRef.current.find((p) => p.id === id);
     const next = profilesRef.current.filter((p) => p.id !== id);
     setProfiles(next);
-    persistProfiles(next);
+    persistProfiles(storageKeyRef.current, next);
     // Tell the blob about the removal so the merge effect doesn't re-add the
     // deleted profile from encrypted settings on the next reload/refetch.
     if (removed?.syncEnabled) syncToBlob(next);
@@ -117,7 +138,7 @@ export function useAIProviders() {
     };
     const next = [...profilesRef.current, copy];
     setProfiles(next);
-    persistProfiles(next);
+    persistProfiles(storageKeyRef.current, next);
   }
 
   return {

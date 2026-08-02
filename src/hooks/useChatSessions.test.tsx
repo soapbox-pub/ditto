@@ -3,6 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 
 import { useChatSessions } from './useChatSessions';
 import type { ChatSession, DisplayMessage } from './useChatSessions';
+import type { PersistedTab } from '@/lib/chatTabsStorage';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -257,5 +258,37 @@ describe('useChatSessions', () => {
     expect(result.current.sessions.map((s) => s.id)).toEqual(ids);
     // The bootstrap session is still there — nothing was silently replaced.
     expect(result.current.sessions.every((s, index) => s.id === ids[index])).toBe(true);
+  });
+
+  it('reloads stored tabs for the new pubkey when the account switches', () => {
+    const pubkeyA = 'aa'.repeat(32);
+    const pubkeyB = 'bb'.repeat(32);
+    const seeded: PersistedTab = {
+      id: 'seeded-1',
+      title: 'Seeded A tab',
+      abilities: ['tiles'],
+      providerId: 'shakespeare',
+      modelId: 'm',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      agent: { messages: [{ role: 'user', content: 'from A' }], pendingInput: null, pendingToolCalls: [] },
+    };
+    localStorage.setItem(`ditto.ai-chat.tab.v1.${pubkeyA}.seeded-1`, JSON.stringify(seeded));
+
+    const { result, rerender } = renderHook(({ pubkey }: { pubkey?: string }) => useChatSessions(pubkey), {
+      initialProps: { pubkey: pubkeyA },
+    });
+    expect(result.current.sessions.map((s) => s.id)).toEqual(['seeded-1']);
+
+    // Switching to account B must not leak A's tab into B's session list.
+    rerender({ pubkey: pubkeyB });
+    expect(result.current.sessions.map((s) => s.id)).toEqual([result.current.activeSessionId]);
+    expect(result.current.sessions[0].id).not.toBe('seeded-1');
+    expect(result.current.sessions[0].title).toBe('');
+
+    // B's bootstrap session is persisted under B's scoped key, not A's.
+    const stored = localStorage.getItem(`ditto.ai-chat.tab.v1.${pubkeyB}.${result.current.sessions[0].id}`);
+    expect(stored).not.toBeNull();
+    expect(localStorage.getItem(`ditto.ai-chat.tab.v1.${pubkeyA}.seeded-1`)).not.toBeNull();
   });
 });

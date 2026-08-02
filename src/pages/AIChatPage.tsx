@@ -124,7 +124,7 @@ export function AIChatPage() {
   const { user } = useCurrentUser();
   const { getAvailableModels } = useShakespeare();
   const hasCredits = useShakespeareCredits();
-  const { activeSession, activeSessionId, sessions, createSession, setActiveSessionId, closeSession, updateSession } = useChatSessions();
+  const { activeSession, activeSessionId, sessions, createSession, setActiveSessionId, closeSession, updateSession } = useChatSessions(user?.pubkey);
   const { profiles } = useAIProviders();
   const { buildSessionTools } = useToolRegistry();
 

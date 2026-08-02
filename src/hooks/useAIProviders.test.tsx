@@ -7,6 +7,8 @@ import type { AIProviderProfile } from './useAIProviders';
 import { useAIProviders } from './useAIProviders';
 
 const STORAGE_KEY = 'ditto:ai-providers';
+const PUBKEY_A = 'aa'.repeat(32);
+const PUBKEY_B = 'bb'.repeat(32);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -23,6 +25,14 @@ vi.mock('@/hooks/useEncryptedSettings', () => ({
   useEncryptedSettings: () => mockUseEncryptedSettings(),
   getLocalSettingsSync: () => 0,
   setLocalSettingsSync: () => {},
+}));
+
+// The hook sources the signed-in pubkey from useCurrentUser; the mock is
+// switched between accounts in the isolation tests below.
+const mockUseCurrentUser = vi.fn<() => { user: { pubkey: string } | undefined }>();
+
+vi.mock('@/hooks/useCurrentUser', () => ({
+  useCurrentUser: () => mockUseCurrentUser(),
 }));
 
 interface MockUpdateSettings {
@@ -104,6 +114,8 @@ describe('useAIProviders', () => {
     initializeSettingsSpy.mockResolvedValue(undefined);
     mockUseEncryptedSettings.mockReset();
     mockUseEncryptedSettings.mockReturnValue(defaultEncryptedSettings());
+    mockUseCurrentUser.mockReset();
+    mockUseCurrentUser.mockReturnValue({ user: undefined });
   });
 
   afterEach(() => {
@@ -384,5 +396,46 @@ describe('useAIProviders', () => {
     }).not.toThrow();
     expect(readLocalStorage()).toEqual([]);
     expect(result.current.profiles).toEqual([]);
+  });
+
+  it('scopes provider profiles to the signed-in pubkey and reloads on account switch', async () => {
+    mockUseCurrentUser.mockReturnValue({ user: { pubkey: PUBKEY_A } });
+    const { result, rerender } = renderHook(() => useAIProviders(), { wrapper });
+
+    act(() => {
+      result.current.addProfile(makeInput({ name: 'Account A Secret', apiKey: 'sk-a' }));
+    });
+    expect(result.current.profiles.map((p) => p.name)).toEqual(['Account A Secret']);
+
+    // Switching to account B must not expose A's profile.
+    mockUseCurrentUser.mockReturnValue({ user: { pubkey: PUBKEY_B } });
+    rerender();
+    await waitFor(() => expect(result.current.profiles).toEqual([]));
+
+    // B saves its own profile; A's data stays untouched underneath.
+    act(() => {
+      result.current.addProfile(makeInput({ name: 'Account B Secret', apiKey: 'sk-b' }));
+    });
+    expect(result.current.profiles.map((p) => p.name)).toEqual(['Account B Secret']);
+
+    // Switching back to A restores A's profile and hides B's.
+    mockUseCurrentUser.mockReturnValue({ user: { pubkey: PUBKEY_A } });
+    rerender();
+    await waitFor(() => expect(result.current.profiles.map((p) => p.name)).toEqual(['Account A Secret']));
+    expect(result.current.profiles[0].apiKey).toBe('sk-a');
+  });
+
+  it('stores profiles under the per-pubkey key, never the shared unscoped key', async () => {
+    mockUseCurrentUser.mockReturnValue({ user: { pubkey: PUBKEY_A } });
+    const { result } = renderHook(() => useAIProviders(), { wrapper });
+
+    act(() => {
+      result.current.addProfile(makeInput({ name: 'Secret A', apiKey: 'sk-a' }));
+    });
+
+    const scopedA = JSON.parse(localStorage.getItem(`ditto:ai-providers-${PUBKEY_A}`) ?? '[]') as AIProviderProfile[];
+    expect(scopedA.map((p) => p.name)).toEqual(['Secret A']);
+    // The unscoped key must stay empty; nothing may be written there anymore.
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 });

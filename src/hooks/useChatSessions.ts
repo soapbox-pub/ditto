@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SerializedSession } from '@soapbox.pub/nostr-canvas/devkit';
 
 import type { Ability } from '@/lib/abilities';
@@ -105,34 +105,51 @@ interface ChatState {
 }
 
 /**
+ * Restore the stored tabs for a pubkey scope (after silently pruning any
+ * untouched for 30 days), or bootstrap a single default session when nothing
+ * is stored. `pubkey` scopes the localStorage keys per account.
+ */
+function loadOrBootstrap(pubkey?: string): ChatState {
+  pruneStaleTabs(pubkey); // Silent housekeeping: drop tabs untouched for 30 days.
+  const stored = getStoredTabs(pubkey);
+  if (stored.length > 0) {
+    return {
+      sessions: stored.map(tabToSession),
+      activeSessionId: stored[0].id,
+    };
+  }
+  const bootstrap = createSessionObject({ abilities: [], providerId: 'shakespeare', modelId: '' });
+  saveTab(tabFromSession(bootstrap), pubkey);
+  return { sessions: [bootstrap], activeSessionId: bootstrap.id };
+}
+
+/**
  * Multi-session chat state backed by localStorage.
  *
  * Persistence: one localStorage entry per tab (the session metadata plus the
  * session's serialized AgentSession blob). Tab creation/closing and metadata
  * patches (provider/model/title) write here; the agent blob itself is written
  * by useAgentSessions on every message/state change. On first render the
- * stored tabs are restored (after silently pruning any untouched for 30 days),
- * or a single default session is bootstrapped when nothing is stored.
+ * stored tabs for the current account are restored (after silently pruning
+ * any untouched for 30 days), or a single default session is bootstrapped
+ * when nothing is stored. When the signed-in account changes the tab list is
+ * reloaded from that account's pubkey scope.
  */
-export function useChatSessions() {
-  const [state, setState] = useState<ChatState>(() => {
-    pruneStaleTabs(); // Silent housekeeping: drop tabs untouched for 30 days.
-    const stored = getStoredTabs();
-    if (stored.length > 0) {
-      return {
-        sessions: stored.map(tabToSession),
-        activeSessionId: stored[0].id,
-      };
-    }
-    const bootstrap = createSessionObject({ abilities: [], providerId: 'shakespeare', modelId: '' });
-    saveTab(tabFromSession(bootstrap));
-    return { sessions: [bootstrap], activeSessionId: bootstrap.id };
-  });
+export function useChatSessions(pubkey?: string) {
+  const [state, setState] = useState<ChatState>(() => loadOrBootstrap(pubkey));
+
+  // Reload the tab list from the new account's scope on an account switch.
+  const prevPubkeyRef = useRef(pubkey);
+  useEffect(() => {
+    if (prevPubkeyRef.current === pubkey) return;
+    prevPubkeyRef.current = pubkey;
+    setState(loadOrBootstrap(pubkey));
+  }, [pubkey]);
 
   /** Append a fresh session and make it active. Returns the created session. */
   function createSession(input: CreateSessionInput): ChatSession {
     const session = createSessionObject(input);
-    saveTab(tabFromSession(session));
+    saveTab(tabFromSession(session), pubkey);
     setState((prev) => ({
       sessions: [...prev.sessions, session],
       activeSessionId: session.id,
@@ -159,7 +176,7 @@ export function useChatSessions() {
 
       // Hard delete: the tab's localStorage entry goes immediately. There is
       // no "recently closed" recovery surface.
-      removeTab(id);
+      removeTab(id, pubkey);
 
       let activeSessionId = prev.activeSessionId;
       if (activeSessionId === id) {
@@ -182,7 +199,7 @@ export function useChatSessions() {
       ...(patch.providerId !== undefined && { providerId: patch.providerId }),
       ...(patch.modelId !== undefined && { modelId: patch.modelId }),
     };
-    patchTabMetadata(id, metadata);
+    patchTabMetadata(id, metadata, pubkey);
   }
 
   const activeSession = state.sessions.find((s) => s.id === state.activeSessionId)!;

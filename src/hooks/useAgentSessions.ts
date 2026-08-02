@@ -47,6 +47,7 @@ export interface AgentSessionsOptions {
  */
 export function useAgentSessions(options: AgentSessionsOptions) {
   const { sessions, activeSessionId, profiles, user, models, buildSessionTools, systemPromptFor } = options;
+  const pubkey = user?.pubkey;
   const agentsRef = useRef(new Map<string, AgentEntry>());
   /** Latest snapshot per session id, updated on every agent notify. */
   const [snapshots, setSnapshots] = useState<Record<string, AgentSnapshot>>({});
@@ -75,7 +76,7 @@ export function useAgentSessions(options: AgentSessionsOptions) {
         const json = JSON.stringify(serialized);
         if (lastBlobJsonRef.current.get(sessionId) !== json) {
           lastBlobJsonRef.current.set(sessionId, json);
-          saveTabAgent(sessionId, serialized);
+          saveTabAgent(sessionId, serialized, pubkey);
         }
         const snap = entry.agent.getSnapshot();
         setSnapshots((prev) => (prev[sessionId] === snap ? prev : { ...prev, [sessionId]: snap }));
@@ -118,7 +119,7 @@ export function useAgentSessions(options: AgentSessionsOptions) {
         } else {
           // Fresh page load: reconstruct from the stored blob, preserving a
           // mid-flight ask_questions pause via pendingInput.
-          const stored = getStoredTab(session.id);
+          const stored = getStoredTab(session.id, pubkey);
           if (stored?.agent) {
             agent.deserialize(stored.agent);
             lastBlobJsonRef.current.set(session.id, JSON.stringify(stored.agent));
@@ -165,7 +166,7 @@ export function useAgentSessions(options: AgentSessionsOptions) {
     return () => {
       cancelled = true;
     };
-  }, [sessions, activeSessionId, profiles, user, models, buildSessionTools, systemPromptFor]);
+  }, [sessions, activeSessionId, profiles, user, pubkey, models, buildSessionTools, systemPromptFor]);
 
   /**
    * Send a user message through the active session's AgentSession.

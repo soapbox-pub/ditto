@@ -1,7 +1,11 @@
 import type { Ability } from '@/hooks/useChatSessions';
 import type { SerializedSession } from '@soapbox.pub/nostr-canvas/devkit';
 
-/** localStorage prefix for per-tab AI chat persistence. One entry per tab. */
+/**
+ * localStorage prefix for per-tab AI chat persistence. One entry per tab,
+ * keyed as `${TAB_STORAGE_PREFIX}${pubkey ?? 'anon'}.${tabId}` so tabs never
+ * leak between simultaneously logged-in accounts on the same device.
+ */
 export const TAB_STORAGE_PREFIX = 'ditto.ai-chat.tab.v1.';
 
 /** Hard cap on simultaneously open chat tabs. */
@@ -34,16 +38,18 @@ export type TabMetadataPatch = Partial<
   Pick<PersistedTab, 'title' | 'abilities' | 'providerId' | 'modelId' | 'seedCode' | 'createdAt'>
 >;
 
-function keyFor(id: string): string {
-  return `${TAB_STORAGE_PREFIX}${id}`;
+function keyFor(pubkey: string | undefined, id: string): string {
+  return `${TAB_STORAGE_PREFIX}${pubkey ?? 'anon'}.${id}`;
 }
 
-/** All stored tabs, oldest first. Malformed entries are skipped. */
-export function getStoredTabs(storage: Storage = localStorage): PersistedTab[] {
+/** All stored tabs for a pubkey scope, oldest first. Malformed entries are skipped. */
+export function getStoredTabs(pubkey?: string, storage: Storage = localStorage): PersistedTab[] {
+  // Only enumerate this pubkey's segment so other accounts' tabs stay hidden.
+  const segment = `${TAB_STORAGE_PREFIX}${pubkey ?? 'anon'}.`;
   const tabs: PersistedTab[] = [];
   for (let i = 0; i < storage.length; i += 1) {
     const key = storage.key(i);
-    if (!key?.startsWith(TAB_STORAGE_PREFIX)) continue;
+    if (!key?.startsWith(segment)) continue;
     const raw = storage.getItem(key);
     if (!raw) continue;
     try {
@@ -58,8 +64,8 @@ export function getStoredTabs(storage: Storage = localStorage): PersistedTab[] {
 }
 
 /** A single stored tab, or null when none exists under this id. */
-export function getStoredTab(id: string, storage: Storage = localStorage): PersistedTab | null {
-  const raw = storage.getItem(keyFor(id));
+export function getStoredTab(id: string, pubkey?: string, storage: Storage = localStorage): PersistedTab | null {
+  const raw = storage.getItem(keyFor(pubkey, id));
   if (!raw) return null;
   try {
     return JSON.parse(raw) as PersistedTab;
@@ -69,13 +75,13 @@ export function getStoredTab(id: string, storage: Storage = localStorage): Persi
 }
 
 /** Write (or overwrite) a tab's full record. */
-export function saveTab(tab: PersistedTab, storage: Storage = localStorage): void {
-  storage.setItem(keyFor(tab.id), JSON.stringify(tab));
+export function saveTab(tab: PersistedTab, pubkey?: string, storage: Storage = localStorage): void {
+  storage.setItem(keyFor(pubkey, tab.id), JSON.stringify(tab));
 }
 
 /** Hard-delete a tab's record. */
-export function removeTab(id: string, storage: Storage = localStorage): void {
-  storage.removeItem(keyFor(id));
+export function removeTab(id: string, pubkey?: string, storage: Storage = localStorage): void {
+  storage.removeItem(keyFor(pubkey, id));
 }
 
 /**
@@ -85,13 +91,14 @@ export function removeTab(id: string, storage: Storage = localStorage): void {
 export function patchTabMetadata(
   id: string,
   patch: TabMetadataPatch,
+  pubkey?: string,
   now = Date.now(),
   storage: Storage = localStorage,
 ): PersistedTab | null {
-  const tab = getStoredTab(id, storage);
+  const tab = getStoredTab(id, pubkey, storage);
   if (!tab) return null;
   const next = { ...tab, ...patch, updatedAt: now };
-  saveTab(next, storage);
+  saveTab(next, pubkey, storage);
   return next;
 }
 
@@ -102,24 +109,25 @@ export function patchTabMetadata(
 export function saveTabAgent(
   id: string,
   agent: SerializedSession,
+  pubkey?: string,
   now = Date.now(),
   storage: Storage = localStorage,
 ): PersistedTab | null {
-  const tab = getStoredTab(id, storage);
+  const tab = getStoredTab(id, pubkey, storage);
   if (!tab) return null;
   const next = { ...tab, agent, updatedAt: now };
-  saveTab(next, storage);
+  saveTab(next, pubkey, storage);
   return next;
 }
 
 /** Delete tabs untouched for TAB_MAX_AGE_MS. Returns the ids removed. */
-export function pruneStaleTabs(now = Date.now(), storage: Storage = localStorage): string[] {
+export function pruneStaleTabs(pubkey?: string, now = Date.now(), storage: Storage = localStorage): string[] {
   const cutoff = now - TAB_MAX_AGE_MS;
   const removed: string[] = [];
-  for (const tab of getStoredTabs(storage)) {
+  for (const tab of getStoredTabs(pubkey, storage)) {
     // A tab untouched for the full TAB_MAX_AGE_MS is stale.
     if (tab.updatedAt <= cutoff) {
-      removeTab(tab.id, storage);
+      removeTab(tab.id, pubkey, storage);
       removed.push(tab.id);
     }
   }
