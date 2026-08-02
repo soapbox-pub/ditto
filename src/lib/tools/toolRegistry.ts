@@ -62,13 +62,21 @@ export const tileDraftStore: TileDraftStore = {
 
 // ─── Bundles ────────────────────────────────────────────────────────────────
 
-/** The always-on tools, present in every session regardless of abilities. */
+/**
+ * The always-on tools, present in every session regardless of abilities:
+ * theme control plus NIP lookups (community NIPs via search_nips, official
+ * specs via fetch_nip).
+ */
 export function createBaseToolBundle(opts: { applyCustomTheme: (config: ThemeConfig) => void }): ToolBundleEntry[] {
-  return [{ name: 'set_theme', tool: createSetThemeTool(opts.applyCustomTheme) }];
+  return [
+    { name: 'set_theme', tool: createSetThemeTool(opts.applyCustomTheme) },
+    { name: 'search_nips', tool: new SearchNIPsTool() },
+    { name: 'fetch_nip', tool: new FetchNIPTool() },
+  ];
 }
 
 /**
- * Build the "tiles" ability's tool bundle — devkit's 12 tile-authoring
+ * Build the "tiles" ability's tool bundle — devkit's 10 tile-authoring
  * tools wired to this session's draft state. `preview_tile` is a stub:
  * live preview needs a RuntimeAdapter that does not exist in Ditto yet
  * (deferred to the widget branch).
@@ -86,8 +94,6 @@ export function createTilesToolBundle(opts: { projectId: string; seedCode?: stri
     { name: 'read_code', tool: new ReadCodeTool(getCode) },
     { name: 'write_code', tool: new WriteCodeTool(setCode) },
     { name: 'edit_code', tool: new EditCodeTool(getCode, setCode) },
-    { name: 'search_nips', tool: new SearchNIPsTool() },
-    { name: 'fetch_nip', tool: new FetchNIPTool() },
     { name: 'set_tile', tool: new SetTileTool(projectId, getCode) },
     { name: 'get_tile', tool: new GetTileTool(projectId) },
     { name: 'preview_tile', tool: createPreviewTileStub(projectId) },

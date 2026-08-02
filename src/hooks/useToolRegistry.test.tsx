@@ -10,12 +10,12 @@ vi.mock('@/hooks/useTheme', () => ({
   useTheme: () => ({ applyCustomTheme }),
 }));
 
+const BASE_NAMES = ['set_theme', 'search_nips', 'fetch_nip'];
+
 const TILES_NAMES = [
   'read_code',
   'write_code',
   'edit_code',
-  'search_nips',
-  'fetch_nip',
   'set_tile',
   'get_tile',
   'preview_tile',
@@ -42,7 +42,7 @@ describe('useToolRegistry', () => {
     const { result } = renderHook(() => useToolRegistry());
 
     const base = result.current.baseTools;
-    expect(base.map((b) => b.name)).toEqual(['set_theme']);
+    expect(base.map((b) => b.name)).toEqual(BASE_NAMES);
 
     await base[0].tool.execute({
       background: '0 0% 100%',
@@ -57,13 +57,13 @@ describe('useToolRegistry', () => {
     const { result } = renderHook(() => useToolRegistry());
 
     const tools = result.current.buildSessionTools(makeSession());
-    expect(tools.map((b) => b.name)).toEqual(['set_theme']);
+    expect(tools.map((b) => b.name)).toEqual(BASE_NAMES);
   });
 
   it('adds the tiles bundle for a tiles session, base first', () => {
     const { result } = renderHook(() => useToolRegistry());
 
     const tools = result.current.buildSessionTools(makeSession({ abilities: ['tiles'] }));
-    expect(tools.map((b) => b.name)).toEqual(['set_theme', ...TILES_NAMES]);
+    expect(tools.map((b) => b.name)).toEqual([...BASE_NAMES, ...TILES_NAMES]);
   });
 });

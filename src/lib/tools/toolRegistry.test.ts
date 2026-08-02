@@ -9,12 +9,12 @@ import {
   type TileDraftStore,
 } from './toolRegistry';
 
+const BASE_NAMES = ['set_theme', 'search_nips', 'fetch_nip'];
+
 const TILES_NAMES = [
   'read_code',
   'write_code',
   'edit_code',
-  'search_nips',
-  'fetch_nip',
   'set_tile',
   'get_tile',
   'preview_tile',
@@ -60,10 +60,17 @@ function contentOf(result: ToolResult): string {
 }
 
 describe('createBaseToolBundle', () => {
-  it('contains only the always-on set_theme tool', () => {
+  it('contains the always-on base tools in order', () => {
     const bundle = createBaseToolBundle({ applyCustomTheme: () => {} });
-    expect(bundle.map((b) => b.name)).toEqual(['set_theme']);
+    expect(bundle.map((b) => b.name)).toEqual(BASE_NAMES);
     expect(bundle[0].tool.inputSchema).toBeDefined();
+  });
+
+  it('includes the NIP lookup tools', () => {
+    const bundle = createBaseToolBundle({ applyCustomTheme: () => {} });
+    const names = bundle.map((b) => b.name);
+    expect(names).toContain('search_nips');
+    expect(names).toContain('fetch_nip');
   });
 
   it('binds the tool to the supplied applyCustomTheme closure', async () => {
@@ -91,7 +98,7 @@ describe('createTilesToolBundle', () => {
     setLuaLintEngine(null);
   });
 
-  it('contains the 12 devkit tools in order', () => {
+  it('contains the 10 devkit tools in order', () => {
     const bundle = createTilesToolBundle({ projectId: projectId() });
     expect(bundle.map((b) => b.name)).toEqual(TILES_NAMES);
   });
@@ -193,18 +200,31 @@ describe('buildSessionToolBundle', () => {
   it('returns only the base bundle for a session with no abilities', () => {
     const base = createBaseToolBundle({ applyCustomTheme: () => {} });
     const result = buildSessionToolBundle({ base, abilities: [], projectId: projectId() });
-    expect(result.map((b) => b.name)).toEqual(['set_theme']);
+    expect(result.map((b) => b.name)).toEqual(BASE_NAMES);
+  });
+
+  it('includes the NIP lookup tools for any ability selection', () => {
+    const base = createBaseToolBundle({ applyCustomTheme: () => {} });
+    const results = [
+      buildSessionToolBundle({ base, abilities: [], projectId: projectId() }),
+      buildSessionToolBundle({ base, abilities: ['tiles'], projectId: projectId() }),
+    ];
+    for (const result of results) {
+      const names = result.map((b) => b.name);
+      expect(names).toContain('search_nips');
+      expect(names).toContain('fetch_nip');
+    }
   });
 
   it('concatenates the base bundle with the tiles ability bundle', () => {
     const base = createBaseToolBundle({ applyCustomTheme: () => {} });
     const result = buildSessionToolBundle({ base, abilities: ['tiles'], projectId: projectId() });
-    expect(result.map((b) => b.name)).toEqual(['set_theme', ...TILES_NAMES]);
+    expect(result.map((b) => b.name)).toEqual([...BASE_NAMES, ...TILES_NAMES]);
   });
 
   it('does not mutate the base array when concatenating', () => {
     const base = createBaseToolBundle({ applyCustomTheme: () => {} });
     buildSessionToolBundle({ base, abilities: ['tiles'], projectId: projectId() });
-    expect(base.map((b) => b.name)).toEqual(['set_theme']);
+    expect(base.map((b) => b.name)).toEqual(BASE_NAMES);
   });
 });
