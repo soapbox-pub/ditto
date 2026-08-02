@@ -43,7 +43,7 @@ These event kinds were created by community contributors and are supported by Di
 | 34609 | Magazine               | Parent record grouping issues of a magazine/periodical           | [PressStr NIP](https://pressstr.shakespeare.wtf)                                          |
 | 39731 | Magazine Issue         | A single PDF issue of a magazine (kind 34609)                    | [PressStr NIP](https://pressstr.shakespeare.wtf)                                          |
 | 33953 | Ebook                  | A standalone ebook distributed as PDF or EPUB                    | [PressStr NIP](https://pressstr.shakespeare.wtf)                                          |
-| 30207 | Nostr Canvas Tile      | Addressable Lua tile definition for programmable client features | [nostr-canvas NIP + TIPs](https://unpkg.com/@soapbox.pub/nostr-canvas@0.12.1/NIP.md)     |
+| 30207 | Nostr Canvas Tile      | Addressable Lua tile definition for programmable client features | [nostr-canvas NIP + TIPs](https://unpkg.com/@soapbox.pub/nostr-canvas@0.14.6/NIP.md)     |
 
 ---
 
