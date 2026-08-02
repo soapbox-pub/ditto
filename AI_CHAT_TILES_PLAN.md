@@ -658,15 +658,47 @@ such dependency and can dispatch independently, any time.
       will run before closing): in a base session, ask "look up npub1... 's profile" or "find
       recent kind 1 notes tagging #nostr", confirm the AI calls `nak` and answers from real data.
 
-**Tracked, not started — codebase-wide, deliberately deferred (noted 2026-08-02):** a full i18n
-sweep — every user-visible string wrapped in `FormattedMessage`/`intl.formatMessage()` per
-AGENTS.md's i18n rule — is needed across the whole Ditto codebase, not just this branch's AI
-chat work. Surfaced because `AIChatPage.tsx` has zero `FormattedMessage` usage across its entire
-T10.0-T10.3 history (pre-existing gap, not introduced by any single ticket here) and T10.3 added
-a couple more plain strings on top of it. User's call: do this as one dedicated pass later, not
-piecemeal per-ticket — do not fix opportunistically inside AI-chat tickets going forward. Needs
-its own scoping/ticketing pass (likely its own branch, given the blast radius) when picked up;
-not scoped further here.
+- [ ] **T10.10 i18n coverage for this MR's own AI chat surfaces — grilled 2026-08-02.** Raised in
+      code review (!245): `AIChatPage.tsx` has zero `FormattedMessage` usage across its entire
+      T10.0-T10.3 history. Scoped to exactly what this MR itself introduced, not a codebase-wide
+      sweep (see the deferred note below, still deferred).
+      - **In scope:** every hardcoded user-visible string in `src/pages/AIChatPage.tsx`
+        (headings, dialog text, button `title`/`aria-label`, the abilities-popover header, the
+        page's `description` meta string, etc.) wrapped in `FormattedMessage`/
+        `intl.formatMessage()`, following this file's existing id convention
+        (`settings.ai.*`-style area.key ids, `ai-chat.*` for this page).
+      - **"Dork AI"** (the logged-out heading and the abilities-popover header) is regular UI
+        text, not a fixed brand name — translate it like everything else on the page, not
+        treated as a proper noun the way "Shakespeare" (the provider name) is.
+      - **`src/lib/abilities.ts`**: convert `label`/`description` on `ABILITIES` entries from
+        plain strings to `defineMessage({ id, defaultMessage })` descriptors. The two UI
+        consumers (abilities popover, `MentionAutocomplete`'s ability list) render via
+        `<FormattedMessage {...descriptor}>`; `buildAbilityManifest()` (the system-prompt
+        builder) resolves `descriptor.defaultMessage` directly — the model always sees English
+        regardless of the user's locale, so that one consumer does not localize.
+      - **Out of scope:** the five other files this MR touches (`EmojiShortcodeAutocomplete.tsx`,
+        `WebxdcEmbed.tsx`, `EnvelopeCard.tsx`, `SendAnimation.tsx`, `IntroImage.tsx`) — confirmed
+        via diff that this MR added zero new hardcoded text to any of them; their missing i18n
+        coverage predates this branch. Also out of scope: every AI-facing tool `description`
+        string (`nakTool.ts`, `setThemeTool.ts`, devkit's own tools) — those are API text sent to
+        the model, not UI, never localized. `MentionAutocomplete.tsx` itself adds no new literal
+        strings in this MR's diff, so it's untouched beyond consuming the new `abilities.ts`
+        descriptors.
+      - No new non-English translation files — per AGENTS.md, new strings ship English-only via
+        `defaultMessage`, falling back correctly with no other locale file touched.
+      *Eval:* a test asserting every `ABILITIES` entry exposes message descriptors (not plain
+      strings); `npm run test` green. Manual (user will run before closing): click through
+      `/ai-chat` logged out and logged in, open the abilities popover and the "@" mention
+      dropdown, confirm every string renders (falls back to the English `defaultMessage`
+      correctly, no missing-id console warnings).
+
+**Tracked, not started — codebase-wide, deliberately deferred (noted 2026-08-02):** the rest of
+Ditto's i18n sweep — every user-visible string wrapped in `FormattedMessage`/
+`intl.formatMessage()` per AGENTS.md's i18n rule — is still needed across the whole codebase
+beyond this MR's own AI-chat surfaces (T10.10 above only covers what this branch itself
+introduced). User's call: do the rest as one dedicated pass later, not piecemeal per-ticket — do
+not fix opportunistically inside AI-chat tickets going forward. Needs its own scoping/ticketing
+pass (likely its own branch, given the blast radius) when picked up; not scoped further here.
 
 **Tracked, not started — blocked on an external dependency (noted 2026-08-02):** the user is
 porting `luacheck` to TypeScript, to eventually replace fengari-web entirely as devkit's Lua
