@@ -4,33 +4,17 @@ import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import { Bot, Send, Trash2, Palette, Type, Sparkles } from 'lucide-react';
 
-import {
-  getWidgetCreationSystemPrompt,
-  toolToOpenAI,
-  createAIClient,
-  ReadCodeTool,
-  WriteCodeTool,
-  EditCodeTool,
-  SearchNIPsTool,
-  FetchNIPTool,
-  SetTileTool,
-  GetTileTool,
-  PreviewTileTool,
-  AskQuestionsTool,
-  SetNotesTool,
-  ReadSpecTool,
-  ReadExamplesTool,
-} from '@soapbox.pub/nostr-canvas/devkit';
-import type OpenAI from 'openai';
+import { getWidgetCreationSystemPrompt, isCompactionMarker } from '@soapbox.pub/nostr-canvas/devkit';
+import type { SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
 
 import { PageHeader } from '@/components/PageHeader';
-import { useShakespeare, useShakespeareCredits, type ChatMessage, type Model, type ChatCompletionTool, type ChatCompletionResponse } from '@/hooks/useShakespeare';
+import { useShakespeare, useShakespeareCredits, type Model } from '@/hooks/useShakespeare';
 import { useChatSessions, type DisplayMessage, type ToolCall, type ChatSession } from '@/hooks/useChatSessions';
 import { useAIProviders } from '@/hooks/useAIProviders';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useTheme } from '@/hooks/useTheme';
-import { bundledFonts } from '@/lib/fonts';
+import { useToolRegistry } from '@/hooks/useToolRegistry';
+import { useAgentSessions } from '@/hooks/useAgentSessions';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -45,198 +29,78 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { DorkThinking } from '@/components/DorkThinking';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
-import type { ThemeConfig } from '@/themes';
+// ─── Message Conversion ───
 
-// ─── Tool Definitions ───
-
-/** Build the list of available bundled font names for the tool description. */
-const AVAILABLE_FONTS = bundledFonts.map((f) => f.family).join(', ');
-
-const TOOLS: ChatCompletionTool[] = [
-  {
-    type: 'function',
-    function: {
-      name: 'set_theme',
-      description: `Set a custom theme for the application. You can set colors, a font, and a background image — all in one call. Colors are required; font and background are optional.
-
-Color values must be HSL strings WITHOUT the "hsl()" wrapper — just raw values like "228 20% 10%". Choose colors that work well together and ensure good contrast between background and text.
-
-For fonts, choose from the available bundled fonts: ${AVAILABLE_FONTS}. Pick a font that matches the mood of the theme.
-
-For backgrounds, provide a URL to a publicly accessible image. Choose images that complement the color scheme. Use mode "cover" for full-bleed backgrounds or "tile" for repeating patterns.`,
-      parameters: {
-        type: 'object' as const,
-        properties: {
-          background: {
-            type: 'string',
-            description: 'Background color as an HSL string (e.g. "228 20% 10%" for dark blue, "0 0% 100%" for white). This is the main page background.',
-          },
-          text: {
-            type: 'string',
-            description: 'Text/foreground color as an HSL string (e.g. "210 40% 98%" for near-white, "0 0% 10%" for near-black). Must contrast well with the background.',
-          },
-          primary: {
-            type: 'string',
-            description: 'Primary accent color as an HSL string (e.g. "258 70% 60%" for purple, "142 70% 45%" for green). Used for buttons, links, and interactive elements.',
-          },
-          font: {
-            type: 'string',
-            description: `Optional font family name. Must be one of the available bundled fonts: ${AVAILABLE_FONTS}. Choose a font that matches the theme's mood and aesthetic.`,
-          },
-          background_url: {
-            type: 'string',
-            description: 'Optional URL to a background image. Should be a direct link to a publicly accessible image file (JPEG, PNG, WebP, etc.).',
-          },
-          background_mode: {
-            type: 'string',
-            description: 'How to display the background image. "cover" fills the viewport (good for photos/landscapes). "tile" repeats the image (good for patterns/textures). Defaults to "cover".',
-            enum: ['cover', 'tile'],
-          },
-        },
-        required: ['background', 'text', 'primary'],
-      },
-    },
-  },
-];
-
-// ─── Tiles Tools ────────────────────────────────────────────────────────────
-
-/**
- * The 12 devkit Tool classes exposed to the model for tiles sessions, converted
- * to OpenAI function-schema shape. Execution of these tools is a later ticket
- * (T10.2); for now a call to one simply falls through to the "Unknown tool"
- * case in `useToolExecutor`.
- *
- * The tool constructors need runtime dependencies (code access, a project id,
- * TIP fetchers). Those are stubbed here because `toolToOpenAI` only reads
- * `description` and `inputSchema` — `execute` is never called this ticket.
- * T10.2 replaces these stubs with the real tool registry wiring.
- */
-const TILES_TOOLS: ChatCompletionTool[] = [
-  toolToOpenAI('read_code', new ReadCodeTool(() => '')),
-  toolToOpenAI('write_code', new WriteCodeTool(() => {})),
-  toolToOpenAI('edit_code', new EditCodeTool(() => '', () => {})),
-  toolToOpenAI('search_nips', new SearchNIPsTool()),
-  toolToOpenAI('fetch_nip', new FetchNIPTool()),
-  toolToOpenAI('set_tile', new SetTileTool('ditto', () => '')),
-  toolToOpenAI('get_tile', new GetTileTool('ditto')),
-  toolToOpenAI('preview_tile', new PreviewTileTool('ditto')),
-  toolToOpenAI('ask_questions', new AskQuestionsTool()),
-  toolToOpenAI('set_notes', new SetNotesTool(() => {})),
-  toolToOpenAI('read_spec', new ReadSpecTool(async () => '')),
-  toolToOpenAI('read_examples', new ReadExamplesTool(async () => '')),
-].map((tool) => ({
-  type: 'function' as const,
-  function: {
-    ...tool.function,
-    parameters: tool.function.parameters ?? {},
-  },
-}));
-
-// ─── Message Types ───
-
-/** Error from the non-Shakespeare send path. Surfaced as a chat message. */
-class ProviderSendError extends Error {}
-
-/** Simple HSL format check: "H S% L%" where H is 0-360, S and L are 0-100%. */
-function isValidHsl(value: unknown): value is string {
-  if (typeof value !== 'string') return false;
-  return /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}%$/.test(value.trim());
+function parseToolArgs(raw: string): Record<string, unknown> {
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
-function useToolExecutor() {
-  const { applyCustomTheme } = useTheme();
+/**
+ * Convert an AgentSession snapshot's messages into renderable chat messages.
+ * Tool results are attached to their originating assistant message instead
+ * of rendering as separate bubbles.
+ */
+function snapshotToDisplayMessages(msgs: SessionMessage[]): DisplayMessage[] {
+  const messages: DisplayMessage[] = [];
+  let pendingToolCalls: ToolCall[] = [];
 
-  const executeToolCall = useCallback((name: string, args: Record<string, unknown>): string => {
-    switch (name) {
-      case 'set_theme': {
-        const { background, text, primary, font, background_url, background_mode } = args;
+  msgs.forEach((msg, index) => {
+    if (isCompactionMarker(msg)) return;
 
-        // Validate required color values
-        if (!isValidHsl(background) || !isValidHsl(text) || !isValidHsl(primary)) {
-          return JSON.stringify({
-            error: 'Invalid HSL color values. Each must be a string like "228 20% 10%".',
-            received: { background, text, primary },
-          });
-        }
-
-        // Build theme config
-        const themeConfig: ThemeConfig = {
-          colors: {
-            background: background as string,
-            text: text as string,
-            primary: primary as string,
-          },
-        };
-
-        // Add font if provided
-        if (typeof font === 'string' && font.trim()) {
-          const bundled = bundledFonts.find((f) => f.family.toLowerCase() === font.trim().toLowerCase());
-          if (bundled) {
-            themeConfig.font = { family: bundled.family };
-          } else {
-            return JSON.stringify({
-              error: `Unknown font "${font}". Available fonts: ${AVAILABLE_FONTS}`,
-            });
-          }
-        }
-
-        // Add background if provided (sanitize to prevent CSS injection via url())
-        if (typeof background_url === 'string' && background_url.trim()) {
-          const safeUrl = sanitizeUrl(background_url.trim());
-          if (safeUrl) {
-            themeConfig.background = {
-              url: safeUrl,
-              mode: background_mode === 'tile' ? 'tile' : 'cover',
-            };
-          }
-        }
-
-        applyCustomTheme(themeConfig);
-
-        // Build result summary
-        const result: Record<string, unknown> = {
-          success: true,
-          colors: { background, text, primary },
-        };
-        if (themeConfig.font) result.font = themeConfig.font.family;
-        if (themeConfig.background) result.background = { url: themeConfig.background.url, mode: themeConfig.background.mode };
-
-        return JSON.stringify(result);
+    if (msg.role === 'tool') {
+      const call = pendingToolCalls.find((tc) => tc.id === msg.tool_call_id);
+      if (call) {
+        call.result = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
       }
-      default:
-        return JSON.stringify({ error: `Unknown tool: ${name}` });
+      return;
     }
-  }, [applyCustomTheme]);
 
-  return { executeToolCall };
+    if (msg.role === 'user') {
+      const content = typeof msg.content === 'string' ? msg.content : '';
+      pendingToolCalls = [];
+      if (!content) return;
+      messages.push({ id: `msg-${index}`, role: 'user', content, timestamp: new Date() });
+      return;
+    }
+
+    if (msg.role !== 'assistant') return;
+
+    const content = typeof msg.content === 'string' ? msg.content : '';
+    const toolCalls = (msg.tool_calls ?? []).flatMap((tc) => {
+      if (tc.type !== 'function') return [];
+      return [{
+        id: tc.id,
+        name: tc.function.name,
+        arguments: parseToolArgs(tc.function.arguments),
+      }];
+    });
+    pendingToolCalls = toolCalls;
+
+    if (!content && toolCalls.length === 0) return;
+    messages.push({
+      id: `msg-${index}`,
+      role: 'assistant',
+      content,
+      timestamp: new Date(),
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+    });
+  });
+
+  return messages;
 }
 
 // ─── System Prompt ───
 
 /** Build the system prompt with the configured app name woven in. */
-function buildSystemPrompt(appName: string): ChatMessage {
-  return {
-    role: 'system',
-    content: `You are Dork, extraordinaire. You are an AI assistant integrated into ${appName}, a Nostr social client. You can help users with questions, conversations, and tasks.
+function buildSystemPrompt(appName: string): string {
+  return `You are Dork, extraordinaire. You are an AI assistant integrated into ${appName}, a Nostr social client. You can help users with questions, conversations, and tasks.
 
-You have a set_theme tool that applies a full custom theme. It supports:
-
-**Colors** (required): Three HSL values without the "hsl()" wrapper (e.g. "228 20% 10%"):
-- background: page background color
-- text: main text/foreground color (must contrast well with background)
-- primary: accent color for buttons, links, and highlights
-
-**Font** (optional): Choose from bundled fonts to match the theme's mood. Available: ${AVAILABLE_FONTS}
-
-**Background image** (optional): A URL to a publicly accessible image. Set mode to "cover" for full-bleed or "tile" for repeating patterns.
-
-When the user asks to change the theme, be creative — combine colors, fonts, and backgrounds to create a cohesive aesthetic. Always set colors. Add a font when it enhances the mood. Add a background image only when you have a suitable URL or the user requests one.
-
-Be concise and friendly. When you use a tool, briefly describe the theme you created.`,
-  };
+Be concise and friendly. When you use a tool, briefly describe the theme you created.`;
 }
 
 // ─── Page Component ───
@@ -244,20 +108,41 @@ Be concise and friendly. When you use a tool, briefly describe the theme you cre
 export function AIChatPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const { sendChatMessage, getAvailableModels, isLoading: apiLoading, error: apiError, retryAfter, clearError } = useShakespeare();
+  const { getAvailableModels } = useShakespeare();
   const hasCredits = useShakespeareCredits();
-  const { executeToolCall } = useToolExecutor();
   const { activeSession, activeSessionId, sessions, createSession, setActiveSessionId, updateSession } = useChatSessions();
   const { profiles } = useAIProviders();
+  const { buildSessionTools } = useToolRegistry();
 
-  const messages = activeSession.messages;
   const [input, setInput] = useState('');
-  const [isStreaming, setIsStreaming] = useState(false);
   const [models, setModels] = useState<Model[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const systemPromptFor = useCallback((session: ChatSession) => {
+    return session.abilities.includes('tiles')
+      ? getWidgetCreationSystemPrompt({ placement: 'widget' })
+      : buildSystemPrompt(config.appName);
+  }, [config.appName]);
+
+  const { snapshot: agentSnapshot, buildError, sendMessage, clearActiveSession } = useAgentSessions({
+    sessions,
+    activeSessionId,
+    profiles,
+    user: user ?? null,
+    models,
+    buildSessionTools,
+    systemPromptFor,
+  });
+
+  const messages = useMemo(
+    () => snapshotToDisplayMessages(agentSnapshot?.messages ?? []),
+    [agentSnapshot?.messages],
+  );
+  const isLoading = agentSnapshot?.isLoading ?? false;
+  const sessionError = buildError ?? agentSnapshot?.error ?? null;
 
   useSeoMeta({
     title: `AI Chat | ${config.appName}`,
@@ -309,187 +194,13 @@ export function AIChatPage() {
     return () => { cancelled = true; };
   }, [user, getAvailableModels]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Build the chat messages array for the API (includes system prompt + conversation history)
-  const buildApiMessages = useCallback((displayMsgs: DisplayMessage[], isTiles: boolean): ChatMessage[] => {
-    const systemPrompt = isTiles
-      ? getWidgetCreationSystemPrompt({ placement: 'widget' })
-      : buildSystemPrompt(config.appName).content;
-    const apiMessages: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
-
-    for (const msg of displayMsgs) {
-      if (msg.role === 'tool_result') continue; // Tool results are internal
-      apiMessages.push({ role: msg.role as 'user' | 'assistant' | 'system', content: msg.content });
-    }
-
-    return apiMessages;
-  }, [config.appName]);
-
-  /**
-   * Send a chat completion for a session, routing to the session's provider.
-   * Shakespeare uses the existing NIP-98 flow; any other provider is called
-   * through devkit's OpenAI SDK client. Real tool execution remains a later
-   * ticket — only the HTTP client is routed here.
-   */
-  const sendViaSession = useCallback(async (
-    apiMessages: ChatMessage[],
-    session: ChatSession,
-    tools?: ChatCompletionTool[],
-  ): Promise<ChatCompletionResponse | OpenAI.Chat.Completions.ChatCompletion> => {
-    if (session.providerId === 'shakespeare') {
-      return sendChatMessage(apiMessages, session.modelId, tools ? { tools } : undefined);
-    }
-
-    const profile = profiles.find((p) => p.id === session.providerId);
-    if (!profile) {
-      throw new ProviderSendError(`Unknown AI provider: ${session.providerId}. Pick a provider from the list or switch back to Shakespeare.`);
-    }
-
-    try {
-      const client = await createAIClient({
-        id: profile.kind,
-        name: profile.name,
-        baseURL: profile.baseURL,
-        apiKey: profile.apiKey,
-        models: [],
-      });
-      // handleSend only ever produces string content with user/assistant/system
-      // roles, which is a subset of the SDK's accepted message shapes.
-      return await client.chat.completions.create({
-        model: session.modelId,
-        messages: apiMessages as unknown as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-        tools: tools?.length ? tools : undefined,
-      });
-    } catch (err) {
-      throw new ProviderSendError(err instanceof Error ? err.message : String(err));
-    }
-  }, [profiles, sendChatMessage]);
-
   // Handle sending a message
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();
-    if (!trimmed || !activeSession.modelId || isStreaming) return;
-
-    clearError();
+    if (!trimmed || !agentSnapshot || agentSnapshot.isLoading) return;
     setInput('');
-
-    const isTiles = activeSession.abilities.includes('tiles');
-    // Base tools are always available; the tiles ability bundle is additive.
-    const sessionTools = isTiles ? [...TOOLS, ...TILES_TOOLS] : TOOLS;
-
-    const userMessage: DisplayMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: trimmed,
-      timestamp: new Date(),
-    };
-
-    const newMessages = [...messages, userMessage];
-    let latestMessages = newMessages;
-    updateSession(activeSessionId, { messages: latestMessages });
-    setIsStreaming(true);
-
-    try {
-      // Build API messages
-      const apiMessages = buildApiMessages(newMessages, isTiles);
-
-      // Send through the session's provider
-      const response = await sendViaSession(apiMessages, activeSession, sessionTools);
-
-      const choice = response.choices[0];
-      const assistantMsg = choice.message;
-
-      if (assistantMsg.tool_calls && assistantMsg.tool_calls.length > 0) {
-        // Execute tool calls
-        const toolCalls: ToolCall[] = assistantMsg.tool_calls.map((tc) => {
-          let args: Record<string, unknown> = {};
-          try {
-            args = JSON.parse(tc.function.arguments);
-          } catch {
-            // If parsing fails, pass empty args
-          }
-
-          const result = executeToolCall(tc.function.name, args);
-
-          return {
-            id: tc.id,
-            name: tc.function.name,
-            arguments: args,
-            result,
-          };
-        });
-
-        // Add assistant message with tool calls noted
-        const toolMsg: DisplayMessage = {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: assistantMsg.content || '',
-          timestamp: new Date(),
-          toolCalls,
-        };
-        latestMessages = [...newMessages, toolMsg];
-        updateSession(activeSessionId, { messages: latestMessages });
-
-        // Build follow-up messages including tool results
-        const followUpMessages: ChatMessage[] = buildApiMessages(newMessages, isTiles);
-
-        // Add the assistant message with tool_calls
-        followUpMessages.push({
-          role: 'assistant',
-          content: assistantMsg.content || '',
-        });
-
-        // Add tool results
-        for (const tc of toolCalls) {
-          followUpMessages.push({
-            role: 'user' as const,
-            content: `[Tool "${tc.name}" returned: ${tc.result}]`,
-          });
-        }
-
-        // Get follow-up response from AI
-        const followUp = await sendViaSession(followUpMessages, activeSession, sessionTools);
-        const followUpContent = followUp.choices[0]?.message?.content;
-
-        if (followUpContent) {
-          const followUpMsg: DisplayMessage = {
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            content: typeof followUpContent === 'string' ? followUpContent : '',
-            timestamp: new Date(),
-          };
-          latestMessages = [...latestMessages, followUpMsg];
-          updateSession(activeSessionId, { messages: latestMessages });
-        }
-      } else {
-        // Normal response without tool calls
-        const content = typeof assistantMsg.content === 'string' ? assistantMsg.content : '';
-        const assistantMessage: DisplayMessage = {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content,
-          timestamp: new Date(),
-        };
-        latestMessages = [...latestMessages, assistantMessage];
-        updateSession(activeSessionId, { messages: latestMessages });
-      }
-    } catch (err) {
-      if (err instanceof ProviderSendError) {
-        // Routing/API failures on the non-Shakespeare path have no banner of
-        // their own, so surface them inside the conversation.
-        const errorMessage: DisplayMessage = {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: `Error: ${err.message}`,
-          timestamp: new Date(),
-        };
-        updateSession(activeSessionId, { messages: [...latestMessages, errorMessage] });
-      } else {
-        console.error('Chat error:', err);
-      }
-    } finally {
-      setIsStreaming(false);
-    }
-  }, [input, isStreaming, messages, activeSession, activeSessionId, buildApiMessages, sendViaSession, executeToolCall, clearError, updateSession]);
+    await sendMessage(trimmed);
+  }, [input, agentSnapshot, sendMessage]);
 
   // Handle keyboard shortcuts
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -501,15 +212,13 @@ export function AIChatPage() {
 
   // Clear conversation
   const handleClear = useCallback(() => {
-    updateSession(activeSessionId, { messages: [] });
-    clearError();
-  }, [activeSessionId, clearError, updateSession]);
+    clearActiveSession();
+  }, [clearActiveSession]);
 
   // ─── Session Controls ───
 
-  // Provider / model selection writes into the active session. Real
-  // multi-provider sending is a later ticket; the send path still uses the
-  // Shakespeare model picked in the header.
+  // Provider / model selection writes into the active session. The session's
+  // AgentSession rebuilds on the next effect pass, carrying the history over.
   const handleProviderChange = useCallback((value: string) => {
     let modelId = '';
     if (value === 'shakespeare') {
@@ -618,19 +327,19 @@ export function AIChatPage() {
             ))}
 
             {/* Loading indicator */}
-            {(isStreaming || apiLoading) && messages[messages.length - 1]?.role === 'user' && (
+            {isLoading && messages[messages.length - 1]?.role === 'user' && (
               <DorkThinking className="text-sm" />
             )}
 
             {/* Error display */}
-            {apiError && (
-              retryAfter ? (
+            {sessionError && (
+              sessionError.includes('Rate limited') ? (
                 <DorkErrorBanner
                   face=">[~_~]<"
                   heading="Whoa, slow down! Dork needs a breather."
                   body="You're sending messages a bit too fast. Want more brainpower? Grab some credits on"
                 />
-              ) : apiError.includes('run out of credits') ? (
+              ) : sessionError.includes('run out of credits') ? (
                 <DorkErrorBanner
                   face=">[o_o]<"
                   heading="You've run out of credits!"
@@ -638,7 +347,7 @@ export function AIChatPage() {
                 />
               ) : (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm px-4 py-3">
-                  {apiError}
+                  {sessionError}
                 </div>
               )
             )}
@@ -689,7 +398,7 @@ export function AIChatPage() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={!activeSession.modelId ? 'Select a model first...' : 'Send a message...'}
-                disabled={!activeSession.modelId || isStreaming}
+                disabled={!activeSession.modelId || isLoading}
                 className="min-h-[44px] max-h-40 resize-none bg-secondary/50 border-border focus-visible:ring-1"
                 rows={1}
               />
@@ -721,7 +430,7 @@ export function AIChatPage() {
               </Popover>
               <Button
                 onClick={handleSend}
-                disabled={!input.trim() || !activeSession.modelId || isStreaming}
+                disabled={!input.trim() || !activeSession.modelId || isLoading || !agentSnapshot}
                 size="icon"
                 className="size-11 shrink-0 rounded-xl"
               >
