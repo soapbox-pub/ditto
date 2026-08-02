@@ -405,8 +405,8 @@ T4.2/T4.3, for the full handoff). That effort split its own Phase 10 into two wa
 (provider settings, abilities menu, tool registry, tabs/history) ships in `ai-chat-tlc` itself;
 Wave B is the part that can only be built once **this** branch's marketplace/
 `CanvasRuntimeProvider` work exists — so it lands here instead, as this phase. Original ticket IDs
-were T10.4-T10.7+; renumbered T8.1-T8.4 to match this doc's scheme. T8.1 and T8.4 carry real
-grilled detail already; T8.2/T8.3 still need their own grilling pass before dispatch, per this
+were T10.4-T10.7+; renumbered T8.1-T8.4 to match this doc's scheme. Only T8.4 (remix) carries
+real grilled detail already; T8.1-T8.3 still need their own grilling pass before dispatch, per this
 doc's working agreement — do that once this branch has rebased onto `ai-chat-tlc`.
 
 Devkit facts needed to read T8.1 (from `ai-chat-tlc`'s decision record, ticket D6, re-grilled
