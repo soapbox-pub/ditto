@@ -102,6 +102,38 @@ describe('kind:11125 profile writers refuse storage and preserve unknown tags', 
     expect(out.some((t) => t[0] === 'coins' && t[1] === '100')).toBe(true);
   });
 
+  it('malformed and duplicate legacy tags are preserved verbatim and never break parsing', () => {
+    const messy = [
+      ...buildBlobbonautTags(PUBKEY),
+      ['coins'], // malformed: missing value
+      ['coins', 'not-a-number'], // malformed: non-numeric
+      ['coins', '137'], // duplicate legacy balance
+      ['storage', 'food_apple:3', 'legacy-extra'], // legacy arity-3
+    ];
+
+    // Republish helpers carry every legacy tag through untouched — no
+    // dedup, no repair, no reordering into a single canonical value.
+    const out = updateBlobbonautTags(messy, { name: 'Renamed' });
+    for (const tag of messy.filter(([k]) => k === 'coins' || k === 'storage')) {
+      expect(out).toContainEqual(tag);
+    }
+    expect(out.filter(([k]) => k === 'coins')).toHaveLength(3);
+    expect(out).toContainEqual(['name', 'Renamed']);
+
+    // Parsing an event that carries them neither throws nor surfaces coins.
+    const parsed = parseBlobbonautEvent({
+      id: 'f'.repeat(64),
+      pubkey: PUBKEY,
+      created_at: 1_700_000_000,
+      kind: KIND_BLOBBONAUT_PROFILE,
+      tags: messy,
+      content: '',
+      sig: '0'.repeat(128),
+    });
+    expect(parsed).toBeTruthy();
+    expect(parsed != null && 'coins' in parsed).toBe(false);
+  });
+
   it('preserves pre-existing legacy storage, inv, and unknown extension tags verbatim', () => {
     const out = updateBlobbonautTags(baseTags, { coins: '50' });
     expect(out.some((t) => t[0] === 'storage' && t[1] === 'food_apple:3')).toBe(true);
