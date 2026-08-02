@@ -521,7 +521,7 @@ transparently re-wires across rebuilds), `destroy()`.
 - [ ] **T8.3 Discovery toast** *(was T10.6)*. "New: Create with Ditto" overlay on the AI chat
       widget's first open, dismissed state in `localStorage`. *Not yet grilled to dispatch-ready.*
 - [ ] **T8.4 Marketplace remix — grilled 2026-08-02 on `ai-chat-tlc`, mostly ready to dispatch
-      (two items still open, see below)** *(was T10.7+)*. Depends on T8.2 (publish) already
+      (one item still open, see below)** *(was T10.7+)*. Depends on T8.2 (publish) already
       working.
 
       Entry point: a "Remix with AI" button on the tile's marketplace detail page, alongside the
@@ -542,9 +542,13 @@ transparently re-wires across rebuilds), `destroy()`.
       regardless of who authored the original. No update-in-place option, no ownership check; this
       matches how T8.2 already treats any AI-drafted tile.
 
-      Still open (grill immediately before dispatch): whether remix requires the user to already
-      have a NIP-05 before starting (vs. only gating at publish time, same as T8.2), and whether
-      the published tile carries any attribution/reference back to the original.
+      NIP-05 gating, resolved by T8.2's grilling: **no**, remix does not require a NIP-05 to
+      start. Same publish-time-only gate as any AI-drafted tile — `buildLocalDraftIdentifier`
+      lets the user remix and iterate on a local draft freely; `canPublishTile` only blocks the
+      final publish action.
+
+      Still open (grill immediately before dispatch): whether the published remix carries any
+      attribution/reference back to the original tile.
 
 **Open items, not yet scoped in detail** *(carried over from `ai-chat-tlc`, surfaced 2026-07-31
 while discussing this phase's scope)*:
