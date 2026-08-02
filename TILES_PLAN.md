@@ -405,10 +405,10 @@ T4.2/T4.3, for the full handoff). That effort split its own Phase 10 into two wa
 (provider settings, abilities menu, tool registry, tabs/history) ships in `ai-chat-tlc` itself;
 Wave B is the part that can only be built once **this** branch's marketplace/
 `CanvasRuntimeProvider` work exists — so it lands here instead, as this phase. Original ticket IDs
-were T10.4-T10.7+; renumbered T8.1-T8.4 to match this doc's scheme. T8.1 (preview), T8.2
-(publish), and T8.4 (remix) carry real grilled detail already; T8.3 still needs its own grilling
-pass before dispatch, per this
-doc's working agreement — do that once this branch has rebased onto `ai-chat-tlc`.
+were T10.4-T10.7+; renumbered T8.1-T8.4 to match this doc's scheme. All four are now grilled to
+dispatch-ready (T8.4 has one small item left open, the attribution question — see its own bullet).
+Dispatch is still gated on this branch rebasing onto `ai-chat-tlc` first, per the branch-strategy
+note above.
 
 Devkit facts needed to read T8.1 (from `ai-chat-tlc`'s decision record, ticket D6, re-grilled
 2026-07-31 — full detail in `nostr-canvas`'s own `PLAN.md`): `PreviewAdapter` wraps any real
@@ -518,8 +518,17 @@ transparently re-wires across rebuilds), `destroy()`.
       Tiles ability with no NIP-05 set, confirm preview/iteration works and publish is blocked;
       add a NIP-05, confirm publish succeeds and the tile appears in the marketplace as
       `verified`.
-- [ ] **T8.3 Discovery toast** *(was T10.6)*. "New: Create with Ditto" overlay on the AI chat
-      widget's first open, dismissed state in `localStorage`. *Not yet grilled to dispatch-ready.*
+- [ ] **T8.3 Discovery toast — grilled 2026-08-02, ready to dispatch** *(was T10.6)*. "New: Create
+      with Ditto" overlay, shown once per user on the first AI chat open after this ships — a
+      single `localStorage` flag checked on mount, so both brand-new users and existing users
+      seeing the feature for the first time get it (neither has the flag set yet). Clicking the
+      toast opens the abilities popover (T10.1) directly rather than just dismissing — a discovery
+      aid pointing at "Tiles," not just a banner. Dismissing without clicking sets the flag too
+      (shown once regardless of outcome).
+      *Eval:* automated — unit test for the localStorage-flag gating (shows once, never again
+      after dismiss or click). Manual (user will run before closing): fresh browser profile, open
+      AI chat, confirm the toast shows; click it, confirm the abilities popover opens; reload,
+      confirm it never shows again.
 - [ ] **T8.4 Marketplace remix — grilled 2026-08-02 on `ai-chat-tlc`, mostly ready to dispatch
       (one item still open, see below)** *(was T10.7+)*. Depends on T8.2 (publish) already
       working.
