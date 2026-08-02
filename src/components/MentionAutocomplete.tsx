@@ -7,7 +7,7 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { cn } from '@/lib/utils';
-import { usePortalDropdown } from '@/hooks/usePortalDropdown';
+import { usePortalDropdown, dropdownPositionStyle, type DropdownPosition } from '@/hooks/usePortalDropdown';
 
 interface MentionAutocompleteProps {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -85,7 +85,7 @@ export function MentionAutocomplete({
   const [mentionStart, setMentionStart] = useState(-1);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<DropdownPosition | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -266,7 +266,7 @@ export function MentionAutocomplete({
       ref={dropdownRef}
       data-autocomplete-dropdown
       className="fixed z-[300] w-[280px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150 pointer-events-auto"
-      style={{ top: dropdownPos.top, left: dropdownPos.left }}
+      style={dropdownPositionStyle(dropdownPos)}
     >
       <div ref={listRef} className="max-h-[240px] overflow-y-auto py-1">
         {profiles.map((profile, index) => (

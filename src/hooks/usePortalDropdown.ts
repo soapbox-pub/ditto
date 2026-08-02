@@ -1,9 +1,19 @@
-import { useEffect, useCallback, type RefObject } from 'react';
+import { useEffect, useCallback, type CSSProperties, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 
-interface DropdownPosition {
-  top: number;
-  left: number;
+/**
+ * Fixed-position anchor for the dropdown. Below the caret the element is
+ * anchored by its top edge (`top`); when flipped above the caret it is
+ * anchored by its bottom edge (`bottom`, a CSS distance from the viewport
+ * bottom) so a short result list still touches the caret line.
+ */
+export type DropdownPosition =
+  | { top: number; left: number }
+  | { bottom: number; left: number };
+
+/** Turn a `DropdownPosition` into the inline style its `top`/`bottom` case needs. */
+export function dropdownPositionStyle(pos: DropdownPosition): CSSProperties {
+  return 'bottom' in pos ? { bottom: pos.bottom, left: pos.left } : { top: pos.top, left: pos.left };
 }
 
 interface UsePortalDropdownOptions {
@@ -47,17 +57,37 @@ export function usePortalDropdown({
 
       const lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight) || 20;
       const rect = textarea.getBoundingClientRect();
-      const top = rect.top + caretCoords.top - textarea.scrollTop + lineHeight + 4;
+      const caretTop = rect.top + caretCoords.top - textarea.scrollTop;
+      const top = caretTop + lineHeight + 4;
       const left = rect.left + Math.max(0, Math.min(caretCoords.left, textarea.clientWidth - dropdownWidth));
+      const clampedLeft = Math.max(8, Math.min(left, window.innerWidth - dropdownWidth - 8));
 
-      // If the dropdown would overflow the bottom of the viewport, flip above
-      const flippedTop = rect.top + caretCoords.top - textarea.scrollTop - dropdownHeight - 4;
-      const useFlipped = top + dropdownHeight > window.innerHeight && flippedTop > 0;
+      // The iOS keyboard does not shrink `window.innerHeight`; the visual
+      // viewport does. Prefer it so the flip math sees the keyboard as
+      // covering the bottom of the screen.
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
 
-      return {
-        top: useFlipped ? flippedTop : top,
-        left: Math.max(8, Math.min(left, window.innerWidth - dropdownWidth - 8)),
-      };
+      // Flip above when the estimated dropdown does not fit below the caret.
+      // The flipped box anchors by its bottom edge at the caret line, so it
+      // only needs room above the caret — not the full estimated height.
+      // When the estimate fits neither direction, prefer the side with more
+      // room so a short result list grows up instead of clipping at the
+      // viewport bottom.
+      const flippedTop = caretTop - dropdownHeight - 4;
+      const belowFits = top + dropdownHeight <= viewportHeight;
+      const aboveFits = flippedTop > 0;
+      const useFlipped = !belowFits && (aboveFits || viewportHeight - top < caretTop - 4);
+
+      if (useFlipped) {
+        // Anchor by the bottom edge at the caret line instead of computing a
+        // top offset from the assumed dropdownHeight: the rendered box is
+        // capped at max-h, not fixed at that height, so a short result list
+        // must still grow upward from the caret.
+        const bottom = viewportHeight - (caretTop - 4);
+        return { bottom, left: clampedLeft };
+      }
+
+      return { top, left: clampedLeft };
     },
     [textareaRef, dropdownHeight, dropdownWidth],
   );
