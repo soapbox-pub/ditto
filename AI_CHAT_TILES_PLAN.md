@@ -480,8 +480,41 @@ below is the first to have gone through that pass and is ready to dispatch.
       as today's `useToolExecutor` case). Manual (user will run before closing): ask base chat (no
       Tiles ability) to set a dark purple theme, confirm it still applies end-to-end through the
       new registry + `AgentSession` path.
-- [ ] **T10.3 Tabs + local history.** Horizontal, closable, scrollable session tabs;
-      `localStorage` persistence; auto-title from first message.
+- [ ] **T10.3 Tabs + local history — grilled 2026-08-02, ready to dispatch.**
+      Facts confirmed first: `AgentSession` has a `serialize()`/`deserialize()` pair
+      (`agent-session.ts:599-615`) capturing `messages` + `pendingInput` + `pendingToolCalls` —
+      not just the message array — plus a lower-level `loadMessages()`/`getMessages()` pair. The
+      former is the correct persistence primitive: it round-trips a mid-flight `ask_questions`
+      pause, not just plain chat history.
+
+      Decisions:
+      - **Persistence**: one `localStorage` entry per tab holding that tab's `SerializedSession`
+        blob, written on every message/state change.
+      - **Tab switching model**: every open tab keeps a **live** `AgentSession` instance in
+        memory. Switching tabs is a UI focus change only, no reconstruction — a background tab's
+        in-flight streaming response keeps running and finishes even while another tab is active.
+        A fresh page load reconstructs all open tabs' instances from their `localStorage` blobs
+        via `deserialize()`.
+      - **Tab bar**: horizontal, closable, scrollable, capped at **20 open tabs**. Hitting the cap
+        while creating a 21st does **not** silently close anything — it prompts the user with a
+        quick-select UI to choose which existing tab(s) to close to make room. Separately, any tab
+        untouched for **30 days** is auto-deleted on next app load (silent, no prompt — this is
+        housekeeping, not a "someone changed my thing" event the cap-hit prompt is protecting
+        against).
+      - **Close semantics**: hard delete — closing a tab removes its `localStorage` entry
+        immediately. The tab bar is the only history surface for this ticket; no separate
+        "recently closed" recovery UI.
+      - **Auto-title**: LLM-generated, not truncation. A fixed, cheap/fast utility model on the
+        Shakespeare endpoint, independent of whichever provider/model the session itself uses.
+        **Exact model ID not yet confirmed** — verify against Shakespeare's live model list at
+        implementation time rather than hardcoding a guess. Fires once after the first full
+        exchange (user message + assistant reply) completes, runs in the background; the tab shows
+        a placeholder/spinner title until it resolves.
+      *Eval:* automated — unit tests for the persistence layer (serialize/deserialize round-trip
+      including a pending-input state, cap-hit prompt trigger, 30-day pruning). Manual (user will
+      run before closing): open several tabs including a Tiles session with a pending
+      `ask_questions` pause, reload the browser, confirm every tab reappears with history intact
+      and the paused Tiles session resumes correctly.
 - [ ] **T10.4 Isolated preview panel.** devkit's `PreviewSession`/`PreviewAdapter` mounted in
       their own separate `NostrCanvasProvider` tree inside the chat UI (never shares Ditto's
       app-wide `CanvasRuntimeProvider`), wired to Ditto's **real** adapter/login (`previewPubkey`
