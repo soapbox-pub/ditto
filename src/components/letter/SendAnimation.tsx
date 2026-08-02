@@ -11,6 +11,7 @@
 import { useId, useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo } from 'react';
 import { hexToRgb, rgbToHex, darkenHex, blendHex } from '@/lib/colorUtils';
 import { impactMedium } from '@/lib/haptics';
+import { publicAssetUrl } from '@/lib/publicAssetUrl';
 import { useEnvelopeDimensions } from '@/hooks/useEnvelopeDimensions';
 
 // ---------------------------------------------------------------------------
@@ -407,7 +408,7 @@ export function SendAnimation({
                     style={{ zIndex: 1 }}
                   >
                     <img
-                      src="/logo.svg"
+                      src={publicAssetUrl('/logo.svg')}
                       alt=""
                       style={{
                         width: sealSize * 0.58,
@@ -481,7 +482,7 @@ export function SendAnimation({
                 {recipientPicture ? (
                   <img src={recipientPicture} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <img src="/logo.svg" alt="" style={{ width: 44, height: 44, opacity: 0.5 }} />
+                  <img src={publicAssetUrl('/logo.svg')} alt="" style={{ width: 44, height: 44, opacity: 0.5 }} />
                 )}
               </div>
             </div>

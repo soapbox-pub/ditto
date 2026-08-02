@@ -28,6 +28,7 @@ import { resolveStationery, DEFAULT_STATIONERY_COLOR, type Letter } from '@/lib/
 import { hexLuminance, darkenHex, lightenHex, blendHex } from '@/lib/colorUtils';
 import { StationeryBackground } from './StationeryBackground';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
+import { publicAssetUrl } from '@/lib/publicAssetUrl';
 
 interface EnvelopeCardProps {
   letter: Letter;
@@ -223,7 +224,7 @@ export function EnvelopeCard({ letter, mode, index, onClick, minimal }: Envelope
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <img
-                  src="/logo.svg"
+                  src={publicAssetUrl('/logo.svg')}
                   alt=""
                   style={{ width: 22, height: 22, filter: 'brightness(0) invert(1) opacity(0.85)' }}
                 />
