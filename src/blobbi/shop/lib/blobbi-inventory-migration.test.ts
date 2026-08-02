@@ -24,8 +24,9 @@ import type { BlobbiStats } from '@blobbi-kit/core/blobbi';
  *
  * These assert OBSERVABLE behavior:
  *  - the care catalog is free/infinite (no quantity, no price gate on use);
- *  - kind:11125 profile writers never emit or mutate `storage` and preserve
- *    unknown extension tags (the kit's 0.3.0 contract, exercised directly);
+ *  - kind:11125 profile writers never emit or mutate `storage` or `coins` and
+ *    preserve unknown extension tags (the kit's 0.4.0 contract, exercised
+ *    directly);
  *  - care-effect resolution stays catalog-driven and unchanged;
  *  - no reachable Ditto source imports deprecated storage APIs or writes storage;
  *  - no orphaned purchase system remains and no UI tells users to buy care items.
@@ -88,15 +89,17 @@ describe('kind:11125 profile writers refuse storage and preserve unknown tags', 
     ['x-ditto-ext', 'keepme'], // arbitrary unknown extension tag
   ];
 
-  it('updateBlobbonautTags drops a storage key in updates (never writes new storage)', () => {
+  it('updateBlobbonautTags drops storage and coins keys in updates (never writes either)', () => {
     const out = updateBlobbonautTags(baseTags, {
       coins: '50',
       storage: ['food_apple:99'],
     } as Record<string, string | string[]>);
     // No NEW storage value was written.
     expect(out.some((t) => t[0] === 'storage' && t[1] === 'food_apple:99')).toBe(false);
-    // Managed tag still updates.
-    expect(out.some((t) => t[0] === 'coins' && t[1] === '50')).toBe(true);
+    // 0.4.0 contract: `coins` is opaque legacy data — the unsupported update
+    // is ignored and the pre-existing tag is preserved verbatim.
+    expect(out.some((t) => t[0] === 'coins' && t[1] === '50')).toBe(false);
+    expect(out.some((t) => t[0] === 'coins' && t[1] === '100')).toBe(true);
   });
 
   it('preserves pre-existing legacy storage, inv, and unknown extension tags verbatim', () => {
