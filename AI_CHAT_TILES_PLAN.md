@@ -361,6 +361,28 @@ library in a real app first). Each ticket below needs its own short grilling pas
 criteria immediately before dispatch, per the grilling skill and the working agreement below —
 this is a scoping-level breakdown, not final ticket text.
 
+**Branch strategy, confirmed 2026-08-02**: `ai-chat-tlc` is a small, self-contained PR that
+modernizes Ditto's AI chat and merges to `main` on its own — it is not waiting on Phase 4's
+marketplace work. Fact-checked before locking this in: `ai-chat-tlc` branched off
+`tiles-v3-widgetonly` at `8fedcc94`, has since diverged with its own 16 commits, and
+`tiles-v3-widgetonly` has moved 64 commits further past that same point (Phase 4 "Marketplace
+TLC" work). `ai-chat-tlc`'s `package.json` has **no `@soapbox.pub/nostr-canvas` dependency at
+all** — no `CanvasRuntimeProvider`, no marketplace tile-install/render code exists on this branch.
+Once `ai-chat-tlc` merges to `main`, `tiles-v3-widgetonly` rebases on top of it, giving the
+marketplace/widget work a direct path in.
+
+This splits Phase 10 into two waves:
+- **Wave A — ships in `ai-chat-tlc`**: T10.0, T10.1, T10.2, T10.3. The "Tiles" ability's full tool
+  bundle works (`read_code`/`write_code`/`ask_questions`/`read_spec`/`search_nips`/etc.) except
+  live preview rendering — devkit's 12 tools only have one entry (`preview_tile`) that actually
+  needs a real `RuntimeAdapter`. Genuinely useful and mergeable standalone.
+- **Wave B — deferred, lands after the `tiles-v3-widgetonly` rebase**: T10.4 (preview panel),
+  T10.5 (publish flow), T10.6 (discovery toast), T10.7+ (marketplace remix). All four depend on
+  infrastructure (`CanvasRuntimeProvider`, a real `RuntimeAdapter`, the marketplace detail page,
+  install/publish plumbing) that only exists on `tiles-v3-widgetonly`. Design-level grilling for
+  these can still happen now (they're mostly about devkit's library API, not Ditto-specific code)
+  but dispatch is gated on the rebase landing.
+
 Ditto today: `useShakespeare.ts` is a raw NIP-98-authed fetch wrapper around Shakespeare's
 OpenAI-compatible endpoint (no tool-calling loop of its own). `AgentSession` (devkit) takes an
 already-constructed `OpenAI` client instance, not a bare API key — Ditto can hand it a client
@@ -369,10 +391,11 @@ built with a custom `fetch` that signs a fresh NIP-98 token per request, exactly
 Shakespeare's per-request auth model. User-supplied providers (OpenRouter/OpenAI-compatible/
 DeepSeek, own API key) use devkit's `ai-provider.ts` factory directly, as originally designed.
 
-Execution order for Phase 10: T10.0 → T10.1 → T10.2 → T10.3 → T10.4 → T10.5 → T10.6 → remix
-(T10.7+, see below) — locked 2026-08-02, matches this doc's existing scoping order. Each ticket
-gets its own short grilling pass immediately before dispatch, per the working agreement; T10.0
-below is the first to have gone through that pass and is ready to dispatch.
+Execution order within Wave A (dispatches on `ai-chat-tlc`, ships together): T10.0 → T10.1 →
+T10.2 → T10.3. Wave B order (dispatches only after the `tiles-v3-widgetonly` rebase lands): T10.4
+→ T10.5 → T10.6 → remix (T10.7+). See the branch-strategy note above for why the waves split
+where they do. Each ticket gets its own short grilling pass immediately before dispatch, per the
+working agreement; T10.0-T10.3 below have all gone through that pass and are ready to dispatch.
 
 - [ ] **T10.0 Provider settings (`/settings/ai`) — grilled 2026-08-02, ready to dispatch.**
       Facts confirmed first (not guessed): devkit's `AIProvider` type is `{ id, name, baseURL,
