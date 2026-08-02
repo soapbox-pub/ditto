@@ -541,9 +541,87 @@ dispatch.
       run before closing): open several tabs including a Tiles session with a pending
       `ask_questions` pause, reload the browser, confirm every tab reappears with history intact
       and the paused Tiles session resumes correctly.
-*(T10.4-T10.7+ and the Wave B "Open items" list used to be here — moved to*
+*(The original T10.4-T10.7+ and the Wave B "Open items" list used to be here — moved to*
 *`tiles-v3-widgetonly`'s `TILES_PLAN.md`, Phase 8, as T8.1-T8.4, 2026-08-02. See the branch-*
-*strategy note above.)*
+*strategy note above. The T10.4-T10.8 below are new tickets added 2026-08-02, unrelated to and*
+*renumbered independently of that relocated set.)*
+
+**New tickets (grilled 2026-08-02), added after Wave A's initial four shipped.** Dependency
+note: T10.6/T10.5/T10.7 all read from T10.2's tool-registry/ability-bundle machinery, so they
+can't dispatch until T10.2 resumes (currently paused for user review). T10.4 and T10.8 have no
+such dependency and can dispatch independently, any time.
+
+- [ ] **T10.4 Provider profile: auto-detect models on API key entry.** Keeps T10.0's manual
+      "Detect models" button; additionally auto-fires `fetchModels()`, debounced (~600-800ms
+      after the last keystroke/paste), once both `apiKey` and `baseURL` are non-empty. A failed
+      auto-attempt surfaces through the same inline status/error UI a manual click would use —
+      not a silently swallowed failure — and never blocks a manual retry via the button.
+      *Eval:* unit test for the debounce trigger (fires once N ms after the last change; doesn't
+      fire on a `baseURL`-only or unrelated field change). Manual (user will run before
+      closing): paste a real API key into a new profile form, confirm models populate without
+      touching the button.
+- [ ] **T10.5 @-mention autocomplete: people + abilities, in the AI chat textarea.** Facts
+      confirmed: Ditto already has `MentionAutocomplete` (`src/components/MentionAutocomplete.tsx`,
+      used by `ComposeBox.tsx`) — a self-contained, textarea-caret-aware `@`-trigger dropdown
+      backed by `useSearchProfiles`, inserting `nostr:npub1...` on selection. No equivalent
+      exists for abilities.
+      - Extend `MentionAutocomplete` in place (don't fork it — its caret-position math in
+        `getCaretCoordinates`/`MIRROR_PROPS` is nontrivial and shouldn't be duplicated) with an
+        optional abilities list merged into the same query-filtered dropdown under the same "@"
+        trigger.
+      - Selecting an ability inserts a plain-text token (e.g. `@Tiles`) into the message — no
+        side effect, no session fork, no ability actually toggling on. Same semantic weight as
+        an inline @person mention: a reference, not an action. (This is the default I'm
+        choosing; flag if you actually want selecting an ability to enable it.)
+      - Ability list source: the same registry T10.6 reads for its system-prompt manifest — one
+        source of truth for "what abilities exist," not two hardcoded lists.
+      *Eval:* unit test extending `MentionAutocomplete`'s existing coverage for the merged-list
+      case (abilities filtered by query, inserted as plain text, people mentions unaffected).
+      Manual (user will run before closing): type "@" in the AI chat textarea, see both people
+      and "Tiles" in the dropdown, selecting each inserts the right text.
+- [ ] **T10.6 Ability/skill manifest for AI discoverability.** The base system prompt (every
+      session, regardless of which abilities are enabled) includes a short manifest — name +
+      one-line description — of every registered ability, so the AI can proactively mention e.g.
+      "you can enable Tiles to build a sidebar widget" without that ability's tools being loaded.
+      Single source of truth: the same registry the abilities popover (T10.1) and tool bundle
+      concatenation (T10.2) already read from — adding a future ability automatically shows up
+      in the popover, the manifest, and (via T10.5) the mention dropdown, from one registration
+      point.
+      *Eval:* unit test asserting the base system prompt string contains every registered
+      ability's name + description. Manual (user will run before closing): in a base
+      (non-Tiles) session, ask "what can you help me with in Ditto?", confirm the reply
+      mentions Tiles/widget creation without the tool having been called.
+- [ ] **T10.7 Promote NIP lookup tools to the base tool bundle.** Facts confirmed: devkit's
+      `SearchNIPsTool` (kind 30817 community NIPs — the same kind NostrHub itself uses,
+      `wss://relay.ditto.pub` among its relays) and `FetchNIPTool` (official NIPs from
+      `nostr-protocol/nips` on GitHub — same source NostrHub uses for official specs) already
+      exist and are already imported into `AIChatPage.tsx`'s `TILES_TOOLS`, but gated behind the
+      Tiles ability only.
+      Decision: move both into the **base** bundle (T10.2's "always included" set alongside
+      `set_theme`) so NIP lookups work in any session, Tiles enabled or not — this is the whole
+      of the "look up NIPs from NostrHub" ask; no new tool code needed, just a bundle move.
+      *Eval:* unit test — base bundle includes both tools regardless of ability selection.
+      Manual (user will run before closing): in a base (non-Tiles) session, ask "what does
+      NIP-57 define?", confirm the AI calls `fetch_nip` and answers from the real spec text.
+- [ ] **T10.8 `/settings/ai` design audit + polish.** Research-then-implement split (per the
+      plan skill's "one cohesive unit, phased internally" carve-out — same screen, same
+      mechanical design pass). First phase (this ticket): dispatch a `researcher` audit of
+      `SettingsAIPage.tsx` against the Design Standards section of `AGENTS.md` (8px grid,
+      typography hierarchy, empty/loading states, spacing/visual consistency with sibling
+      settings pages like `/settings/network` or `/settings/magic`), returning a concrete punch
+      list rather than vague "make it nicer" notes. The implementation pass is a follow-up
+      ticket once the punch list exists — not written yet.
+      *Eval:* the punch list itself is the deliverable — user reviews it and either approves it
+      for an implementation ticket or redirects specific items.
+
+**Tracked, not started — blocked on an external dependency (noted 2026-08-02):** the user is
+porting `luacheck` to TypeScript, to eventually replace fengari-web entirely as devkit's Lua
+lint engine — removing the CSP-sandboxing workaround (`src/sandbox/luaLint/`,
+`useLuaLintSandbox.tsx`) added this session, not just papering over it. Once that port lands,
+ticket the swap: point `lua-lint.ts`'s `overrideEngine` seam (added for exactly this kind of
+pluggable-backend swap) at the new library, then retire the sandbox infra. Not scoped further
+until the port exists.
+
 ---
 
 ## Human review queue
