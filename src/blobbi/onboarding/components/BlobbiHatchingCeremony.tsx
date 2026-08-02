@@ -30,7 +30,6 @@ import { fetchFreshBlobbonautProfile } from '@blobbi-kit/core/fetchFreshBlobbona
 import {
   KIND_BLOBBI_STATE,
   KIND_BLOBBONAUT_PROFILE,
-  INITIAL_BLOBBONAUT_COINS,
   STAT_MAX,
   buildBlobbonautTags,
   updateBlobbonautTags,
@@ -223,10 +222,26 @@ export function BlobbiHatchingCeremony({
       setupStarted.current = true;
 
       try {
-        const currentProfile = profileRef.current;
+        // A null cached profile is NOT proof that no profile exists — the
+        // React Query cache can miss transiently (cold boot, still-loading
+        // query). Publishing a fresh base profile on a cache miss would
+        // clobber has[], unknown tags and content on relays. Before creating
+        // anything, establish absence authoritatively with a fresh relay read
+        // across all supported profile kinds (newest valid event wins). If
+        // the read throws, we bail out below without publishing anything.
+        let currentProfile = profileRef.current;
+        if (!currentProfile) {
+          currentProfile = await fetchFreshBlobbonautProfile(nostr, user.pubkey);
+          if (currentProfile) {
+            profileRef.current = currentProfile;
+            updateProfileEvent(currentProfile.event);
+          }
+        }
         let latestProfileTags: string[][] | null = currentProfile?.allTags ?? null;
 
-        // 1. Create profile if needed
+        // 1. Create profile if needed. No currency is granted here: the
+        // Blobbi Coin economy belongs to Blobbi Island, which grants the
+        // initial allocation on first authenticated Island entry.
         if (!currentProfile) {
           const suggestedName =
             authorData?.metadata?.name ||
@@ -237,7 +252,6 @@ export function BlobbiHatchingCeremony({
           const tagsWithName = [
             ...baseTags,
             ['name', suggestedName],
-            ['coins', INITIAL_BLOBBONAUT_COINS.toString()],
           ];
 
           const profileEvent = await publishEvent({

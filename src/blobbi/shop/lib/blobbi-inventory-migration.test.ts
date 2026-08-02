@@ -159,7 +159,8 @@ describe('care items are free with no purchase-implying UI copy', () => {
   const socialSource = readSrc('src/components/BlobbiSocialActions.tsx');
 
   it('care flows never deduct coins for using an item', () => {
-    // Coin deduction only survives in the separate adoption/reroll economy.
+    // No Ditto flow deducts Coins anymore — the Coin economy belongs to
+    // Blobbi Island (the legacy adoption/reroll economy was deleted).
     for (const rel of [
       'src/blobbi/actions/hooks/useBlobbiUseInventoryItem.ts',
       'src/blobbi/companion/interaction/useBlobbiItemUse.ts',
