@@ -6,12 +6,26 @@ import type { Tool, ToolResult } from '@soapbox.pub/nostr-canvas/devkit';
 import { isNostrId } from '@/lib/nostrId';
 
 // ─── Input schemas ──────────────────────────────────────────────────────────
+//
+// One flat object for all five actions instead of a discriminated union:
+// `z.toJSONSchema()` renders a discriminated union as a JSON Schema `oneOf`
+// with no top-level `type` key, and devkit's `toolToOpenAI()` only simplifies
+// `anyOf`, so the function `parameters` sent to the model would lack
+// `type: "object"` — which some OpenAI-compatible providers reject with a 400.
+// A flat object with an `action` enum always emits `type: "object"`.
+// Every field except `action` is optional; `execute()` checks the fields each
+// action needs at runtime, because devkit calls `execute()` without parsing
+// the args through this schema first.
 
-const reqInput = z.object({
-  action: z.literal('req'),
+export const inputSchema = z.object({
+  action: z
+    .enum(['req', 'fetch', 'profile', 'decode', 'encode'])
+    .describe('The nak action to run: req, fetch, profile, decode, or encode.'),
+  // req
   kinds: z
     .array(z.number())
-    .describe('Event kind numbers to query, e.g. [1] for text notes or [0] for profiles. Required.'),
+    .optional()
+    .describe('Event kind numbers to query, e.g. [1] for text notes or [0] for profiles. Required for the req action.'),
   authors: z
     .array(z.string())
     .optional()
@@ -32,46 +46,26 @@ const reqInput = z.object({
     .number()
     .optional()
     .describe('Maximum number of events to return. Defaults to 20, capped at 50.'),
-});
-
-const fetchInput = z.object({
-  action: z.literal('fetch'),
+  // fetch and encode share this field.
   id: z
     .string()
-    .describe('The event id as a 64-char hex string, or a note1/nevent1 NIP-19 identifier.'),
-});
-
-const profileInput = z.object({
-  action: z.literal('profile'),
+    .optional()
+    .describe('The event id as a 64-char hex string, or a note1/nevent1 NIP-19 identifier. Required for the fetch action; for encode, required for note and nevent.'),
+  // profile and encode share this field.
   pubkey: z
     .string()
-    .describe('The pubkey as a 64-char hex string, or an npub1/nprofile1 NIP-19 identifier.'),
-});
-
-const decodeInput = z.object({
-  action: z.literal('decode'),
+    .optional()
+    .describe('The pubkey as a 64-char hex string, or an npub1/nprofile1 NIP-19 identifier. Required for the profile action; for encode, required for npub, nprofile, and naddr.'),
+  // decode and encode share this field.
   identifier: z
     .string()
-    .describe('Any NIP-19 identifier: npub1, nprofile1, note1, nevent1, naddr1. nsec1 is accepted, but its secret key bytes are redacted from the result.'),
-});
-
-const encodeInput = z.object({
-  action: z.literal('encode'),
+    .optional()
+    .describe('Any NIP-19 identifier: npub1, nprofile1, note1, nevent1, naddr1. nsec1 is accepted, but its secret key bytes are redacted from the result. For the encode action, the d-tag identifier value, required for naddr.'),
+  // encode
   type: z
     .enum(['npub', 'note', 'nprofile', 'nevent', 'naddr'])
-    .describe('The NIP-19 type to encode.'),
-  pubkey: z
-    .string()
     .optional()
-    .describe('A 64-char hex pubkey. Required for npub, nprofile, and naddr.'),
-  id: z
-    .string()
-    .optional()
-    .describe('A 64-char hex event id. Required for note and nevent.'),
-  identifier: z
-    .string()
-    .optional()
-    .describe('The d-tag identifier value. Required for naddr.'),
+    .describe('The NIP-19 type to encode. Required for the encode action.'),
   kind: z
     .number()
     .optional()
@@ -85,14 +79,6 @@ const encodeInput = z.object({
     .optional()
     .describe('Relay URLs to embed. Optional for nprofile, nevent, and naddr.'),
 });
-
-const inputSchema = z.discriminatedUnion('action', [
-  reqInput,
-  fetchInput,
-  profileInput,
-  decodeInput,
-  encodeInput,
-]);
 
 export type NakInput = z.infer<typeof inputSchema>;
 
@@ -197,6 +183,13 @@ Actions (the "action" field selects one):
 
       switch (args.action) {
         case 'req': {
+          if (!Array.isArray(args.kinds)) {
+            return {
+              content: JSON.stringify({
+                error: 'The "kinds" field is required for the req action.',
+              }),
+            };
+          }
           const limit = Math.min(Math.max(args.limit ?? 20, 1), 50);
           const filter: Record<string, unknown> = { kinds: args.kinds, limit };
 
@@ -225,6 +218,13 @@ Actions (the "action" field selects one):
         }
 
         case 'fetch': {
+          if (typeof args.id !== 'string') {
+            return {
+              content: JSON.stringify({
+                error: 'The "id" field is required for the fetch action.',
+              }),
+            };
+          }
           const resolved = resolveEventId(args.id);
           if ('error' in resolved) {
             return { content: JSON.stringify({ error: resolved.error }) };
@@ -240,6 +240,13 @@ Actions (the "action" field selects one):
         }
 
         case 'profile': {
+          if (typeof args.pubkey !== 'string') {
+            return {
+              content: JSON.stringify({
+                error: 'The "pubkey" field is required for the profile action.',
+              }),
+            };
+          }
           const resolved = resolvePubkey(args.pubkey);
           if ('error' in resolved) {
             return { content: JSON.stringify({ error: resolved.error }) };
@@ -260,6 +267,13 @@ Actions (the "action" field selects one):
         }
 
         case 'decode': {
+          if (typeof args.identifier !== 'string') {
+            return {
+              content: JSON.stringify({
+                error: 'The "identifier" field is required for the decode action.',
+              }),
+            };
+          }
           try {
             const decoded = nip19.decode(args.identifier);
             if (decoded.type === 'nsec') {
@@ -277,6 +291,13 @@ Actions (the "action" field selects one):
         }
 
         case 'encode': {
+          if (typeof args.type !== 'string') {
+            return {
+              content: JSON.stringify({
+                error: 'The "type" field is required for the encode action.',
+              }),
+            };
+          }
           switch (args.type) {
             case 'npub': {
               if (!isNostrId(args.pubkey)) {

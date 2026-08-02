@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
+import { z } from 'zod';
 import { nip19 } from 'nostr-tools';
 import type { NPool, NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import type { ToolResult } from '@soapbox.pub/nostr-canvas/devkit';
 
-import { createNakTool } from './nakTool';
+import { createNakTool, inputSchema } from './nakTool';
 
 // Test fixtures: valid 64-char hex identifiers plus their NIP-19 encodings.
 const PUBKEY = 'aa'.repeat(32);
@@ -299,7 +300,7 @@ describe('createNakTool encode action', () => {
 });
 
 describe('createNakTool shape', () => {
-  it('exposes a discriminated union schema with an action field', () => {
+  it('exposes a flat object schema that parses every action variant', () => {
     const { nostr } = mockNostr([]);
     const tool = createNakTool(nostr);
 
@@ -318,5 +319,23 @@ describe('createNakTool shape', () => {
     expect(profile).toMatchObject({ action: 'profile' });
     expect(decode).toMatchObject({ action: 'decode' });
     expect(encode).toMatchObject({ action: 'encode' });
+  });
+
+  it('emits a JSON schema with a top-level object type for OpenAI-compatible providers', () => {
+    const jsonSchema = z.toJSONSchema(inputSchema);
+
+    expect(jsonSchema.type).toBe('object');
+    expect(jsonSchema).not.toHaveProperty('oneOf');
+    const properties = jsonSchema.properties as Record<string, unknown>;
+    expect(properties).toHaveProperty('action');
+  });
+
+  it('returns a JSON error naming the missing field when a required field is omitted', async () => {
+    const { nostr, query } = mockNostr([]);
+    const result = await createNakTool(nostr).execute({ action: 'fetch' });
+
+    const parsed = JSON.parse(contentOf(result)) as { error: string };
+    expect(parsed.error).toContain('id');
+    expect(query).not.toHaveBeenCalled();
   });
 });
