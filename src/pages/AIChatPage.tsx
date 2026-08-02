@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { FormattedMessage, useIntl, defineMessage, type MessageDescriptor } from 'react-intl';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
@@ -120,6 +121,7 @@ function snapshotToDisplayMessages(msgs: SessionMessage[]): DisplayMessage[] {
 // ─── Page Component ───
 
 export function AIChatPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { getAvailableModels } = useShakespeare();
@@ -168,8 +170,8 @@ export function AIChatPage() {
   const sessionError = buildError ?? agentSnapshot?.error ?? null;
 
   useSeoMeta({
-    title: `AI Chat | ${config.appName}`,
-    description: 'Chat with AI assistant',
+    title: `${intl.formatMessage({ id: 'ai-chat.title', defaultMessage: 'AI Chat' })} | ${config.appName}`,
+    description: intl.formatMessage({ id: 'ai-chat.metaDescription', defaultMessage: 'Chat with AI assistant' }),
   });
 
   useLayoutOptions({ noOverscroll: true });
@@ -306,8 +308,15 @@ export function AIChatPage() {
         <div className="flex flex-col items-center gap-4 text-center max-w-sm">
           <pre className="text-4xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold">Dork AI</h1>
-            <p className="text-muted-foreground">Log in with your Nostr account to start chatting with Dork.</p>
+            <h1 className="text-2xl font-bold">
+              <FormattedMessage id="ai-chat.dorkAi" defaultMessage="Dork AI" />
+            </h1>
+            <p className="text-muted-foreground">
+              <FormattedMessage
+                id="ai-chat.loggedOutPrompt"
+                defaultMessage="Log in with your Nostr account to start chatting with Dork."
+              />
+            </p>
           </div>
           <LoginArea className="mt-2" />
         </div>
@@ -321,7 +330,9 @@ export function AIChatPage() {
       <PageHeader titleContent={
         <div className="hidden sidebar:flex items-center gap-2 flex-1 min-w-0">
           <Bot className="size-5" />
-          <h1 className="text-xl font-bold truncate">AI Chat</h1>
+          <h1 className="text-xl font-bold truncate">
+            <FormattedMessage id="ai-chat.title" defaultMessage="AI Chat" />
+          </h1>
         </div>
       }>
         {hasCredits && (
@@ -332,7 +343,7 @@ export function AIChatPage() {
               className="size-8"
               onClick={handleClear}
               disabled={messages.length === 0}
-              title="Clear conversation"
+              title={intl.formatMessage({ id: 'ai-chat.clearConversation', defaultMessage: 'Clear conversation' })}
             >
               <Trash2 className="size-4" />
             </Button>
@@ -357,7 +368,7 @@ export function AIChatPage() {
                 ) : (
                   <span className="flex items-center gap-1.5 text-muted-foreground">
                     <Loader2 className="size-3 animate-spin" aria-hidden="true" />
-                    New chat
+                    <FormattedMessage id="ai-chat.newChat" defaultMessage="New chat" />
                   </span>
                 )}
               </Button>
@@ -367,8 +378,8 @@ export function AIChatPage() {
                 className="size-7 rounded-full -ml-1 shrink-0"
                 onClick={() => closeSession(session.id)}
                 disabled={sessions.length === 1}
-                title="Close chat"
-                aria-label="Close chat"
+                title={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
+                aria-label={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
               >
                 <X className="size-3" />
               </Button>
@@ -382,7 +393,7 @@ export function AIChatPage() {
           className="shrink-0 rounded-full text-xs gap-1"
         >
           <Plus className="size-3.5" />
-          New chat
+          <FormattedMessage id="ai-chat.newChat" defaultMessage="New chat" />
         </Button>
       </div>
 
@@ -390,10 +401,15 @@ export function AIChatPage() {
       <Dialog open={capDialogOpen} onOpenChange={setCapDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Too many open chats</DialogTitle>
+            <DialogTitle>
+              <FormattedMessage id="ai-chat.capDialogTitle" defaultMessage="Too many open chats" />
+            </DialogTitle>
             <DialogDescription>
-              You have {sessions.length} open chats, the maximum is {MAX_OPEN_TABS}. Close one or more
-              to make room for a new one.
+              <FormattedMessage
+                id="ai-chat.capDialogDescription"
+                defaultMessage="You have {count} open chats, the maximum is {max}. Close one or more to make room for a new one."
+                values={{ count: sessions.length, max: MAX_OPEN_TABS }}
+              />
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-64">
@@ -403,14 +419,16 @@ export function AIChatPage() {
                   key={session.id}
                   className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-secondary/60"
                 >
-                  <span className="text-sm truncate min-w-0">{session.title || 'New chat'}</span>
+                  <span className="text-sm truncate min-w-0">
+                    {session.title || <FormattedMessage id="ai-chat.newChat" defaultMessage="New chat" />}
+                  </span>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="size-7 shrink-0"
                     onClick={() => closeSession(session.id)}
-                    title="Close chat"
-                    aria-label="Close chat"
+                    title={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
+                    aria-label={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
                   >
                     <X className="size-3.5" />
                   </Button>
@@ -420,7 +438,7 @@ export function AIChatPage() {
           </ScrollArea>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCapDialogOpen(false)}>
-              Cancel
+              <FormattedMessage id="ai-chat.cancel" defaultMessage="Cancel" />
             </Button>
             <Button
               disabled={isAtTabCap(sessions.length)}
@@ -430,7 +448,7 @@ export function AIChatPage() {
                 setPendingCreation(null);
               }}
             >
-              Open new chat
+              <FormattedMessage id="ai-chat.openNewChat" defaultMessage="Open new chat" />
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -456,17 +474,9 @@ export function AIChatPage() {
             {/* Error display */}
             {sessionError && (
               sessionError.includes('Rate limited') ? (
-                <DorkErrorBanner
-                  face=">[~_~]<"
-                  heading="Whoa, slow down! Dork needs a breather."
-                  body="You're sending messages a bit too fast. Want more brainpower? Grab some credits on"
-                />
+                <DorkErrorBanner {...RATE_LIMIT_BANNER} />
               ) : sessionError.includes('run out of credits') ? (
-                <DorkErrorBanner
-                  face=">[o_o]<"
-                  heading="You've run out of credits!"
-                  body="Grab some more on"
-                />
+                <DorkErrorBanner {...OUT_OF_CREDITS_BANNER} />
               ) : (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm px-4 py-3">
                   {sessionError}
@@ -501,7 +511,11 @@ export function AIChatPage() {
 
               <Select value={activeSession.modelId} onValueChange={handleModelChange} disabled={modelOptions.length === 0}>
                 <SelectTrigger className="h-8 w-48 text-xs">
-                  <SelectValue placeholder={modelsLoading ? 'Loading...' : 'Select model'} />
+                  <SelectValue
+                    placeholder={modelsLoading
+                      ? intl.formatMessage({ id: 'ai-chat.loading', defaultMessage: 'Loading...' })
+                      : intl.formatMessage({ id: 'ai-chat.selectModel', defaultMessage: 'Select model' })}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {modelOptions.map((model) => (
@@ -519,7 +533,9 @@ export function AIChatPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={!activeSession.modelId ? 'Select a model first...' : 'Send a message...'}
+                placeholder={!activeSession.modelId
+                  ? intl.formatMessage({ id: 'ai-chat.selectModelFirst', defaultMessage: 'Select a model first...' })
+                  : intl.formatMessage({ id: 'ai-chat.sendMessagePlaceholder', defaultMessage: 'Send a message...' })}
                 disabled={!activeSession.modelId || isLoading}
                 className="min-h-[44px] max-h-40 resize-none bg-secondary/50 border-border focus-visible:ring-1"
                 rows={1}
@@ -539,13 +555,15 @@ export function AIChatPage() {
                       'size-11 shrink-0 rounded-xl',
                       activeSession.abilities.length > 0 && 'text-primary',
                     )}
-                    title="Abilities"
+                    title={intl.formatMessage({ id: 'ai-chat.abilities', defaultMessage: 'Abilities' })}
                   >
                     <Sparkles className="size-4" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-64">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Abilities</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                    <FormattedMessage id="ai-chat.abilities" defaultMessage="Abilities" />
+                  </p>
                   <div className="space-y-3">
                     {ABILITIES.map((ability) => (
                       <div key={ability.key} className="flex items-start gap-2">
@@ -556,9 +574,11 @@ export function AIChatPage() {
                         />
                         <div className="space-y-0.5">
                           <Label htmlFor={`ability-${ability.key}`} className="font-normal cursor-pointer">
-                            {ability.label}
+                            <FormattedMessage {...ability.label} />
                           </Label>
-                          <p className="text-xs text-muted-foreground leading-tight">{ability.description}</p>
+                          <p className="text-xs text-muted-foreground leading-tight">
+                            <FormattedMessage {...ability.description} />
+                          </p>
                         </div>
                       </div>
                     ))}
@@ -585,7 +605,33 @@ export function AIChatPage() {
 
 // DorkThinking is imported from the shared component
 
-function DorkErrorBanner({ face, heading, body }: { face: string; heading: string; body: string }) {
+// Error banners pair a fixed ASCII face with localized heading/body text. The
+// descriptors render via FormattedMessage inside DorkErrorBanner.
+const RATE_LIMIT_BANNER = {
+  face: '>[~_~]<',
+  heading: defineMessage({
+    id: 'ai-chat.error.rateLimitHeading',
+    defaultMessage: 'Whoa, slow down! Dork needs a breather.',
+  }),
+  body: defineMessage({
+    id: 'ai-chat.error.rateLimitBody',
+    defaultMessage: "You're sending messages a bit too fast. Want more brainpower? Grab some credits on",
+  }),
+} as const;
+
+const OUT_OF_CREDITS_BANNER = {
+  face: '>[o_o]<',
+  heading: defineMessage({
+    id: 'ai-chat.error.outOfCreditsHeading',
+    defaultMessage: "You've run out of credits!",
+  }),
+  body: defineMessage({
+    id: 'ai-chat.error.outOfCreditsBody',
+    defaultMessage: 'Grab some more on',
+  }),
+} as const;
+
+function DorkErrorBanner({ face, heading, body }: { face: string; heading: MessageDescriptor; body: MessageDescriptor }) {
   const shakespeareLink = (
     <a
       href="https://shakespeare.diy"
@@ -602,19 +648,20 @@ function DorkErrorBanner({ face, heading, body }: { face: string; heading: strin
     <div className="rounded-2xl bg-secondary/60 border border-border px-4 py-4 text-sm space-y-2">
       <p className="font-medium text-foreground">
         <code className="text-base font-mono text-primary leading-none whitespace-pre">{face}</code>
-        {' '}{heading}
+        {' '}<FormattedMessage {...heading} />
       </p>
       <p className="text-muted-foreground">
-        {body} {shakespeareLink} to keep chatting with Dork.
+        <FormattedMessage {...body} /> {shakespeareLink}{' '}
+        <FormattedMessage id="ai-chat.error.keepChatting" defaultMessage="to keep chatting with Dork." />
       </p>
     </div>
   );
 }
 
 const DORK_GREETINGS = [
-  "Hi, I'm Dork! What would you like me to do?",
-  "Dork here! What do you need?",
-  "Hey, it's Dork! What do you want to do?",
+  defineMessage({ id: 'ai-chat.greeting.one', defaultMessage: "Hi, I'm Dork! What would you like me to do?" }),
+  defineMessage({ id: 'ai-chat.greeting.two', defaultMessage: 'Dork here! What do you need?' }),
+  defineMessage({ id: 'ai-chat.greeting.three', defaultMessage: "Hey, it's Dork! What do you want to do?" }),
 ];
 
 function EmptyState({ hasCredits }: { hasCredits: boolean | null }) {
@@ -624,13 +671,20 @@ function EmptyState({ hasCredits }: { hasCredits: boolean | null }) {
     <div className="flex flex-col items-center justify-center gap-8 text-center select-none animate-in fade-in duration-500">
       <pre className="text-4xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
       <div className="space-y-2">
-        <h2 className="text-base font-semibold tracking-tight text-foreground">Dork AI</h2>
-        <p className="text-sm text-muted-foreground">{greeting}</p>
+        <h2 className="text-base font-semibold tracking-tight text-foreground">
+          <FormattedMessage id="ai-chat.dorkAi" defaultMessage="Dork AI" />
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          <FormattedMessage {...greeting} />
+        </p>
       </div>
       {hasCredits === false && (
         <div className="flex flex-col items-center gap-4 max-w-xs">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            You need credits to chat with Dork. Grab some on Shakespeare to get started.
+            <FormattedMessage
+              id="ai-chat.needCredits"
+              defaultMessage="You need credits to chat with Dork. Grab some on Shakespeare to get started."
+            />
           </p>
           <a
             href="https://shakespeare.diy"
@@ -639,7 +693,7 @@ function EmptyState({ hasCredits }: { hasCredits: boolean | null }) {
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             <span>&#x1F3AD;</span>
-            Get Credits
+            <FormattedMessage id="ai-chat.getCredits" defaultMessage="Get Credits" />
           </a>
         </div>
       )}
@@ -732,7 +786,7 @@ function ToolCallBadge({ toolCall }: { toolCall: ToolCall }) {
           <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.primary})` }} />
         </span>
       )}
-      Theme applied
+      <FormattedMessage id="ai-chat.themeApplied" defaultMessage="Theme applied" />
       {resultParsed.font && (
         <span className="inline-flex items-center gap-0.5 opacity-80">
           <Type className="size-2.5" />

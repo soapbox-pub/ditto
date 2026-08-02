@@ -8,8 +8,8 @@ describe('buildSystemPrompt', () => {
     const prompt = buildSystemPrompt('Ditto');
 
     for (const ability of ABILITIES) {
-      expect(prompt).toContain(ability.label);
-      expect(prompt).toContain(ability.description);
+      expect(prompt).toContain(ability.label.defaultMessage);
+      expect(prompt).toContain(ability.description.defaultMessage);
     }
   });
 });

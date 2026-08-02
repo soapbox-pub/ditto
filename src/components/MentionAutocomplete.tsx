@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { nip19 } from 'nostr-tools';
+import { FormattedMessage } from 'react-intl';
 import { Sparkles, UserRoundCheck } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -120,8 +121,8 @@ export function MentionAutocomplete({
     const q = mentionQuery.toLowerCase();
     return abilities.filter(
       (ability) =>
-        ability.label.toLowerCase().includes(q) ||
-        ability.description.toLowerCase().includes(q),
+        ability.label.defaultMessage.toLowerCase().includes(q) ||
+        ability.description.defaultMessage.toLowerCase().includes(q),
     );
   }, [abilities, mentionQuery]);
 
@@ -297,7 +298,9 @@ export function MentionAutocomplete({
 
   const selectAbility = useCallback((ability: AbilityInfo) => {
     // Plain-text reference only — mentioning an ability never enables it.
-    insertMentionText(`@${ability.label} `);
+    // Resolves the English defaultMessage directly: the inserted text becomes
+    // part of the chat message the model reads, so it stays untranslated.
+    insertMentionText(`@${ability.label.defaultMessage} `);
   }, [insertMentionText]);
 
   const profilesLen = profiles?.length ?? 0;
@@ -441,9 +444,13 @@ function AbilityItem({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="font-semibold text-sm truncate">{ability.label}</span>
+          <span className="font-semibold text-sm truncate">
+            <FormattedMessage {...ability.label} />
+          </span>
         </div>
-        <div className="text-xs text-muted-foreground truncate">{ability.description}</div>
+        <div className="text-xs text-muted-foreground truncate">
+          <FormattedMessage {...ability.description} />
+        </div>
       </div>
     </button>
   );
