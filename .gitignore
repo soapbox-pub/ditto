@@ -51,3 +51,6 @@ android/*/build/
 android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
 android/downloads/
 i18n-extract.json
+
+# Generated bundle for the Lua-lint sandbox (scripts/build-lua-lint-sandbox.mjs)
+src/sandbox/luaLint/bundle.generated.js
