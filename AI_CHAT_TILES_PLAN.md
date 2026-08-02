@@ -447,10 +447,39 @@ below is the first to have gone through that pass and is ready to dispatch.
       Tiles on, confirm a new tab forks with the right system prompt/tools, send a message, switch
       provider mid-session, confirm history is preserved and the next reply uses the new
       provider.
-- [ ] **T10.2 Tool registry framework.** Generalize the existing hardcoded `set_theme` tool into
-      a registry others can append to, using devkit's `Tool` interface as the shape; port
-      `set_theme` itself onto the new framework as the non-tile example; register devkit's 12
-      tools as the "Tiles" ability's bundle.
+- [ ] **T10.2 Tool registry framework — grilled 2026-08-02, ready to dispatch.**
+      Facts confirmed first: devkit's `Tool<TParams>` is `{ description, inputSchema?: ZodType,
+      execute(args): Promise<ToolResult> }` (`devkit/tool.ts`), with a standalone
+      `toolToOpenAI(name, tool)` that auto-derives the JSON-schema `parameters` object from the
+      zod `inputSchema` — no more hand-written `parameters` blocks like today's `set_theme`.
+      `AgentSession` takes `tools: { name: string; tool: Tool }[]` and dispatches incoming
+      `tool_calls` by name (`agent-session.ts:214,447,558`). Today's `AIChatPage.tsx` runs its own
+      hand-rolled loop (`useToolExecutor`, synchronous JSON-string returns) — it does not use
+      `AgentSession` at all yet.
+
+      Decisions:
+      - **Tool construction**: factory functions returning devkit `Tool` objects (e.g.
+        `createSetThemeTool(applyCustomTheme): Tool`), mirroring devkit's own pattern
+        (`ReadCodeTool`/`WriteCodeTool` take closures in their constructor). A `useToolRegistry()`
+        hook calls these factories with live values from hooks like `useTheme()` and assembles the
+        final `{ name, tool }[]` bundles.
+      - **Ability → bundle mapping**: a **base** bundle (always included — currently just
+        `set_theme`) plus per-ability bundles, concatenated. A session's final `tools` array =
+        base + (selected ability's bundle, if any). Devkit's 12 tools become the "tiles" ability's
+        bundle. Matches T10.1's "set_theme always on regardless of ability" decision directly.
+      - **Execution engine**: full migration onto `AgentSession` for *every* session, not just
+        Tiles — base chat becomes an `AgentSession` with just the base bundle and no pause/resume
+        tools, same code path as Tiles with a smaller bundle. Replaces `useToolExecutor` and the
+        current hand-rolled loop entirely; one execution engine going forward instead of two.
+      - **System-prompt cleanup**: drop the hand-written paragraph in `buildSystemPrompt()` that
+        manually re-explains `set_theme`'s parameters — the tool's own `description` field (fed to
+        the model via `toolToOpenAI`) is the single source of truth going forward, removing a
+        duplication/drift risk between prompt text and tool schema.
+      *Eval:* automated — unit tests for the registry (base + ability concatenation, factory
+      construction) and for `set_theme`'s ported `Tool` implementation (same validation/behavior
+      as today's `useToolExecutor` case). Manual (user will run before closing): ask base chat (no
+      Tiles ability) to set a dark purple theme, confirm it still applies end-to-end through the
+      new registry + `AgentSession` path.
 - [ ] **T10.3 Tabs + local history.** Horizontal, closable, scrollable session tabs;
       `localStorage` persistence; auto-title from first message.
 - [ ] **T10.4 Isolated preview panel.** devkit's `PreviewSession`/`PreviewAdapter` mounted in
