@@ -4,13 +4,20 @@ import { renderHook } from '@testing-library/react';
 import { useToolRegistry } from './useToolRegistry';
 import type { ChatSession } from './useChatSessions';
 
-const { applyCustomTheme } = vi.hoisted(() => ({ applyCustomTheme: vi.fn() }));
+const { applyCustomTheme, query } = vi.hoisted(() => ({
+  applyCustomTheme: vi.fn(),
+  query: vi.fn(async () => []),
+}));
 
 vi.mock('@/hooks/useTheme', () => ({
   useTheme: () => ({ applyCustomTheme }),
 }));
 
-const BASE_NAMES = ['set_theme', 'search_nips', 'fetch_nip'];
+vi.mock('@nostrify/react', () => ({
+  useNostr: () => ({ nostr: { query } }),
+}));
+
+const BASE_NAMES = ['set_theme', 'search_nips', 'fetch_nip', 'nak'];
 
 const TILES_NAMES = [
   'read_code',
@@ -52,6 +59,15 @@ describe('useToolRegistry', () => {
     });
 
     expect(applyCustomTheme).toHaveBeenCalled();
+  });
+
+  it('builds the nak tool bound to the live nostr client', async () => {
+    const { result } = renderHook(() => useToolRegistry());
+
+    const nak = result.current.baseTools.find((b) => b.name === 'nak')!;
+    await nak.tool.execute({ action: 'req', kinds: [1] });
+
+    expect(query).toHaveBeenCalled();
   });
 
   it('keeps only the base bundle for a session with no abilities', () => {

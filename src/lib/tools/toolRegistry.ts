@@ -14,9 +14,11 @@ import {
   getTileState,
 } from '@soapbox.pub/nostr-canvas/devkit';
 import type { Tool } from '@soapbox.pub/nostr-canvas/devkit';
+import type { NPool } from '@nostrify/nostrify';
 
 import type { Ability } from '@/lib/abilities';
 import type { ThemeConfig } from '@/themes';
+import { createNakTool } from './nakTool';
 import { createSetThemeTool } from './setThemeTool';
 
 /** A named tool ready for AgentSession dispatch. */
@@ -64,14 +66,19 @@ export const tileDraftStore: TileDraftStore = {
 
 /**
  * The always-on tools, present in every session regardless of abilities:
- * theme control plus NIP lookups (community NIPs via search_nips, official
- * specs via fetch_nip).
+ * theme control, NIP lookups (community NIPs via search_nips, official
+ * specs via fetch_nip), and nak (general read-only Nostr access over
+ * Ditto's own relay pool).
  */
-export function createBaseToolBundle(opts: { applyCustomTheme: (config: ThemeConfig) => void }): ToolBundleEntry[] {
+export function createBaseToolBundle(opts: {
+  applyCustomTheme: (config: ThemeConfig) => void;
+  nostr: NPool;
+}): ToolBundleEntry[] {
   return [
     { name: 'set_theme', tool: createSetThemeTool(opts.applyCustomTheme) },
     { name: 'search_nips', tool: new SearchNIPsTool() },
     { name: 'fetch_nip', tool: new FetchNIPTool() },
+    { name: 'nak', tool: createNakTool(opts.nostr) },
   ];
 }
 
