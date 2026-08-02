@@ -372,16 +372,19 @@ Once `ai-chat-tlc` merges to `main`, `tiles-v3-widgetonly` rebases on top of it,
 marketplace/widget work a direct path in.
 
 This splits Phase 10 into two waves:
-- **Wave A — ships in `ai-chat-tlc`**: T10.0, T10.1, T10.2, T10.3. The "Tiles" ability's full tool
-  bundle works (`read_code`/`write_code`/`ask_questions`/`read_spec`/`search_nips`/etc.) except
-  live preview rendering — devkit's 12 tools only have one entry (`preview_tile`) that actually
-  needs a real `RuntimeAdapter`. Genuinely useful and mergeable standalone.
-- **Wave B — deferred, lands after the `tiles-v3-widgetonly` rebase**: T10.4 (preview panel),
-  T10.5 (publish flow), T10.6 (discovery toast), T10.7+ (marketplace remix). All four depend on
-  infrastructure (`CanvasRuntimeProvider`, a real `RuntimeAdapter`, the marketplace detail page,
-  install/publish plumbing) that only exists on `tiles-v3-widgetonly`. Design-level grilling for
-  these can still happen now (they're mostly about devkit's library API, not Ditto-specific code)
-  but dispatch is gated on the rebase landing.
+- **Wave A — ships in `ai-chat-tlc`, tracked below**: T10.0, T10.1, T10.2, T10.3. The "Tiles"
+  ability's full tool bundle works (`read_code`/`write_code`/`ask_questions`/`read_spec`/
+  `search_nips`/etc.) except live preview rendering — devkit's 12 tools only have one entry
+  (`preview_tile`) that actually needs a real `RuntimeAdapter`. Genuinely useful and mergeable
+  standalone.
+- **Wave B — moved to `tiles-v3-widgetonly`'s own `TILES_PLAN.md`, Phase 8 (2026-08-02)**: what
+  were T10.4 (preview panel), T10.5 (publish flow), T10.6 (discovery toast), and T10.7+
+  (marketplace remix) now live there as T8.1-T8.4, since all four depend on infrastructure
+  (`CanvasRuntimeProvider`, a real `RuntimeAdapter`, the marketplace detail page, install/publish
+  plumbing) that only exists on that branch — no point tracking them here where they can't be
+  dispatched. Not just deferred: fully relocated, including the grilled detail for T8.1/T8.4 and
+  the inlined D6 devkit facts needed to read them without this doc. Any further grilling for those
+  tickets (T8.2/T8.3 still need a pass) happens directly on `TILES_PLAN.md` going forward.
 
 Ditto today: `useShakespeare.ts` is a raw NIP-98-authed fetch wrapper around Shakespeare's
 OpenAI-compatible endpoint (no tool-calling loop of its own). `AgentSession` (devkit) takes an
@@ -391,11 +394,11 @@ built with a custom `fetch` that signs a fresh NIP-98 token per request, exactly
 Shakespeare's per-request auth model. User-supplied providers (OpenRouter/OpenAI-compatible/
 DeepSeek, own API key) use devkit's `ai-provider.ts` factory directly, as originally designed.
 
-Execution order within Wave A (dispatches on `ai-chat-tlc`, ships together): T10.0 → T10.1 →
-T10.2 → T10.3. Wave B order (dispatches only after the `tiles-v3-widgetonly` rebase lands): T10.4
-→ T10.5 → T10.6 → remix (T10.7+). See the branch-strategy note above for why the waves split
-where they do. Each ticket gets its own short grilling pass immediately before dispatch, per the
-working agreement; T10.0-T10.3 below have all gone through that pass and are ready to dispatch.
+Execution order: T10.0 → T10.1 → T10.2 → T10.3, all of Phase 10 as tracked in this doc — Wave B
+(what were T10.4-T10.7+) now lives on `tiles-v3-widgetonly`'s `TILES_PLAN.md` as T8.1-T8.4, see
+the branch-strategy note above. Each ticket gets its own short grilling pass immediately before
+dispatch, per the working agreement; all four below have gone through that pass and are ready to
+dispatch.
 
 - [ ] **T10.0 Provider settings (`/settings/ai`) — grilled 2026-08-02, ready to dispatch.**
       Facts confirmed first (not guessed): devkit's `AIProvider` type is `{ id, name, baseURL,
@@ -538,55 +541,9 @@ working agreement; T10.0-T10.3 below have all gone through that pass and are rea
       run before closing): open several tabs including a Tiles session with a pending
       `ask_questions` pause, reload the browser, confirm every tab reappears with history intact
       and the paused Tiles session resumes correctly.
-- [ ] **T10.4 Isolated preview panel.** devkit's `PreviewSession`/`PreviewAdapter` mounted in
-      their own separate `NostrCanvasProvider` tree inside the chat UI (never shares Ditto's
-      app-wide `CanvasRuntimeProvider`), wired to Ditto's **real** adapter/login (`previewPubkey`
-      = logged-in user's pubkey, or devkit's ephemeral-identity helper if logged out) per D6's
-      revised design. Publish-review UI: shows the AI's signed event, user chooses
-      publish/discard.
-- [ ] **T10.5 Publish flow.** Once a drafted widget looks right in preview, publish it as a real
-      kind 30207 event — reusing existing marketplace publish/install plumbing, gated on the
-      user having a NIP-05 (identifiers are `nip05:slug`), with a d-tag collision check. The
-      "slug" the AI settles on early in the conversation (needed anyway per D5's requirements-
-      gathering flow) is the same value threaded into D6's `computePreviewGrantKey` during
-      preview.
-- [ ] **T10.6 Discovery toast.** "New: Create with Ditto" overlay on the AI chat widget's first
-      open, dismissed state in `localStorage`.
-- [ ] **T10.7+ Marketplace remix — scoping grilled 2026-08-02, mostly ready to dispatch (two
-      items still open, see below).** New tickets inside this phase (not a separate phase),
-      ordered last since it depends on publish (T10.5) already working.
-
-      Entry point: a "Remix with AI" button on the tile's marketplace detail page, alongside the
-      existing "Install" action. It opens the AI chat widget and forks a new "Tiles" session via
-      T10.1's pre-seed argument — same ability, same tool bundle, not a separate flow.
-
-      Pre-seed mechanism: confirmed against the actual devkit tool source
-      (`devkit/tools/read-code.ts`, `write-code.ts`) — `read_code`/`write_code` are backed by
-      host-supplied `getCode`/`setCode` closures over wherever Ditto keeps the session's code
-      state, not a chat-message injection. Remix initializes that state with the target tile's
-      existing Lua source directly (so `read_code` returns it from turn one), plus one added line
-      in the system/user prompt telling the AI to call `read_code` to see the current tile before
-      making changes.
-
-      Publish semantics: remix always forks. Publishing creates a **brand-new** kind 30207 event
-      under the remixing user's own `nip05:slug` identifier — new slug, current user as author —
-      regardless of who authored the original. No update-in-place option, no ownership check; this
-      matches how T10.5 already treats any AI-drafted tile.
-
-      Still open (grill immediately before dispatch): whether remix requires the user to already
-      have a NIP-05 before starting (vs. only gating at publish time, same as T10.5), and whether
-      the published tile carries any attribution/reference back to the original.
-
-**Open items, not yet scoped in detail:**
-- Image generation via `gpt-image-1` as its own devkit tool/skill, for T10.5's AI-generated tile
-  image (surfaced 2026-07-31).
-- A URL-scheme handler mechanism for tiles (e.g. a bitcoin tile handling `bitcoin:` URLs) as a
-  special case of the `navigate`/`nav` capability (surfaced 2026-07-31) — separate from Phase 10
-  proper, but touches the same capability surface D6/T10.4 rely on.
-- A nostr-canvas spec (TIP) clarification: `render_event`-placement tiles must not render their
-  own action buttons — that's the client's job (tile chrome and/or feed rendering), surfaced
-  2026-07-31 while discussing Phase 10 scope.
-
+*(T10.4-T10.7+ and the Wave B "Open items" list used to be here — moved to*
+*`tiles-v3-widgetonly`'s `TILES_PLAN.md`, Phase 8, as T8.1-T8.4, 2026-08-02. See the branch-*
+*strategy note above.)*
 ---
 
 ## Human review queue
