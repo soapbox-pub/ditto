@@ -16,10 +16,12 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useToolRegistry } from '@/hooks/useToolRegistry';
 import { useAgentSessions } from '@/hooks/useAgentSessions';
 import { useAutoTitle } from '@/hooks/useAutoTitle';
+import { useInsertText } from '@/hooks/useInsertText';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { MentionAutocomplete } from '@/components/MentionAutocomplete';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -134,6 +136,9 @@ export function AIChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // @-mention insertion for the message textarea (people + abilities).
+  const { insertAtCursor: insertMention } = useInsertText(textareaRef, setInput);
 
   const systemPromptFor = useCallback((session: ChatSession) => {
     return session.abilities.includes('tiles')
@@ -518,6 +523,12 @@ export function AIChatPage() {
                 disabled={!activeSession.modelId || isLoading}
                 className="min-h-[44px] max-h-40 resize-none bg-secondary/50 border-border focus-visible:ring-1"
                 rows={1}
+              />
+              <MentionAutocomplete
+                textareaRef={textareaRef}
+                content={input}
+                onInsertMention={insertMention}
+                abilities={ABILITIES}
               />
               <Popover>
                 <PopoverTrigger asChild>
