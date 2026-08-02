@@ -71,6 +71,7 @@ const settingsSections: SettingsSection[] = [
     id: 'ai',
     label: defineMessage({ id: 'settings.sections.ai.label', defaultMessage: 'AI' }),
     description: defineMessage({ id: 'settings.sections.ai.description', defaultMessage: 'AI providers for chat and other AI features' }),
+    illustration: '/ai-intro.png',
     path: '/settings/ai',
   },
   {

@@ -4,6 +4,7 @@ import { FormattedMessage, useIntl, defineMessage, type MessageDescriptor } from
 import { fetchModels, type AIProvider } from '@soapbox.pub/nostr-canvas/devkit';
 
 import { PageHeader } from '@/components/PageHeader';
+import { IntroImage } from '@/components/IntroImage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -415,7 +416,9 @@ export function SettingsAIPage() {
       />
 
       <div className="p-4 space-y-4">
-        <div className="flex items-center justify-between px-3 pt-2 pb-1">
+        {/* Intro */}
+        <div className="flex items-center gap-4 px-3 pt-2 pb-4">
+          <IntroImage src="/ai-intro.png" />
           <div className="min-w-0">
             <h2 className="text-sm font-semibold">
               <FormattedMessage id="settings.ai.providersTitle" defaultMessage={'AI Providers'} />
@@ -424,10 +427,20 @@ export function SettingsAIPage() {
               <FormattedMessage id="settings.ai.providersDescription" defaultMessage={'Add providers such as OpenRouter or any OpenAI-compatible endpoint.'} />
             </p>
           </div>
-          <Button onClick={openAddDialog} className="shrink-0">
-            <Plus className="size-4" />
-            <FormattedMessage id="settings.ai.addProfile" defaultMessage={'Add Profile'} />
-          </Button>
+        </div>
+
+        {/* AI Providers */}
+        <div className="relative px-3 py-3.5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold">
+              <FormattedMessage id="settings.ai.providersTitle" defaultMessage={'AI Providers'} />
+            </h2>
+            <Button onClick={openAddDialog} className="shrink-0">
+              <Plus className="size-4" />
+              <FormattedMessage id="settings.ai.addProfile" defaultMessage={'Add Profile'} />
+            </Button>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
 
         {isLoading ? (
