@@ -68,6 +68,7 @@ const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage").then(m 
 const ProfileSettings = lazy(() => import("./pages/ProfileSettings").then(m => ({ default: m.ProfileSettings })));
 const RelayPage = lazy(() => import("./pages/RelayPage").then(m => ({ default: m.RelayPage })));
 const SearchPage = lazy(() => import("./pages/SearchPage").then(m => ({ default: m.SearchPage })));
+const SettingsAIPage = lazy(() => import("./pages/SettingsAIPage").then(m => ({ default: m.SettingsAIPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const SharePage = lazy(() => import("./pages/SharePage").then(m => ({ default: m.SharePage })));
 const ThemesPage = lazy(() => import("./pages/ThemesPage").then(m => ({ default: m.ThemesPage })));
@@ -166,6 +167,7 @@ export function AppRouter() {
             />
             <Route path="/settings/magic" element={<MagicSettingsPage />} />
             <Route path="/settings/network" element={<NetworkSettingsPage />} />
+            <Route path="/settings/ai" element={<SettingsAIPage />} />
             <Route path="/lists" element={<UserListsPage />} />
             <Route path="/events" element={<EventsFeedPage />} />
             <Route path="/photos" element={<PhotosFeedPage />} />
