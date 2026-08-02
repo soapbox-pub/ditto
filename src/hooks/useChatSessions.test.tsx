@@ -3,6 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 
 import { useChatSessions } from './useChatSessions';
 import type { ChatSession, DisplayMessage } from './useChatSessions';
+import type { AIProviderProfile } from '@/hooks/useAIProviders';
 import type { PersistedTab } from '@/lib/chatTabsStorage';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -24,6 +25,19 @@ function makeMessage(overrides: Partial<DisplayMessage> = {}): DisplayMessage {
   };
 }
 
+function makeProfile(overrides: Partial<AIProviderProfile> = {}): AIProviderProfile {
+  return {
+    id: crypto.randomUUID(),
+    kind: 'openrouter',
+    name: 'Provider',
+    baseURL: 'https://api.example.com/v1',
+    apiKey: 'sk-test',
+    models: [],
+    syncEnabled: false,
+    ...overrides,
+  };
+}
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 describe('useChatSessions', () => {
   it('bootstraps exactly one default session on first use', () => {
@@ -41,6 +55,22 @@ describe('useChatSessions', () => {
     expect(sessions[0].messages).toEqual([]);
     expect(sessions[0].createdAt).toBeInstanceOf(Date);
     expect(sessions[0].seedCode).toBeUndefined();
+  });
+
+  it('bootstraps to the first configured provider profile when one exists', () => {
+    const profiles = [
+      makeProfile({ id: 'provider-a', name: 'My OpenRouter' }),
+      makeProfile({ id: 'provider-b', kind: 'deepseek', name: 'DeepSeek' }),
+    ];
+    const { result } = renderHook(() => useChatSessions(undefined, profiles));
+
+    const { sessions, activeSessionId, activeSession } = result.current;
+
+    expect(sessions).toHaveLength(1);
+    expect(activeSessionId).toBe(sessions[0].id);
+    expect(activeSession).toBe(sessions[0]);
+    expect(sessions[0].providerId).toBe('provider-a');
+    expect(sessions[0].modelId).toBe('');
   });
 
   it('createSession appends a fresh-UUID session, makes it active, and returns it', () => {

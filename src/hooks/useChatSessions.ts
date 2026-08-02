@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SerializedSession } from '@soapbox.pub/nostr-canvas/devkit';
 
+import type { AIProviderProfile } from '@/hooks/useAIProviders';
 import type { Ability } from '@/lib/abilities';
 import {
   getStoredTabs,
@@ -107,9 +108,12 @@ interface ChatState {
 /**
  * Restore the stored tabs for a pubkey scope (after silently pruning any
  * untouched for 30 days), or bootstrap a single default session when nothing
- * is stored. `pubkey` scopes the localStorage keys per account.
+ * is stored. `pubkey` scopes the localStorage keys per account. When no
+ * session is stored, the bootstrap uses the first configured AI provider
+ * profile when at least one exists, falling back to the zero-config
+ * 'shakespeare' provider.
  */
-function loadOrBootstrap(pubkey?: string): ChatState {
+function loadOrBootstrap(pubkey?: string, profiles: AIProviderProfile[] = []): ChatState {
   pruneStaleTabs(pubkey); // Silent housekeeping: drop tabs untouched for 30 days.
   const stored = getStoredTabs(pubkey);
   if (stored.length > 0) {
@@ -118,7 +122,8 @@ function loadOrBootstrap(pubkey?: string): ChatState {
       activeSessionId: stored[0].id,
     };
   }
-  const bootstrap = createSessionObject({ abilities: [], providerId: 'shakespeare', modelId: '' });
+  const providerId = profiles.length > 0 ? profiles[0].id : 'shakespeare';
+  const bootstrap = createSessionObject({ abilities: [], providerId, modelId: '' });
   saveTab(tabFromSession(bootstrap), pubkey);
   return { sessions: [bootstrap], activeSessionId: bootstrap.id };
 }
@@ -132,19 +137,20 @@ function loadOrBootstrap(pubkey?: string): ChatState {
  * by useAgentSessions on every message/state change. On first render the
  * stored tabs for the current account are restored (after silently pruning
  * any untouched for 30 days), or a single default session is bootstrapped
- * when nothing is stored. When the signed-in account changes the tab list is
+ * when nothing is stored — preferring the first configured AI provider
+ * profile when one exists. When the signed-in account changes the tab list is
  * reloaded from that account's pubkey scope.
  */
-export function useChatSessions(pubkey?: string) {
-  const [state, setState] = useState<ChatState>(() => loadOrBootstrap(pubkey));
+export function useChatSessions(pubkey?: string, profiles: AIProviderProfile[] = []) {
+  const [state, setState] = useState<ChatState>(() => loadOrBootstrap(pubkey, profiles));
 
   // Reload the tab list from the new account's scope on an account switch.
   const prevPubkeyRef = useRef(pubkey);
   useEffect(() => {
     if (prevPubkeyRef.current === pubkey) return;
     prevPubkeyRef.current = pubkey;
-    setState(loadOrBootstrap(pubkey));
-  }, [pubkey]);
+    setState(loadOrBootstrap(pubkey, profiles));
+  }, [pubkey, profiles]);
 
   /** Append a fresh session and make it active. Returns the created session. */
   function createSession(input: CreateSessionInput): ChatSession {

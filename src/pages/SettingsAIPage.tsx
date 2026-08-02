@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bot, Copy, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { FormattedMessage, useIntl, defineMessage, type MessageDescriptor } from 'react-intl';
 import { fetchModels, type AIProvider } from '@soapbox.pub/nostr-canvas/devkit';
@@ -11,6 +11,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -74,6 +80,158 @@ function parseModelIds(raw: string): AIProviderProfile['models'] {
     .map((id) => id.trim())
     .filter(Boolean)
     .map((id) => ({ id, name: id }));
+}
+
+/** A single model entry in a provider's active or detected model list. */
+type AIModel = AIProviderProfile['models'][number];
+
+/** True when two model lists carry the same ids in the same order. */
+function sameModelIds(a: AIProviderProfile['models'], b: AIProviderProfile['models']): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((m, i) => m.id === b[i].id);
+}
+
+interface ModelListEditorProps {
+  /** Active model list, owned by the parent (form.models / profile.models). */
+  models: AIProviderProfile['models'];
+  /** Parent applies the next active list (persist/save). */
+  onModelsChange: (models: AIProviderProfile['models']) => void;
+}
+
+/**
+ * Shared model-list editor for the add/edit dialog and the saved-profile
+ * cards: compact active rows with a per-row remove, an "Add model" dropdown
+ * backed by a locally tracked detected pool, and a custom comma-separated
+ * entry row. The parent owns the active list and the "Detect models" action
+ * (which wholesale-replaces the active list); this editor only tracks the
+ * pool — the full set of models from the most recent successful detect, so
+ * removing a model keeps it re-addable from the dropdown.
+ */
+export function ModelListEditor({ models, onModelsChange }: ModelListEditorProps) {
+  const intl = useIntl();
+  const { toast } = useToast();
+  const [pool, setPool] = useState<AIProviderProfile['models']>(models);
+  const [customInput, setCustomInput] = useState('');
+  // Snapshot of the last list pushed up to the parent, so a prop echo of our
+  // own change doesn't reset the pool — only an external change (a fresh
+  // detect, or the dialog re-seeding for a different profile) does.
+  const lastEmittedRef = useRef<AIProviderProfile['models'] | null>(null);
+
+  useEffect(() => {
+    if (lastEmittedRef.current && sameModelIds(lastEmittedRef.current, models)) {
+      lastEmittedRef.current = null;
+      return;
+    }
+    // External change: the pool mirrors the new active list.
+    setPool(models);
+  }, [models]);
+
+  function emit(next: AIProviderProfile['models']) {
+    lastEmittedRef.current = next;
+    onModelsChange(next);
+  }
+
+  function removeModel(id: string) {
+    emit(models.filter((m) => m.id !== id));
+  }
+
+  function addModel(model: AIModel) {
+    if (models.some((m) => m.id === model.id)) return;
+    emit([...models, model]);
+  }
+
+  function addCustomModels() {
+    const parsed = parseModelIds(customInput);
+    if (parsed.length === 0) {
+      toast({
+        title: intl.formatMessage({ id: 'settings.ai.noModelsTitle', defaultMessage: 'No model IDs entered' }),
+        variant: 'destructive',
+      });
+      return;
+    }
+    // Custom ids join the pool too, so they behave like detected ones:
+    // removable from the active list and re-addable from the dropdown.
+    setPool((prev) => {
+      const known = new Set(prev.map((m) => m.id));
+      return [...prev, ...parsed.filter((m) => !known.has(m.id))];
+    });
+    const activeIds = new Set(models.map((m) => m.id));
+    emit([...models, ...parsed.filter((m) => !activeIds.has(m.id))]);
+    setCustomInput('');
+    toast({
+      title: intl.formatMessage(
+        { id: 'settings.ai.appliedTitle', defaultMessage: '{count, plural, one {# model saved} other {# models saved}}' },
+        { count: parsed.length },
+      ),
+    });
+  }
+
+  const availableModels = pool.filter((m) => !models.some((a) => a.id === m.id));
+
+  return (
+    <div className="space-y-2">
+      {models.map((model) => (
+        <div key={model.id} className="flex items-center gap-2 rounded-lg border bg-card/50 px-3 py-1.5">
+          <span className="min-w-0 flex-1 truncate text-sm">{model.name}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-9 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            onClick={() => removeModel(model.id)}
+            aria-label={intl.formatMessage({ id: 'settings.ai.removeModel', defaultMessage: 'Remove {model}' }, { model: model.name })}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
+      ))}
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={availableModels.length === 0}
+            className="h-8 text-xs gap-1.5"
+          >
+            <Plus className="size-3.5" />
+            <FormattedMessage id="settings.ai.addModel" defaultMessage={'Add model'} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="min-w-44 max-h-64 overflow-y-auto">
+          {availableModels.map((model) => (
+            <DropdownMenuItem key={model.id} onSelect={() => addModel(model)} className="gap-2">
+              <span className="truncate">{model.name}</span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <div className="flex gap-2">
+        <Input
+          aria-label={intl.formatMessage({ id: 'settings.ai.manualModelsLabel', defaultMessage: 'Model IDs (comma-separated)' })}
+          placeholder={intl.formatMessage({ id: 'settings.ai.manualModelsPlaceholder', defaultMessage: 'model-1, model-2' })}
+          className="h-9 flex-1 min-w-0 text-xs"
+          value={customInput}
+          onChange={(e) => setCustomInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') addCustomModels();
+          }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="size-9 shrink-0"
+          onClick={addCustomModels}
+          aria-label={intl.formatMessage({ id: 'settings.ai.addModels', defaultMessage: 'Add models' })}
+        >
+          <Plus className="size-4" />
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 interface ProviderFormDialogProps {
@@ -256,6 +414,11 @@ function ProviderFormDialog({ open, editing, onOpenChange, onSave, hasNip44Suppo
             </Button>
           </div>
 
+          <ModelListEditor
+            models={form.models}
+            onModelsChange={(models) => setForm((f) => ({ ...f, models }))}
+          />
+
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-0.5">
               <Label htmlFor="ai-provider-sync" className="text-sm font-medium">
@@ -304,7 +467,6 @@ export function SettingsAIPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AIProviderProfile | null>(null);
   const [detecting, setDetecting] = useState<Record<string, boolean>>({});
-  const [manualIds, setManualIds] = useState<Record<string, string>>({});
 
   useSeoMeta({
     title: `${intl.formatMessage({ id: 'settings.ai.title', defaultMessage: 'AI' })} | ${intl.formatMessage({ id: 'settings.title', defaultMessage: 'Settings' })} | ${config.appName}`,
@@ -382,24 +544,6 @@ export function SettingsAIPage() {
     }
   }
 
-  function applyManualModels(profile: AIProviderProfile) {
-    const models = parseModelIds(manualIds[profile.id] ?? '');
-    if (models.length === 0) {
-      toast({
-        title: intl.formatMessage({ id: 'settings.ai.noModelsTitle', defaultMessage: 'No model IDs entered' }),
-        variant: 'destructive',
-      });
-      return;
-    }
-    updateProfile(profile.id, { models });
-    toast({
-      title: intl.formatMessage(
-        { id: 'settings.ai.appliedTitle', defaultMessage: '{count, plural, one {# model saved} other {# models saved}}' },
-        { count: models.length },
-      ),
-    });
-  }
-
   return (
     <main className="">
       <PageHeader
@@ -472,9 +616,6 @@ export function SettingsAIPage() {
                         <Bot className="size-4 text-muted-foreground" />
                       </div>
                       <CardTitle className="text-base truncate">{profile.name}</CardTitle>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        <FormattedMessage {...KIND_LABELS[profile.kind]} />
-                      </span>
                       <Badge variant="secondary" className="shrink-0">
                         {profile.syncEnabled ? (
                           <FormattedMessage id="settings.ai.syncedBadge" defaultMessage={'Synced'} />
@@ -513,6 +654,7 @@ export function SettingsAIPage() {
                       </Button>
                     </div>
                   </div>
+                  <p className="text-xs text-muted-foreground truncate">{profile.baseURL}</p>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm text-muted-foreground">
                       <FormattedMessage
@@ -531,18 +673,10 @@ export function SettingsAIPage() {
                       <FormattedMessage id="settings.ai.detectModels" defaultMessage={'Detect models'} />
                     </Button>
                   </div>
-                  <div className="flex gap-2">
-                    <Input
-                      aria-label={intl.formatMessage({ id: 'settings.ai.manualModelsLabel', defaultMessage: 'Model IDs (comma-separated)' })}
-                      placeholder={intl.formatMessage({ id: 'settings.ai.manualModelsPlaceholder', defaultMessage: 'model-1, model-2' })}
-                      className="flex-1"
-                      value={manualIds[profile.id] ?? profile.models.map((m) => m.id).join(', ')}
-                      onChange={(e) => setManualIds((m) => ({ ...m, [profile.id]: e.target.value }))}
-                    />
-                    <Button size="sm" variant="secondary" onClick={() => applyManualModels(profile)}>
-                      <FormattedMessage id="settings.ai.applyModels" defaultMessage={'Apply'} />
-                    </Button>
-                  </div>
+                  <ModelListEditor
+                    models={profile.models}
+                    onModelsChange={(models) => updateProfile(profile.id, { models })}
+                  />
                 </CardContent>
               </Card>
             ))}
