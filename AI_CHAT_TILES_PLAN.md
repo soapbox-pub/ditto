@@ -614,6 +614,16 @@ such dependency and can dispatch independently, any time.
       *Eval:* the punch list itself is the deliverable — user reviews it and either approves it
       for an implementation ticket or redirects specific items.
 
+**Tracked, not started — codebase-wide, deliberately deferred (noted 2026-08-02):** a full i18n
+sweep — every user-visible string wrapped in `FormattedMessage`/`intl.formatMessage()` per
+AGENTS.md's i18n rule — is needed across the whole Ditto codebase, not just this branch's AI
+chat work. Surfaced because `AIChatPage.tsx` has zero `FormattedMessage` usage across its entire
+T10.0-T10.3 history (pre-existing gap, not introduced by any single ticket here) and T10.3 added
+a couple more plain strings on top of it. User's call: do this as one dedicated pass later, not
+piecemeal per-ticket — do not fix opportunistically inside AI-chat tickets going forward. Needs
+its own scoping/ticketing pass (likely its own branch, given the blast radius) when picked up;
+not scoped further here.
+
 **Tracked, not started — blocked on an external dependency (noted 2026-08-02):** the user is
 porting `luacheck` to TypeScript, to eventually replace fengari-web entirely as devkit's Lua
 lint engine — removing the CSP-sandboxing workaround (`src/sandbox/luaLint/`,
