@@ -667,6 +667,41 @@ until the port exists.
       edit a tile with a `Button`/`publish_event` handler, run the preview, confirm the click
       actually fires (the review dialog appears / the tile's own state updates) instead of doing
       nothing.
+- [ ] T10.2 — base (non-Tiles) session, ask it to set a dark purple theme, confirm it applies
+      end-to-end through the new registry + `AgentSession` path.
+- [ ] T10.2 regression — general chat still works after the `useToolExecutor` deletion: send a
+      plain message with no tool call, confirm a normal reply streams in with no console errors.
+- [ ] T10.3 — open several tabs including a Tiles session paused mid-`ask_questions`, reload the
+      browser, confirm every tab reappears with history intact and the paused session resumes
+      correctly on answering.
+- [ ] T10.3 — hit the 20-tab cap creating a 21st tab, confirm the close-picker dialog appears
+      (nothing closes silently); confirm a tab's title goes from spinner/placeholder to a real
+      LLM-generated title after the first exchange completes.
+- [ ] T10.4 — paste a real API key into a new/existing provider form, confirm models populate
+      without touching "Detect models"; confirm the manual button still works as a retry.
+- [ ] T10.5 — type "@" in the AI chat textarea, confirm people and "Tiles" both appear in one
+      dropdown; confirm selecting a person inserts `nostr:npub1...` and selecting "Tiles" inserts
+      plain `@Tiles` text with no side effect (no session fork).
+- [ ] T10.5/bugfix — with a short (1-3 item) dropdown result list, confirm it sits flush against
+      the textarea with no gap, both when it renders below the caret and when it flips above
+      (try near the top and bottom of the viewport).
+- [ ] T10.6 — base (non-Tiles) session, ask "what can you help me with in Ditto?", confirm the
+      reply mentions Tiles/widget creation without the tool having been called.
+- [ ] T10.7 — base (non-Tiles) session, ask "what does NIP-57 define?", confirm the AI calls
+      `fetch_nip` and answers from the real spec text.
+- [ ] T10.9 — base session, ask it to look up a known npub's profile, and separately ask it to
+      find recent kind-1 notes tagging a hashtag; confirm both answer from real relay data (not a
+      hallucinated answer) via the `nak` tool.
+- [ ] Layout bugfix (`c5b77bb3`) — at mobile width (~390px) and desktop width (≥900px), confirm
+      the page itself never scrolls: header, tab bar, provider/model row, and textarea stay
+      pinned while only the message list scrolls underneath. Check both the empty-chat state and
+      a long conversation.
+- [ ] Asset-path bugfix (`0283fe23`) — build with `--mode ghpages` (or check the deployed GitHub
+      Pages preview) and confirm `IntroImage`s, the letter-compose logo, and the webxdc cartridge
+      image all load instead of 404ing.
+- [ ] T10.1 regression (re-check after T10.2's rewrite) — toggle an ability on, confirm a new
+      tab forks with the right system prompt/tools; switch provider mid-session, confirm history
+      is preserved and the next reply uses the new provider.
 
 ## Working agreement
 
