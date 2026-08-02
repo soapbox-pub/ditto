@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAIProviders, type AIProviderKind, type AIProviderProfile } from '@/hooks/useAIProviders';
+import { useAutoDetectModels } from '@/hooks/useAutoDetectModels';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
@@ -38,6 +39,8 @@ interface FormState {
   baseURL: string;
   apiKey: string;
   syncEnabled: boolean;
+  /** Models detected in the form; saved along with the profile. */
+  models: AIProviderProfile['models'];
 }
 
 function emptyForm(): FormState {
@@ -47,6 +50,7 @@ function emptyForm(): FormState {
     baseURL: KIND_BASE_URLS.openrouter,
     apiKey: '',
     syncEnabled: false,
+    models: [],
   };
 }
 
@@ -57,6 +61,7 @@ function formFromProfile(profile: AIProviderProfile): FormState {
     baseURL: profile.baseURL,
     apiKey: profile.apiKey,
     syncEnabled: profile.syncEnabled,
+    models: profile.models,
   };
 }
 
@@ -81,12 +86,22 @@ interface ProviderFormDialogProps {
 
 function ProviderFormDialog({ open, editing, onOpenChange, onSave, hasNip44Support }: ProviderFormDialogProps) {
   const intl = useIntl();
+  const { config } = useAppContext();
   const [form, setForm] = useState<FormState>(emptyForm);
+  // True only after the user typed/pasted into the apiKey field, so opening
+  // the dialog never counts as an apiKey change for auto-detect.
+  const [apiKeyEdited, setApiKeyEdited] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+  const [detectError, setDetectError] = useState(false);
 
   // Re-seed the form whenever the dialog opens (or the edited profile changes).
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setApiKeyEdited(false);
+      return;
+    }
     setForm(editing ? formFromProfile(editing) : emptyForm());
+    setApiKeyEdited(false);
   }, [open, editing]);
 
   const canSave = form.name.trim().length > 0 && form.baseURL.trim().length > 0;
@@ -94,6 +109,40 @@ function ProviderFormDialog({ open, editing, onOpenChange, onSave, hasNip44Suppo
   function handleKindChange(kind: AIProviderKind) {
     setForm((f) => ({ ...f, kind, baseURL: KIND_BASE_URLS[kind] }));
   }
+
+  /** Detects models for the current form values; shared by auto-detect and the button. */
+  async function runDetect() {
+    const apiKeyAtCall = form.apiKey;
+    setDetecting(true);
+    setDetectError(false);
+    try {
+      const provider: AIProvider = {
+        id: form.kind,
+        name: form.name,
+        baseURL: form.baseURL,
+        apiKey: form.apiKey,
+        models: [],
+      };
+      const models = await fetchModels(provider, {
+        referer: window.location.origin,
+        title: config.appName,
+      });
+      // Drop stale results if the key changed while the fetch was in flight —
+      // the newer key's own debounced detect will populate the models.
+      setForm((f) => (f.apiKey === apiKeyAtCall ? { ...f, models } : f));
+    } catch {
+      setDetectError(true);
+    } finally {
+      setDetecting(false);
+    }
+  }
+
+  useAutoDetectModels({
+    apiKey: form.apiKey,
+    baseURL: form.baseURL,
+    userEdited: apiKeyEdited,
+    onDetect: runDetect,
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -160,7 +209,10 @@ function ProviderFormDialog({ open, editing, onOpenChange, onSave, hasNip44Suppo
               type="password"
               autoComplete="off"
               value={form.apiKey}
-              onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
+              onChange={(e) => {
+                setApiKeyEdited(true);
+                setForm((f) => ({ ...f, apiKey: e.target.value }));
+              }}
               placeholder={intl.formatMessage({ id: 'settings.ai.apiKeyPlaceholder', defaultMessage: 'sk-...' })}
             />
             {!form.syncEnabled && (
@@ -168,6 +220,37 @@ function ProviderFormDialog({ open, editing, onOpenChange, onSave, hasNip44Suppo
                 <FormattedMessage id="settings.ai.localOnlyWarning" defaultMessage={'Stored unencrypted on this device only'} />
               </p>
             )}
+          </div>
+
+          {/* Auto-detect status and the manual retry button share this inline UI. */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              {detecting ? (
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Loader2 className="size-3 animate-spin" />
+                  <FormattedMessage id="settings.ai.detecting" defaultMessage={'Detecting models…'} />
+                </p>
+              ) : detectError ? (
+                <p className="text-xs text-destructive">
+                  <FormattedMessage
+                    id="settings.ai.detectFailedInline"
+                    defaultMessage={'Model detection failed. Check the base URL and API key, then retry.'}
+                  />
+                </p>
+              ) : form.models.length > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  <FormattedMessage
+                    id="settings.ai.detectedTitle"
+                    defaultMessage="{count, plural, one {# model detected} other {# models detected}}"
+                    values={{ count: form.models.length }}
+                  />
+                </p>
+              ) : null}
+            </div>
+            <Button size="sm" variant="outline" onClick={runDetect} disabled={detecting}>
+              {detecting && <Loader2 className="size-4 animate-spin" />}
+              <FormattedMessage id="settings.ai.detectModels" defaultMessage={'Detect models'} />
+            </Button>
           </div>
 
           <div className="flex items-center justify-between gap-4">
@@ -242,6 +325,7 @@ export function SettingsAIPage() {
         name: form.name.trim(),
         baseURL: form.baseURL.trim(),
         apiKey: form.apiKey,
+        models: form.models,
         syncEnabled: form.syncEnabled,
       });
       toast({
@@ -253,7 +337,7 @@ export function SettingsAIPage() {
         name: form.name.trim(),
         baseURL: form.baseURL.trim(),
         apiKey: form.apiKey,
-        models: [],
+        models: form.models,
         syncEnabled: form.syncEnabled,
       });
       toast({
