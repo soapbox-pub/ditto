@@ -571,6 +571,13 @@ while discussing this phase's scope)*:
   rely on.
 - A nostr-canvas spec (TIP) clarification: `render_event`-placement tiles must not render their
   own action buttons — that's the client's job (tile chrome and/or feed rendering).
+- Lua linting for the Tiles ability. The user is porting `luacheck` to TypeScript to eventually
+  serve as devkit's Lua lint engine, removing any need for a `fengari-web` CSP-sandboxing
+  workaround. `ai-chat-tlc` briefly added a sandboxed-iframe lint implementation
+  (`src/sandbox/luaLint/`, `useLuaLintSandbox.tsx`) but deleted it as dead code since nothing in
+  that branch's UI ever wired it up — wait for the `luacheck` port and build lint support
+  directly against it here, rather than resurrecting the sandbox approach. Not scoped further
+  until the port exists.
 
 ---
 
