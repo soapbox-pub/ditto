@@ -9,15 +9,6 @@
 export { BlobbiOnboardingFlow } from './components/BlobbiOnboardingFlow';
 export { BlobbiHatchingCeremony } from './components/BlobbiHatchingCeremony';
 
-// Hooks (used internally; kept exported for potential external use)
-export { useBlobbiOnboarding } from './hooks/useBlobbiOnboarding';
-export type {
-  OnboardingStep,
-  OnboardingState,
-  OnboardingActions,
-  UseBlobbiOnboardingResult,
-} from './hooks/useBlobbiOnboarding';
-
 // Utilities
 export {
   generateEggPreview,
