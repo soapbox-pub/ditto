@@ -614,6 +614,29 @@ such dependency and can dispatch independently, any time.
       *Eval:* the punch list itself is the deliverable — user reviews it and either approves it
       for an implementation ticket or redirects specific items.
 
+- [ ] **T10.9 `nak` tool: general read-only Nostr network access, base bundle.** Facts
+      confirmed: devkit's 12 tools have no generic query/profile-lookup tool — `search_nips`/
+      `fetch_nip` are the only Nostr-touching tools, both single-purpose. Ditto's own
+      `useNostr()` (`@nostrify/react`) exposes `nostr.query(filters, { signal })`, the standard
+      pattern used by ~50 existing hooks; `nostr-tools@2.13.0` (already a dependency) provides
+      NIP-19 encode/decode.
+      Decision: one tool, `nak` (named after the real `nak` CLI), added to the **base** bundle
+      (always available, same tier as `search_nips`/`fetch_nip`), built with a discriminated
+      action parameter: `req` (query events by kinds/authors/tags/since/until/limit, capped
+      result count + content-snippet truncation like `search_nips` already does), `fetch` (a
+      single event by id, hex or `note1`/`nevent1`), `profile` (kind-0 metadata by pubkey/
+      `npub1`), `decode`/`encode` (NIP-19 utilities). Built on Ditto's own `useNostr()` client
+      (via `useToolRegistry()`'s existing live-hook-value pattern), not a bare `SimplePool` —
+      reuses the app's real relay pool/session rather than a second one.
+      **Explicitly excluded from v1: publish/sign.** An AI-invoked tool call has no per-call
+      user confirmation surface today (unlike a tile's `publish_event`, which is a deliberate,
+      visible action in the UI) — read-only queries only, this ticket does not add any way for
+      the AI to publish events.
+      *Eval:* unit tests for each action (req/fetch/profile/decode/encode) against a mocked
+      `nostr.query`; base-bundle membership test alongside the existing NIP tools. Manual (user
+      will run before closing): in a base session, ask "look up npub1... 's profile" or "find
+      recent kind 1 notes tagging #nostr", confirm the AI calls `nak` and answers from real data.
+
 **Tracked, not started — codebase-wide, deliberately deferred (noted 2026-08-02):** a full i18n
 sweep — every user-visible string wrapped in `FormattedMessage`/`intl.formatMessage()` per
 AGENTS.md's i18n rule — is needed across the whole Ditto codebase, not just this branch's AI
