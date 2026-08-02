@@ -5,7 +5,7 @@ import { createSessionOpenAIClient, sessionModelId } from '@/lib/aiClient';
 import { useCurrentUser } from './useCurrentUser';
 import type { AIProviderProfile } from './useAIProviders';
 import type { ChatSession, SessionPatch } from './useChatSessions';
-import { buildTitlePrompt, cleanTitle, isFirstExchangeComplete } from '@/lib/autoTitle';
+import { AUTO_TITLE_MAX_TOKENS, buildTitlePrompt, cleanTitle, isFirstExchangeComplete } from '@/lib/autoTitle';
 
 type AgentSnapshot = ReturnType<AgentSession['getSnapshot']>;
 
@@ -50,7 +50,7 @@ export function useAutoTitle({ sessions, snapshots, profiles, updateSession }: U
           client.chat.completions.create({
             model: sessionModelId(session),
             messages: [{ role: 'user', content: buildTitlePrompt(snapshot.messages) }],
-            max_tokens: 12,
+            max_tokens: AUTO_TITLE_MAX_TOKENS,
             temperature: 0,
           }),
         )
@@ -58,8 +58,9 @@ export function useAutoTitle({ sessions, snapshots, profiles, updateSession }: U
           const title = cleanTitle(res.choices?.[0]?.message?.content ?? '');
           if (title) updateSession(session.id, { title });
         })
-        .catch(() => {
+        .catch((err) => {
           // Leave the placeholder; the next completed exchange retries.
+          console.error('[useAutoTitle] title generation failed:', err);
         })
         .finally(() => {
           inFlightRef.current.delete(session.id);

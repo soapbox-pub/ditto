@@ -3,6 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import type { AgentSession, SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
 
 import { useAutoTitle } from './useAutoTitle';
+import { AUTO_TITLE_MAX_TOKENS } from '@/lib/autoTitle';
 import type { AIProviderProfile } from './useAIProviders';
 import type { ChatSession } from './useChatSessions';
 
@@ -104,7 +105,7 @@ describe('useAutoTitle', () => {
 
     // The completion uses the session's own model id, not a Shakespeare one.
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ model: 'model-1', max_tokens: 12, temperature: 0 }),
+      expect.objectContaining({ model: 'model-1', max_tokens: AUTO_TITLE_MAX_TOKENS, temperature: 0 }),
     );
     expect(updateSession).toHaveBeenCalledWith('s1', { title: 'Generated Title' });
   });
@@ -134,7 +135,7 @@ describe('useAutoTitle', () => {
 
     // sessionModelId strips the picker's "shakespeare/" prefix.
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ model: 'glm-4.5', max_tokens: 12, temperature: 0 }),
+      expect.objectContaining({ model: 'glm-4.5', max_tokens: AUTO_TITLE_MAX_TOKENS, temperature: 0 }),
     );
     expect(updateSession).toHaveBeenCalledWith('s1', { title: 'Shakespeare Title' });
   });

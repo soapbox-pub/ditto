@@ -11,6 +11,15 @@ const PROMPT_TURNS = 12;
 const TURN_MAX_LENGTH = 300;
 
 /**
+ * Token budget for the titling completion. Reasoning models spend part of
+ * this budget on reasoning_content before emitting the actual title, so this
+ * needs real headroom above the ~12 tokens a plain model would need — too
+ * low and a reasoning model hits finish_reason "length" with empty content,
+ * silently producing no title at all.
+ */
+export const AUTO_TITLE_MAX_TOKENS = 500;
+
+/**
  * True once a session has a complete first exchange: at least one user message
  * and at least one assistant message with real content (tool-call-only
  * assistant messages do not count as a reply).
