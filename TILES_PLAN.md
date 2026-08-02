@@ -405,8 +405,9 @@ T4.2/T4.3, for the full handoff). That effort split its own Phase 10 into two wa
 (provider settings, abilities menu, tool registry, tabs/history) ships in `ai-chat-tlc` itself;
 Wave B is the part that can only be built once **this** branch's marketplace/
 `CanvasRuntimeProvider` work exists — so it lands here instead, as this phase. Original ticket IDs
-were T10.4-T10.7+; renumbered T8.1-T8.4 to match this doc's scheme. Only T8.4 (remix) carries
-real grilled detail already; T8.1-T8.3 still need their own grilling pass before dispatch, per this
+were T10.4-T10.7+; renumbered T8.1-T8.4 to match this doc's scheme. T8.1 (preview) and T8.4
+(remix) carry real grilled detail already; T8.2/T8.3 still need their own grilling pass before
+dispatch, per this
 doc's working agreement — do that once this branch has rebased onto `ai-chat-tlc`.
 
 Devkit facts needed to read T8.1 (from `ai-chat-tlc`'s decision record, ticket D6, re-grilled
@@ -425,13 +426,51 @@ already-`PreviewAdapter`-wrapped real adapter), `build(code, settings, metadata)
 `{ ok: true, tileId } | { ok: false, error }`, `subscribe(cb)` (stable output subscription,
 transparently re-wires across rebuilds), `destroy()`.
 
-- [ ] **T8.1 Isolated preview panel** *(was T10.4)*. devkit's `PreviewSession`/`PreviewAdapter`
-      mounted in their own separate `NostrCanvasProvider` tree inside the chat UI (never shares
-      this app's own `CanvasRuntimeProvider`), wired to Ditto's **real** adapter/login
-      (`previewPubkey` = logged-in user's pubkey, or devkit's ephemeral-identity helper if logged
-      out) per D6's design above. Publish-review UI: shows the AI's signed event, user chooses
-      publish/discard. *Not yet grilled to dispatch-ready — do a short grilling pass before
-      dispatch.*
+- [ ] **T8.1 Embedded preview cards — grilled 2026-08-02, ready to dispatch** *(was T10.4)*.
+      Renamed from "isolated preview panel": the preview does **not** live in a separate side
+      panel. It renders inline, embedded as a rich object directly in the chat transcript, at the
+      point of each `preview_tile` tool call.
+
+      Facts confirmed first (not guessed): `PreviewTileTool.execute()` (`devkit/tools/
+      preview-tile.ts`) already embeds a hidden tag in its plain-text tool result —
+      `<!--PREVIEW:snap_N-->` — with `parsePreviewSnapshotId(content)` to extract it and
+      `getPreviewSnapshot(id)` to fetch the actual `{ code, settings, settingMeta, placement,
+      metadata }` data by id. `write-code.ts`'s `CODE_VERSION_TAG` (`<!--CODE_VERSION:N-->`) uses
+      the identical pattern for code versions. So devkit already has a generic "tag-in-content,
+      look-up-rich-data-by-id" convention established twice — Ditto doesn't need to invent a rich-
+      embed mechanism, just build **one host-side renderer** that scans tool-result message
+      content for known devkit tags and dispatches to a per-tag renderer component.
+      `PreviewAdapter.publishEvent`'s discard path (`preview-adapter.ts:85-86`) literally
+      `throw`s `new Error("Publish discarded by review callback.")` back into the calling Lua code
+      — confirmed against source, not assumed.
+
+      Decisions:
+      - **Rich-embed mechanism is generic from the start**: a tool-result-tag → renderer-component
+        registry, keyed by tag type (today: `PREVIEW_SNAPSHOT_TAG` → the preview card component).
+        `preview_tile` is the first and only consumer today, but a second rich tool later doesn't
+        need a refactor.
+      - **One card per `preview_tile` call**, not one live-updating card. Each call mints a new
+        `snap_N` id (confirmed: `storeSnapshot` increments `nextSnapshotId` every call), so the
+        chat transcript naturally accumulates a visible history of iterations rather than
+        overwriting in place.
+      - **Each card gets its own isolated `PreviewSession`** (built from that snapshot's `{ code,
+        settings, metadata }` via `getPreviewSnapshot(id)`), not a single session shared across all
+        cards in a tab. Cheap to construct (wraps an adapter + grantBackend + previewPubkey).
+        Keeps every historical card independently interactive — clicking an older card's buttons
+        never rebuilds or clobbers whatever the AI is currently iterating on.
+      - **Cap of 5 live/interactive cards per tab.** Beyond the cap, the oldest live card
+        auto-freezes to a static last-rendered screenshot instead of a running runtime, bounding
+        worker/memory usage on long iteration sessions.
+      - `previewPubkey` = logged-in user's pubkey, or devkit's ephemeral-identity helper if logged
+        out, per D6's design above. Publish-review UI on a card: shows the AI's signed event, user
+        chooses publish/discard; discard surfaces as a real thrown error the AI's tool-calling loop
+        sees, not a silent no-op.
+      *Eval:* automated — unit tests for the tag-registry renderer (unknown tags render as plain
+      text, known tags dispatch correctly), the per-card isolated-session construction, and the
+      5-card live cap (oldest freezes on the 6th). Manual (user will run before closing): ask the
+      Tiles ability to iterate on a widget 6+ times, confirm each `preview_tile` call produces its
+      own card, the oldest freezes once the cap is hit, and clicking an older still-live card's
+      button doesn't affect the newest card's state.
 - [ ] **T8.2 Publish flow** *(was T10.5)*. Once a drafted widget looks right in preview, publish
       it as a real kind 30207 event — reusing this branch's marketplace publish/install plumbing,
       gated on the user having a NIP-05 (identifiers are `nip05:slug`), with a d-tag collision
