@@ -295,6 +295,9 @@ colors, expand/collapse, grid stretch fix `3a3c498b`).
       localStorage key `ditto:marketplace-nag-dismissed`, but
       **`ALWAYS_SHOW_NAG = true` temporary flag per user — flip to
       false later to restore first-open-only gating.**
+- [x] **NIP.md kind 30207 spec-link version drift fixed.** Dirk's review of
+      `!245` flagged the link (`nostr-canvas@0.12.1`) as stale against the
+      actual `^0.14.6` dependency. Bumped to `0.14.6` in `6e3da957`.
 
 ## Phase 5 — Tile-claimed kinds in feeds (native generic cards) — `pending`
 
