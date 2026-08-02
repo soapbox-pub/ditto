@@ -28,6 +28,7 @@ const TILES_NAMES = [
 function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
   return {
     id: 'sess-1',
+    title: '',
     abilities: [],
     providerId: 'shakespeare',
     modelId: 'shakespeare/model',

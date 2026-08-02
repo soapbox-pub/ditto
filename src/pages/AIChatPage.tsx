@@ -2,19 +2,20 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { Bot, Send, Trash2, Palette, Type, Sparkles } from 'lucide-react';
+import { Bot, Send, Trash2, Palette, Type, Sparkles, Plus, X, Loader2 } from 'lucide-react';
 
 import { getWidgetCreationSystemPrompt, isCompactionMarker } from '@soapbox.pub/nostr-canvas/devkit';
 import type { SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
 
 import { PageHeader } from '@/components/PageHeader';
 import { useShakespeare, useShakespeareCredits, type Model } from '@/hooks/useShakespeare';
-import { useChatSessions, type DisplayMessage, type ToolCall, type ChatSession } from '@/hooks/useChatSessions';
+import { useChatSessions, type DisplayMessage, type ToolCall, type ChatSession, type CreateSessionInput } from '@/hooks/useChatSessions';
 import { useAIProviders } from '@/hooks/useAIProviders';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useToolRegistry } from '@/hooks/useToolRegistry';
 import { useAgentSessions } from '@/hooks/useAgentSessions';
+import { useAutoTitle } from '@/hooks/useAutoTitle';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,7 +27,17 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+
 import { cn } from '@/lib/utils';
+import { isAtTabCap, MAX_OPEN_TABS } from '@/lib/chatTabsStorage';
 import { DorkThinking } from '@/components/DorkThinking';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 
@@ -110,13 +121,15 @@ export function AIChatPage() {
   const { user } = useCurrentUser();
   const { getAvailableModels } = useShakespeare();
   const hasCredits = useShakespeareCredits();
-  const { activeSession, activeSessionId, sessions, createSession, setActiveSessionId, updateSession } = useChatSessions();
+  const { activeSession, activeSessionId, sessions, createSession, setActiveSessionId, closeSession, updateSession } = useChatSessions();
   const { profiles } = useAIProviders();
   const { buildSessionTools } = useToolRegistry();
 
   const [input, setInput] = useState('');
   const [models, setModels] = useState<Model[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
+  const [capDialogOpen, setCapDialogOpen] = useState(false);
+  const [pendingCreation, setPendingCreation] = useState<CreateSessionInput | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -127,7 +140,7 @@ export function AIChatPage() {
       : buildSystemPrompt(config.appName);
   }, [config.appName]);
 
-  const { snapshot: agentSnapshot, buildError, sendMessage, clearActiveSession } = useAgentSessions({
+  const { snapshots, buildError, sendMessage, clearActiveSession } = useAgentSessions({
     sessions,
     activeSessionId,
     profiles,
@@ -136,6 +149,10 @@ export function AIChatPage() {
     buildSessionTools,
     systemPromptFor,
   });
+
+  useAutoTitle({ sessions, snapshots, models, updateSession });
+
+  const agentSnapshot = snapshots[activeSessionId] ?? null;
 
   const messages = useMemo(
     () => snapshotToDisplayMessages(agentSnapshot?.messages ?? []),
@@ -235,15 +252,35 @@ export function AIChatPage() {
     updateSession(activeSessionId, { modelId: value });
   }, [activeSessionId, updateSession]);
 
+  // Opening a 21st tab at the cap prompts which existing tab(s) to close
+  // instead of silently closing anything. The dialog finishes the creation
+  // once room has been made.
+  const createSessionGuarded = useCallback((input: CreateSessionInput) => {
+    if (isAtTabCap(sessions.length)) {
+      setPendingCreation(input);
+      setCapDialogOpen(true);
+      return;
+    }
+    createSession(input);
+  }, [sessions.length, createSession]);
+
   // Toggling an ability forks a new session carrying over the current
   // provider/model. The new session becomes active automatically.
   const handleTilesToggle = useCallback((checked: boolean | 'indeterminate') => {
-    createSession({
+    createSessionGuarded({
       abilities: checked === true ? ['tiles'] : [],
       providerId: activeSession.providerId,
       modelId: activeSession.modelId,
     });
-  }, [activeSession.providerId, activeSession.modelId, createSession]);
+  }, [activeSession.providerId, activeSession.modelId, createSessionGuarded]);
+
+  const handleNewChat = useCallback(() => {
+    createSessionGuarded({
+      abilities: [],
+      providerId: activeSession.providerId,
+      modelId: activeSession.modelId,
+    });
+  }, [activeSession.providerId, activeSession.modelId, createSessionGuarded]);
 
   const modelOptions = useMemo(() => {
     if (activeSession.providerId === 'shakespeare') {
@@ -297,22 +334,99 @@ export function AIChatPage() {
 
       {/* Session tabs */}
       <div className="flex items-center gap-1 px-4 pt-2 overflow-x-auto">
-        {sessions.map((session, index) => {
+        {sessions.map((session) => {
           const isActive = session.id === activeSessionId;
-          const label = session.abilities.includes('tiles') ? `Tiles ${index + 1}` : `Chat ${index + 1}`;
           return (
-            <Button
-              key={session.id}
-              variant={isActive ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveSessionId(session.id)}
-              className={cn('shrink-0 rounded-full text-xs', isActive && 'font-medium')}
-            >
-              {label}
-            </Button>
+            <div key={session.id} className="flex items-center shrink-0">
+              <Button
+                variant={isActive ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveSessionId(session.id)}
+                className="rounded-full text-xs max-w-36"
+              >
+                {session.title ? (
+                  <span className="truncate">{session.title}</span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+                    New chat
+                  </span>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 rounded-full -ml-1 shrink-0"
+                onClick={() => closeSession(session.id)}
+                disabled={sessions.length === 1}
+                title="Close chat"
+                aria-label="Close chat"
+              >
+                <X className="size-3" />
+              </Button>
+            </div>
           );
         })}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleNewChat}
+          className="shrink-0 rounded-full text-xs gap-1"
+        >
+          <Plus className="size-3.5" />
+          New chat
+        </Button>
       </div>
+
+      {/* Cap-hit dialog: choose which tab(s) to close to make room */}
+      <Dialog open={capDialogOpen} onOpenChange={setCapDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Too many open chats</DialogTitle>
+            <DialogDescription>
+              You have {sessions.length} open chats, the maximum is {MAX_OPEN_TABS}. Close one or more
+              to make room for a new one.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-64">
+            <div className="space-y-1 pr-3">
+              {sessions.map((session) => (
+                <div
+                  key={session.id}
+                  className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-secondary/60"
+                >
+                  <span className="text-sm truncate min-w-0">{session.title || 'New chat'}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 shrink-0"
+                    onClick={() => closeSession(session.id)}
+                    title="Close chat"
+                    aria-label="Close chat"
+                  >
+                    <X className="size-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCapDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={isAtTabCap(sessions.length)}
+              onClick={() => {
+                if (pendingCreation) createSession(pendingCreation);
+                setCapDialogOpen(false);
+                setPendingCreation(null);
+              }}
+            >
+              Open new chat
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Messages Area */}
       {messages.length === 0 ? (

@@ -1,10 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 import { useChatSessions } from './useChatSessions';
 import type { ChatSession, DisplayMessage } from './useChatSessions';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// useChatSessions persists to localStorage, so tests must not leak tabs into
+// each other's bootstrap state.
+beforeEach(() => {
+  localStorage.clear();
+});
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 function makeMessage(overrides: Partial<DisplayMessage> = {}): DisplayMessage {

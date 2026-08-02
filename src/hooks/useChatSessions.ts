@@ -1,4 +1,14 @@
 import { useState } from 'react';
+import type { SerializedSession } from '@soapbox.pub/nostr-canvas/devkit';
+
+import {
+  getStoredTabs,
+  saveTab,
+  removeTab,
+  patchTabMetadata,
+  pruneStaleTabs,
+  type PersistedTab,
+} from '@/lib/chatTabsStorage';
 
 /** A single tool call attached to a chat message. */
 export interface ToolCall {
@@ -23,6 +33,8 @@ export type Ability = 'tiles';
 /** A single chat conversation. */
 export interface ChatSession {
   id: string;
+  /** LLM-generated tab label; empty until the auto-title resolves. */
+  title: string;
   abilities: Ability[];
   providerId: string;
   modelId: string;
@@ -40,11 +52,14 @@ export interface CreateSessionInput {
 }
 
 /** Fields that can be patched on an existing session. */
-export type SessionPatch = Partial<Pick<ChatSession, 'providerId' | 'modelId' | 'messages'>>;
+export type SessionPatch = Partial<Pick<ChatSession, 'providerId' | 'modelId' | 'messages' | 'title'>>;
+
+const EMPTY_AGENT: SerializedSession = { messages: [], pendingInput: null, pendingToolCalls: [] };
 
 function createSessionObject(input: CreateSessionInput): ChatSession {
   return {
     id: crypto.randomUUID(),
+    title: '',
     abilities: input.abilities,
     providerId: input.providerId,
     modelId: input.modelId,
@@ -54,24 +69,69 @@ function createSessionObject(input: CreateSessionInput): ChatSession {
   };
 }
 
+/** Map a persisted tab record back into an in-memory session. */
+function tabToSession(tab: PersistedTab): ChatSession {
+  return {
+    id: tab.id,
+    title: tab.title,
+    abilities: tab.abilities,
+    providerId: tab.providerId,
+    modelId: tab.modelId,
+    messages: [],
+    createdAt: new Date(tab.createdAt),
+    seedCode: tab.seedCode,
+  };
+}
+
+/** Map a session into a persisted tab record. */
+function tabFromSession(session: ChatSession, agent: SerializedSession = EMPTY_AGENT): PersistedTab {
+  return {
+    id: session.id,
+    title: session.title,
+    abilities: session.abilities,
+    providerId: session.providerId,
+    modelId: session.modelId,
+    seedCode: session.seedCode,
+    createdAt: session.createdAt.getTime(),
+    updatedAt: Date.now(),
+    agent,
+  };
+}
+
 interface ChatState {
   sessions: ChatSession[];
   activeSessionId: string;
 }
 
 /**
- * In-memory multi-session chat state. Not persisted — a later ticket adds
- * localStorage. Bootstraps one default session on first render.
+ * Multi-session chat state backed by localStorage.
+ *
+ * Persistence: one localStorage entry per tab (the session metadata plus the
+ * session's serialized AgentSession blob). Tab creation/closing and metadata
+ * patches (provider/model/title) write here; the agent blob itself is written
+ * by useAgentSessions on every message/state change. On first render the
+ * stored tabs are restored (after silently pruning any untouched for 30 days),
+ * or a single default session is bootstrapped when nothing is stored.
  */
 export function useChatSessions() {
   const [state, setState] = useState<ChatState>(() => {
+    pruneStaleTabs(); // Silent housekeeping: drop tabs untouched for 30 days.
+    const stored = getStoredTabs();
+    if (stored.length > 0) {
+      return {
+        sessions: stored.map(tabToSession),
+        activeSessionId: stored[0].id,
+      };
+    }
     const bootstrap = createSessionObject({ abilities: [], providerId: 'shakespeare', modelId: '' });
+    saveTab(tabFromSession(bootstrap));
     return { sessions: [bootstrap], activeSessionId: bootstrap.id };
   });
 
   /** Append a fresh session and make it active. Returns the created session. */
   function createSession(input: CreateSessionInput): ChatSession {
     const session = createSessionObject(input);
+    saveTab(tabFromSession(session));
     setState((prev) => ({
       sessions: [...prev.sessions, session],
       activeSessionId: session.id,
@@ -96,6 +156,10 @@ export function useChatSessions() {
       // The last remaining session cannot be closed.
       if (next.length === 0) return prev;
 
+      // Hard delete: the tab's localStorage entry goes immediately. There is
+      // no "recently closed" recovery surface.
+      removeTab(id);
+
       let activeSessionId = prev.activeSessionId;
       if (activeSessionId === id) {
         const nextIndex = Math.min(index, next.length - 1);
@@ -105,12 +169,19 @@ export function useChatSessions() {
     });
   }
 
-  /** Patch provider/model/messages on a single session without touching the others. */
+  /** Patch provider/model/messages/title on a single session without touching the others. */
   function updateSession(id: string, patch: SessionPatch): void {
     setState((prev) => ({
       ...prev,
       sessions: prev.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)),
     }));
+    // Persist the metadata fields; the agent blob is preserved by the merge.
+    const metadata = {
+      ...(patch.title !== undefined && { title: patch.title }),
+      ...(patch.providerId !== undefined && { providerId: patch.providerId }),
+      ...(patch.modelId !== undefined && { modelId: patch.modelId }),
+    };
+    patchTabMetadata(id, metadata);
   }
 
   const activeSession = state.sessions.find((s) => s.id === state.activeSessionId)!;
