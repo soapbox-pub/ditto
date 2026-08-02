@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Plus } from 'lucide-react';
+import { Bot, Copy, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { FormattedMessage, useIntl, defineMessage, type MessageDescriptor } from 'react-intl';
 import { fetchModels, type AIProvider } from '@soapbox.pub/nostr-canvas/devkit';
 
 import { PageHeader } from '@/components/PageHeader';
 import { IntroImage } from '@/components/IntroImage';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -436,7 +437,7 @@ export function SettingsAIPage() {
             <h2 className="text-base font-semibold">
               <FormattedMessage id="settings.ai.providersTitle" defaultMessage={'AI Providers'} />
             </h2>
-            <Button onClick={openAddDialog} className="shrink-0">
+            <Button onClick={openAddDialog} variant="outline" size="sm" className="shrink-0 rounded-full">
               <Plus className="size-4" />
               <FormattedMessage id="settings.ai.addProfile" defaultMessage={'Add Profile'} />
             </Button>
@@ -450,52 +451,68 @@ export function SettingsAIPage() {
             <Skeleton className="h-28 w-full rounded-xl" />
           </div>
         ) : profiles.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="py-12 px-8 text-center">
-              <p className="text-muted-foreground max-w-sm mx-auto text-sm">
-                <FormattedMessage id="settings.ai.empty" defaultMessage={'No AI providers yet. Add one to start using custom chat models.'} />
-              </p>
-            </CardContent>
-          </Card>
+          <div className="px-3">
+            <Card className="border-dashed">
+              <CardContent className="py-12 px-8 text-center">
+                <Bot className="size-8 mx-auto mb-3 text-muted-foreground/50" />
+                <p className="text-muted-foreground max-w-sm mx-auto text-sm">
+                  <FormattedMessage id="settings.ai.empty" defaultMessage={'No AI providers yet. Add one to start using custom chat models.'} />
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         ) : (
           <div className="space-y-3 px-3">
             {profiles.map((profile) => (
               <Card key={profile.id}>
-                <CardHeader className="pb-3">
+                <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center justify-center size-9 rounded-full bg-secondary shrink-0">
+                        <Bot className="size-4 text-muted-foreground" />
+                      </div>
                       <CardTitle className="text-base truncate">{profile.name}</CardTitle>
                       <span className="text-xs text-muted-foreground shrink-0">
                         <FormattedMessage {...KIND_LABELS[profile.kind]} />
                       </span>
-                      <span className="text-xs shrink-0">
+                      <Badge variant="secondary" className="shrink-0">
                         {profile.syncEnabled ? (
                           <FormattedMessage id="settings.ai.syncedBadge" defaultMessage={'Synced'} />
                         ) : (
                           <FormattedMessage id="settings.ai.localOnlyBadge" defaultMessage={'Local only'} />
                         )}
-                      </span>
+                      </Badge>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="sm" onClick={() => openEditDialog(profile)}>
-                        <FormattedMessage id="settings.ai.edit" defaultMessage={'Edit'} />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => duplicateProfile(profile.id)}>
-                        <FormattedMessage id="settings.ai.duplicate" defaultMessage={'Duplicate'} />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => openEditDialog(profile)}
+                        aria-label={intl.formatMessage({ id: 'settings.ai.edit', defaultMessage: 'Edit' })}
+                      >
+                        <Pencil className="size-4" />
                       </Button>
                       <Button
                         variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => deleteProfile(profile.id)}
+                        size="icon"
+                        className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => duplicateProfile(profile.id)}
+                        aria-label={intl.formatMessage({ id: 'settings.ai.duplicate', defaultMessage: 'Duplicate' })}
                       >
-                        <FormattedMessage id="settings.ai.delete" defaultMessage={'Delete'} />
+                        <Copy className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-9 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => deleteProfile(profile.id)}
+                        aria-label={intl.formatMessage({ id: 'settings.ai.delete', defaultMessage: 'Delete' })}
+                      >
+                        <Trash2 className="size-4" />
                       </Button>
                     </div>
                   </div>
-                  <CardDescription className="truncate">{profile.baseURL}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm text-muted-foreground">
                       <FormattedMessage
