@@ -17,7 +17,7 @@ vi.mock('@nostrify/react', () => ({
   useNostr: () => ({ nostr: { query } }),
 }));
 
-const BASE_NAMES = ['set_theme', 'search_nips', 'fetch_nip', 'nak'];
+const BASE_NAMES = ['set_theme', 'search_nips', 'fetch_nip'];
 
 const TILES_NAMES = [
   'read_code',
@@ -61,10 +61,14 @@ describe('useToolRegistry', () => {
     expect(applyCustomTheme).toHaveBeenCalled();
   });
 
-  it('builds the nak tool bound to the live nostr client', async () => {
+  it('does not put nak in the base bundle: it only appears in a nostr-lookup session, bound to the live nostr client', async () => {
     const { result } = renderHook(() => useToolRegistry());
 
-    const nak = result.current.baseTools.find((b) => b.name === 'nak')!;
+    expect(result.current.baseTools.map((b) => b.name)).not.toContain('nak');
+
+    const tools = result.current.buildSessionTools(makeSession({ abilities: ['nostr-lookup'] }));
+    const nak = tools.find((b) => b.name === 'nak')!;
+    expect(nak).toBeDefined();
     await nak.tool.execute({ action: 'req', kinds: [1] });
 
     expect(query).toHaveBeenCalled();

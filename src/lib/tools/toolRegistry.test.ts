@@ -5,15 +5,18 @@ import type { ToolResult } from '@soapbox.pub/nostr-canvas/devkit';
 
 import {
   createBaseToolBundle,
+  createNostrLookupToolBundle,
   createTilesToolBundle,
   buildSessionToolBundle,
   type TileDraftStore,
 } from './toolRegistry';
 
-const BASE_NAMES = ['set_theme', 'search_nips', 'fetch_nip', 'nak'];
+const BASE_NAMES = ['set_theme', 'search_nips', 'fetch_nip'];
 
-/** A nostr client stub; the base bundle never queries it at construction. */
+/** A nostr client stub; the bundles never query it at construction. */
 const mockNostr = { query: async () => [] } as unknown as NPool;
+
+const NOSTR_LOOKUP_NAMES = ['nak'];
 
 const TILES_NAMES = [
   'read_code',
@@ -65,30 +68,26 @@ function contentOf(result: ToolResult): string {
 
 describe('createBaseToolBundle', () => {
   it('contains the always-on base tools in order', () => {
-    const bundle = createBaseToolBundle({ applyCustomTheme: () => {}, nostr: mockNostr });
+    const bundle = createBaseToolBundle({ applyCustomTheme: () => {} });
     expect(bundle.map((b) => b.name)).toEqual(BASE_NAMES);
     expect(bundle[0].tool.inputSchema).toBeDefined();
   });
 
   it('includes the NIP lookup tools', () => {
-    const bundle = createBaseToolBundle({ applyCustomTheme: () => {}, nostr: mockNostr });
+    const bundle = createBaseToolBundle({ applyCustomTheme: () => {} });
     const names = bundle.map((b) => b.name);
     expect(names).toContain('search_nips');
     expect(names).toContain('fetch_nip');
   });
 
-  it('includes the nak tool alongside the NIP lookup tools', () => {
-    const bundle = createBaseToolBundle({ applyCustomTheme: () => {}, nostr: mockNostr });
-    const names = bundle.map((b) => b.name);
-    expect(names).toContain('nak');
-    const nak = bundle.find((b) => b.name === 'nak')!;
-    expect(nak.tool.inputSchema).toBeDefined();
-    expect(nak.tool.description).toContain('nostr');
+  it('does not include the nak tool in the always-on base bundle', () => {
+    const bundle = createBaseToolBundle({ applyCustomTheme: () => {} });
+    expect(bundle.map((b) => b.name)).not.toContain('nak');
   });
 
   it('binds the tool to the supplied applyCustomTheme closure', async () => {
     const apply = vi.fn();
-    const [entry] = createBaseToolBundle({ applyCustomTheme: apply, nostr: mockNostr });
+    const [entry] = createBaseToolBundle({ applyCustomTheme: apply });
 
     await entry.tool.execute({
       background: '0 0% 100%',
@@ -97,6 +96,16 @@ describe('createBaseToolBundle', () => {
     });
 
     expect(apply).toHaveBeenCalled();
+  });
+});
+
+describe('createNostrLookupToolBundle', () => {
+  it('contains the nak tool wired to the supplied relay pool', () => {
+    const bundle = createNostrLookupToolBundle({ nostr: mockNostr });
+    expect(bundle.map((b) => b.name)).toEqual(NOSTR_LOOKUP_NAMES);
+    const nak = bundle.find((b) => b.name === 'nak')!;
+    expect(nak.tool.inputSchema).toBeDefined();
+    expect(nak.tool.description).toContain('nostr');
   });
 });
 
@@ -211,16 +220,17 @@ describe('createTilesToolBundle', () => {
 
 describe('buildSessionToolBundle', () => {
   it('returns only the base bundle for a session with no abilities', () => {
-    const base = createBaseToolBundle({ applyCustomTheme: () => {}, nostr: mockNostr });
+    const base = createBaseToolBundle({ applyCustomTheme: () => {} });
     const result = buildSessionToolBundle({ base, abilities: [], projectId: projectId() });
     expect(result.map((b) => b.name)).toEqual(BASE_NAMES);
   });
 
   it('includes the NIP lookup tools for any ability selection', () => {
-    const base = createBaseToolBundle({ applyCustomTheme: () => {}, nostr: mockNostr });
+    const base = createBaseToolBundle({ applyCustomTheme: () => {} });
     const results = [
       buildSessionToolBundle({ base, abilities: [], projectId: projectId() }),
       buildSessionToolBundle({ base, abilities: ['tiles'], projectId: projectId() }),
+      buildSessionToolBundle({ base, abilities: ['nostr-lookup'], projectId: projectId(), nostr: mockNostr }),
     ];
     for (const result of results) {
       const names = result.map((b) => b.name);
@@ -230,13 +240,34 @@ describe('buildSessionToolBundle', () => {
   });
 
   it('concatenates the base bundle with the tiles ability bundle', () => {
-    const base = createBaseToolBundle({ applyCustomTheme: () => {}, nostr: mockNostr });
+    const base = createBaseToolBundle({ applyCustomTheme: () => {} });
     const result = buildSessionToolBundle({ base, abilities: ['tiles'], projectId: projectId() });
     expect(result.map((b) => b.name)).toEqual([...BASE_NAMES, ...TILES_NAMES]);
   });
 
+  it('adds the nak tool only for a nostr-lookup session', () => {
+    const base = createBaseToolBundle({ applyCustomTheme: () => {} });
+    const result = buildSessionToolBundle({
+      base,
+      abilities: ['nostr-lookup'],
+      projectId: projectId(),
+      nostr: mockNostr,
+    });
+    expect(result.map((b) => b.name)).toEqual([...BASE_NAMES, ...NOSTR_LOOKUP_NAMES]);
+    // A tiles-only session gets no nak: the ability is opt-in.
+    const tilesResult = buildSessionToolBundle({ base, abilities: ['tiles'], projectId: projectId() });
+    expect(tilesResult.map((b) => b.name)).not.toContain('nak');
+  });
+
+  it('throws when a nostr-lookup session is built without a relay pool', () => {
+    const base = createBaseToolBundle({ applyCustomTheme: () => {} });
+    expect(() =>
+      buildSessionToolBundle({ base, abilities: ['nostr-lookup'], projectId: projectId() }),
+    ).toThrow(/requires a nostr relay pool/);
+  });
+
   it('does not mutate the base array when concatenating', () => {
-    const base = createBaseToolBundle({ applyCustomTheme: () => {}, nostr: mockNostr });
+    const base = createBaseToolBundle({ applyCustomTheme: () => {} });
     buildSessionToolBundle({ base, abilities: ['tiles'], projectId: projectId() });
     expect(base.map((b) => b.name)).toEqual(BASE_NAMES);
   });

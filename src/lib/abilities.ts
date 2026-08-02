@@ -25,6 +25,11 @@ export const ABILITIES = [
     label: 'Tiles',
     description: 'Build a sidebar widget (a tile) that runs inside the app, with code, settings, and publishing.',
   },
+  {
+    key: 'nostr-lookup',
+    label: 'Nostr Lookup',
+    description: 'Look up Nostr profiles and events, and search recent notes by tag or author, using nak.',
+  },
 ] as const satisfies readonly AbilityInfo[];
 
 /** The set of registered ability keys. */
