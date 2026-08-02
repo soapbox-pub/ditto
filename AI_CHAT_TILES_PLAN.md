@@ -603,16 +603,37 @@ such dependency and can dispatch independently, any time.
       *Eval:* unit test — base bundle includes both tools regardless of ability selection.
       Manual (user will run before closing): in a base (non-Tiles) session, ask "what does
       NIP-57 define?", confirm the AI calls `fetch_nip` and answers from the real spec text.
-- [ ] **T10.8 `/settings/ai` design audit + polish.** Research-then-implement split (per the
+- [x] **T10.8 `/settings/ai` design audit + polish.** Research-then-implement split (per the
       plan skill's "one cohesive unit, phased internally" carve-out — same screen, same
-      mechanical design pass). First phase (this ticket): dispatch a `researcher` audit of
-      `SettingsAIPage.tsx` against the Design Standards section of `AGENTS.md` (8px grid,
-      typography hierarchy, empty/loading states, spacing/visual consistency with sibling
-      settings pages like `/settings/network` or `/settings/magic`), returning a concrete punch
-      list rather than vague "make it nicer" notes. The implementation pass is a follow-up
-      ticket once the punch list exists — not written yet.
-      *Eval:* the punch list itself is the deliverable — user reviews it and either approves it
-      for an implementation ticket or redirects specific items.
+      mechanical design pass). Audit phase (`researcher`) delivered this punch list, approved
+      by the user for implementation:
+      1. **Missing `IntroImage` hero block.** `SettingsAIPage.tsx`, between `PageHeader` and the
+         section header row. Add as the first child of `<div className="p-4 space-y-4">`:
+         `<IntroImage src="/ai-intro.png" />` (asset already exists, currently orphaned) plus a
+         `min-w-0` div with an `h2` (`text-sm font-semibold`) and a `p`
+         (`text-xs text-muted-foreground mt-1 leading-relaxed`), matching
+         `NetworkSettingsPage.tsx`/`MagicSettingsPage.tsx`/`AdvancedSettingsPage.tsx`.
+      2. **Section header lacks the accent underline + wrong heading size.** The "AI Providers"
+         row uses `px-3 pt-2 pb-1` and `h2 text-sm`; every sibling settings page uses a
+         `relative px-3 py-3.5` wrapper, `h2 text-base font-semibold`, and an
+         `absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full` accent bar (appears 17x
+         across `NetworkSettingsPage.tsx`, `AdvancedSettingsPage.tsx`, `ContentPage.tsx`,
+         `NotificationSettings.tsx`, `UserListsPage.tsx`, etc). Bring the AI page in line.
+      3. **Settings menu entry missing its `illustration`.** `SettingsPage.tsx`'s
+         `settingsSections` entry `id: 'ai'` is the only one without an `illustration` key. Add
+         `illustration: '/ai-intro.png'`.
+      *Eval:* visual/structural parity with `/settings/network` confirmed by re-reading the
+      diffed files; `npm run test` green. Manual (user will run before closing): open
+      `/settings/ai`, confirm the intro image/heading block and accent-underlined section header
+      render, and the AI row in the main `/settings` menu now shows its illustration.
+      **Post-implementation fix (orchestrator caught on review, `9af2ec32`'s first pass):** the
+      coder reused `settings.ai.providersTitle` ("AI Providers") for both the intro hero and the
+      section header immediately below it — an exact duplicate heading, unlike every sibling page
+      (Network's hero says "Network Connections", its section says "Relays" — always distinct
+      text). Fixed by adding a dedicated `settings.ai.introTitle` string ("Bring Your Own AI") for
+      the hero, following the `settings.<section>.introTitle` id convention already used by
+      `AdvancedSettingsPage.tsx`/`MagicSettingsPage.tsx`; the section header keeps
+      `providersTitle`. Re-verified `npm run test` green (497/497) after the fix.
 
 - [ ] **T10.9 `nak` tool: general read-only Nostr network access, base bundle.** Facts
       confirmed: devkit's 12 tools have no generic query/profile-lookup tool — `search_nips`/
@@ -692,6 +713,9 @@ until the port exists.
 - [ ] T10.9 — base session, ask it to look up a known npub's profile, and separately ask it to
       find recent kind-1 notes tagging a hashtag; confirm both answer from real relay data (not a
       hallucinated answer) via the `nak` tool.
+- [ ] T10.8 — open `/settings/ai`, confirm the intro image + "Bring Your Own AI" heading render
+      above a distinct "AI Providers" accent-underlined section header (no duplicate text); open
+      `/settings`, confirm the AI row now shows its illustration alongside the other sections.
 - [ ] Layout bugfix (`c5b77bb3`) — at mobile width (~390px) and desktop width (≥900px), confirm
       the page itself never scrolls: header, tab bar, provider/model row, and textarea stay
       pinned while only the message list scrolls underneath. Check both the empty-chat state and

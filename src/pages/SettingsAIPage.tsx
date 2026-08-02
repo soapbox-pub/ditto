@@ -421,7 +421,7 @@ export function SettingsAIPage() {
           <IntroImage src="/ai-intro.png" />
           <div className="min-w-0">
             <h2 className="text-sm font-semibold">
-              <FormattedMessage id="settings.ai.providersTitle" defaultMessage={'AI Providers'} />
+              <FormattedMessage id="settings.ai.introTitle" defaultMessage={'Bring Your Own AI'} />
             </h2>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               <FormattedMessage id="settings.ai.providersDescription" defaultMessage={'Add providers such as OpenRouter or any OpenAI-compatible endpoint.'} />
