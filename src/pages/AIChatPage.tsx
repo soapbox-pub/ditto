@@ -2,10 +2,31 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { Bot, Send, Trash2, Palette, Type } from 'lucide-react';
+import { Bot, Send, Trash2, Palette, Type, Sparkles } from 'lucide-react';
+
+import {
+  getWidgetCreationSystemPrompt,
+  toolToOpenAI,
+  createAIClient,
+  ReadCodeTool,
+  WriteCodeTool,
+  EditCodeTool,
+  SearchNIPsTool,
+  FetchNIPTool,
+  SetTileTool,
+  GetTileTool,
+  PreviewTileTool,
+  AskQuestionsTool,
+  SetNotesTool,
+  ReadSpecTool,
+  ReadExamplesTool,
+} from '@soapbox.pub/nostr-canvas/devkit';
+import type OpenAI from 'openai';
 
 import { PageHeader } from '@/components/PageHeader';
-import { useShakespeare, useShakespeareCredits, type ChatMessage, type Model, type ChatCompletionTool } from '@/hooks/useShakespeare';
+import { useShakespeare, useShakespeareCredits, type ChatMessage, type Model, type ChatCompletionTool, type ChatCompletionResponse } from '@/hooks/useShakespeare';
+import { useChatSessions, type DisplayMessage, type ToolCall, type ChatSession } from '@/hooks/useChatSessions';
+import { useAIProviders } from '@/hooks/useAIProviders';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -16,6 +37,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 import { cn } from '@/lib/utils';
 import { DorkThinking } from '@/components/DorkThinking';
@@ -76,24 +101,44 @@ For backgrounds, provide a URL to a publicly accessible image. Choose images tha
   },
 ];
 
+// ─── Tiles Tools ────────────────────────────────────────────────────────────
+
+/**
+ * The 12 devkit Tool classes exposed to the model for tiles sessions, converted
+ * to OpenAI function-schema shape. Execution of these tools is a later ticket
+ * (T10.2); for now a call to one simply falls through to the "Unknown tool"
+ * case in `useToolExecutor`.
+ *
+ * The tool constructors need runtime dependencies (code access, a project id,
+ * TIP fetchers). Those are stubbed here because `toolToOpenAI` only reads
+ * `description` and `inputSchema` — `execute` is never called this ticket.
+ * T10.2 replaces these stubs with the real tool registry wiring.
+ */
+const TILES_TOOLS: ChatCompletionTool[] = [
+  toolToOpenAI('read_code', new ReadCodeTool(() => '')),
+  toolToOpenAI('write_code', new WriteCodeTool(() => {})),
+  toolToOpenAI('edit_code', new EditCodeTool(() => '', () => {})),
+  toolToOpenAI('search_nips', new SearchNIPsTool()),
+  toolToOpenAI('fetch_nip', new FetchNIPTool()),
+  toolToOpenAI('set_tile', new SetTileTool('ditto', () => '')),
+  toolToOpenAI('get_tile', new GetTileTool('ditto')),
+  toolToOpenAI('preview_tile', new PreviewTileTool('ditto')),
+  toolToOpenAI('ask_questions', new AskQuestionsTool()),
+  toolToOpenAI('set_notes', new SetNotesTool(() => {})),
+  toolToOpenAI('read_spec', new ReadSpecTool(async () => '')),
+  toolToOpenAI('read_examples', new ReadExamplesTool(async () => '')),
+].map((tool) => ({
+  type: 'function' as const,
+  function: {
+    ...tool.function,
+    parameters: tool.function.parameters ?? {},
+  },
+}));
+
 // ─── Message Types ───
 
-interface DisplayMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system' | 'tool_result';
-  content: string;
-  timestamp: Date;
-  toolCalls?: ToolCall[];
-}
-
-interface ToolCall {
-  id: string;
-  name: string;
-  arguments: Record<string, unknown>;
-  result?: string;
-}
-
-// ─── Tool Executor Hook ───
+/** Error from the non-Shakespeare send path. Surfaced as a chat message. */
+class ProviderSendError extends Error {}
 
 /** Simple HSL format check: "H S% L%" where H is 0-360, S and L are 0-100%. */
 function isValidHsl(value: unknown): value is string {
@@ -202,12 +247,13 @@ export function AIChatPage() {
   const { sendChatMessage, getAvailableModels, isLoading: apiLoading, error: apiError, retryAfter, clearError } = useShakespeare();
   const hasCredits = useShakespeareCredits();
   const { executeToolCall } = useToolExecutor();
+  const { activeSession, activeSessionId, sessions, createSession, setActiveSessionId, updateSession } = useChatSessions();
+  const { profiles } = useAIProviders();
 
-  const [messages, setMessages] = useState<DisplayMessage[]>([]);
+  const messages = activeSession.messages;
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [models, setModels] = useState<Model[]>([]);
-  const [selectedModel, setSelectedModel] = useState('');
   const [modelsLoading, setModelsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -248,9 +294,9 @@ export function AIChatPage() {
 
         setModels(sorted);
 
-        // Default to the cheapest model
-        if (sorted.length > 0 && !selectedModel) {
-          setSelectedModel(sorted[0].fullId);
+        // Default to the cheapest model for the active session.
+        if (sorted.length > 0 && !activeSession.modelId) {
+          updateSession(activeSessionId, { modelId: sorted[0].fullId });
         }
       })
       .catch((err) => {
@@ -264,8 +310,11 @@ export function AIChatPage() {
   }, [user, getAvailableModels]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Build the chat messages array for the API (includes system prompt + conversation history)
-  const buildApiMessages = useCallback((displayMsgs: DisplayMessage[]): ChatMessage[] => {
-    const apiMessages: ChatMessage[] = [buildSystemPrompt(config.appName)];
+  const buildApiMessages = useCallback((displayMsgs: DisplayMessage[], isTiles: boolean): ChatMessage[] => {
+    const systemPrompt = isTiles
+      ? getWidgetCreationSystemPrompt({ placement: 'widget' })
+      : buildSystemPrompt(config.appName).content;
+    const apiMessages: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
 
     for (const msg of displayMsgs) {
       if (msg.role === 'tool_result') continue; // Tool results are internal
@@ -275,13 +324,57 @@ export function AIChatPage() {
     return apiMessages;
   }, [config.appName]);
 
+  /**
+   * Send a chat completion for a session, routing to the session's provider.
+   * Shakespeare uses the existing NIP-98 flow; any other provider is called
+   * through devkit's OpenAI SDK client. Real tool execution remains a later
+   * ticket — only the HTTP client is routed here.
+   */
+  const sendViaSession = useCallback(async (
+    apiMessages: ChatMessage[],
+    session: ChatSession,
+    tools?: ChatCompletionTool[],
+  ): Promise<ChatCompletionResponse | OpenAI.Chat.Completions.ChatCompletion> => {
+    if (session.providerId === 'shakespeare') {
+      return sendChatMessage(apiMessages, session.modelId, tools ? { tools } : undefined);
+    }
+
+    const profile = profiles.find((p) => p.id === session.providerId);
+    if (!profile) {
+      throw new ProviderSendError(`Unknown AI provider: ${session.providerId}. Pick a provider from the list or switch back to Shakespeare.`);
+    }
+
+    try {
+      const client = await createAIClient({
+        id: profile.kind,
+        name: profile.name,
+        baseURL: profile.baseURL,
+        apiKey: profile.apiKey,
+        models: [],
+      });
+      // handleSend only ever produces string content with user/assistant/system
+      // roles, which is a subset of the SDK's accepted message shapes.
+      return await client.chat.completions.create({
+        model: session.modelId,
+        messages: apiMessages as unknown as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+        tools: tools?.length ? tools : undefined,
+      });
+    } catch (err) {
+      throw new ProviderSendError(err instanceof Error ? err.message : String(err));
+    }
+  }, [profiles, sendChatMessage]);
+
   // Handle sending a message
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();
-    if (!trimmed || !selectedModel || isStreaming) return;
+    if (!trimmed || !activeSession.modelId || isStreaming) return;
 
     clearError();
     setInput('');
+
+    const isTiles = activeSession.abilities.includes('tiles');
+    // Base tools are always available; the tiles ability bundle is additive.
+    const sessionTools = isTiles ? [...TOOLS, ...TILES_TOOLS] : TOOLS;
 
     const userMessage: DisplayMessage = {
       id: crypto.randomUUID(),
@@ -291,17 +384,16 @@ export function AIChatPage() {
     };
 
     const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    let latestMessages = newMessages;
+    updateSession(activeSessionId, { messages: latestMessages });
     setIsStreaming(true);
 
     try {
       // Build API messages
-      const apiMessages = buildApiMessages(newMessages);
+      const apiMessages = buildApiMessages(newMessages, isTiles);
 
-      // Send with tools
-      const response = await sendChatMessage(apiMessages, selectedModel, {
-        tools: TOOLS,
-      });
+      // Send through the session's provider
+      const response = await sendViaSession(apiMessages, activeSession, sessionTools);
 
       const choice = response.choices[0];
       const assistantMsg = choice.message;
@@ -330,15 +422,15 @@ export function AIChatPage() {
         const toolMsg: DisplayMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
-           content: assistantMsg.content || '',
+          content: assistantMsg.content || '',
           timestamp: new Date(),
           toolCalls,
         };
-        const messagesWithTool = [...newMessages, toolMsg];
-        setMessages(messagesWithTool);
+        latestMessages = [...newMessages, toolMsg];
+        updateSession(activeSessionId, { messages: latestMessages });
 
         // Build follow-up messages including tool results
-        const followUpMessages: ChatMessage[] = buildApiMessages(newMessages);
+        const followUpMessages: ChatMessage[] = buildApiMessages(newMessages, isTiles);
 
         // Add the assistant message with tool_calls
         followUpMessages.push({
@@ -355,7 +447,7 @@ export function AIChatPage() {
         }
 
         // Get follow-up response from AI
-        const followUp = await sendChatMessage(followUpMessages, selectedModel);
+        const followUp = await sendViaSession(followUpMessages, activeSession, sessionTools);
         const followUpContent = followUp.choices[0]?.message?.content;
 
         if (followUpContent) {
@@ -365,7 +457,8 @@ export function AIChatPage() {
             content: typeof followUpContent === 'string' ? followUpContent : '',
             timestamp: new Date(),
           };
-          setMessages((prev) => [...prev, followUpMsg]);
+          latestMessages = [...latestMessages, followUpMsg];
+          updateSession(activeSessionId, { messages: latestMessages });
         }
       } else {
         // Normal response without tool calls
@@ -376,14 +469,27 @@ export function AIChatPage() {
           content,
           timestamp: new Date(),
         };
-        setMessages((prev) => [...prev, assistantMessage]);
+        latestMessages = [...latestMessages, assistantMessage];
+        updateSession(activeSessionId, { messages: latestMessages });
       }
     } catch (err) {
-      console.error('Chat error:', err);
+      if (err instanceof ProviderSendError) {
+        // Routing/API failures on the non-Shakespeare path have no banner of
+        // their own, so surface them inside the conversation.
+        const errorMessage: DisplayMessage = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: `Error: ${err.message}`,
+          timestamp: new Date(),
+        };
+        updateSession(activeSessionId, { messages: [...latestMessages, errorMessage] });
+      } else {
+        console.error('Chat error:', err);
+      }
     } finally {
       setIsStreaming(false);
     }
-  }, [input, selectedModel, isStreaming, messages, buildApiMessages, sendChatMessage, executeToolCall, clearError]);
+  }, [input, isStreaming, messages, activeSession, activeSessionId, buildApiMessages, sendViaSession, executeToolCall, clearError, updateSession]);
 
   // Handle keyboard shortcuts
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -395,9 +501,48 @@ export function AIChatPage() {
 
   // Clear conversation
   const handleClear = useCallback(() => {
-    setMessages([]);
+    updateSession(activeSessionId, { messages: [] });
     clearError();
-  }, [clearError]);
+  }, [activeSessionId, clearError, updateSession]);
+
+  // ─── Session Controls ───
+
+  // Provider / model selection writes into the active session. Real
+  // multi-provider sending is a later ticket; the send path still uses the
+  // Shakespeare model picked in the header.
+  const handleProviderChange = useCallback((value: string) => {
+    let modelId = '';
+    if (value === 'shakespeare') {
+      // Zero-config: default to the cheapest fetched Shakespeare model.
+      modelId = models.length > 0 ? models[0].fullId : '';
+    } else {
+      const profile = profiles.find((p) => p.id === value);
+      modelId = profile?.models[0]?.id ?? '';
+    }
+    updateSession(activeSessionId, { providerId: value, modelId });
+  }, [activeSessionId, models, profiles, updateSession]);
+
+  const handleModelChange = useCallback((value: string) => {
+    updateSession(activeSessionId, { modelId: value });
+  }, [activeSessionId, updateSession]);
+
+  // Toggling an ability forks a new session carrying over the current
+  // provider/model. The new session becomes active automatically.
+  const handleTilesToggle = useCallback((checked: boolean | 'indeterminate') => {
+    createSession({
+      abilities: checked === true ? ['tiles'] : [],
+      providerId: activeSession.providerId,
+      modelId: activeSession.modelId,
+    });
+  }, [activeSession.providerId, activeSession.modelId, createSession]);
+
+  const modelOptions = useMemo(() => {
+    if (activeSession.providerId === 'shakespeare') {
+      return models.map((m) => ({ value: m.fullId, label: m.name }));
+    }
+    const profile = profiles.find((p) => p.id === activeSession.providerId);
+    return (profile?.models ?? []).map((m) => ({ value: m.id, label: m.name }));
+  }, [activeSession.providerId, models, profiles]);
 
   // ─── Render ───
 
@@ -427,20 +572,6 @@ export function AIChatPage() {
       }>
         {hasCredits && (
           <div className="flex items-center gap-2 ml-auto">
-            {/* Model selector */}
-            <Select value={selectedModel} onValueChange={setSelectedModel} disabled={modelsLoading}>
-              <SelectTrigger className="w-48 h-8 text-xs">
-                <SelectValue placeholder={modelsLoading ? 'Loading...' : 'Select model'} />
-              </SelectTrigger>
-              <SelectContent>
-                {models.map((model) => (
-                  <SelectItem key={model.fullId} value={model.fullId}>
-                    {model.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             <Button
               variant="ghost"
               size="icon"
@@ -454,6 +585,25 @@ export function AIChatPage() {
           </div>
         )}
       </PageHeader>
+
+      {/* Session tabs */}
+      <div className="flex items-center gap-1 px-4 pt-2 overflow-x-auto">
+        {sessions.map((session, index) => {
+          const isActive = session.id === activeSessionId;
+          const label = session.abilities.includes('tiles') ? `Tiles ${index + 1}` : `Chat ${index + 1}`;
+          return (
+            <Button
+              key={session.id}
+              variant={isActive ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setActiveSessionId(session.id)}
+              className={cn('shrink-0 rounded-full text-xs', isActive && 'font-medium')}
+            >
+              {label}
+            </Button>
+          );
+        })}
+      </div>
 
       {/* Messages Area */}
       {messages.length === 0 ? (
@@ -501,25 +651,83 @@ export function AIChatPage() {
       {/* Input Area — hidden when user has no credits */}
       {(hasCredits || hasCredits === null) && (
         <div className="shrink-0 px-4 pt-2 pb-4 sidebar:pb-3">
-          <div className="max-w-2xl mx-auto flex items-end gap-2">
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={!selectedModel ? 'Select a model first...' : 'Send a message...'}
-              disabled={!selectedModel || isStreaming}
-              className="min-h-[44px] max-h-40 resize-none bg-secondary/50 border-border focus-visible:ring-1"
-              rows={1}
-            />
-            <Button
-              onClick={handleSend}
-              disabled={!input.trim() || !selectedModel || isStreaming}
-              size="icon"
-              className="size-11 shrink-0 rounded-xl"
-            >
-              <Send className="size-4" />
-            </Button>
+          <div className="max-w-2xl mx-auto">
+            {/* Provider / model selector row */}
+            <div className="flex items-center gap-2 pb-2">
+              <Select value={activeSession.providerId} onValueChange={handleProviderChange}>
+                <SelectTrigger className="h-8 w-40 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="shakespeare">Shakespeare</SelectItem>
+                  {profiles.map((profile) => (
+                    <SelectItem key={profile.id} value={profile.id}>
+                      {profile.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={activeSession.modelId} onValueChange={handleModelChange} disabled={modelOptions.length === 0}>
+                <SelectTrigger className="h-8 w-48 text-xs">
+                  <SelectValue placeholder={modelsLoading ? 'Loading...' : 'Select model'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {modelOptions.map((model) => (
+                    <SelectItem key={model.value} value={model.value}>
+                      {model.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-end gap-2">
+              <Textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={!activeSession.modelId ? 'Select a model first...' : 'Send a message...'}
+                disabled={!activeSession.modelId || isStreaming}
+                className="min-h-[44px] max-h-40 resize-none bg-secondary/50 border-border focus-visible:ring-1"
+                rows={1}
+              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      'size-11 shrink-0 rounded-xl',
+                      activeSession.abilities.includes('tiles') && 'text-primary',
+                    )}
+                    title="Abilities"
+                  >
+                    <Sparkles className="size-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-56">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Abilities</p>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="ability-tiles"
+                      checked={activeSession.abilities.includes('tiles')}
+                      onCheckedChange={handleTilesToggle}
+                    />
+                    <Label htmlFor="ability-tiles" className="font-normal cursor-pointer">Tiles</Label>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Button
+                onClick={handleSend}
+                disabled={!input.trim() || !activeSession.modelId || isStreaming}
+                size="icon"
+                className="size-11 shrink-0 rounded-xl"
+              >
+                <Send className="size-4" />
+              </Button>
+            </div>
           </div>
         </div>
       )}
