@@ -76,11 +76,17 @@ export function useAIProviders() {
   const blobProfiles = encryptedSettings.settings?.aiProviderProfiles;
   useEffect(() => {
     const stored = loadProfiles(storageKey);
-    if (!blobProfiles || blobProfiles.length === 0) {
+    if (blobProfiles === undefined || blobProfiles === null) {
+      // No blob yet: nothing to merge, keep local state as-is.
       setProfiles(stored);
       return;
     }
-    const merged = [...stored];
+    // The blob is the source of truth for sync-enabled profiles. A present
+    // but empty blob is a real deletion signal (the other device synced an
+    // empty list), so drop any local sync-enabled profile the blob no longer
+    // lists instead of treating it as "nothing to merge".
+    const blobIds = new Set(blobProfiles.map((p) => p.id));
+    const merged = stored.filter((p) => !p.syncEnabled || blobIds.has(p.id));
     for (const blobProfile of blobProfiles) {
       const index = merged.findIndex((p) => p.id === blobProfile.id);
       if (index >= 0) {

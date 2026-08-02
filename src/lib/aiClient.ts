@@ -87,7 +87,7 @@ export async function createSessionOpenAIClient(
     name: profile.name,
     baseURL: profile.baseURL,
     apiKey: profile.apiKey,
-    models: [],
+    models: profile.models,
   });
 }
 
@@ -96,15 +96,24 @@ export function sessionModelId(session: ChatSession): string {
   return session.providerId === 'shakespeare' ? session.modelId.replace(/^shakespeare\//, '') : session.modelId;
 }
 
-/** Context-window hint for the session's model, or 0 when unknown (skips proactive compaction). */
+/**
+ * Conservative fallback for a model whose context window is unknown (e.g. a
+ * BYO provider that never recorded one, or a Shakespeare model missing from
+ * the fetched list). AgentSession skips proactive compaction when the window
+ * is 0, so an unknown window must still resolve to a real number: compacting
+ * early is cheap, letting a prompt hit the provider's hard ceiling is not.
+ */
+const UNKNOWN_MODEL_CONTEXT_WINDOW = 32_768;
+
+/** Context-window hint for the session's model, or a conservative default when unknown. */
 export function sessionContextWindow(
   session: ChatSession,
   models: Model[],
   profiles: AIProviderProfile[],
 ): number {
   if (session.providerId === 'shakespeare') {
-    return models.find((m) => m.fullId === session.modelId)?.context_window ?? 0;
+    return models.find((m) => m.fullId === session.modelId)?.context_window ?? UNKNOWN_MODEL_CONTEXT_WINDOW;
   }
   const profile = profiles.find((p) => p.id === session.providerId);
-  return profile?.models.find((m) => m.id === session.modelId)?.contextWindow ?? 0;
+  return profile?.models.find((m) => m.id === session.modelId)?.contextWindow ?? UNKNOWN_MODEL_CONTEXT_WINDOW;
 }

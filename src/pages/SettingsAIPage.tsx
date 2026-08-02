@@ -216,11 +216,12 @@ function ProviderFormDialog({ open, editing, onOpenChange, onSave, hasNip44Suppo
               }}
               placeholder={intl.formatMessage({ id: 'settings.ai.apiKeyPlaceholder', defaultMessage: 'sk-...' })}
             />
-            {!form.syncEnabled && (
-              <p className="text-xs text-muted-foreground">
-                <FormattedMessage id="settings.ai.localOnlyWarning" defaultMessage={'Stored unencrypted on this device only'} />
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground">
+              <FormattedMessage
+                id="settings.ai.plaintextStorageWarning"
+                defaultMessage={'The key is stored in plaintext in your browser\u2019s local storage'}
+              />
+            </p>
           </div>
 
           {/* Auto-detect status and the manual retry button share this inline UI. */}

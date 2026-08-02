@@ -52,7 +52,7 @@ const decodeInput = z.object({
   action: z.literal('decode'),
   identifier: z
     .string()
-    .describe('Any NIP-19 identifier: npub1, nprofile1, note1, nevent1, naddr1, nsec1, etc.'),
+    .describe('Any NIP-19 identifier: npub1, nprofile1, note1, nevent1, naddr1. nsec1 is accepted, but its secret key bytes are redacted from the result.'),
 });
 
 const encodeInput = z.object({
@@ -189,7 +189,7 @@ Actions (the "action" field selects one):
 - req: Query events. "kinds" is required (an array of kind numbers). Optionally filter by "authors" (array of 64-char hex pubkeys), "tags" (object mapping a single tag letter without "#" to its values, e.g. {"t": ["nostr"]} or {"p": ["<hex pubkey>"]}), "since"/"until" (unix timestamps in seconds), and "limit" (default 20, max 50). Returns a compact summary of each event: id, kind, pubkey, created_at, and a content snippet.
 - fetch: Get one event by id. Accepts a 64-char hex id or a note1/nevent1 identifier. Returns the same compact summary.
 - profile: Get a user's kind-0 profile metadata. Accepts a 64-char hex pubkey or an npub1/nprofile1 identifier. Returns the parsed profile JSON (name, picture, about, etc.).
-- decode: Decode any NIP-19 identifier (npub1, note1, nevent1, nprofile1, naddr1, nsec1) into its type and data.
+- decode: Decode a NIP-19 identifier (npub1, note1, nevent1, nprofile1, naddr1) into its type and data. nsec1 decodes to a redaction notice: the secret key bytes are never returned.
 - encode: Build a NIP-19 identifier. "type" is one of npub, note, nprofile, nevent, naddr. Provide the fields each type needs: pubkey for npub/nprofile/naddr, id for note/nevent, identifier and kind for naddr; author/kind are optional extras for nevent, relays for nprofile/nevent/naddr.`,
     inputSchema,
     async execute(args: NakInput): Promise<ToolResult> {

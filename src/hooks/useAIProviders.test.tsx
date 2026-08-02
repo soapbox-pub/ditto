@@ -368,6 +368,37 @@ describe('useAIProviders', () => {
     expect(readLocalStorage().map((p) => p.name).sort()).toEqual(['From Blob', 'Local Only']);
   });
 
+  it('propagates a blob deletion: a present-but-empty blob removes sync-enabled local profiles', async () => {
+    const synced = makeProfile({ name: 'Synced', syncEnabled: true });
+    seedLocalStorage([synced]);
+
+    // Device A deleted every synced profile and the empty list synced to the
+    // blob. Device B must drop its stale sync-enabled local profile instead
+    // of treating the empty array as "nothing to merge".
+    mockUseEncryptedSettings.mockReturnValue(
+      defaultEncryptedSettings({ settings: { aiProviderProfiles: [] } }),
+    );
+
+    const { result } = renderHook(() => useAIProviders(), { wrapper });
+
+    await waitFor(() => expect(result.current.profiles).toEqual([]));
+    expect(readLocalStorage()).toEqual([]);
+  });
+
+  it('keeps non-synced local profiles when the blob is empty', async () => {
+    const localOnly = makeProfile({ name: 'Local Only', syncEnabled: false });
+    seedLocalStorage([localOnly]);
+
+    mockUseEncryptedSettings.mockReturnValue(
+      defaultEncryptedSettings({ settings: { aiProviderProfiles: [] } }),
+    );
+
+    const { result } = renderHook(() => useAIProviders(), { wrapper });
+
+    await waitFor(() => expect(result.current.profiles.map((p) => p.name)).toEqual(['Local Only']));
+    expect(readLocalStorage().map((p) => p.name)).toEqual(['Local Only']);
+  });
+
   it('works purely from localStorage when hasNip44Support is false', async () => {
     mockUseEncryptedSettings.mockReturnValue(defaultEncryptedSettings({ hasNip44Support: false }));
 

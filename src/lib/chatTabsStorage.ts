@@ -1,4 +1,4 @@
-import type { Ability } from '@/hooks/useChatSessions';
+import type { Ability } from '@/lib/abilities';
 import type { SerializedSession } from '@soapbox.pub/nostr-canvas/devkit';
 
 /**
