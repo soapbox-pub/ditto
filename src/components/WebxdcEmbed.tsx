@@ -254,8 +254,8 @@ function WebxdcCartridgeButton({
             className="absolute inset-0 pointer-events-none"
             style={{
               backgroundColor: tintColor,
-              WebkitMaskImage: 'url(/cartridge.png)',
-              maskImage: 'url(/cartridge.png)',
+              WebkitMaskImage: `url(${publicAssetUrl('/cartridge.png')})`,
+              maskImage: `url(${publicAssetUrl('/cartridge.png')})`,
               WebkitMaskSize: '100% 100%',
               maskSize: '100% 100%',
               WebkitMaskRepeat: 'no-repeat',
