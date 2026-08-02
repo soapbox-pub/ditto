@@ -10,7 +10,7 @@ import type { SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
 
 import { PageHeader } from '@/components/PageHeader';
 import { useShakespeare, useShakespeareCredits, type Model } from '@/hooks/useShakespeare';
-import { useChatSessions, type DisplayMessage, type ToolCall, type ChatSession, type CreateSessionInput } from '@/hooks/useChatSessions';
+import { useChatSessions, defaultProviderId, type DisplayMessage, type ToolCall, type ChatSession, type CreateSessionInput } from '@/hooks/useChatSessions';
 import { useAIProviders } from '@/hooks/useAIProviders';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -284,13 +284,18 @@ export function AIChatPage() {
     });
   }, [activeSession.providerId, activeSession.modelId, activeSession.abilities, createSessionGuarded]);
 
+  // "New Chat" always starts from a fresh, sensible default: the first
+  // configured provider profile (or shakespeare when none is configured),
+  // with no model selected. It must never clone the active session's
+  // provider/model — the active tab may be stranded on a provider that no
+  // longer works (e.g. shakespeare out of credits).
   const handleNewChat = useCallback(() => {
     createSessionGuarded({
       abilities: [],
-      providerId: activeSession.providerId,
-      modelId: activeSession.modelId,
+      providerId: defaultProviderId(profiles),
+      modelId: '',
     });
-  }, [activeSession.providerId, activeSession.modelId, createSessionGuarded]);
+  }, [profiles, createSessionGuarded]);
 
   const modelOptions = useMemo(() => {
     if (activeSession.providerId === 'shakespeare') {

@@ -106,6 +106,16 @@ interface ChatState {
 }
 
 /**
+ * The default provider for a fresh chat session: the first configured AI
+ * provider profile when at least one exists, otherwise the zero-config
+ * 'shakespeare' provider. Used both by the first-tab bootstrap and by the
+ * "New Chat" button, so both always start from the same sensible default.
+ */
+export function defaultProviderId(profiles: AIProviderProfile[] = []): string {
+  return profiles.length > 0 ? profiles[0].id : 'shakespeare';
+}
+
+/**
  * Restore the stored tabs for a pubkey scope (after silently pruning any
  * untouched for 30 days), or bootstrap a single default session when nothing
  * is stored. `pubkey` scopes the localStorage keys per account. When no
@@ -122,7 +132,7 @@ function loadOrBootstrap(pubkey?: string, profiles: AIProviderProfile[] = []): C
       activeSessionId: stored[0].id,
     };
   }
-  const providerId = profiles.length > 0 ? profiles[0].id : 'shakespeare';
+  const providerId = defaultProviderId(profiles);
   const bootstrap = createSessionObject({ abilities: [], providerId, modelId: '' });
   saveTab(tabFromSession(bootstrap), pubkey);
   return { sessions: [bootstrap], activeSessionId: bootstrap.id };

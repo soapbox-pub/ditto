@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
-import { useChatSessions } from './useChatSessions';
+import { useChatSessions, defaultProviderId } from './useChatSessions';
 import type { ChatSession, DisplayMessage } from './useChatSessions';
 import type { AIProviderProfile } from '@/hooks/useAIProviders';
 import type { PersistedTab } from '@/lib/chatTabsStorage';
@@ -71,6 +71,16 @@ describe('useChatSessions', () => {
     expect(activeSession).toBe(sessions[0]);
     expect(sessions[0].providerId).toBe('provider-a');
     expect(sessions[0].modelId).toBe('');
+  });
+
+  it('defaultProviderId prefers the first configured profile, else shakespeare', () => {
+    const profiles = [
+      makeProfile({ id: 'provider-a', name: 'My OpenRouter' }),
+      makeProfile({ id: 'provider-b', name: 'DeepSeek' }),
+    ];
+    expect(defaultProviderId(profiles)).toBe('provider-a');
+    expect(defaultProviderId([])).toBe('shakespeare');
+    expect(defaultProviderId()).toBe('shakespeare');
   });
 
   it('createSession appends a fresh-UUID session, makes it active, and returns it', () => {
