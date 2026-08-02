@@ -207,8 +207,11 @@ export function AIChatPage() {
 
         setModels(sorted);
 
-        // Default to the cheapest model for the active session.
-        if (sorted.length > 0 && !activeSession.modelId) {
+        // Default to the cheapest Shakespeare model for the active session,
+        // but only when the session is actually on the Shakespeare provider.
+        // A custom-provider session must never receive a Shakespeare model id
+        // — the provider's API would not recognize it.
+        if (activeSession.providerId === 'shakespeare' && sorted.length > 0 && !activeSession.modelId) {
           updateSession(activeSessionId, { modelId: sorted[0].fullId });
         }
       })
@@ -221,6 +224,27 @@ export function AIChatPage() {
 
     return () => { cancelled = true; };
   }, [user, getAvailableModels]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-select the first model whenever the active session has none. Sessions
+  // arrive with an empty modelId from the first-tab bootstrap, "New Chat"
+  // (providerId: defaultProviderId(profiles), modelId: ''), and restored
+  // tabs. A session is unusable until modelId resolves to a model its
+  // provider actually serves, so fill the gap from the provider's own model
+  // list — never from the Shakespeare list for a non-Shakespeare session.
+  useEffect(() => {
+    if (activeSession.modelId) return;
+
+    if (activeSession.providerId === 'shakespeare') {
+      if (models.length === 0) return; // model list still loading
+      updateSession(activeSessionId, { modelId: models[0].fullId });
+    } else {
+      const profile = profiles.find((p) => p.id === activeSession.providerId);
+      const firstModel = profile?.models[0]?.id;
+      if (firstModel) {
+        updateSession(activeSessionId, { modelId: firstModel });
+      }
+    }
+  }, [activeSession.modelId, activeSession.providerId, activeSessionId, models, profiles, updateSession]);
 
   // Handle sending a message
   const handleSend = useCallback(async () => {
