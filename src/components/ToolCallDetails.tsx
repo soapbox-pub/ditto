@@ -2,6 +2,7 @@ import type { JSX, ReactNode } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
+import remarkGfm from 'remark-gfm';
 import { diffLines } from 'diff';
 import { ChevronDown, Palette, Type } from 'lucide-react';
 
@@ -227,7 +228,7 @@ function MarkdownDetails({ toolCall }: { toolCall: ToolCall }) {
     <ToolCard>
       <DetailsCollapsible defaultOpen={result.length <= MARKDOWN_COLLAPSE_THRESHOLD}>
         <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-muted prose-pre:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
-          <Markdown rehypePlugins={[rehypeSanitize]}>{result}</Markdown>
+          <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>{result}</Markdown>
         </div>
       </DetailsCollapsible>
     </ToolCard>

@@ -138,6 +138,7 @@
     "react-router-dom": "^6.26.2",
     "recharts": "^2.12.7",
     "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.1",
     "slugify": "^1.6.8",
     "smol-toml": "^1.6.0",
     "tailwind-merge": "^2.5.2",

@@ -3,6 +3,7 @@ import { FormattedMessage, useIntl, defineMessage, type MessageDescriptor } from
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
+import remarkGfm from 'remark-gfm';
 import { Bot, Send, Trash2, Sparkles, Plus, X, Loader2 } from 'lucide-react';
 
 import { getWidgetCreationSystemPrompt, isCompactionMarker } from '@soapbox.pub/nostr-canvas/devkit';
@@ -777,7 +778,7 @@ function MessageBubble({
           message.content && (
             <div className="rounded-2xl px-4 py-2.5 text-sm bg-secondary/60 border border-border rounded-tl-md">
               <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-muted prose-pre:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
-                <Markdown rehypePlugins={[rehypeSanitize]}>
+                <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
                   {message.content}
                 </Markdown>
               </div>
