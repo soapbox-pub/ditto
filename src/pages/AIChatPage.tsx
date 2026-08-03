@@ -396,7 +396,7 @@ export function AIChatPage() {
             <div key={session.id} className="shrink-0">
               <div
                 className={cn(
-                  'flex items-center rounded-full',
+                  'group flex items-center rounded-full',
                   isActive && 'bg-secondary text-secondary-foreground',
                 )}
               >
@@ -418,7 +418,10 @@ export function AIChatPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-7 rounded-full shrink-0"
+                  className={cn(
+                    'size-7 rounded-full shrink-0',
+                    !isActive && 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+                  )}
                   onClick={(e) => {
                     e.stopPropagation();
                     closeSession(session.id);
