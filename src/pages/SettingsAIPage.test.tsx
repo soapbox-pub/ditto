@@ -1,10 +1,26 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { useState } from 'react';
 import { IntlProvider } from 'react-intl';
+import { MemoryRouter } from 'react-router-dom';
 
-import { ModelListEditor } from './SettingsAIPage';
+import { ModelListEditor, SettingsAIPage } from './SettingsAIPage';
 import type { AIProviderProfile } from '@/hooks/useAIProviders';
+
+// The page's AI hooks are swapped for controllable spies. ModelListEditor
+// needs nothing else: all strings have inline English defaultMessages and
+// the toast store is module-level, so the full TestApp/Nostr stack is
+// unnecessary here.
+const useAIProvidersMock = vi.hoisted(() => vi.fn());
+const useAppContextMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@/hooks/useAIProviders', () => ({
+  useAIProviders: () => useAIProvidersMock(),
+}));
+
+vi.mock('@/hooks/useAppContext', () => ({
+  useAppContext: () => useAppContextMock(),
+}));
 
 // @floating-ui/dom's `autoUpdate` instantiates `ResizeObserver` and
 // `IntersectionObserver` when opening the Radix dropdown. The shared setup
@@ -25,9 +41,7 @@ beforeEach(() => {
   globalThis.ResizeObserver = MockObserver as unknown as typeof ResizeObserver;
 });
 
-// Minimal wrapper: ModelListEditor only needs react-intl (all strings have
-// inline English defaultMessages) and the module-level toast store, so the
-// full TestApp/Nostr stack is unnecessary here.
+// Minimal wrapper: ModelListEditor only needs react-intl.
 function renderEditor(models: AIProviderProfile['models']) {
   function Harness() {
     const [active, setActive] = useState<AIProviderProfile['models']>(models);
@@ -38,6 +52,42 @@ function renderEditor(models: AIProviderProfile['models']) {
       <Harness />
     </IntlProvider>,
   );
+}
+
+function makeProfile(overrides: Partial<AIProviderProfile> = {}): AIProviderProfile {
+  return {
+    id: 'profile-1',
+    kind: 'openrouter',
+    name: 'My OpenRouter',
+    baseURL: 'https://openrouter.ai/api/v1',
+    apiKey: 'sk-test',
+    models: [],
+    syncEnabled: false,
+    ...overrides,
+  };
+}
+
+/** Renders the page with a mocked provider store; returns the delete spy. */
+function renderPage(profiles: AIProviderProfile[]) {
+  const deleteProfile = vi.fn();
+  useAppContextMock.mockReturnValue({ config: { appName: 'Ditto' } });
+  useAIProvidersMock.mockReturnValue({
+    profiles,
+    addProfile: vi.fn(),
+    updateProfile: vi.fn(),
+    deleteProfile,
+    duplicateProfile: vi.fn(),
+    isLoading: false,
+    hasNip44Support: true,
+  });
+  render(
+    <IntlProvider locale="en" onError={() => {}}>
+      <MemoryRouter>
+        <SettingsAIPage />
+      </MemoryRouter>
+    </IntlProvider>,
+  );
+  return deleteProfile;
 }
 
 const FIXTURES: AIProviderProfile['models'] = [
@@ -100,5 +150,46 @@ describe('ModelListEditor', () => {
     fireEvent.keyDown(addButton, { key: 'Enter' });
     fireEvent.click(screen.getByText('custom-1'));
     expect(screen.getByText('custom-1')).toBeInTheDocument();
+  });
+});
+
+describe('SettingsAIPage delete confirmation', () => {
+  beforeEach(() => {
+    useAIProvidersMock.mockReset();
+    useAppContextMock.mockReset();
+  });
+
+  it('shows a confirmation dialog before deleting a profile', () => {
+    renderPage([makeProfile()]);
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    const dialog = screen.getByRole('alertdialog');
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByText('Delete provider?')).toBeInTheDocument();
+    expect(
+      screen.getByText('This will permanently delete the "My OpenRouter" profile and its API key. This action cannot be undone.'),
+    ).toBeInTheDocument();
+  });
+
+  it('cancel leaves the profile intact', () => {
+    const deleteProfile = renderPage([makeProfile()]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(deleteProfile).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('confirming deletes the profile', () => {
+    const deleteProfile = renderPage([makeProfile({ id: 'profile-2' })]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Delete' }));
+
+    expect(deleteProfile).toHaveBeenCalledWith('profile-2');
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 });

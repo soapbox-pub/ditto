@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, useId } from 'react';
 import { nip19 } from 'nostr-tools';
-import { FormattedMessage } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Sparkles, UserRoundCheck } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -101,6 +101,7 @@ export function MentionAutocomplete({
   const [dropdownPos, setDropdownPos] = useState<DropdownPosition | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const listboxId = useId();
 
   const handleClose = useCallback(() => setIsOpen(false), []);
   const { computePosition, renderPortal } = usePortalDropdown({
@@ -116,15 +117,19 @@ export function MentionAutocomplete({
 
   // Abilities are matched locally against the same mention query (people are
   // matched by useSearchProfiles). The two lists merge in one dropdown.
+  // Match against the localized label/description (what the user sees in the
+  // UI), not the raw English defaultMessage, so a non-English user can find
+  // abilities by the text they are reading.
+  const intl = useIntl();
   const filteredAbilities = useMemo(() => {
     if (!abilities || abilities.length === 0) return [];
     const q = mentionQuery.toLowerCase();
     return abilities.filter(
       (ability) =>
-        ability.label.defaultMessage.toLowerCase().includes(q) ||
-        ability.description.defaultMessage.toLowerCase().includes(q),
+        intl.formatMessage(ability.label).toLowerCase().includes(q) ||
+        intl.formatMessage(ability.description).toLowerCase().includes(q),
     );
-  }, [abilities, mentionQuery]);
+  }, [abilities, mentionQuery, intl]);
 
   // Detect @mention query at cursor.
   // Accepts explicit text/cursor values so callers don't have to rely on
@@ -235,6 +240,33 @@ export function MentionAutocomplete({
     detectMention(content, textarea.selectionStart);
   }, [content, detectMention, textareaRef]);
 
+  /** Insert a replacement over the mention range and close the dropdown. */
+  const insertMentionText = useCallback((replacement: string) => {
+    const cursor = textareaRef.current?.selectionStart ?? mentionStart + mentionQuery.length + 1;
+
+    onInsertMention({
+      start: mentionStart,
+      end: cursor,
+      replacement,
+    });
+
+    setIsOpen(false);
+    setMentionQuery('');
+    setMentionStart(-1);
+  }, [mentionStart, mentionQuery, textareaRef, onInsertMention]);
+
+  const selectProfile = useCallback((profile: SearchProfile) => {
+    const npub = nip19.npubEncode(profile.pubkey);
+    insertMentionText(`nostr:${npub} `);
+  }, [insertMentionText]);
+
+  const selectAbility = useCallback((ability: AbilityInfo) => {
+    // Plain-text reference only — mentioning an ability never enables it.
+    // Resolves the English defaultMessage directly: the inserted text becomes
+    // part of the chat message the model reads, so it stays untranslated.
+    insertMentionText(`@${ability.label.defaultMessage} `);
+  }, [insertMentionText]);
+
   // Handle keyboard navigation within the dropdown
   useEffect(() => {
     if (!isOpen) return;
@@ -281,7 +313,7 @@ export function MentionAutocomplete({
 
     textarea.addEventListener('keydown', handleKeyDown);
     return () => textarea.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, profiles, selectedIndex, textareaRef, filteredAbilities]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOpen, profiles, selectedIndex, textareaRef, filteredAbilities, selectProfile, selectAbility]);
 
   // Scroll selected item into view
   useEffect(() => {
@@ -291,38 +323,31 @@ export function MentionAutocomplete({
     }
   }, [selectedIndex]);
 
-  /** Insert a replacement over the mention range and close the dropdown. */
-  const insertMentionText = useCallback((replacement: string) => {
-    const cursor = textareaRef.current?.selectionStart ?? mentionStart + mentionQuery.length + 1;
-
-    onInsertMention({
-      start: mentionStart,
-      end: cursor,
-      replacement,
-    });
-
-    setIsOpen(false);
-    setMentionQuery('');
-    setMentionStart(-1);
-  }, [mentionStart, mentionQuery, textareaRef, onInsertMention]);
-
-  const selectProfile = useCallback((profile: SearchProfile) => {
-    const npub = nip19.npubEncode(profile.pubkey);
-    insertMentionText(`nostr:${npub} `);
-  }, [insertMentionText]);
-
-  const selectAbility = useCallback((ability: AbilityInfo) => {
-    // Plain-text reference only — mentioning an ability never enables it.
-    // Resolves the English defaultMessage directly: the inserted text becomes
-    // part of the chat message the model reads, so it stays untranslated.
-    insertMentionText(`@${ability.label.defaultMessage} `);
-  }, [insertMentionText]);
-
   const profilesLen = profiles?.length ?? 0;
   const hasPeople = profilesLen > 0;
   const hasAbilities = filteredAbilities.length > 0;
 
-  if (!isOpen || !dropdownPos || (!hasPeople && !hasAbilities)) {
+  // The dropdown (and its listbox) only exists while this is true.
+  const isListboxRendered = isOpen && !!dropdownPos && (hasPeople || hasAbilities);
+
+  // The textarea is owned by the caller (ComposeBox / AIChatPage), so the
+  // combobox input-side ARIA attributes cannot be declared in JSX here.
+  // Apply them to the element directly so assistive tech treats the textarea
+  // as the combobox that controls the rendered listbox.
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.setAttribute('role', 'combobox');
+    textarea.setAttribute('aria-controls', listboxId);
+    textarea.setAttribute('aria-expanded', String(isListboxRendered));
+    if (isListboxRendered && selectedIndex >= 0) {
+      textarea.setAttribute('aria-activedescendant', `${listboxId}-option-${selectedIndex}`);
+    } else {
+      textarea.removeAttribute('aria-activedescendant');
+    }
+  }, [textareaRef, listboxId, isListboxRendered, selectedIndex]);
+
+  if (!isListboxRendered) {
     return null;
   }
 
@@ -333,21 +358,23 @@ export function MentionAutocomplete({
       className="fixed z-[300] w-[280px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150 pointer-events-auto"
       style={dropdownPositionStyle(dropdownPos)}
     >
-      <div ref={listRef} className="max-h-[240px] overflow-y-auto py-1">
+      <div ref={listRef} id={listboxId} role="listbox" className="max-h-[240px] overflow-y-auto py-1">
         {profiles?.map((profile, index) => (
           <MentionItem
             key={profile.pubkey}
             profile={profile}
+            optionId={`${listboxId}-option-${index}`}
             isSelected={index === selectedIndex}
             isFollowed={followedPubkeys.has(profile.pubkey)}
             onSelect={() => selectProfile(profile)}
           />
         ))}
-        {hasPeople && hasAbilities && <div className="my-1 border-t border-border" />}
+        {hasPeople && hasAbilities && <div aria-hidden="true" className="my-1 border-t border-border" />}
         {filteredAbilities.map((ability, index) => (
           <AbilityItem
             key={ability.key}
             ability={ability}
+            optionId={`${listboxId}-option-${profilesLen + index}`}
             isSelected={profilesLen + index === selectedIndex}
             onSelect={() => selectAbility(ability)}
           />
@@ -363,17 +390,20 @@ export function MentionAutocomplete({
 
 function MentionItem({
   profile,
+  optionId,
   isSelected,
   isFollowed,
   onSelect,
 }: {
   profile: SearchProfile;
+  optionId: string;
   isSelected: boolean;
   isFollowed: boolean;
   onSelect: () => void;
 }) {
+  const intl = useIntl();
   const { metadata, pubkey } = profile;
-  const displayName = metadata.name || metadata.display_name || 'Anonymous';
+  const displayName = metadata.name || metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const nip05 = metadata.nip05;
   const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
   const nip05Display = nip05Verified && nip05 ? (nip05.startsWith('_@') ? nip05.slice(2) : nip05) : undefined;
@@ -382,6 +412,9 @@ function MentionItem({
   return (
     <button
       data-mention-item
+      id={optionId}
+      role="option"
+      aria-selected={isSelected}
       className={cn(
         'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors cursor-pointer',
         isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
@@ -404,7 +437,7 @@ function MentionItem({
         {isFollowed && (
           <span
             className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full bg-primary flex items-center justify-center ring-2 ring-popover"
-            title="Following"
+            title={intl.formatMessage({ id: 'mentionAutocomplete.following', defaultMessage: 'Following' })}
           >
             <UserRoundCheck className="size-2 text-primary-foreground" strokeWidth={3} />
           </span>
@@ -431,16 +464,21 @@ function MentionItem({
 
 function AbilityItem({
   ability,
+  optionId,
   isSelected,
   onSelect,
 }: {
   ability: AbilityInfo;
+  optionId: string;
   isSelected: boolean;
   onSelect: () => void;
 }) {
   return (
     <button
       data-mention-item
+      id={optionId}
+      role="option"
+      aria-selected={isSelected}
       className={cn(
         'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors cursor-pointer',
         isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',

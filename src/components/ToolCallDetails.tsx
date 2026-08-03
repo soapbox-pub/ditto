@@ -1,4 +1,4 @@
-import type { JSX, ReactNode } from 'react';
+import { useState, type JSX, type ReactNode } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
@@ -12,6 +12,14 @@ import { parseAskQuestionsData, parseQuestionsAnswerText } from '@/lib/pendingIn
 
 /** Markdown tool results above this length start collapsed. */
 const MARKDOWN_COLLAPSE_THRESHOLD = 1200;
+
+/**
+ * Shared prose wrapper classes for chat markdown, used by this file's tool
+ * detail cards and by AIChatPage's assistant bubbles so both render markdown
+ * identically.
+ */
+export const CHAT_PROSE_CLASSES =
+  'prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-muted prose-pre:overflow-x-auto prose-pre:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary';
 
 /**
  * Render one tool call's outcome inside a chat message. Each known tool gets
@@ -36,13 +44,18 @@ export function ToolCallDetails({ toolCall }: { toolCall: ToolCall }): JSX.Eleme
 
 // ─── Shared shell ───────────────────────────────────────────────────────────
 
-/** Collapsed-by-default expander with the "Show details" trigger. */
+/** Collapsed-by-default expander whose trigger reflects the open state. */
 function DetailsCollapsible({ defaultOpen = false, children }: { defaultOpen?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <Collapsible defaultOpen={defaultOpen} className="w-full">
+    <Collapsible open={open} onOpenChange={setOpen} className="w-full">
       <CollapsibleTrigger className="group flex items-center gap-1 rounded-md px-1 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
         <ChevronDown className="size-3 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
-        <FormattedMessage id="ai-chat.tool.showDetails" defaultMessage="Show details" />
+        {open ? (
+          <FormattedMessage id="ai-chat.tool.showLess" defaultMessage="Show less" />
+        ) : (
+          <FormattedMessage id="ai-chat.tool.showDetails" defaultMessage="Show details" />
+        )}
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-1">{children}</CollapsibleContent>
     </Collapsible>
@@ -256,7 +269,7 @@ function MarkdownDetails({ toolCall }: { toolCall: ToolCall }) {
     <ToolCard>
       <p className="text-xs text-foreground">{summary}</p>
       <DetailsCollapsible defaultOpen={result.length <= MARKDOWN_COLLAPSE_THRESHOLD}>
-        <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-muted prose-pre:overflow-x-auto prose-pre:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
+        <div className={CHAT_PROSE_CLASSES}>
           <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={chatMarkdownComponents}>{result}</Markdown>
         </div>
       </DetailsCollapsible>

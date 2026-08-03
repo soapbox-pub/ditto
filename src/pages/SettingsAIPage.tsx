@@ -12,6 +12,16 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -89,6 +99,29 @@ type AIModel = AIProviderProfile['models'][number];
 function sameModelIds(a: AIProviderProfile['models'], b: AIProviderProfile['models']): boolean {
   if (a.length !== b.length) return false;
   return a.every((m, i) => m.id === b[i].id);
+}
+
+/**
+ * Queries a provider for its available models. Both the form dialog's
+ * auto-detect/manual retry and the saved-profile card's "Detect models"
+ * action build the same AIProvider config and fetch over it; each caller
+ * keeps its own loading, error, and success handling.
+ */
+async function fetchProviderModels(
+  source: Pick<AIProviderProfile, 'kind' | 'name' | 'baseURL' | 'apiKey'>,
+  appName: string,
+): Promise<AIProviderProfile['models']> {
+  const provider: AIProvider = {
+    id: source.kind,
+    name: source.name,
+    baseURL: source.baseURL,
+    apiKey: source.apiKey,
+    models: [],
+  };
+  return fetchModels(provider, {
+    referer: window.location.origin,
+    title: appName,
+  });
 }
 
 interface ModelListEditorProps {
@@ -276,17 +309,7 @@ function ProviderFormDialog({ open, editing, onOpenChange, onSave, hasNip44Suppo
     setDetecting(true);
     setDetectError(false);
     try {
-      const provider: AIProvider = {
-        id: form.kind,
-        name: form.name,
-        baseURL: form.baseURL,
-        apiKey: form.apiKey,
-        models: [],
-      };
-      const models = await fetchModels(provider, {
-        referer: window.location.origin,
-        title: config.appName,
-      });
+      const models = await fetchProviderModels(form, config.appName);
       // Drop stale results if the key changed while the fetch was in flight —
       // the newer key's own debounced detect will populate the models.
       setForm((f) => (f.apiKey === apiKeyAtCall ? { ...f, models } : f));
@@ -356,7 +379,7 @@ function ProviderFormDialog({ open, editing, onOpenChange, onSave, hasNip44Suppo
               id="ai-provider-base-url"
               value={form.baseURL}
               onChange={(e) => setForm((f) => ({ ...f, baseURL: e.target.value }))}
-              placeholder="https://api.example.com/v1"
+              placeholder={intl.formatMessage({ id: 'settings.ai.baseUrlPlaceholder', defaultMessage: 'https://api.example.com/v1' })}
             />
           </div>
 
@@ -466,6 +489,7 @@ export function SettingsAIPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AIProviderProfile | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AIProviderProfile | null>(null);
   const [detecting, setDetecting] = useState<Record<string, boolean>>({});
 
   useSeoMeta({
@@ -512,20 +536,16 @@ export function SettingsAIPage() {
     setDialogOpen(false);
   }
 
+  function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    deleteProfile(deleteTarget.id);
+    setDeleteTarget(null);
+  }
+
   async function detectModels(profile: AIProviderProfile) {
     setDetecting((m) => ({ ...m, [profile.id]: true }));
     try {
-      const provider: AIProvider = {
-        id: profile.kind,
-        name: profile.name,
-        baseURL: profile.baseURL,
-        apiKey: profile.apiKey,
-        models: [],
-      };
-      const models = await fetchModels(provider, {
-        referer: window.location.origin,
-        title: config.appName,
-      });
+      const models = await fetchProviderModels(profile, config.appName);
       updateProfile(profile.id, { models });
       toast({
         title: intl.formatMessage(
@@ -638,7 +658,13 @@ export function SettingsAIPage() {
                         variant="ghost"
                         size="icon"
                         className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
-                        onClick={() => duplicateProfile(profile.id)}
+                        onClick={() => duplicateProfile(
+                          profile.id,
+                          intl.formatMessage(
+                            { id: 'settings.ai.duplicateProfileName', defaultMessage: '{name} (copy)' },
+                            { name: profile.name },
+                          ),
+                        )}
                         aria-label={intl.formatMessage({ id: 'settings.ai.duplicate', defaultMessage: 'Duplicate' })}
                       >
                         <Copy className="size-4" />
@@ -647,7 +673,7 @@ export function SettingsAIPage() {
                         variant="ghost"
                         size="icon"
                         className="size-9 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => deleteProfile(profile.id)}
+                        onClick={() => setDeleteTarget(profile)}
                         aria-label={intl.formatMessage({ id: 'settings.ai.delete', defaultMessage: 'Delete' })}
                       >
                         <Trash2 className="size-4" />
@@ -691,6 +717,35 @@ export function SettingsAIPage() {
         onSave={handleSave}
         hasNip44Support={hasNip44Support}
       />
+
+      {/* Delete confirm dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <FormattedMessage id="settings.ai.deleteProfileTitle" defaultMessage={'Delete provider?'} />
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <FormattedMessage
+                id="settings.ai.deleteProfileDescription"
+                defaultMessage={'This will permanently delete the "{name}" profile and its API key. This action cannot be undone.'}
+                values={{ name: deleteTarget?.name }}
+              />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <FormattedMessage id="settings.ai.cancel" defaultMessage={'Cancel'} />
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              <FormattedMessage id="settings.ai.delete" defaultMessage={'Delete'} />
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

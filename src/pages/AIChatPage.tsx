@@ -11,7 +11,7 @@ import type { SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
 
 import { PageHeader } from '@/components/PageHeader';
 import { PendingQuestionsCard } from '@/components/PendingQuestionsCard';
-import { ToolCallDetails } from '@/components/ToolCallDetails';
+import { ToolCallDetails, CHAT_PROSE_CLASSES } from '@/components/ToolCallDetails';
 import { chatMarkdownComponents } from '@/components/chatMarkdownComponents';
 import { getInFlightToolCall } from '@/lib/agentActivity';
 import { useShakespeare, useShakespeareCredits, type Model } from '@/hooks/useShakespeare';
@@ -66,10 +66,29 @@ function parseToolArgs(raw: string): Record<string, unknown> {
  * Convert an AgentSession snapshot's messages into renderable chat messages.
  * Tool results are attached to their originating assistant message instead
  * of rendering as separate bubbles.
+ *
+ * Message ids are index-based (`msg-${index}`) because SessionMessage carries
+ * no stable identifier of its own — the agent SDK's message type is just the
+ * OpenAI chat-completion parameter shape, with no id and no timestamp.
+ * Timestamps therefore come from a cache keyed by those ids: the conversion
+ * reruns on every streamed chunk, so assigning `new Date()` at conversion
+ * time would make every bubble show the last render's time. The caller owns
+ * the cache and resets it whenever the id space restarts (session switch,
+ * clear, compaction), so ids never collide across threads.
  */
-function snapshotToDisplayMessages(msgs: SessionMessage[]): DisplayMessage[] {
+function snapshotToDisplayMessages(msgs: SessionMessage[], timestamps: Map<string, Date>): DisplayMessage[] {
   const messages: DisplayMessage[] = [];
   let pendingToolCalls: ToolCall[] = [];
+
+  /** First-seen time for a message id; a fresh `now` on first observation. */
+  const timestampFor = (index: number): Date => {
+    const id = `msg-${index}`;
+    const existing = timestamps.get(id);
+    if (existing) return existing;
+    const created = new Date();
+    timestamps.set(id, created);
+    return created;
+  };
 
   msgs.forEach((msg, index) => {
     if (isCompactionMarker(msg)) return;
@@ -86,7 +105,7 @@ function snapshotToDisplayMessages(msgs: SessionMessage[]): DisplayMessage[] {
       const content = typeof msg.content === 'string' ? msg.content : '';
       pendingToolCalls = [];
       if (!content) return;
-      messages.push({ id: `msg-${index}`, role: 'user', content, timestamp: new Date() });
+      messages.push({ id: `msg-${index}`, role: 'user', content, timestamp: timestampFor(index) });
       return;
     }
 
@@ -108,7 +127,7 @@ function snapshotToDisplayMessages(msgs: SessionMessage[]): DisplayMessage[] {
       id: `msg-${index}`,
       role: 'assistant',
       content,
-      timestamp: new Date(),
+      timestamp: timestampFor(index),
       toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     });
   });
@@ -205,10 +224,27 @@ export function AIChatPage() {
 
   const agentSnapshot = snapshots[activeSessionId] ?? null;
 
-  const messages = useMemo(
-    () => snapshotToDisplayMessages(agentSnapshot?.messages ?? []),
-    [agentSnapshot?.messages],
-  );
+  // The snapshot's messages array is a fresh reference on every streamed
+  // chunk, so the conversion above reruns constantly; without a cache every
+  // bubble would show the last render's time instead of the moment the
+  // message first appeared. The map is keyed by the index-based message ids
+  // and reset whenever the id space restarts — switching sessions, clearing,
+  // or compacting the thread — so a new thread never inherits old
+  // timestamps.
+  const messageTimestampsRef = useRef<Map<string, Date>>(new Map());
+  const lastMessageCountRef = useRef(0);
+  const lastSessionIdRef = useRef<string | null>(null);
+  const snapshotMessages = agentSnapshot?.messages;
+
+  const messages = useMemo(() => {
+    const msgs = snapshotMessages ?? [];
+    if (lastSessionIdRef.current !== activeSessionId || msgs.length < lastMessageCountRef.current) {
+      messageTimestampsRef.current.clear();
+    }
+    lastSessionIdRef.current = activeSessionId;
+    lastMessageCountRef.current = msgs.length;
+    return snapshotToDisplayMessages(msgs, messageTimestampsRef.current);
+  }, [snapshotMessages, activeSessionId]);
   const isLoading = agentSnapshot?.isLoading ?? false;
   const sessionError = buildError ?? agentSnapshot?.error ?? null;
 
@@ -492,7 +528,7 @@ export function AIChatPage() {
                     ) : (
                       <span className="flex items-center gap-1.5 text-muted-foreground">
                         <Loader2 className="size-3 animate-spin" aria-hidden="true" />
-                        <FormattedMessage id="ai-chat.newChat" defaultMessage="New chat" />
+                        <FormattedMessage id="ai-chat.untitledSessionTitle" defaultMessage="Untitled chat" />
                       </span>
                     )}
                   </Button>
@@ -563,7 +599,7 @@ export function AIChatPage() {
                   className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-secondary/60"
                 >
                   <span className="text-sm truncate min-w-0">
-                    {session.title || <FormattedMessage id="ai-chat.newChat" defaultMessage="New chat" />}
+                    {session.title || <FormattedMessage id="ai-chat.untitledSessionTitle" defaultMessage="Untitled chat" />}
                   </span>
                   <Button
                     variant="ghost"
@@ -612,9 +648,15 @@ export function AIChatPage() {
               />
             ))}
 
-            {/* Pending user input surfaced by a tool (e.g. ask_questions) */}
+            {/* Pending user input surfaced by a tool (e.g. ask_questions).
+                Keyed by requestId so a second ask_questions call remounts the
+                card fresh instead of reusing the first request's local state. */}
             {agentSnapshot?.pendingInput && (
-              <PendingQuestionsCard pendingInput={agentSnapshot.pendingInput} onAnswer={sendMessage} />
+              <PendingQuestionsCard
+                key={agentSnapshot.pendingInput.requestId}
+                pendingInput={agentSnapshot.pendingInput}
+                onAnswer={sendMessage}
+              />
             )}
 
             {/* Loading indicator */}
@@ -652,7 +694,10 @@ export function AIChatPage() {
             {/* Provider / model selector row */}
             <div className="flex items-center gap-2 pb-2">
               <Select value={activeSession.providerId} onValueChange={handleProviderChange}>
-                <SelectTrigger className="h-8 w-40 text-xs">
+                <SelectTrigger
+                  className="h-8 w-40 text-xs"
+                  aria-label={intl.formatMessage({ id: 'ai-chat.providerLabel', defaultMessage: 'Provider' })}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -666,7 +711,10 @@ export function AIChatPage() {
               </Select>
 
               <Select value={activeSession.modelId} onValueChange={handleModelChange} disabled={modelOptions.length === 0}>
-                <SelectTrigger className="h-8 w-48 text-xs">
+                <SelectTrigger
+                  className="h-8 w-48 text-xs"
+                  aria-label={intl.formatMessage({ id: 'ai-chat.modelLabel', defaultMessage: 'Model' })}
+                >
                   <SelectValue
                     placeholder={modelsLoading
                       ? intl.formatMessage({ id: 'ai-chat.loading', defaultMessage: 'Loading...' })
@@ -746,6 +794,7 @@ export function AIChatPage() {
                 disabled={!input.trim() || !activeSession.modelId || isLoading || !agentSnapshot}
                 size="icon"
                 className="size-11 shrink-0 rounded-xl"
+                aria-label={intl.formatMessage({ id: 'ai-chat.sendMessage', defaultMessage: 'Send message' })}
               >
                 <Send className="size-4" />
               </Button>
@@ -758,8 +807,6 @@ export function AIChatPage() {
 }
 
 // ─── Sub-Components ───
-
-// DorkThinking is imported from the shared component
 
 // Error banners pair a fixed ASCII face with localized heading/body text. The
 // descriptors render via FormattedMessage inside DorkErrorBanner.
@@ -878,7 +925,7 @@ function MessageBubble({
           // skip the bubble for those so no empty pill renders above the badges.
           message.content && (
             <div className="rounded-2xl px-4 py-2.5 text-sm bg-secondary/60 border border-border rounded-tl-md">
-              <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-muted prose-pre:overflow-x-auto prose-pre:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
+              <div className={CHAT_PROSE_CLASSES}>
                 <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={chatMarkdownComponents}>
                   {message.content}
                 </Markdown>
@@ -899,7 +946,7 @@ function MessageBubble({
           </div>
         )}
 
-        <span className="text-[10px] text-muted-foreground/60 px-1">
+        <span className="text-[10px] text-muted-foreground px-1">
           {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
       </div>
