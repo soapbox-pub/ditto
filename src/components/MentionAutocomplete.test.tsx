@@ -93,14 +93,14 @@ describe('MentionAutocomplete', () => {
     );
 
     const textarea = (await screen.findByTestId('message-input')) as HTMLTextAreaElement;
-    setValue(textarea, '@ti');
+    setValue(textarea, '@no');
 
-    expect(await screen.findByText('Tiles')).toBeInTheDocument();
+    expect(await screen.findByText('Nostr Lookup')).toBeInTheDocument();
 
     // A query matching neither label nor description hides the ability.
     setValue(textarea, '@zzz');
     await waitFor(() => {
-      expect(screen.queryByText('Tiles')).not.toBeInTheDocument();
+      expect(screen.queryByText('Nostr Lookup')).not.toBeInTheDocument();
     });
   });
 
@@ -112,13 +112,13 @@ describe('MentionAutocomplete', () => {
     );
 
     const textarea = (await screen.findByTestId('message-input')) as HTMLTextAreaElement;
-    setValue(textarea, '@ti');
+    setValue(textarea, '@no');
 
-    const tilesItem = await screen.findByText('Tiles');
-    fireEvent.pointerDown(tilesItem);
+    const abilityItem = await screen.findByText('Nostr Lookup');
+    fireEvent.pointerDown(abilityItem);
 
     await waitFor(() => {
-      expect(textarea).toHaveValue('@Tiles ');
+      expect(textarea).toHaveValue('@Nostr Lookup ');
     });
     expect(textarea.value).not.toContain('nostr:');
   });
@@ -153,9 +153,9 @@ describe('MentionAutocomplete', () => {
     );
 
     const textarea = (await screen.findByTestId('message-input')) as HTMLTextAreaElement;
-    setValue(textarea, '@d');
+    setValue(textarea, '@o');
 
     expect(await screen.findByText('John Doe')).toBeInTheDocument();
-    expect(screen.getByText('Tiles')).toBeInTheDocument();
+    expect(screen.getByText('Nostr Lookup')).toBeInTheDocument();
   });
 });

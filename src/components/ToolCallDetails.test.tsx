@@ -10,10 +10,10 @@ import { ToolCallDetails } from './ToolCallDetails';
  * provider settles synchronously. The first assertion per test still uses
  * findBy* so the tests survive a provider swap.
  */
-function renderDetails(toolCall: ToolCall, previousCode?: string) {
+function renderDetails(toolCall: ToolCall) {
   return render(
     <IntlProvider locale="en" onError={() => {}}>
-      <ToolCallDetails toolCall={toolCall} previousCode={previousCode} />
+      <ToolCallDetails toolCall={toolCall} />
     </IntlProvider>,
   );
 }
@@ -142,45 +142,6 @@ describe('ToolCallDetails', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders read_spec results through markdown', async () => {
-    const toolCall: ToolCall = {
-      id: '6',
-      name: 'read_spec',
-      arguments: { section: '7' },
-      result: '## TIP-07\n\nSome Title\n\n*Status: mandatory*\n\nSome body text with **bold**.',
-    };
-    const { container } = renderDetails(toolCall);
-
-    // A trigger is always present. Short content may or may not start expanded.
-    const trigger = await screen.findByRole('button', { name: /show/i });
-    if (!screen.queryByRole('heading', { name: /TIP-07/ })) {
-      fireEvent.click(trigger);
-    }
-
-    // Markdown is processed: headings and emphasis become real elements.
-    expect(screen.getByRole('heading', { name: /TIP-07/ })).toBeInTheDocument();
-    expect(container.querySelector('strong, b')).toHaveTextContent('bold');
-    expect(container.textContent).not.toContain('**bold**');
-  });
-
-  it('keeps long read_spec results collapsed until expanded', async () => {
-    const longResult = '## TIP-07\n\n' + 'Some body text. '.repeat(100);
-    const toolCall: ToolCall = {
-      id: '6',
-      name: 'read_spec',
-      arguments: { section: '7' },
-      result: longResult,
-    };
-    renderDetails(toolCall);
-
-    const trigger = await screen.findByRole('button', { name: /show/i });
-    expect(screen.queryByText(/some body text/i)).not.toBeInTheDocument();
-
-    fireEvent.click(trigger);
-
-    expect(screen.getByText(/some body text/i)).toBeInTheDocument();
-  });
-
   it('renders unhandled tool results as pretty JSON behind a trigger, collapsed by default', async () => {
     const toolCall: ToolCall = {
       id: '7',
@@ -222,120 +183,4 @@ describe('ToolCallDetails', () => {
       expect(container.textContent).not.toContain('##');
     },
   );
-
-  it('shows the read_code range summary and hides the code body behind a trigger', async () => {
-    const toolCall: ToolCall = {
-      id: '9',
-      name: 'read_code',
-      arguments: { offset: 12, limit: 34 },
-      result: '[lines 12–45 of 80]\n12:ab3| local x = 1\n13:c9f| local y = 2',
-    };
-    renderDetails(toolCall);
-
-    // The range note is the summary: visible without expanding.
-    expect(await screen.findByText(/lines 12[–-]45 of 80/i)).toBeInTheDocument();
-
-    // The hashline-tagged code body stays hidden until the trigger is clicked.
-    expect(screen.queryByText(/local x = 1/)).not.toBeInTheDocument();
-
-    fireEvent.click(expandTrigger());
-
-    expect(screen.getByText(/local x = 1/)).toBeInTheDocument();
-    expect(screen.getByText(/local y = 2/)).toBeInTheDocument();
-  });
-
-  it('renders the empty-file message for an empty read_code result', async () => {
-    const toolCall: ToolCall = {
-      id: '10',
-      name: 'read_code',
-      arguments: { offset: 1, limit: 10 },
-      result: '(empty file — no code yet)',
-    };
-    renderDetails(toolCall);
-
-    // The message renders directly. No expand affordance is required, and an
-    // empty collapsible must not break the render.
-    expect(await screen.findByText(/no code yet/i)).toBeInTheDocument();
-  });
-
-  it('shows the new code for a first write when no previousCode exists', async () => {
-    const toolCall: ToolCall = {
-      id: '11',
-      name: 'write_code',
-      arguments: { code: 'local function foo()\n  return 1\nend' },
-      result: 'File written (3 lines).\n<!--CODE_VERSION:0-->',
-    };
-    renderDetails(toolCall);
-
-    expect(await screen.findByText(/File written \(3 lines\)/i)).toBeInTheDocument();
-
-    // Nothing to diff against, so the code body sits behind the trigger.
-    expect(screen.queryByText(/local function foo/)).not.toBeInTheDocument();
-
-    fireEvent.click(expandTrigger());
-
-    expect(screen.getAllByText(/local function foo/).length).toBeGreaterThan(0);
-  });
-
-  it('shows a diff against previousCode for write_code when provided', async () => {
-    const toolCall: ToolCall = {
-      id: '12',
-      name: 'write_code',
-      arguments: { code: 'local function foo()\n  return 1\nend' },
-      result: 'File written (3 lines).\n<!--CODE_VERSION:0-->',
-    };
-    renderDetails(toolCall, 'local function foo()\n  return 0\nend');
-
-    expect(await screen.findByText(/File written \(3 lines\)/i)).toBeInTheDocument();
-
-    // The diff stays hidden until the trigger is clicked.
-    expect(screen.queryByText(/return 0/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/return 1/)).not.toBeInTheDocument();
-
-    fireEvent.click(expandTrigger());
-
-    // Both the removed line and the added line appear in the diff.
-    expect(screen.getAllByText(/return 0/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/return 1/).length).toBeGreaterThan(0);
-    // Unchanged lines appear at least once.
-    expect(screen.getAllByText(/local function foo/).length).toBeGreaterThan(0);
-  });
-
-  it('shows an edit_code summary and hides the operations behind a trigger', async () => {
-    const toolCall: ToolCall = {
-      id: '13',
-      name: 'edit_code',
-      arguments: {
-        operations: [
-          { op: 'replace_line', hash: '12:ab3', content: 'local x = 2' },
-          { op: 'delete_line', hash: '13:c9f' },
-        ],
-      },
-      result: 'Applied 2 operation(s). File now has 79 lines.\n<!--CODE_VERSION:1-->',
-    };
-    const { container } = renderDetails(toolCall);
-
-    // The operation count is the summary: visible without expanding.
-    expect(await screen.findByText(/2 operation/i)).toBeInTheDocument();
-
-    // The per-operation details stay hidden until the trigger is clicked.
-    const opProbe = /replace_line|delete_line|13:c9f|local x = 2/i;
-    expect(screen.queryByText(opProbe)).not.toBeInTheDocument();
-
-    fireEvent.click(expandTrigger());
-
-    expect(container.textContent).toMatch(opProbe);
-  });
-
-  it('shows an edit_code hash-not-found error without expanding', async () => {
-    const toolCall: ToolCall = {
-      id: '14',
-      name: 'edit_code',
-      arguments: { operations: [{ op: 'delete_line', hash: '99:zzz' }] },
-      result: 'Error: hash 99:zzz not found in current code',
-    };
-    renderDetails(toolCall);
-
-    expect(await screen.findByText(/not found in current code/i)).toBeInTheDocument();
-  });
 });

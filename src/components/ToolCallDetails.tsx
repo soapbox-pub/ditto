@@ -3,12 +3,10 @@ import { FormattedMessage, useIntl } from 'react-intl';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
-import { diffLines } from 'diff';
 import { ChevronDown, Palette, Type } from 'lucide-react';
 
 import type { ToolCall } from '@/hooks/useChatSessions';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { cn } from '@/lib/utils';
 import { chatMarkdownComponents } from '@/components/chatMarkdownComponents';
 import { parseAskQuestionsData, parseQuestionsAnswerText } from '@/lib/pendingInput';
 
@@ -20,7 +18,7 @@ const MARKDOWN_COLLAPSE_THRESHOLD = 1200;
  * a tailored summary plus a collapsible detail section; anything unknown (or
  * a known tool whose payload failed to parse) falls back to pretty JSON.
  */
-export function ToolCallDetails({ toolCall, previousCode }: { toolCall: ToolCall; previousCode?: string }): JSX.Element {
+export function ToolCallDetails({ toolCall }: { toolCall: ToolCall }): JSX.Element {
   switch (toolCall.name) {
     case 'set_theme':
       return <SetThemeDetails toolCall={toolCall} />;
@@ -28,17 +26,9 @@ export function ToolCallDetails({ toolCall, previousCode }: { toolCall: ToolCall
       return <AskQuestionsDetails toolCall={toolCall} />;
     case 'nak':
       return <NakDetails toolCall={toolCall} />;
-    case 'read_spec':
-    case 'read_examples':
     case 'fetch_nip':
     case 'search_nips':
       return <MarkdownDetails toolCall={toolCall} />;
-    case 'read_code':
-      return <ReadCodeDetails toolCall={toolCall} />;
-    case 'write_code':
-      return <WriteCodeDetails toolCall={toolCall} previousCode={previousCode} />;
-    case 'edit_code':
-      return <EditCodeDetails toolCall={toolCall} />;
     default:
       return <FallbackDetails toolCall={toolCall} />;
   }
@@ -221,7 +211,7 @@ function NakDetails({ toolCall }: { toolCall: ToolCall }) {
   );
 }
 
-// ─── read_spec / read_examples / fetch_nip / search_nips ────────────────────
+// ─── fetch_nip / search_nips ────────────────────────────────────────────────
 
 function MarkdownDetails({ toolCall }: { toolCall: ToolCall }) {
   const result = toolCall.result ?? '';
@@ -233,138 +223,6 @@ function MarkdownDetails({ toolCall }: { toolCall: ToolCall }) {
         </div>
       </DetailsCollapsible>
     </ToolCard>
-  );
-}
-
-// ─── read_code ──────────────────────────────────────────────────────────────
-
-function ReadCodeDetails({ toolCall }: { toolCall: ToolCall }) {
-  const result = toolCall.result ?? '';
-
-  // An empty file has no hashline body, so there is nothing to expand.
-  if (result.startsWith('(empty file')) {
-    return (
-      <ToolCard>
-        <p className="text-xs text-foreground">{result}</p>
-      </ToolCard>
-    );
-  }
-
-  const firstNewline = result.indexOf('\n');
-  const rangeNote = firstNewline === -1 ? result : result.slice(0, firstNewline);
-  const body = firstNewline === -1 ? '' : result.slice(firstNewline + 1);
-
-  return (
-    <ToolCard>
-      <p className="text-xs text-foreground">{rangeNote}</p>
-      <DetailsCollapsible>
-        <CodeBlock>{body}</CodeBlock>
-      </DetailsCollapsible>
-    </ToolCard>
-  );
-}
-
-// ─── write_code ─────────────────────────────────────────────────────────────
-
-function WriteCodeDetails({ toolCall, previousCode }: { toolCall: ToolCall; previousCode?: string }) {
-  const result = toolCall.result ?? '';
-  const status = result.split('\n')[0];
-  const code = typeof toolCall.arguments.code === 'string' ? toolCall.arguments.code : '';
-
-  return (
-    <ToolCard>
-      <p className="text-xs text-foreground">{status}</p>
-      <DetailsCollapsible>
-        {previousCode !== undefined ? (
-          <DiffView previous={previousCode} next={code} />
-        ) : (
-          <CodeBlock>{code}</CodeBlock>
-        )}
-      </DetailsCollapsible>
-    </ToolCard>
-  );
-}
-
-/** Line-by-line diff between two whole-file versions, additions in green. */
-function DiffView({ previous, next }: { previous: string; next: string }) {
-  const lines = diffLines(previous, next).flatMap((change) => {
-    const type = change.added ? 'add' : change.removed ? 'remove' : 'same';
-    const parts = change.value.split('\n');
-    if (change.value.endsWith('\n')) parts.pop();
-    return parts.map((text) => ({ text, type }));
-  });
-
-  return (
-    <div className="max-h-64 overflow-auto text-xs font-mono leading-relaxed bg-muted/60 rounded-lg p-2">
-      {lines.map((line, i) => (
-        <div
-          key={i}
-          className={cn(
-            line.type === 'add' && 'bg-green-500/10 text-green-700 dark:text-green-400',
-            line.type === 'remove' && 'bg-red-500/10 text-red-700 dark:text-red-400',
-            line.text === '' && 'min-h-4',
-          )}
-        >
-          {line.text === '' ? '\u00A0' : line.text}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── edit_code ──────────────────────────────────────────────────────────────
-
-function EditCodeDetails({ toolCall }: { toolCall: ToolCall }) {
-  const result = toolCall.result ?? '';
-  const operations = Array.isArray(toolCall.arguments.operations)
-    ? toolCall.arguments.operations
-    : [];
-
-  // A hash-not-found result carries no code-version tag; show it directly.
-  if (result.startsWith('Error: ')) {
-    return (
-      <ToolCard>
-        <p className="text-xs text-orange-700 dark:text-orange-400">{result}</p>
-      </ToolCard>
-    );
-  }
-
-  const status = result.split('\n')[0];
-
-  return (
-    <ToolCard>
-      <p className="text-xs text-foreground">{status}</p>
-      <DetailsCollapsible>
-        <div className="space-y-1">
-          {operations.map((op, i) => (
-            <OperationRow key={i} operation={op} />
-          ))}
-        </div>
-      </DetailsCollapsible>
-    </ToolCard>
-  );
-}
-
-function OperationRow({ operation }: { operation: unknown }) {
-  if (operation === null || typeof operation !== 'object' || Array.isArray(operation)) {
-    return null;
-  }
-  const op = operation as Record<string, unknown>;
-  const kind = typeof op.op === 'string' ? op.op : 'unknown';
-  const hashes = [op.hash, op.from_hash, op.to_hash]
-    .filter((h): h is string => typeof h === 'string');
-  const content = typeof op.content === 'string' ? op.content : undefined;
-  const lines = Array.isArray(op.lines)
-    ? (op.lines as unknown[]).filter((l): l is string => typeof l === 'string')
-    : [];
-
-  return (
-    <div className="text-xs font-mono leading-relaxed break-words">
-      <span className="font-medium text-foreground">{kind}</span>
-      {hashes.length > 0 && <span className="text-muted-foreground"> {hashes.join(' ')}</span>}
-      {content !== undefined && <span className="text-muted-foreground"> → {content}</span>}
-      {lines.length > 0 && <span className="text-muted-foreground"> → {lines.join(' ')}</span>}
-    </div>
   );
 }
 

@@ -35,14 +35,6 @@ export interface AbilityInfo {
 /** The registered abilities. Adding one here makes it show up in the popover, the manifest, and the tool bundles. */
 export const ABILITIES = [
   {
-    key: 'tiles',
-    label: defineMessage({ id: 'ai-chat.ability.tiles.label', defaultMessage: 'Tiles' }),
-    description: defineMessage({
-      id: 'ai-chat.ability.tiles.description',
-      defaultMessage: 'Build a sidebar widget (a tile) that runs inside the app, with code, settings, and publishing.',
-    }),
-  },
-  {
     key: 'nostr-lookup',
     label: defineMessage({ id: 'ai-chat.ability.nostrLookup.label', defaultMessage: 'Nostr Lookup' }),
     description: defineMessage({

@@ -22,12 +22,10 @@ export function useToolRegistry() {
   const baseTools = useMemo(() => createBaseToolBundle({ applyCustomTheme }), [applyCustomTheme]);
 
   const buildSessionTools = useCallback(
-    (session: Pick<ChatSession, 'id' | 'abilities' | 'seedCode'>): ToolBundleEntry[] => {
+    (session: Pick<ChatSession, 'abilities'>): ToolBundleEntry[] => {
       return buildSessionToolBundle({
         base: baseTools,
         abilities: session.abilities,
-        projectId: session.id,
-        seedCode: session.seedCode,
         nostr,
       });
     },

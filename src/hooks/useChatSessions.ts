@@ -42,7 +42,6 @@ export interface ChatSession {
   modelId: string;
   messages: DisplayMessage[];
   createdAt: Date;
-  seedCode?: string;
 }
 
 /** Input for creating a new session. */
@@ -50,7 +49,6 @@ export interface CreateSessionInput {
   abilities: Ability[];
   providerId: string;
   modelId: string;
-  seedCode?: string;
 }
 
 /** Fields that can be patched on an existing session. */
@@ -67,7 +65,6 @@ function createSessionObject(input: CreateSessionInput): ChatSession {
     modelId: input.modelId,
     messages: [],
     createdAt: new Date(),
-    seedCode: input.seedCode,
   };
 }
 
@@ -81,7 +78,6 @@ function tabToSession(tab: PersistedTab): ChatSession {
     modelId: tab.modelId,
     messages: [],
     createdAt: new Date(tab.createdAt),
-    seedCode: tab.seedCode,
   };
 }
 
@@ -93,7 +89,6 @@ function tabFromSession(session: ChatSession, agent: SerializedSession = EMPTY_A
     abilities: session.abilities,
     providerId: session.providerId,
     modelId: session.modelId,
-    seedCode: session.seedCode,
     createdAt: session.createdAt.getTime(),
     updatedAt: Date.now(),
     agent,

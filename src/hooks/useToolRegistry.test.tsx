@@ -19,18 +19,6 @@ vi.mock('@nostrify/react', () => ({
 
 const BASE_NAMES = ['set_theme', 'search_nips', 'fetch_nip', 'ask_questions'];
 
-const TILES_NAMES = [
-  'read_code',
-  'write_code',
-  'edit_code',
-  'set_tile',
-  'get_tile',
-  'preview_tile',
-  'set_notes',
-  'read_spec',
-  'read_examples',
-];
-
 function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
   return {
     id: 'sess-1',
@@ -78,12 +66,5 @@ describe('useToolRegistry', () => {
 
     const tools = result.current.buildSessionTools(makeSession());
     expect(tools.map((b) => b.name)).toEqual(BASE_NAMES);
-  });
-
-  it('adds the tiles bundle for a tiles session, base first', () => {
-    const { result } = renderHook(() => useToolRegistry());
-
-    const tools = result.current.buildSessionTools(makeSession({ abilities: ['tiles'] }));
-    expect(tools.map((b) => b.name)).toEqual([...BASE_NAMES, ...TILES_NAMES]);
   });
 });

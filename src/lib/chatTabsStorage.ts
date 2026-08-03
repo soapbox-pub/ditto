@@ -25,7 +25,6 @@ export interface PersistedTab {
   abilities: Ability[];
   providerId: string;
   modelId: string;
-  seedCode?: string;
   /** Unix-ms creation time; drives tab ordering. */
   createdAt: number;
   /** Unix-ms of the last write; drives 30-day pruning. */
@@ -35,7 +34,7 @@ export interface PersistedTab {
 
 /** Metadata fields a session write may patch without touching the agent blob. */
 export type TabMetadataPatch = Partial<
-  Pick<PersistedTab, 'title' | 'abilities' | 'providerId' | 'modelId' | 'seedCode' | 'createdAt'>
+  Pick<PersistedTab, 'title' | 'abilities' | 'providerId' | 'modelId' | 'createdAt'>
 >;
 
 function keyFor(pubkey: string | undefined, id: string): string {

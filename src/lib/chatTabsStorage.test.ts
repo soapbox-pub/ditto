@@ -57,7 +57,7 @@ function makePausedTab(overrides: Partial<PersistedTab> = {}): PersistedTab {
   return {
     id: 'tab-1',
     title: '',
-    abilities: ['tiles'],
+    abilities: ['nostr-lookup'],
     providerId: 'shakespeare',
     modelId: 'shakespeare/glm-4.5',
     createdAt: 1_000_000,
@@ -149,7 +149,7 @@ describe('chatTabsStorage', () => {
     const patched = saveTabAgent('tab-1', resumed, 'anon', 4_000_000);
     expect(patched?.agent).toEqual(resumed);
     expect(patched?.title).toBe('');
-    expect(patched?.abilities).toEqual(['tiles']);
+    expect(patched?.abilities).toEqual(['nostr-lookup']);
     expect(patched?.providerId).toBe('shakespeare');
     expect(patched?.updatedAt).toBe(4_000_000);
   });

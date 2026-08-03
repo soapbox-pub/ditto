@@ -54,7 +54,6 @@ describe('useChatSessions', () => {
     expect(sessions[0].modelId).toBe('');
     expect(sessions[0].messages).toEqual([]);
     expect(sessions[0].createdAt).toBeInstanceOf(Date);
-    expect(sessions[0].seedCode).toBeUndefined();
   });
 
   it('bootstraps to the first configured provider profile when one exists', () => {
@@ -90,7 +89,7 @@ describe('useChatSessions', () => {
     let created: ChatSession | undefined;
     act(() => {
       created = result.current.createSession({
-        abilities: ['tiles'],
+        abilities: ['nostr-lookup'],
         providerId: 'shakespeare',
         modelId: 'x',
       });
@@ -99,36 +98,17 @@ describe('useChatSessions', () => {
     expect(created).toBeDefined();
     expect(created!.id).toMatch(UUID_RE);
     expect(created!.id).not.toBe(bootstrapId);
-    expect(created!.abilities).toEqual(['tiles']);
+    expect(created!.abilities).toEqual(['nostr-lookup']);
     expect(created!.providerId).toBe('shakespeare');
     expect(created!.modelId).toBe('x');
     expect(created!.messages).toEqual([]);
     expect(created!.createdAt).toBeInstanceOf(Date);
-    expect(created!.seedCode).toBeUndefined();
 
     // The created session is appended and immediately becomes active.
     expect(result.current.sessions).toHaveLength(2);
     expect(result.current.sessions[1]).toBe(created);
     expect(result.current.activeSessionId).toBe(created!.id);
     expect(result.current.activeSession).toBe(created);
-  });
-
-  it('createSession preserves the seedCode it was given', () => {
-    const { result } = renderHook(() => useChatSessions());
-
-    let created: ChatSession | undefined;
-    act(() => {
-      created = result.current.createSession({
-        abilities: [],
-        providerId: 'shakespeare',
-        modelId: 'm',
-        seedCode: 'some code',
-      });
-    });
-
-    expect(created!.seedCode).toBe('some code');
-    const inState = result.current.sessions.find((s) => s.id === created!.id);
-    expect(inState?.seedCode).toBe('some code');
   });
 
   it('updateSession patches only the requested field and does not clear existing messages', () => {
@@ -163,7 +143,7 @@ describe('useChatSessions', () => {
     let second: ChatSession | undefined;
     act(() => {
       second = result.current.createSession({
-        abilities: ['tiles'],
+        abilities: ['nostr-lookup'],
         providerId: 'shakespeare',
         modelId: 'm2',
       });
@@ -225,7 +205,7 @@ describe('useChatSessions', () => {
     });
     act(() => {
       third = result.current.createSession({
-        abilities: ['tiles'],
+        abilities: ['nostr-lookup'],
         providerId: 'shakespeare',
         modelId: 'm2',
       });
@@ -306,7 +286,7 @@ describe('useChatSessions', () => {
     const seeded: PersistedTab = {
       id: 'seeded-1',
       title: 'Seeded A tab',
-      abilities: ['tiles'],
+      abilities: ['nostr-lookup'],
       providerId: 'shakespeare',
       modelId: 'm',
       createdAt: Date.now(),

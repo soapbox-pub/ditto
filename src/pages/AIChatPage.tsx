@@ -6,16 +6,16 @@ import rehypeSanitize from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
 import { Bot, Send, Trash2, Sparkles, Plus, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 
-import { getWidgetCreationSystemPrompt, isCompactionMarker } from '@soapbox.pub/nostr-canvas/devkit';
+import { isCompactionMarker } from '@soapbox.pub/nostr-canvas/devkit';
 import type { SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
 
 import { PageHeader } from '@/components/PageHeader';
 import { PendingQuestionsCard } from '@/components/PendingQuestionsCard';
 import { ToolCallDetails } from '@/components/ToolCallDetails';
 import { chatMarkdownComponents } from '@/components/chatMarkdownComponents';
-import { getCodeBeforeToolCall, getInFlightToolCall } from '@/lib/agentActivity';
+import { getInFlightToolCall } from '@/lib/agentActivity';
 import { useShakespeare, useShakespeareCredits, type Model } from '@/hooks/useShakespeare';
-import { useChatSessions, defaultProviderId, type DisplayMessage, type ToolCall, type ChatSession, type CreateSessionInput } from '@/hooks/useChatSessions';
+import { useChatSessions, defaultProviderId, type DisplayMessage, type ToolCall, type CreateSessionInput } from '@/hooks/useChatSessions';
 import { useAIProviders } from '@/hooks/useAIProviders';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -120,8 +120,7 @@ function snapshotToDisplayMessages(msgs: SessionMessage[]): DisplayMessage[] {
 //
 // The base system prompt (buildSystemPrompt) lives in `@/lib/chatSystemPrompt`
 // so the page file exports only components. It embeds the ability manifest
-// from `@/lib/abilities`; a tiles session overrides it with devkit's widget
-// creation prompt (see systemPromptFor below).
+// from `@/lib/abilities`.
 
 // ─── Page Component ───
 
@@ -188,10 +187,8 @@ export function AIChatPage() {
   // @-mention insertion for the message textarea (people + abilities).
   const { insertAtCursor: insertMention } = useInsertText(textareaRef, setInput);
 
-  const systemPromptFor = useCallback((session: ChatSession) => {
-    return session.abilities.includes('tiles')
-      ? getWidgetCreationSystemPrompt({ placement: 'widget' })
-      : buildSystemPrompt(config.appName);
+  const systemPromptFor = useCallback(() => {
+    return buildSystemPrompt(config.appName);
   }, [config.appName]);
 
   const { snapshots, buildError, sendMessage, clearActiveSession } = useAgentSessions({
@@ -589,8 +586,6 @@ export function AIChatPage() {
               <MessageBubble
                 key={msg.id}
                 message={msg}
-                agentMessages={agentSnapshot?.messages ?? []}
-                seedCode={activeSession.seedCode}
               />
             ))}
 
@@ -843,12 +838,8 @@ function EmptyState({ showCreditsGate }: { showCreditsGate: boolean }) {
 
 function MessageBubble({
   message,
-  agentMessages,
-  seedCode,
 }: {
   message: DisplayMessage;
-  agentMessages: SessionMessage[];
-  seedCode?: string;
 }) {
   const isUser = message.role === 'user';
 
@@ -880,7 +871,6 @@ function MessageBubble({
               <ToolCallDetails
                 key={tc.id}
                 toolCall={tc}
-                previousCode={getCodeBeforeToolCall(agentMessages, tc.id, seedCode)}
               />
             ))}
           </div>
@@ -900,17 +890,8 @@ function MessageBubble({
 // waits on that tool's result. Unlisted tool names fall back to the generic
 // "Running {name}..." message.
 const TOOL_ACTIVITY_LABELS: Record<string, MessageDescriptor> = {
-  read_code: defineMessage({ id: 'ai-chat.activity.readCode', defaultMessage: 'Reading code...' }),
-  write_code: defineMessage({ id: 'ai-chat.activity.writeCode', defaultMessage: 'Writing code...' }),
-  edit_code: defineMessage({ id: 'ai-chat.activity.editCode', defaultMessage: 'Editing code...' }),
-  read_spec: defineMessage({ id: 'ai-chat.activity.readSpec', defaultMessage: 'Reading spec...' }),
-  read_examples: defineMessage({ id: 'ai-chat.activity.readExamples', defaultMessage: 'Reading examples...' }),
   search_nips: defineMessage({ id: 'ai-chat.activity.searchNips', defaultMessage: 'Searching NIPs...' }),
   fetch_nip: defineMessage({ id: 'ai-chat.activity.fetchNip', defaultMessage: 'Fetching NIP...' }),
-  set_tile: defineMessage({ id: 'ai-chat.activity.setTile', defaultMessage: 'Setting tile...' }),
-  get_tile: defineMessage({ id: 'ai-chat.activity.getTile', defaultMessage: 'Getting tile...' }),
-  preview_tile: defineMessage({ id: 'ai-chat.activity.previewTile', defaultMessage: 'Previewing tile...' }),
-  set_notes: defineMessage({ id: 'ai-chat.activity.setNotes', defaultMessage: 'Setting notes...' }),
   ask_questions: defineMessage({ id: 'ai-chat.activity.askQuestions', defaultMessage: 'Asking questions...' }),
   set_theme: defineMessage({ id: 'ai-chat.activity.setTheme', defaultMessage: 'Applying theme...' }),
   nak: defineMessage({ id: 'ai-chat.activity.nak', defaultMessage: 'Looking up nostr data...' }),
