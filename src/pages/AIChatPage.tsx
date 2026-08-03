@@ -393,33 +393,43 @@ export function AIChatPage() {
         {sessions.map((session) => {
           const isActive = session.id === activeSessionId;
           return (
-            <div key={session.id} className="flex items-center shrink-0">
-              <Button
-                variant={isActive ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveSessionId(session.id)}
-                className="rounded-full text-xs max-w-36"
-              >
-                {session.title ? (
-                  <span className="truncate">{session.title}</span>
-                ) : (
-                  <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <Loader2 className="size-3 animate-spin" aria-hidden="true" />
-                    <FormattedMessage id="ai-chat.newChat" defaultMessage="New chat" />
-                  </span>
+            <div key={session.id} className="shrink-0">
+              <div
+                className={cn(
+                  'flex items-center rounded-full',
+                  isActive && 'bg-secondary text-secondary-foreground',
                 )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-7 rounded-full -ml-1 shrink-0"
-                onClick={() => closeSession(session.id)}
-                disabled={sessions.length === 1}
-                title={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
-                aria-label={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
               >
-                <X className="size-3" />
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setActiveSessionId(session.id)}
+                  className="rounded-full text-xs max-w-36"
+                >
+                  {session.title ? (
+                    <span className="truncate">{session.title}</span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+                      <FormattedMessage id="ai-chat.newChat" defaultMessage="New chat" />
+                    </span>
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 rounded-full shrink-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeSession(session.id);
+                  }}
+                  disabled={sessions.length === 1}
+                  title={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
+                  aria-label={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
+                >
+                  <X className="size-3" />
+                </Button>
+              </div>
             </div>
           );
         })}
