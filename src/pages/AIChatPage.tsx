@@ -276,6 +276,29 @@ export function AIChatPage() {
     return () => { cancelled = true; };
   }, [user, getAvailableModels]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Correct a first-tab bootstrap session still on the zero-config
+  // 'shakespeare' fallback once a real provider becomes available. The
+  // bootstrap's default is computed synchronously from whatever `profiles`
+  // looked like on mount (see `loadOrBootstrap`), but this device's synced AI
+  // provider profiles can arrive shortly after over NIP-78 (an async
+  // encrypted-settings fetch) — the bootstrap session was already created
+  // and persisted with 'shakespeare' by then (its modelId already auto-fills
+  // to a Shakespeare model within moments via the mount-time fetch below, so
+  // that alone can't signal "untouched"). Only touch the single bootstrap
+  // session while it has no title and no exchanged messages, so a user who
+  // deliberately keeps Shakespeare, or is already mid-conversation, is never
+  // silently switched. Reset modelId too — the corrected provider does not
+  // recognize the Shakespeare model id that may already be sitting there;
+  // the provider-aware auto-select effect below fills in the right one.
+  useEffect(() => {
+    if (sessions.length !== 1) return;
+    const [only] = sessions;
+    if (only.providerId !== 'shakespeare' || only.title !== '') return;
+    if (profiles.length === 0) return;
+    if ((snapshots[only.id]?.messages.length ?? 0) > 0) return;
+    updateSession(only.id, { providerId: defaultProviderId(profiles), modelId: '' });
+  }, [sessions, profiles, snapshots, updateSession]);
+
   // Auto-select the first model whenever the active session has none. Sessions
   // arrive with an empty modelId from the first-tab bootstrap, "New Chat"
   // (providerId: defaultProviderId(profiles), modelId: ''), and restored

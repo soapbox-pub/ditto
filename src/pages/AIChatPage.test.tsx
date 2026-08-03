@@ -427,6 +427,48 @@ describe('AIChatPage', () => {
     expect(tabs[0].modelId).toBe('shakespeare/glm-4.5');
   });
 
+  it("switches a still-untouched bootstrap session off shakespeare once synced provider profiles arrive", async () => {
+    // No profiles yet on mount, as if the NIP-78 encrypted-settings merge
+    // has not resolved: the bootstrap session lands on the zero-config
+    // shakespeare fallback.
+    useCurrentUserMock.mockReturnValue({ user: { pubkey: PUBKEY } });
+    useAIProvidersMock.mockReturnValue({ profiles: [] });
+    getAvailableModelsMock.mockResolvedValue({
+      object: 'list',
+      data: [shakespeareModel('glm-4.5', { prompt: '1.5', completion: '7.5' })],
+    });
+
+    const { rerender } = renderPage();
+
+    await waitFor(() => {
+      const tabs = readStoredTabs(PUBKEY);
+      expect(tabs).toHaveLength(1);
+      expect(tabs[0].providerId).toBe('shakespeare');
+    });
+
+    // The encrypted-settings merge resolves shortly after mount: profiles
+    // becomes non-empty. The still-untouched bootstrap session must switch
+    // to the newly available provider instead of staying stuck on
+    // shakespeare until the user happens to open another tab.
+    const profiles: AIProviderProfile[] = [
+      makeProfile({ id: 'provider-a', name: 'My OpenRouter', models: [{ id: 'model-1', name: 'Model 1' }] }),
+    ];
+    useAIProvidersMock.mockReturnValue({ profiles });
+    rerender(
+      <IntlProvider locale="en" onError={() => {}}>
+        <MemoryRouter>
+          <AIChatPage />
+        </MemoryRouter>
+      </IntlProvider>,
+    );
+
+    await waitFor(() => {
+      const tabs = readStoredTabs(PUBKEY);
+      expect(tabs[0].providerId).toBe('provider-a');
+      expect(tabs[0].modelId).toBe('model-1');
+    });
+  });
+
   it("auto-titles a custom-provider session after its first exchange completes", async () => {
     const profiles: AIProviderProfile[] = [
       makeProfile({ id: 'provider-a', name: 'My OpenRouter', models: [{ id: 'model-1', name: 'Model 1' }] }),
