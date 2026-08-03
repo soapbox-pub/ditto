@@ -165,7 +165,7 @@ describe('ToolCallDetails', () => {
 
   it.each<[string, Record<string, unknown>, string]>([
     ['fetch_nip', { nip: '18' }, '## NIP-18\n\nReposts and quote posts.'],
-    ['search_nips', { query: 'zap' }, '## Search results\n\nFound **zap** related NIPs.'],
+    ['search_nips', { keyword: 'zap' }, '## Search results\n\nFound **zap** related NIPs.'],
   ])(
     'renders %s results through the markdown pipeline, not the JSON fallback',
     async (name, args, result) => {
@@ -183,4 +183,40 @@ describe('ToolCallDetails', () => {
       expect(container.textContent).not.toContain('##');
     },
   );
+
+  it('shows which NIP fetch_nip fetched, visible without expanding', async () => {
+    const toolCall: ToolCall = {
+      id: '9',
+      name: 'fetch_nip',
+      arguments: { nip: '18' },
+      result: '## NIP-18\n\nReposts and quote posts.',
+    };
+    renderDetails(toolCall);
+
+    expect(await screen.findByText('Fetched NIP-18')).toBeInTheDocument();
+  });
+
+  it('shows the search_nips keyword and kind, visible without expanding', async () => {
+    const toolCall: ToolCall = {
+      id: '10',
+      name: 'search_nips',
+      arguments: { keyword: 'zap', kind: 9734 },
+      result: '## Search results\n\nFound **zap** related NIPs.',
+    };
+    renderDetails(toolCall);
+
+    expect(await screen.findByText('Searched NIPs for "zap" (kind 9734)')).toBeInTheDocument();
+  });
+
+  it('falls back to a generic search_nips summary when no arguments are given', async () => {
+    const toolCall: ToolCall = {
+      id: '11',
+      name: 'search_nips',
+      arguments: {},
+      result: '## Search results\n\nFound some NIPs.',
+    };
+    renderDetails(toolCall);
+
+    expect(await screen.findByText('Searched NIPs')).toBeInTheDocument();
+  });
 });

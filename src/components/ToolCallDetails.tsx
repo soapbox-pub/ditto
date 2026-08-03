@@ -213,10 +213,48 @@ function NakDetails({ toolCall }: { toolCall: ToolCall }) {
 
 // ─── fetch_nip / search_nips ────────────────────────────────────────────────
 
+/** One-line summary of what fetch_nip/search_nips actually did, so the tool
+ * name and its arguments (the NIP number, the search keyword/kind) are
+ * visible without expanding the details — matching every other tool card. */
+function summaryForMarkdownTool(toolCall: ToolCall, intl: ReturnType<typeof useIntl>): string {
+  const args = toolCall.arguments;
+  if (toolCall.name === 'fetch_nip') {
+    const nip = typeof args.nip === 'string' && args.nip ? args.nip : undefined;
+    return nip
+      ? intl.formatMessage({ id: 'ai-chat.tool.fetchNipSummary', defaultMessage: 'Fetched NIP-{nip}' }, { nip })
+      : intl.formatMessage({ id: 'ai-chat.tool.fetchNipSummaryUnknown', defaultMessage: 'Fetched a NIP' });
+  }
+
+  const keyword = typeof args.keyword === 'string' && args.keyword ? args.keyword : undefined;
+  const kind = typeof args.kind === 'number' ? args.kind : undefined;
+  if (keyword && kind !== undefined) {
+    return intl.formatMessage(
+      { id: 'ai-chat.tool.searchNipsSummaryBoth', defaultMessage: 'Searched NIPs for "{keyword}" (kind {kind})' },
+      { keyword, kind },
+    );
+  }
+  if (keyword) {
+    return intl.formatMessage(
+      { id: 'ai-chat.tool.searchNipsSummaryKeyword', defaultMessage: 'Searched NIPs for "{keyword}"' },
+      { keyword },
+    );
+  }
+  if (kind !== undefined) {
+    return intl.formatMessage(
+      { id: 'ai-chat.tool.searchNipsSummaryKind', defaultMessage: 'Searched NIPs (kind {kind})' },
+      { kind },
+    );
+  }
+  return intl.formatMessage({ id: 'ai-chat.tool.searchNipsSummaryNone', defaultMessage: 'Searched NIPs' });
+}
+
 function MarkdownDetails({ toolCall }: { toolCall: ToolCall }) {
+  const intl = useIntl();
   const result = toolCall.result ?? '';
+  const summary = summaryForMarkdownTool(toolCall, intl);
   return (
     <ToolCard>
+      <p className="text-xs text-foreground">{summary}</p>
       <DetailsCollapsible defaultOpen={result.length <= MARKDOWN_COLLAPSE_THRESHOLD}>
         <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-muted prose-pre:overflow-x-auto prose-pre:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
           <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={chatMarkdownComponents}>{result}</Markdown>
