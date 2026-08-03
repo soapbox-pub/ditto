@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { formatQuestionsAnswer, parseAskQuestionsData } from './pendingInput';
+import { formatQuestionsAnswer, parseAskQuestionsData, parseQuestionsAnswerText } from './pendingInput';
 
 describe('parseAskQuestionsData', () => {
   it('parses questions with suggestions', () => {
@@ -78,5 +78,51 @@ describe('formatQuestionsAnswer', () => {
   it('treats a missing answer as empty', () => {
     const questions = [{ text: 'Q1' }, { text: 'Q2' }];
     expect(formatQuestionsAnswer(questions, ['a'])).toBe('Q1: Q1\nA1: a\n\nQ2: Q2\nA2: ');
+  });
+});
+
+describe('parseQuestionsAnswerText', () => {
+  it('parses one answer per question', () => {
+    const text = 'Q1: What should the tile show?\nA1: A clock\n\nQ2: What color?\nA2: Blue';
+    expect(parseQuestionsAnswerText(text, 2)).toEqual(['A clock', 'Blue']);
+  });
+
+  it('round-trips through formatQuestionsAnswer', () => {
+    const questions = [{ text: 'Q1' }, { text: 'Q2' }, { text: 'Q3' }];
+    const answers = ['first', 'second', 'third'];
+    const formatted = formatQuestionsAnswer(questions, answers);
+    expect(parseQuestionsAnswerText(formatted, questions.length)).toEqual(answers);
+  });
+
+  it('keeps blank lines and multiple paragraphs inside a pasted answer', () => {
+    const text = [
+      'Q1: Paste the text.',
+      'A1: First paragraph.',
+      '',
+      'Second paragraph, after a blank line.',
+      '',
+      'Q2: Anything else?',
+      'A2: Nope.',
+    ].join('\n');
+
+    expect(parseQuestionsAnswerText(text, 2)).toEqual([
+      'First paragraph.\n\nSecond paragraph, after a blank line.',
+      'Nope.',
+    ]);
+  });
+
+  it('returns null when the block count does not match', () => {
+    const text = 'Q1: One\nA1: a\n\nQ2: Two\nA2: b';
+    expect(parseQuestionsAnswerText(text, 1)).toBeNull();
+    expect(parseQuestionsAnswerText(text, 3)).toBeNull();
+  });
+
+  it('returns null for an empty or non-string result', () => {
+    expect(parseQuestionsAnswerText('', 1)).toBeNull();
+    expect(parseQuestionsAnswerText('   ', 1)).toBeNull();
+  });
+
+  it('returns null when an answer marker is missing', () => {
+    expect(parseQuestionsAnswerText('Q1: One\nNo answer marker here', 1)).toBeNull();
   });
 });

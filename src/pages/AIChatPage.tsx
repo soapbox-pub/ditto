@@ -3,13 +3,15 @@ import { FormattedMessage, useIntl, defineMessage, type MessageDescriptor } from
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { Bot, Send, Trash2, Palette, Type, Sparkles, Plus, X, Loader2 } from 'lucide-react';
+import { Bot, Send, Trash2, Sparkles, Plus, X, Loader2 } from 'lucide-react';
 
 import { getWidgetCreationSystemPrompt, isCompactionMarker } from '@soapbox.pub/nostr-canvas/devkit';
 import type { SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
 
 import { PageHeader } from '@/components/PageHeader';
 import { PendingQuestionsCard } from '@/components/PendingQuestionsCard';
+import { ToolCallDetails } from '@/components/ToolCallDetails';
+import { getCodeBeforeToolCall, getInFlightToolCall } from '@/lib/agentActivity';
 import { useShakespeare, useShakespeareCredits, type Model } from '@/hooks/useShakespeare';
 import { useChatSessions, defaultProviderId, type DisplayMessage, type ToolCall, type ChatSession, type CreateSessionInput } from '@/hooks/useChatSessions';
 import { useAIProviders } from '@/hooks/useAIProviders';
@@ -178,7 +180,7 @@ export function AIChatPage() {
     description: intl.formatMessage({ id: 'ai-chat.metaDescription', defaultMessage: 'Chat with AI assistant' }),
   });
 
-  useLayoutOptions({ noOverscroll: true });
+  useLayoutOptions({ noOverscroll: true, pinTopBar: true });
 
   // Scroll to bottom on new messages
   const scrollToBottom = useCallback(() => {
@@ -496,7 +498,12 @@ export function AIChatPage() {
         <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
           <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                agentMessages={agentSnapshot?.messages ?? []}
+                seedCode={activeSession.seedCode}
+              />
             ))}
 
             {/* Pending user input surfaced by a tool (e.g. ask_questions) */}
@@ -505,8 +512,13 @@ export function AIChatPage() {
             )}
 
             {/* Loading indicator */}
-            {isLoading && messages[messages.length - 1]?.role === 'user' && (
-              <DorkThinking className="text-sm" />
+            {isLoading && (
+              <div className="flex items-center gap-2">
+                <DorkThinking className="text-sm" />
+                <span className="text-sm text-muted-foreground">
+                  <ToolActivityCaption messages={agentSnapshot?.messages ?? []} />
+                </span>
+              </div>
             )}
 
             {/* Error display */}
@@ -741,7 +753,15 @@ function EmptyState({ showCreditsGate }: { showCreditsGate: boolean }) {
 
 
 
-function MessageBubble({ message }: { message: DisplayMessage }) {
+function MessageBubble({
+  message,
+  agentMessages,
+  seedCode,
+}: {
+  message: DisplayMessage;
+  agentMessages: SessionMessage[];
+  seedCode?: string;
+}) {
   const isUser = message.role === 'user';
 
   return (
@@ -769,7 +789,11 @@ function MessageBubble({ message }: { message: DisplayMessage }) {
         {message.toolCalls && message.toolCalls.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-1">
             {message.toolCalls.map((tc) => (
-              <ToolCallBadge key={tc.id} toolCall={tc} />
+              <ToolCallDetails
+                key={tc.id}
+                toolCall={tc}
+                previousCode={getCodeBeforeToolCall(agentMessages, tc.id, seedCode)}
+              />
             ))}
           </div>
         )}
@@ -782,54 +806,42 @@ function MessageBubble({ message }: { message: DisplayMessage }) {
   );
 }
 
-function ToolCallBadge({ toolCall }: { toolCall: ToolCall }) {
-  let resultParsed: {
-    success?: boolean;
-    error?: string;
-    colors?: { background?: string; text?: string; primary?: string };
-    font?: string;
-    background?: { url?: string; mode?: string };
-  } = {};
-  try {
-    resultParsed = JSON.parse(toolCall.result || '{}');
-  } catch {
-    // ignore
+// ─── Loading indicator caption ──────────────────────────────────────────────
+
+// Present-continuous label per tool, shown under DorkThinking while the agent
+// waits on that tool's result. Unlisted tool names fall back to the generic
+// "Running {name}..." message.
+const TOOL_ACTIVITY_LABELS: Record<string, MessageDescriptor> = {
+  read_code: defineMessage({ id: 'ai-chat.activity.readCode', defaultMessage: 'Reading code...' }),
+  write_code: defineMessage({ id: 'ai-chat.activity.writeCode', defaultMessage: 'Writing code...' }),
+  edit_code: defineMessage({ id: 'ai-chat.activity.editCode', defaultMessage: 'Editing code...' }),
+  read_spec: defineMessage({ id: 'ai-chat.activity.readSpec', defaultMessage: 'Reading spec...' }),
+  read_examples: defineMessage({ id: 'ai-chat.activity.readExamples', defaultMessage: 'Reading examples...' }),
+  search_nips: defineMessage({ id: 'ai-chat.activity.searchNips', defaultMessage: 'Searching NIPs...' }),
+  fetch_nip: defineMessage({ id: 'ai-chat.activity.fetchNip', defaultMessage: 'Fetching NIP...' }),
+  set_tile: defineMessage({ id: 'ai-chat.activity.setTile', defaultMessage: 'Setting tile...' }),
+  get_tile: defineMessage({ id: 'ai-chat.activity.getTile', defaultMessage: 'Getting tile...' }),
+  preview_tile: defineMessage({ id: 'ai-chat.activity.previewTile', defaultMessage: 'Previewing tile...' }),
+  set_notes: defineMessage({ id: 'ai-chat.activity.setNotes', defaultMessage: 'Setting notes...' }),
+  ask_questions: defineMessage({ id: 'ai-chat.activity.askQuestions', defaultMessage: 'Asking questions...' }),
+  set_theme: defineMessage({ id: 'ai-chat.activity.setTheme', defaultMessage: 'Applying theme...' }),
+  nak: defineMessage({ id: 'ai-chat.activity.nak', defaultMessage: 'Looking up nostr data...' }),
+};
+
+function ToolActivityCaption({ messages }: { messages: SessionMessage[] }) {
+  const inFlight = getInFlightToolCall(messages);
+  if (!inFlight) {
+    return <FormattedMessage id="ai-chat.activity.thinking" defaultMessage="Thinking..." />;
   }
-
-  const isSuccess = resultParsed.success === true;
-  const colors = resultParsed.colors;
-
-  if (toolCall.name !== 'set_theme' || !isSuccess) {
-    return (
-      <span className={cn(
-        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium',
-        isSuccess
-          ? 'bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20'
-          : 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-500/20',
-      )}>
-        <Palette className="size-3" />
-        {resultParsed.error || toolCall.name}
-      </span>
-    );
+  const label = TOOL_ACTIVITY_LABELS[inFlight.name];
+  if (label) {
+    return <FormattedMessage {...label} />;
   }
-
   return (
-    <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-[11px] font-medium bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20">
-      {/* Color swatches */}
-      {colors && (
-        <span className="flex items-center gap-0.5">
-          <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.background})` }} />
-          <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.text})` }} />
-          <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.primary})` }} />
-        </span>
-      )}
-      <FormattedMessage id="ai-chat.themeApplied" defaultMessage="Theme applied" />
-      {resultParsed.font && (
-        <span className="inline-flex items-center gap-0.5 opacity-80">
-          <Type className="size-2.5" />
-          {resultParsed.font}
-        </span>
-      )}
-    </span>
+    <FormattedMessage
+      id="ai-chat.activity.running"
+      defaultMessage="Running {name}..."
+      values={{ name: inFlight.name }}
+    />
   );
 }

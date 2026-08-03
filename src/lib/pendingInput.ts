@@ -63,3 +63,35 @@ export function formatQuestionsAnswer(
     .map((q, i) => `Q${i + 1}: ${q.text}\nA${i + 1}: ${(answers[i] ?? '').trim()}`)
     .join('\n\n');
 }
+
+/**
+ * Parse a formatted answer string (as produced by `formatQuestionsAnswer`)
+ * back into one answer per question. Blocks are delimited by `Q\d+:` marker
+ * lines rather than blank lines, so a free-text answer can freely contain
+ * blank lines or multiple paragraphs (e.g. pasted text) without breaking the
+ * split — each answer runs from its `A\d+:` line up to the next `Q\d+:`
+ * marker or the end of the string. The only edge case this does not handle
+ * is an answer whose own text contains a line that itself looks like a
+ * `Q\d+:` marker, which would be misread as the start of the next block.
+ * Returns `null` when the string does not shape up as exactly `count`
+ * blocks, so the caller can fall back to raw rendering.
+ */
+export function parseQuestionsAnswerText(result: string, count: number): string[] | null {
+  if (typeof result !== 'string' || result.trim().length === 0) return null;
+
+  const markerRe = /^Q\d+: /gm;
+  const starts: number[] = [];
+  for (let match = markerRe.exec(result); match !== null; match = markerRe.exec(result)) {
+    starts.push(match.index);
+  }
+  if (starts.length !== count) return null;
+
+  const answers: string[] = [];
+  for (let i = 0; i < starts.length; i++) {
+    const block = result.slice(starts[i], starts[i + 1] ?? result.length);
+    const match = block.match(/^A\d+: ?([\s\S]*)$/m);
+    if (!match) return null;
+    answers.push(match[1].trimEnd());
+  }
+  return answers;
+}

@@ -141,6 +141,11 @@ function completedExchangeSnapshot(messages: SessionMessage[]): AgentSnapshot {
   };
 }
 
+/** A snapshot still processing a turn: the agent is loading. */
+function busySnapshot(messages: SessionMessage[], isLoading = true): AgentSnapshot {
+  return { ...completedExchangeSnapshot(messages), isLoading };
+}
+
 const PUBKEY = 'aa'.repeat(32);
 
 /** Read back the persisted tabs for a pubkey scope, oldest first. */
@@ -155,6 +160,30 @@ function readStoredTabs(pubkey: string): PersistedTab[] {
   }
   tabs.sort((a, b) => a.createdAt - b.createdAt);
   return tabs;
+}
+
+/**
+ * Persist a tab and point useAgentSessions at the given snapshot so the page
+ * renders it as the active session's thread.
+ */
+function stubActiveSession(tabId: string, snapshot: AgentSnapshot): void {
+  const tab: PersistedTab = {
+    id: tabId,
+    title: '',
+    abilities: [],
+    providerId: 'shakespeare',
+    modelId: '',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    agent: { messages: [], pendingInput: null, pendingToolCalls: [] },
+  };
+  localStorage.setItem(`${TAB_STORAGE_PREFIX}${PUBKEY}.${tabId}`, JSON.stringify(tab));
+  useAgentSessionsMock.mockReturnValue({
+    snapshots: { [tabId]: snapshot },
+    buildError: null,
+    sendMessage: sendMessageMock,
+    clearActiveSession: clearActiveSessionMock,
+  });
 }
 
 function renderPage() {
@@ -457,5 +486,85 @@ describe('AIChatPage', () => {
       const sessionTab = tabs.find((t) => t.id === 'provider-tab');
       expect(sessionTab?.title).toBe('Generated Title');
     });
+  });
+
+  it("shows the thinking indicator while a plain assistant reply streams", async () => {
+    const messages: SessionMessage[] = [
+      { role: 'user', content: 'hi' },
+      { role: 'assistant', content: 'streaming reply' },
+    ];
+    stubActiveSession('streaming-tab', busySnapshot(messages));
+    useCurrentUserMock.mockReturnValue({ user: { pubkey: PUBKEY } });
+    useAIProvidersMock.mockReturnValue({ profiles: [] });
+
+    renderPage();
+
+    // Let the mount-time model fetch settle so its state updates land inside act.
+    await waitFor(() => expect(getAvailableModelsMock).toHaveBeenCalled());
+
+    // The last message is a plain assistant reply, so the indicator shows the
+    // generic thinking caption, not a tool label.
+    expect(screen.getByText('hi')).toBeInTheDocument();
+    expect(screen.getByText(/thinking/i)).toBeInTheDocument();
+  });
+
+  it("shows the running-tool caption while a tool call is in flight", async () => {
+    const messages: SessionMessage[] = [
+      { role: 'user', content: 'hi' },
+      {
+        role: 'assistant',
+        content: null,
+        tool_calls: [
+          {
+            id: 'call-1',
+            type: 'function',
+            function: { name: 'nak', arguments: JSON.stringify({ action: 'req', kinds: [1], limit: 5 }) },
+          },
+        ],
+      },
+    ];
+    stubActiveSession('nak-tab', busySnapshot(messages));
+    useCurrentUserMock.mockReturnValue({ user: { pubkey: PUBKEY } });
+    useAIProvidersMock.mockReturnValue({ profiles: [] });
+
+    renderPage();
+
+    // Let the mount-time model fetch settle so its state updates land inside act.
+    await waitFor(() => expect(getAvailableModelsMock).toHaveBeenCalled());
+
+    // The unresolved nak call names the caption; the generic caption is absent.
+    expect(screen.getByText('hi')).toBeInTheDocument();
+    expect(screen.getByText(/looking up nostr data/i)).toBeInTheDocument();
+    expect(screen.queryByText(/thinking/i)).not.toBeInTheDocument();
+  });
+
+  it("renders no indicator when the agent is not loading", async () => {
+    const messages: SessionMessage[] = [
+      { role: 'user', content: 'hi' },
+      {
+        role: 'assistant',
+        content: null,
+        tool_calls: [
+          {
+            id: 'call-1',
+            type: 'function',
+            function: { name: 'nak', arguments: '{}' },
+          },
+        ],
+      },
+    ];
+    stubActiveSession('idle-tab', busySnapshot(messages, false));
+    useCurrentUserMock.mockReturnValue({ user: { pubkey: PUBKEY } });
+    useAIProvidersMock.mockReturnValue({ profiles: [] });
+
+    renderPage();
+
+    // Let the mount-time model fetch settle so its state updates land inside act.
+    await waitFor(() => expect(getAvailableModelsMock).toHaveBeenCalled());
+
+    // No loading means no indicator, whatever the message roles.
+    expect(screen.getByText('hi')).toBeInTheDocument();
+    expect(screen.queryByText(/thinking/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/looking up nostr data/i)).not.toBeInTheDocument();
   });
 });
