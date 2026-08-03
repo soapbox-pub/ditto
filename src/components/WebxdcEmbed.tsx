@@ -10,7 +10,6 @@ import { useCardTilt } from '@/hooks/useCardTilt';
 import { useDominantColor } from '@/hooks/useDominantColor';
 import { useWebxdc } from '@/hooks/useWebxdc';
 import { deriveIframeSubdomain } from '@/lib/iframeSubdomain';
-import { publicAssetUrl } from '@/lib/publicAssetUrl';
 import { cn } from '@/lib/utils';
 
 export interface WebxdcEmbedProps {
@@ -240,7 +239,7 @@ function WebxdcCartridgeButton({
       >
         {/* Cartridge background image establishes aspect ratio; icon is absolutely positioned over the label */}
         <img
-          src={publicAssetUrl('/cartridge.png')}
+          src="/cartridge.png"
           alt=""
           aria-hidden="true"
           className="w-full h-auto block select-none pointer-events-none drop-shadow-md"
@@ -254,8 +253,8 @@ function WebxdcCartridgeButton({
             className="absolute inset-0 pointer-events-none"
             style={{
               backgroundColor: tintColor,
-              WebkitMaskImage: `url(${publicAssetUrl('/cartridge.png')})`,
-              maskImage: `url(${publicAssetUrl('/cartridge.png')})`,
+              WebkitMaskImage: 'url(/cartridge.png)',
+              maskImage: 'url(/cartridge.png)',
               WebkitMaskSize: '100% 100%',
               maskSize: '100% 100%',
               WebkitMaskRepeat: 'no-repeat',

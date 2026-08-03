@@ -1,5 +1,3 @@
-import { publicAssetUrl } from '@/lib/publicAssetUrl';
-
 interface IntroImageProps {
   src: string;
   /** Tailwind size class, e.g. "w-40" (default) or "w-10" */
@@ -12,11 +10,11 @@ export function IntroImage({ src, size = 'w-40', className }: IntroImageProps) {
     <div
       className={`${size} shrink-0 bg-primary opacity-90 ${className ?? ''}`}
       style={{
-        maskImage: `url(${publicAssetUrl(src)})`,
+        maskImage: `url(${src})`,
         maskSize: 'contain',
         maskRepeat: 'no-repeat',
         maskPosition: 'center',
-        WebkitMaskImage: `url(${publicAssetUrl(src)})`,
+        WebkitMaskImage: `url(${src})`,
         WebkitMaskSize: 'contain',
         WebkitMaskRepeat: 'no-repeat',
         WebkitMaskPosition: 'center',
