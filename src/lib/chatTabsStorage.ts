@@ -75,12 +75,20 @@ export function getStoredTab(id: string, pubkey?: string, storage: Storage = loc
 
 /** Write (or overwrite) a tab's full record. */
 export function saveTab(tab: PersistedTab, pubkey?: string, storage: Storage = localStorage): void {
-  storage.setItem(keyFor(pubkey, tab.id), JSON.stringify(tab));
+  try {
+    storage.setItem(keyFor(pubkey, tab.id), JSON.stringify(tab));
+  } catch {
+    // localStorage may be unavailable (private mode etc.)
+  }
 }
 
 /** Hard-delete a tab's record. */
 export function removeTab(id: string, pubkey?: string, storage: Storage = localStorage): void {
-  storage.removeItem(keyFor(pubkey, id));
+  try {
+    storage.removeItem(keyFor(pubkey, id));
+  } catch {
+    // localStorage may be unavailable (private mode etc.)
+  }
 }
 
 /**

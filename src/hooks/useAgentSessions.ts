@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AgentSession } from '@soapbox.pub/nostr-canvas/devkit';
+import type { SerializedSession } from '@soapbox.pub/nostr-canvas/devkit';
 import type { NUser } from '@nostrify/react/login';
 
 import { createSessionOpenAIClient, sessionModelId, sessionContextWindow } from '@/lib/aiClient';
@@ -16,10 +17,13 @@ interface AgentEntry {
   agent: AgentSession;
   providerId: string;
   modelId: string;
+  /** Provider credential fields the client was built with; null for the zero-config Shakespeare provider. */
+  providerApiKey: string | null;
+  providerBaseURL: string | null;
   unsub?: () => void;
 }
 
-export interface AgentSessionsOptions {
+interface AgentSessionsOptions {
   sessions: ChatSession[];
   activeSessionId: string;
   profiles: AIProviderProfile[];
@@ -28,6 +32,19 @@ export interface AgentSessionsOptions {
   models: Model[];
   buildSessionTools: (session: ChatSession) => ToolBundleEntry[];
   systemPromptFor: (session: ChatSession) => string;
+}
+
+/** Trailing debounce for tab-blob persistence; streams notify once per chunk. */
+const SAVE_DEBOUNCE_MS = 200;
+
+/** The provider credential fields a session's client was built with; null when the zero-config Shakespeare provider is in use. */
+function providerCredentialFields(
+  session: ChatSession,
+  profiles: AIProviderProfile[],
+): { apiKey: string | null; baseURL: string | null } {
+  if (session.providerId === 'shakespeare') return { apiKey: null, baseURL: null };
+  const profile = profiles.find((p) => p.id === session.providerId);
+  return { apiKey: profile?.apiKey ?? null, baseURL: profile?.baseURL ?? null };
 }
 
 /**
@@ -40,10 +57,10 @@ export interface AgentSessionsOptions {
  * each tab's agent from its localStorage blob via deserialize(), which
  * round-trips a mid-flight ask_questions pause.
  *
- * Each agent's every state change is persisted back into its tab's
- * localStorage entry (the agent blob merged in, metadata untouched), so a
- * reload at any point — including mid-pause — restores exactly what was
- * happening.
+ * Each agent's state changes are persisted back into its tab's localStorage
+ * entry (the agent blob merged in, metadata untouched) on a short trailing
+ * debounce, so a reload at any point — including mid-pause — restores
+ * exactly what was happening.
  */
 export function useAgentSessions(options: AgentSessionsOptions) {
   const { sessions, activeSessionId, profiles, user, models, buildSessionTools, systemPromptFor } = options;
@@ -56,41 +73,92 @@ export function useAgentSessions(options: AgentSessionsOptions) {
   const activeSessionIdRef = useRef(activeSessionId);
   /** Last persisted blob JSON per session, so identical blobs (e.g. stream chunks) skip writes. */
   const lastBlobJsonRef = useRef(new Map<string, string>());
+  /** Latest serialized blob per session awaiting its debounced persist, plus the pubkey scope it must be written under. */
+  const pendingBlobRef = useRef(new Map<string, { pubkey: string | undefined; serialized: SerializedSession }>());
+  /** Trailing-debounce timer per session for persisting the pending blob. */
+  const saveTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  /** Persist a session's pending blob now (its debounce timer fired, or teardown). */
+  const flushPendingSave = useCallback((sessionId: string): void => {
+    saveTimersRef.current.delete(sessionId);
+    const pending = pendingBlobRef.current.get(sessionId);
+    if (!pending) return;
+    pendingBlobRef.current.delete(sessionId);
+    const json = JSON.stringify(pending.serialized);
+    if (lastBlobJsonRef.current.get(sessionId) !== json) {
+      lastBlobJsonRef.current.set(sessionId, json);
+      saveTabAgent(sessionId, pending.serialized, pending.pubkey);
+    }
+  }, []);
+
+  /** Unsubscribe, stop, and forget a session's live agent and any pending save. */
+  const stopAgent = useCallback((sessionId: string): void => {
+    const timer = saveTimersRef.current.get(sessionId);
+    if (timer) clearTimeout(timer);
+    saveTimersRef.current.delete(sessionId);
+    pendingBlobRef.current.delete(sessionId);
+    const entry = agentsRef.current.get(sessionId);
+    if (!entry) return;
+    // Unsubscribe before stop() so the stop-triggered notify cannot re-schedule a save.
+    entry.unsub?.();
+    entry.agent.stop();
+    agentsRef.current.delete(sessionId);
+    lastBlobJsonRef.current.delete(sessionId);
+  }, []);
+
+  /** Flush pending writes and stop every live agent. Runs on logout and unmount. */
+  const teardownAll = useCallback((): void => {
+    for (const sessionId of [...saveTimersRef.current.keys()]) flushPendingSave(sessionId);
+    for (const sessionId of [...agentsRef.current.keys()]) stopAgent(sessionId);
+    setSnapshots({});
+    setBuildError(null);
+  }, [flushPendingSave, stopAgent]);
+
+  // Unmount: tear down every live agent so no stream keeps running (or
+  // writing) after the component goes away. Dependency re-runs keep agents
+  // alive across tab switches, so this lives in a separate once-only effect.
+  useEffect(() => {
+    return () => {
+      teardownAll();
+    };
+  }, [teardownAll]);
 
   useEffect(() => {
     if (!user) {
-      setSnapshots({});
-      setBuildError(null);
+      // Logout: stop every live agent rather than only clearing the UI state,
+      // so no in-flight stream keeps running — or writing — under the previous
+      // account's storage scope.
+      teardownAll();
       return;
     }
 
     let cancelled = false;
     activeSessionIdRef.current = activeSessionId;
 
-    // Subscribe once per agent, for its whole lifetime. The handler persists
-    // the blob (deduped) and refreshes the snapshots map.
+    // Subscribe once per agent, for its whole lifetime. The handler refreshes
+    // the snapshots map and defers the blob persist to a trailing debounce,
+    // so per-chunk writes do not jank the main thread on mobile.
     const attach = (entry: AgentEntry, sessionId: string): void => {
       if (entry.unsub) return;
       entry.unsub = entry.agent.subscribe(() => {
-        const serialized = entry.agent.serialize();
-        const json = JSON.stringify(serialized);
-        if (lastBlobJsonRef.current.get(sessionId) !== json) {
-          lastBlobJsonRef.current.set(sessionId, json);
-          saveTabAgent(sessionId, serialized, pubkey);
-        }
+        pendingBlobRef.current.set(sessionId, { pubkey, serialized: entry.agent.serialize() });
+        const timer = saveTimersRef.current.get(sessionId);
+        if (timer) clearTimeout(timer);
+        saveTimersRef.current.set(sessionId, setTimeout(() => flushPendingSave(sessionId), SAVE_DEBOUNCE_MS));
         const snap = entry.agent.getSnapshot();
         setSnapshots((prev) => (prev[sessionId] === snap ? prev : { ...prev, [sessionId]: snap }));
       });
     };
 
-    // Drop agents for sessions that no longer exist.
+    // Drop agents for sessions that no longer exist (e.g. closed tabs, or an
+    // account switch dropping the previous account's sessions). Flush first
+    // so a debounced write in flight isn't lost — stopAgent alone discards
+    // any pending blob without persisting it.
     const liveIds = new Set(sessions.map((s) => s.id));
-    for (const [id, entry] of agentsRef.current) {
+    for (const id of [...agentsRef.current.keys()]) {
       if (!liveIds.has(id)) {
-        entry.unsub?.();
-        entry.agent.stop();
-        agentsRef.current.delete(id);
-        lastBlobJsonRef.current.delete(id);
+        flushPendingSave(id);
+        stopAgent(id);
       }
     }
 
@@ -100,10 +168,16 @@ export function useAgentSessions(options: AgentSessionsOptions) {
         if (cancelled) return;
 
         const modelId = sessionModelId(session);
+        const { apiKey, baseURL } = providerCredentialFields(session, profiles);
         const prevEntry = agentsRef.current.get(session.id);
         const prevMessages = prevEntry?.agent.getMessages() ?? [];
-        prevEntry?.unsub?.();
-        prevEntry?.agent.stop();
+        if (prevEntry) {
+          // Provider/model/credential switch: commit the outgoing agent's
+          // pending blob, then stop it and carry the messages over.
+          flushPendingSave(session.id);
+          prevEntry.unsub?.();
+          prevEntry.agent.stop();
+        }
 
         const agent = new AgentSession({
           client,
@@ -126,7 +200,13 @@ export function useAgentSessions(options: AgentSessionsOptions) {
           }
         }
 
-        const entry: AgentEntry = { agent, providerId: session.providerId, modelId };
+        const entry: AgentEntry = {
+          agent,
+          providerId: session.providerId,
+          modelId,
+          providerApiKey: apiKey,
+          providerBaseURL: baseURL,
+        };
         agentsRef.current.set(session.id, entry);
         attach(entry, session.id);
         setSnapshots((prev) => ({ ...prev, [session.id]: agent.getSnapshot() }));
@@ -146,8 +226,15 @@ export function useAgentSessions(options: AgentSessionsOptions) {
     for (const session of sessions) {
       const existing = agentsRef.current.get(session.id);
       const modelId = sessionModelId(session);
-      if (existing && existing.providerId === session.providerId && existing.modelId === modelId) {
-        // Same provider/model — keep the live session, refresh the prompt.
+      const { apiKey, baseURL } = providerCredentialFields(session, profiles);
+      if (
+        existing &&
+        existing.providerId === session.providerId &&
+        existing.modelId === modelId &&
+        existing.providerApiKey === apiKey &&
+        existing.providerBaseURL === baseURL
+      ) {
+        // Same provider/model/credentials — keep the live session, refresh the prompt.
         existing.agent.updateSystemPrompt(systemPromptFor(session));
         attach(existing, session.id);
         setSnapshots((prev) =>
@@ -166,7 +253,19 @@ export function useAgentSessions(options: AgentSessionsOptions) {
     return () => {
       cancelled = true;
     };
-  }, [sessions, activeSessionId, profiles, user, pubkey, models, buildSessionTools, systemPromptFor]);
+  }, [
+    sessions,
+    activeSessionId,
+    profiles,
+    user,
+    pubkey,
+    models,
+    buildSessionTools,
+    systemPromptFor,
+    flushPendingSave,
+    stopAgent,
+    teardownAll,
+  ]);
 
   /**
    * Send a user message through the active session's AgentSession.
@@ -177,8 +276,17 @@ export function useAgentSessions(options: AgentSessionsOptions) {
       const entry = agentsRef.current.get(activeSessionId);
       const session = sessions.find((s) => s.id === activeSessionId);
       if (!entry || !session) return;
-      // Refuse to drive a stale agent that a rebuild is replacing.
-      if (entry.providerId !== session.providerId || entry.modelId !== sessionModelId(session)) return;
+      // Refuse to drive a stale agent that a rebuild is replacing (provider,
+      // model, or credential change — matches the keep-vs-rebuild check above).
+      const { apiKey, baseURL } = providerCredentialFields(session, profiles);
+      if (
+        entry.providerId !== session.providerId ||
+        entry.modelId !== sessionModelId(session) ||
+        entry.providerApiKey !== apiKey ||
+        entry.providerBaseURL !== baseURL
+      ) {
+        return;
+      }
 
       const pending = entry.agent.getSnapshot().pendingInput;
       if (pending) {
@@ -187,7 +295,7 @@ export function useAgentSessions(options: AgentSessionsOptions) {
       }
       await entry.agent.send(content);
     },
-    [activeSessionId, sessions],
+    [activeSessionId, sessions, profiles],
   );
 
   /** Clear the active session's conversation. */

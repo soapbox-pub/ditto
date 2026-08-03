@@ -211,7 +211,7 @@ describe('useAIProviders', () => {
     expect(readLocalStorage().map((p) => p.id)).toEqual([other.id]);
   });
 
-  it('duplicateProfile clones with a new id, " (copy)" name, and syncEnabled forced false', async () => {
+  it('duplicateProfile clones with a new id, the caller-supplied name, and syncEnabled forced false', async () => {
     const original = makeProfile({
       kind: 'openai-compatible',
       name: 'My Provider',
@@ -229,7 +229,7 @@ describe('useAIProviders', () => {
     await waitFor(() => expect(result.current.profiles).toHaveLength(1));
 
     act(() => {
-      result.current.duplicateProfile(original.id);
+      result.current.duplicateProfile(original.id, 'My Provider (copy)');
     });
 
     expect(result.current.profiles).toHaveLength(2);
@@ -313,13 +313,87 @@ describe('useAIProviders', () => {
     });
     await waitFor(() => expect(result.current.profiles[0].syncEnabled).toBe(false));
 
+    // Flipping sync off must push the profile out of the encrypted blob, or
+    // the merge-on-load effect would resurrect it (with its old API key).
+    await waitFor(() => expect(updateSettingsSpy).toHaveBeenCalled());
     const calls = updateSettingsSpy.mock.calls.map(
       (call) => call[0] as { aiProviderProfiles?: AIProviderProfile[] },
     );
-    expect(
-      calls.every((patch) => !patch.aiProviderProfiles?.some((p) => p.id === synced.id)),
-    ).toBe(true);
+    const finalPatch = calls[calls.length - 1];
+    expect(finalPatch.aiProviderProfiles?.map((p) => p.id) ?? []).not.toContain(synced.id);
+    // The blob payload matches local state: the profile is no longer synced.
+    expect(finalPatch.aiProviderProfiles).toEqual([]);
     expect(readLocalStorage()[0].syncEnabled).toBe(false);
+  });
+
+  it('flips syncEnabled on then off and keeps the final blob payload in sync with local state', async () => {
+    const local = makeProfile({ name: 'Local Only', syncEnabled: false });
+    seedLocalStorage([local]);
+
+    const { result } = renderHook(() => useAIProviders(), { wrapper });
+    await waitFor(() => expect(result.current.profiles).toHaveLength(1));
+    updateSettingsSpy.mockClear();
+
+    act(() => {
+      result.current.updateProfile(local.id, { syncEnabled: true });
+    });
+    await waitFor(() => expect(updateSettingsSpy).toHaveBeenCalled());
+    updateSettingsSpy.mockClear();
+
+    act(() => {
+      result.current.updateProfile(local.id, { syncEnabled: false });
+    });
+    await waitFor(() => expect(updateSettingsSpy).toHaveBeenCalled());
+
+    const calls = updateSettingsSpy.mock.calls.map(
+      (call) => call[0] as { aiProviderProfiles?: AIProviderProfile[] },
+    );
+    const finalPatch = calls[calls.length - 1];
+    // Local state has the profile with sync off; the final blob payload must
+    // reflect that the profile is not part of the synced set.
+    expect(finalPatch.aiProviderProfiles?.map((p) => p.id) ?? []).not.toContain(local.id);
+    expect(readLocalStorage()[0]).toMatchObject({ id: local.id, syncEnabled: false });
+  });
+
+  it('does not resurrect a stale blob entry over a local profile whose sync is off', async () => {
+    const local = makeProfile({
+      id: '22222222-2222-4222-8222-222222222222',
+      name: 'Local Name',
+      baseURL: 'http://local.example',
+      apiKey: 'sk-local',
+      syncEnabled: false,
+    });
+    seedLocalStorage([local]);
+
+    // The blob still holds a stale copy of the same profile from before the
+    // user turned sync off (e.g. the removal failed to publish). The local
+    // off-toggle must win: the stale entry must not overwrite the local
+    // profile, restore the old API key, or flip sync back on.
+    const staleBlob: AIProviderProfile = {
+      ...local,
+      name: 'Stale Blob Name',
+      apiKey: 'sk-stale',
+      syncEnabled: true,
+    };
+    mockUseEncryptedSettings.mockReturnValue(
+      defaultEncryptedSettings({ settings: { aiProviderProfiles: [staleBlob] } }),
+    );
+
+    const { result } = renderHook(() => useAIProviders(), { wrapper });
+
+    await waitFor(() => expect(result.current.profiles).toHaveLength(1));
+    expect(result.current.profiles[0]).toMatchObject({
+      id: local.id,
+      name: 'Local Name',
+      apiKey: 'sk-local',
+      syncEnabled: false,
+    });
+    expect(readLocalStorage()[0]).toMatchObject({
+      id: local.id,
+      name: 'Local Name',
+      apiKey: 'sk-local',
+      syncEnabled: false,
+    });
   });
 
   it('lets the encrypted-blob version win for a profile id that also exists locally', async () => {

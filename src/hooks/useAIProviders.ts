@@ -90,6 +90,10 @@ export function useAIProviders() {
     for (const blobProfile of blobProfiles) {
       const index = merged.findIndex((p) => p.id === blobProfile.id);
       if (index >= 0) {
+        // Respect a local decision to stop syncing: a stale blob entry must
+        // not resurrect a profile the user turned sync off for (it would also
+        // restore the old API key).
+        if (!merged[index].syncEnabled) continue;
         merged[index] = blobProfile;
       } else {
         merged.push(blobProfile);
@@ -116,11 +120,17 @@ export function useAIProviders() {
   }
 
   function updateProfile(id: string, patch: Partial<Omit<AIProviderProfile, 'id'>>): void {
+    const previous = profilesRef.current.find((p) => p.id === id);
     const next = profilesRef.current.map((p) => (p.id === id ? { ...p, ...patch } : p));
     setProfiles(next);
     persistProfiles(storageKeyRef.current, next);
     const updated = next.find((p) => p.id === id);
-    if (updated?.syncEnabled) syncToBlob(next);
+    // Sync whenever the syncEnabled flag changes in either direction. Turning
+    // sync off must remove the profile from the encrypted blob; otherwise the
+    // stale blob entry (old API key, syncEnabled: true) is merged back over
+    // the local profile on the next load, silently reverting the off-toggle.
+    const syncToggled = previous?.syncEnabled !== updated?.syncEnabled;
+    if (updated?.syncEnabled || syncToggled) syncToBlob(next);
   }
 
   function deleteProfile(id: string): void {
@@ -133,13 +143,19 @@ export function useAIProviders() {
     if (removed?.syncEnabled) syncToBlob(next);
   }
 
-  function duplicateProfile(id: string): void {
+  /**
+   * Duplicate a profile under a new name. The caller supplies the name
+   * (rather than this hook formatting a "(copy)" suffix itself) so the
+   * string can go through the caller's own react-intl context — this hook
+   * has no IntlProvider ancestor in its test wrapper.
+   */
+  function duplicateProfile(id: string, newName: string): void {
     const original = profilesRef.current.find((p) => p.id === id);
     if (!original) return;
     const copy: AIProviderProfile = {
       ...original,
       id: crypto.randomUUID(),
-      name: `${original.name} (copy)`,
+      name: newName,
       syncEnabled: false,
     };
     const next = [...profilesRef.current, copy];
