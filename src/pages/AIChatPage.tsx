@@ -4,7 +4,7 @@ import { useSeoMeta } from '@/hooks/useSeoMeta';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
-import { Bot, Send, Trash2, Sparkles, Plus, X, Loader2 } from 'lucide-react';
+import { Bot, Send, Trash2, Sparkles, Plus, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { getWidgetCreationSystemPrompt, isCompactionMarker } from '@soapbox.pub/nostr-canvas/devkit';
 import type { SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
@@ -146,6 +146,44 @@ export function AIChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Desktop-only overflow scroll arrows for the session tab bar (mirrors SubHeaderBar's pattern).
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollTabsLeft, setCanScrollTabsLeft] = useState(false);
+  const [canScrollTabsRight, setCanScrollTabsRight] = useState(false);
+
+  const checkTabsOverflow = useCallback(() => {
+    const el = tabsScrollRef.current;
+    if (!el) return;
+    const tolerance = 2; // sub-pixel rounding tolerance
+    setCanScrollTabsLeft(el.scrollLeft > tolerance);
+    setCanScrollTabsRight(el.scrollLeft + el.clientWidth < el.scrollWidth - tolerance);
+  }, []);
+
+  useEffect(() => {
+    const el = tabsScrollRef.current;
+    if (!el) return;
+    checkTabsOverflow();
+    el.addEventListener('scroll', checkTabsOverflow, { passive: true });
+    const ro = new ResizeObserver(checkTabsOverflow);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', checkTabsOverflow);
+      ro.disconnect();
+    };
+  }, [checkTabsOverflow]);
+
+  // Re-check overflow when tabs are opened/closed.
+  useEffect(() => {
+    checkTabsOverflow();
+  }, [sessions.length, checkTabsOverflow]);
+
+  const scrollTabsBy = useCallback((direction: 'left' | 'right') => {
+    const el = tabsScrollRef.current;
+    if (!el) return;
+    const amount = el.clientWidth * 0.6;
+    el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
+  }, []);
 
   // @-mention insertion for the message textarea (people + abilities).
   const { insertAtCursor: insertMention } = useInsertText(textareaRef, setInput);
@@ -400,62 +438,86 @@ export function AIChatPage() {
       </PageHeader>
 
       {/* Session tabs */}
-      <div className="flex items-center gap-1 px-4 pt-2 overflow-x-auto">
-        {sessions.map((session) => {
-          const isActive = session.id === activeSessionId;
-          return (
-            <div key={session.id} className="shrink-0">
-              <div
-                className={cn(
-                  'group flex items-center rounded-full',
-                  isActive && 'bg-secondary text-secondary-foreground',
-                )}
-              >
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setActiveSessionId(session.id)}
-                  className="rounded-full text-xs max-w-36"
-                >
-                  {session.title ? (
-                    <span className="truncate">{session.title}</span>
-                  ) : (
-                    <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Loader2 className="size-3 animate-spin" aria-hidden="true" />
-                      <FormattedMessage id="ai-chat.newChat" defaultMessage="New chat" />
-                    </span>
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
+      <div className="relative">
+        {/* Left scroll arrow — desktop only, shown when overflowing */}
+        {canScrollTabsLeft && (
+          <button
+            type="button"
+            aria-label={intl.formatMessage({ id: 'ai-chat.scrollTabsLeft', defaultMessage: 'Scroll tabs left' })}
+            onClick={() => scrollTabsBy('left')}
+            className="hidden sidebar:flex absolute left-0 top-0 bottom-0 z-10 items-center pl-2 pr-1.5 bg-gradient-to-r from-background via-background to-transparent cursor-pointer"
+          >
+            <ChevronLeft className="size-4 text-foreground/60 drop-shadow-md" strokeWidth={4} />
+          </button>
+        )}
+        <div ref={tabsScrollRef} className="flex items-center gap-1 px-4 pt-2 overflow-x-auto scrollbar-none">
+          {sessions.map((session) => {
+            const isActive = session.id === activeSessionId;
+            return (
+              <div key={session.id} className="shrink-0">
+                <div
                   className={cn(
-                    'size-7 rounded-full shrink-0',
-                    !isActive && 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+                    'group flex items-center rounded-full',
+                    isActive ? 'bg-secondary text-secondary-foreground' : 'hover:bg-secondary/60',
                   )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeSession(session.id);
-                  }}
-                  disabled={sessions.length === 1}
-                  title={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
-                  aria-label={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
                 >
-                  <X className="size-3" />
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setActiveSessionId(session.id)}
+                    className="rounded-full text-xs max-w-36 h-7 pl-3 pr-1.5 hover:bg-transparent"
+                  >
+                    {session.title ? (
+                      <span className="truncate">{session.title}</span>
+                    ) : (
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+                        <FormattedMessage id="ai-chat.newChat" defaultMessage="New chat" />
+                      </span>
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      'size-7 rounded-full shrink-0 hover:bg-transparent',
+                      !isActive && 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      closeSession(session.id);
+                    }}
+                    disabled={sessions.length === 1}
+                    title={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
+                    aria-label={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
+                  >
+                    <X className="size-3" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          );
-        })}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleNewChat}
-          className="shrink-0 rounded-full text-xs gap-1"
-        >
-          <Plus className="size-3.5" />
-          <FormattedMessage id="ai-chat.newChat" defaultMessage="New chat" />
-        </Button>
+            );
+          })}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleNewChat}
+            className="shrink-0 rounded-full text-xs gap-1"
+          >
+            <Plus className="size-3.5" />
+            <FormattedMessage id="ai-chat.newChat" defaultMessage="New chat" />
+          </Button>
+        </div>
+        {/* Right scroll arrow — desktop only, shown when overflowing */}
+        {canScrollTabsRight && (
+          <button
+            type="button"
+            aria-label={intl.formatMessage({ id: 'ai-chat.scrollTabsRight', defaultMessage: 'Scroll tabs right' })}
+            onClick={() => scrollTabsBy('right')}
+            className="hidden sidebar:flex absolute right-0 top-0 bottom-0 z-10 items-center pr-2 pl-1.5 bg-gradient-to-l from-background via-background to-transparent cursor-pointer"
+          >
+            <ChevronRight className="size-4 text-foreground/60 drop-shadow-md" strokeWidth={4} />
+          </button>
+        )}
       </div>
 
       {/* Cap-hit dialog: choose which tab(s) to close to make room */}
