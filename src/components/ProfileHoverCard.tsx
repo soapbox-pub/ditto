@@ -41,7 +41,7 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
   const nip05Domain = getNip05Domain(nip05);
   const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
   const nip05Display = nip05Verified && nip05 ? formatNip05Display(nip05) : undefined;
-  const { status: userStatus, url: statusUrl } = useUserStatus(pubkey);
+  const { status: userStatus, url: statusUrl, tags: statusTags } = useUserStatus(pubkey);
   const { refs: badgeRefs } = useProfileBadges(pubkey);
   const firstFive = badgeRefs.slice(0, 5);
   const { badgeMap } = useBadgeDefinitions(firstFive);
@@ -121,10 +121,10 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
           <p className="text-xs text-muted-foreground italic mt-2 truncate pr-1">
             {statusUrl ? (
               <a href={statusUrl} target="_blank" rel="noopener noreferrer" className="hover:underline" onClick={(e) => e.stopPropagation()}>
-                {userStatus}
+                <EmojifiedText tags={statusTags}>{userStatus}</EmojifiedText>
               </a>
             ) : (
-              userStatus
+              <EmojifiedText tags={statusTags}>{userStatus}</EmojifiedText>
             )}
           </p>
         )}

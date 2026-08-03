@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import {
   ArrowLeft,
   BookOpen,
@@ -19,6 +19,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useLanguage } from '@/hooks/useLanguage';
 import {
   useWikipediaFeatured,
   type WikiPage,
@@ -57,16 +58,16 @@ const SECTION_ORDER: Section[] = ['featured', 'mostread', 'news', 'onthisday'];
 // Helpers
 // ---------------------------------------------------------------------------
 
-function wikiPageUrl(page: WikiPage): string {
-  return page.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${page.title}`;
+function wikiPageUrl(page: WikiPage, lang: string): string {
+  return page.content_urls?.desktop?.page ?? `https://${lang}.wikipedia.org/wiki/${page.title}`;
 }
 
 function dittoUrl(url: string): string {
   return `/i/${encodeURIComponent(url)}`;
 }
 
-function dittoWikiUrl(page: WikiPage): string {
-  return dittoUrl(wikiPageUrl(page));
+function dittoWikiUrl(page: WikiPage, lang: string): string {
+  return dittoUrl(wikiPageUrl(page, lang));
 }
 
 function formatViews(n: number): string {
@@ -181,9 +182,10 @@ function ArticleCard({ page, badge, badgeIcon }: {
   badge?: string;
   badgeIcon?: React.ReactNode;
 }) {
+  const { locale } = useLanguage();
   return (
     <Link
-      to={dittoWikiUrl(page)}
+      to={dittoWikiUrl(page, locale)}
       className="group block rounded-2xl border border-border overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
     >
       {/* Thumbnail */}
@@ -229,9 +231,10 @@ function ArticleCard({ page, badge, badgeIcon }: {
 // ---------------------------------------------------------------------------
 
 function FeaturedArticleCard({ page }: { page: WikiPage }) {
+  const { locale } = useLanguage();
   return (
     <Link
-      to={dittoWikiUrl(page)}
+      to={dittoWikiUrl(page, locale)}
       className="group block rounded-2xl border border-border overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
     >
       <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-amber-500/10 to-orange-500/10">
@@ -269,6 +272,7 @@ function FeaturedArticleCard({ page }: { page: WikiPage }) {
 // ---------------------------------------------------------------------------
 
 function OnThisDayCard({ event }: { event: OnThisDayEvent }) {
+  const { locale } = useLanguage();
   const mainPage = event.pages[0];
 
   return (
@@ -282,7 +286,7 @@ function OnThisDayCard({ event }: { event: OnThisDayEvent }) {
           <p className="text-sm leading-relaxed">{event.text}</p>
           {mainPage && (
             <Link
-              to={dittoWikiUrl(mainPage)}
+              to={dittoWikiUrl(mainPage, locale)}
               className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
             >
               <BookOpen className="size-3" />
@@ -291,7 +295,7 @@ function OnThisDayCard({ event }: { event: OnThisDayEvent }) {
           )}
         </div>
         {mainPage?.thumbnail && (
-          <Link to={dittoWikiUrl(mainPage)} className="shrink-0">
+          <Link to={dittoWikiUrl(mainPage, locale)} className="shrink-0">
             <img
               src={mainPage.thumbnail.source}
               alt=""
@@ -311,6 +315,7 @@ function OnThisDayCard({ event }: { event: OnThisDayEvent }) {
 // ---------------------------------------------------------------------------
 
 function NewsCard({ item }: { item: NewsItem }) {
+  const { locale } = useLanguage();
   // Extract clean text from HTML story
   const storyText = useMemo(() => {
     return item.story
@@ -331,7 +336,7 @@ function NewsCard({ item }: { item: NewsItem }) {
           <p className="text-sm leading-relaxed">{storyText}</p>
           {mainLink && (
             <Link
-              to={dittoWikiUrl(mainLink)}
+              to={dittoWikiUrl(mainLink, locale)}
               className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
             >
               <BookOpen className="size-3" />
@@ -340,7 +345,7 @@ function NewsCard({ item }: { item: NewsItem }) {
           )}
         </div>
         {mainLink?.thumbnail && (
-          <Link to={dittoWikiUrl(mainLink)} className="shrink-0">
+          <Link to={dittoWikiUrl(mainLink, locale)} className="shrink-0">
             <img
               src={mainLink.thumbnail.source}
               alt=""
@@ -442,7 +447,7 @@ function WikipediaSearchBar() {
             if (debouncedQuery.length >= 2) setDropdownOpen(true);
           }}
           onKeyDown={handleKeyDown}
-          className="pl-9 pr-9 h-9 text-base md:text-sm"
+          className="pl-9 pr-9 h-9 text-base md:text-sm rounded-full"
         />
         {query ? (
           <button
@@ -592,7 +597,10 @@ function WikipediaLoadingSkeleton() {
 
 export function WikipediaPage() {
   const { config } = useAppContext();
+  const { locale } = useLanguage();
   const { data: feed, isLoading, isError } = useWikipediaFeatured();
+
+  const wikiHomeUrl = `https://${locale}.wikipedia.org`;
 
   useSeoMeta({
     title: `Wikipedia | ${config.appName}`,
@@ -648,7 +656,7 @@ export function WikipediaPage() {
           </div>
         </div>
         <a
-          href="https://en.wikipedia.org"
+          href={wikiHomeUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
@@ -743,7 +751,7 @@ export function WikipediaPage() {
               <SectionHeading
                 icon={<Calendar className="size-3.5 text-violet-500" />}
                 title="On This Day"
-                subtitle={new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                subtitle={new Date().toLocaleDateString(locale, { month: 'long', day: 'numeric' })}
               />
               <div className="space-y-3">
                 {onThisDayEvents.map((event, i) => (
@@ -761,7 +769,7 @@ export function WikipediaPage() {
           <p className="text-xs text-muted-foreground">
             Content provided by{' '}
             <a
-              href="https://en.wikipedia.org"
+              href={wikiHomeUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="underline underline-offset-2 hover:text-foreground transition-colors"
@@ -770,7 +778,7 @@ export function WikipediaPage() {
             </a>
             , the free encyclopedia. Text is available under the{' '}
             <a
-              href="https://en.wikipedia.org/wiki/Wikipedia:Text_of_the_Creative_Commons_Attribution-ShareAlike_4.0_International_License"
+              href="https://creativecommons.org/licenses/by-sa/4.0/"
               target="_blank"
               rel="noopener noreferrer"
               className="underline underline-offset-2 hover:text-foreground transition-colors"

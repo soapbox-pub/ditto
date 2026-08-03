@@ -2,7 +2,7 @@ import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useRef
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { Award, BarChart3, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Quote, Zap, Clock } from 'lucide-react';
+import { Award, BarChart3, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Quote, Zap, Clock, ClipboardCheck } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BrokenEventFallback } from '@/components/BrokenEventFallback';
@@ -18,14 +18,20 @@ import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
 import { EmbeddedProfileBadgesCard } from '@/components/EmbeddedNaddr';
 import { EmbeddedAttestationCard } from '@/components/EmbeddedAttestationCard';
 import { ATTESTATION_KIND } from '@/lib/attestation';
+import { QUIZ_RESULT_KIND, parseQuizResult } from '@/lib/quiz';
 import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
+import { EmbeddedPublicationCard } from '@/components/EmbeddedPublicationCard';
 import { ARTICLE_KINDS } from '@/lib/articleHelpers';
+import { PUBLICATION_KINDS } from '@/lib/publications';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
+import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
+import { MEMORY_CARD_KIND } from '@/lib/memorycard';
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
 import { isPeopleListKind } from '@/lib/packUtils';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { NoteContent } from '@/components/NoteContent';
+import { LiveChatContext } from '@/components/LiveChatContext';
 import { useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -149,11 +155,26 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
     return <EmbeddedHighlightCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
+  // Kind 1311 NIP-53 live chat messages get a compact card that shows the
+  // message plus the stream it was posted in. Without this branch the generic
+  // card would render the message with no anchor — a floating chat line.
+  if (event.kind === 1311) {
+    return <EmbeddedLiveChatCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   // Kind 31871 attestations get a compact status card. The generic fallback
   // would show only the description text with no state pill — and feed it
   // through the kind-1 tokenizer.
   if (event.kind === ATTESTATION_KIND) {
     return <EmbeddedAttestationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Kind 7849 quiz results (see NIP.md) get a compact card showing the
+  // taker's outcome. The generic fallback would render only the comment
+  // (or the `alt` tag) with no result — and feed it through the kind-1
+  // tokenizer.
+  if (event.kind === QUIZ_RESULT_KIND) {
+    return <EmbeddedQuizResultCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Kind 1068 NIP-88 polls get a compact card showing the question + a
@@ -180,6 +201,12 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
     return <EmbeddedGitCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
+  // Memory-card blocks (kind 38192) decode to a save icon + title instead of
+  // dumping the 16 KB hex content as text.
+  if (event.kind === MEMORY_CARD_KIND) {
+    return <EmbeddedMemoryCardCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   // People-list events (kind 3 follow lists) get a dedicated card showing
   // title + avatar stack + member count. The generic fallback renders empty
   // because all the data lives in `p` tags, not content or title tags.
@@ -194,7 +221,52 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
     return <EmbeddedArticleCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
+  // Magazines, magazine issues, and ebooks get a compact cover + title card.
+  if (PUBLICATION_KINDS.has(event.kind)) {
+    return <EmbeddedPublicationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} highlightText={highlightText} />;
+}
+
+/** Compact inline card for kind 1311 NIP-53 live chat messages. */
+function EmbeddedLiveChatCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+
+  const text = event.content.trim();
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={neventId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <LiveChatContext
+        event={event}
+        className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0 overflow-hidden"
+      />
+      {text ? (
+        <p className="text-sm whitespace-pre-wrap break-words line-clamp-4 text-foreground">
+          {text}
+        </p>
+      ) : (
+        <p className="text-xs italic text-muted-foreground">Live chat message</p>
+      )}
+    </EmbeddedCardShell>
+  );
 }
 
 /** Compact inline card for kind 9802 NIP-84 highlight events. */
@@ -235,6 +307,70 @@ function EmbeddedHighlightCard({
         </blockquote>
       ) : (
         <p className="text-xs italic text-muted-foreground">Highlighted media</p>
+      )}
+    </EmbeddedCardShell>
+  );
+}
+
+/**
+ * Compact inline card for kind 7849 quiz results (see NIP.md).
+ * Shows the taker's comment (plain text — not the kind-1 tokenizer, since a
+ * result's content is short prose) and the denormalized outcome labels.
+ */
+function EmbeddedQuizResultCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+
+  const result = useMemo(() => parseQuizResult(event), [event]);
+
+  const summary = result
+    ? result.outcomes.length > 0
+      ? result.outcomes.map((o) => o.label).join(', ')
+      : result.scores.map((s) => `${s.label ?? s.dimension}: ${s.value}`).join(' · ')
+    : undefined;
+
+  const image = result?.outcomes.find((o) => o.image)?.image;
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={neventId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <ClipboardCheck className="size-3" />
+        Quiz result
+      </div>
+      {result?.comment && (
+        <p className="text-sm whitespace-pre-wrap break-words line-clamp-2 text-foreground">
+          {result.comment}
+        </p>
+      )}
+      {image && (
+        <img
+          src={image}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="max-h-32 w-full rounded-lg border object-cover"
+        />
+      )}
+      {summary ? (
+        <p className="text-base font-bold text-foreground line-clamp-2">{summary}</p>
+      ) : (
+        <p className="text-xs italic text-muted-foreground">Took a quiz</p>
       )}
     </EmbeddedCardShell>
   );

@@ -6,7 +6,7 @@
  * MultiKindPicker for multi-select kinds, and a 3-way author scope toggle
  * (Anyone / Follows / People) with list/pack picker.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Loader2, Check, Globe, Users, UserSearch } from 'lucide-react';
 import {
   Dialog,
@@ -30,6 +30,7 @@ import type { ScopeOption } from '@/components/SavedFeedFiltersEditor';
 import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
 import { useFollowPacks } from '@/hooks/useFollowPacks';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import type { TabVarDef } from '@/lib/profileTabsEvent';
 import type { TabFilter } from '@/contexts/AppContext';
 
@@ -95,6 +96,11 @@ export function FeedEditModal({
   const [authorPubkeys, setAuthorPubkeys] = useState<string[]>(() => initFrom(initialFilter).authors);
   const [selectedKinds, setSelectedKinds] = useState<string[]>(() => initFrom(initialFilter).kinds);
   const [search, setSearch] = useState(() => initFrom(initialFilter).search);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
+
+  const dialogContentRef = useCallback((node: HTMLElement | null) => {
+    setPortalContainer(node ?? undefined);
+  }, []);
 
   // Reset all state when the modal opens
   const handleOpenChange = (o: boolean) => {
@@ -151,7 +157,8 @@ export function FeedEditModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-sm max-h-[90dvh] overflow-y-auto">
+      <DialogContent ref={dialogContentRef} className="max-w-sm max-h-[90dvh] overflow-y-auto">
+        <PortalContainerProvider value={portalContainer}>
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit feed' : 'Add home feed'}</DialogTitle>
         </DialogHeader>
@@ -251,6 +258,7 @@ export function FeedEditModal({
             Cancel
           </Button>
         </DialogFooter>
+        </PortalContainerProvider>
       </DialogContent>
     </Dialog>
   );

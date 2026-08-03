@@ -12,10 +12,12 @@ import {
   CalendarDays,
   Camera,
   Clapperboard,
+  ClipboardList,
   Code,
   Earth,
   FileCode,
   Film,
+  Gamepad2,
   Ghost,
   HandHeart,
   Heart,
@@ -47,6 +49,7 @@ import {
   User,
   Zap,
 } from "lucide-react";
+import { useIntl } from "react-intl";
 import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
 import { PlanetIcon } from "@/components/icons/PlanetIcon";
@@ -99,6 +102,35 @@ export function isExternalUri(id: string): boolean {
   );
 }
 
+/**
+ * Grouping used to organize items in the "More..." menu.
+ *
+ * Most items are hidden by default, so this menu is where users discover what
+ * Ditto can show. A flat list of 30+ entries is unscannable; these groups turn
+ * it into a handful of clusters.
+ */
+export type SidebarSection =
+  | "yours"
+  | "app"
+  | "social"
+  | "media"
+  | "reading"
+  | "fun"
+  | "personalize"
+  | "tools";
+
+/** Display order of sections in the "More..." menu. */
+export const SIDEBAR_SECTION_ORDER: SidebarSection[] = [
+  "yours",
+  "app",
+  "social",
+  "media",
+  "reading",
+  "fun",
+  "personalize",
+  "tools",
+];
+
 /** A sidebar-capable item with everything needed for display and navigation. */
 export interface SidebarItemDef {
   /** Unique identifier stored in sidebarOrder. */
@@ -111,6 +143,8 @@ export interface SidebarItemDef {
   icon: IconComponent;
   /** If true, only shown when a user is logged in. */
   requiresAuth?: boolean;
+  /** Grouping used to organize the "More..." menu. */
+  section: SidebarSection;
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────────
@@ -119,27 +153,29 @@ export interface SidebarItemDef {
  * Single source of truth for all sidebar items.
  *
  * Every item that can appear in the sidebar — whether it's a system page like
- * "Feed" or a Nostr content type like "Vines" — lives here with a consistent
+ * "Feed" or a Nostr content type like "Shorts" — lives here with a consistent
  * shape. The order here is the default display order for fresh installs.
  */
 export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   // System pages
-  { id: "feed", label: "Feed", path: "/feed", icon: PlanetIcon },
+  { id: "feed", label: "Feed", path: "/feed", icon: PlanetIcon, section: "app" },
   {
     id: "notifications",
     label: "Notifications",
     path: "/notifications",
     icon: Bell,
     requiresAuth: true,
+    section: "yours",
   },
-  { id: "search", label: "Search", path: "/search", icon: Search },
-  { id: "trends", label: "Trends", path: "/trends", icon: TrendingUp },
+  { id: "search", label: "Search", path: "/search", icon: Search, section: "app" },
+  { id: "trends", label: "Trends", path: "/trends", icon: TrendingUp, section: "app" },
   {
     id: "bookmarks",
     label: "Bookmarks",
     path: "/bookmarks",
     icon: Bookmark,
     requiresAuth: true,
+    section: "yours",
   },
   {
     id: "profile",
@@ -147,6 +183,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     path: "/profile",
     icon: User,
     requiresAuth: true,
+    section: "yours",
   },
   {
     id: "lists",
@@ -154,22 +191,25 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     path: "/lists",
     icon: Scroll,
     requiresAuth: true,
+    section: "yours",
   },
-  { id: "settings", label: "Settings", path: "/settings", icon: Settings },
+  { id: "settings", label: "Settings", path: "/settings", icon: Settings, section: "app" },
   {
     id: "wallet",
     label: "Wallet",
     path: "/wallet",
     icon: Wallet,
     requiresAuth: true,
+    section: "yours",
   },
-  { id: "changelog", label: "Changelog", path: "/changelog", icon: ScrollText },
+  { id: "changelog", label: "Changelog", path: "/changelog", icon: ScrollText, section: "app" },
   {
     id: "letters",
     label: "Letters",
     path: "/letters",
     icon: MailboxIcon,
     requiresAuth: true,
+    section: "social",
   },
   {
     id: "ai-chat",
@@ -177,34 +217,37 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     path: "/ai-chat",
     icon: Bot,
     requiresAuth: true,
+    section: "tools",
   },
-  { id: 'blobbi', label: 'Blobbi', path: '/blobbi', icon: Egg, requiresAuth: true },
-  { id: "help", label: "Help", path: "/help", icon: HelpCircle },
+  { id: 'blobbi', label: 'Blobbi', path: '/blobbi', icon: Egg, requiresAuth: true, section: "fun" },
+  { id: "help", label: "Help", path: "/help", icon: HelpCircle, section: "app" },
   // Content types
-  { id: "events", label: "Events", path: "/events", icon: CalendarDays },
-  { id: "photos", label: "Photos", path: "/photos", icon: Camera },
-  { id: "videos", label: "Videos", path: "/videos", icon: Film },
-  { id: "articles", label: "Articles", path: "/articles", icon: BookOpen },
-  { id: "highlights", label: "Highlights", path: "/highlights", icon: Quote },
-  { id: "books", label: "Books", path: "/books", icon: BookMarked },
-  { id: "vines", label: "Divines", path: "/vines", icon: Clapperboard },
-  { id: "music", label: "Music", path: "/music", icon: Music },
-  { id: "podcasts", label: "Podcasts", path: "/podcasts", icon: Podcast },
+  { id: "events", label: "Events", path: "/events", icon: CalendarDays, section: "social" },
+  { id: "photos", label: "Photos", path: "/photos", icon: Camera, section: "media" },
+  { id: "videos", label: "Videos", path: "/videos", icon: Film, section: "media" },
+  { id: "articles", label: "Articles", path: "/articles", icon: BookOpen, section: "reading" },
+  { id: "highlights", label: "Highlights", path: "/highlights", icon: Quote, section: "reading" },
+  { id: "books", label: "Books", path: "/books", icon: BookMarked, section: "reading" },
+  { id: "vines", label: "Shorts", path: "/shorts", icon: Clapperboard, section: "media" },
+  { id: "music", label: "Music", path: "/music", icon: Music, section: "media" },
+  { id: "podcasts", label: "Podcasts", path: "/podcasts", icon: Podcast, section: "media" },
 
-  { id: "webxdc", label: "Webxdc", path: "/webxdc", icon: Blocks },
-  { id: "themes", label: "Themes", path: "/themes", icon: Sparkles },
-  { id: "polls", label: "Polls", path: "/polls", icon: BarChart3 },
-  { id: "packs", label: "Follow Packs", path: "/packs", icon: PartyPopper },
-  { id: "colors", label: "Color Moments", path: "/colors", icon: Palette },
-  { id: "decks", label: "Magic Decks", path: "/decks", icon: CardsIcon },
-  { id: "treasures", label: "Treasures", path: "/treasures", icon: ChestIcon },
-  { id: "emojis", label: "Emojis", path: "/emojis", icon: SmilePlus },
-  { id: "development", label: "Development", path: "/development", icon: Code },
-  { id: "badges", label: "Badges", path: "/badges", icon: Award },
-  { id: "world", label: "World", path: "/world", icon: Earth },
-  { id: "archive", label: "Archive", path: "/archive", icon: Archive },
-  { id: "wikipedia", label: "Wikipedia", path: "/wikipedia", icon: WikipediaIcon },
-  { id: "bluesky", label: "Bluesky", path: "/bluesky", icon: BlueskyIcon },
+  { id: "webxdc", label: "Webxdc", path: "/webxdc", icon: Blocks, section: "tools" },
+  { id: "themes", label: "Themes", path: "/themes", icon: Sparkles, section: "personalize" },
+  { id: "polls", label: "Polls", path: "/polls", icon: BarChart3, section: "social" },
+  { id: "packs", label: "Follow Packs", path: "/packs", icon: PartyPopper, section: "social" },
+  { id: "colors", label: "Color Moments", path: "/colors", icon: Palette, section: "fun" },
+  { id: "decks", label: "Magic Decks", path: "/decks", icon: CardsIcon, section: "fun" },
+  { id: "treasures", label: "Treasures", path: "/treasures", icon: ChestIcon, section: "fun" },
+  { id: "quizzes", label: "Quizzes", path: "/quizzes", icon: ClipboardList, section: "fun" },
+  { id: "cards", label: "Memory Cards", path: "/memory-cards", icon: Gamepad2, section: "fun" },
+  { id: "emojis", label: "Emojis", path: "/emojis", icon: SmilePlus, section: "personalize" },
+  { id: "development", label: "Development", path: "/development", icon: Code, section: "tools" },
+  { id: "badges", label: "Badges", path: "/badges", icon: Award, section: "fun" },
+  { id: "world", label: "World", path: "/world", icon: Earth, section: "social" },
+  { id: "archive", label: "Archive", path: "/archive", icon: Archive, section: "reading" },
+  { id: "wikipedia", label: "Wikipedia", path: "/wikipedia", icon: WikipediaIcon, section: "reading" },
+  { id: "bluesky", label: "Bluesky", path: "/bluesky", icon: BlueskyIcon, section: "social" },
 ];
 
 /** Set of all known sidebar item IDs for quick lookup. */
@@ -261,6 +304,18 @@ export function sidebarItemIcon(
 /** Lookup display label for a sidebar item ID. */
 export function itemLabel(id: string): string {
   return SIDEBAR_ITEM_MAP.get(id)?.label ?? id;
+}
+
+/**
+ * Translated display label for a sidebar item ID, for use in components.
+ * Looks up `nav.<id>` in the active locale and falls back to the registry's
+ * English label when the key is missing. Non-registry IDs (URIs, dividers)
+ * pass through untranslated.
+ */
+export function useItemLabel(id: string): string {
+  const intl = useIntl();
+  const fallback = SIDEBAR_ITEM_MAP.get(id)?.label;
+  return fallback ? intl.formatMessage({ id: `nav.${id}`, defaultMessage: fallback }) : id;
 }
 
 /** Lookup navigation path for a sidebar item ID. */

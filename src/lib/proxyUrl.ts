@@ -1,4 +1,4 @@
-import UriTemplate from 'uri-templates';
+import { fillUriTemplate } from '@/lib/uriTemplate';
 
 export interface ProxyUrlOpts {
   template: string;
@@ -7,7 +7,7 @@ export interface ProxyUrlOpts {
 
 export function proxyUrl(opts: ProxyUrlOpts): string {
   const u = new URL(opts.url);
-  return UriTemplate(opts.template).fill({
+  return fillUriTemplate(opts.template, {
     href: u.href,
     origin: u.origin,
     protocol: u.protocol,

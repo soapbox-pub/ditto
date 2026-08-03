@@ -83,8 +83,12 @@ export function LightningInvoiceCard({ invoice, className }: LightningInvoiceCar
 
   const handleOpenWallet = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    await openUrl(`lightning:${invoice}`);
-  }, [invoice]);
+    try {
+      await openUrl(`lightning:${invoice}`);
+    } catch {
+      toast({ title: 'Could not open wallet', description: 'No lightning wallet app is installed to handle this invoice.', variant: 'destructive' });
+    }
+  }, [invoice, toast]);
 
   const handlePayWebLN = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();

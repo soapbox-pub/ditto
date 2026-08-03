@@ -78,6 +78,13 @@ public class NotificationRelayService extends Service {
     private static final long INITIAL_BACKOFF_MS = 1_000;
     private static final long MAX_BACKOFF_MS = 5 * 60 * 1_000;
 
+    // A connection must survive this long before a subsequent failure resets
+    // the backoff. Resetting in onOpen instead (the old behavior) meant a
+    // relay that accepts the handshake but drops the socket right after
+    // (auth-walled, overloaded, misbehaving proxy) reconnected every 1s
+    // forever — a battery-melting hot loop while the phone sleeps.
+    private static final long STABLE_CONNECTION_MS = 60_000;
+
     // Referenced-event / profile lookups resolve with whatever arrived once
     // this timeout expires, so a slow relay can't hold a notification hostage.
     private static final long LOOKUP_TIMEOUT_MS = 4_000;
@@ -288,6 +295,15 @@ public class NotificationRelayService extends Service {
         long backoffMs = INITIAL_BACKOFF_MS;
         boolean closed = false;
 
+        // When the current connection attempt started (main thread only).
+        // Used by scheduleReconnect to distinguish "stable connection finally
+        // died" (reset backoff) from "relay drops us right away" (keep growing).
+        long connectAttemptAt = 0;
+
+        // Single pending reconnect, cancellable — prevents a queued reconnect
+        // and the network callback from racing to open duplicate sockets.
+        final Runnable reconnectRunnable = this::connect;
+
         // Live notification subscription.
         final String subMain = "dn-" + Long.toHexString(System.nanoTime());
         // Prefix for one-shot kind-0 profile lookups (sub id = prefix + pubkey).
@@ -305,14 +321,18 @@ public class NotificationRelayService extends Service {
         }
 
         void connect() {
-            if (closed || !isNetworkAvailable()) return;
+            // ws != null guard: a socket is already open (or opening). Without
+            // it, a stale queued reconnect firing after the network callback
+            // already reconnected would open a second socket and orphan the
+            // first — leaked sockets keep pinging and re-failing forever.
+            if (closed || ws != null || !isNetworkAvailable()) return;
+            connectAttemptAt = System.currentTimeMillis();
             mainEosed = false;
             backfill.clear();
             Request request = new Request.Builder().url(relayUrl).build();
             ws = httpClient.newWebSocket(request, new WebSocketListener() {
                 @Override
                 public void onOpen(WebSocket webSocket, Response response) {
-                    backoffMs = INITIAL_BACKOFF_MS;
                     Log.d(TAG, "WS open: " + relayUrl);
                     sendMainReq(webSocket);
                 }
@@ -404,13 +424,21 @@ public class NotificationRelayService extends Service {
         void scheduleReconnect() {
             if (closed) return;
             ws = null;
+            // Only a connection that stayed up for a while earns a backoff
+            // reset; instant drops keep doubling toward the 5-minute cap.
+            if (connectAttemptAt > 0
+                    && System.currentTimeMillis() - connectAttemptAt >= STABLE_CONNECTION_MS) {
+                backoffMs = INITIAL_BACKOFF_MS;
+            }
             long delay = backoffMs;
             backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
-            handler.postDelayed(this::connect, delay);
+            handler.removeCallbacks(reconnectRunnable);
+            handler.postDelayed(reconnectRunnable, delay);
         }
 
         void close() {
             closed = true;
+            handler.removeCallbacks(reconnectRunnable);
             if (ws != null) {
                 try { ws.close(1000, "service reconfigured"); } catch (Exception ignored) {}
                 ws = null;
@@ -419,6 +447,7 @@ public class NotificationRelayService extends Service {
 
         void resetAndConnectNow() {
             backoffMs = INITIAL_BACKOFF_MS;
+            handler.removeCallbacks(reconnectRunnable);
             if (ws == null && !closed) connect();
         }
     }

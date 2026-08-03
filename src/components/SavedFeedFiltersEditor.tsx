@@ -277,7 +277,10 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
         <PopoverContent
           align="start"
           side="bottom"
-          className="w-64 p-0 flex flex-col overflow-hidden"
+          // Match the trigger width so the menu spans the full field instead of
+          // left-aligning as a narrower box — inside a dialog's padding a fixed
+          // width reads as "off-center left with a gap on the right".
+          className="w-[--radix-popover-trigger-width] min-w-64 p-0 flex flex-col overflow-hidden"
           style={{ maxHeight: 'min(320px, var(--radix-popover-content-available-height, 320px))' }}
         >
           <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border shrink-0">

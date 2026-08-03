@@ -22,10 +22,13 @@ Ditto uses GitLab CI (`.gitlab-ci.yml`) to run tests on every commit, deploy the
 Releases are triggered by pushing a version tag:
 
 ```bash
-npm run release
+git tag vX.Y.Z
+git push origin main vX.Y.Z
 ```
 
-This creates a tag in the format `v2026.03.14+abc1234` (date + short commit hash) and pushes it to GitLab, which triggers the `build-apk`, `release`, `publish-zapstore`, and `publish-google-play` jobs.
+Every tag-only job is gated on `if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/`, so the tag **must** be plain semver with a `v` prefix (`v2.33.0`). Suffixes, date-based names, or build metadata (`v2.33.0-rc1`, `v2026.03.14+abc1234`) match no rule and silently produce a pipeline with no build, release, or publish jobs.
+
+Pushing a matching tag triggers `release-notes`, `build-apk`, `build-ipa`, `release`, `publish-zapstore`, `publish-google-play`, and `publish-app-store`.
 
 For the full versioning / changelog / native-build workflow, load the **`release`** skill.
 
@@ -35,8 +38,24 @@ The `publish-zapstore` CI job uploads signed APKs to [Zapstore](https://zapstore
 
 **Configuration files:**
 
-- `zapstore.yaml` — app metadata for Zapstore (name, tags, icon, supported NIPs)
+- `zapstore.yaml` — app metadata for Zapstore (name, summary, description, tags, license, icon, screenshots, `release_notes: ./CHANGELOG.md`, supported NIPs)
 - `.gitlab-ci.yml` — the `publish-zapstore` job definition
+
+### How the job works
+
+Runs in a `golang:1.24` image with `needs: [build-apk]`, so it consumes that job's `artifacts/Ditto.apk`:
+
+1. `go install github.com/zapstore/zsp@latest`.
+2. Derives the bunker pubkey from `$ZAPSTORE_BUNKER_URL` and writes `$ZAPSTORE_CLIENT_KEY` to `~/.config/zsp/bunker-keys/<bunker-pubkey>.key` (see below).
+3. `sed`-injects two keys at the top of `zapstore.yaml`: `version:` (the tag minus its `v`) and `release_source: ./artifacts/Ditto.apk`. **Both are deliberately absent from the committed file** — they're per-release values, so don't add them by hand.
+4. `zsp publish --quiet --skip-metadata --skip-preview zapstore.yaml`.
+
+Three job-level `variables` drive `zsp`: `SIGN_WITH` (the bunker URL), `RELAY_URLS` (`relay.zapstore.dev`, `relay.ditto.pub`, `relay.dreamith.to`, `relay.primal.net`), and `BLOSSOM_URL` (`https://blossom.ditto.pub`, where the APK blob is uploaded).
+
+The two `--skip-*` flags are easy to misread (`zsp publish --help` is the authority):
+
+- **`--skip-metadata` skips *fetching* metadata from external sources** — it does not skip publishing it. Without it, `zsp` would honor `metadata_sources: [gitlab]` in `zapstore.yaml` and pull name/description/images from the GitLab project at publish time; with it, the committed `zapstore.yaml` is the sole source. The kind 32267 app-metadata event is still published (that's `--skip-app-event`, which this job does not use), so edits to the description, tags, icon, or supported NIPs *do* propagate on the next tag.
+- **`--skip-preview`** skips the browser preview prompt. Confirmations are separately handled by `--quiet`, which implies `-y`.
 
 **GitLab CI/CD variables** (Settings → CI/CD → Variables):
 

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { FormattedMessage } from "react-intl";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,16 +31,23 @@ export function RemoteLoginSuccessPage() {
     <main className="flex items-center justify-center min-h-[60vh]">
       <div className="text-center px-8 space-y-4 max-w-sm">
         <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
-        <h1 className="text-2xl font-bold">Login approved!</h1>
+        <h1 className="text-2xl font-bold">
+          <FormattedMessage id="remoteLoginSuccess.title" defaultMessage="Login approved!" />
+        </h1>
         {isNative ? (
-          <p className="text-muted-foreground">Taking you back to the app&hellip;</p>
+          <p className="text-muted-foreground">
+            <FormattedMessage id="remoteLoginSuccess.redirecting" defaultMessage="Taking you back to the app…" />
+          </p>
         ) : (
           <>
             <p className="text-muted-foreground">
-              Your signer approved the connection. You can close this tab and return to the app.
+              <FormattedMessage
+                id="remoteLoginSuccess.description"
+                defaultMessage="Your signer approved the connection. You can close this tab and return to the app."
+              />
             </p>
             <Button onClick={() => navigate("/", { replace: true })}>
-              Go home
+              <FormattedMessage id="remoteLoginSuccess.goHome" defaultMessage="Go home" />
             </Button>
           </>
         )}

@@ -2,12 +2,9 @@ import { useCallback } from 'react';
 import { GripVertical } from 'lucide-react';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+  SortableContext, verticalListSortingStrategy, useSortable, arrayMove, CSS,
   type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+} from '@/lib/sortable';
 import { cn } from '@/lib/utils';
 
 // ── Generic sortable list container ──────────────────────────────────────────

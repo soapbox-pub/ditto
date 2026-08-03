@@ -5,17 +5,17 @@ import { nip19 } from 'nostr-tools';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { getAvatarShape } from '@/lib/avatarShape';
-import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { LinkEmbed } from '@/components/LinkEmbed';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
+import { ArmadaInviteEmbed } from '@/components/ArmadaInviteEmbed';
 import { LightningInvoiceCard } from '@/components/LightningInvoiceCard';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { Lightbox, ImageGallery } from '@/components/ImageGallery';
-import { ProfileHoverCard } from '@/components/ProfileHoverCard';
-import { EmojifiedText, CustomEmojiImg } from '@/components/CustomEmoji';
+import { NostrMention } from '@/components/NostrMention';
+import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { buildEmojiMap } from '@/lib/customEmoji';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
@@ -27,6 +27,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { parseImetaMap } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { parseArmadaInvite, type ArmadaInvite } from '@/lib/armadaInvite';
 import { HASHTAG_PATTERN } from '@/lib/hashtag';
 import { highlightSourceAttrs } from '@/lib/highlightSource';
 import { cn } from '@/lib/utils';
@@ -267,6 +268,7 @@ type ContentToken =
   | { type: 'mention'; pubkey: string }
   | { type: 'nevent-embed'; eventId: string; relays?: string[]; author?: string }
   | { type: 'naddr-embed'; addr: AddrCoords; url?: string }
+  | { type: 'armada-invite'; invite: ArmadaInvite }
   | { type: 'nostr-link'; id: string; raw: string }
   | { type: 'hashtag'; tag: string; raw: string }
   | { type: 'relay-link'; url: string }
@@ -444,7 +446,13 @@ export function NoteContent({
 
         // Check if the URL contains an naddr1 identifier → embed as Nostr event + preserve link
         const naddrFromUrl = extractNaddrFromUrl(url);
-        if (naddrFromUrl) {
+        const armadaInvite = parseArmadaInvite(url);
+        if (armadaInvite) {
+          // Encrypted community invite (kind 33301). Its bundle content is
+          // NIP-44 encrypted, so never let it fall through to the generic
+          // naddr embed — render an "open in a compatible app" card instead.
+          result.push({ type: 'armada-invite', invite: armadaInvite });
+        } else if (naddrFromUrl) {
           result.push({ type: 'naddr-embed', addr: naddrFromUrl, url });
         } else if (isEndOfLine) {
           // Standalone URL at end of line → rich embed (YouTube, Tweet, or link preview)
@@ -475,7 +483,14 @@ export function NoteContent({
               author: decoded.data.author,
             });
           } else if (decoded.type === 'naddr') {
-            result.push({ type: 'naddr-embed', addr: decoded.data as AddrCoords });
+            const bareInvite = parseArmadaInvite(nostrId);
+            if (bareInvite) {
+              // A bare invite-bundle naddr with no fragment: encrypted, can't
+              // render as a plain event. Surface it as an incomplete invite.
+              result.push({ type: 'armada-invite', invite: bareInvite });
+            } else {
+              result.push({ type: 'naddr-embed', addr: decoded.data as AddrCoords });
+            }
           } else {
             result.push({ type: 'nostr-link', id: nostrId, raw: fullMatch });
           }
@@ -812,7 +827,7 @@ export function NoteContent({
             const imeta = imetaMap.get(token.url);
             const mime = imeta?.mime ?? '';
             const isWebxdc = mime === 'application/x-webxdc' || mime === 'application/vnd.webxdc+zip' || token.url.endsWith('.xdc');
-            const isAudio = mime.startsWith('audio/') || /\.(mp3|wav|ogg|flac|m4a|aac|opus)(\?[^\s]*)?$/i.test(token.url);
+            const isAudio = mime.startsWith('audio/') || /\.(mp3|mpga|wav|ogg|flac|m4a|aac|opus)(\?[^\s]*)?$/i.test(token.url);
             if (isWebxdc && imeta) {
               return <WebxdcEmbed key={i} url={token.url} uuid={imeta.webxdc} name={imeta.summary} icon={imeta.thumbnail} />;
             }
@@ -875,6 +890,8 @@ export function NoteContent({
             // how nevent/link embeds behave. When the naddr came from a
             // non-Ditto URL the card surfaces an "Open" button via `sourceUrl`.
             return <EmbeddedNaddr key={i} addr={token.addr} className="my-2.5" sourceUrl={token.url} />;
+          case 'armada-invite':
+            return <ArmadaInviteEmbed key={i} invite={token.invite} />;
           case 'mention':
             return <NostrMention key={i} pubkey={token.pubkey} />;
           case 'nostr-link':
@@ -1103,28 +1120,3 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`;
 }
 
-function NostrMention({ pubkey }: { pubkey: string }) {
-  const author = useAuthor(pubkey);
-  const hasRealName = !!(author.data?.metadata?.name || author.data?.metadata?.display_name);
-  const displayName = author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? 'Anonymous';
-  const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
-
-  return (
-    <ProfileHoverCard pubkey={pubkey} asChild>
-      <Link
-        to={profileUrl}
-        className={cn(
-          'font-medium hover:underline',
-          hasRealName
-            ? 'text-primary'
-            : 'text-muted-foreground hover:text-foreground',
-        )}
-        onClick={(e) => e.stopPropagation()}
-      >
-        @{author.data?.event ? (
-          <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-        ) : displayName}
-      </Link>
-    </ProfileHoverCard>
-  );
-}

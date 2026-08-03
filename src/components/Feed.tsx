@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useInView } from 'react-intersection-observer';
+import { useInView } from '@/hooks/useInView';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LandingHero } from '@/components/LandingHero';
+import { LazyFeedItem } from '@/components/LazyFeedItem';
 import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
@@ -65,9 +66,14 @@ interface FeedProps {
    * render it before Follows. Used by the client feed page.
    */
   globalFirst?: boolean;
+  /**
+   * Apply `sort:hot` to the Global tab on kind-specific pages to keep spam and
+   * low-quality events out of easy view (e.g. Articles, Highlights).
+   */
+  hotGlobal?: boolean;
 }
 
-export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home', globalFirst }: FeedProps = {}) {
+export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home', globalFirst, hotGlobal }: FeedProps = {}) {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { isMuted } = useMuteFilter();
@@ -162,7 +168,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       : 'global';
   const feedQuery = useFeed(
     isCoreFeedTab ? feedTabForQuery : 'global',
-    (kinds || tagFilters) ? { kinds, tagFilters } : undefined,
+    (kinds || tagFilters) ? { kinds, tagFilters, hotGlobal } : undefined,
   );
 
   // Curated Ditto feed: latest content from the curator's follow list.
@@ -446,16 +452,17 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
           <NewPostsPill count={newPostCount} onClick={handleShowNewPosts} />
           {feedItems.length > 0 ? (
             <div>
-              {feedItems.map((item: FeedItem) => (
-                <NoteCard
-                  key={feedItemKey(item)}
-                  event={item.event}
-                  repostedBy={item.repostedBy}
-                  repostEvent={item.repostEvent}
-                  reactedBy={item.reactedBy}
-                  zappedBy={item.zappedBy}
-                  profileZapRecipient={item.profileZapRecipient}
-                />
+              {feedItems.map((item: FeedItem, index: number) => (
+                <LazyFeedItem key={feedItemKey(item)} className="cv-feed-item" initialInView={index < 10}>
+                  <NoteCard
+                    event={item.event}
+                    repostedBy={item.repostedBy}
+                    repostEvent={item.repostEvent}
+                    reactedBy={item.reactedBy}
+                    zappedBy={item.zappedBy}
+                    profileZapRecipient={item.profileZapRecipient}
+                  />
+                </LazyFeedItem>
               ))}
               {hasNextPage && (
                 <div ref={scrollRef} className="py-4">
@@ -586,16 +593,17 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
-        {feedItems.map((item) => (
-          <NoteCard
-            key={feedItemKey(item)}
-            event={item.event}
-            repostedBy={item.repostedBy}
-            repostEvent={item.repostEvent}
-            reactedBy={item.reactedBy}
-            zappedBy={item.zappedBy}
-            profileZapRecipient={item.profileZapRecipient}
-          />
+        {feedItems.map((item, index) => (
+          <LazyFeedItem key={feedItemKey(item)} className="cv-feed-item" initialInView={index < 10}>
+            <NoteCard
+              event={item.event}
+              repostedBy={item.repostedBy}
+              repostEvent={item.repostEvent}
+              reactedBy={item.reactedBy}
+              zappedBy={item.zappedBy}
+              profileZapRecipient={item.profileZapRecipient}
+            />
+          </LazyFeedItem>
         ))}
         {hasNextPage && (
           <div ref={scrollRef} className="py-4">
@@ -664,8 +672,10 @@ function HashtagFeedContent({ tag }: { tag: string }) {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
-        {filteredEvents.map((event) => (
-          <NoteCard key={event.id} event={event} />
+        {filteredEvents.map((event, index) => (
+          <LazyFeedItem key={event.id} className="cv-feed-item" initialInView={index < 10}>
+            <NoteCard event={event} />
+          </LazyFeedItem>
         ))}
       </div>
     </PullToRefresh>
@@ -725,8 +735,10 @@ function GeotagFeedContent({ tag }: { tag: string }) {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
-        {filteredEvents.map((event) => (
-          <NoteCard key={event.id} event={event} />
+        {filteredEvents.map((event, index) => (
+          <LazyFeedItem key={event.id} className="cv-feed-item" initialInView={index < 10}>
+            <NoteCard event={event} />
+          </LazyFeedItem>
         ))}
       </div>
     </PullToRefresh>

@@ -1,6 +1,5 @@
 import { useEffect, useMemo } from 'react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { LocalNotifications } from '@capacitor/local-notifications';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useAppContext } from './useAppContext';
@@ -100,24 +99,11 @@ export function useNativeNotifications(): void {
     ? followedPubkeys
     : undefined;
 
-  // Request native notification permission once the user logs in. Asking at
-  // app launch (before login) wastes the one system prompt on a moment with
-  // no context — the user hasn't done anything notifiable yet, so denial is
-  // the likely outcome and Android remembers it.
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform() || !user) return;
-
-    (async () => {
-      try {
-        const { display } = await LocalNotifications.checkPermissions();
-        if (display === 'prompt' || display === 'prompt-with-rationale') {
-          await LocalNotifications.requestPermissions();
-        }
-      } catch {
-        // Permission check failed — ignore
-      }
-    })();
-  }, [user]);
+  // The OS notification permission is no longer requested here. Firing it
+  // silently right after login threw a context-free system dialog at the user
+  // (and raced the battery toast). The ask now lives in the post-login setup
+  // flow (LoginSetup), which explains what it's for first and prompts from a
+  // real tap; the Settings toggle is the other way in.
 
   // Configure / deconfigure the native polling service.
   useEffect(() => {

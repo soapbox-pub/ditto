@@ -1,4 +1,5 @@
 import { useNostr } from '@nostrify/react';
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter, NostrSigner } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
@@ -145,6 +146,13 @@ async function getAllMuteItems(
 }
 
 /**
+ * Stable empty-array identity returned while the mute list is loading, so
+ * consumers that memoize on `muteItems` (feed filters) don't recompute on
+ * every render.
+ */
+const EMPTY_MUTE_ITEMS: MuteListItem[] = [];
+
+/**
  * Hook to manage NIP-51 mute lists (kind 10000)
  * All mute items are encrypted for privacy
  */
@@ -156,8 +164,14 @@ export function useMuteList() {
   const { mutateAsync: publishEvent } = useNostrPublish();
   const cacheKey = getMuteCacheKey(config.appId);
 
-  // Placeholder from localStorage so mutes apply immediately on page load
-  const cachedItems = user ? getCachedMuteItems(cacheKey, user.pubkey) : undefined;
+  // Placeholder from localStorage so mutes apply immediately on page load.
+  // Memoized — this hook runs in every NoteCard, and an unmemoized read would
+  // JSON.parse the cached list on every render of every card.
+  const userPubkey = user?.pubkey;
+  const cachedItems = useMemo(
+    () => userPubkey ? getCachedMuteItems(cacheKey, userPubkey) : undefined,
+    [cacheKey, userPubkey],
+  );
 
   // Query the current mute list
   const query = useQuery({
@@ -389,7 +403,7 @@ export function useMuteList() {
 
   return {
     muteList: query.data,
-    muteItems: muteItems.data || [],
+    muteItems: muteItems.data ?? EMPTY_MUTE_ITEMS,
     isLoading: query.isLoading || muteItems.isLoading,
     isError: query.isError || muteItems.isError,
     error: query.error || muteItems.error,

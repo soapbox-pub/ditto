@@ -102,6 +102,17 @@ export function useBlobbiCompanionMotion({
           return prev;
         }
         
+        // Capture pre-update values: updateMotion shallow-copies the motion
+        // object, so its nested position/velocity objects are aliased with
+        // `prev` and mutated in place — comparing against `prev` after the
+        // update would always report "unchanged".
+        const beforePosX = prev.position.x;
+        const beforePosY = prev.position.y;
+        const beforeVelX = prev.velocity.x;
+        const beforeVelY = prev.velocity.y;
+        const beforeDirection = prev.direction;
+        const beforeGrounded = prev.isGrounded;
+        
         const { motion: newMotion, reachedTarget } = updateMotion(
           prev,
           state,
@@ -115,6 +126,22 @@ export function useBlobbiCompanionMotion({
         if (reachedTarget) {
           // Use setTimeout to avoid state update during render
           setTimeout(onReachedTarget, 0);
+        }
+        
+        // At rest (grounded, no movement) updateMotion produces identical
+        // values in a fresh object every frame. Return `prev` so React bails
+        // out of the state update instead of re-rendering the companion at
+        // 60fps while it stands still.
+        if (
+          !reachedTarget &&
+          newMotion.position.x === beforePosX &&
+          newMotion.position.y === beforePosY &&
+          newMotion.velocity.x === beforeVelX &&
+          newMotion.velocity.y === beforeVelY &&
+          newMotion.direction === beforeDirection &&
+          newMotion.isGrounded === beforeGrounded
+        ) {
+          return prev;
         }
         
         return newMotion;

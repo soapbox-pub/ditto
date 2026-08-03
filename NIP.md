@@ -11,6 +11,9 @@
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
+| 37849 | Quiz                 | Shareable quiz with weighted-scoring questions        |
+| 7849  | Quiz Result          | A user's computed result for a quiz                   |
+| 38192 | PS Memory Card       | One 8 KB block of a PlayStation 1 memory card         |
 
 ### Community Kinds
 
@@ -26,7 +29,7 @@ These event kinds were created by community contributors and are supported by Di
 | 8211  | Encrypted Letter       | Encrypted personal letter with visual stationery                 | [NIP](https://gitlab.com/chad.curtis/lief/-/blob/main/NIP.md)                            |
 | 1124  | Blobbi Social Interaction | Immutable interaction log for Blobbi social interactions       | See [Blobbi Social Interaction](#kind-1124-blobbi-social-interaction) below                |
 | 10133 | Payment Targets        | Donation endpoints (Bitcoin, Lightning, Monero, …) per RFC-8905 | [NIP-A3](https://github.com/ATXMJ/nips/blob/main/A3.md); see [Kind 10133](#kind-10133-payment-targets-nip-a3) below |
-| 11125 | Blobbonaut Profile     | Owner profile with coins, achievements, and inventory            | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
+| 11125 | Blobbonaut Profile     | Owner profile with coins, achievements, and progression          | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14919 | Blobbi Interaction     | Individual pet interaction (feed, play, clean, etc.)             | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14920 | Blobbi Breeding        | Breeding event between two adult Blobbis                         | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14921 | Blobbi Record          | Immutable lifecycle record (birth, evolution, adoption)          | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
@@ -37,6 +40,9 @@ These event kinds were created by community contributors and are supported by Di
 | 36787 | Music Track            | Addressable event for a music audio file with metadata           | See [Music Tracks & Playlists](#music-tracks--playlists) below                            |
 | 34139 | Music Playlist         | Ordered list of music track references (also used for albums)    | See [Music Tracks & Playlists](#music-tracks--playlists) below                            |
 | 30621 | Custom Constellation   | User-drawn star figure with Hipparcos-numbered edges             | [NIP](https://gitlab.com/alexgleason/birdstar/-/blob/main/NIP.md)                         |
+| 34609 | Magazine               | Parent record grouping issues of a magazine/periodical           | [PressStr NIP](https://pressstr.shakespeare.wtf)                                          |
+| 39731 | Magazine Issue         | A single PDF issue of a magazine (kind 34609)                    | [PressStr NIP](https://pressstr.shakespeare.wtf)                                          |
+| 33953 | Ebook                  | A standalone ebook distributed as PDF or EPUB                    | [PressStr NIP](https://pressstr.shakespeare.wtf)                                          |
 
 ---
 
@@ -551,6 +557,59 @@ The `shape` field is added to the JSON content of a kind 0 event alongside stand
 
 ---
 
+## Kind 38192: PlayStation Memory Card
+
+### Summary
+
+A PlayStation 1 memory card published to Nostr one block at a time. A physical card is 16 × 8192-byte blocks: block 0 is the header/directory (allocation table), and blocks 1–15 hold saves. Each block is a separate addressable event, so a full card is a set of up to 16 events sharing a common card id. Clients decode each save block's BIOS title and animated 16×16 icon straight from the raw bytes, and can reconstruct a downloadable `.mcd` image from the block set.
+
+### Event Structure
+
+- **Kind:** 38192 (addressable, 30000–39999).
+- **`content`:** the block's 8192 bytes encoded as 16384 lowercase hex characters.
+
+```jsonc
+{
+  "kind": 38192,
+  "content": "534301...", // 16384 hex chars = 8192 bytes
+  "tags": [
+    ["d", "main-1"],            // <card-id>-<block>
+    ["m", "main"],              // card id
+    ["block", "1"],             // block index 0–15
+    ["state", "first"],         // directory allocation state
+    ["name", "My Card"],        // optional human card name
+    ["filename", "BASLUS-00067..."], // save filename / product code
+    ["region", "NTSC-U"],       // optional region string
+    ["x", "<sha256-of-bytes>"], // content integrity hash
+    ["alt", "PlayStation memory card save block"]
+  ]
+}
+```
+
+### Tags
+
+- **`d`** (required): the address, `"<card-id>-<block>"` (e.g. `main-1`). The trailing `-<digits>` is the block index, so card ids MUST NOT contain spaces or themselves end with `-<number>`.
+- **`m`** (required): the card id shared by every block of the same card. Clients group blocks into cards by `(pubkey, m)`.
+- **`block`** (required): the block index `0`–`15`. Clients fall back to the numeric suffix of `d` when absent.
+- **`state`**: directory allocation state — `header`, `first`, `middle`, `last`, or `free`. `first` starts a save; `middle`/`last` are continuation blocks of a multi-block save.
+- **`name`**: optional human-readable card name for the gallery.
+- **`filename`**: the save's on-card filename / product code (used for region detection).
+- **`region`**: optional region string (`NTSC-U`, `PAL`, `NTSC-J`, …).
+- **`title`**: optional fallback title when the BIOS title can't be decoded.
+- **`x`**: integrity hash of the content bytes. Re-publishing a block under a new key or address leaves `content` (and thus `x`) unchanged.
+- **`alt`** (recommended): NIP-31 human-readable fallback.
+
+Save blocks begin with the ASCII magic `SC`. The BIOS title is Shift-JIS at offset `0x04` (64 bytes); the 16-colour BGR555 palette is at `0x60`; 1–3 4bpp 16×16 icon frames start at `0x80`.
+
+### Client Behavior
+
+- To view one card, filter by `authors: [pubkey]` (and optionally `#m: [cardId]`) and collapse to the newest event per block index using the relay's last-writer-wins rule for addressable events.
+- To reconstruct a `.mcd` image, zero-fill any unpublished blocks. Block 0 (header/directory) SHOULD be present or emulators may reject the image.
+- Copying/cloning re-publishes existing blocks under the acting user's key at a chosen card id; only the address tags (`d`, `m`, `block`) are rewritten — the `content` and `x` tag are preserved.
+- To publish or update a card from a raw 128 KB image, split it into 16 blocks, read each block's allocation `state`, `filename`, and `region` from block 0's directory frames (each 128-byte frame `n` describes block `n`; allocation dword `0x51`/`0x52`/`0x53` = first/middle/last, `0xA0`+ = free), and publish the header plus every non-free block. Re-publishing to an existing card id updates it.
+
+---
+
 ## Community NIP Specifications
 
 The following specifications are maintained by their respective authors. Ditto implements these kinds but does not own the specs. See each link for the full event structure, tags, and client behavior.
@@ -607,7 +666,15 @@ Kind 16158 (replaceable) describes a weather station's configuration: name, geoh
 **App:** https://nostr-pet.vercel.app
 **See also:** [Blobbi tag schema](docs/blobbi/blobbi-tag-schema.md) (Ditto-specific integration details)
 
-NIP-BB defines a virtual pet lifecycle on Nostr. Kind 31124 (addressable) holds the current pet state across three stages (egg, baby, adult) with stats, appearance, and personality traits. Kind 14919 logs individual interactions, kind 14920 records breeding events, kind 14921 stores immutable lifecycle records, and kind 11125 (replaceable) holds the owner's profile with coins, achievements, and inventory.
+NIP-BB defines a virtual pet lifecycle on Nostr. Kind 31124 (addressable) holds the current pet state across three stages (egg, baby, adult) with stats, appearance, and personality traits. Kind 14919 logs individual interactions, kind 14920 records breeding events, kind 14921 stores immutable lifecycle records, and kind 11125 (replaceable) holds the owner's profile with coins, achievements, and progression.
+
+#### Consumable inventory is not part of Ditto's kind 11125 model
+
+Kind 11125 stores Blobbi owner profile data such as coins, achievements, XP, level, owned Blobbis, and room selection. **Ditto does not read or write consumable inventory on this event.** Care items are free and infinitely available, so there is no quantity, stock, or consumption model: nothing decrements on use and nothing is written on purchase.
+
+Pre-existing `storage` tags, written by earlier Ditto versions, are **preserved opaquely as unknown extension tags**. They are not in the managed tag set, so profile republishes carry them through tag-for-tag, in order, without parsing, normalizing, or deleting them — and a republish can never create or mutate them. Consumable inventory is no longer part of Ditto's active kind 11125 model.
+
+This is scoped to *consumable* inventory only. Other item-like concepts are unaffected and live elsewhere: room customization (`room_layouts`, `room_furniture` in `content`, documented below), owned Blobbis (`has` tags), and any host-specific cosmetic or accessory extension tags — such as Blobbi Island's `inv` tag, which Ditto neither writes nor interprets — remain independent of this event's consumable-inventory semantics.
 
 #### Kind 11125 `content` JSON — `missions` field
 
@@ -621,7 +688,7 @@ The `content` of kind 11125 is a JSON object. Ditto extends it with a `missions`
     "evolution": [ /* Mission[] — active hatch/evolve tasks, cleared on stage transition */ ],
     "rerolls": 2                // remaining daily mission rerolls
   }
-  // ...other profile fields (coins, achievements, inventory, etc.)
+  // ...other profile fields (coins, achievements, room customization, etc.)
 }
 ```
 
@@ -998,3 +1065,101 @@ Albums are represented as kind 34139 playlist events with a `["t", "album"]` tag
 - Track ordering follows the order of `a` tags in the event
 - The same detail view, playback, and commenting features apply to both albums and playlists
 
+
+---
+
+## Quizzes
+
+Two kinds implement shareable social quizzes: **kind 37849** (Quiz, addressable) defines the quiz, and **kind 7849** (Quiz Result, regular) records a user's computed result. The numbers spell QUIZ on a phone keypad (7-8-4-9).
+
+The data model covers weighted-scoring quizzes: every question's options add weighted points to named **dimensions**, and the final result maps dimension totals to **outcomes**. This expresses category quizzes (Sorting Hat), axis tests (Political Compass), typologies (16personalities-style), and trivia scores (a "correct" dimension with range buckets) without any executable scoring logic in events.
+
+### Kind 37849: Quiz
+
+An addressable event defining a quiz. `content` is an optional freeform plaintext description.
+
+**Identifiers** (`<id>` values in the tags below) MUST match `[a-zA-Z0-9_-]+` so that `:`-delimited tag values parse unambiguously.
+
+| Tag         | Required | Description |
+|-------------|----------|-------------|
+| `d`         | Yes      | Quiz slug. |
+| `title`     | Yes      | Quiz title. |
+| `summary`   | No       | Short description for cards/previews. |
+| `image`     | No       | Cover image URL. |
+| `t`         | No       | Topic tags. |
+| `dimension` | Yes (≥1) | `["dimension", "<id>", "<label>"]` — a named scoring dimension. Display order = tag order. |
+| `question`  | Yes (≥1) | `["question", "<id>", "<text>"]` — presentation order = tag order. |
+| `option`    | Yes (≥2 per question) | `["option", "<question-id>", "<option-id>", "<label>", "<dim>:<weight>", …]` — an answer choice. Weight entries from index 4 add `<weight>` (decimal, may be negative) to dimension `<dim>` when this option is chosen. Omitted dimensions contribute 0. |
+| `scoring`   | No       | `["scoring", "<mode>"]` — `argmax` (default), `ranges`, or `scores`. |
+| `outcome`   | Depends  | `["outcome", "<id>", "<label>", "<description>", "<image>", "<condition>", …]` — result definition. `<image>` is an optional HTTPS URL shown with the result (use an empty string as a placeholder when conditions follow but there is no image). See below. |
+| `alt`       | Yes      | NIP-31 fallback. |
+
+**Scoring modes** — after summing weights for the taker's chosen options into per-dimension totals:
+
+- **`argmax`** — the highest-scoring dimension wins (ties broken by dimension tag order). The outcome whose `<id>` equals the winning dimension's id applies. Category quizzes ("which house are you").
+- **`ranges`** — every outcome whose conditions all hold applies. Conditions occupy tag indices ≥ 5 in the form `<dim>:<min>:<max>` (inclusive bounds; empty string = unbounded, e.g. `econ:0:` means econ ≥ 0). Multiple conditions in one outcome are ANDed; multiple outcomes may match (per-axis pole labels, quadrant labels, score buckets).
+- **`scores`** — no outcomes; clients display the dimension totals themselves (raw axis/coordinate results). Clients derive display bounds for each dimension by summing the min/max option weight per question.
+
+Quizzes are addressable so authors can fix typos. Results SHOULD pin the exact revision taken via an `e` tag (see below).
+
+### Kind 7849: Quiz Result
+
+A regular event recording the publisher's own result for a quiz. `content` is an optional freeform comment from the taker.
+
+| Tag       | Required | Description |
+|-----------|----------|-------------|
+| `a`       | Yes      | Quiz coordinate `37849:<pubkey>:<d>`, with optional relay hint. |
+| `e`       | Recommended | Event id of the exact quiz revision taken. |
+| `p`       | Recommended | Quiz author's pubkey (enables notifications). |
+| `outcome` | No       | `["outcome", "<id>", "<label>", "<image>"]` — a matched outcome. Label and optional image URL are denormalized so the result renders without fetching the quiz. |
+| `score`   | No       | `["score", "<dim-id>", "<value>", "<dim-label>", "<min>", "<max>"]` — per-dimension total. Label and bounds (indices 3-5) are optional denormalizations for standalone rendering. |
+| `answer`  | No       | `["answer", "<question-id>", "<option-id>"]` — the taker's raw answers. **Opt-in**: clients MUST NOT publish answers without explicit user consent (answers to e.g. medical-adjacent quizzes are sensitive). When present, clients MAY recompute scores to verify the claimed result. |
+| `alt`     | Yes      | NIP-31 fallback. |
+
+**Client behavior:**
+
+- One result per pubkey per quiz: when multiple kind 7849 events from the same pubkey reference the same quiz coordinate, only the one with the largest `created_at` counts (NIP-88-style dedupe). Retaking a quiz publishes a new event.
+- Results are self-attested. Clients MAY verify a result by recomputing from `answer` tags against the pinned quiz revision, but for social quizzes unverified results are acceptable.
+- Sharing a result MUST be an explicit user action after taking the quiz, never automatic.
+- "Friends' results" views SHOULD query `{ kinds: [7849], '#a': [<coordinate>], authors: [<follow list>] }`.
+
+**Example quiz (argmax):**
+
+```json
+{
+  "kind": 37849,
+  "content": "Which element are you? Four questions, zero rigor.",
+  "tags": [
+    ["d", "element-quiz"],
+    ["title", "Which Element Are You?"],
+    ["summary", "Fire, water, earth, or air — settle it forever."],
+    ["dimension", "fire", "Fire"],
+    ["dimension", "water", "Water"],
+    ["question", "q1", "Pick a vacation:"],
+    ["option", "q1", "a", "Volcano hike", "fire:2"],
+    ["option", "q1", "b", "Lake cabin", "water:2"],
+    ["scoring", "argmax"],
+    ["outcome", "fire", "Fire", "You burn bright and occasionally down.", "https://cdn.example/fire.webp"],
+    ["outcome", "water", "Water", "You go with the flow.", "https://cdn.example/water.webp"],
+    ["alt", "Quiz: Which Element Are You?"]
+  ]
+}
+```
+
+**Example result:**
+
+```json
+{
+  "kind": 7849,
+  "content": "no notes, this is accurate",
+  "tags": [
+    ["a", "37849:<author-pubkey>:element-quiz"],
+    ["e", "<quiz-event-id>"],
+    ["p", "<author-pubkey>"],
+    ["outcome", "fire", "Fire", "https://cdn.example/fire.webp"],
+    ["score", "fire", "6", "Fire", "0", "8"],
+    ["score", "water", "2", "Water", "0", "8"],
+    ["alt", "Quiz result: Fire on \"Which Element Are You?\""]
+  ]
+}
+```

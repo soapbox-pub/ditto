@@ -1,4 +1,4 @@
-import { useSeoMeta } from "@unhead/react";
+import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { BookMarked, Loader2, Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -253,7 +253,7 @@ function BookSearchBar() {
             if (debouncedQuery.length >= 2) setDropdownOpen(true);
           }}
           onKeyDown={handleKeyDown}
-          className="pl-9 pr-9 h-9 text-base md:text-sm"
+          className="pl-9 pr-9 h-9 text-base md:text-sm rounded-full"
         />
         {query && (
           <button

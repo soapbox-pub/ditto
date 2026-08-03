@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { ArrowLeftRight, Egg, Footprints, Loader2, X } from 'lucide-react';
 
 import { BlobbiAwayState } from '@/blobbi/ui/BlobbiAwayState';
@@ -57,6 +58,7 @@ const STAT_ACTION_NAME: Record<string, BlobbiAction> = {
 
 /** Mini Blobbi widget with live stats and quick actions. */
 export function BlobbiWidget() {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { companions, isLoading, updateCompanionEvent } = useBlobbisCollection(undefined, user?.pubkey);
   const { profile, updateProfileEvent, invalidate: invalidateProfile } = useBlobbonautProfile();
@@ -147,13 +149,13 @@ export function BlobbiWidget() {
       const prev = canonical.companion.event;
       const event = await publishEvent({ kind: KIND_BLOBBI_STATE, content: canonical.content, tags: newTags, prev });
       updateCompanionEvent(event);
-      toast({ title: isCurrentlySleeping ? 'Woke up!' : 'Resting...' });
+      toast({ title: isCurrentlySleeping ? intl.formatMessage({ id: 'widgets.blobbi.wokeUp', defaultMessage: "Woke up!" }) : intl.formatMessage({ id: 'widgets.blobbi.resting', defaultMessage: "Resting..." }) });
     } catch {
-      toast({ title: 'Action failed', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'widgets.blobbi.actionFailed', defaultMessage: "Action failed" }), variant: 'destructive' });
     } finally {
       setIsSleepPending(false);
     }
-  }, [user?.pubkey, companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent]);
+  }, [user?.pubkey, companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent, intl]);
 
   // Companion toggle handler (same logic as BlobbiPage)
   const [isUpdatingCompanion, setIsUpdatingCompanion] = useState(false);
@@ -189,17 +191,17 @@ export function BlobbiWidget() {
       updateProfileEvent(event);
       invalidateProfile();
       toast({
-        title: isCurrentCompanion ? 'Companion unset' : 'Companion set!',
+        title: isCurrentCompanion ? intl.formatMessage({ id: 'widgets.blobbi.companionUnset', defaultMessage: "Companion unset" }) : intl.formatMessage({ id: 'widgets.blobbi.companionSet', defaultMessage: "Companion set!" }),
         description: isCurrentCompanion
-          ? `${companion.name} is no longer your companion`
-          : `${companion.name} is now your companion`,
+          ? intl.formatMessage({ id: 'widgets.blobbi.companionUnsetDesc', defaultMessage: "{name} is no longer your companion" }, { name: companion.name })
+          : intl.formatMessage({ id: 'widgets.blobbi.companionSetDesc', defaultMessage: "{name} is now your companion" }, { name: companion.name }),
       });
     } catch {
-      toast({ title: 'Failed to update companion', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'widgets.blobbi.companionUpdateFailed', defaultMessage: "Failed to update companion" }), variant: 'destructive' });
     } finally {
       setIsUpdatingCompanion(false);
     }
-  }, [profile, companion, isCurrentCompanion, ensureCanonicalBeforeAction, publishEvent, updateProfileEvent, invalidateProfile]);
+  }, [profile, companion, isCurrentCompanion, ensureCanonicalBeforeAction, publishEvent, updateProfileEvent, invalidateProfile, intl]);
 
   const isActionPending = isUsingItem || isSleepPending;
 
@@ -209,7 +211,7 @@ export function BlobbiWidget() {
         <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
           <Egg className="size-8 text-primary" />
         </div>
-        <span className="text-xs text-muted-foreground">Log in to hatch your Blobbi</span>
+        <span className="text-xs text-muted-foreground"><FormattedMessage id="widgets.blobbi.loginPrompt" defaultMessage={"Log in to hatch your Blobbi"} /></span>
       </Link>
     );
   }
@@ -233,8 +235,8 @@ export function BlobbiWidget() {
         <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
           <Egg className="size-8 text-primary" />
         </div>
-        <span className="text-sm font-medium text-primary">Hatch your Blobbi</span>
-        <span className="text-xs text-muted-foreground">Get your virtual pet companion</span>
+        <span className="text-sm font-medium text-primary"><FormattedMessage id="widgets.blobbi.hatch" defaultMessage={"Hatch your Blobbi"} /></span>
+        <span className="text-xs text-muted-foreground"><FormattedMessage id="widgets.blobbi.hatchDesc" defaultMessage={"Get your virtual pet companion"} /></span>
       </Link>
     );
   }
@@ -283,6 +285,7 @@ function BlobbiWidgetContent({
   onToggleCompanion,
   currentCompanionD,
 }: BlobbiWidgetContentProps) {
+  const intl = useIntl();
   // Projected state with decay only — owner surfaces do not pre-project social
   // effects. Social effects are incorporated via explicit consolidation.
   const projected = useProjectedBlobbiState(companion);
@@ -372,7 +375,7 @@ function BlobbiWidgetContent({
               : 'text-violet-500 bg-violet-500/10 hover:bg-violet-500/20',
             (isUpdatingCompanion || isActionPending) && 'opacity-40 pointer-events-none',
           )}
-          title={isCurrentCompanion ? 'With you' : 'Take along'}
+          title={isCurrentCompanion ? intl.formatMessage({ id: 'widgets.blobbi.withYou', defaultMessage: "With you" }) : intl.formatMessage({ id: 'widgets.blobbi.takeAlong', defaultMessage: "Take along" })}
         >
           {isUpdatingCompanion
             ? <Loader2 className="size-3.5 animate-spin" />
@@ -385,17 +388,17 @@ function BlobbiWidgetContent({
             <PopoverTrigger asChild>
               <button
                 className="size-7 rounded-full flex items-center justify-center transition-colors text-muted-foreground bg-muted/50 hover:bg-muted hover:text-foreground"
-                title="Switch Blobbi"
+                title={intl.formatMessage({ id: 'widgets.blobbi.switch', defaultMessage: "Switch Blobbi" })}
               >
                 <ArrowLeftRight className="size-3.5" />
               </button>
             </PopoverTrigger>
             <PopoverContent side="left" align="start" className="w-auto p-3">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-muted-foreground">Switch Blobbi</p>
+                <p className="text-xs font-medium text-muted-foreground"><FormattedMessage id="widgets.blobbi.switch" defaultMessage={"Switch Blobbi"} /></p>
                 <button
                   onClick={() => setSwitcherOpen(false)}
-                  aria-label="Close"
+                  aria-label={intl.formatMessage({ id: 'widgets.common.close', defaultMessage: "Close" })}
                   className="size-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                 >
                   <X className="size-3" />
@@ -416,7 +419,7 @@ function BlobbiWidgetContent({
                           onSelectCompanion(c.d);
                           setSwitcherOpen(false);
                         }}
-                        aria-label={`Switch to ${c.name}`}
+                        aria-label={intl.formatMessage({ id: 'widgets.blobbi.switchTo', defaultMessage: "Switch to {name}" }, { name: c.name })}
                         className={cn(
                           'flex-shrink-0 flex flex-col items-center gap-1 transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 active:scale-95',
                           isSelected && 'opacity-50 pointer-events-none',

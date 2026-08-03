@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useInView } from 'react-intersection-observer';
-import { useSeoMeta } from '@unhead/react';
+import { useInView } from '@/hooks/useInView';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, MessageCircle, Quote, Loader2, Award, Mail } from 'lucide-react';
+import { Zap, AtSign, ClipboardCheck, MessageCircle, Quote, Loader2, Award, Mail } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link, useNavigate } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -36,6 +36,7 @@ import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { AcceptBadgeButton } from '@/components/AcceptBadgeButton';
 import { BADGE_DEFINITION_KIND, parseBadgeATag, unslugify } from '@/lib/badgeUtils';
 import { LETTER_KIND, type Letter } from '@/lib/letterTypes';
+import { parseQuizResult } from '@/lib/quiz';
 import { EnvelopeCard } from '@/components/letter/EnvelopeCard';
 import { LetterDetailSheet } from '@/components/letter/LetterDetailSheet';
 import { InkPenIcon } from '@/components/icons/InkPenIcon';
@@ -69,6 +70,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   1068: 'poll',
   1111: 'comment',
   1222: 'voice message',
+  1311: 'live chat message',
   1617: 'patch',
   1618: 'pull request',
   1619: 'pull request update',
@@ -95,12 +97,17 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   30008: 'badge set',
   30009: 'badge',
   30023: 'article',
+  33953: 'ebook',
+  34609: 'magazine',
+  39731: 'magazine issue',
   30030: 'emoji pack',
   30054: 'podcast episode',
   30055: 'podcast trailer',
   3063: 'Zapstore asset',
   30063: 'Zapstore release',
   30311: 'stream',
+  30312: 'room',
+  30313: 'meeting',
   30315: 'status',
   30617: 'repository',
   30618: 'repository update',
@@ -109,13 +116,15 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   31923: 'calendar event',
   32267: 'Zapstore app',
   34139: 'playlist',
-  34236: 'divine',
+  34236: 'short video',
   34550: 'community',
   35128: 'nsite',
   36767: 'theme',
   36787: 'track',
   37381: 'Magic deck',
   37516: 'treasure',
+  37849: 'quiz',
+  7849: 'quiz result',
   30621: 'constellation',
   39089: 'follow pack',
 };
@@ -167,7 +176,7 @@ export function NotificationsPage() {
   const queryClient = useQueryClient();
   const {
     groupedItems,
-    newNotificationIds,
+    hasUnread,
     isLoading,
     hasFetched,
     markAsRead,
@@ -181,16 +190,19 @@ export function NotificationsPage() {
     await queryClient.invalidateQueries({ queryKey: ['notifications', user?.pubkey ?? ''] });
   }, [queryClient, user?.pubkey]);
 
-  // Mark notifications as read when user visits the page
+  // Mark notifications as read when user visits the page. Gate on hasUnread
+  // (raw, relay-level) rather than newNotificationIds (visible items only):
+  // an unread event that was filtered out of the list still lights the nav
+  // dot and must advance the cursor, or the dot never clears.
   useEffect(() => {
-    if (!user || newNotificationIds.size === 0) return;
+    if (!user || !hasUnread) return;
 
     const timer = setTimeout(() => {
       markAsRead();
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [user, newNotificationIds.size, markAsRead]);
+  }, [user, hasUnread, markAsRead]);
 
   // Intersection observer for infinite scroll
   const { ref: scrollRef, inView } = useInView({
@@ -321,6 +333,10 @@ function GroupedNotificationView({ group }: { group: GroupedNotificationItem }) 
       return solo
         ? <HighlightNotification item={group.actors[0]} isNew={group.isNew} />
         : <HighlightNotificationGroup group={group} />;
+    case 7849:
+      return solo
+        ? <QuizResultNotification item={group.actors[0]} isNew={group.isNew} />
+        : <QuizResultNotificationGroup group={group} />;
     default:
       return null;
   }
@@ -946,6 +962,77 @@ function HighlightNotificationGroup({ group }: { group: GroupedNotificationItem 
         action={`highlighted your ${noun}`}
       />
       {first && <HighlightExcerpt event={first.event} />}
+      {first && <ReferencedNoteCard item={first} />}
+    </NotificationWrapper>
+  );
+}
+
+// ──────────────────────────────────────
+// Quiz Result Notification (kind 7849)
+// ──────────────────────────────────────
+
+/** Compact clickable line showing the taker's outcome ("Got: Gryffindor"). */
+function QuizResultOutcomeLine({ event }: { event: NostrEvent }) {
+  const navigate = useNavigate();
+  const nevent = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+  const result = useMemo(() => parseQuizResult(event), [event]);
+  if (!result) return null;
+
+  const summary = result.outcomes.length > 0
+    ? result.outcomes.map((o) => o.label).join(', ')
+    : result.scores.map((s) => `${s.label ?? s.dimension}: ${s.value}`).join(' · ');
+  if (!summary) return null;
+
+  return (
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/${nevent}`);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate(`/${nevent}`);
+        }
+      }}
+      className="mx-4 mb-3 mt-1 rounded-lg border bg-card px-3 py-2 cursor-pointer hover:bg-secondary/50 transition-colors"
+    >
+      <p className="text-sm font-semibold text-foreground line-clamp-2">{summary}</p>
+    </div>
+  );
+}
+
+function QuizResultNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  return (
+    <NotificationWrapper isNew={isNew}>
+      <div className="px-4 pt-3">
+        <NotificationHeader
+          actorPubkey={item.event.pubkey}
+          icon={<ClipboardCheck className="size-4 text-primary" />}
+          action={<ActionLink event={item.event}>took your quiz</ActionLink>}
+        />
+      </div>
+      <QuizResultOutcomeLine event={item.event} />
+      <ReferencedNoteCard item={item} />
+    </NotificationWrapper>
+  );
+}
+
+function QuizResultNotificationGroup({ group }: { group: GroupedNotificationItem }) {
+  const first = group.actors[0];
+  return (
+    <NotificationWrapper isNew={group.isNew}>
+      <GroupHeader
+        actors={group.actors}
+        icon={<ClipboardCheck className="size-4 text-primary" />}
+        action="took your quiz"
+      />
       {first && <ReferencedNoteCard item={first} />}
     </NotificationWrapper>
   );

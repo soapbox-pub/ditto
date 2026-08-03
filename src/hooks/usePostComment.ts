@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
+import { insertReplyIntoThreads } from '@/lib/insertReply';
 import { NKinds, type NostrEvent } from '@nostrify/nostrify';
 import { isNostrId } from '@/lib/nostrId';
 
@@ -57,13 +58,10 @@ export function usePostComment() {
 
       return event;
     },
-    onSuccess: (_, { root }) => {
-      const rootKey = root instanceof URL ? root.toString() : typeof root === 'string' ? root : root.id;
-
-      // Invalidate and refetch comments
-      queryClient.invalidateQueries({
-        queryKey: ['nostr', 'comments', rootKey]
-      });
+    onSuccess: (event, { root }) => {
+      // Show the comment immediately instead of refetching, which would race
+      // the relay's write→read indexing and come back without it.
+      insertReplyIntoThreads(queryClient, event, root);
     },
   });
 }

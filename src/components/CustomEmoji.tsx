@@ -13,6 +13,11 @@ interface CustomEmojiImgProps {
   url: string;
   /** CSS class name for the img element. */
   className?: string;
+  /**
+   * Rendered in place of the image when it fails to load. Defaults to nothing
+   * (the emoji simply disappears rather than showing a broken-image icon).
+   */
+  fallback?: React.ReactNode;
 }
 
 /**
@@ -21,8 +26,9 @@ interface CustomEmojiImgProps {
  * If the image's natural dimensions are 16x16 or smaller, nearest-neighbor
  * (`image-rendering: pixelated`) scaling is applied to preserve crisp pixels.
  */
-export function CustomEmojiImg({ name, url, className = 'inline h-[1.2em] w-[1.2em] object-contain align-text-bottom' }: CustomEmojiImgProps) {
+export function CustomEmojiImg({ name, url, className = 'inline h-[1.2em] w-[1.2em] object-contain align-text-bottom', fallback = null }: CustomEmojiImgProps) {
   const [pixelated, setPixelated] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
@@ -30,6 +36,8 @@ export function CustomEmojiImg({ name, url, className = 'inline h-[1.2em] w-[1.2
       setPixelated(true);
     }
   }, []);
+
+  if (failed) return <>{fallback}</>;
 
   return (
     <img
@@ -41,6 +49,7 @@ export function CustomEmojiImg({ name, url, className = 'inline h-[1.2em] w-[1.2
       loading="lazy"
       decoding="async"
       onLoad={handleLoad}
+      onError={() => setFailed(true)}
     />
   );
 }

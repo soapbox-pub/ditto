@@ -84,8 +84,20 @@ export interface FeedSettings {
   showTreasureGeocaches: boolean;
   /** Show Found logs (kind 7516) in Treasures */
   showTreasureFoundLogs: boolean;
+  /** Show Quizzes link in sidebar */
+  showQuizzes: boolean;
+  /** Show Quiz definitions (kind 37849) in Quizzes */
+  showQuizDefinitions: boolean;
+  /** Show Quiz results (kind 7849) in Quizzes */
+  showQuizResults: boolean;
+  /** Include Quiz definitions (kind 37849) in the follows/global feed */
+  feedIncludeQuizzes: boolean;
+  /** Include Quiz results (kind 7849) in the follows/global feed */
+  feedIncludeQuizResults: boolean;
   /** Show Colors (kind 3367) link in sidebar */
   showColors: boolean;
+  /** Show Memory Cards (kind 38192) link in sidebar */
+  showMemoryCards: boolean;
   /** Show People Lists (kind 39089 follow packs, kind 30000 people sets) link in sidebar */
   showPeopleLists: boolean;
   /** Include Vines in the follows/global feed */
@@ -98,6 +110,8 @@ export interface FeedSettings {
   feedIncludeTreasureFoundLogs: boolean;
   /** Include Colors in the follows/global feed */
   feedIncludeColors: boolean;
+  /** Include Memory Cards (kind 38192) in the follows/global feed */
+  feedIncludeMemoryCards: boolean;
   /** Include People Lists (kind 3 follow lists, kind 30000 people sets, kind 39089 follow packs) in the follows/global feed */
   feedIncludePeopleLists: boolean;
   /** Show Magic Decks (kind 37381) link in sidebar */
@@ -266,6 +280,11 @@ export interface AppConfig {
   client?: string;
   /** Enable Magic Mouse mode: cursor/finger emanates magical fire in the primary color */
   magicMouse: boolean;
+  /**
+   * Interface language, e.g. "en", "de", "ja". When unset, the browser/OS
+   * locale is used (the "System default" option in the language picker).
+   */
+  locale?: string;
   /** Current theme */
   theme: Theme;
   /** Custom theme config (colors, fonts, background). Only used when theme === "custom". */

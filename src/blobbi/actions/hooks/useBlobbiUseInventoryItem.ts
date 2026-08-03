@@ -66,8 +66,6 @@ export interface UseBlobbiUseInventoryItemParams {
     allTags: string[][];
     /** Latest profile tags */
     profileAllTags: string[][];
-    /** Latest profile storage */
-    profileStorage: import('@blobbi-kit/core/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;

@@ -35,6 +35,28 @@
 
   *::-webkit-scrollbar {
     display: none;
+    width: 0;
+    height: 0;
+  }
+
+  /* Harden the hide on the document scroller specifically. The universal rule
+     above is enough on modern engines, but some Android System WebView builds
+     draw a classic, space-reserving scrollbar on the root that neither
+     `scrollbar-width: none` (unsupported before Chromium 121) nor a universal
+     `::-webkit-scrollbar` reliably suppresses. Target the actual scrollers
+     explicitly — and force zero track size — so the long window-scrolled feed
+     never shows a gutter. */
+  html,
+  body {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   /* Visible thin scrollbar inside the room editor modal */
@@ -57,6 +79,18 @@
 }
 
 @layer utilities {
+  /* ── Feed item render skipping ────────────────────────────────────────────
+     Applied to each feed-item wrapper so the browser skips layout/paint/style
+     for off-screen cards — the dominant scroll cost on low-end phones once a
+     long feed has accumulated. `contain-intrinsic-size: auto 300px` gives
+     unrendered cards a placeholder height (post-render, `auto` remembers the
+     real height) so the scrollbar stays stable. IntersectionObservers inside
+     the cards keep working. Safe no-op on engines without support. */
+  .cv-feed-item {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 300px;
+  }
+
   /* ── Safe-area inset utilities ────────────────────────────────────────────
      Use var(--safe-area-inset-*, …) as the outer wrapper so that
      Capacitor's SystemBars plugin (which injects --safe-area-inset-* CSS

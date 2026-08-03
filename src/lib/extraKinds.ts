@@ -1,7 +1,7 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
-import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, Stars, UserCheck, Users } from 'lucide-react';
+import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, Stars, UserCheck, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -74,6 +74,14 @@ export interface ExtraKindDef {
   blurb?: string;
   /** External sites where users can create or participate in this kind of content. */
   sites?: ExtraKindSite[];
+  /**
+   * Hot-sort the Global tab (via `sort:hot`) instead of showing a raw
+   * chronological feed, to keep spam and low-quality events out of easy view.
+   * Only set this on kinds the relay actually ranks with enough hot data to
+   * fill a page (e.g. articles, highlights, polls) — otherwise the tab ends up
+   * empty or truncated. Applied by KindFeedPage via the `useFeed` global branch.
+   */
+  hotGlobal?: boolean;
 }
 
 /** All supported extra content kinds, ordered by section (feed → media → social → whimsy). */
@@ -145,6 +153,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   {
     kind: 30023,
     id: 'articles',
+    hotGlobal: true,
     showKey: 'showArticles',
     feedKey: 'feedIncludeArticles',
     label: 'Articles',
@@ -214,9 +223,9 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'vines',
     showKey: 'showVines',
     feedKey: 'feedIncludeVines',
-    label: 'Divines',
+    label: 'Shorts',
     description: 'Short-form videos',
-    route: 'vines',
+    route: 'shorts',
     addressable: true,
     section: 'media',
     blurb: 'Short video clips. Record and share from a dedicated app.',
@@ -352,6 +361,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   {
     kind: 1068,
     id: 'polls',
+    hotGlobal: true,
     showKey: 'showPolls',
     feedKey: 'feedIncludePolls',
     label: 'Polls',
@@ -506,6 +516,18 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
       },
     ],
   },
+  {
+    kind: 38192,
+    id: 'cards',
+    showKey: 'showMemoryCards',
+    feedKey: 'feedIncludeMemoryCards',
+    label: 'Memory Cards',
+    description: 'PlayStation 1 memory cards shared over Nostr (kind 38192)',
+    route: 'memory-cards',
+    addressable: true,
+    section: 'whimsy',
+    blurb: 'PlayStation 1 memory cards, published block-by-block to Nostr. Browse cards shared by others, watch their animated save icons, and open a card to see all 16 blocks. Titles, regions and icons are decoded straight from the raw save bytes.',
+  },
   // Blobbi (feed-only — dedicated page at /blobbi)
   {
     kind: 31124,
@@ -518,10 +540,42 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedOnly: true,
     blurb: 'Virtual pet companions living on Nostr. Care for them, watch them grow, and share their journey.',
   },
+  // Quizzes — kind 37849 quiz definitions (addressable) + kind 7849 quiz
+  // results (regular). See NIP.md.
+  {
+    kind: 37849,
+    id: 'quizzes',
+    showKey: 'showQuizzes',
+    label: 'Quizzes',
+    description: 'Quizzes & quiz results',
+    route: 'quizzes',
+    addressable: true,
+    section: 'whimsy',
+    blurb: 'Personality tests, trivia, sorting quizzes — create one, share it, and see which results your friends got. All scoring is transparent and declared in the event itself.',
+    subKinds: [
+      {
+        kind: 37849,
+        showKey: 'showQuizDefinitions',
+        feedKey: 'feedIncludeQuizzes',
+        label: 'Quizzes',
+        description: 'Quiz definitions',
+        addressable: true,
+      },
+      {
+        kind: 7849,
+        showKey: 'showQuizResults',
+        feedKey: 'feedIncludeQuizResults',
+        label: 'Quiz Results',
+        description: 'Results people shared after taking a quiz',
+        addressable: false,
+      },
+    ],
+  },
   // NIP-84 Highlights — kind 9802 (regular)
   {
     kind: 9802,
     id: 'highlights',
+    hotGlobal: true,
     showKey: 'showHighlights',
     feedKey: 'feedIncludeHighlights',
     label: 'Highlights',
@@ -902,6 +956,7 @@ const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: st
   2473: Bird,
   12473: Bird,
   30621: Stars,
+  7849: ClipboardCheck,
 };
 
 /**

@@ -2,6 +2,7 @@
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { ChevronDown, Loader2, ExternalLink, FileUp, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,7 @@ import { DialogTitle } from '@radix-ui/react-dialog';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
+import { AndroidSignerOptions } from './AndroidSignerOptions';
 
 interface LoginDialogProps {
   isOpen: boolean;
@@ -41,12 +43,12 @@ const validateBunkerUri = (uri: string) => {
   return uri.startsWith('bunker://');
 };
 
-const connectStatusLabel = (status: NostrConnectStatus | null): string => {
+const connectStatusLabel = (status: NostrConnectStatus | null, intl: IntlShape): string => {
   switch (status) {
     case 'awaiting-connect':
-      return 'Waiting for signer connection…';
+      return intl.formatMessage({ id: 'login.status.awaitingConnect', defaultMessage: 'Waiting for signer connection…' });
     case 'getting-public-key':
-      return 'Getting public key…';
+      return intl.formatMessage({ id: 'login.status.gettingPublicKey', defaultMessage: 'Getting public key…' });
     default:
       return '';
   }
@@ -55,6 +57,7 @@ const connectStatusLabel = (status: NostrConnectStatus | null): string => {
 const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onSignupClick }) => {
   const { config } = useAppContext();
   const shareOrigin = useShareOrigin();
+  const intl = useIntl();
 
   // Login state — single input accepting either an nsec or a bunker URI.
   const [loginInput, setLoginInput] = useState('');
@@ -226,7 +229,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
         onLogin();
         onClose();
       } catch {
-        setLoginError("Failed to login with this key. Please check that it's correct.");
+        setLoginError(intl.formatMessage({ id: 'login.error.invalidKey', defaultMessage: "Failed to login with this key. Please check that it's correct." }));
         setIsLoggingIn(false);
       }
     }, 50);
@@ -236,7 +239,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
   const handleLogin = () => {
     const value = loginInput.trim();
     if (!value) {
-      setLoginError('Enter your secret key or bunker URI.');
+      setLoginError(intl.formatMessage({ id: 'login.error.empty', defaultMessage: 'Enter your secret key or bunker URI.' }));
       return;
     }
 
@@ -250,14 +253,14 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
           onClose();
         })
         .catch(() => {
-          setLoginError('Failed to connect. Check the bunker URI.');
+          setLoginError(intl.formatMessage({ id: 'login.error.bunkerConnect', defaultMessage: 'Failed to connect. Check the bunker URI.' }));
           setIsLoggingIn(false);
         });
       return;
     }
 
     if (!validateNsec(value)) {
-      setLoginError('Enter a valid nsec1… key or bunker://… URI.');
+      setLoginError(intl.formatMessage({ id: 'login.error.invalidFormat', defaultMessage: 'Enter a valid nsec1… key or bunker://… URI.' }));
       return;
     }
 
@@ -273,13 +276,20 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
     reader.onload = (event) => {
       const content = event.target?.result as string;
       if (content && validateNsec(content.trim())) {
-        setLoginInput(content.trim());
+        const key = content.trim();
+        // Populate the (masked) field for visual consistency, then log in
+        // directly. Without this the handler only filled the password input,
+        // leaving the user staring at masked dots after the file picker
+        // returned — "I uploaded the key and nothing happened" (notably on
+        // iOS Safari). Mirrors the stored-credential path above.
+        setLoginInput(key);
         setLoginError('');
+        executeLogin(key);
       } else {
-        setLoginError('File does not contain a valid secret key.');
+        setLoginError(intl.formatMessage({ id: 'login.error.invalidFile', defaultMessage: 'File does not contain a valid secret key.' }));
       }
     };
-    reader.onerror = () => setLoginError('Failed to read file.');
+    reader.onerror = () => setLoginError(intl.formatMessage({ id: 'login.error.fileRead', defaultMessage: 'Failed to read file.' }));
     reader.readAsText(file);
   };
 
@@ -315,7 +325,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
       <DialogContent className="max-w-[95vw] sm:max-w-sm max-h-[90dvh] p-0 gap-3 overflow-hidden rounded-2xl overflow-y-auto">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle className="text-lg font-semibold leading-none tracking-tight text-center">
-            Log in
+            <FormattedMessage id="login.title" defaultMessage="Log in" />
           </DialogTitle>
         </DialogHeader>
 
@@ -324,22 +334,32 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
         <div className='px-6 pb-6 space-y-4 overflow-y-auto'>
           {onSignupClick && !connectError && !showProgressView && !showQr && (
             <p className="text-center text-sm text-muted-foreground">
-              New here?{' '}
-              <button
-                type="button"
-                onClick={() => { onClose(); onSignupClick(); }}
-                className="text-primary hover:underline font-medium"
-              >
-                Create account
-              </button>
+              <FormattedMessage
+                id="login.signupPrompt"
+                defaultMessage="New here? <link>Create account</link>"
+                values={{
+                  link: (chunks) => (
+                    <button
+                      type="button"
+                      onClick={() => { onClose(); onSignupClick(); }}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      {chunks}
+                    </button>
+                  ),
+                }}
+              />
             </p>
           )}
+
+          {/* Android signer apps (Amber, etc.) — only renders on Capacitor Android */}
+          <AndroidSignerOptions onLogin={() => { onLogin(); onClose(); }} />
 
           {connectError ? (
             <div className='flex flex-col items-center space-y-3 py-4'>
               <p className='text-sm text-destructive text-center'>{connectError}</p>
               <Button variant='outline' onClick={handleConnectCancel} className='rounded-full'>
-                Try again
+                <FormattedMessage id="login.tryAgain" defaultMessage="Try again" />
               </Button>
             </div>
           ) : showProgressView ? (
@@ -349,14 +369,14 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
             <div className='flex flex-col items-center space-y-4 py-6 w-full'>
               <Loader2 className='w-8 h-8 animate-spin text-primary' />
               <p className='text-sm text-muted-foreground text-center min-h-[1.25rem]'>
-                {connectStatusLabel(connectStatus) || 'Waiting for your signer…'}
+                {connectStatusLabel(connectStatus, intl) || intl.formatMessage({ id: 'login.status.waiting', defaultMessage: 'Waiting for your signer…' })}
               </p>
               <button
                 type='button'
                 onClick={handleConnectCancel}
                 className='text-sm text-primary hover:underline underline-offset-4 font-medium'
               >
-                Cancel
+                <FormattedMessage id="login.cancel" defaultMessage="Cancel" />
               </button>
             </div>
           ) : showQr ? (
@@ -375,14 +395,14 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                 </div>
               )}
               <p className='text-sm text-muted-foreground text-center'>
-                Scan with a signer app to log in.
+                <FormattedMessage id="login.qrScanPrompt" defaultMessage="Scan with a signer app to log in." />
               </p>
               <button
                 type='button'
                 onClick={handleConnectCancel}
                 className='text-sm text-muted-foreground hover:text-foreground'
               >
-                Back
+                <FormattedMessage id="login.back" defaultMessage="Back" />
               </button>
             </div>
           ) : (
@@ -401,7 +421,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                     setLoginInput(e.target.value);
                     if (loginError) setLoginError('');
                   }}
-                  placeholder='nsec1… or bunker://…'
+                  placeholder={intl.formatMessage({ id: 'login.inputPlaceholder', defaultMessage: 'nsec1… or bunker://…' })}
                   autoComplete='off'
                   data-nsec-allowed
                   className={`pr-12 ${
@@ -422,8 +442,8 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                       variant='ghost'
                       size='icon'
                       className='absolute right-0 top-0 h-full w-10 rounded-l-none border-l border-input bg-muted/40 hover:bg-muted'
-                      title='More login options'
-                      aria-label='More login options'
+                      title={intl.formatMessage({ id: 'login.moreOptions', defaultMessage: 'More login options' })}
+                      aria-label={intl.formatMessage({ id: 'login.moreOptions', defaultMessage: 'More login options' })}
                     >
                       <ChevronDown className='h-4 w-4 text-muted-foreground' />
                     </Button>
@@ -434,7 +454,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                       className='flex items-center gap-2 cursor-pointer'
                     >
                       <FileUp className='h-4 w-4' />
-                      Select key file
+                      <FormattedMessage id="login.selectKeyFile" defaultMessage="Select key file" />
                     </DropdownMenuItem>
                     {isMobile ? (
                       <DropdownMenuItem
@@ -442,7 +462,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                         className='flex items-center gap-2 cursor-pointer'
                       >
                         <ExternalLink className='h-4 w-4' />
-                        Open signer app
+                        <FormattedMessage id="login.openSignerApp" defaultMessage="Open signer app" />
                       </DropdownMenuItem>
                     ) : (
                       <DropdownMenuItem
@@ -450,7 +470,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                         className='flex items-center gap-2 cursor-pointer'
                       >
                         <QrCode className='h-4 w-4' />
-                        Connect remote signer
+                        <FormattedMessage id="login.connectRemoteSigner" defaultMessage="Connect remote signer" />
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
@@ -463,7 +483,9 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                 disabled={isLoggingIn || !loginInput.trim()}
                 className='w-full rounded-full'
               >
-                {isLoggingIn ? 'Logging in…' : 'Log in'}
+                {isLoggingIn
+                  ? <FormattedMessage id="login.loggingIn" defaultMessage="Logging in…" />
+                  : <FormattedMessage id="login.submit" defaultMessage="Log in" />}
               </Button>
             </form>
           )}

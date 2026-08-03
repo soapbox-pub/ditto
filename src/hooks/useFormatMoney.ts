@@ -51,6 +51,11 @@ export function useFormatMoney(): FormatMoneyResult {
     // Don't pop a UI error if the price endpoint is down; we just fall back to sats.
     retry: 1,
     enabled: currency === 'usd',
+    // Round for display so small price wiggles between refetches don't change
+    // the selected data identity — every NoteCard subscribes to this query,
+    // and an unrounded price re-renders the entire feed on each refresh.
+    // A $10 step on the BTC price is far below display precision for sats→USD.
+    select: (price) => Math.round(price / 10) * 10,
   });
 
   const format = useCallback(

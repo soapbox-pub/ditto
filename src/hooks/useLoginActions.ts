@@ -8,6 +8,7 @@ import {
 } from '@nostrify/react/login';
 import { useAppContext } from '@/hooks/useAppContext';
 import { APP_RELAYS } from '@/lib/appRelays';
+import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
 
 // NOTE: This file should not be edited except for adding new login methods.
 
@@ -44,6 +45,16 @@ export function useLoginActions() {
     async extension(): Promise<void> {
       const login = await NLogin.fromExtension();
       addAndActivate(login);
+    },
+    // Login via an installed Android signer app (Amber, etc.) using the
+    // capacitor-plugin-nostr-signer plugin. The first getPublicKey() call triggers
+    // the signer's consent prompt; we cache the resulting pubkey on the login
+    // so we don't re-prompt on every app launch.
+    async androidSigner(packageName: string): Promise<void> {
+      const signer = new AndroidNativeSigner(packageName);
+      const pubkey = await signer.getPublicKey();
+      const login = new NLogin('x-android-signer', pubkey, { packageName });
+      addLogin(login);
     },
     // Login via nostrconnect:// (client-initiated NIP-46)
     // The client displays a QR code and waits for the remote signer to connect.

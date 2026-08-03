@@ -1,36 +1,35 @@
 import { useState, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-const TENOR_API_KEY = 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ'; // Tenor public API key
-const TENOR_BASE_URL = 'https://tenor.googleapis.com/v2';
+const GIFVERSE_BASE_URL = 'https://gifverse.net/api/v1';
+const GIFVERSE_MEDIA_URL = 'https://gifverse.net/media';
 const RESULTS_LIMIT = 30;
 
-interface TenorMediaFormat {
-  url: string;
-  dims: [number, number];
-  duration: number;
-  size: number;
+interface GifverseResult {
+  /** GIF id */
+  i: string;
+  /** Title */
+  ti: string;
+  /** Description */
+  de?: string;
+  /** Width */
+  w: number;
+  /** Height */
+  h: number;
+  /** Available video formats (e.g. av1, webm, mp4) */
+  f: string[];
+  /** NSFW flag */
+  nsfw: boolean;
 }
 
-interface TenorResult {
-  id: string;
-  title: string;
-  media_formats: {
-    gif?: TenorMediaFormat;
-    tinygif?: TenorMediaFormat;
-    nanogif?: TenorMediaFormat;
-    mediumgif?: TenorMediaFormat;
-    gifpreview?: TenorMediaFormat;
-    tinygifpreview?: TenorMediaFormat;
+interface GifverseResponse {
+  results: GifverseResult[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    has_more: boolean;
   };
-  content_description: string;
-  created: number;
-  url: string;
-}
-
-interface TenorResponse {
-  results: TenorResult[];
-  next: string;
 }
 
 export interface GifResult {
@@ -46,59 +45,50 @@ export interface GifResult {
   height: number;
 }
 
-function mapTenorResult(result: TenorResult): GifResult {
-  const gif = result.media_formats.gif ?? result.media_formats.mediumgif;
-  const preview = result.media_formats.tinygif ?? result.media_formats.nanogif;
+function mapGifverseResult(result: GifverseResult): GifResult {
+  const url = `${GIFVERSE_MEDIA_URL}/${result.i}/original.gif`;
 
   return {
-    id: result.id,
-    title: result.content_description || result.title,
-    url: gif?.url ?? preview?.url ?? '',
-    previewUrl: preview?.url ?? gif?.url ?? '',
-    width: preview?.dims[0] ?? gif?.dims[0] ?? 220,
-    height: preview?.dims[1] ?? gif?.dims[1] ?? 160,
+    id: result.i,
+    title: result.ti || result.de || '',
+    url,
+    previewUrl: url,
+    width: result.w || 220,
+    height: result.h || 160,
   };
 }
 
-async function fetchTenorSearch(query: string, pos?: string): Promise<{ results: GifResult[]; next: string }> {
+function mapResults(data: GifverseResponse): GifResult[] {
+  return data.results.filter((r) => !r.nsfw).map(mapGifverseResult);
+}
+
+async function fetchGifverseSearch(query: string): Promise<{ results: GifResult[] }> {
   const params = new URLSearchParams({
-    key: TENOR_API_KEY,
     q: query,
     limit: String(RESULTS_LIMIT),
-    media_filter: 'gif,tinygif',
-    contentfilter: 'medium',
-    client_key: 'ditto_nostr',
+    offset: '0',
+    sort: 'relevant',
   });
-  if (pos) params.set('pos', pos);
 
-  const res = await fetch(`${TENOR_BASE_URL}/search?${params}`);
-  if (!res.ok) throw new Error(`Tenor search failed: ${res.status}`);
+  const res = await fetch(`${GIFVERSE_BASE_URL}/search?${params}`);
+  if (!res.ok) throw new Error(`GIFverse search failed: ${res.status}`);
 
-  const data: TenorResponse = await res.json();
-  return {
-    results: data.results.map(mapTenorResult).filter((g) => g.url),
-    next: data.next,
-  };
+  const data: GifverseResponse = await res.json();
+  return { results: mapResults(data) };
 }
 
-async function fetchTenorTrending(pos?: string): Promise<{ results: GifResult[]; next: string }> {
+async function fetchGifverseTrending(): Promise<{ results: GifResult[] }> {
   const params = new URLSearchParams({
-    key: TENOR_API_KEY,
     limit: String(RESULTS_LIMIT),
-    media_filter: 'gif,tinygif',
-    contentfilter: 'medium',
-    client_key: 'ditto_nostr',
+    offset: '0',
+    sort: 'popular',
   });
-  if (pos) params.set('pos', pos);
 
-  const res = await fetch(`${TENOR_BASE_URL}/featured?${params}`);
-  if (!res.ok) throw new Error(`Tenor featured failed: ${res.status}`);
+  const res = await fetch(`${GIFVERSE_BASE_URL}/trending?${params}`);
+  if (!res.ok) throw new Error(`GIFverse trending failed: ${res.status}`);
 
-  const data: TenorResponse = await res.json();
-  return {
-    results: data.results.map(mapTenorResult).filter((g) => g.url),
-    next: data.next,
-  };
+  const data: GifverseResponse = await res.json();
+  return { results: mapResults(data) };
 }
 
 export function useGifSearch() {
@@ -123,15 +113,15 @@ export function useGifSearch() {
   const isSearching = debouncedQuery.length > 0;
 
   const trendingQuery = useQuery({
-    queryKey: ['tenor', 'trending'],
-    queryFn: () => fetchTenorTrending(),
+    queryKey: ['gifverse', 'trending'],
+    queryFn: () => fetchGifverseTrending(),
     staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: !isSearching,
   });
 
   const searchQuery = useQuery({
-    queryKey: ['tenor', 'search', debouncedQuery],
-    queryFn: () => fetchTenorSearch(debouncedQuery),
+    queryKey: ['gifverse', 'search', debouncedQuery],
+    queryFn: () => fetchGifverseSearch(debouncedQuery),
     staleTime: 2 * 60 * 1000, // 2 minutes
     enabled: isSearching,
   });

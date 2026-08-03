@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Loader2 } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
+import { EmojifiedText } from '@/components/CustomEmoji';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserStatus } from '@/hooks/useUserStatus';
 import { usePublishStatus } from '@/hooks/usePublishStatus';
@@ -9,6 +11,7 @@ import { useToast } from '@/hooks/useToast';
 
 /** Compact status widget — shows current NIP-38 status, click to edit inline. */
 export function StatusWidget() {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const userStatus = useUserStatus(user?.pubkey);
   const publishStatus = usePublishStatus();
@@ -18,7 +21,7 @@ export function StatusWidget() {
 
   if (!user) {
     return (
-      <p className="text-sm text-muted-foreground px-1">Log in to set a status.</p>
+      <p className="text-sm text-muted-foreground px-1"><FormattedMessage id="widgets.status.loginPrompt" defaultMessage={"Log in to set a status."} /></p>
     );
   }
 
@@ -28,7 +31,7 @@ export function StatusWidget() {
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value.slice(0, 80))}
-          placeholder="What are you up to?"
+          placeholder={intl.formatMessage({ id: 'widgets.status.placeholder', defaultMessage: "What are you up to?" })}
           className="h-8 text-base md:text-sm"
           maxLength={80}
           autoFocus
@@ -39,9 +42,9 @@ export function StatusWidget() {
               publishStatus.mutateAsync({ status: text }).then(() => {
                 setEditing(false);
                 setDraft('');
-                toast({ title: text ? 'Status updated' : 'Status cleared' });
+                toast({ title: text ? intl.formatMessage({ id: 'widgets.status.updated', defaultMessage: "Status updated" }) : intl.formatMessage({ id: 'widgets.status.cleared', defaultMessage: "Status cleared" }) });
               }).catch(() => {
-                toast({ title: 'Failed to update status', variant: 'destructive' });
+                toast({ title: intl.formatMessage({ id: 'widgets.status.updateFailed', defaultMessage: "Failed to update status" }), variant: 'destructive' });
               });
             } else if (e.key === 'Escape') {
               setEditing(false);
@@ -56,15 +59,15 @@ export function StatusWidget() {
               publishStatus.mutateAsync({ status: text }).then(() => {
                 setEditing(false);
                 setDraft('');
-                toast({ title: text ? 'Status updated' : 'Status cleared' });
+                toast({ title: text ? intl.formatMessage({ id: 'widgets.status.updated', defaultMessage: "Status updated" }) : intl.formatMessage({ id: 'widgets.status.cleared', defaultMessage: "Status cleared" }) });
               }).catch(() => {
-                toast({ title: 'Failed to update status', variant: 'destructive' });
+                toast({ title: intl.formatMessage({ id: 'widgets.status.updateFailed', defaultMessage: "Failed to update status" }), variant: 'destructive' });
               });
             }}
             disabled={publishStatus.isPending}
             className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
           >
-            {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : 'Save'}
+            {publishStatus.isPending ? <Loader2 className="size-3 animate-spin" /> : <FormattedMessage id="common.save" defaultMessage={"Save"} />}
           </button>
           {userStatus.status && (
             <button
@@ -72,22 +75,22 @@ export function StatusWidget() {
                 publishStatus.mutateAsync({ status: '' }).then(() => {
                   setEditing(false);
                   setDraft('');
-                  toast({ title: 'Status cleared' });
+                  toast({ title: intl.formatMessage({ id: 'widgets.status.cleared', defaultMessage: "Status cleared" }) });
                 }).catch(() => {
-                  toast({ title: 'Failed to clear status', variant: 'destructive' });
+                  toast({ title: intl.formatMessage({ id: 'widgets.status.clearFailed', defaultMessage: "Failed to clear status" }), variant: 'destructive' });
                 });
               }}
               disabled={publishStatus.isPending}
               className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
             >
-              Clear
+              <FormattedMessage id="common.clear" defaultMessage={"Clear"} />
             </button>
           )}
           <button
             onClick={() => { setEditing(false); setDraft(''); }}
             className="text-xs text-muted-foreground hover:underline ml-auto"
           >
-            Cancel
+            <FormattedMessage id="common.cancel" defaultMessage={"Cancel"} />
           </button>
         </div>
       </div>
@@ -103,9 +106,9 @@ export function StatusWidget() {
       className="flex items-center w-full px-1 py-1 text-sm hover:bg-secondary/40 rounded-lg transition-colors text-left"
     >
       {userStatus.status ? (
-        <span className="truncate text-muted-foreground italic text-xs">{userStatus.status}</span>
+        <span className="truncate text-muted-foreground italic text-xs"><EmojifiedText tags={userStatus.tags}>{userStatus.status}</EmojifiedText></span>
       ) : (
-        <span className="text-muted-foreground text-xs">Click to set a status...</span>
+        <span className="text-muted-foreground text-xs"><FormattedMessage id="widgets.status.setPrompt" defaultMessage={"Click to set a status..."} /></span>
       )}
     </button>
   );

@@ -82,7 +82,14 @@ export function BlobbiCompanionLayer() {
   const [renderedPosition, setRenderedPosition] = useState<Position>(motion.position);
 
   const handlePositionUpdate = useCallback((position: Position) => {
-    setRenderedPosition(position);
+    // Bail out when the rendered position hasn't meaningfully moved (< 1px).
+    // The float animation reports a fresh Position object on every frame;
+    // without this check the whole layer re-renders along with it.
+    setRenderedPosition((prev) =>
+      Math.abs(prev.x - position.x) < 1 && Math.abs(prev.y - position.y) < 1
+        ? prev
+        : position,
+    );
   }, []);
 
   // ── Item reaction ──────────────────────────────────────────────────────────

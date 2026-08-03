@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Music } from 'lucide-react';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { PageHeader } from '@/components/PageHeader';
 import { SubHeaderBar } from '@/components/SubHeaderBar';

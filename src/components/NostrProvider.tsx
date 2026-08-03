@@ -4,6 +4,7 @@ import { NostrContext } from '@nostrify/react';
 import { NUser, useNostrLogin } from '@nostrify/react/login';
 import type { NostrSigner } from '@nostrify/types';
 import { useAppContext } from '@/hooks/useAppContext';
+import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
 import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { GIT_ACTIVITY_KINDS } from '@/lib/gitActivity';
 import { AppPool } from '@/lib/AppPool';
@@ -78,6 +79,14 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
           return NUser.fromBunkerLogin(currentLogin, pool.current!).signer;
         case 'extension':
           return NUser.fromExtensionLogin(currentLogin).signer;
+        case 'x-android-signer': {
+          // Native Android signer app (Amber, etc.) via NIP-55. Seeded with the
+          // login's known pubkey so answering a challenge never triggers a
+          // getPublicKey round-trip. NOT wrapped in signerWithNudge — like
+          // every other branch here, this is the AUTH-only signer.
+          const { packageName } = currentLogin.data as { packageName: string };
+          return new AndroidNativeSigner(packageName, currentLogin.pubkey);
+        }
         default:
           return undefined;
       }

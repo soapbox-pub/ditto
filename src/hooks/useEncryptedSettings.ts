@@ -78,6 +78,7 @@ export interface EncryptedSettings {
     badges?: boolean;
     letters?: boolean;
     highlights?: boolean;
+    quizzes?: boolean;
     onlyFollowing?: boolean;
   };
   /** Last sync timestamp */

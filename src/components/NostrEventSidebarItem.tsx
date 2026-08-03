@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { GripVertical, X, FileText, Scroll } from 'lucide-react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { useSortable, CSS } from '@/lib/sortable';
 import { nip19 } from 'nostr-tools';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';

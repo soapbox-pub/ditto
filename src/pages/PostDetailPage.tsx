@@ -1,7 +1,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { useNostr } from "@nostrify/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSeoMeta } from "@unhead/react";
+import { useSeoMeta } from "@/hooks/useSeoMeta";
 import {
   AlertCircle,
   ArrowLeft,
@@ -39,6 +39,8 @@ import {
   ReactionEmoji,
   RenderResolvedEmoji,
 } from "@/components/CustomEmoji";
+import { EmojiSourceFooter } from "@/components/EmojiSourceFooter";
+import { resolveReactionEmoji } from "@/lib/customEmoji";
 const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const BlobbiSocialActions = lazy(() => import("@/components/BlobbiSocialActions").then(m => ({ default: m.BlobbiSocialActions })));
 import { parseBlobbiEvent } from "@blobbi-kit/core/blobbi";
@@ -47,9 +49,14 @@ import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { HighlightContent } from "@/components/HighlightContent";
+import { StatusContent } from "@/components/StatusContent";
+import { InteractiveRoomContent } from "@/components/InteractiveRoomContent";
+import { QuizContent } from "@/components/quiz/QuizContent";
+import { QuizResultContent } from "@/components/quiz/QuizResultContent";
+import { QUIZ_KIND, QUIZ_RESULT_KIND } from "@/lib/quiz";
 import { AttestationContent } from "@/components/AttestationContent";
 import { ATTESTATION_KIND } from "@/lib/attestation";
-import { CampaignContent } from "@/components/CampaignContent";
+import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
 import { PeopleListDetailContent } from "@/components/PeopleListDetailContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
@@ -58,6 +65,9 @@ import { BirdDetectionContent } from "@/components/BirdDetectionContent";
 import { BirdexContent } from "@/components/BirdexContent";
 import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
+import { ArmadaInviteEmbed } from "@/components/ArmadaInviteEmbed";
+import { INVITE_BUNDLE_KIND, type ArmadaInvite } from "@/lib/armadaInvite";
+import { nip19 } from "nostr-tools";
 const GitStatusCard = lazy(() => import("@/components/GitStatusCard").then(m => ({ default: m.GitStatusCard })));
 const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ default: m.IssueCard })));
 import { PrUpdateCard } from "@/components/PrUpdateCard";
@@ -83,6 +93,7 @@ import { PostActionBar } from "@/components/PostActionBar";
 import { PeopleAvatarStack } from "@/components/PeopleAvatarStack";
 import { PatchCard } from "@/components/PatchCard";
 import { PodcastDetailContent } from "@/components/PodcastDetailContent";
+import { PublicationContent } from "@/components/PublicationContent";
 import { PollContent } from "@/components/PollContent";
 const PullRequestCard = lazy(() => import("@/components/PullRequestCard").then(m => ({ default: m.PullRequestCard })));
 import { ReactionButton } from "@/components/ReactionButton";
@@ -165,6 +176,9 @@ function shellTitleForKind(kind?: number): string {
   if (PODCAST_KINDS.has(kind)) return "Episode Details";
   if (CALENDAR_EVENT_KINDS.has(kind)) return "Event Details";
   if (kind === LIVE_STREAM_KIND) return "Live Stream";
+  if (kind === MAGAZINE_KIND) return "Magazine";
+  if (kind === MAGAZINE_ISSUE_KIND) return "Magazine Issue";
+  if (kind === EBOOK_KIND) return "Ebook";
   // Composite labels that differ from the raw kind name
   if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
   // Kind 10008 is unambiguously profile badges (NIP-51 standard list).
@@ -179,6 +193,7 @@ function shellTitleForKind(kind?: number): string {
 }
 
 import { CommentContext } from "@/components/CommentContext";
+import { LiveChatContext } from "@/components/LiveChatContext";
 import { CommunityContent } from "@/components/CommunityContent";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
 import { BrokenEventFallback } from "@/components/BrokenEventFallback";
@@ -196,10 +211,11 @@ import { useAuthor } from "@/hooks/useAuthor";
 import { useComments } from "@/hooks/useComments";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEventInteractions, extractZapAmount, extractZapSender, extractZapMessage } from "@/hooks/useEventInteractions";
-import { extractOnchainZapClaimedAmount, extractOnchainZapRecipients, useVerifiedOnchainZap } from "@/hooks/useOnchainZaps";
+import { extractOnchainZapClaimedAmount, extractOnchainZapRecipients, useOnchainZaps, useVerifiedOnchainZap } from "@/hooks/useOnchainZaps";
 import { useMuteFilter } from "@/hooks/useMuteFilter";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useReplies } from "@/hooks/useReplies";
+import { useZapReplies } from "@/hooks/useZapReplies";
 import { useShareOrigin } from "@/hooks/useShareOrigin";
 import { toast } from "@/hooks/useToast";
 import { useEventStats } from "@/hooks/useTrending";
@@ -420,6 +436,28 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
       ? `${resolvedEvent.tags.find(([n]) => n === "title")?.[1] || resolvedEvent.tags.find(([n]) => n === "name")?.[1] || loadingTitle} - ${config.appName}`
       : `${loadingTitle} - ${config.appName}`,
   });
+
+  // Encrypted community invite bundles (kind 33301, Concord CORD-05) can't
+  // render as a plain event — their content is NIP-44 encrypted. Reached via a
+  // bare naddr the unlock secret (a URL #fragment) isn't available, so show the
+  // invite card in its "missing secret" state and skip the pointless fetch UI.
+  if (addr.kind === INVITE_BUNDLE_KIND) {
+    const naddr = nip19.naddrEncode({ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier });
+    const invite: ArmadaInvite = {
+      naddr,
+      linkSigner: addr.pubkey,
+      fragment: "",
+      openUrl: `https://armada.buzz/invite/${naddr}`,
+      missingSecret: true,
+    };
+    return (
+      <PostDetailShell title="Community invite">
+        <div className="px-4 pb-8">
+          <ArmadaInviteEmbed invite={invite} variant="detail" />
+        </div>
+      </PostDetailShell>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -1329,6 +1367,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isEmojiPack = event.kind === 30030;
   const isArticle = event.kind === 30023;
+  const isPublication = PUBLICATION_KINDS.has(event.kind);
   const isMagicDeck = event.kind === 37381;
   const isFileMetadata = event.kind === 1063;
   const isTheme = event.kind === 36767 || event.kind === 16767;
@@ -1355,8 +1394,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isLetter = event.kind === 8211;
   const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
+  const isStatus = event.kind === 30315;
+  const isRoom = event.kind === 30312 || event.kind === 30313;
   const isAttestation = event.kind === ATTESTATION_KIND;
   const isCampaign = event.kind === 33863;
+  const isQuiz = event.kind === QUIZ_KIND;
+  const isQuizResult = event.kind === QUIZ_RESULT_KIND;
   const isVanish = event.kind === VANISH_KIND;
   const isZap = event.kind === 9735;
   const isOnchainZap = event.kind === 8333;
@@ -1376,6 +1419,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isPeopleList &&
     !isEmojiPack &&
     !isArticle &&
+    !isPublication &&
     !isMagicDeck &&
     !isFileMetadata &&
     !isTheme &&
@@ -1394,8 +1438,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isLetter &&
     !isLoveList &&
     !isHighlight &&
+    !isStatus &&
+    !isRoom &&
     !isAttestation &&
     !isCampaign &&
+    !isQuiz &&
+    !isQuizResult &&
     !isVanish &&
     !isZap &&
     !isOnchainZap &&
@@ -1407,7 +1455,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   // above). For anything other than real text-note kinds (1 / 11 / 1111) we
   // render a NIP-31 fallback instead of treating arbitrary content as kind 1.
   const isUnknownKind =
-    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111;
+    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111 && event.kind !== 1311;
 
   const { data: stats } = useEventStats(event.id, event);
   const { data: interactions } = useEventInteractions(event.id);
@@ -1517,7 +1565,36 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     event.kind === 37516 ? [7516] : undefined,
   );
 
+  // Zaps that carry a comment surface inline as replies under the post
+  // (Lightning kind 9735 + verified on-chain kind 8333).
+  const { data: lightningZapReplies } = useZapReplies(event);
+  const { zaps: onchainZaps } = useOnchainZaps(event);
+
   const repliesLoading = isKind1 ? kind1RepliesLoading : commentsLoading;
+
+  const zapReplyNodes = useMemo((): ReplyNode[] => {
+    const nodes: ReplyNode[] = [];
+    const seen = new Set<string>();
+
+    for (const zap of lightningZapReplies ?? []) {
+      if (seen.has(zap.id)) continue;
+      // Mute by the zap sender, not the LNURL provider that signs the receipt.
+      const sender = extractZapSender(zap);
+      if (isMuted({ ...zap, pubkey: sender || zap.pubkey, content: extractZapMessage(zap) })) continue;
+      seen.add(zap.id);
+      nodes.push({ event: zap, children: [] });
+    }
+
+    for (const oz of onchainZaps) {
+      if (!oz.comment.trim()) continue;
+      if (seen.has(oz.event.id)) continue;
+      if (isMuted(oz.event)) continue;
+      seen.add(oz.event.id);
+      nodes.push({ event: oz.event, children: [] });
+    }
+
+    return nodes;
+  }, [lightningZapReplies, onchainZaps, isMuted]);
 
   const replies = useMemo(() => {
     const source = isKind1 ? rawReplies : commentsData?.allComments;
@@ -1525,8 +1602,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     return source.filter((r) => !isMuted(r));
   }, [isKind1, rawReplies, commentsData?.allComments, isMuted]);
 
-  // Build a full reply tree for recursive threaded rendering.
-  const replyTree = useMemo((): ReplyNode[] => {
+  // Build the text-reply roots (NIP-10 for kind 1, NIP-22 comments otherwise).
+  const buildTextReplyRoots = useCallback((): ReplyNode[] => {
     if (!replies || replies.length === 0) return [];
 
     if (isKind1) {
@@ -1592,6 +1669,16 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const filtered = topLevel.filter((r) => !isMuted(r));
     return [...filtered].sort((a, b) => a.created_at - b.created_at).map((r) => buildNode(r));
   }, [isKind1, isComment, replies, event.id, commentsData, isMuted]);
+
+  // Weave zaps that carry a comment in among the text replies, ordered
+  // oldest-first alongside everything else.
+  const replyTree = useMemo((): ReplyNode[] => {
+    const textRoots = buildTextReplyRoots();
+    if (zapReplyNodes.length === 0) return textRoots;
+    return [...textRoots, ...zapReplyNodes].sort(
+      (a, b) => a.event.created_at - b.event.created_at,
+    );
+  }, [buildTextReplyRoots, zapReplyNodes]);
 
   // Seed the NIP-85 stats cache with client-side reply counts for each comment
   // in the thread. NIP-85 may not have stats for kind 1111 events, so this
@@ -1983,6 +2070,21 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               )}
             </div>
           </div>
+
+          {/* Custom-emoji attribution — name the pack this reaction's emoji came
+              from and let the viewer add it. Renders nothing for unicode
+              reactions or packs we can't resolve. */}
+          {(() => {
+            const resolved = resolveReactionEmoji(event);
+            if (!resolved?.url) return null;
+            return (
+              <EmojiSourceFooter
+                url={resolved.url}
+                name={resolved.name}
+                className="mt-2 rounded-xl border border-border bg-secondary/30 px-3 py-2.5"
+              />
+            );
+          })()}
 
           {/* Stats + date row */}
           {statsAndDateRow}
@@ -2563,6 +2665,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
           {/* Comment context for kind 1111 */}
           {event.kind === 1111 && <CommentContext event={event} />}
+          {event.kind === 1311 && <LiveChatContext event={event} />}
 
           {/* Star rating for book reviews (kind 31985) */}
           {event.kind === BOOK_REVIEW_KIND && (
@@ -2585,6 +2688,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
                 <ArticleContent event={event} className="mt-3" />
               </Suspense>
+            ) : isPublication ? (
+              <PublicationContent event={event} />
             ) : isMagicDeck ? (
               <MagicDeckContent event={event} />
             ) : isFileMetadata ? (
@@ -2665,10 +2770,20 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <LoveListContent event={event} />
             ) : isHighlight ? (
               <HighlightContent event={event} expanded />
+            ) : isStatus ? (
+              <StatusContent event={event} expanded />
+            ) : isRoom ? (
+              <div className="mt-3">
+                <InteractiveRoomContent event={event} expanded />
+              </div>
             ) : isAttestation ? (
               <AttestationContent event={event} expanded />
             ) : isCampaign ? (
               <CampaignContent event={event} expanded />
+            ) : isQuiz ? (
+              <QuizContent event={event} expanded />
+            ) : isQuizResult ? (
+              <QuizResultContent event={event} expanded />
             ) : isBlobbiState ? (
               <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
                 <BlobbiStateCard event={event} lookMode="follow-pointer" interactionReaction={blobbiReactionState} />

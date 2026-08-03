@@ -56,6 +56,13 @@ interface NotificationPage {
   items: NotificationItem[];
   /** Oldest event timestamp in this page, used for cursor-based pagination. */
   oldestTimestamp: number;
+  /**
+   * Newest raw event timestamp in this page, BEFORE client-side filtering
+   * (e.g. dropping reactions on posts the user didn't author). The unread-dot
+   * query (useHasUnreadNotifications) sees those raw events too, so the read
+   * cursor must advance past them or the dot never clears. 0 when empty.
+   */
+  newestRawTimestamp: number;
 }
 
 export interface NotificationData {
@@ -65,7 +72,10 @@ export interface NotificationData {
   groupedItems: GroupedNotificationItem[];
   /** IDs of notifications newer than cursor (unread). */
   newNotificationIds: Set<string>;
-  /** Whether there are any unread notifications. */
+  /**
+   * Whether any notification event (including ones filtered out of `items`,
+   * which the nav-dot query also counts) is newer than the read cursor.
+   */
   hasUnread: boolean;
   /** Mark all current notifications as read. */
   markAsRead: () => Promise<void>;
@@ -91,7 +101,8 @@ function getReferencedEventId(event: NostrEvent): string | undefined {
  * Returns a stable "group key" for a notification item.
  * Events that share the same group key will be condensed into one row.
  *
- * Reactions, reposts, zaps, and highlights group by (kind-bucket, referencedEventId).
+ * Reactions, reposts, zaps, highlights, and quiz results group by
+ * (kind-bucket, referencedEventId).
  * Lightning (9735) and on-chain (8333) zaps share a single "zap" bucket.
  * Mentions and comments each stand alone (group key == event id).
  */
@@ -99,7 +110,7 @@ function groupKey(item: NotificationItem): string {
   const { event } = item;
   const refId = item.referencedEvent?.id ?? getReferencedEventId(event);
 
-  if ((event.kind === 7 || event.kind === 6 || event.kind === 16 || event.kind === 9735 || event.kind === 8333 || event.kind === 9802) && refId) {
+  if ((event.kind === 7 || event.kind === 6 || event.kind === 16 || event.kind === 9735 || event.kind === 8333 || event.kind === 9802 || event.kind === 7849) && refId) {
     // Profile reactions (kind 7 on kind 0) are standalone — users can react
     // to a profile multiple times, so each reaction gets its own notification.
     const isProfileReaction = event.kind === 7 && (
@@ -213,7 +224,7 @@ export function useNotifications(): NotificationData {
   const infiniteQuery = useInfiniteQuery<NotificationPage, Error>({
     queryKey: ['notifications', user?.pubkey ?? '', kindsKey, authorsKey],
     queryFn: async ({ pageParam, signal }) => {
-      if (!user) return { items: [], oldestTimestamp: Math.floor(Date.now() / 1000) };
+      if (!user) return { items: [], oldestTimestamp: Math.floor(Date.now() / 1000), newestRawTimestamp: 0 };
 
       const filter: Record<string, unknown> = {
         kinds: enabledKinds,
@@ -243,6 +254,13 @@ export function useNotifications(): NotificationData {
       const oldestTimestamp = filtered.length > 0
         ? Math.min(...filtered.map((e) => e.created_at))
         : Math.floor(Date.now() / 1000);
+
+      // Track the newest raw timestamp (pre client-side filtering) so
+      // markAsRead can advance the cursor past events that the unread-dot
+      // query counts but this hook filters out of the visible list.
+      const newestRawTimestamp = filtered.length > 0
+        ? Math.max(...filtered.map((e) => e.created_at))
+        : 0;
 
       // Collect referenced event IDs for batch fetching
       const referencedIds: string[] = [];
@@ -302,7 +320,10 @@ export function useNotifications(): NotificationData {
         //
         // Highlights (9802) follow the same rule: only notify when the
         // highlighted source was authored by the current user.
-        if (ev.kind === 7 || ev.kind === 6 || ev.kind === 16 || ev.kind === 9802) {
+        //
+        // Quiz results (7849) reference the quiz through their `e` tag: only
+        // notify when the quiz being taken was authored by the current user.
+        if (ev.kind === 7 || ev.kind === 6 || ev.kind === 16 || ev.kind === 9802 || ev.kind === 7849) {
           if (referencedEvent && referencedEvent.pubkey !== user.pubkey) return [];
         }
 
@@ -314,7 +335,7 @@ export function useNotifications(): NotificationData {
         return [{ event: ev, referencedEvent }];
       });
 
-      return { items, oldestTimestamp };
+      return { items, oldestTimestamp, newestRawTimestamp };
     },
     getNextPageParam: (lastPage) => {
       if (!lastPage || lastPage.items.length === 0) return undefined;
@@ -361,6 +382,14 @@ export function useNotifications(): NotificationData {
     ? Math.max(optimisticCursor.current, remoteCursor ?? 0)
     : remoteCursor;
 
+  // Newest raw event timestamp across all pages (0 when nothing fetched).
+  // Includes events filtered out of `items`, matching what the nav-dot
+  // query (useHasUnreadNotifications) sees at the relay level.
+  const newestEventTimestamp = useMemo(() => {
+    if (!data?.pages) return 0;
+    return Math.max(0, ...data.pages.map((page) => page.newestRawTimestamp ?? 0));
+  }, [data?.pages]);
+
   // Build set of unread notification IDs
   const newNotificationIds = useMemo(() => {
     if (notificationsCursor === null) return new Set<string>();
@@ -371,7 +400,10 @@ export function useNotifications(): NotificationData {
     );
   }, [items, notificationsCursor]);
 
-  const hasUnread = notificationsCursor !== null && newNotificationIds.size > 0;
+  // Base unread state on the raw timestamp, not just visible items — an
+  // unread event that got filtered out of the list still lights the nav dot,
+  // so it must still trigger (and be cleared by) markAsRead.
+  const hasUnread = notificationsCursor !== null && newestEventTimestamp > notificationsCursor;
 
   // Build grouped items for condensed display
   const groupedItems = useMemo(
@@ -381,9 +413,13 @@ export function useNotifications(): NotificationData {
 
   // Mark all current notifications as read by updating the cursor
   const markAsRead = useCallback(async () => {
-    if (!user || items.length === 0 || notificationsCursor === null) return;
+    if (!user || newestEventTimestamp === 0 || notificationsCursor === null) return;
 
-    const newestTimestamp = Math.max(...items.map((item) => item.event.created_at));
+    // Use the newest RAW timestamp so the cursor also passes events that were
+    // filtered out of the visible list (e.g. reactions to posts the user was
+    // merely tagged in). The unread-dot query counts those, so stopping short
+    // of them would leave the dot lit forever.
+    const newestTimestamp = newestEventTimestamp;
 
     if (newestTimestamp <= notificationsCursor) return;
 
@@ -418,7 +454,7 @@ export function useNotifications(): NotificationData {
       optimisticCursor.current = null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.pubkey, items.length, notificationsCursor]);
+  }, [user?.pubkey, newestEventTimestamp, notificationsCursor]);
 
   return {
     items,

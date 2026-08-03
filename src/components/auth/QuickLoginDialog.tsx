@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { Loader2 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ export function QuickLoginDialog({
   onLogin,
   onOtherLogin,
 }: QuickLoginDialogProps) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
   const login = useLoginActions();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -47,7 +49,7 @@ export function QuickLoginDialog({
 
   const metadata = author.data?.metadata;
   const displayName =
-    metadata?.display_name || metadata?.name || genericName(pubkey);
+    metadata?.display_name || metadata?.name || genericName(pubkey, intl);
   const picture = metadata?.picture;
 
   const handleLogin = async () => {
@@ -58,7 +60,7 @@ export function QuickLoginDialog({
       onLogin();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Login failed.');
+      setError(e instanceof Error ? e.message : intl.formatMessage({ id: 'quickLogin.error', defaultMessage: 'Login failed.' }));
       setIsLoggingIn(false);
     }
   };
@@ -67,7 +69,9 @@ export function QuickLoginDialog({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-[95vw] sm:max-w-sm rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="text-center">Welcome back</DialogTitle>
+          <DialogTitle className="text-center">
+            <FormattedMessage id="quickLogin.title" defaultMessage="Welcome back" />
+          </DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-3 py-4">
@@ -104,10 +108,10 @@ export function QuickLoginDialog({
             {isLoggingIn ? (
               <>
                 <Loader2 className="size-4 mr-2 animate-spin" />
-                Logging in…
+                <FormattedMessage id="quickLogin.loggingIn" defaultMessage="Logging in…" />
               </>
             ) : (
-              'Log in'
+              <FormattedMessage id="quickLogin.submit" defaultMessage="Log in" />
             )}
           </Button>
           <Button
@@ -117,7 +121,7 @@ export function QuickLoginDialog({
             onClick={onOtherLogin}
             disabled={isLoggingIn}
           >
-            Other ways to log in
+            <FormattedMessage id="quickLogin.otherWays" defaultMessage="Other ways to log in" />
           </Button>
         </div>
       </DialogContent>
@@ -126,11 +130,11 @@ export function QuickLoginDialog({
 }
 
 /** Fallback display name derived from the npub when no metadata is available. */
-function genericName(pubkey: string): string {
+function genericName(pubkey: string, intl: IntlShape): string {
   try {
     const npub = nip19.npubEncode(pubkey);
     return `${npub.slice(0, 10)}…${npub.slice(-4)}`;
   } catch {
-    return 'Nostr user';
+    return intl.formatMessage({ id: 'quickLogin.fallbackName', defaultMessage: 'Nostr user' });
   }
 }

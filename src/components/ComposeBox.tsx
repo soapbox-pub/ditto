@@ -33,6 +33,7 @@ import { usePostComment } from '@/hooks/usePostComment';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
 import { prependEventToFeeds } from '@/lib/feedUtils';
+import { insertReplyIntoThreads } from '@/lib/insertReply';
 import { useToast } from '@/hooks/useToast';
 import { ToastAction } from '@/components/ui/toast';
 import { tryNeventEncode } from '@/lib/safeNip19';
@@ -265,6 +266,7 @@ export function ComposeBox({
   /** Maps .xdc URLs to extracted metadata (name + icon URL). */
   const [webxdcMetas, setWebxdcMetas] = useState<Map<string, { name?: string; iconUrl?: string }>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { insertAtCursor, insertEmoji: insertEmojiAtCursor } = useInsertText(textareaRef, setContent);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -309,10 +311,36 @@ export function ComposeBox({
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+    // In full-screen (forceExpanded) mode the textarea grows inside an
+    // overflow-y-auto container. Momentarily resetting the height to 'auto'
+    // collapses the textarea, which makes the container's content shorter than
+    // its viewport and clamps scrollTop back to 0 — the "jumps back up" bug.
+    // Capture the scroll position up front so we can restore it afterwards.
+    const container = scrollContainerRef.current;
+    const prevScrollTop = container?.scrollTop ?? 0;
     // Reset to auto so shrinking is detected correctly
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
-  }, [content, previewMode]);
+    if (forceExpanded && container) {
+      // Undo the scroll clamp caused by the 'auto' reset above.
+      container.scrollTop = prevScrollTop;
+      // When typing at the end, follow the caret so newly typed text stays
+      // visible once the textarea grows past the bottom of the viewport.
+      const caretAtEnd =
+        el.selectionStart === el.selectionEnd &&
+        el.selectionStart === el.value.length;
+      if (caretAtEnd) {
+        const containerRect = container.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const textareaBottom =
+          elRect.bottom - containerRect.top + container.scrollTop;
+        const desired = textareaBottom - container.clientHeight;
+        if (desired > container.scrollTop) {
+          container.scrollTop = desired;
+        }
+      }
+    }
+  }, [content, previewMode, forceExpanded]);
 
   // Auto-save draft content to localStorage (debounced to avoid thrashing)
   useEffect(() => {
@@ -758,6 +786,9 @@ export function ComposeBox({
       const isNip22Reply = replyTo && (isExternalRoot(replyTo) || replyTo.kind !== 1);
       const isKind1Reply = replyTo && !isExternalRoot(replyTo) && replyTo.kind === 1;
 
+      /** Set when this voice message is a reply, so it can be shown in the open thread. */
+      let publishedReply: NostrEvent | undefined;
+
       if (isNip22Reply) {
         // NIP-22 voice reply (kind 1244) — use postComment infrastructure
         // but we need to publish kind 1244 directly since postComment uses kind 1111
@@ -787,7 +818,7 @@ export function ComposeBox({
           voiceTags.push(['p', replyTo.pubkey]);
         }
 
-        await createEvent({
+        publishedReply = await createEvent({
           kind: 1244,
           content: audioUrl,
           tags: voiceTags,
@@ -804,7 +835,7 @@ export function ComposeBox({
         }
         voiceTags.push(['p', replyTo.pubkey]);
 
-        await createEvent({
+        publishedReply = await createEvent({
           kind: 1222,
           content: audioUrl,
           tags: voiceTags,
@@ -830,13 +861,10 @@ export function ComposeBox({
         if (!isExternalRoot(replyTo)) {
           rebroadcastEvent(nostr, replyTo);
         }
-        if (isExternalRoot(replyTo)) {
-          queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
-        } else {
-          queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
-          if (replyTo.kind !== 1) {
-            queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
-          }
+        if (publishedReply) {
+          // Show the voice reply in the open thread right away. Voice replies
+          // always tag `replyTo` as the root, whatever its type.
+          insertReplyIntoThreads(queryClient, publishedReply, replyTo);
         }
       }
       notificationSuccess();
@@ -1007,6 +1035,8 @@ export function ComposeBox({
 
 
       let published: NostrEvent;
+      /** The NIP-22 thread root, which isn't always the event being replied to. */
+      let threadRoot: NostrEvent | URL | `#${string}` | undefined;
       if (isNip22Reply) {
         // NIP-22: use usePostComment for non-kind-1 targets and URL roots
         // Determine root and reply params for the comment hook
@@ -1082,6 +1112,7 @@ export function ComposeBox({
           root = replyTo;
         }
 
+        threadRoot = root;
         published = await postComment({ root, reply, content: finalContent, tags });
       } else {
         published = await createEvent({
@@ -1121,17 +1152,10 @@ export function ComposeBox({
         queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
       }
       if (replyTo) {
-        if (isExternalRoot(replyTo)) {
-          queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
-        } else {
-          queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
-          // Invalidate the event-comments cache used by CommentsSheet
-          if (replyTo.kind !== 1) {
-            const dTag = replyTo.tags.find(([n]) => n === 'd')?.[1] ?? '';
-            const aTag = `${replyTo.kind}:${replyTo.pubkey}:${dTag}`;
-            queryClient.invalidateQueries({ queryKey: ['event-comments', aTag] });
-          }
-        }
+        // Show the reply in the open thread right away. Keying off `replyTo.id`
+        // alone isn't enough: reply lists are keyed by the thread ROOT, so
+        // replying to a sub-reply would miss the query being displayed.
+        insertReplyIntoThreads(queryClient, published, threadRoot ?? replyTo);
       }
       if (quotedEvent) {
         queryClient.invalidateQueries({ queryKey: ['event-stats', quotedEvent.id] });
@@ -1280,7 +1304,7 @@ export function ComposeBox({
 
         <div className={cn("flex-1 min-w-0", forceExpanded && "flex flex-col min-h-0")}>
           {/* Scrollable content area (textarea, poll, CW, quoted event) */}
-          <div className={cn(forceExpanded && "flex-1 min-h-0 overflow-y-auto")}>
+          <div ref={scrollContainerRef} className={cn(forceExpanded && "flex-1 min-h-0 overflow-y-auto")}>
           {!previewMode ? (
           /* ── Edit mode — Textarea ────────────────────────────── */
           <div className="relative">

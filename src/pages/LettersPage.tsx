@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useNavigate } from 'react-router-dom';
 import { Settings, Loader2 } from 'lucide-react';
 import { MailboxIcon } from '@/components/icons/MailboxIcon';

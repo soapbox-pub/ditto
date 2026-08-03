@@ -26,6 +26,7 @@ import {
 } from "react";
 import { DittoLogo } from "@/components/DittoLogo";
 import { IntroImage } from "@/components/IntroImage";
+import { LoginSetup } from "@/components/LoginSetup";
 import { ProfileCard } from "@/components/ProfileCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -158,10 +159,13 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
 
   hasShownApp.current = true;
 
-  // idle or complete -> show app
+  // idle or complete -> show app. Mount the post-login setup flow here (rather
+  // than at the app root) so its full-screen notification/battery steps only
+  // appear once sync and onboarding are done — never racing those overlays.
   return (
     <OnboardingContext.Provider value={contextValue}>
       {children}
+      <LoginSetup />
     </OnboardingContext.Provider>
   );
 }

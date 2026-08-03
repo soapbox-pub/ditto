@@ -1,6 +1,6 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import { PROFILE_TABS_KIND, parseProfileTabs } from '@/lib/profileTabsEvent';
+import { PROFILE_TABS_KIND, parseProfileTabs, fromWireProfileTabs } from '@/lib/profileTabsEvent';
 import type { ProfileTabsData } from '@/lib/profileTabsEvent';
 
 /**
@@ -19,7 +19,9 @@ export function useProfileTabs(pubkey: string | undefined) {
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
       if (events.length === 0) return null; // no event published yet
-      return parseProfileTabs(events[0]); // event exists — may have empty tabs array
+      // event exists — may have empty tabs array. Translate the built-in feed
+      // tab's wire label ("Posts") to its internal canonical label ("Feed").
+      return fromWireProfileTabs(parseProfileTabs(events[0]), pubkey);
     },
     enabled: !!pubkey,
     staleTime: 5 * 60 * 1000,

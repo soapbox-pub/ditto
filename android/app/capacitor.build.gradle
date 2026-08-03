@@ -10,12 +10,14 @@ android {
 apply from: "../capacitor-cordova-android-plugins/cordova.variables.gradle"
 dependencies {
     implementation project(':capacitor-app')
+    implementation project(':capacitor-app-launcher')
     implementation project(':capacitor-filesystem')
     implementation project(':capacitor-haptics')
     implementation project(':capacitor-keyboard')
     implementation project(':capacitor-local-notifications')
     implementation project(':capacitor-share')
     implementation project(':capgo-capacitor-autofill-save-password')
+    implementation project(':capacitor-plugin-nostr-signer')
     implementation project(':capacitor-secure-storage-plugin')
 
 }

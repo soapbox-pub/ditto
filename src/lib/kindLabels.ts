@@ -148,6 +148,9 @@ export const KIND_LABELS: Record<number, string> = {
   7516: 'Found log',
   7517: 'Geocache proof of find',
 
+  // Ditto quizzes
+  7849: 'Quiz result',
+
   // NIP-43
   8000: 'Add user',
   8001: 'Remove user',
@@ -367,6 +370,10 @@ export const KIND_LABELS: Record<number, string> = {
   33388: 'High scores',
   // Fundraisers
   33863: 'Fundraiser',
+  // Publications (PressStr)
+  33953: 'Ebook',
+  34609: 'Magazine',
+  39731: 'Magazine issue',
   // NIP-71
   34235: 'Addressable video',
   34236: 'Addressable short video',
@@ -386,6 +393,7 @@ export const KIND_LABELS: Record<number, string> = {
   // Ditto custom
   37381: 'Magic deck',
   37516: 'Geocache listing',
+  37849: 'Quiz',
   // NIP-87
   38172: 'Cashu mint announcement',
   38173: 'Fedimint announcement',

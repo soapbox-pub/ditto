@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useEmotionDev } from './useEmotionDev';
-import { isLocalhostDev } from './index';
+import { isLocalhostDev } from './isLocalhostDev';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

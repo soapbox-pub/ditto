@@ -75,4 +75,10 @@ export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
     title: '{{author_name}} highlighted your post',
     body: '{{content}}',
   },
+  {
+    id: 'quizzes',
+    kinds: [7849],
+    title: '{{author_name}} took your quiz',
+    body: '{{content}}',
+  },
 ];

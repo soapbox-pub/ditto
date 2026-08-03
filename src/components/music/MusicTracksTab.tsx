@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { useInView } from 'react-intersection-observer';
+import { useInView } from '@/hooks/useInView';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useMusicFeed } from '@/hooks/useMusicFeed';
 import { useMusicData } from '@/hooks/useMusicData';

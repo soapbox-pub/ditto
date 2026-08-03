@@ -1,4 +1,4 @@
-import { ReactNode, useLayoutEffect, useEffect, useRef } from 'react';
+import { ReactNode, useLayoutEffect, useEffect, useMemo, useRef } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme } from '@/contexts/AppContext';
 import { builtinThemes, buildThemeCssFromCore, resolveTheme, resolveThemeConfig, type ThemeConfig, type ThemesConfig } from '@/themes';
@@ -66,23 +66,27 @@ export function AppProvider(props: AppProviderProps) {
     }
   );
 
-  // Generic config updater with callback pattern
-  const updateConfig = (updater: (currentConfig: Partial<AppConfig>) => Partial<AppConfig>) => {
-    setConfig(updater);
-  };
+  // Generic config updater with callback pattern. `setConfig` is referentially
+  // stable (useCallback inside useLocalStorage), so this doesn't churn the
+  // context value below.
+  const updateConfig = setConfig;
 
-  const config = {
+  // Memoize the merged config and the context value itself. The context is
+  // consumed by every card in the feed — an unstable value identity here
+  // bypasses React.memo on all of them and re-renders the whole feed
+  // whenever AppProvider renders (e.g. during NostrSync's login-time syncs).
+  const config = useMemo(() => ({
     ...defaultConfig,
     ...rawConfig,
     // Deep-merge feedSettings so new keys added to the default are visible
     // even for existing users who have an older feedSettings in localStorage.
     feedSettings: { ...defaultConfig.feedSettings, ...rawConfig.feedSettings },
-  };
+  }), [defaultConfig, rawConfig]);
 
-  const appContextValue: AppContextType = {
+  const appContextValue: AppContextType = useMemo(() => ({
     config,
     updateConfig,
-  };
+  }), [config, updateConfig]);
 
   // Apply theme effects to document
   useApplyTheme(config.theme, config.customTheme, config.themes);

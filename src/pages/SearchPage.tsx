@@ -1,4 +1,4 @@
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useAppContext } from '@/hooks/useAppContext';
 import {
   SlidersHorizontal,
@@ -13,7 +13,7 @@ import {
   Clock, Flame, TrendingUp,
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useInView } from 'react-intersection-observer';
+import { useInView } from '@/hooks/useInView';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -291,7 +291,7 @@ export function SearchPage() {
     const labels: string[] = [];
     if (!includeReplies) labels.push('No replies');
     if (onlyDitto) labels.push('Ditto users only');
-    if (mediaType !== 'all') labels.push({ images: 'Images', videos: 'Videos', vines: 'Shorts & Divines', none: 'No media' }[mediaType] ?? mediaType);
+    if (mediaType !== 'all') labels.push({ images: 'Images', videos: 'Videos', vines: 'Shorts', none: 'No media' }[mediaType] ?? mediaType);
     if (language !== 'global') labels.push(language.toUpperCase());
     if (platform !== 'nostr') labels.push({ activitypub: 'Mastodon', atproto: 'Bluesky' }[platform] ?? platform);
     if (sort !== 'recent') labels.push(sort === 'hot' ? 'Hot' : 'Trending');
@@ -401,11 +401,33 @@ export function SearchPage() {
   // Re-runs only when the set of post ids changes (not on every reorder).
   const { nostr } = useNostr();
   const postsKey = useMemo(() => posts.map((p) => p.id).join(','), [posts]);
+  // Incremental build cache: source event id → the FeedItems it produced.
+  // The stream appends posts continuously, so rebuilding from scratch on every
+  // postsKey change would re-run buildFeedItems (including its missing-target
+  // relay query) over the whole list once per streamed event.
+  const builtItemsRef = useRef(new Map<string, FeedItem[]>());
   const { data: feedItems = [] } = useQuery<FeedItem[]>({
     queryKey: ['search-feed-items', postsKey],
     queryFn: async ({ signal }) => {
-      const items = await buildFeedItems(posts, nostr, signal);
-      return dedupeFeedItems(items);
+      const cache = builtItemsRef.current;
+      const newPosts = posts.filter((p) => !cache.has(p.id));
+      if (newPosts.length > 0) {
+        const built = await buildFeedItems(newPosts, nostr, signal);
+        // An aborted signal means buildFeedItems may have silently dropped
+        // wrappers whose target fetch was cancelled — don't cache that.
+        if (signal.aborted) throw new Error('aborted');
+        const bySource = new Map<string, FeedItem[]>(newPosts.map((p) => [p.id, []]));
+        for (const item of built) {
+          // Recover which input event produced this item: wrappers carry the
+          // wrapper event; direct posts and profile-zap fallbacks are the
+          // event itself.
+          const sourceId = item.repostEvent?.id ?? item.reactedBy?.event.id ?? item.zappedBy?.event.id ?? item.event.id;
+          const list = bySource.get(sourceId);
+          if (list) list.push(item);
+        }
+        for (const [id, items] of bySource) cache.set(id, items);
+      }
+      return dedupeFeedItems(posts.flatMap((p) => cache.get(p.id) ?? []));
     },
     enabled: posts.length > 0,
     staleTime: 60_000,
@@ -466,7 +488,7 @@ export function SearchPage() {
                 <PopoverTrigger asChild>
                   <button
                     className={cn(
-                      'shrink-0 h-10 w-10 rounded-lg border flex items-center justify-center transition-colors',
+                      'shrink-0 h-10 w-10 rounded-full border flex items-center justify-center transition-colors',
                       alreadySaved || savedJustNow
                         ? 'border-primary bg-primary/10 text-primary'
                         : 'border-border bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground',
@@ -525,7 +547,7 @@ export function SearchPage() {
               <PopoverTrigger asChild>
                 <button
                   className={cn(
-                    'shrink-0 h-10 w-10 rounded-lg border bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors',
+                    'shrink-0 h-10 w-10 rounded-full border bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors',
                     filtersOpen
                       ? 'border-2 border-primary bg-secondary text-primary'
                       : hasActiveFilters
@@ -1094,7 +1116,7 @@ function SearchInput({
         placeholder="Search"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
+        className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-full"
       />
       <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
     </div>

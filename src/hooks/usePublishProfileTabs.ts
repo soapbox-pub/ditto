@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { PROFILE_TABS_KIND, buildProfileTabsTags, type ProfileTabsData } from '@/lib/profileTabsEvent';
+import { PROFILE_TABS_KIND, buildProfileTabsTags, toWireProfileTabs, type ProfileTabsData } from '@/lib/profileTabsEvent';
 
 /**
  * Publish a kind 16769 profile tabs event, replacing any previous one.
@@ -18,7 +18,7 @@ export function usePublishProfileTabs() {
     await createEvent({
       kind: PROFILE_TABS_KIND,
       content: '',
-      tags: buildProfileTabsTags(data),
+      tags: buildProfileTabsTags(toWireProfileTabs(data, user.pubkey)),
     });
 
     // Update cache directly so the UI reflects the change instantly

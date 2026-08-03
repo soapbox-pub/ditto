@@ -15,7 +15,6 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { StorageItem } from '@blobbi-kit/core/blobbi';
 import {
   useStartIncubation as useStartIncubationBase,
   useStopIncubation as useStopIncubationBase,
@@ -46,7 +45,6 @@ interface CanonicalActionResult {
   content: string;
   allTags: string[][];
   profileAllTags: string[][];
-  profileStorage: StorageItem[];
 }
 
 /** Parameters for start incubation hook (Ditto public API). */

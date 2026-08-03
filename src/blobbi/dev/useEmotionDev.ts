@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
-import { isLocalhostDev } from './index';
+import { isLocalhostDev } from './isLocalhostDev';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

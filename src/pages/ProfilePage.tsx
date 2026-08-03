@@ -1,10 +1,10 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useInView } from '@/hooks/useInView';
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { nip19 } from 'nostr-tools';
 import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake, HeartHandshake } from 'lucide-react';
 
@@ -24,6 +24,7 @@ import { NoteCard } from '@/components/NoteCard';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ProfileLoveButton } from '@/components/ProfileLoveButton';
+import { ProfileNsiteButton } from '@/components/ProfileNsiteButton';
 import { CelebrationOverlay, CELEBRATION_DURATION_MS } from '@/components/CelebrationOverlay';
 import { BirthdayRain, PartyHat } from '@/components/BirthdayRain';
 import { ZapDialog } from '@/components/ZapDialog';
@@ -71,6 +72,7 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useNip85UserStats } from '@/hooks/useNip85Stats';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { useBackDismiss } from '@/hooks/useBackDismiss';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 
@@ -85,13 +87,11 @@ import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import type { ProfileTab, ProfileTabsData, TabFilter, TabVarDef } from '@/lib/profileTabsEvent';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
   SortableContext, sortableKeyboardCoordinates, useSortable,
   horizontalListSortingStrategy, arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS as DndCSS } from '@dnd-kit/utilities';
+  CSS as DndCSS,
+  type DragEndEvent,
+} from '@/lib/sortable';
 import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
 import { resolveCssFamily, loadBundledFont } from '@/lib/fonts';
@@ -489,7 +489,7 @@ function SortableTabChip({
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
         className="py-3.5 pr-1"
       >
-        {tabDisplayLabel(tab.label)}
+        {tab.label}
       </button>
 
       {/* Edit — only rendered for active custom (non-core) tabs */}
@@ -830,6 +830,10 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
     };
   }, []);
 
+  // Back gesture (iOS edge-swipe / Android) closes the viewer instead of
+  // navigating the page away.
+  useBackDismiss(onClose);
+
   // Safety: clear animating lock on unmount so stale refs can't block controls
   useEffect(() => () => { animatingRef.current = false; }, []);
 
@@ -961,28 +965,73 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
 
 // ----- Main Component -----
 
-const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
-const DEFAULT_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'];
+const CORE_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
+const DEFAULT_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Likes', 'Wall'];
 
-// Map from display label → internal tab id for core tabs
+// Map from canonical label → internal tab id for core tabs
 const CORE_TAB_IDS: Record<string, string> = {
-  'Posts': 'posts', 'Posts & replies': 'replies',
+  'Feed': 'posts', 'Posts & replies': 'replies',
   'Media': 'media', 'Badges': 'badges', 'Likes': 'likes', 'Wall': 'wall',
 };
 
-// Map a canonical tab label to its user-facing display text. The canonical
-// label (e.g. 'Posts') is kept for the internal tab id and the serialized
-// kind 16769 event (cross-client interop); only the rendered text differs.
-const TAB_DISPLAY_LABELS: Record<string, string> = {
-  'Posts': 'Feed',
-};
+// Reverse of CORE_TAB_IDS: internal tab id → canonical label. Used to derive the
+// shareable URL slug for the active core tab (custom tabs use their label as-is).
+const CORE_ID_TO_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(CORE_TAB_IDS).map(([label, id]) => [id, label]),
+);
 
-const tabDisplayLabel = (label: string): string => TAB_DISPLAY_LABELS[label] ?? label;
+// Turn a tab label into a lowercase, URL-friendly slug for the shareable hash,
+// e.g. 'Posts & replies' → 'posts-replies', 'Cool Stuff' → 'cool-stuff'. Unicode
+// letters/numbers are preserved (lowercased) so non-Latin labels still slug.
+const slugifyTabLabel = (label: string): string =>
+  label
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '');
 
+/**
+ * Commit a cheap static skeleton first, then mount the heavy body from an
+ * effect. The lazy route reveal is an interruptible concurrent render, and on
+ * slow devices query-cache updates restart it faster than a full pass over
+ * this tree can finish — livelocking the route on its Suspense fallback. The
+ * effect-driven render is sync priority and can't be restarted.
+ */
 export function ProfilePage() {
+  const [bodyMounted, setBodyMounted] = useState(false);
+
+  useEffect(() => {
+    setBodyMounted(true);
+  }, []);
+
+  if (!bodyMounted) {
+    return (
+      <main className="flex-1 min-w-0 relative">
+        <div className="h-36 md:h-48 bg-secondary relative">
+          <Skeleton className="w-full h-full rounded-none" />
+        </div>
+        <div className="px-4 pb-4">
+          <div className="relative -mt-12 mb-3">
+            <Skeleton className="size-24 rounded-full border-4 border-background" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  return <ProfilePageInner />;
+}
+
+function ProfilePageInner() {
   const { config } = useAppContext();
   const params = useParams();
   const npub = params.npub ?? params.nip19;
+  const navigate = useNavigate();
+  const location = useLocation();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { toast } = useToast();
@@ -1282,12 +1331,53 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     return CORE_TAB_IDS[first.label] ?? first.label;
   }, [viewTabs]);
 
-  // When profile tabs finish loading, focus the leftmost tab.
-  useEffect(() => {
-    if (profileTabsQuery.isFetched) {
-      setActiveTab(firstTabId);
+  // ── Deep-linkable tabs ──────────────────────────────────────────────────────
+  // The active tab is mirrored to the URL hash as a lowercase slug so a profile
+  // tab can be linked and shared, e.g. `/npub1…#cool-stuff`. The first (default)
+  // tab keeps a clean, hash-free URL.
+  //
+  // Only `selectTab` (invoked from user gestures) writes the URL; the effect
+  // below is strictly read-only (hash → active tab). Keeping navigation out of
+  // the effect is what prevents an activeTab↔hash update loop.
+  const hashSlug = useMemo(() => {
+    let raw = location.hash.replace(/^#/, '');
+    if (!raw) return null;
+    try {
+      raw = decodeURIComponent(raw);
+    } catch {
+      // keep the raw (already-decoded) value
     }
-  }, [profileTabsQuery.isFetched, firstTabId]);
+    return slugifyTabLabel(raw) || null;
+  }, [location.hash]);
+
+  // Select the tab whose slug matches the URL hash once tabs are known; fall back
+  // to the leftmost tab. Re-runs on hash changes too, so back/forward works. This
+  // never navigates, so it can't feed back into selectTab's writes.
+  useEffect(() => {
+    if (!profileTabsQuery.isFetched) return;
+    const match = hashSlug ? viewTabs.find((t) => slugifyTabLabel(t.label) === hashSlug) : undefined;
+    const targetId = match ? (CORE_TAB_IDS[match.label] ?? match.label) : firstTabId;
+    setActiveTab((prev) => (prev === targetId ? prev : targetId));
+  }, [profileTabsQuery.isFetched, hashSlug, viewTabs, firstTabId]);
+
+  // Switch tabs from a user gesture: update state and mirror the tab into the URL
+  // hash. The first/default tab clears the hash for a clean, shareable base URL.
+  const selectTab = useCallback((tabId: string) => {
+    setActiveTab(tabId);
+    const label = CORE_ID_TO_LABEL[tabId] ?? tabId;
+    const desiredSlug = tabId === firstTabId ? '' : slugifyTabLabel(label);
+    // Compare against the live hash normalized back to a slug, so browser
+    // percent-encoding never triggers a redundant navigation.
+    let currentRaw = window.location.hash.replace(/^#/, '');
+    try {
+      currentRaw = decodeURIComponent(currentRaw);
+    } catch {
+      // keep the raw value
+    }
+    if (slugifyTabLabel(currentRaw) !== desiredSlug) {
+      navigate({ hash: desiredSlug ? `#${desiredSlug}` : '' }, { replace: true, preventScrollReset: true });
+    }
+  }, [firstTabId, navigate]);
 
   const enterTabEditMode = () => {
     setLocalTabs(viewTabs);
@@ -1312,7 +1402,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   // Canonical NIP-01 filters for core tabs so other clients can interpret the event.
   // Values are interpolated with the actual pubkey (not $me) since these are concrete filters.
   const CORE_TAB_FILTERS: Record<string, TabFilter> = pubkey ? {
-    'Posts': { kinds: [1, 6], authors: [pubkey] },
+    'Feed': { kinds: [1, 6], authors: [pubkey] },
     'Posts & replies': { authors: [pubkey] },
     'Media': { kinds: [1], authors: [pubkey] },
     'Badges': { kinds: [10008, 30008], authors: [pubkey] },
@@ -1330,7 +1420,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     // If the active tab was removed, fall back to the first remaining tab
     const remainingIds = localTabs.map((t) => CORE_TAB_IDS[t.label] ?? t.label);
     if (!remainingIds.includes(activeTab)) {
-      setActiveTab(remainingIds[0] ?? 'posts');
+      selectTab(remainingIds[0] ?? 'posts');
     }
     setTabEditMode(false);
   };
@@ -1362,7 +1452,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   useEffect(() => {
     const isCoreTab = ['posts', 'replies', 'media', 'badges', 'likes', 'wall'].includes(activeTab);
     if (!isCoreTab && !profileSavedTabs.find((t) => t.label === activeTab)) {
-      setActiveTab(firstTabId);
+      selectTab(firstTabId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileSavedTabs, firstTabId]);
@@ -1961,9 +2051,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const openWallCompose = useCallback(() => setWallComposeOpen(true), []);
 
   const handleSidebarMediaClick = useCallback((url: string) => {
-    setActiveTab('media');
+    selectTab('media');
     setSidebarMediaUrl(url);
-  }, []);
+  }, [selectTab]);
 
   useLayoutOptions(pubkey ? {
     rightSidebar: <ProfileRightSidebar fields={fields} pubkey={pubkey} onMediaClick={handleSidebarMediaClick} />,
@@ -2271,17 +2361,20 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     </div>
                   )}
 
-                  {/* NIP-38 thought bubble — floats beside the avatar over the banner */}
+                  {/* NIP-38 thought bubble — floats beside the avatar over the banner.
+                      `w-max` is load-bearing: `left` puts this past the right edge of its
+                      relative parent, so the available width for shrink-to-fit clamps to 0
+                      and a status that is only a custom-emoji image collapses to nothing. */}
                   {feedSettings.showUserStatuses !== false && profileStatus.status && (
-                    <div className="absolute top-3 md:top-4 left-[calc(100%+8px)] z-10 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
+                    <div className="absolute top-3 md:top-4 left-[calc(100%+8px)] z-10 w-max max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
                       <div className="relative bg-background/90 backdrop-blur-sm border border-border rounded-xl px-3 py-1.5 shadow-lg">
-                        <p className="text-xs md:text-sm text-foreground italic truncate pr-1">
+                        <p className="text-xs md:text-sm text-foreground italic truncate">
                           {profileStatus.url ? (
                             <a href={profileStatus.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                              {profileStatus.status}
+                              <EmojifiedText tags={profileStatus.tags}>{profileStatus.status}</EmojifiedText>
                             </a>
                           ) : (
-                            profileStatus.status
+                            <EmojifiedText tags={profileStatus.tags}>{profileStatus.status}</EmojifiedText>
                           )}
                         </p>
                         {/* Speech bubble triangle tail — bottom-left corner, points diagonally down-left toward avatar */}
@@ -2302,6 +2395,8 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                   >
                     <MoreHorizontal className="size-5" />
                   </Button>
+                  {/* NIP-5A root site, if they've published one */}
+                  <ProfileNsiteButton pubkey={pubkey} displayName={displayName} />
                   {/* Follow QR code button (own profile only) */}
                   {isOwnProfile && (
                     <Button
@@ -2508,10 +2603,10 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             return (
               <TabButton
                 key={tab.label}
-                label={tabDisplayLabel(tab.label)}
+                label={tab.label}
                 active={activeTab === tabId}
                 onClick={() => {
-                  setActiveTab(tabId);
+                  selectTab(tabId);
                   if (tab.label === 'Media') setSidebarMediaUrl(null);
                 }}
                 className="flex-initial shrink-0 px-4"
@@ -2533,7 +2628,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                           key={tab.label}
                           tab={tab}
                           active={activeTab === tabId}
-                          onSelect={() => setActiveTab(tabId)}
+                          onSelect={() => selectTab(tabId)}
                           onRemove={() => handleRemoveLocalTab(tab.label)}
                           onEdit={!tab.isCore && tab.tab ? () => { setEditingTab(tab.tab); setTabModalOpen(true); } : undefined}
                         />
@@ -2565,8 +2660,8 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     {missingDefaults.map((label) => {
                       const tabId = CORE_TAB_IDS[label] ?? label;
                       return (
-                        <DropdownMenuItem key={label} onClick={() => setActiveTab(tabId)}>
-                          {tabDisplayLabel(label)}
+                        <DropdownMenuItem key={label} onClick={() => selectTab(tabId)}>
+                          {label}
                         </DropdownMenuItem>
                       );
                     })}
@@ -2581,7 +2676,12 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             <div className="flex items-center shrink-0 ml-auto">
               {/* + dropdown — only visible in edit mode */}
               {tabEditMode && (
-                <DropdownMenu>
+                // modal={false} is required: the "Add custom tab" item opens a Radix
+                // Dialog. A modal DropdownMenu locks `document.body` with
+                // `pointer-events: none`; opening the Dialog mid-close makes it capture
+                // that value as the body's "previous" state and restore it on close,
+                // freezing all pointer interaction (most reproducible on touch).
+                <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <button
                       className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
@@ -2603,7 +2703,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                           {present
                             ? <Check className="size-3.5 mr-2 opacity-60" strokeWidth={4} />
                             : <Plus className="size-3.5 mr-2" strokeWidth={4} />}
-                          {tabDisplayLabel(name)}
+                          {name}
                         </DropdownMenuItem>
                       );
                     })}

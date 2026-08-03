@@ -5,7 +5,7 @@
  */
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { nip19 } from 'nostr-tools';
 import {
   Info, Plus, Trash2, Scroll, Users, Pencil,

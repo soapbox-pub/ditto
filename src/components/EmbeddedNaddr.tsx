@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
-import { Award, HandHeart, MessageSquareOff } from 'lucide-react';
+import { Award, CalendarClock, ClipboardList, HandHeart, MessageSquareOff, Music, SmilePlus, Video } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const BlobbiStateCard = lazy(() => import('@/components/BlobbiStateCard').then(m => ({ default: m.BlobbiStateCard })));
@@ -18,22 +18,29 @@ import { parseBadgeDefinition, type BadgeData } from '@/lib/parseBadgeDefinition
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { parseProfileBadges } from '@/lib/parseProfileBadges';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
+import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
+import { MEMORY_CARD_KIND } from '@/lib/memorycard';
 import { isPeopleListKind } from '@/lib/packUtils';
 import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
+import { EmbeddedPublicationCard } from '@/components/EmbeddedPublicationCard';
 import { EmbeddedAttestationCard } from '@/components/EmbeddedAttestationCard';
 import { ATTESTATION_KIND } from '@/lib/attestation';
 import { ExternalSourceLink } from '@/components/ExternalSourceLink';
 import { ARTICLE_KINDS } from '@/lib/articleHelpers';
+import { PUBLICATION_KINDS } from '@/lib/publications';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { isProfileBadgesEvent } from '@/lib/badgeUtils';
 import { CAMPAIGN_KIND, parseCampaign } from '@/lib/campaign';
+import { QUIZ_KIND, parseQuiz } from '@/lib/quiz';
 import { sanitizeUrl, externalUrl } from '@/lib/sanitizeUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
 import { UnknownKindContent } from '@/components/UnknownKindContent';
+import { ArmadaInviteEmbed } from '@/components/ArmadaInviteEmbed';
+import { INVITE_BUNDLE_KIND, parseArmadaInvite, type ArmadaInvite } from '@/lib/armadaInvite';
 
 interface EmbeddedNaddrProps {
   /** The decoded naddr coordinates. */
@@ -111,6 +118,25 @@ export function EmbeddedNaddr(props: EmbeddedNaddrProps) {
 function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: EmbeddedNaddrProps) {
   const { data: event, isLoading, isError } = useAddrEvent(addr);
 
+  // Encrypted community invite bundles (kind 33301) can never render as a plain
+  // event — their content is NIP-44 encrypted and the unlock key lives in the
+  // link's URL fragment, which a naddr coordinate doesn't carry. Recognize the
+  // kind and offer to open it in a compatible app. When we have the original
+  // source URL we pass it through so the card keeps the `#fragment` secret
+  // needed to actually join.
+  if (addr.kind === INVITE_BUNDLE_KIND) {
+    const naddr = nip19.naddrEncode({ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier });
+    const invite: ArmadaInvite = (sourceUrl && parseArmadaInvite(sourceUrl)) || {
+      naddr,
+      linkSigner: addr.pubkey,
+      fragment: '',
+      openUrl: `https://armada.buzz/invite/${naddr}`,
+      missingSecret: true,
+    };
+    return <ArmadaInviteEmbed invite={invite} className={className} />;
+  }
+
+
   if (isLoading) {
     return <EmbeddedNaddrSkeleton className={className} />;
   }
@@ -146,6 +172,12 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
     return <EmbeddedCampaignCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
+  // Memory-card blocks (kind 38192) decode to a save icon + title instead of
+  // dumping the 16 KB hex content as text.
+  if (event.kind === MEMORY_CARD_KIND) {
+    return <EmbeddedMemoryCardCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   // People-list events (kind 30000 follow sets, 39089 follow packs) get a
   // dedicated card showing title + avatar stack + member count.
   if (isPeopleListKind(event.kind)) {
@@ -158,10 +190,38 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
     return <EmbeddedAttestationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
+  // Kind 37849 quizzes (see NIP.md) get a compact card with title, summary,
+  // and question count. The generic fallback would work (title/summary tags)
+  // but wouldn't show the question count or the "Quiz" label.
+  if (event.kind === QUIZ_KIND) {
+    return <EmbeddedQuizCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-38 user statuses (kind 30315) get a compact card showing the status
+  // type pill + the status text. The generic naddr card would treat the
+  // free-form status content as a "description", but this keeps it visually
+  // consistent with how statuses render in the feed and detail page.
+  if (event.kind === 30315) {
+    return <EmbeddedStatusCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-53 Meeting Spaces (30312) and Meeting Room events (30313) get a
+  // compact card with a Room/Meeting pill + title + summary + status.
+  // The generic naddr card would render title/summary too, but wouldn't
+  // surface the status or the room/meeting affordance.
+  if (event.kind === 30312 || event.kind === 30313) {
+    return <EmbeddedRoomCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   // Long-form articles (NIP-23) get a rich link-preview-style card: cover
   // image on top, title + summary, author byline at the bottom.
   if (ARTICLE_KINDS.has(event.kind)) {
     return <EmbeddedArticleCard event={event} className={className} disableHoverCards={disableHoverCards} sourceUrl={sourceUrl} />;
+  }
+
+  // Magazines, magazine issues, and ebooks get a compact cover + title card.
+  if (PUBLICATION_KINDS.has(event.kind)) {
+    return <EmbeddedPublicationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   return <EmbeddedNaddrCard event={event} className={className} disableHoverCards={disableHoverCards} sourceUrl={sourceUrl} />;
@@ -563,6 +623,177 @@ function EmbeddedCampaignCard({
       {campaign.summary && (
         <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words">
           {campaign.summary}
+        </p>
+      )}
+    </EmbeddedCardShell>
+  );
+}
+
+/**
+ * Compact inline card for kind 37849 quizzes (see NIP.md): title, summary,
+ * question count. Malformed quizzes fall through to the generic
+ * {@link EmbeddedNaddrCard}, which still renders the NIP-31 `alt` tag.
+ */
+function EmbeddedQuizCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const quiz = useMemo(() => parseQuiz(event), [event]);
+
+  const naddrId = useMemo(() => {
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+    return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
+  }, [event]);
+
+  if (!quiz) {
+    return <EmbeddedNaddrCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  const questionCount = quiz.questions.length;
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={naddrId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-primary">
+        <ClipboardList className="size-3" />
+        Quiz
+      </div>
+      <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
+        {quiz.title}
+      </p>
+      {quiz.summary && (
+        <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words">
+          {quiz.summary}
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {questionCount} {questionCount === 1 ? 'question' : 'questions'}
+      </p>
+    </EmbeddedCardShell>
+  );
+}
+
+/**
+ * Compact inline card for NIP-53 Meeting Spaces (kind 30312) and Meeting
+ * Room events (kind 30313). Shows a Room/Meeting pill, the title (from the
+ * `title` or `room` tag), the summary, and the current status. The generic
+ * {@link EmbeddedNaddrCard} would render title/summary from tags but has no
+ * concept of the room/meeting status.
+ */
+function EmbeddedRoomCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const isSpace = event.kind === 30312;
+  const Icon = isSpace ? Video : CalendarClock;
+
+  const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
+  const title = getTag('title') || getTag('room') || (isSpace ? 'Untitled Room' : 'Untitled Meeting');
+  const summary = getTag('summary');
+  const status = getTag('status');
+
+  const naddrId = useMemo(() => {
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+    return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
+  }, [event]);
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={naddrId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-primary">
+        <Icon className="size-3" />
+        {isSpace ? 'Room' : 'Meeting'}
+        {status && (
+          <span className="ml-1 rounded-full bg-secondary/60 px-2 py-0.5 text-[10px] text-muted-foreground normal-case tracking-normal">
+            {status}
+          </span>
+        )}
+      </div>
+      <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
+        {title}
+      </p>
+      {summary && (
+        <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words">
+          {summary}
+        </p>
+      )}
+    </EmbeddedCardShell>
+  );
+}
+
+/**
+ * Compact inline card for NIP-38 user statuses (kind 30315). Shows a
+ * type pill ("Status" / "Listening to" / "<type> status") and the status
+ * text. Custom emoji in the status render inline via {@link EmojifiedText}.
+ */
+function EmbeddedStatusCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? 'general';
+  const isMusic = dTag === 'music';
+  const text = event.content.trim();
+
+  const isExpired = useMemo(() => {
+    const expTag = event.tags.find(([n]) => n === 'expiration')?.[1];
+    if (!expTag) return false;
+    const t = parseInt(expTag, 10);
+    return !Number.isNaN(t) && Math.floor(Date.now() / 1000) > t;
+  }, [event.tags]);
+
+  const naddrId = useMemo(() => {
+    const d = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+    return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: d });
+  }, [event]);
+
+  const Icon = isMusic ? Music : SmilePlus;
+  const label = isMusic ? 'Listening to' : dTag === 'general' ? 'Status' : `${dTag} status`;
+  const cleared = !text || isExpired;
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={naddrId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <Icon className="size-3 shrink-0" />
+        {label}
+      </div>
+      {cleared ? (
+        <p className="text-xs italic text-muted-foreground">
+          {isExpired ? 'This status has expired' : 'No status set'}
+        </p>
+      ) : (
+        <p dir="auto" className="text-sm font-medium leading-snug break-words line-clamp-3 text-foreground">
+          <EmojifiedText tags={event.tags}>{text}</EmojifiedText>
         </p>
       )}
     </EmbeddedCardShell>

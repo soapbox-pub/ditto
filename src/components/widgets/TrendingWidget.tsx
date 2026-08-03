@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { FormattedMessage } from 'react-intl';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TrendSparkline } from '@/components/TrendSparkline';
 import { useTrendingTags, useTagSparklines } from '@/hooks/useTrending';
@@ -12,7 +13,7 @@ export function TrendingWidget() {
   const trendingTags = trendingTagsResult?.tags;
   const labelCreatedAt = trendingTagsResult?.labelCreatedAt ?? 0;
 
-  const visibleTags = useMemo(() => (trendingTags ?? []).slice(0, 5).map((t) => t.tag), [trendingTags]);
+  const visibleTags = useMemo(() => (trendingTags ?? []).slice(0, 5).map((entry) => entry.tag), [trendingTags]);
   const { data: sparklineData, isLoading: sparklinesLoading } = useTagSparklines(visibleTags, labelCreatedAt, visibleTags.length > 0);
 
   if (tagsLoading) {
@@ -32,7 +33,7 @@ export function TrendingWidget() {
   }
 
   if (!trendingTags || trendingTags.length === 0) {
-    return <p className="text-sm text-muted-foreground p-1">No trends available.</p>;
+    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.trending.empty" defaultMessage={"No trends available."} /></p>;
   }
 
   return (
@@ -47,7 +48,7 @@ export function TrendingWidget() {
             <div className="font-bold text-sm">#{item.tag}</div>
             {item.accounts > 0 && (
               <div className="text-xs text-muted-foreground">
-                <span className="text-primary font-semibold">{formatNumber(item.accounts)}</span> people talking
+                <span className="text-primary font-semibold">{formatNumber(item.accounts)}</span> <FormattedMessage id="widgets.trending.peopleTalking" defaultMessage={"people talking"} />
               </div>
             )}
           </div>
@@ -59,7 +60,7 @@ export function TrendingWidget() {
         </Link>
       ))}
       <div className="pt-1 px-2">
-        <Link to="/trends" className="text-xs text-primary hover:underline">View all trends</Link>
+        <Link to="/trends" className="text-xs text-primary hover:underline"><FormattedMessage id="widgets.trending.viewAll" defaultMessage={"View all trends"} /></Link>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
 import { useState } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { ChevronDown, LogOut, UserIcon, UserPlus } from 'lucide-react';
 import {
   DropdownMenu,
@@ -22,6 +23,7 @@ interface AccountSwitcherProps {
 export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
   const { currentUser, otherUsers, isLoading, setLogin, removeLogin } = useLoggedInAccounts();
   const [isOpen, setIsOpen] = useState(false);
+  const intl = useIntl();
 
   if (!currentUser) return null;
 
@@ -35,7 +37,7 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
   };
 
   const getDisplayName = (account: Account): string => {
-    return account.metadata.name || account.metadata.display_name || 'Anonymous';
+    return account.metadata.name || account.metadata.display_name || intl.formatMessage({ id: 'accountSwitcher.anonymous', defaultMessage: 'Anonymous' });
   }
 
   return (
@@ -61,7 +63,9 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className='w-56 p-2 animate-scale-in'>
-        <div className='font-medium text-sm px-2 py-1.5'>Switch Account</div>
+        <div className='font-medium text-sm px-2 py-1.5'>
+          <FormattedMessage id="accountSwitcher.switchAccount" defaultMessage="Switch Account" />
+        </div>
         {otherUsers.map((user) => (
           <DropdownMenuItem
             key={user.id}
@@ -84,14 +88,14 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
           className='flex items-center gap-2 cursor-pointer p-2 rounded-md'
         >
           <UserPlus className='w-4 h-4' />
-          <span>Add another account</span>
+          <span><FormattedMessage id="accountSwitcher.addAccount" defaultMessage="Add another account" /></span>
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={handleLogout}
           className='flex items-center gap-2 cursor-pointer p-2 rounded-md text-red-500'
         >
           <LogOut className='w-4 h-4' />
-          <span>Log out</span>
+          <span><FormattedMessage id="accountSwitcher.logOut" defaultMessage="Log out" /></span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -1,4 +1,4 @@
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { HelpCircle, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
