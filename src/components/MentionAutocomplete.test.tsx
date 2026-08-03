@@ -80,6 +80,18 @@ function setValue(textarea: HTMLTextAreaElement, value: string) {
   fireEvent.input(textarea);
 }
 
+/**
+ * TestApp mounts the real NostrProvider/AppProvider/NostrLoginProvider tree,
+ * not lightweight stubs. Their own async settling (config/auth/relay-list
+ * loads) can still be in flight moments after `render()` returns, and an
+ * ancestor re-render that lands at the same instant as our first fake
+ * keystroke can race MentionAutocomplete's local isOpen/mentionQuery state.
+ * Give the tree one real tick to settle before driving any interaction.
+ */
+async function settle() {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 describe('MentionAutocomplete', () => {
   beforeEach(() => {
     mockState.profiles = [];
@@ -93,6 +105,7 @@ describe('MentionAutocomplete', () => {
     );
 
     const textarea = (await screen.findByTestId('message-input')) as HTMLTextAreaElement;
+    await settle();
     setValue(textarea, '@no');
 
     expect(await screen.findByText('Nostr Lookup')).toBeInTheDocument();
@@ -112,6 +125,7 @@ describe('MentionAutocomplete', () => {
     );
 
     const textarea = (await screen.findByTestId('message-input')) as HTMLTextAreaElement;
+    await settle();
     setValue(textarea, '@no');
 
     const abilityItem = await screen.findByText('Nostr Lookup');
@@ -133,6 +147,7 @@ describe('MentionAutocomplete', () => {
     );
 
     const textarea = (await screen.findByTestId('message-input')) as HTMLTextAreaElement;
+    await settle();
     setValue(textarea, '@jo');
 
     const personItem = await screen.findByText('John Doe');
@@ -153,6 +168,7 @@ describe('MentionAutocomplete', () => {
     );
 
     const textarea = (await screen.findByTestId('message-input')) as HTMLTextAreaElement;
+    await settle();
     setValue(textarea, '@o');
 
     expect(await screen.findByText('John Doe')).toBeInTheDocument();

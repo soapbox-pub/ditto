@@ -179,6 +179,10 @@ export function MentionAutocomplete({
     setDropdownPos(computePosition(coords));
   }, [textareaRef, computePosition]);
 
+  // Set by the native-input handler below so the content-change effect can
+  // skip re-running detection for a change it already handled (see there).
+  const handledNatively = useRef(false);
+
   // Listen for input/cursor changes on the textarea element.
   // Re-attaches whenever the underlying DOM element changes (e.g. after
   // preview mode toggles remount the textarea).
@@ -189,6 +193,7 @@ export function MentionAutocomplete({
     const handleInput = () => {
       // Read directly from the DOM — the browser has already updated
       // value and selectionStart before firing the input event.
+      handledNatively.current = true;
       detectMention(textarea.value, textarea.selectionStart);
     };
     const handleClick = () => detectMention();
@@ -212,9 +217,19 @@ export function MentionAutocomplete({
   }, [textareaRef, detectMention, content]);
 
   // Re-detect when content changes (covers external mutations like emoji
-  // insertion that don't fire native input events). Pass the content prop
-  // directly so we don't depend on the DOM textarea value being in sync.
+  // insertion that don't fire native input events, e.g. useInsertText's
+  // setContent). Pass the content prop directly so we don't depend on the
+  // DOM textarea value being in sync. Skip when the native input listener
+  // above already handled this exact change: by the time this effect runs,
+  // React may have just reset the DOM value (resetting the browser's
+  // selection to the string's end as a side effect), so re-reading
+  // textarea.selectionStart here would race the correct, already-applied
+  // detection with a stale cursor position.
   useEffect(() => {
+    if (handledNatively.current) {
+      handledNatively.current = false;
+      return;
+    }
     const textarea = textareaRef.current;
     if (!textarea) return;
     detectMention(content, textarea.selectionStart);

@@ -280,12 +280,17 @@ export function EmojiShortcodeAutocomplete({
     setDropdownPos(computePosition(coords));
   }, [textareaRef, computePosition]);
 
+  // Set by the native-input handler below so the content-change effect can
+  // skip re-running detection for a change it already handled (see there).
+  const handledNatively = useRef(false);
+
   // Listen for input/cursor changes on the textarea element
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
     const handleInput = () => {
+      handledNatively.current = true;
       detectShortcode(textarea.value, textarea.selectionStart);
     };
     const handleClick = () => detectShortcode();
@@ -306,8 +311,18 @@ export function EmojiShortcodeAutocomplete({
     };
   }, [textareaRef, detectShortcode, content]);
 
-  // Re-detect when content changes externally
+  // Re-detect when content changes externally (e.g. useInsertText's
+  // setContent, bypassing a native input event). Skip when the native input
+  // listener above already handled this exact change: by the time this
+  // effect runs, React may have just reset the DOM value (resetting the
+  // browser's selection to the string's end as a side effect), so
+  // re-reading textarea.selectionStart here would race the correct,
+  // already-applied detection with a stale cursor position.
   useEffect(() => {
+    if (handledNatively.current) {
+      handledNatively.current = false;
+      return;
+    }
     const textarea = textareaRef.current;
     if (!textarea) return;
     detectShortcode(content, textarea.selectionStart);
