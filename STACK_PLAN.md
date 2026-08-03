@@ -641,25 +641,66 @@ repoint Dirk flagged on !245 (`branches: ["tiles-v3-widgetonly"]` instead of `ma
 rebase onto `ai-chat-tlc`'s real tip before anything else — this alone should roughly halve the
 diff, with no feature loss.
 
-The remaining ~2,962 lines are genuine Tiles/Widgets work, all Phase 0-7 — Phase 8 (AI-chat widget
-creation and remix, T8.1-T8.4 above) has not been written on this branch yet, so today's diff
-carries zero Phase 8 lines. Natural split, once rebased:
+**Superseded by the rebase done 2026-08-03 and the split shape grilled the same day** — see the
+next section for the actual, current plan. Left here for the size-measurement context only; do not
+follow the MR A-D breakdown above.
 
-- **MR A — core runtime + frame redesign** (Phases 0-3 remainder, already `done`/human-verified):
-  ~1,450 lines. `CanvasRuntimeProvider.tsx`, `installations.ts`, `adapter.ts`, `TileOutputView.tsx`,
-  `WidgetCard.tsx`, `WidgetSidebar.tsx`, `widgetAccent.ts`, and related small files.
-- **MR B — marketplace TLC + widget settings** (Phase 4): ~1,225 lines. `TilesPage.tsx`,
-  `TileDetailPage.tsx`, `TileInstallDialog.tsx`, `WidgetPickerDialog.tsx`, `MarketplaceNag.tsx`,
-  `marketplace.ts`, `TileSettingsPage.tsx`, `TilePublishCard.tsx`.
-- **MR C — feed integration** (Phase 5): ~160 lines. `feedKinds.ts` and small feed-hook touches.
-  Small enough to fold into MR B if a fourth MR feels like overkill.
-- **MR D — AI-chat widget creation + remix** (Phase 8, T8.1-T8.4): not written yet, size unknown.
-  This is the piece proposed to Dirk as landing last, once MR A-C exist and the marketplace/runtime
-  infrastructure T8.1-T8.4 depend on is in place.
+## Tier 4 split — actual shape (grilled 2026-08-03, post-rebase)
 
-These file-count splits are approximate where a file is shared between the AI-chat and tile-4
-surface (`App.tsx`, `AppRouter.tsx`, `schemas.ts`, `AppContext.ts`, `SettingsPage.tsx`), and do not
-yet break test-line counts down per bucket.
+Rebase onto `ai-chat-tlc`'s tip landed same day (see the rebase-report section below): 111 files /
+11,222 insertions dropped to 70 files / 5,332 insertions, then 65 vs `ai-chat-tlc` after the
+post-rebase Lua-lint/deploy.yml cleanup. Grilled with the user into three MRs, stacked as follows
+(target-branch chain, not `main` for any but the first):
+
+- **MR A — `widgets/core-runtime-rename`** (Phase 0-3: `nostr-canvas` 0.11→0.14.6 upgrade, Canvas
+  runtime host + basic marketplace foundation, sidebar widgets, PSBT/accessibility fixes, frame
+  redesign, Tiles→Widgets rename). Targets `ai-chat-tlc`. New issue + MR, not yet created.
+  **Must strip the branch's own leftover `basename`/`mode === 'ghpages'` Vite block before
+  branching** — dead code now that subpath deploys are off the table (see the GH Pages section
+  below); `ai-chat-tlc` itself already had this stripped 2026-08-03.
+- **MR B — marketplace TLC** (Phase 4 + T5.1 kind-collection scaffolding). Targets MR A (not
+  `ai-chat-tlc` directly — B's code depends on A's renamed/upgraded surface, so a direct target
+  would show A+B combined until A merges). This reuses the existing `!246`/`tiles-v3-widgetonly`
+  branch and issue slot; a fresh issue gets filed for it since #317-#319 are already spoken for by
+  other tiers.
+- **MR C — AI-chat widget creation** (Phase 8, T8.1-T8.4). Not written yet. Targets MR B (needs the
+  marketplace/`CanvasRuntimeProvider` work). Opened now as an empty/draft placeholder issue + MR
+  per the user's direction, to be filled in once Phase 8 is actually built.
+
+Not yet done as of this note: creating A's branch/issue/MR, retargeting `!246` onto A, filing B's
+issue, creating C's placeholder. Also not yet done: carving A's commits out of the current combined
+history — the commit log is a mix of real Phase 0-4 work and carried-over `ai-chat-tlc`-tier "Plan:"
+noise (see the rebase report), so the split should go by working-tree diff per phase boundary
+(commit `3f36113d`, "Mark Phase 3 done," is the clean marker) rather than by trying to preserve
+exact commit ranges.
+
+## GH Pages subpath deploys — abandoned (2026-08-03)
+
+Alex Gleason ruled out subpath deploys entirely, on issue #317: an app that keeps `nsec` in
+`localStorage` must not share an origin with other GitHub Pages content, so root-path hosting is a
+hard security requirement, not a nice-to-have. `!248` (the subpath asset-URL/basename fix) and
+issue #317 are both closed as a result — not merged, not fixed, closed because the premise no
+longer holds.
+
+Consequences for this branch and the wider stack:
+- `ai-chat-tlc` and `tiles-v3-widgetonly-local` had each independently grown their own
+  `basename`/`mode === 'ghpages'` Vite wiring before this ruling. Both need that code stripped
+  (`ai-chat-tlc` done 2026-08-03; this branch's copy still needs doing, before MR A is cut — see
+  above).
+- **TODO: deploy a new preview branch/URL.** The live GH Pages branch-preview workflow
+  (`gh-pages-demo`, `https://xyzshantaram.github.io/ditto/`) depended on the now-abandoned subpath
+  approach to serve non-`main` branches. Needs a replacement that doesn't share an origin with
+  other GitHub Pages content — plan is a container on the user's own VPS instead of GitHub Pages
+  for branch previews. Not yet scoped or started.
+
+## ai-chat-tlc code-quality review — deferred (2026-08-03)
+
+`/tmp/ai-chat-tlc-review.md` (local file, not in the repo) is a separate code-quality review of
+`ai-chat-tlc` — 6 blockers/majors (a real credential-handling bug in the sync-off toggle, an
+undeclared `openai` dep, uncaught localStorage quota writes, agents surviving logout, wrong message
+timestamps, a send-button a11y gap) plus 16 minors and 13 nits. None of it has been fixed. Deferred
+on purpose: land as its own review-cleanup commit once the tier-4 rebase/split is done, picked up by
+whichever session next works on `tiles-v3-widgetonly` — not folded into this split effort.
 
 ## Human review queue (carried over from `AI_CHAT_TILES_PLAN.md`, 2026-08-03)
 
