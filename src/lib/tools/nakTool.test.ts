@@ -190,6 +190,17 @@ describe('createNakTool profile action', () => {
 
     expect(contentOf(result)).toContain('not json');
   });
+
+  it('caps an oversized profile at the output limit', async () => {
+    const { nostr } = mockNostr([
+      makeEvent({ kind: 0, content: JSON.stringify({ name: 'Alice', about: 'x'.repeat(10_000) }) }),
+    ]);
+    const result = await createNakTool(nostr).execute({ action: 'profile', pubkey: PUBKEY });
+
+    expect(contentOf(result)).toHaveLength(6_001); // 6000 chars plus the ellipsis marker.
+    expect(contentOf(result)).toMatch(/…$/);
+    expect(contentOf(result)).not.toContain('x'.repeat(10_000));
+  });
 });
 
 describe('createNakTool decode action', () => {
@@ -336,6 +347,31 @@ describe('createNakTool shape', () => {
 
     const parsed = JSON.parse(contentOf(result)) as { error: string };
     expect(parsed.error).toContain('id');
+    expect(query).not.toHaveBeenCalled();
+  });
+});
+
+describe('createNakTool input validation', () => {
+  it('rejects a malformed kinds value with a structured error and no query', async () => {
+    const { nostr, query } = mockNostr([]);
+    const result = await createNakTool(nostr).execute(
+      // Model-supplied garbage: execute() must reject it instead of crashing.
+      { action: 'req', kinds: 'not-an-array' } as unknown as z.input<typeof inputSchema>,
+    );
+
+    const parsed = JSON.parse(contentOf(result)) as { error: string };
+    expect(parsed.error).toContain('kinds');
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unknown action with a structured error instead of undefined', async () => {
+    const { nostr, query } = mockNostr([]);
+    const result = await createNakTool(nostr).execute(
+      { action: 'explode' } as unknown as z.input<typeof inputSchema>,
+    );
+
+    const parsed = JSON.parse(contentOf(result)) as { error: string };
+    expect(parsed.error).toMatch(/unknown|invalid/i);
     expect(query).not.toHaveBeenCalled();
   });
 });

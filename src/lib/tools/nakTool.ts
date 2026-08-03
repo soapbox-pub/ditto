@@ -80,7 +80,7 @@ export const inputSchema = z.object({
     .describe('Relay URLs to embed. Optional for nprofile, nevent, and naddr.'),
 });
 
-export type NakInput = z.infer<typeof inputSchema>;
+type NakInput = z.infer<typeof inputSchema>;
 
 // ─── Result formatting ──────────────────────────────────────────────────────
 
@@ -127,6 +127,16 @@ function formatEvents(events: NostrEvent[]): string {
     lines.push(`(${events.length - parts.length} more not shown — narrow the filter or raise the limit.)`);
   }
   return lines.join('\n\n');
+}
+
+/**
+ * Cap a single formatted result at the output limit. `formatEvents` caps
+ * batches event-by-event; single blobs like profile JSON need the same cap
+ * so an oversized attacker-controlled profile cannot flood the model context.
+ */
+function truncateToLimit(text: string): string {
+  if (text.length <= OUTPUT_LIMIT) return text;
+  return `${text.slice(0, OUTPUT_LIMIT)}…`;
 }
 
 // ─── Identifier resolution ──────────────────────────────────────────────────
@@ -179,22 +189,42 @@ Actions (the "action" field selects one):
 - encode: Build a NIP-19 identifier. "type" is one of npub, note, nprofile, nevent, naddr. Provide the fields each type needs: pubkey for npub/nprofile/naddr, id for note/nevent, identifier and kind for naddr; author/kind are optional extras for nevent, relays for nprofile/nevent/naddr.`,
     inputSchema,
     async execute(args: NakInput): Promise<ToolResult> {
+      // devkit calls execute() without parsing args through inputSchema
+      // first, so validate here: model-supplied garbage (a string where an
+      // array belongs, an out-of-enum action, ...) must not flow into filter
+      // construction or fall through the switch to `undefined`.
+      const parsed = inputSchema.safeParse(args);
+      if (!parsed.success) {
+        const details = parsed.error.issues
+          .map((issue) => {
+            const path = issue.path.join('.');
+            return path.length > 0 ? `${path}: ${issue.message}` : issue.message;
+          })
+          .join('; ');
+        return {
+          content: JSON.stringify({
+            error: `Invalid arguments for the nak tool: ${details}.`,
+          }),
+        };
+      }
+      const validated = parsed.data;
+
       const signal = AbortSignal.timeout(QUERY_TIMEOUT_MS);
 
-      switch (args.action) {
+      switch (validated.action) {
         case 'req': {
-          if (!Array.isArray(args.kinds)) {
+          if (!Array.isArray(validated.kinds)) {
             return {
               content: JSON.stringify({
                 error: 'The "kinds" field is required for the req action.',
               }),
             };
           }
-          const limit = Math.min(Math.max(args.limit ?? 20, 1), 50);
-          const filter: Record<string, unknown> = { kinds: args.kinds, limit };
+          const limit = Math.min(Math.max(validated.limit ?? 20, 1), 50);
+          const filter: Record<string, unknown> = { kinds: validated.kinds, limit };
 
-          if (args.authors) {
-            const invalid = args.authors.filter((author) => !isNostrId(author));
+          if (validated.authors) {
+            const invalid = validated.authors.filter((author) => !isNostrId(author));
             if (invalid.length > 0) {
               return {
                 content: JSON.stringify({
@@ -202,11 +232,11 @@ Actions (the "action" field selects one):
                 }),
               };
             }
-            filter.authors = args.authors;
+            filter.authors = validated.authors;
           }
-          if (args.since !== undefined) filter.since = args.since;
-          if (args.until !== undefined) filter.until = args.until;
-          for (const [key, values] of Object.entries(args.tags ?? {})) {
+          if (validated.since !== undefined) filter.since = validated.since;
+          if (validated.until !== undefined) filter.until = validated.until;
+          for (const [key, values] of Object.entries(validated.tags ?? {})) {
             const letter = key.replace(/^#/, '');
             if (/^[a-zA-Z]$/.test(letter) && values.length > 0) {
               filter[`#${letter}`] = values;
@@ -218,14 +248,14 @@ Actions (the "action" field selects one):
         }
 
         case 'fetch': {
-          if (typeof args.id !== 'string') {
+          if (typeof validated.id !== 'string') {
             return {
               content: JSON.stringify({
                 error: 'The "id" field is required for the fetch action.',
               }),
             };
           }
-          const resolved = resolveEventId(args.id);
+          const resolved = resolveEventId(validated.id);
           if ('error' in resolved) {
             return { content: JSON.stringify({ error: resolved.error }) };
           }
@@ -240,14 +270,14 @@ Actions (the "action" field selects one):
         }
 
         case 'profile': {
-          if (typeof args.pubkey !== 'string') {
+          if (typeof validated.pubkey !== 'string') {
             return {
               content: JSON.stringify({
                 error: 'The "pubkey" field is required for the profile action.',
               }),
             };
           }
-          const resolved = resolvePubkey(args.pubkey);
+          const resolved = resolvePubkey(validated.pubkey);
           if ('error' in resolved) {
             return { content: JSON.stringify({ error: resolved.error }) };
           }
@@ -260,14 +290,14 @@ Actions (the "action" field selects one):
           }
           try {
             const metadata = JSON.parse(event.content) as Record<string, unknown>;
-            return { content: JSON.stringify({ ...metadata, pubkey: resolved.hex }) };
+            return { content: truncateToLimit(JSON.stringify({ ...metadata, pubkey: resolved.hex })) };
           } catch {
-            return { content: JSON.stringify({ pubkey: resolved.hex, content: event.content }) };
+            return { content: truncateToLimit(JSON.stringify({ pubkey: resolved.hex, content: event.content })) };
           }
         }
 
         case 'decode': {
-          if (typeof args.identifier !== 'string') {
+          if (typeof validated.identifier !== 'string') {
             return {
               content: JSON.stringify({
                 error: 'The "identifier" field is required for the decode action.',
@@ -275,7 +305,7 @@ Actions (the "action" field selects one):
             };
           }
           try {
-            const decoded = nip19.decode(args.identifier);
+            const decoded = nip19.decode(validated.identifier);
             if (decoded.type === 'nsec') {
               // Never hand secret key bytes to the model context.
               return { content: JSON.stringify({ type: 'nsec', data: null, note: 'Secret key bytes redacted for security.' }) };
@@ -284,75 +314,90 @@ Actions (the "action" field selects one):
           } catch {
             return {
               content: JSON.stringify({
-                error: `Invalid NIP-19 identifier: ${args.identifier}.`,
+                error: `Invalid NIP-19 identifier: ${validated.identifier}.`,
               }),
             };
           }
         }
 
         case 'encode': {
-          if (typeof args.type !== 'string') {
+          if (typeof validated.type !== 'string') {
             return {
               content: JSON.stringify({
                 error: 'The "type" field is required for the encode action.',
               }),
             };
           }
-          switch (args.type) {
+          switch (validated.type) {
             case 'npub': {
-              if (!isNostrId(args.pubkey)) {
-                return { content: `Cannot encode npub: pubkey must be a 64-char hex string, got ${args.pubkey ?? 'nothing'}.` };
+              if (!isNostrId(validated.pubkey)) {
+                return { content: `Cannot encode npub: pubkey must be a 64-char hex string, got ${validated.pubkey ?? 'nothing'}.` };
               }
-              return { content: nip19.npubEncode(args.pubkey) };
+              return { content: nip19.npubEncode(validated.pubkey) };
             }
             case 'note': {
-              if (!isNostrId(args.id)) {
-                return { content: `Cannot encode note: id must be a 64-char hex string, got ${args.id ?? 'nothing'}.` };
+              if (!isNostrId(validated.id)) {
+                return { content: `Cannot encode note: id must be a 64-char hex string, got ${validated.id ?? 'nothing'}.` };
               }
-              return { content: nip19.noteEncode(args.id) };
+              return { content: nip19.noteEncode(validated.id) };
             }
             case 'nprofile': {
-              if (!isNostrId(args.pubkey)) {
-                return { content: `Cannot encode nprofile: pubkey must be a 64-char hex string, got ${args.pubkey ?? 'nothing'}.` };
+              if (!isNostrId(validated.pubkey)) {
+                return { content: `Cannot encode nprofile: pubkey must be a 64-char hex string, got ${validated.pubkey ?? 'nothing'}.` };
               }
-              return { content: nip19.nprofileEncode({ pubkey: args.pubkey, relays: args.relays }) };
+              return { content: nip19.nprofileEncode({ pubkey: validated.pubkey, relays: validated.relays }) };
             }
             case 'nevent': {
-              if (!isNostrId(args.id)) {
-                return { content: `Cannot encode nevent: id must be a 64-char hex string, got ${args.id ?? 'nothing'}.` };
+              if (!isNostrId(validated.id)) {
+                return { content: `Cannot encode nevent: id must be a 64-char hex string, got ${validated.id ?? 'nothing'}.` };
               }
-              if (args.author !== undefined && !isNostrId(args.author)) {
-                return { content: `Cannot encode nevent: author must be a 64-char hex string, got ${args.author}.` };
+              if (validated.author !== undefined && !isNostrId(validated.author)) {
+                return { content: `Cannot encode nevent: author must be a 64-char hex string, got ${validated.author}.` };
               }
               return {
                 content: nip19.neventEncode({
-                  id: args.id,
-                  relays: args.relays,
-                  author: args.author,
-                  kind: args.kind,
+                  id: validated.id,
+                  relays: validated.relays,
+                  author: validated.author,
+                  kind: validated.kind,
                 }),
               };
             }
             case 'naddr': {
-              if (!isNostrId(args.pubkey)) {
-                return { content: `Cannot encode naddr: pubkey must be a 64-char hex string, got ${args.pubkey ?? 'nothing'}.` };
+              if (!isNostrId(validated.pubkey)) {
+                return { content: `Cannot encode naddr: pubkey must be a 64-char hex string, got ${validated.pubkey ?? 'nothing'}.` };
               }
-              if (typeof args.identifier !== 'string' || args.identifier.length === 0) {
+              if (typeof validated.identifier !== 'string' || validated.identifier.length === 0) {
                 return { content: 'Cannot encode naddr: identifier is required.' };
               }
-              if (typeof args.kind !== 'number') {
+              if (typeof validated.kind !== 'number') {
                 return { content: 'Cannot encode naddr: kind is required.' };
               }
               return {
                 content: nip19.naddrEncode({
-                  identifier: args.identifier,
-                  pubkey: args.pubkey,
-                  kind: args.kind,
-                  relays: args.relays,
+                  identifier: validated.identifier,
+                  pubkey: validated.pubkey,
+                  kind: validated.kind,
+                  relays: validated.relays,
+                }),
+              };
+            }
+            default: {
+              return {
+                content: JSON.stringify({
+                  error: `Unknown encode type: ${String(validated.type)}.`,
                 }),
               };
             }
           }
+        }
+
+        default: {
+          return {
+            content: JSON.stringify({
+              error: `Unknown nak action: ${String(validated.action)}.`,
+            }),
+          };
         }
       }
     },
