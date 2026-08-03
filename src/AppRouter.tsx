@@ -125,7 +125,7 @@ function ProfileRedirect() {
 export function AppRouter() {
   return (
     <AudioPlayerProvider>
-      <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <BrowserRouter>
         <Toaster />
         <VersionCheck />
         <MinimizedAudioBar />
