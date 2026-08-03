@@ -8,6 +8,10 @@
 > — so this copy's Phase 0-7 section reflects the plan as scoped, not necessarily
 > `tiles-v3-widgetonly`'s live status in the meantime. Deleted before this branch's MR reaches
 > `main` (per the plan skill's normal finishing step), not carried into the merged diff.
+>
+> **Phase 10 (this branch's own scope) is now fully done** — see its compacted summary below.
+> What remains open is the Human review queue's live-UI retests and the MR-split decision
+> (Dirk's review suggestion) the user is currently reviewing this branch for.
 
 ## Vision
 
@@ -267,51 +271,8 @@ Goal: a host-agnostic library (no React) providing everything an AI agent needs 
 preview a nostr-canvas Lua tile, extracted and generalized from tile-studio's `src/lib/*`. **Full
 ticket text and eval criteria live in `~/repos/nostr-canvas/PLAN.md`** (branch
 `devkit-extraction`) — this section is a status pointer only, so this doc doesn't duplicate and
-drift from the source of truth.
-
-- [x] **D1 Subpath scaffolding.** Done.
-- [x] **D2 AI-provider layer.** Done.
-- [x] **D3 `Tool` framework + tile-authoring toolset (11 tools).** Done.
-- [x] **D4 Agent loop (`AgentSession`).** Done, all 4 parts (core loop; token pruning/
-      compaction; stop/abort + context-length retry; pending-host-input mechanism +
-      persistence round-trip).
-- [ ] **D5 `ask_questions` tool + widget-creation system prompt.** Grilled 2026-07-30, ready to
-      implement. **Needs a widget-only-placement parameter/flag** added during implementation
-      (grilled 2026-07-31, see Phase 10) so Ditto's copy of the shared prompt constrains the AI
-      to `placement: "widget"` while tile-studio's copy stays unrestricted.
-- [ ] **D6 Preview/runtime driver.** Re-grilled 2026-07-31 — **major revision from the original
-      stub-adapter text**, see this doc's decision-record supersession note above. New shape:
-      - `PreviewAdapter` — wraps any real `RuntimeAdapter`. `publish_event` signs for real, then
-        blocks on a host-supplied review callback (publish/discard) before actually broadcasting;
-        `upload_image` never touches the real adapter, returns a local blob URL; `navigate` never
-        navigates, calls a host-supplied toast callback instead. Every other capability
-        (`fetch`, `get_profile`, `subscribe`, `fetch_events`, `get_public_key`, `get_contacts`,
-        `nip44_encrypt`/`decrypt`) passes straight through unmodified.
-      - `computePreviewGrantKey(slug, declaredCaps, version)` — deterministic grant-store
-        identifier; `version` lets future scheme changes invalidate old stored grants.
-      - An ephemeral-identity helper (e.g. `getOrCreateEphemeralIdentity(storage)`) — generates/
-        persists an nsec-backed signer via `nostr-tools` for hosts with no logged-in user.
-      - `PreviewSession` — headless, stateful class. `new PreviewSession({ adapter,
-        grantBackend, previewPubkey })` (adapter is the host's already-`PreviewAdapter`-wrapped
-        real adapter — host wraps first, decoupled from `PreviewSession`). `build(code,
-        settings, metadata)` → `{ ok: true, tileId } | { ok: false, error }`, single entrypoint,
-        decides internally whether it's a full rebuild or a live settings-only update.
-        `subscribe(cb)` — stable output subscription built on `TileRuntime.onTileOutput()`,
-        transparently re-wires itself across rebuilds (new `tileId`). `destroy()` — full
-        teardown.
-      *Eval:* TBD, needs a full rewrite in nostr-canvas's own PLAN.md (the original "stub
-      adapter never calls real signing" spy-assertion criteria no longer apply) — proposed:
-      `PreviewAdapter` unit tests (publish blocks until review resolves; upload_image returns a
-      blob URL not a real upload; navigate calls the toast callback not real navigation; every
-      other capability passes through untouched); `computePreviewGrantKey` unit tests (same
-      inputs → same key, different version → different key); `PreviewSession` unit tests
-      (build() rebuild-vs-live-update decision; subscribe() surviving a rebuild; destroy() tears
-      down cleanly).
-- [ ] **D7 Release.** Grilled 2026-07-31 — **minor version bump to 0.13.0** (new devkit surface
-      is substantial enough to warrant it, vs. the patch-bump pattern of 0.12.1-0.12.4).
-      Otherwise unchanged: `package.json` bump + `CHANGELOG.md` entry + `chore(release): 0.13.0`
-      commit + manual `npm publish` (no CI publish job exists in this repo's `.gitlab-ci.yml`).
-      *Eval:* package installable from the registry; `npm view` shows 0.13.0.
+drift from the source of truth. D1-D7 all done, including D7's release (nostr-canvas 0.13.0,
+later bumped further to 0.14.6 during Phase 9's live-QA bug fixes — see Phase 9 below).
 
 ## Phase 9 — tile-studio: rewrite the client on `devkit` — `done`, pending final human click-through (see Human review queue)
 
@@ -352,345 +313,78 @@ and cross-package schema-version bugs:
    `a445ac5`, `59ca481`; tracked in tile-studio's own `PLAN.md` as its Phase 2).
 
 Gate at final state: 104/104 `vitest run`, clean `tsc -b`, clean `eslint .`, clean `vite build`.
-See Human review queue below for the two manual checks still outstanding.
+See Human review queue below for the two manual checks still outstanding (separate repo/deploy,
+not this branch's own scope to close).
 
-## Phase 10 — Ditto: AI chat "Tiles" ability — `pending`
+## Phase 10 — Ditto: AI chat "Tiles" ability — `done`
 
-Goal: on this branch, using the now-proven `devkit`. Gated on Phase 9 completing (validates the
-library in a real app first). Each ticket below needs its own short grilling pass on exact eval
-criteria immediately before dispatch, per the grilling skill and the working agreement below —
-this is a scoping-level breakdown, not final ticket text.
+Built on the now-proven `devkit`. All of T10.0-T10.10 landed on `ai-chat-tlc`, confirmed via a
+live manual QA walkthrough with the user (all 14 original human-review-queue items), plus a
+follow-up bug-fix round in a later session (see below). One line each:
 
-**Branch strategy, confirmed 2026-08-02**: `ai-chat-tlc` is a small, self-contained PR that
-modernizes Ditto's AI chat and merges to `main` on its own — it is not waiting on Phase 4's
-marketplace work. Fact-checked before locking this in: `ai-chat-tlc` branched off
-`tiles-v3-widgetonly` at `8fedcc94`, has since diverged with its own 16 commits, and
-`tiles-v3-widgetonly` has moved 64 commits further past that same point (Phase 4 "Marketplace
-TLC" work). `ai-chat-tlc`'s `package.json` has **no `@soapbox.pub/nostr-canvas` dependency at
-all** — no `CanvasRuntimeProvider`, no marketplace tile-install/render code exists on this branch.
-Once `ai-chat-tlc` merges to `main`, `tiles-v3-widgetonly` rebases on top of it, giving the
-marketplace/widget work a direct path in.
+- **T10.0** Provider settings (`/settings/ai`): profile CRUD, per-profile NIP-44 sync toggle,
+  model detection. `a979f0eb`/`8e93b337`.
+- **T10.1** Abilities menu + mode-scoped sessions: toggling "Tiles" forks a new tab with its own
+  system prompt/tools; provider/model switch mid-session preserves history. `9362b32a`/`f28992f0`.
+- **T10.2** Tool registry framework: full migration onto `AgentSession` for every session
+  (replaces the old hand-rolled `useToolExecutor` loop), `set_theme` ported as the base-bundle
+  example. `4e123e55`/`be03a146`.
+- **T10.3** Tabs + local history: per-tab `localStorage` via `serialize()`/`deserialize()`
+  (round-trips a mid-flight `ask_questions` pause), 20-tab cap with a close-picker dialog, LLM
+  auto-title. `2e2ff431`/`0348d7e6`.
+- **T10.4** Auto-detect models on API key entry, debounced ~600-800ms; manual "Detect models"
+  stays as a retry path. `e6207feb`/`28827e13`.
+- **T10.5** @-mention autocomplete extended with abilities (plain-text token insert, no side
+  effect) alongside the existing people mentions. `88799c8e`/`6855e4fe`.
+- **T10.6** Ability/skill manifest folded into the base system prompt from the canonical
+  `ABILITIES` registry — one source of truth for the popover, manifest, and mention list.
+  `9f454776`/`2bedc404`.
+- **T10.7** `search_nips`/`fetch_nip` promoted from Tiles-only to the base bundle.
+  `0eeb53c6`/`eb4034d8`.
+- **T10.8** `/settings/ai` design audit + polish: intro hero, accent-underlined section header,
+  settings-menu illustration, matching every sibling settings page. `9af2ec32`/`70239560` +
+  `dc9cd355` (duplicate-heading fix caught on review).
+- **T10.9** `nak` read-only Nostr tool (`req`/`fetch`/`profile`/`decode`/`encode`), base bundle,
+  built on Ditto's own `useNostr()` pool. `5b734737`/`4299d591`. QA found a real bug: the
+  `z.discriminatedUnion` input schema serializes to a JSON Schema `oneOf` with no top-level
+  `type`, which strict OpenAI-compatible providers reject with a 400 — fixed by flattening to one
+  `z.object` with an `action` enum plus runtime per-action validation, `bb48cf67`.
+- **T10.10** i18n coverage for this MR's own AI-chat surfaces (`AIChatPage.tsx`,
+  `src/lib/abilities.ts` descriptors), scoped to what this branch itself introduced, not a
+  codebase-wide sweep. `81a7531d`.
 
-This splits Phase 10 into two waves:
-- **Wave A — ships in `ai-chat-tlc`, tracked below**: T10.0, T10.1, T10.2, T10.3. The "Tiles"
-  ability's full tool bundle works (`read_code`/`write_code`/`ask_questions`/`read_spec`/
-  `search_nips`/etc.) except live preview rendering — devkit's 12 tools only have one entry
-  (`preview_tile`) that actually needs a real `RuntimeAdapter`. Genuinely useful and mergeable
-  standalone.
-- **Wave B — moved to `tiles-v3-widgetonly`'s own `TILES_PLAN.md`, Phase 8 (2026-08-02)**: what
-  were T10.4 (preview panel), T10.5 (publish flow), T10.6 (discovery toast), and T10.7+
-  (marketplace remix) now live there as T8.1-T8.4, since all four depend on infrastructure
-  (`CanvasRuntimeProvider`, a real `RuntimeAdapter`, the marketplace detail page, install/publish
-  plumbing) that only exists on that branch — no point tracking them here where they can't be
-  dispatched. Not just deferred: fully relocated, including the grilled detail for T8.1/T8.4 and
-  the inlined D6 devkit facts needed to read them without this doc. Any further grilling for those
-  tickets (T8.2/T8.3 still need a pass) happens directly on `TILES_PLAN.md` going forward.
+**Bug-fix round, found during the QA walkthrough and fixed in a follow-up session (not
+separately ticketed above):**
 
-Ditto today: `useShakespeare.ts` is a raw NIP-98-authed fetch wrapper around Shakespeare's
-OpenAI-compatible endpoint (no tool-calling loop of its own). `AgentSession` (devkit) takes an
-already-constructed `OpenAI` client instance, not a bare API key — Ditto can hand it a client
-built with a custom `fetch` that signs a fresh NIP-98 token per request, exactly like
-`useShakespeare`'s existing `createNIP98Token` does, so no devkit changes are needed for
-Shakespeare's per-request auth model. User-supplied providers (OpenRouter/OpenAI-compatible/
-DeepSeek, own API key) use devkit's `ai-provider.ts` factory directly, as originally designed.
+- Tool-call history rendered every tool as a bare pill with just its name (or a raw error
+  string) — `set_theme` was the one exception. `ask_questions` additionally had no answer UI at
+  all, so a paused session showed nothing to answer. Rebuilt: every tool now gets a tailored
+  summary + collapsible detail (`ask_questions` read-only Q&A reusing tile-studio's
+  `PendingQuestionsCard` look, `nak` one-line outcomes per action, `read_spec`/`read_examples`/
+  `fetch_nip`/`search_nips` real markdown rendering, `read_code`'s range read, `write_code`'s
+  real `diffLines` diff against the prior code version, `edit_code`'s hashline operations
+  listed, everything else a pretty-JSON fallback). `8338d8ea`, `26671b25`.
+- The loading indicator (`DorkThinking`) disappeared mid-turn the moment the assistant emitted a
+  tool-call-only (empty content) message, even though the turn was still running through the
+  tool round-trip. Now shows for the whole turn, with a caption naming the in-flight tool.
+  `26671b25`.
+- `read_spec`/`read_examples` hit a CORS wall: GitLab's `-/raw/` file endpoint sends no
+  `Access-Control-Allow-Origin` at all. Rewrote the fetcher to GitLab's API v4 raw-file endpoint
+  (confirmed via curl to send `access-control-allow-origin: *`). `b60e5a67`.
+- `WebxdcEmbed.tsx`'s cartridge tint mask hardcoded an unprefixed `/cartridge.png` path in an
+  inline CSS mask instead of using `publicAssetUrl()` like the `<img>` right above it — broke
+  under the `/ditto/` GH Pages base path. `c3937015`.
+- AI chat header slid away on a scroll-past-bottom glitch: `useScrollDirection` tracks
+  `window.scrollY` by default, but this page scrolls its own internal message list, so residual
+  window-level scroll (e.g. from the on-screen keyboard opening) misfired the hide-on-scroll
+  threshold. Added a `pinTopBar` layout option, scoped to just the top bar (not the bottom nav).
+  `784f9d0c`.
+- `parseQuestionsAnswerText` (parses a resolved `ask_questions` answer back into per-question
+  text) split on blank lines, so a pasted multi-line or multi-paragraph answer broke the parse.
+  Reworked to anchor on the `Q\d+:`/`A\d+:` markers themselves instead, folded into `26671b25`.
 
-Execution order: T10.0 → T10.1 → T10.2 → T10.3, all of Phase 10 as tracked in this doc — Wave B
-(what were T10.4-T10.7+) now lives on `tiles-v3-widgetonly`'s `TILES_PLAN.md` as T8.1-T8.4, see
-the branch-strategy note above. Each ticket gets its own short grilling pass immediately before
-dispatch, per the working agreement; all four below have gone through that pass and are ready to
-dispatch.
-
-- [ ] **T10.0 Provider settings (`/settings/ai`) — grilled 2026-08-02, ready to dispatch.**
-      Facts confirmed first (not guessed): devkit's `AIProvider` type is `{ id, name, baseURL,
-      apiKey, models }` with no persistence opinion of its own ("host apps bring their own
-      settings" — `ai-provider.ts:3`); `createAIClient(provider)` returns a raw `OpenAI` client
-      and special-cases OpenRouter attribution headers by checking `provider.id === "openrouter"`
-      literally; devkit ships presets for `openrouter` and `openai-compatible` only, no DeepSeek
-      preset (`DEFAULT_PROVIDERS`, `ai-provider.ts:32-53`); DeepSeek's own docs confirm
-      `baseURL: https://api.deepseek.com`, standard OpenAI-SDK-compatible. Ditto's existing NIP-44
-      blob (`useEncryptedSettings`, kind 30078) already merges per-field on write with a
-      `lastSync` staleness guard, so per-profile opt-in sync is new field-level logic, not new
-      sync infrastructure.
-
-      Decisions:
-      - **Storage: a new dedicated hook/store** (e.g. `useAIProviders()`), own `localStorage` key,
-        reactive store mirroring tile-studio's `ai-client.ts` pattern — not an `AppConfig` field.
-        Chosen over `AppConfig` specifically to keep API keys out of a broad, generally-read
-        config object whose Zod schema also doubles as the build-time `ditto.json` validator.
-      - **Per-profile sync toggle**: when on, that profile is included in the `useEncryptedSettings`
-        NIP-44 blob as a new optional field/array entry; when off, it lives only in the new
-        dedicated `localStorage` key. Toggling is per-profile, not global.
-      - **Profile identity vs. devkit's `id`**: each stored profile gets its own stable UUID for
-        CRUD identity (add/edit/delete/duplicate). Devkit's `AIProvider.id` (which
-        `createAIClient` inspects for the literal string `"openrouter"`) is constructed separately
-        at call time from the profile's `kind` field, not read from the stored UUID — otherwise
-        two OpenRouter profiles couldn't have distinct CRUD identities.
-      - **Model list**: a "Detect models" button (devkit's `fetchModels()`, which hits the
-        provider's `/models` endpoint and filters to tool-calling-capable models) plus a manual
-        text-entry fallback for providers whose `/models` endpoint is missing or unreliable.
-      - **Security UX**: an inline warning next to the sync toggle when it's off — "stored
-        unencrypted on this device only" (same exposure class as an unsynced `nsec`).
-      - **Scope boundary**: T10.0 is profile CRUD only — no "default provider" selector on this
-        page. Every chat session explicitly picks its provider/model in T10.1; there is no
-        implicit default to keep in sync between two pages.
-      - **Add-profile UX**: one "Add profile" button opening a form with a provider-kind dropdown
-        (OpenRouter / OpenAI-compatible / DeepSeek); picking a kind pre-fills `baseURL` (and, for
-        OpenRouter, the attribution-header behavior at client-construction time). Not three
-        separate buttons.
-      - **Shakespeare is out of scope for this page** — it's zero-config (auth via the logged-in
-        user's NIP-98 signer, no API key, no profile to manage) and appears automatically as an
-        always-available option in T10.1's session picker, not as a CRUD'd profile here.
-      *Eval:* automated — unit tests for the new store (add/edit/delete/duplicate, per-profile
-      sync-toggle behavior including the field-merge into the NIP-44 blob), component tests where
-      reasonable. Manual (user will run before closing): add one profile of each kind (OpenRouter,
-      generic, DeepSeek) with a real API key, use "Detect models" on each, save, reload the page,
-      confirm all three persist with their models.
-- [ ] **T10.1 Abilities menu + mode-scoped sessions — grilled 2026-08-02, ready to dispatch.**
-      Icon button beside the chat textarea opens a popover with a checkbox list of toggleable
-      abilities. Today the only real toggle is **Tiles**; base chat and `set_theme` stay
-      always-on regardless of ability selection (T10.2 ports `set_theme` onto the new tool
-      registry as the baseline non-tile example — it is not something the user can turn off).
-      The popover is a multi-select from day one (checkboxes, not radio) so future abilities
-      compose additively, even though only one is real right now.
-
-      Checking "Tiles" immediately forks a **new session/tab** — no confirm step, no mutation of
-      the current thread — with its own conversation, own system prompt (D5's widget-creation
-      prompt constrained to `placement: "widget"`), and own tool bundle (devkit's 12 tools). An
-      enabled ability set is **locked for that session's lifetime**: switching abilities always
-      means starting a new session, never retoggling an existing one mid-thread.
-
-      Provider/model selection is a **separate**, always-visible control — a small selector row
-      near the textarea, not inside the abilities popover — listing Shakespeare (zero-config, the
-      logged-in user's NIP-98 signer) plus any configured profile from T10.0. Mid-session
-      provider/model switching is allowed and does not reset the conversation.
-
-      Session creation takes an optional pre-seeded starting code/metadata argument from the
-      start (not retrofitted later) — marketplace remix (T10.7+) reuses this exact "Tiles"
-      ability with a target tile's existing code loaded instead of starting empty; see T10.7+ for
-      the seeding mechanism.
-      *Eval:* automated — component tests for the popover (toggle → fork behavior, ability-set
-      lock, provider switch not resetting history). Manual (user will run before closing): toggle
-      Tiles on, confirm a new tab forks with the right system prompt/tools, send a message, switch
-      provider mid-session, confirm history is preserved and the next reply uses the new
-      provider.
-- [ ] **T10.2 Tool registry framework — grilled 2026-08-02, ready to dispatch.**
-      Facts confirmed first: devkit's `Tool<TParams>` is `{ description, inputSchema?: ZodType,
-      execute(args): Promise<ToolResult> }` (`devkit/tool.ts`), with a standalone
-      `toolToOpenAI(name, tool)` that auto-derives the JSON-schema `parameters` object from the
-      zod `inputSchema` — no more hand-written `parameters` blocks like today's `set_theme`.
-      `AgentSession` takes `tools: { name: string; tool: Tool }[]` and dispatches incoming
-      `tool_calls` by name (`agent-session.ts:214,447,558`). Today's `AIChatPage.tsx` runs its own
-      hand-rolled loop (`useToolExecutor`, synchronous JSON-string returns) — it does not use
-      `AgentSession` at all yet.
-
-      Decisions:
-      - **Tool construction**: factory functions returning devkit `Tool` objects (e.g.
-        `createSetThemeTool(applyCustomTheme): Tool`), mirroring devkit's own pattern
-        (`ReadCodeTool`/`WriteCodeTool` take closures in their constructor). A `useToolRegistry()`
-        hook calls these factories with live values from hooks like `useTheme()` and assembles the
-        final `{ name, tool }[]` bundles.
-      - **Ability → bundle mapping**: a **base** bundle (always included — currently just
-        `set_theme`) plus per-ability bundles, concatenated. A session's final `tools` array =
-        base + (selected ability's bundle, if any). Devkit's 12 tools become the "tiles" ability's
-        bundle. Matches T10.1's "set_theme always on regardless of ability" decision directly.
-      - **Execution engine**: full migration onto `AgentSession` for *every* session, not just
-        Tiles — base chat becomes an `AgentSession` with just the base bundle and no pause/resume
-        tools, same code path as Tiles with a smaller bundle. Replaces `useToolExecutor` and the
-        current hand-rolled loop entirely; one execution engine going forward instead of two.
-      - **System-prompt cleanup**: drop the hand-written paragraph in `buildSystemPrompt()` that
-        manually re-explains `set_theme`'s parameters — the tool's own `description` field (fed to
-        the model via `toolToOpenAI`) is the single source of truth going forward, removing a
-        duplication/drift risk between prompt text and tool schema.
-      *Eval:* automated — unit tests for the registry (base + ability concatenation, factory
-      construction) and for `set_theme`'s ported `Tool` implementation (same validation/behavior
-      as today's `useToolExecutor` case). Manual (user will run before closing): ask base chat (no
-      Tiles ability) to set a dark purple theme, confirm it still applies end-to-end through the
-      new registry + `AgentSession` path.
-- [ ] **T10.3 Tabs + local history — grilled 2026-08-02, ready to dispatch.**
-      Facts confirmed first: `AgentSession` has a `serialize()`/`deserialize()` pair
-      (`agent-session.ts:599-615`) capturing `messages` + `pendingInput` + `pendingToolCalls` —
-      not just the message array — plus a lower-level `loadMessages()`/`getMessages()` pair. The
-      former is the correct persistence primitive: it round-trips a mid-flight `ask_questions`
-      pause, not just plain chat history.
-
-      Decisions:
-      - **Persistence**: one `localStorage` entry per tab holding that tab's `SerializedSession`
-        blob, written on every message/state change.
-      - **Tab switching model**: every open tab keeps a **live** `AgentSession` instance in
-        memory. Switching tabs is a UI focus change only, no reconstruction — a background tab's
-        in-flight streaming response keeps running and finishes even while another tab is active.
-        A fresh page load reconstructs all open tabs' instances from their `localStorage` blobs
-        via `deserialize()`.
-      - **Tab bar**: horizontal, closable, scrollable, capped at **20 open tabs**. Hitting the cap
-        while creating a 21st does **not** silently close anything — it prompts the user with a
-        quick-select UI to choose which existing tab(s) to close to make room. Separately, any tab
-        untouched for **30 days** is auto-deleted on next app load (silent, no prompt — this is
-        housekeeping, not a "someone changed my thing" event the cap-hit prompt is protecting
-        against).
-      - **Close semantics**: hard delete — closing a tab removes its `localStorage` entry
-        immediately. The tab bar is the only history surface for this ticket; no separate
-        "recently closed" recovery UI.
-      - **Auto-title**: LLM-generated, not truncation. A fixed, cheap/fast utility model on the
-        Shakespeare endpoint, independent of whichever provider/model the session itself uses.
-        **Exact model ID not yet confirmed** — verify against Shakespeare's live model list at
-        implementation time rather than hardcoding a guess. Fires once after the first full
-        exchange (user message + assistant reply) completes, runs in the background; the tab shows
-        a placeholder/spinner title until it resolves.
-      *Eval:* automated — unit tests for the persistence layer (serialize/deserialize round-trip
-      including a pending-input state, cap-hit prompt trigger, 30-day pruning). Manual (user will
-      run before closing): open several tabs including a Tiles session with a pending
-      `ask_questions` pause, reload the browser, confirm every tab reappears with history intact
-      and the paused Tiles session resumes correctly.
-*(The original T10.4-T10.7+ and the Wave B "Open items" list used to be here — moved to*
-*`tiles-v3-widgetonly`'s `TILES_PLAN.md`, Phase 8, as T8.1-T8.4, 2026-08-02. See the branch-*
-*strategy note above. The T10.4-T10.8 below are new tickets added 2026-08-02, unrelated to and*
-*renumbered independently of that relocated set.)*
-
-**New tickets (grilled 2026-08-02), added after Wave A's initial four shipped.** Dependency
-note: T10.6/T10.5/T10.7 all read from T10.2's tool-registry/ability-bundle machinery, so they
-can't dispatch until T10.2 resumes (currently paused for user review). T10.4 and T10.8 have no
-such dependency and can dispatch independently, any time.
-
-- [ ] **T10.4 Provider profile: auto-detect models on API key entry.** Keeps T10.0's manual
-      "Detect models" button; additionally auto-fires `fetchModels()`, debounced (~600-800ms
-      after the last keystroke/paste), once both `apiKey` and `baseURL` are non-empty. A failed
-      auto-attempt surfaces through the same inline status/error UI a manual click would use —
-      not a silently swallowed failure — and never blocks a manual retry via the button.
-      *Eval:* unit test for the debounce trigger (fires once N ms after the last change; doesn't
-      fire on a `baseURL`-only or unrelated field change). Manual (user will run before
-      closing): paste a real API key into a new profile form, confirm models populate without
-      touching the button.
-- [ ] **T10.5 @-mention autocomplete: people + abilities, in the AI chat textarea.** Facts
-      confirmed: Ditto already has `MentionAutocomplete` (`src/components/MentionAutocomplete.tsx`,
-      used by `ComposeBox.tsx`) — a self-contained, textarea-caret-aware `@`-trigger dropdown
-      backed by `useSearchProfiles`, inserting `nostr:npub1...` on selection. No equivalent
-      exists for abilities.
-      - Extend `MentionAutocomplete` in place (don't fork it — its caret-position math in
-        `getCaretCoordinates`/`MIRROR_PROPS` is nontrivial and shouldn't be duplicated) with an
-        optional abilities list merged into the same query-filtered dropdown under the same "@"
-        trigger.
-      - Selecting an ability inserts a plain-text token (e.g. `@Tiles`) into the message — no
-        side effect, no session fork, no ability actually toggling on. Same semantic weight as
-        an inline @person mention: a reference, not an action. (This is the default I'm
-        choosing; flag if you actually want selecting an ability to enable it.)
-      - Ability list source: the same registry T10.6 reads for its system-prompt manifest — one
-        source of truth for "what abilities exist," not two hardcoded lists.
-      *Eval:* unit test extending `MentionAutocomplete`'s existing coverage for the merged-list
-      case (abilities filtered by query, inserted as plain text, people mentions unaffected).
-      Manual (user will run before closing): type "@" in the AI chat textarea, see both people
-      and "Tiles" in the dropdown, selecting each inserts the right text.
-- [ ] **T10.6 Ability/skill manifest for AI discoverability.** The base system prompt (every
-      session, regardless of which abilities are enabled) includes a short manifest — name +
-      one-line description — of every registered ability, so the AI can proactively mention e.g.
-      "you can enable Tiles to build a sidebar widget" without that ability's tools being loaded.
-      Single source of truth: the same registry the abilities popover (T10.1) and tool bundle
-      concatenation (T10.2) already read from — adding a future ability automatically shows up
-      in the popover, the manifest, and (via T10.5) the mention dropdown, from one registration
-      point.
-      *Eval:* unit test asserting the base system prompt string contains every registered
-      ability's name + description. Manual (user will run before closing): in a base
-      (non-Tiles) session, ask "what can you help me with in Ditto?", confirm the reply
-      mentions Tiles/widget creation without the tool having been called.
-- [ ] **T10.7 Promote NIP lookup tools to the base tool bundle.** Facts confirmed: devkit's
-      `SearchNIPsTool` (kind 30817 community NIPs — the same kind NostrHub itself uses,
-      `wss://relay.ditto.pub` among its relays) and `FetchNIPTool` (official NIPs from
-      `nostr-protocol/nips` on GitHub — same source NostrHub uses for official specs) already
-      exist and are already imported into `AIChatPage.tsx`'s `TILES_TOOLS`, but gated behind the
-      Tiles ability only.
-      Decision: move both into the **base** bundle (T10.2's "always included" set alongside
-      `set_theme`) so NIP lookups work in any session, Tiles enabled or not — this is the whole
-      of the "look up NIPs from NostrHub" ask; no new tool code needed, just a bundle move.
-      *Eval:* unit test — base bundle includes both tools regardless of ability selection.
-      Manual (user will run before closing): in a base (non-Tiles) session, ask "what does
-      NIP-57 define?", confirm the AI calls `fetch_nip` and answers from the real spec text.
-- [x] **T10.8 `/settings/ai` design audit + polish.** Research-then-implement split (per the
-      plan skill's "one cohesive unit, phased internally" carve-out — same screen, same
-      mechanical design pass). Audit phase (`researcher`) delivered this punch list, approved
-      by the user for implementation:
-      1. **Missing `IntroImage` hero block.** `SettingsAIPage.tsx`, between `PageHeader` and the
-         section header row. Add as the first child of `<div className="p-4 space-y-4">`:
-         `<IntroImage src="/ai-intro.png" />` (asset already exists, currently orphaned) plus a
-         `min-w-0` div with an `h2` (`text-sm font-semibold`) and a `p`
-         (`text-xs text-muted-foreground mt-1 leading-relaxed`), matching
-         `NetworkSettingsPage.tsx`/`MagicSettingsPage.tsx`/`AdvancedSettingsPage.tsx`.
-      2. **Section header lacks the accent underline + wrong heading size.** The "AI Providers"
-         row uses `px-3 pt-2 pb-1` and `h2 text-sm`; every sibling settings page uses a
-         `relative px-3 py-3.5` wrapper, `h2 text-base font-semibold`, and an
-         `absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full` accent bar (appears 17x
-         across `NetworkSettingsPage.tsx`, `AdvancedSettingsPage.tsx`, `ContentPage.tsx`,
-         `NotificationSettings.tsx`, `UserListsPage.tsx`, etc). Bring the AI page in line.
-      3. **Settings menu entry missing its `illustration`.** `SettingsPage.tsx`'s
-         `settingsSections` entry `id: 'ai'` is the only one without an `illustration` key. Add
-         `illustration: '/ai-intro.png'`.
-      *Eval:* visual/structural parity with `/settings/network` confirmed by re-reading the
-      diffed files; `npm run test` green. Manual (user will run before closing): open
-      `/settings/ai`, confirm the intro image/heading block and accent-underlined section header
-      render, and the AI row in the main `/settings` menu now shows its illustration.
-      **Post-implementation fix (orchestrator caught on review, `9af2ec32`'s first pass):** the
-      coder reused `settings.ai.providersTitle` ("AI Providers") for both the intro hero and the
-      section header immediately below it — an exact duplicate heading, unlike every sibling page
-      (Network's hero says "Network Connections", its section says "Relays" — always distinct
-      text). Fixed by adding a dedicated `settings.ai.introTitle` string ("Bring Your Own AI") for
-      the hero, following the `settings.<section>.introTitle` id convention already used by
-      `AdvancedSettingsPage.tsx`/`MagicSettingsPage.tsx`; the section header keeps
-      `providersTitle`. Re-verified `npm run test` green (497/497) after the fix.
-
-- [ ] **T10.9 `nak` tool: general read-only Nostr network access, base bundle.** Facts
-      confirmed: devkit's 12 tools have no generic query/profile-lookup tool — `search_nips`/
-      `fetch_nip` are the only Nostr-touching tools, both single-purpose. Ditto's own
-      `useNostr()` (`@nostrify/react`) exposes `nostr.query(filters, { signal })`, the standard
-      pattern used by ~50 existing hooks; `nostr-tools@2.13.0` (already a dependency) provides
-      NIP-19 encode/decode.
-      Decision: one tool, `nak` (named after the real `nak` CLI), added to the **base** bundle
-      (always available, same tier as `search_nips`/`fetch_nip`), built with a discriminated
-      action parameter: `req` (query events by kinds/authors/tags/since/until/limit, capped
-      result count + content-snippet truncation like `search_nips` already does), `fetch` (a
-      single event by id, hex or `note1`/`nevent1`), `profile` (kind-0 metadata by pubkey/
-      `npub1`), `decode`/`encode` (NIP-19 utilities). Built on Ditto's own `useNostr()` client
-      (via `useToolRegistry()`'s existing live-hook-value pattern), not a bare `SimplePool` —
-      reuses the app's real relay pool/session rather than a second one.
-      **Explicitly excluded from v1: publish/sign.** An AI-invoked tool call has no per-call
-      user confirmation surface today (unlike a tile's `publish_event`, which is a deliberate,
-      visible action in the UI) — read-only queries only, this ticket does not add any way for
-      the AI to publish events.
-      *Eval:* unit tests for each action (req/fetch/profile/decode/encode) against a mocked
-      `nostr.query`; base-bundle membership test alongside the existing NIP tools. Manual (user
-      will run before closing): in a base session, ask "look up npub1... 's profile" or "find
-      recent kind 1 notes tagging #nostr", confirm the AI calls `nak` and answers from real data.
-
-- [ ] **T10.10 i18n coverage for this MR's own AI chat surfaces — grilled 2026-08-02.** Raised in
-      code review (!245): `AIChatPage.tsx` has zero `FormattedMessage` usage across its entire
-      T10.0-T10.3 history. Scoped to exactly what this MR itself introduced, not a codebase-wide
-      sweep (see the deferred note below, still deferred).
-      - **In scope:** every hardcoded user-visible string in `src/pages/AIChatPage.tsx`
-        (headings, dialog text, button `title`/`aria-label`, the abilities-popover header, the
-        page's `description` meta string, etc.) wrapped in `FormattedMessage`/
-        `intl.formatMessage()`, following this file's existing id convention
-        (`settings.ai.*`-style area.key ids, `ai-chat.*` for this page).
-      - **"Dork AI"** (the logged-out heading and the abilities-popover header) is regular UI
-        text, not a fixed brand name — translate it like everything else on the page, not
-        treated as a proper noun the way "Shakespeare" (the provider name) is.
-      - **`src/lib/abilities.ts`**: convert `label`/`description` on `ABILITIES` entries from
-        plain strings to `defineMessage({ id, defaultMessage })` descriptors. The two UI
-        consumers (abilities popover, `MentionAutocomplete`'s ability list) render via
-        `<FormattedMessage {...descriptor}>`; `buildAbilityManifest()` (the system-prompt
-        builder) resolves `descriptor.defaultMessage` directly — the model always sees English
-        regardless of the user's locale, so that one consumer does not localize.
-      - **Out of scope:** the five other files this MR touches (`EmojiShortcodeAutocomplete.tsx`,
-        `WebxdcEmbed.tsx`, `EnvelopeCard.tsx`, `SendAnimation.tsx`, `IntroImage.tsx`) — confirmed
-        via diff that this MR added zero new hardcoded text to any of them; their missing i18n
-        coverage predates this branch. Also out of scope: every AI-facing tool `description`
-        string (`nakTool.ts`, `setThemeTool.ts`, devkit's own tools) — those are API text sent to
-        the model, not UI, never localized. `MentionAutocomplete.tsx` itself adds no new literal
-        strings in this MR's diff, so it's untouched beyond consuming the new `abilities.ts`
-        descriptors.
-      - No new non-English translation files — per AGENTS.md, new strings ship English-only via
-        `defaultMessage`, falling back correctly with no other locale file touched.
-      *Eval:* a test asserting every `ABILITIES` entry exposes message descriptors (not plain
-      strings); `npm run test` green. Manual (user will run before closing): click through
-      `/ai-chat` logged out and logged in, open the abilities popover and the "@" mention
-      dropdown, confirm every string renders (falls back to the English `defaultMessage`
-      correctly, no missing-id console warnings).
+Filed upstream (not Ditto's to fix): `nostr-canvas#2` — devkit's `edit_code` tool has the
+identical `discriminatedUnion` schema bug T10.9's `nak` fix worked around.
 
 **Tracked, not started — codebase-wide, deliberately deferred (noted 2026-08-02):** the rest of
 Ditto's i18n sweep — every user-visible string wrapped in `FormattedMessage`/
@@ -702,15 +396,67 @@ pass (likely its own branch, given the blast radius) when picked up; not scoped 
 
 **Tracked, not started — blocked on an external dependency (noted 2026-08-02):** the user is
 porting `luacheck` to TypeScript, to eventually replace fengari-web entirely as devkit's Lua
-lint engine — removing the CSP-sandboxing workaround (`src/sandbox/luaLint/`,
-`useLuaLintSandbox.tsx`) added this session, not just papering over it. Once that port lands,
-ticket the swap: point `lua-lint.ts`'s `overrideEngine` seam (added for exactly this kind of
-pluggable-backend swap) at the new library, then retire the sandbox infra. Not scoped further
-until the port exists.
+lint engine — removing the CSP-sandboxing workaround. A sandboxed-iframe lint implementation
+(`src/sandbox/luaLint/`, `useLuaLintSandbox.tsx`) was briefly added and then removed as dead code
+(`6c0dfd29`) since nothing in this branch's UI ever wired it up. Once the `luacheck` port lands,
+ticket the swap on `tiles-v3-widgetonly` (where Tiles UI actually lives) rather than resurrecting
+the sandbox approach here — logged in that branch's `TILES_PLAN.md`. Not scoped further until
+the port exists.
+
+**Not yet investigated — real, reported bug:** inline `` `code` `` spans (not fenced blocks)
+render the wrong text color on certain custom themes (`set_theme`-applied). Suspect:
+`@tailwindcss/typography`'s `prose-code:text-foreground` modifier vs. the plugin's own
+`--tw-prose-code`/`--tw-prose-invert-code` defaults — checked the compiled CSS and the override
+rule does win on specificity and source order, so the simple cascade story doesn't explain it;
+needs live-theme repro to pin down further (not yet root-caused).
 
 ---
 
 ## Human review queue
+
+Confirmed via the manual QA walkthrough (all originally-listed items except where noted below):
+
+- [x] T10.1 regression — ability toggle forks a new tab with the right system prompt/tools;
+      provider switch mid-session preserves history and the next reply uses the new provider.
+- [x] T10.2 — base (non-Tiles) session, dark purple theme applies end-to-end.
+- [x] T10.2 regression — plain message with no tool call streams a normal reply, no console
+      errors.
+- [x] T10.3 — several tabs including reload; 20-tab cap close-picker dialog; auto-title resolves.
+- [x] T10.4 — pasting a real API key auto-populates models; manual "Detect models" still works.
+- [x] T10.5 — "@" dropdown shows people + "Tiles"; selecting a person inserts `nostr:npub1...`,
+      selecting "Tiles" inserts plain text with no session fork.
+- [x] T10.5/bugfix — short dropdown result list sits flush against the textarea both below the
+      caret and flipped above it.
+- [x] T10.6 — base session mentions Tiles/widget creation unprompted.
+- [x] T10.7 — base session answers "what does NIP-57 define?" from a real fetched spec.
+- [x] T10.8 — `/settings/ai` intro hero + accent-underlined section header (no duplicate text);
+      `/settings` menu shows the AI row's illustration.
+
+Still open — either never separately confirmed, or invalidated by a fix landed after the
+original walkthrough (needs a fresh retest):
+
+- [ ] T10.3 — specifically: pause a Tiles session mid-`ask_questions`, reload, confirm it
+      resumes and answering it works now that the read-only history UI + live answer UI both
+      exist (the empty-bubble bug meant this was effectively unusable at the time of the
+      original walkthrough).
+- [ ] T10.9 — nak profile/hashtag lookup (was 400ing on the schema bug at the time of the
+      original walkthrough; retest now that it's fixed).
+- [ ] New tool-call rendering (this session) — spot-check `set_theme`, `ask_questions`, `nak`,
+      `read_spec`, `write_code` (diff view), and `edit_code` each render their tailored summary
+      instead of a bare pill; unknown/fallback tools show collapsible pretty-JSON.
+- [ ] Loading indicator (this session) — stays visible through a full tool round-trip, caption
+      names the in-flight tool (e.g. "Looking up Nostr data...").
+- [ ] Header-pin fix (this session) — AI chat header no longer slides away scrolling to the
+      bottom of a long conversation.
+- [ ] Layout bugfix (`c5b77bb3`, predates this session) — at mobile (~390px) and desktop
+      (≥900px) width, the page itself never scrolls: header, tab bar, provider/model row, and
+      textarea stay pinned while only the message list scrolls underneath.
+- [ ] Asset-path bugfix (`0283fe23`, predates this session) — build with `--mode ghpages` (or
+      the deployed GitHub Pages preview): `IntroImage`s, the letter-compose logo, and the webxdc
+      cartridge image all load, no 404s.
+
+Not this branch's scope (tile-studio, separate repo/deploy — carried over from Phase 9,
+unresolved):
 
 - [ ] Phase 9 / T9.1 — full manual AI-authoring session on tile-studio's deployed dev instance:
       ask the AI to write a trivial tile, confirm tool calls execute and code updates in the
@@ -720,44 +466,6 @@ until the port exists.
       edit a tile with a `Button`/`publish_event` handler, run the preview, confirm the click
       actually fires (the review dialog appears / the tile's own state updates) instead of doing
       nothing.
-- [ ] T10.2 — base (non-Tiles) session, ask it to set a dark purple theme, confirm it applies
-      end-to-end through the new registry + `AgentSession` path.
-- [ ] T10.2 regression — general chat still works after the `useToolExecutor` deletion: send a
-      plain message with no tool call, confirm a normal reply streams in with no console errors.
-- [ ] T10.3 — open several tabs including a Tiles session paused mid-`ask_questions`, reload the
-      browser, confirm every tab reappears with history intact and the paused session resumes
-      correctly on answering.
-- [ ] T10.3 — hit the 20-tab cap creating a 21st tab, confirm the close-picker dialog appears
-      (nothing closes silently); confirm a tab's title goes from spinner/placeholder to a real
-      LLM-generated title after the first exchange completes.
-- [ ] T10.4 — paste a real API key into a new/existing provider form, confirm models populate
-      without touching "Detect models"; confirm the manual button still works as a retry.
-- [ ] T10.5 — type "@" in the AI chat textarea, confirm people and "Tiles" both appear in one
-      dropdown; confirm selecting a person inserts `nostr:npub1...` and selecting "Tiles" inserts
-      plain `@Tiles` text with no side effect (no session fork).
-- [ ] T10.5/bugfix — with a short (1-3 item) dropdown result list, confirm it sits flush against
-      the textarea with no gap, both when it renders below the caret and when it flips above
-      (try near the top and bottom of the viewport).
-- [ ] T10.6 — base (non-Tiles) session, ask "what can you help me with in Ditto?", confirm the
-      reply mentions Tiles/widget creation without the tool having been called.
-- [ ] T10.7 — base (non-Tiles) session, ask "what does NIP-57 define?", confirm the AI calls
-      `fetch_nip` and answers from the real spec text.
-- [ ] T10.9 — base session, ask it to look up a known npub's profile, and separately ask it to
-      find recent kind-1 notes tagging a hashtag; confirm both answer from real relay data (not a
-      hallucinated answer) via the `nak` tool.
-- [ ] T10.8 — open `/settings/ai`, confirm the intro image + "Bring Your Own AI" heading render
-      above a distinct "AI Providers" accent-underlined section header (no duplicate text); open
-      `/settings`, confirm the AI row now shows its illustration alongside the other sections.
-- [ ] Layout bugfix (`c5b77bb3`) — at mobile width (~390px) and desktop width (≥900px), confirm
-      the page itself never scrolls: header, tab bar, provider/model row, and textarea stay
-      pinned while only the message list scrolls underneath. Check both the empty-chat state and
-      a long conversation.
-- [ ] Asset-path bugfix (`0283fe23`) — build with `--mode ghpages` (or check the deployed GitHub
-      Pages preview) and confirm `IntroImage`s, the letter-compose logo, and the webxdc cartridge
-      image all load instead of 404ing.
-- [ ] T10.1 regression (re-check after T10.2's rewrite) — toggle an ability on, confirm a new
-      tab forks with the right system prompt/tools; switch provider mid-session, confirm history
-      is preserved and the next reply uses the new provider.
 
 ## Working agreement
 
