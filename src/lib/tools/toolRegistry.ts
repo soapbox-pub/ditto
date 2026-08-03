@@ -18,6 +18,7 @@ import type { NPool } from '@nostrify/nostrify';
 
 import type { Ability } from '@/lib/abilities';
 import type { ThemeConfig } from '@/themes';
+import { createCorsFriendlyGitLabFetch } from './gitlabCorsFetch';
 import { createNakTool } from './nakTool';
 import { createSetThemeTool } from './setThemeTool';
 
@@ -113,7 +114,7 @@ export function createTilesToolBundle(opts: { projectId: string; seedCode?: stri
 
   const getCode = () => store.getCode(projectId);
   const setCode = (code: string) => store.setCode(projectId, code);
-  const tipFetcher = createGitLabTipFetcher();
+  const tipFetcher = createGitLabTipFetcher({ fetchImpl: createCorsFriendlyGitLabFetch() });
 
   return [
     { name: 'read_code', tool: new ReadCodeTool(getCode) },
