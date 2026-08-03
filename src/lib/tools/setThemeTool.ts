@@ -31,12 +31,15 @@ const inputSchema = z.object({
     .describe('How to display the background image. "cover" fills the viewport (good for photos/landscapes). "tile" repeats the image (good for patterns/textures). Defaults to "cover".'),
 });
 
-export type SetThemeInput = z.infer<typeof inputSchema>;
+type SetThemeInput = z.infer<typeof inputSchema>;
 
-/** Simple HSL format check: "H S% L%" where H is 0-360, S and L are 0-100%. */
+/** HSL format check: "H S% L%" where H is 0-359, S and L are 0-100%. */
 function isValidHsl(value: unknown): value is string {
   if (typeof value !== 'string') return false;
-  return /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}%$/.test(value.trim());
+  const match = /^(\d{1,3})\s+(\d{1,3})%\s+(\d{1,3})%$/.exec(value.trim());
+  if (!match) return false;
+  const [, hue, sat, light] = match.map(Number);
+  return hue <= 359 && sat <= 100 && light <= 100;
 }
 
 /**

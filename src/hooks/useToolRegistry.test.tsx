@@ -17,7 +17,7 @@ vi.mock('@nostrify/react', () => ({
   useNostr: () => ({ nostr: { query } }),
 }));
 
-const BASE_NAMES = ['set_theme', 'search_nips', 'fetch_nip', 'ask_questions'];
+const BASE_NAMES = ['set_theme', 'fetch_nip', 'ask_questions'];
 
 function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
   return {
@@ -26,7 +26,6 @@ function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
     abilities: [],
     providerId: 'shakespeare',
     modelId: 'shakespeare/model',
-    messages: [],
     createdAt: new Date(),
     ...overrides,
   };
@@ -59,6 +58,15 @@ describe('useToolRegistry', () => {
     await nak.tool.execute({ action: 'req', kinds: [1] });
 
     expect(query).toHaveBeenCalled();
+  });
+
+  it('does not put search_nips in the base bundle: it only appears in a nostr-lookup session', () => {
+    const { result } = renderHook(() => useToolRegistry());
+
+    expect(result.current.baseTools.map((b) => b.name)).not.toContain('search_nips');
+
+    const tools = result.current.buildSessionTools(makeSession({ abilities: ['nostr-lookup'] }));
+    expect(tools.map((b) => b.name)).toContain('search_nips');
   });
 
   it('keeps only the base bundle for a session with no abilities', () => {

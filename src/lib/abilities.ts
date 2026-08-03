@@ -17,7 +17,7 @@ import { defineMessage } from 'react-intl';
  * without union handling. Still assignable to MessageDescriptor, so UI
  * consumers can spread it into FormattedMessage.
  */
-export interface AbilityMessageDescriptor {
+interface AbilityMessageDescriptor {
   id: string;
   defaultMessage: string;
 }
@@ -39,7 +39,7 @@ export const ABILITIES = [
     label: defineMessage({ id: 'ai-chat.ability.nostrLookup.label', defaultMessage: 'Nostr Lookup' }),
     description: defineMessage({
       id: 'ai-chat.ability.nostrLookup.description',
-      defaultMessage: 'Look up Nostr profiles and events, and search recent notes by tag or author, using nak.',
+      defaultMessage: 'Look up Nostr profiles and events, search recent notes by tag or author, and search community NIP discussions.',
     }),
   },
 ] as const satisfies readonly AbilityInfo[];

@@ -66,6 +66,31 @@ describe('createSetThemeTool', () => {
     expect(apply).not.toHaveBeenCalled();
   });
 
+  it('accepts boundary HSL values (hue 359, saturation/lightness 100%)', async () => {
+    const apply = vi.fn();
+    const tool = createSetThemeTool(apply);
+
+    const result = await tool.execute({
+      background: '359 100% 100%',
+      text: '0 0% 0%',
+      primary: '120 100% 50%',
+    });
+
+    expect(apply).toHaveBeenCalledTimes(1);
+    expect(parseResult(result).success).toBe(true);
+  });
+
+  it('rejects out-of-range HSL values (hue 360+, saturation/lightness above 100%)', async () => {
+    const apply = vi.fn();
+    const tool = createSetThemeTool(apply);
+
+    for (const background of ['360 20% 10%', '999 20% 10%', '10 101% 10%', '10 20% 101%']) {
+      const result = await tool.execute({ ...VALID_ARGS, background });
+      expect(parseResult(result).error).toContain('Invalid HSL color values');
+    }
+    expect(apply).not.toHaveBeenCalled();
+  });
+
   it('applies a bundled font case-insensitively and reports the canonical family', async () => {
     const apply = vi.fn();
     const tool = createSetThemeTool(apply);

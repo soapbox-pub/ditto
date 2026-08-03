@@ -21,39 +21,46 @@ export interface ToolBundleEntry {
 
 /**
  * The always-on tools, present in every session regardless of abilities:
- * theme control, NIP lookups (community NIPs via search_nips, official
- * specs via fetch_nip), and ask_questions (the pending-input tool that
- * pauses a turn until the user answers clarifying questions — it needs no
- * ability, so it lives in the base bundle). `nak` is not here: it pulls
- * attacker-controlled Nostr content into the model's context, so it lives
- * behind the opt-in 'nostr-lookup' ability instead.
+ * theme control, official-spec NIP lookup (fetch_nip), and ask_questions
+ * (the pending-input tool that pauses a turn until the user answers
+ * clarifying questions — it needs no ability, so it lives in the base
+ * bundle). `fetch_nip` reads only the official nostr-protocol/nips repo on
+ * GitHub master — merge-gated, maintainer-curated protocol specs — so its
+ * content is not arbitrary-user text.
+ *
+ * `nak` and `search_nips` are NOT here: both put attacker-controlled Nostr
+ * event content into the model's context (nak via arbitrary relay queries;
+ * search_nips via kind-30817 "community NIP" events with no `authors`
+ * filter, so any user can publish one and have its content reach the
+ * model). Both live behind the opt-in 'nostr-lookup' ability instead.
  */
 export function createBaseToolBundle(opts: {
   applyCustomTheme: (config: ThemeConfig) => void;
 }): ToolBundleEntry[] {
   return [
     { name: 'set_theme', tool: createSetThemeTool(opts.applyCustomTheme) },
-    { name: 'search_nips', tool: new SearchNIPsTool() },
     { name: 'fetch_nip', tool: new FetchNIPTool() },
     { name: 'ask_questions', tool: new AskQuestionsTool() },
   ];
 }
 
 /**
- * Build the "nostr-lookup" ability's tool bundle — nak, a read-only Nostr
- * client wired to Ditto's live relay pool from `useNostr()`. Opt-in only,
- * because its results put attacker-controlled event content into the
- * model's context.
+ * Build the "nostr-lookup" ability's tool bundle: nak (a read-only Nostr
+ * client wired to Ditto's live relay pool from `useNostr()`) and
+ * search_nips (community NIP search over an unmoderated, no-`authors`-
+ * filter relay query). Opt-in only, because both put attacker-controlled
+ * event content into the model's context.
  */
 export function createNostrLookupToolBundle(opts: { nostr: NPool }): ToolBundleEntry[] {
   return [
     { name: 'nak', tool: createNakTool(opts.nostr) },
+    { name: 'search_nips', tool: new SearchNIPsTool() },
   ];
 }
 
 // ─── Ability → bundle mapping ───────────────────────────────────────────────
 
-export type AbilityBundleBuilder = (opts: { nostr?: NPool }) => ToolBundleEntry[];
+type AbilityBundleBuilder = (opts: { nostr?: NPool }) => ToolBundleEntry[];
 
 /**
  * One bundle builder per ability, keyed by the canonical `ABILITIES` registry
