@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { IntroImage } from '@/components/IntroImage';
 import {
   Users, Download, Loader2, X, Pencil, Home, Globe, MapPin,
-  Palette, Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink, ShieldAlert,
+  Palette, Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -33,23 +36,16 @@ import type { SavedFeed, TabFilter, ContentWarningPolicy } from '@/contexts/AppC
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 
 export function ContentSettings() {
+
   return (
     <div>
-      {/* Intro */}
-      <div className="px-3 pt-2 pb-4">
-        <h2 className="text-sm font-semibold">What You See</h2>
-        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Customize your feed, choose what content appears, and control what you want to hide.
-        </p>
-      </div>
-
       {/* Homepage Section */}
       <HomePageSetting />
 
       {/* Feed Tabs Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">Home Feed Tabs</h2>
+          <h2 className="text-base font-semibold"><FormattedMessage id="settings.feed.homeFeedTabs" defaultMessage={"Home Feed Tabs"} /></h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
@@ -60,19 +56,14 @@ export function ContentSettings() {
       {/* Notes Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">Basic Home Feed Options</h2>
+          <h2 className="text-base font-semibold"><FormattedMessage id="settings.feed.postTypes" defaultMessage={"Post Types"} /></h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
-          <div className="px-3 pt-3 pb-4">
+          <div className="px-3 pt-3 pb-2">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Core content types that appear in your feed.
+              <FormattedMessage id="settings.feed.postTypesDescription" defaultMessage={"Core content types that appear in your home feed."} />
             </p>
-          </div>
-
-          {/* Column headers */}
-          <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
-            <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
           </div>
 
           <NotesFeedSettings />
@@ -82,24 +73,19 @@ export function ContentSettings() {
       {/* Other Stuff Section */}
       <div>
         <div className="relative px-3 py-3.5">
-          <h2 className="text-base font-semibold">Show More Content Types in Home Feed</h2>
+          <h2 className="text-base font-semibold"><FormattedMessage id="settings.feed.moreContentTypes" defaultMessage={"More Content Types"} /></h2>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
         <div className="pb-4">
           {/* Intro section for Other Stuff */}
-          <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-            <IntroImage src="/feed-intro.png" />
+          <div className="flex items-center gap-4 px-3 pt-3 pb-2">
+            <IntroImage src="/feed-intro.png" size="w-28" />
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold">Other Stuff</h3>
+              <h3 className="text-sm font-semibold"><FormattedMessage id="settings.feed.otherStuff" defaultMessage={"Other Stuff"} /></h3>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
+                <FormattedMessage id="settings.feed.otherStuffDescription" defaultMessage={"Nostr isn't just text posts — pick what else shows up in your home feed."} />
               </p>
             </div>
-          </div>
-
-          {/* Column headers */}
-          <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
-            <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
           </div>
 
           {/* Content type rows - reuse the internals from FeedSettingsForm */}
@@ -177,7 +163,10 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
           <div className="min-w-0">
             <span className="text-sm font-medium">{def.label}</span>
             <p className="text-xs text-muted-foreground mt-0.5">
-              <KindBadge kind={def.kind} />{' '}{def.description}
+              {/* Parent rows with subKinds are categories, not a single
+                  kind — the per-kind badges live on the sub rows. */}
+              {!hasSubKinds && <><KindBadge kind={def.kind} />{' '}</>}
+              {def.description}
             </p>
           </div>
         </div>
@@ -219,30 +208,59 @@ function NotesFeedSettings() {
 }
 
 function FeedSettingsFormInternals() {
+  const { feedSettings } = useFeedSettings();
+
   return (
-    <>
+    <Accordion type="multiple">
       {SECTION_ORDER.map((section) => {
         const sectionKinds = EXTRA_KINDS.filter((def) => def.section === section);
         if (sectionKinds.length === 0) return null;
+
+        // Count enabled toggles the same way the row switches read them.
+        let enabled = 0;
+        let total = 0;
+        for (const def of sectionKinds) {
+          if (def.subKinds) {
+            for (const sub of def.subKinds) {
+              total++;
+              if (feedSettings[sub.feedKey]) enabled++;
+            }
+          } else if (def.feedKey) {
+            total++;
+            if (feedSettings[def.feedKey]) enabled++;
+          } else if (def.feedOnly && def.showKey) {
+            total++;
+            if (feedSettings[def.showKey] !== false) enabled++;
+          }
+        }
+
         return (
-          <div key={section}>
-            <div className="px-3 pt-4 pb-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {SECTION_LABELS[section]}
+          <AccordionItem key={section} value={section} className="border-b border-border last:border-b-0">
+            <AccordionTrigger className="px-3 py-3.5 hover:no-underline hover:bg-muted/20 transition-colors">
+              <span className="flex items-center gap-3 min-w-0">
+                <span className="text-sm font-medium">{SECTION_LABELS[section]}</span>
+                <Badge variant="secondary" className="shrink-0 font-normal">
+                  <FormattedMessage id="settings.feed.enabledOf" defaultMessage={"{enabled} of {total} on"} values={{ enabled, total }} />
+                </Badge>
               </span>
-            </div>
-            {sectionKinds.map((def) => (
-              <ContentTypeRow key={def.id} def={def} />
-            ))}
-          </div>
+            </AccordionTrigger>
+            <AccordionContent className="pb-0">
+              <div className="border-t border-border">
+                {sectionKinds.map((def) => (
+                  <ContentTypeRow key={def.id} def={def} />
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
         );
       })}
-    </>
+    </Accordion>
   );
 }
 
 // Feed Tabs Section Component
 function FeedTabsSection() {
+  const intl = useIntl();
   const { toast } = useToast();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
@@ -273,12 +291,6 @@ function FeedTabsSection() {
   const handleToggleDittoFeed = async (checked: boolean) => {
     setShowDittoFeed(checked);
     localStorage.setItem(getStorageKey(config.appId, 'showDittoFeed'), String(checked));
-    toast({
-      title: checked ? `${config.appName} feed enabled` : `${config.appName} feed disabled`,
-      description: checked
-        ? `The ${config.appName} feed tab will appear in your navigation`
-        : `The ${config.appName} feed tab will be hidden`,
-    });
   };
 
   const handleToggleGlobalFeed = async (checked: boolean) => {
@@ -287,12 +299,6 @@ function FeedTabsSection() {
     if (user) {
       await updateSettings.mutateAsync({ showGlobalFeed: checked });
     }
-    toast({
-      title: checked ? 'Global feed enabled' : 'Global feed disabled',
-      description: checked 
-        ? 'The Global feed tab will appear in your navigation'
-        : 'The Global feed tab will be hidden',
-    });
   };
 
   const handleToggleCommunityFeed = async (checked: boolean) => {
@@ -301,19 +307,13 @@ function FeedTabsSection() {
     if (user) {
       await updateSettings.mutateAsync({ showCommunityFeed: checked });
     }
-    toast({
-      title: checked ? 'Community feed enabled' : 'Community feed disabled',
-      description: checked 
-        ? 'The Community feed tab will appear in your navigation'
-        : 'The Community feed tab will be hidden',
-    });
   };
 
   const handleDownloadCommunity = async () => {
     if (!communityDomain.trim()) {
       toast({
-        title: 'Domain required',
-        description: 'Please enter a domain name',
+        title: intl.formatMessage({ id: 'settings.feed.domainRequired', defaultMessage: "Domain required" }),
+        description: intl.formatMessage({ id: 'settings.feed.domainRequiredDescription', defaultMessage: "Please enter a domain name" }),
         variant: 'destructive',
       });
       return;
@@ -370,16 +370,16 @@ function FeedTabsSection() {
       }
 
       toast({
-        title: 'Community set',
-        description: `${label} with ${userCount} users`,
+        title: intl.formatMessage({ id: 'settings.feed.communitySet', defaultMessage: "Community set" }),
+        description: intl.formatMessage({ id: 'settings.feed.communitySetDescription', defaultMessage: "{label} with {count} users" }, { label, count: userCount }),
       });
 
       setCommunityDomain('');
     } catch (error) {
       console.error('Failed to download community:', error);
       toast({
-        title: 'Failed to download',
-        description: error instanceof Error ? error.message : 'Could not fetch community data',
+        title: intl.formatMessage({ id: 'settings.feed.downloadFailed', defaultMessage: "Failed to download" }),
+        description: error instanceof Error ? error.message : intl.formatMessage({ id: 'settings.feed.downloadFailedDescription', defaultMessage: "Could not fetch community data" }),
         variant: 'destructive',
       });
     } finally {
@@ -401,20 +401,20 @@ function FeedTabsSection() {
     }
     
     toast({
-      title: 'Community removed',
-      description: 'Community feed cleared',
+      title: intl.formatMessage({ id: 'settings.feed.communityRemoved', defaultMessage: "Community removed" }),
+      description: intl.formatMessage({ id: 'settings.feed.communityRemovedDescription', defaultMessage: "Community feed cleared" }),
     });
   };
 
   return (
     <div>
       {/* Intro section for Feed Tabs */}
-      <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-        <IntroImage src="/community-intro.png" />
+      <div className="flex items-center gap-4 px-3 pt-3 pb-2">
+        <IntroImage src="/community-intro.png" size="w-28" />
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold">Feed Navigation</h3>
+          <h3 className="text-sm font-semibold"><FormattedMessage id="settings.feed.feedNavigation" defaultMessage={"Feed Navigation"} /></h3>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Manage which feed tabs appear in your navigation and follow communities by domain.
+            <FormattedMessage id="settings.feed.feedNavigationDescription" defaultMessage={"Choose which tabs appear at the top of your home feed."} />
           </p>
         </div>
       </div>
@@ -423,8 +423,8 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">Show replies in feed</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">Include replies from people you follow, not just top-level posts</p>
+            <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.showReplies" defaultMessage={"Show replies in feed"} /></Label>
+            <p className="text-xs text-muted-foreground mt-0.5"><FormattedMessage id="settings.feed.showRepliesDescription" defaultMessage={"Include replies from people you follow, not just top-level posts"} /></p>
           </div>
           <Switch
             checked={feedSettings.followsFeedShowReplies}
@@ -433,12 +433,6 @@ function FeedTabsSection() {
               if (user) {
                 await updateSettings.mutateAsync({ feedSettings: { ...feedSettings, followsFeedShowReplies: checked } });
               }
-              toast({
-                title: checked ? 'Replies shown' : 'Replies hidden',
-                description: checked
-                  ? 'Replies from people you follow will appear in your feed'
-                  : 'Only top-level posts will appear in your follows feed',
-              });
             }}
             className="shrink-0"
           />
@@ -448,8 +442,8 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">{config.appName} Feed</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">Show trending and curated content from the {config.appName} relay</p>
+            <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.appFeed" defaultMessage={"{appName} Feed"} values={{ appName: config.appName }} /></Label>
+            <p className="text-xs text-muted-foreground mt-0.5"><FormattedMessage id="settings.feed.appFeedDescription" defaultMessage={"Show trending and curated content from the {appName} relay"} values={{ appName: config.appName }} /></p>
           </div>
           <Switch
             checked={showDittoFeed}
@@ -462,8 +456,8 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">Global Feed</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">Show posts from all users across the network</p>
+            <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.globalFeed" defaultMessage={"Global Feed"} /></Label>
+            <p className="text-xs text-muted-foreground mt-0.5"><FormattedMessage id="settings.feed.globalFeedDescription" defaultMessage={"Show posts from all users across the network"} /></p>
           </div>
           <Switch
             checked={showGlobalFeed}
@@ -476,11 +470,11 @@ function FeedTabsSection() {
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
-            <Label className="text-sm font-medium">Community Feed</Label>
+            <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.communityFeed" defaultMessage={"Community Feed"} /></Label>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {community 
-                ? `Show "${community.label}" tab for ${community.domain} users`
-                : 'Set a community below to enable this feed'}
+              {community
+                ? <FormattedMessage id="settings.feed.communityFeedActive" defaultMessage={"Show \"{label}\" tab for {domain} users"} values={{ label: community.label, domain: community.domain }} />
+                : <FormattedMessage id="settings.feed.communityFeedInactive" defaultMessage={"Set a community below to enable this feed"} />}
             </p>
           </div>
           <Switch
@@ -499,10 +493,10 @@ function FeedTabsSection() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Users className="h-4 w-4 text-muted-foreground" />
-            <Label className="text-sm font-medium">Community</Label>
+            <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.community" defaultMessage={"Community"} /></Label>
           </div>
           <p className="text-xs text-muted-foreground">
-            Set a community domain. We'll download the NIP-05 user list to show posts only from verified members.
+            <FormattedMessage id="settings.feed.communityDescription" defaultMessage={"Set a community domain. We'll download the NIP-05 user list to show posts only from verified members."} />
           </p>
         </div>
 
@@ -539,7 +533,7 @@ function FeedTabsSection() {
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{community.label}</p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {community.domain} • {community.userCount} {community.userCount === 1 ? 'user' : 'users'}
+                  {community.domain} • <FormattedMessage id="settings.feed.userCount" defaultMessage={"{count, plural, one {{count} user} other {{count} users}}"} values={{ count: community.userCount }} />
                 </p>
               </div>
             </div>
@@ -568,6 +562,7 @@ function FeedTabsSection() {
 // ─── Interests Section ───────────────────────────────────────────────────────
 
 function InterestsSection() {
+  const intl = useIntl();
   const { toast } = useToast();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
@@ -582,44 +577,44 @@ function InterestsSection() {
 
   const handleRemoveHashtag = async (tag: string) => {
     await removeHashtag.mutateAsync(tag);
-    toast({ title: `#${tag} removed from feed tabs` });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.hashtagRemoved', defaultMessage: "#{tag} removed from feed tabs" }, { tag }) });
   };
 
   const handleRemoveGeotag = async (tag: string) => {
     await removeGeotag.mutateAsync(tag);
-    toast({ title: `${tag} removed from feed tabs` });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.locationRemoved', defaultMessage: "{tag} removed from feed tabs" }, { tag }) });
   };
 
   const handleAddHashtag = async () => {
     const tag = newHashtag.trim().toLowerCase().replace(/^#/, '');
     if (!tag) return;
     if (hashtags.includes(tag)) {
-      toast({ title: `#${tag} is already followed`, variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'settings.feed.hashtagAlreadyFollowed', defaultMessage: "#{tag} is already followed" }, { tag }), variant: 'destructive' });
       return;
     }
     await addHashtag.mutateAsync(tag);
     setNewHashtag('');
-    toast({ title: `#${tag} added to feed tabs` });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.hashtagAdded', defaultMessage: "#{tag} added to feed tabs" }, { tag }) });
   };
 
   const handleAddGeotag = async () => {
     const tag = newGeotag.trim().toLowerCase();
     if (!tag) return;
     if (geotags.includes(tag)) {
-      toast({ title: `${tag} is already followed`, variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'settings.feed.locationAlreadyFollowed', defaultMessage: "{tag} is already followed" }, { tag }), variant: 'destructive' });
       return;
     }
     await addGeotag.mutateAsync(tag);
     setNewGeotag('');
-    toast({ title: `${tag} added to feed tabs` });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.locationAdded', defaultMessage: "{tag} added to feed tabs" }, { tag }) });
   };
 
   return (
     <div className="px-3 py-4 space-y-4 border-t border-border">
       <div>
-        <h3 className="text-sm font-semibold">Interest Tabs</h3>
+        <h3 className="text-sm font-semibold"><FormattedMessage id="settings.feed.interestTabs" defaultMessage={"Interest Tabs"} /></h3>
         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Hashtags and locations you follow appear as tabs on the home feed.
+          <FormattedMessage id="settings.feed.interestTabsDescription" defaultMessage={"Hashtags and locations you follow appear as tabs on the home feed."} />
         </p>
       </div>
 
@@ -627,7 +622,7 @@ function InterestsSection() {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Hash className="size-4 text-muted-foreground shrink-0" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hashtags</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"><FormattedMessage id="settings.feed.hashtags" defaultMessage={"Hashtags"} /></span>
         </div>
 
         <div className="flex gap-2">
@@ -654,7 +649,7 @@ function InterestsSection() {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : hashtags.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No followed hashtags yet.</p>
+          <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.feed.noHashtags" defaultMessage={"No followed hashtags yet."} /></p>
         ) : (
           <div className="space-y-1.5">
             {hashtags.map((tag) => (
@@ -669,7 +664,7 @@ function InterestsSection() {
                     onClick={() => handleRemoveHashtag(tag)}
                     disabled={removeHashtag.isPending}
                     className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
-                    aria-label={`Remove #${tag}`}
+                    aria-label={intl.formatMessage({ id: 'settings.feed.removeHashtag', defaultMessage: "Remove #{tag}" }, { tag })}
                   >
                     <X className="size-3.5" strokeWidth={4} />
                   </button>
@@ -684,12 +679,12 @@ function InterestsSection() {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <MapPin className="size-4 text-muted-foreground shrink-0" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Locations</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"><FormattedMessage id="settings.feed.locations" defaultMessage={"Locations"} /></span>
         </div>
 
         <div className="flex gap-2">
           <Input
-            placeholder="geohash (e.g. u4pru)"
+            placeholder={intl.formatMessage({ id: 'settings.feed.geohashPlaceholder', defaultMessage: "geohash (e.g. u4pru)" })}
             value={newGeotag}
             onChange={(e) => setNewGeotag(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleAddGeotag(); }}
@@ -711,7 +706,7 @@ function InterestsSection() {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : geotags.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No followed locations yet.</p>
+          <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.feed.noLocations" defaultMessage={"No followed locations yet."} /></p>
         ) : (
           <div className="space-y-1.5">
             {geotags.map((tag) => (
@@ -726,7 +721,7 @@ function InterestsSection() {
                     onClick={() => handleRemoveGeotag(tag)}
                     disabled={removeGeotag.isPending}
                     className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
-                    aria-label={`Remove ${tag}`}
+                    aria-label={intl.formatMessage({ id: 'settings.feed.removeLocation', defaultMessage: "Remove {tag}" }, { tag })}
                   >
                     <X className="size-3.5" strokeWidth={4} />
                   </button>
@@ -743,6 +738,7 @@ function InterestsSection() {
 // ─── Saved Feeds Section ─────────────────────────────────────────────────────
 
 function SavedFeedsSection() {
+  const intl = useIntl();
   const { savedFeeds, addSavedFeed, removeSavedFeed, updateSavedFeed, isPending } = useSavedFeeds();
   const { toast } = useToast();
   const [addFeedModalOpen, setAddFeedModalOpen] = useState(false);
@@ -752,25 +748,25 @@ function SavedFeedsSection() {
 
   const handleAddFeed = async (label: string, filter: TabFilter, vars: SavedFeed['vars']) => {
     await addSavedFeed(label, filter, vars);
-    toast({ title: `"${label}" added to home feed tabs` });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.savedFeedAdded', defaultMessage: "\"{label}\" added to home feed tabs" }, { label }) });
   };
 
   const handleEditFeed = async (label: string, filter: TabFilter, vars: SavedFeed['vars']) => {
     if (!editingFeed) return;
     await updateSavedFeed(editingFeed.id, { label, filter, vars });
-    toast({ title: 'Feed updated' });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.savedFeedUpdated', defaultMessage: "Feed updated" }) });
     setEditingFeed(null);
   };
 
   const handleRemove = async (feed: SavedFeed) => {
     await removeSavedFeed(feed.id);
-    toast({ title: `"${feed.label}" removed` });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.savedFeedRemoved', defaultMessage: "\"{label}\" removed" }, { label: feed.label }) });
   };
 
   return (
     <div className="px-3 py-4 space-y-3 border-t border-border">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Home Feed Tabs</h3>
+        <h3 className="text-sm font-semibold"><FormattedMessage id="settings.feed.customTabs" defaultMessage={"Custom Tabs"} /></h3>
         <Button
           variant="outline"
           size="sm"
@@ -778,13 +774,13 @@ function SavedFeedsSection() {
           onClick={() => setAddFeedModalOpen(true)}
         >
           <Plus className="size-3.5" />
-          Add tab
+          <FormattedMessage id="settings.feed.addTab" defaultMessage={"Add tab"} />
         </Button>
       </div>
 
       {feedTabs.length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          No custom tabs yet. Save a search from the search page, or add one above.
+          <FormattedMessage id="settings.feed.noCustomTabs" defaultMessage={"No custom tabs yet. Save a search from the search page, or add one above."} />
         </p>
       ) : (
         <div className="space-y-1.5">
@@ -833,21 +829,22 @@ function SavedFeedRow({
   onRemove: () => void;
   isPending: boolean;
 }) {
+  const intl = useIntl();
   const search = typeof feed.filter.search === 'string' ? feed.filter.search : '';
   const authors = Array.isArray(feed.filter.authors) ? feed.filter.authors as string[] : [];
   const kinds = Array.isArray(feed.filter.kinds) ? feed.filter.kinds as number[] : [];
 
   const scopeLabel = authors.includes('$follows')
-    ? 'Follows'
+    ? intl.formatMessage({ id: 'settings.feed.follows', defaultMessage: "Follows" })
     : authors.length > 0
-      ? `${authors.length} author${authors.length > 1 ? 's' : ''}`
+      ? intl.formatMessage({ id: 'settings.feed.authorCount', defaultMessage: "{count, plural, one {{count} author} other {{count} authors}}" }, { count: authors.length })
       : null;
 
   const kindLabel = kinds.length === 0
     ? null
     : kinds.length === 1
-      ? (kindOptions.find((o) => o.value === String(kinds[0]))?.label ?? `Kind ${kinds[0]}`)
-      : `${kinds.length} kinds`;
+      ? (kindOptions.find((o) => o.value === String(kinds[0]))?.label ?? intl.formatMessage({ id: 'settings.feed.kindLabel', defaultMessage: "Kind {kind}" }, { kind: kinds[0] }))
+      : intl.formatMessage({ id: 'settings.feed.kindCount', defaultMessage: "{count} kinds" }, { count: kinds.length });
 
   return (
     <div className="rounded-lg border border-border/50 bg-secondary/30 group">
@@ -873,7 +870,7 @@ function SavedFeedRow({
           <button
             onClick={onEdit}
             className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            aria-label="Edit"
+            aria-label={intl.formatMessage({ id: 'settings.feed.edit', defaultMessage: "Edit" })}
           >
             <Pencil className="size-3.5" />
           </button>
@@ -881,7 +878,7 @@ function SavedFeedRow({
             onClick={onRemove}
             disabled={isPending}
             className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors"
-            aria-label="Remove"
+            aria-label={intl.formatMessage({ id: 'settings.feed.remove', defaultMessage: "Remove" })}
           >
             <X className="size-3.5" />
           </button>
@@ -891,28 +888,29 @@ function SavedFeedRow({
   );
 }
 
-const CW_POLICY_OPTIONS: { value: ContentWarningPolicy; label: string; description: string }[] = [
-  {
-    value: 'blur',
-    label: 'Blur until revealed',
-    description: 'Content is hidden behind a warning. Media is not loaded until you choose to view it.',
-  },
-  {
-    value: 'hide',
-    label: 'Hide completely',
-    description: 'Posts with content warnings are removed from your feed entirely.',
-  },
-  {
-    value: 'show',
-    label: 'Always show',
-    description: 'Ignore content warnings and display everything normally.',
-  },
-];
-
 export function SensitiveContentSection() {
+  const intl = useIntl();
   const { config, updateConfig } = useAppContext();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
+
+  const policyOptions: { value: ContentWarningPolicy; label: string; description: string }[] = [
+    {
+      value: 'blur',
+      label: intl.formatMessage({ id: 'settings.content.policyBlur', defaultMessage: "Blur until revealed" }),
+      description: intl.formatMessage({ id: 'settings.content.policyBlurDescription', defaultMessage: "Hidden behind a warning until you choose to view it." }),
+    },
+    {
+      value: 'hide',
+      label: intl.formatMessage({ id: 'settings.content.policyHide', defaultMessage: "Hide completely" }),
+      description: intl.formatMessage({ id: 'settings.content.policyHideDescription', defaultMessage: "Removed from your feeds entirely." }),
+    },
+    {
+      value: 'show',
+      label: intl.formatMessage({ id: 'settings.content.policyShow', defaultMessage: "Always show" }),
+      description: intl.formatMessage({ id: 'settings.content.policyShowDescription', defaultMessage: "Displayed normally, without a warning." }),
+    },
+  ];
 
   const handlePolicyChange = async (value: string) => {
     const policy = value as ContentWarningPolicy;
@@ -924,18 +922,9 @@ export function SensitiveContentSection() {
 
   return (
     <div>
-      {/* Intro */}
-      <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-        <div className="w-40 shrink-0 flex items-center justify-center">
-          <ShieldAlert className="size-16 text-muted-foreground/40" />
-        </div>
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold">Content Warnings</h3>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Some posts are tagged with content warnings (NIP-36) by their authors. This can include NSFW material, spoilers, or other sensitive content.
-          </p>
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground px-3 pt-3 pb-1">
+        <FormattedMessage id="settings.content.sensitiveDescription" defaultMessage={"How to display posts their author marked as sensitive (NSFW, spoilers, etc)."} />
+      </p>
 
       {/* Policy options — consistent row style with other settings */}
       <RadioGroup
@@ -943,7 +932,7 @@ export function SensitiveContentSection() {
         onValueChange={handlePolicyChange}
         className="gap-0"
       >
-        {CW_POLICY_OPTIONS.map((option) => (
+        {policyOptions.map((option) => (
           <label
             key={option.value}
             className="flex items-center justify-between py-3.5 px-3 border-b border-border last:border-b-0 cursor-pointer hover:bg-muted/20 transition-colors"
@@ -962,46 +951,84 @@ export function SensitiveContentSection() {
   );
 }
 
-const MUTE_TYPE_CONFIG = {
-  pubkey: {
-    icon: <UserX className="size-5" />,
-    label: 'Users',
-    description: 'Hide posts from specific users',
-    inputLabel: 'Public Key (hex or npub)',
-    placeholder: 'npub1... or hex pubkey',
-  },
-  hashtag: {
-    icon: <Hash className="size-5" />,
-    label: 'Hashtags',
-    description: 'Hide posts with specific hashtags',
-    inputLabel: 'Hashtag (without #)',
-    placeholder: 'bitcoin',
-  },
-  word: {
-    icon: <MessageSquareOff className="size-5" />,
-    label: 'Words',
-    description: 'Hide posts containing specific words or phrases',
-    inputLabel: 'Word or Phrase',
-    placeholder: 'spam word',
-  },
-  thread: {
-    icon: <MessageSquareOff className="size-5" />,
-    label: 'Threads',
-    description: 'Hide entire conversation threads',
-    inputLabel: 'Event ID (hex or note)',
-    placeholder: 'note1... or hex event ID',
-  },
-};
+/**
+ * Toggle for exempting followed accounts from content-based filters
+ * (muted hashtags and words). Explicit user and thread mutes still apply.
+ */
+export function MuteFollowExemptionSection() {
+  const { config, updateConfig } = useAppContext();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
+
+  const exempt = config.exemptFollowsFromFilters === true;
+
+  const handleToggle = async (value: boolean) => {
+    updateConfig((current) => ({ ...current, exemptFollowsFromFilters: value }));
+    if (user) {
+      await updateSettings.mutateAsync({ exemptFollowsFromFilters: value });
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="space-y-0.5">
+        <Label className="text-sm font-medium"><FormattedMessage id="settings.content.exemptFollows" defaultMessage={"Don't filter people you follow"} /></Label>
+        <p className="text-xs text-muted-foreground">
+          <FormattedMessage id="settings.content.exemptFollowsDescription" defaultMessage={"Muted hashtags and words won't hide posts from accounts you follow. Muted users and threads still apply."} />
+        </p>
+      </div>
+      <Switch
+        checked={exempt}
+        onCheckedChange={handleToggle}
+      />
+    </div>
+  );
+}
+
+interface MuteTypeConfig {
+  icon: ReactNode;
+  label: string;
+  inputLabel: string;
+  placeholder: string;
+}
 
 export function MuteSettingsInternals() {
+  const intl = useIntl();
   const { muteItems, isLoading, addMute, removeMute } = useMuteList();
   const { toast } = useToast();
   const [newMuteType, setNewMuteType] = useState<MuteListItem['type']>('pubkey');
   const [newMuteValue, setNewMuteValue] = useState('');
 
+  const muteTypeConfig: Record<MuteListItem['type'], MuteTypeConfig> = {
+    pubkey: {
+      icon: <UserX className="size-5" />,
+      label: intl.formatMessage({ id: 'settings.content.muteTypes.users', defaultMessage: "Users" }),
+      inputLabel: intl.formatMessage({ id: 'settings.content.muteInput.pubkey', defaultMessage: "Public Key (hex or npub)" }),
+      placeholder: intl.formatMessage({ id: 'settings.content.mutePlaceholder.pubkey', defaultMessage: "npub1... or hex pubkey" }),
+    },
+    hashtag: {
+      icon: <Hash className="size-5" />,
+      label: intl.formatMessage({ id: 'settings.content.muteTypes.hashtags', defaultMessage: "Hashtags" }),
+      inputLabel: intl.formatMessage({ id: 'settings.content.muteInput.hashtag', defaultMessage: "Hashtag (without #)" }),
+      placeholder: intl.formatMessage({ id: 'settings.content.mutePlaceholder.hashtag', defaultMessage: "hashtag (without #)" }),
+    },
+    word: {
+      icon: <MessageSquareOff className="size-5" />,
+      label: intl.formatMessage({ id: 'settings.content.muteTypes.words', defaultMessage: "Words" }),
+      inputLabel: intl.formatMessage({ id: 'settings.content.muteInput.word', defaultMessage: "Word or Phrase" }),
+      placeholder: intl.formatMessage({ id: 'settings.content.mutePlaceholder.word', defaultMessage: "word or phrase" }),
+    },
+    thread: {
+      icon: <MessageSquareOff className="size-5" />,
+      label: intl.formatMessage({ id: 'settings.content.muteTypes.threads', defaultMessage: "Threads" }),
+      inputLabel: intl.formatMessage({ id: 'settings.content.muteInput.thread', defaultMessage: "Event ID (hex or note)" }),
+      placeholder: intl.formatMessage({ id: 'settings.content.mutePlaceholder.thread', defaultMessage: "note1... or hex event ID" }),
+    },
+  };
+
   const handleAddMute = async () => {
     if (!newMuteValue.trim()) {
-      toast({ title: 'Error', description: 'Please enter a value', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'settings.content.error', defaultMessage: "Error" }), description: intl.formatMessage({ id: 'settings.content.enterValue', defaultMessage: "Please enter a value" }), variant: 'destructive' });
       return;
     }
 
@@ -1011,12 +1038,12 @@ export function MuteSettingsInternals() {
         value: newMuteValue.trim(),
       });
 
-      toast({ title: 'Success', description: 'Mute added successfully' });
+      toast({ title: intl.formatMessage({ id: 'settings.content.success', defaultMessage: "Success" }), description: intl.formatMessage({ id: 'settings.content.muteAdded', defaultMessage: "Mute added successfully" }) });
       setNewMuteValue('');
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to add mute',
+        title: intl.formatMessage({ id: 'settings.content.error', defaultMessage: "Error" }),
+        description: error instanceof Error ? error.message : intl.formatMessage({ id: 'settings.content.addMuteFailed', defaultMessage: "Failed to add mute" }),
         variant: 'destructive',
       });
     }
@@ -1025,11 +1052,11 @@ export function MuteSettingsInternals() {
   const handleRemoveMute = async (item: MuteListItem) => {
     try {
       await removeMute.mutateAsync(item);
-      toast({ title: 'Success', description: 'Mute removed successfully' });
+      toast({ title: intl.formatMessage({ id: 'settings.content.success', defaultMessage: "Success" }), description: intl.formatMessage({ id: 'settings.content.muteRemoved', defaultMessage: "Mute removed successfully" }) });
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to remove mute',
+        title: intl.formatMessage({ id: 'settings.content.error', defaultMessage: "Error" }),
+        description: error instanceof Error ? error.message : intl.formatMessage({ id: 'settings.content.removeMuteFailed', defaultMessage: "Failed to remove mute" }),
         variant: 'destructive',
       });
     }
@@ -1045,70 +1072,71 @@ export function MuteSettingsInternals() {
   return (
     <div>
 
-      {/* Add mute section */}
-      <div className="px-3 py-4 space-y-3 border-b border-border">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="mute-type" className="text-xs font-medium">Type</Label>
-            <Select value={newMuteType} onValueChange={(value) => setNewMuteType(value as MuteListItem['type'])}>
-              <SelectTrigger id="mute-type" className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pubkey">
-                  <div className="flex items-center gap-2">
-                    <UserX className="h-4 w-4" />
-                    User
-                  </div>
-                </SelectItem>
-                <SelectItem value="hashtag">
-                  <div className="flex items-center gap-2">
-                    <Hash className="h-4 w-4" />
-                    Hashtag
-                  </div>
-                </SelectItem>
-                <SelectItem value="word">
-                  <div className="flex items-center gap-2">
-                    <MessageSquareOff className="h-4 w-4" />
-                    Word/Phrase
-                  </div>
-                </SelectItem>
-                <SelectItem value="thread">
-                  <div className="flex items-center gap-2">
-                    <MessageSquareOff className="h-4 w-4" />
-                    Thread
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      {/* Add mute — single compact row */}
+      <div className="px-3 py-4 border-b border-border">
+        <div className="grid gap-2 sm:grid-cols-[10rem_1fr_auto]">
+          <Select value={newMuteType} onValueChange={(value) => setNewMuteType(value as MuteListItem['type'])}>
+            <SelectTrigger id="mute-type" aria-label={intl.formatMessage({ id: 'settings.content.whatToMute', defaultMessage: "What to mute" })} className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pubkey">
+                <div className="flex items-center gap-2">
+                  <UserX className="h-4 w-4" />
+                  <FormattedMessage id="settings.content.muteTypeOptions.user" defaultMessage={"User"} />
+                </div>
+              </SelectItem>
+              <SelectItem value="hashtag">
+                <div className="flex items-center gap-2">
+                  <Hash className="h-4 w-4" />
+                  <FormattedMessage id="settings.content.muteTypeOptions.hashtag" defaultMessage={"Hashtag"} />
+                </div>
+              </SelectItem>
+              <SelectItem value="word">
+                <div className="flex items-center gap-2">
+                  <MessageSquareOff className="h-4 w-4" />
+                  <FormattedMessage id="settings.content.muteTypeOptions.word" defaultMessage={"Word/Phrase"} />
+                </div>
+              </SelectItem>
+              <SelectItem value="thread">
+                <div className="flex items-center gap-2">
+                  <MessageSquareOff className="h-4 w-4" />
+                  <FormattedMessage id="settings.content.muteTypeOptions.thread" defaultMessage={"Thread"} />
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
 
-          <div className="space-y-2">
-            <Label htmlFor="mute-value" className="text-xs font-medium">
-              {MUTE_TYPE_CONFIG[newMuteType].inputLabel}
-            </Label>
-            <Input
-              id="mute-value"
-              value={newMuteValue}
-              onChange={(e) => setNewMuteValue(e.target.value)}
-              placeholder={MUTE_TYPE_CONFIG[newMuteType].placeholder}
-              className="h-9"
-            />
-          </div>
+          <Input
+            id="mute-value"
+            aria-label={muteTypeConfig[newMuteType].inputLabel}
+            value={newMuteValue}
+            onChange={(e) => setNewMuteValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAddMute();
+            }}
+            placeholder={muteTypeConfig[newMuteType].placeholder}
+            className="h-9"
+          />
+
+          <Button
+            onClick={handleAddMute}
+            disabled={addMute.isPending}
+            size="sm"
+            className="h-9"
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            <FormattedMessage id="common.add" defaultMessage={"Add"} />
+          </Button>
         </div>
-
-        <Button 
-          onClick={handleAddMute} 
-          disabled={addMute.isPending} 
-          size="sm"
-          className="w-full sm:w-auto"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Mute
-        </Button>
       </div>
 
-      {/* Muted items list */}
+      {/* Follow exemption toggle */}
+      <div className="px-3 py-4 border-b border-border">
+        <MuteFollowExemptionSection />
+      </div>
+
+      {/* Muted items list — grouped into collapsible sections */}
       {isLoading ? (
         <div className="space-y-2 px-3 py-4">
           <Skeleton className="h-12 w-full" />
@@ -1117,14 +1145,14 @@ export function MuteSettingsInternals() {
         </div>
       ) : muteItems.length === 0 ? (
         <p className="text-muted-foreground text-center py-8 text-sm">
-          No muted items yet
+          <FormattedMessage id="settings.content.noMutedItems" defaultMessage={"No muted items yet"} />
         </p>
       ) : (
-        <>
+        <Accordion type="multiple">
           {Object.entries(groupedMutes).map(([type, items]) => {
             if (items.length === 0) return null;
-            const config = MUTE_TYPE_CONFIG[type as MuteListItem['type']];
-            
+            const config = muteTypeConfig[type as MuteListItem['type']];
+
             return (
               <MuteTypeSection
                 key={type}
@@ -1136,7 +1164,7 @@ export function MuteSettingsInternals() {
               />
             );
           })}
-        </>
+        </Accordion>
       )}
     </div>
   );
@@ -1144,10 +1172,11 @@ export function MuteSettingsInternals() {
 
 /** Renders a muted user's avatar and display name instead of a raw hex pubkey. */
 function MutedUserProfile({ pubkey }: { pubkey: string }) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
+  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
 
   if (author.isLoading) {
     return (
@@ -1189,60 +1218,62 @@ function MutedThreadLink({ eventId }: { eventId: string }) {
 }
 
 function MuteTypeSection({
-  type: _type,
+  type,
   config,
   items,
   onRemove,
   isPending,
 }: {
   type: MuteListItem['type'];
-  config: typeof MUTE_TYPE_CONFIG[keyof typeof MUTE_TYPE_CONFIG];
+  config: MuteTypeConfig;
   items: MuteListItem[];
   onRemove: (item: MuteListItem) => void;
   isPending: boolean;
 }) {
+  const intl = useIntl();
+
   return (
-    <div className="border-b border-border last:border-b-0">
-      <div className="flex items-center gap-3 px-3 py-3.5">
-        <span className="text-muted-foreground shrink-0">{config.icon}</span>
-        <div className="min-w-0">
+    <AccordionItem value={type} className="border-b border-border last:border-b-0">
+      <AccordionTrigger className="px-3 py-3.5 hover:no-underline hover:bg-muted/20 transition-colors">
+        <span className="flex items-center gap-3 min-w-0">
+          <span className="text-muted-foreground shrink-0">{config.icon}</span>
           <span className="text-sm font-medium">{config.label}</span>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {items.length} {items.length === 1 ? 'item' : 'items'} • {config.description}
-          </p>
-        </div>
-      </div>
-      
-      <div className="divide-y divide-border">
-        {items.map((item, index) => (
-          <div
-            key={`${item.type}-${item.value}-${index}`}
-            className="flex items-center justify-between py-2.5 px-3 pl-12 hover:bg-muted/20 transition-colors"
-          >
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              {item.type === 'pubkey' ? (
-                <MutedUserProfile pubkey={item.value} />
-              ) : item.type === 'thread' ? (
-                <MutedThreadLink eventId={item.value} />
-              ) : (
-                <code className="text-xs truncate font-mono bg-muted px-2 py-1 rounded">
-                  {item.value}
-                </code>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onRemove(item)}
-              disabled={isPending}
-              className="shrink-0 h-8 w-8 p-0"
+          <Badge variant="secondary" className="shrink-0 font-normal">{items.length}</Badge>
+        </span>
+      </AccordionTrigger>
+      <AccordionContent className="pb-0">
+        <div className="divide-y divide-border border-t border-border">
+          {items.map((item, index) => (
+            <div
+              key={`${item.type}-${item.value}-${index}`}
+              className="flex items-center justify-between py-2.5 px-3 pl-12 hover:bg-muted/20 transition-colors"
             >
-              <Trash2 className="h-4 w-4 text-destructive" />
-             </Button>
-          </div>
-        ))}
-      </div>
-    </div>
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                {item.type === 'pubkey' ? (
+                  <MutedUserProfile pubkey={item.value} />
+                ) : item.type === 'thread' ? (
+                  <MutedThreadLink eventId={item.value} />
+                ) : (
+                  <code className="text-xs truncate font-mono bg-muted px-2 py-1 rounded">
+                    {item.value}
+                  </code>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onRemove(item)}
+                disabled={isPending}
+                aria-label={intl.formatMessage({ id: 'settings.content.removeMuteFor', defaultMessage: "Remove mute for {value}" }, { value: item.value })}
+                className="shrink-0 h-8 w-8 p-0"
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </AccordionContent>
+    </AccordionItem>
   );
 }
 
@@ -1263,8 +1294,8 @@ export function VideoAutoplaySection() {
   return (
     <div className="flex items-center justify-between">
       <div className="space-y-0.5">
-        <Label className="text-sm font-medium">Autoplay videos</Label>
-        <p className="text-xs text-muted-foreground">Automatically play videos (muted) in feeds and previews</p>
+        <Label className="text-sm font-medium"><FormattedMessage id="settings.content.autoplayVideos" defaultMessage={"Autoplay videos"} /></Label>
+        <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.content.autoplayVideosDescription" defaultMessage={"Automatically play videos (muted) in feeds and previews"} /></p>
       </div>
       <Switch
         checked={autoplay}
@@ -1292,8 +1323,8 @@ export function ThemePreferencesSection() {
   return (
     <div className="flex items-center justify-between">
       <div className="space-y-0.5">
-        <Label className="text-sm font-medium">Show custom profile themes</Label>
-        <p className="text-xs text-muted-foreground">Display other users' custom themes when visiting their profiles</p>
+        <Label className="text-sm font-medium"><FormattedMessage id="settings.content.showCustomThemes" defaultMessage={"Show custom profile themes"} /></Label>
+        <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.content.showCustomThemesDescription" defaultMessage={"Display other users' custom themes when visiting their profiles"} /></p>
       </div>
       <Switch
         checked={showOnProfiles}
@@ -1304,6 +1335,7 @@ export function ThemePreferencesSection() {
 }
 
 function HomePageSetting() {
+  const intl = useIntl();
   const { config, updateConfig } = useAppContext();
   const { user } = useCurrentUser();
   const { updateSettings } = useEncryptedSettings();
@@ -1315,7 +1347,7 @@ function HomePageSetting() {
       await updateSettings.mutateAsync({ homePage: value });
     }
     const item = SIDEBAR_ITEMS.find((s) => s.id === value);
-    toast({ title: `Homepage set to ${item?.label ?? value}` });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.homepageSet', defaultMessage: "Homepage set to {label}" }, { label: item?.label ?? value }) });
   };
 
   return (
@@ -1324,10 +1356,10 @@ function HomePageSetting() {
         <div className="min-w-0 flex-1">
           <Label className="text-sm font-medium flex items-center gap-2">
             <Home className="size-4" />
-            Homepage
+            <FormattedMessage id="settings.feed.homepage" defaultMessage={"Homepage"} />
           </Label>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Choose which page to display when you open the app
+            <FormattedMessage id="settings.feed.homepageDescription" defaultMessage={"Choose which page to display when you open the app"} />
           </p>
         </div>
         <Select value={config.homePage} onValueChange={handleHomePageChange}>

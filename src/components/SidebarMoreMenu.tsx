@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { Plus, Pencil, Check, SeparatorHorizontal, Search, ChevronDown, ChevronUp, LinkIcon } from 'lucide-react';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { sidebarItemIcon, itemPath } from '@/lib/sidebarItems';
+import { sidebarItemIcon, itemPath, SIDEBAR_SECTION_ORDER, type SidebarSection } from '@/lib/sidebarItems';
+import { cn } from '@/lib/utils';
 import type { HiddenSidebarItem } from '@/hooks/useFeedSettings';
 import { nip19 } from 'nostr-tools';
 import { parseNsiteSubdomain } from '@/lib/nsiteSubdomain';
@@ -83,7 +85,42 @@ function ScrollCaret({ direction, onMouseEnter, onMouseLeave }: { direction: 'up
   );
 }
 
+const sectionMessages = defineMessages({
+  yours: { id: 'sidebar.section.yours', defaultMessage: "Yours" },
+  app: { id: 'sidebar.section.app', defaultMessage: "App" },
+  social: { id: 'sidebar.section.social', defaultMessage: "Social" },
+  media: { id: 'sidebar.section.media', defaultMessage: "Media" },
+  reading: { id: 'sidebar.section.reading', defaultMessage: "Reading" },
+  fun: { id: 'sidebar.section.fun', defaultMessage: "Fun" },
+  personalize: { id: 'sidebar.section.personalize', defaultMessage: "Personalize" },
+  tools: { id: 'sidebar.section.tools', defaultMessage: "Tools" },
+});
+
+/** Bucket items by section, dropping empty sections and preserving section order. */
+function groupBySection(items: HiddenSidebarItem[]): Array<[SidebarSection, HiddenSidebarItem[]]> {
+  const groups = new Map<SidebarSection, HiddenSidebarItem[]>();
+  for (const item of items) {
+    const bucket = groups.get(item.section);
+    if (bucket) bucket.push(item);
+    else groups.set(item.section, [item]);
+  }
+  return SIDEBAR_SECTION_ORDER.flatMap((section) => {
+    const bucket = groups.get(section);
+    return bucket ? [[section, bucket] as [SidebarSection, HiddenSidebarItem[]]] : [];
+  });
+}
+
+function SectionHeader({ section, first }: { section: SidebarSection; first?: boolean }) {
+  return (
+    <div className={cn('px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70', first ? 'pt-1' : 'pt-3')}>
+      <FormattedMessage {...sectionMessages[section]} />
+    </div>
+  );
+}
+
 function ItemRow({ item, onAdd, onClose }: { item: HiddenSidebarItem; onAdd: (id: string) => void; onClose: () => void }) {
+  const intl = useIntl();
+  const label = intl.formatMessage({ id: `nav.${item.id}`, defaultMessage: item.label });
   return (
     <div className="flex items-center">
       <button
@@ -91,12 +128,12 @@ function ItemRow({ item, onAdd, onClose }: { item: HiddenSidebarItem; onAdd: (id
         className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors cursor-pointer"
       >
         {sidebarItemIcon(item.id, 'size-5 shrink-0')}
-        <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{item.label}</span>
+        <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{label}</span>
       </button>
       <button
         onClick={() => { onAdd(item.id); onClose(); }}
         className="size-8 flex items-center justify-center shrink-0 rounded-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-        title={`Add ${item.label} to sidebar`}
+        title={intl.formatMessage({ id: 'sidebar.addToSidebar', defaultMessage: "Add {label} to sidebar" }, { label })}
       >
         <Plus className="size-4" strokeWidth={4} />
       </button>
@@ -107,6 +144,7 @@ function ItemRow({ item, onAdd, onClose }: { item: HiddenSidebarItem; onAdd: (id
 export function SidebarMoreMenu({
   editing, hiddenItems, onDoneEditing, onStartEditing, onAdd, onAddDivider, onNavigate, open, onOpenChange, homePage,
 }: SidebarMoreMenuProps) {
+  const intl = useIntl();
   const [query, setQuery] = useState('');
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [addQuery, setAddQuery] = useState('');
@@ -114,8 +152,11 @@ export function SidebarMoreMenu({
   const [linkValue, setLinkValue] = useState('');
   const [linkError, setLinkError] = useState('');
 
-  const filtered = hiddenItems.filter((item) => item.label.toLowerCase().includes(query.toLowerCase()));
-  const addFiltered = hiddenItems.filter((item) => item.label.toLowerCase().includes(addQuery.toLowerCase()));
+  /** Translated label for a hidden item, so menus and filtering match the UI language. */
+  const labelOf = useCallback((item: HiddenSidebarItem) => intl.formatMessage({ id: `nav.${item.id}`, defaultMessage: item.label }), [intl]);
+
+  const filtered = hiddenItems.filter((item) => labelOf(item).toLowerCase().includes(query.toLowerCase()));
+  const addFiltered = hiddenItems.filter((item) => labelOf(item).toLowerCase().includes(addQuery.toLowerCase()));
 
   const handleAddLink = () => {
     const raw = linkValue.trim();
@@ -134,7 +175,7 @@ export function SidebarMoreMenu({
     if (raw.startsWith('iso3166:')) {
       const code = raw.slice('iso3166:'.length);
       if (!/^[A-Za-z]{2}(-[A-Za-z0-9]+)?$/.test(code)) {
-        setLinkError('Invalid country/region code');
+        setLinkError(intl.formatMessage({ id: 'sidebar.invalidCountryCode', defaultMessage: "Invalid country/region code" }));
         return;
       }
       onAdd(raw);
@@ -158,7 +199,7 @@ export function SidebarMoreMenu({
       const subdomain = raw.slice('nsite://'.length);
       const parsed = parseNsiteSubdomain(subdomain);
       if (!parsed || parsed.kind !== 35128) {
-        setLinkError('Invalid nsite identifier (only named sites are supported)');
+        setLinkError(intl.formatMessage({ id: 'sidebar.invalidNsite', defaultMessage: "Invalid nsite identifier (only named sites are supported)" }));
         return;
       }
       onAdd(raw);
@@ -176,11 +217,11 @@ export function SidebarMoreMenu({
       const decoded = nip19.decode(bech32);
       const validTypes = ['npub', 'nprofile', 'note', 'nevent', 'naddr'];
       if (!validTypes.includes(decoded.type)) {
-        setLinkError('Unsupported identifier type');
+        setLinkError(intl.formatMessage({ id: 'sidebar.unsupportedIdentifier', defaultMessage: "Unsupported identifier type" }));
         return;
       }
     } catch {
-      setLinkError('Invalid identifier');
+      setLinkError(intl.formatMessage({ id: 'sidebar.invalidIdentifier', defaultMessage: "Invalid identifier" }));
       return;
     }
 
@@ -202,26 +243,31 @@ export function SidebarMoreMenu({
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85">
               <Plus className="size-4" />
-              <span>Add</span>
+              <span><FormattedMessage id="common.add" defaultMessage={"Add"} /></span>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="top" align="start" collisionPadding={8} className="w-[240px] p-1 flex flex-col max-h-[calc(var(--radix-dropdown-menu-content-available-height)-12px)]">
+          <DropdownMenuContent side="top" align="start" collisionPadding={8} className="w-[240px] p-1 flex flex-col max-h-[calc(var(--radix-dropdown-menu-content-available-height)-12px-var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]">
             <div className="flex items-center gap-3 px-2 py-2 shrink-0">
               <Search className="size-5 shrink-0" />
-              <input value={addQuery} onChange={(e) => setAddQuery(e.target.value)} placeholder="Search..." className="flex-1 min-w-0 bg-transparent text-base md:text-sm outline-none placeholder:text-muted-foreground/60" autoFocus />
+              <input value={addQuery} onChange={(e) => setAddQuery(e.target.value)} placeholder={intl.formatMessage({ id: 'common.searchPlaceholder', defaultMessage: "Search..." })} className="flex-1 min-w-0 bg-transparent text-base md:text-sm outline-none placeholder:text-muted-foreground/60" autoFocus />
             </div>
             <div className="h-px bg-border mb-1 shrink-0" />
             {add.canScrollUp && <ScrollCaret direction="up" onMouseEnter={() => add.startScroll('up')} onMouseLeave={add.stopScroll} />}
             <div ref={add.refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={add.onScroll}>
-              {addFiltered.map((item) => <ItemRow key={item.id} item={item} onAdd={onAdd} onClose={() => setAddMenuOpen(false)} />)}
-              {addFiltered.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground text-center">No results</p>}
+              {groupBySection(addFiltered).map(([section, items], i) => (
+                <div key={section}>
+                  <SectionHeader section={section} first={i === 0} />
+                  {items.map((item) => <ItemRow key={item.id} item={item} onAdd={onAdd} onClose={() => setAddMenuOpen(false)} />)}
+                </div>
+              ))}
+              {addFiltered.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground text-center"><FormattedMessage id="common.noResults" defaultMessage={"No results"} /></p>}
             </div>
             {add.canScrollDown && <ScrollCaret direction="down" onMouseEnter={() => add.startScroll('down')} onMouseLeave={add.stopScroll} />}
           </DropdownMenuContent>
         </DropdownMenu>
         <button onClick={onAddDivider} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85">
           <SeparatorHorizontal className="size-4" />
-          <span>Add divider</span>
+          <span><FormattedMessage id="sidebar.addDivider" defaultMessage={"Add divider"} /></span>
         </button>
         {linkInput ? (
           <div className="flex flex-col gap-1 px-4 py-2 bg-background/85 rounded-2xl">
@@ -240,7 +286,7 @@ export function SidebarMoreMenu({
                     setLinkError('');
                   }
                 }}
-                placeholder="URL, npub1..., nsite://..., ..."
+                placeholder={intl.formatMessage({ id: 'sidebar.linkInputPlaceholder', defaultMessage: "URL, npub1..., nsite://..., ..." })}
                 className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
                 autoFocus
               />
@@ -251,13 +297,13 @@ export function SidebarMoreMenu({
                 onClick={handleAddLink}
                 className="text-xs font-medium text-primary hover:underline"
               >
-                Add
+                <FormattedMessage id="common.add" defaultMessage={"Add"} />
               </button>
               <button
                 onClick={() => { setLinkInput(false); setLinkValue(''); setLinkError(''); }}
                 className="text-xs text-muted-foreground hover:underline"
               >
-                Cancel
+                <FormattedMessage id="common.cancel" defaultMessage={"Cancel"} />
               </button>
             </div>
           </div>
@@ -267,12 +313,12 @@ export function SidebarMoreMenu({
             className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85"
           >
             <LinkIcon className="size-4" />
-            <span>Add link</span>
+            <span><FormattedMessage id="sidebar.addLink" defaultMessage={"Add link"} /></span>
           </button>
         )}
         <button onClick={onDoneEditing} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-primary font-medium hover:bg-primary/10 bg-background/85">
           <Check className="size-4" />
-          <span>Done editing</span>
+          <span><FormattedMessage id="sidebar.doneEditing" defaultMessage={"Done editing"} /></span>
         </button>
       </div>
     );
@@ -283,35 +329,40 @@ export function SidebarMoreMenu({
       <DropdownMenuTrigger asChild>
         <button className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40 bg-background/85">
           {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-          <span>More...</span>
+          <span><FormattedMessage id="sidebar.more" defaultMessage={"More..."} /></span>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="start" collisionPadding={8} className="w-[240px] p-1 flex flex-col max-h-[calc(var(--radix-dropdown-menu-content-available-height)-12px)]">
+      <DropdownMenuContent side="top" align="start" collisionPadding={8} className="w-[240px] p-1 flex flex-col max-h-[calc(var(--radix-dropdown-menu-content-available-height)-12px-var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]">
         <div className="flex items-center gap-3 px-2 py-2 shrink-0">
           <Search className="size-5 shrink-0" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search..." className="flex-1 min-w-0 bg-transparent text-base md:text-sm outline-none placeholder:text-muted-foreground/60" autoFocus />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={intl.formatMessage({ id: 'common.searchPlaceholder', defaultMessage: "Search..." })} className="flex-1 min-w-0 bg-transparent text-base md:text-sm outline-none placeholder:text-muted-foreground/60" autoFocus />
         </div>
         <div className="h-px bg-border mb-1 shrink-0" />
         {main.canScrollUp && <ScrollCaret direction="up" onMouseEnter={() => main.startScroll('up')} onMouseLeave={main.stopScroll} />}
         <div ref={main.refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={main.onScroll}>
-          {filtered.map((item) => (
-            <div key={item.id} className="flex items-center">
-              <Link to={itemPath(item.id, undefined, homePage)} onClick={() => { onOpenChange(false); onNavigate?.(); }} className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors">
-                {sidebarItemIcon(item.id, 'size-5 shrink-0')}
-                <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{item.label}</span>
-              </Link>
-              <button onClick={() => { onAdd(item.id); onOpenChange(false); }} className="size-8 flex items-center justify-center shrink-0 rounded-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title={`Add ${item.label} to sidebar`}>
-                <Plus className="size-4" strokeWidth={4} />
-              </button>
+          {groupBySection(filtered).map(([section, items], i) => (
+            <div key={section}>
+              <SectionHeader section={section} first={i === 0} />
+              {items.map((item) => (
+                <div key={item.id} className="flex items-center">
+                  <Link to={itemPath(item.id, undefined, homePage)} onClick={() => { onOpenChange(false); onNavigate?.(); }} className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors">
+                    {sidebarItemIcon(item.id, 'size-5 shrink-0')}
+                    <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{labelOf(item)}</span>
+                  </Link>
+                  <button onClick={() => { onAdd(item.id); onOpenChange(false); }} className="size-8 flex items-center justify-center shrink-0 rounded-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title={intl.formatMessage({ id: 'sidebar.addToSidebar', defaultMessage: "Add {label} to sidebar" }, { label: labelOf(item) })}>
+                    <Plus className="size-4" strokeWidth={4} />
+                  </button>
+                </div>
+              ))}
             </div>
           ))}
-          {filtered.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground text-center">No results</p>}
+          {filtered.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground text-center"><FormattedMessage id="common.noResults" defaultMessage={"No results"} /></p>}
         </div>
         {main.canScrollDown && <ScrollCaret direction="down" onMouseEnter={() => main.startScroll('down')} onMouseLeave={main.stopScroll} />}
         <div className="h-px bg-border my-1 shrink-0" />
         <button onClick={() => { onStartEditing(); onOpenChange(false); }} className="flex items-center gap-3 w-full px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors cursor-pointer shrink-0">
           <Pencil className="size-5" />
-          <span>Edit sidebar</span>
+          <span><FormattedMessage id="sidebar.editSidebar" defaultMessage={"Edit sidebar"} /></span>
         </button>
       </DropdownMenuContent>
     </DropdownMenu>

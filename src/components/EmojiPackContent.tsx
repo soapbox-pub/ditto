@@ -10,6 +10,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { cn } from '@/lib/utils';
+import { optimisticPatchEventTags, rollbackEvent, toggleTag } from '@/lib/optimisticEvent';
 
 const EmojiPackDialog = lazy(() => import('@/components/EmojiPackDialog').then(m => ({ default: m.EmojiPackDialog })));
 
@@ -96,6 +97,15 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
     if (!user || !pack) return;
     setIsPending(true);
 
+    const emojiListKey = ['emoji-list', user.pubkey];
+    // Optimistically toggle the `a` pack reference so the button flips
+    // immediately. Snapshot for rollback on error.
+    const snapshot = optimisticPatchEventTags(queryClient, emojiListKey, {
+      kind: 10030,
+      pubkey: user.pubkey,
+      transform: (tags) => toggleTag(tags, 'a', packRef),
+    });
+
     try {
       // Get existing kind 10030 tags or start fresh
       const existingTags = emojiListQuery.data?.tags.filter(
@@ -129,6 +139,7 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
       });
     } catch (error) {
       console.error('Failed to update emoji list:', error);
+      rollbackEvent(queryClient, emojiListKey, snapshot);
       toast({
         title: 'Failed',
         description: 'Could not update your emoji collection.',

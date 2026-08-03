@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Archive, ArrowLeft, Gamepad2, Film, Mic, Monitor, Sparkles, Play, ExternalLink, Clock, Search, X, Loader2 } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
@@ -551,7 +551,7 @@ function ArchiveSearchBar() {
             if (debouncedQuery.length >= 2) setDropdownOpen(true);
           }}
           onKeyDown={handleKeyDown}
-          className="pl-9 pr-9 h-9 text-base md:text-sm"
+          className="pl-9 pr-9 h-9 text-base md:text-sm rounded-full"
         />
         {query ? (
           <button

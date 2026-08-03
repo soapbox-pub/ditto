@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useInView } from '@/hooks/useInView';
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft } from 'lucide-react';
+import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake, HeartHandshake } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -23,7 +23,10 @@ import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { NoteCard } from '@/components/NoteCard';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
-import { ProfileReactionButton } from '@/components/ProfileReactionButton';
+import { ProfileLoveButton } from '@/components/ProfileLoveButton';
+import { ProfileNsiteButton } from '@/components/ProfileNsiteButton';
+import { CelebrationOverlay, CELEBRATION_DURATION_MS } from '@/components/CelebrationOverlay';
+import { BirthdayRain, PartyHat } from '@/components/BirthdayRain';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Nip05Badge, VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -35,12 +38,15 @@ import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useMuteList } from '@/hooks/useMuteList';
-import { isEventMuted } from '@/lib/muteHelpers';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useProfileFeed, useProfileLikes as useProfileLikesInfinite, useTabFeed, filterByTab } from '@/hooks/useProfileFeed';
 import type { ProfileTab as CoreProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { MediaCollage, MediaCollageSkeleton } from '@/components/MediaCollage';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
+import { useInterests } from '@/hooks/useInterests';
+import { normalizeTagValue } from '@/lib/hashtag';
+import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
 import { useWallComments } from '@/hooks/useWallComments';
 import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
@@ -66,6 +72,7 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useNip85UserStats } from '@/hooks/useNip85Stats';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { useBackDismiss } from '@/hooks/useBackDismiss';
 import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 
@@ -80,16 +87,14 @@ import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
 import type { ProfileTab, ProfileTabsData, TabFilter, TabVarDef } from '@/lib/profileTabsEvent';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
   SortableContext, sortableKeyboardCoordinates, useSortable,
   horizontalListSortingStrategy, arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS as DndCSS } from '@dnd-kit/utilities';
+  CSS as DndCSS,
+  type DragEndEvent,
+} from '@/lib/sortable';
 import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
-import { resolveCssFamily } from '@/lib/fonts';
+import { resolveCssFamily, loadBundledFont } from '@/lib/fonts';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontSection } from '@/components/FontPicker';
@@ -102,6 +107,9 @@ import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import type { AddrCoords } from '@/hooks/useEvent';
 import { isNostrId } from '@/lib/nostrId';
+import { tryNpubEncode } from '@/lib/safeNip19';
+import { parseBirthdayFromContent, isBirthdayToday } from '@/lib/birthday';
+import { startBirthdayJingle, stopBirthdayJingle } from '@/lib/birthdayJingle';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { parseAddr } from '@/lib/parseAddr';
 import { impactMedium } from '@/lib/haptics';
@@ -113,32 +121,6 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
 import { isWeatherFieldLabel } from '@/lib/weatherStation';
 import { WeatherStationCard } from '@/components/WeatherStationCard';
-
-const STREAK_WINDOW_HOURS = 24;
-const STREAK_DISPLAY_LIMIT = 99;
-
-/** Calculate posting streak: consecutive kind 1 posts within 24-hour windows. */
-function calculateStreak(posts: NostrEvent[]): number {
-  if (!posts || posts.length === 0) return 0;
-
-  const kind1Posts = posts.filter((e) => e.kind === 1);
-  if (kind1Posts.length === 0) return 0;
-
-  const sorted = [...kind1Posts].sort((a, b) => b.created_at - a.created_at);
-  const windowSeconds = STREAK_WINDOW_HOURS * 3600;
-
-  let streak = 1;
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const gap = sorted[i].created_at - sorted[i + 1].created_at;
-    if (gap <= windowSeconds) {
-      streak++;
-    } else {
-      break;
-    }
-  }
-
-  return streak;
-}
 
 /** Parse the custom "fields" array from kind 0 metadata content. */
 function parseProfileFields(content: string): Array<{ label: string; value: string }> {
@@ -185,6 +167,9 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const [giveBadgeOpen, setGiveBadgeOpen] = useState(false);
   const [followQROpen, setFollowQROpen] = useState(false);
   const zapTriggerRef = useRef<HTMLSpanElement>(null);
+  // ZapDialog mounts its own payment-target query, so defer mounting it until
+  // the user actually invokes zap instead of on every profile load.
+  const [zapMounted, setZapMounted] = useState(false);
   // Show zap action for any non-self profile. Both on-chain and Lightning
   // zaps are offered inside the dialog (Lightning only when the author has
   // a lud06/lud16 configured).
@@ -246,6 +231,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   };
   const handleZap = () => {
     close();
+    setZapMounted(true);
     setTimeout(() => zapTriggerRef.current?.click(), 150);
   };
 
@@ -354,12 +340,14 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
 
     <ReportDialog pubkey={pubkey} open={reportOpen} onOpenChange={setReportOpen} />
 
-    <AddToListDialog
-      pubkey={pubkey}
-      displayName={displayName}
-      open={addToListOpen}
-      onOpenChange={setAddToListOpen}
-    />
+    {addToListOpen && (
+      <AddToListDialog
+        pubkey={pubkey}
+        displayName={displayName}
+        open={addToListOpen}
+        onOpenChange={setAddToListOpen}
+      />
+    )}
 
     {isOwnProfile && (
       <>
@@ -383,7 +371,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
       />
     )}
 
-    {showZap && authorEvent && (
+    {showZap && authorEvent && zapMounted && (
       <ZapDialog target={authorEvent}>
         <span ref={zapTriggerRef} className="hidden" />
       </ZapDialog>
@@ -842,6 +830,10 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
     };
   }, []);
 
+  // Back gesture (iOS edge-swipe / Android) closes the viewer instead of
+  // navigating the page away.
+  useBackDismiss(onClose);
+
   // Safety: clear animating lock on unmount so stale refs can't block controls
   useEffect(() => () => { animatingRef.current = false; }, []);
 
@@ -973,32 +965,103 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
 
 // ----- Main Component -----
 
-const CORE_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
-const DEFAULT_TAB_LABELS = ['Posts', 'Posts & replies', 'Media', 'Likes', 'Wall'];
+const CORE_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
+const DEFAULT_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Likes', 'Wall'];
 
-// Map from display label → internal tab id for core tabs
+// Map from canonical label → internal tab id for core tabs
 const CORE_TAB_IDS: Record<string, string> = {
-  'Posts': 'posts', 'Posts & replies': 'replies',
+  'Feed': 'posts', 'Posts & replies': 'replies',
   'Media': 'media', 'Badges': 'badges', 'Likes': 'likes', 'Wall': 'wall',
 };
 
+// Reverse of CORE_TAB_IDS: internal tab id → canonical label. Used to derive the
+// shareable URL slug for the active core tab (custom tabs use their label as-is).
+const CORE_ID_TO_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(CORE_TAB_IDS).map(([label, id]) => [id, label]),
+);
+
+// Turn a tab label into a lowercase, URL-friendly slug for the shareable hash,
+// e.g. 'Posts & replies' → 'posts-replies', 'Cool Stuff' → 'cool-stuff'. Unicode
+// letters/numbers are preserved (lowercased) so non-Latin labels still slug.
+const slugifyTabLabel = (label: string): string =>
+  label
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '');
+
+/**
+ * Commit a cheap static skeleton first, then mount the heavy body from an
+ * effect. The lazy route reveal is an interruptible concurrent render, and on
+ * slow devices query-cache updates restart it faster than a full pass over
+ * this tree can finish — livelocking the route on its Suspense fallback. The
+ * effect-driven render is sync priority and can't be restarted.
+ */
 export function ProfilePage() {
+  const [bodyMounted, setBodyMounted] = useState(false);
+
+  useEffect(() => {
+    setBodyMounted(true);
+  }, []);
+
+  if (!bodyMounted) {
+    return (
+      <main className="flex-1 min-w-0 relative">
+        <div className="h-36 md:h-48 bg-secondary relative">
+          <Skeleton className="w-full h-full rounded-none" />
+        </div>
+        <div className="px-4 pb-4">
+          <div className="relative -mt-12 mb-3">
+            <Skeleton className="size-24 rounded-full border-4 border-background" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  return <ProfilePageInner />;
+}
+
+function ProfilePageInner() {
   const { config } = useAppContext();
   const params = useParams();
   const npub = params.npub ?? params.nip19;
+  const navigate = useNavigate();
+  const location = useLocation();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { toast } = useToast();
-  const { muteItems } = useMuteList();
+  const { isMuted: isMutedEvent } = useMuteFilter();
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<CoreProfileTab | string>('posts');
   const [sidebarMediaUrl, setSidebarMediaUrl] = useState<string | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  // Hearts sprinkle over the header when this profile is added to the Love List.
+  const [lovedCelebrating, setLovedCelebrating] = useState(false);
+  // NIP-24 birthday — mutes the looping jingle while viewing a birthday profile.
+  const [jingleMuted, setJingleMuted] = useState(false);
+  // NIP-24 birthday — composer prefilled with a birthday wish mentioning this profile.
+  const [birthdayComposeOpen, setBirthdayComposeOpen] = useState(false);
   const [followQROpen, setFollowQROpen] = useState(false);
   const [followersModalOpen, setFollowersModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-
+  // Sprinkle hearts over the header for a moment when a profile is loved.
+  // prefers-reduced-motion callers skip it (the overlay is also hidden by CSS
+  // as defense-in-depth).
+  const handleLoved = useCallback(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    setLovedCelebrating(true);
+  }, []);
+  useEffect(() => {
+    if (!lovedCelebrating) return;
+    const timeout = setTimeout(() => setLovedCelebrating(false), CELEBRATION_DURATION_MS);
+    return () => clearTimeout(timeout);
+  }, [lovedCelebrating]);
   // Determine if the URL param is a NIP-05 identifier (contains @ or is a domain-like string)
   const isNip05Param = useMemo(() => {
     if (!npub) return false;
@@ -1075,6 +1138,50 @@ interface FollowersListModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   displayName: string;
+}
+
+/**
+ * Quiet "You both like art, music and 3 more" line shown on profiles whose
+ * interests list (kind 10015) overlaps the viewer's — a conversation starter
+ * for making friends. Reads as prose (no boxes, no `#`); each interest links
+ * to its tag feed. Tags are pre-validated by useProfileSupplementary.
+ */
+function SharedInterests({ tags }: { tags: string[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? tags : tags.slice(0, 3);
+  const hidden = tags.length - shown.length;
+
+  return (
+    <div className="flex items-start gap-1.5 mt-2 text-sm text-muted-foreground">
+      <HeartHandshake className="size-3.5 shrink-0 mt-0.5 text-primary" aria-hidden="true" />
+      <p className="min-w-0 break-words">
+        You both like{' '}
+        {shown.map((tag, i) => (
+          <Fragment key={tag}>
+            {i > 0 && (i === shown.length - 1 && hidden === 0 ? ' and ' : ', ')}
+            <Link
+              to={`/t/${encodeURIComponent(tag)}`}
+              className="font-medium text-foreground hover:text-primary hover:underline"
+            >
+              {tag}
+            </Link>
+          </Fragment>
+        ))}
+        {hidden > 0 && (
+          <>
+            {' '}and{' '}
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="font-medium underline decoration-dotted underline-offset-2 hover:text-foreground transition-colors"
+            >
+              {hidden} more
+            </button>
+          </>
+        )}
+      </p>
+    </div>
+  );
 }
 
 function FollowersListModal({ pubkey, open, onOpenChange, displayName }: FollowersListModalProps) {
@@ -1224,12 +1331,53 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     return CORE_TAB_IDS[first.label] ?? first.label;
   }, [viewTabs]);
 
-  // When profile tabs finish loading, focus the leftmost tab.
-  useEffect(() => {
-    if (profileTabsQuery.isFetched) {
-      setActiveTab(firstTabId);
+  // ── Deep-linkable tabs ──────────────────────────────────────────────────────
+  // The active tab is mirrored to the URL hash as a lowercase slug so a profile
+  // tab can be linked and shared, e.g. `/npub1…#cool-stuff`. The first (default)
+  // tab keeps a clean, hash-free URL.
+  //
+  // Only `selectTab` (invoked from user gestures) writes the URL; the effect
+  // below is strictly read-only (hash → active tab). Keeping navigation out of
+  // the effect is what prevents an activeTab↔hash update loop.
+  const hashSlug = useMemo(() => {
+    let raw = location.hash.replace(/^#/, '');
+    if (!raw) return null;
+    try {
+      raw = decodeURIComponent(raw);
+    } catch {
+      // keep the raw (already-decoded) value
     }
-  }, [profileTabsQuery.isFetched, firstTabId]);
+    return slugifyTabLabel(raw) || null;
+  }, [location.hash]);
+
+  // Select the tab whose slug matches the URL hash once tabs are known; fall back
+  // to the leftmost tab. Re-runs on hash changes too, so back/forward works. This
+  // never navigates, so it can't feed back into selectTab's writes.
+  useEffect(() => {
+    if (!profileTabsQuery.isFetched) return;
+    const match = hashSlug ? viewTabs.find((t) => slugifyTabLabel(t.label) === hashSlug) : undefined;
+    const targetId = match ? (CORE_TAB_IDS[match.label] ?? match.label) : firstTabId;
+    setActiveTab((prev) => (prev === targetId ? prev : targetId));
+  }, [profileTabsQuery.isFetched, hashSlug, viewTabs, firstTabId]);
+
+  // Switch tabs from a user gesture: update state and mirror the tab into the URL
+  // hash. The first/default tab clears the hash for a clean, shareable base URL.
+  const selectTab = useCallback((tabId: string) => {
+    setActiveTab(tabId);
+    const label = CORE_ID_TO_LABEL[tabId] ?? tabId;
+    const desiredSlug = tabId === firstTabId ? '' : slugifyTabLabel(label);
+    // Compare against the live hash normalized back to a slug, so browser
+    // percent-encoding never triggers a redundant navigation.
+    let currentRaw = window.location.hash.replace(/^#/, '');
+    try {
+      currentRaw = decodeURIComponent(currentRaw);
+    } catch {
+      // keep the raw value
+    }
+    if (slugifyTabLabel(currentRaw) !== desiredSlug) {
+      navigate({ hash: desiredSlug ? `#${desiredSlug}` : '' }, { replace: true, preventScrollReset: true });
+    }
+  }, [firstTabId, navigate]);
 
   const enterTabEditMode = () => {
     setLocalTabs(viewTabs);
@@ -1254,7 +1402,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   // Canonical NIP-01 filters for core tabs so other clients can interpret the event.
   // Values are interpolated with the actual pubkey (not $me) since these are concrete filters.
   const CORE_TAB_FILTERS: Record<string, TabFilter> = pubkey ? {
-    'Posts': { kinds: [1, 6], authors: [pubkey] },
+    'Feed': { kinds: [1, 6], authors: [pubkey] },
     'Posts & replies': { authors: [pubkey] },
     'Media': { kinds: [1], authors: [pubkey] },
     'Badges': { kinds: [10008, 30008], authors: [pubkey] },
@@ -1272,7 +1420,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     // If the active tab was removed, fall back to the first remaining tab
     const remainingIds = localTabs.map((t) => CORE_TAB_IDS[t.label] ?? t.label);
     if (!remainingIds.includes(activeTab)) {
-      setActiveTab(remainingIds[0] ?? 'posts');
+      selectTab(remainingIds[0] ?? 'posts');
     }
     setTabEditMode(false);
   };
@@ -1304,7 +1452,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   useEffect(() => {
     const isCoreTab = ['posts', 'replies', 'media', 'badges', 'likes', 'wall'].includes(activeTab);
     if (!isCoreTab && !profileSavedTabs.find((t) => t.label === activeTab)) {
-      setActiveTab(firstTabId);
+      selectTab(firstTabId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileSavedTabs, firstTabId]);
@@ -1343,6 +1491,31 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const metadataEvent = author.data?.event;
   const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
 
+  // NIP-24 birthday — parse from the raw kind 0 content and celebrate all day
+  // when the profile's month/day match today (year is optional and unused).
+  const birthday = useMemo(
+    () => parseBirthdayFromContent(metadataEvent?.content),
+    [metadataEvent?.content],
+  );
+  const isBirthday = isBirthdayToday(birthday);
+  // npub for the prefilled birthday-wish mention. tryNpubEncode because the
+  // pubkey may come from an untrusted NIP-05 .well-known lookup.
+  const birthdayNpub = isBirthday ? tryNpubEncode(pubkey) : undefined;
+
+  // Loop the birthday jingle while viewing the profile; stops on navigation
+  // away (unmount), profile change, or mute.
+  useEffect(() => {
+    if (!isBirthday || jingleMuted) return;
+    startBirthdayJingle();
+    return () => stopBirthdayJingle();
+  }, [isBirthday, jingleMuted, pubkey]);
+
+  // Script display font for the birthday heading — lazy-loaded only on
+  // someone's birthday.
+  useEffect(() => {
+    if (isBirthday) loadBundledFont('Pacifico');
+  }, [isBirthday]);
+
   // Kind 3 + 10001 — fetched separately so the large contact list
   // doesn't block the profile header or feed from rendering.
   const { data: supplementary } = useProfileSupplementary(pubkey);
@@ -1364,7 +1537,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     fetchNextPage: fetchNextMediaPage,
     hasNextPage: hasNextMediaPage,
     isFetchingNextPage: isFetchingNextMediaPage,
-  } = useProfileMedia(pubkey, hasTabs);
+  } = useProfileMedia(pubkey, hasTabs && activeTab === 'media');
 
   // Infinite-scroll likes
   const {
@@ -1383,7 +1556,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     fetchNextPage: fetchNextWallPage,
     hasNextPage: hasNextWallPage,
     isFetchingNextPage: isFetchingNextWallPage,
-  } = useWallComments(pubkey, hasTabs ? wallFollowList : undefined);
+  } = useWallComments(pubkey, hasTabs && activeTab === 'wall' ? wallFollowList : undefined);
 
   // Synthetic kind 0 event for the ComposeBox replyTo (NIP-22 comments on the profile)
   const wallReplyTarget = useMemo((): NostrEvent | undefined => {
@@ -1419,11 +1592,29 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     return { pubkeys, count: pubkeys.length };
   }, [supplementary?.following]);
 
+  // Profile's love list (kind 15683, derived from supplementary query)
+  const lovedCount = supplementary?.loved.length ?? 0;
+
   // NIP-85 user stats (followers count)
   const { data: userStats } = useNip85UserStats(pubkey);
   const followersCount = userStats?.followers ?? 0;
 
   const isOwnProfile = user?.pubkey === pubkey;
+
+  // Whether this profile's Love List (kind 15683) includes the viewer.
+  // No extra query — the love list is already part of the supplementary fetch.
+  const lovesYou = !isOwnProfile && !!user && (supplementary?.loved.includes(user.pubkey) ?? false);
+
+  // Hashtag interests (kind 10015) the viewer shares with this profile.
+  // The profile's interests come from the supplementary fetch (already
+  // normalized); the viewer's own list is normalized the same way here so
+  // stray `#` prefixes or whitespace don't break the match.
+  const { hashtags: viewerInterests } = useInterests();
+  const sharedInterests = useMemo(() => {
+    if (isOwnProfile || !user || viewerInterests.length === 0) return [];
+    const mine = new Set(viewerInterests.map((tag) => normalizeTagValue(tag)).filter(Boolean));
+    return (supplementary?.interests ?? []).filter((tag) => mine.has(tag)).sort();
+  }, [isOwnProfile, user, viewerInterests, supplementary?.interests]);
 
   // Does the profile owner follow the current user?
   // Wall posts are only visible to people the profile owner follows,
@@ -1687,13 +1878,13 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
         if (!seen.has(key)) {
           seen.add(key);
-          if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) continue;
+          if (isMutedEvent(item.event)) continue;
           items.push(item);
         }
       }
     }
     return items;
-  }, [feedData?.pages, muteItems]);
+  }, [feedData?.pages, isMutedEvent]);
 
   // Flatten media pages for the sidebar and media tab
   const mediaEvents = useMemo(() => {
@@ -1714,7 +1905,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   // Profile badges for bio section
   const { refs: badgeRefs } = useProfileBadges(pubkey);
   const firstBadgeRefs = useMemo(() => badgeRefs.slice(0, 5), [badgeRefs]);
-  const { badgeMap } = useBadgeDefinitions(firstBadgeRefs);
+  const { badgeMap, isLoading: badgeDefsLoading } = useBadgeDefinitions(firstBadgeRefs);
 
   // Flatten likes pages and deduplicate
   const likedItems = useMemo(() => {
@@ -1741,13 +1932,13 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       for (const comment of page.comments) {
         if (!seen.has(comment.id)) {
           seen.add(comment.id);
-          if (muteItems.length > 0 && isEventMuted(comment, muteItems)) continue;
+          if (isMutedEvent(comment)) continue;
           items.push(comment);
         }
       }
     }
     return items;
-  }, [wallData?.pages, muteItems]);
+  }, [wallData?.pages, isMutedEvent]);
 
   // Pair each wall comment with its first direct sub-reply (same pattern as PostDetailPage replies).
   // useWallComments queries #A (uppercase root tag) which returns all depth levels per NIP-22,
@@ -1778,17 +1969,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
       firstSubReply: childrenByParent.get(comment.id)?.[0],
     }));
   }, [wallComments, pubkey]);
-
-  const streak = useMemo(() => {
-    if (!feedData?.pages) return 0;
-    const events: NostrEvent[] = [];
-    for (const page of feedData.pages) {
-      for (const item of page.items) {
-        events.push(item.event);
-      }
-    }
-    return calculateStreak(events);
-  }, [feedData?.pages]);
 
   // Infinite scroll sentinel
   const { ref: scrollRef, inView } = useInView({
@@ -1871,9 +2051,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const openWallCompose = useCallback(() => setWallComposeOpen(true), []);
 
   const handleSidebarMediaClick = useCallback((url: string) => {
-    setActiveTab('media');
+    selectTab('media');
     setSidebarMediaUrl(url);
-  }, []);
+  }, [selectTab]);
 
   useLayoutOptions(pubkey ? {
     rightSidebar: <ProfileRightSidebar fields={fields} pubkey={pubkey} onMediaClick={handleSidebarMediaClick} />,
@@ -1919,7 +2099,24 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   }
 
   return (
-    <main className="flex-1 min-w-0">
+    <main className="flex-1 min-w-0 relative">
+      {/* Love List celebration — hearts rain down over the top of the profile
+          when this profile is added to the Love List. Anchored to the top
+          third of the page so the sprinkle covers the header. */}
+      {lovedCelebrating && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[40vh] z-20 overflow-hidden">
+          <CelebrationOverlay variant="hearts" />
+        </div>
+      )}
+      {/* Birthday rain — its own persistent weather effect (not the one-shot
+          post celebration): confetti and balloons fall continuously through
+          the full height of the content area for as long as the profile is
+          open. Density scales with the measured height inside BirthdayRain. */}
+      {isBirthday && (
+        <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+          <BirthdayRain />
+        </div>
+      )}
       <PullToRefresh onRefresh={handleRefresh}>
         {/* Banner */}
           <div className="h-36 md:h-48 bg-secondary relative">
@@ -2106,6 +2303,21 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+
+            {/* Wish happy birthday — lower right of the banner (someone else's birthday only) */}
+            {!isOwnProfile && birthdayNpub && (
+              <Button
+                variant="outline"
+                className="absolute bottom-3 right-3 z-10 max-w-[calc(100%-1.5rem)] rounded-full font-bold backdrop-blur-sm border-amber-400/60 bg-background/70 text-amber-700 hover:bg-background/85 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
+                onClick={() => setBirthdayComposeOpen(true)}
+                disabled={!user}
+                title={user ? undefined : 'Log in to wish a happy birthday'}
+                aria-label={`Wish ${displayName} a Happy Birthday!`}
+              >
+                <Cake className="size-4 mr-2 shrink-0" aria-hidden="true" />
+                <span className="truncate">Wish {displayName} a Happy Birthday!</span>
+              </Button>
+            )}
           </div>
 
           {/* Profile info */}
@@ -2141,17 +2353,28 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     </div>
                   </button>
 
-                  {/* NIP-38 thought bubble — floats beside the avatar over the banner */}
+                  {/* Birthday party hat — perched on the avatar's head,
+                      tilted like it was pulled on in a hurry. */}
+                  {isBirthday && (
+                    <div className="pointer-events-none absolute -top-5 right-0 md:-top-7 md:right-1 z-10 rotate-[18deg]">
+                      <PartyHat className="size-12 md:size-16 drop-shadow-md" />
+                    </div>
+                  )}
+
+                  {/* NIP-38 thought bubble — floats beside the avatar over the banner.
+                      `w-max` is load-bearing: `left` puts this past the right edge of its
+                      relative parent, so the available width for shrink-to-fit clamps to 0
+                      and a status that is only a custom-emoji image collapses to nothing. */}
                   {feedSettings.showUserStatuses !== false && profileStatus.status && (
-                    <div className="absolute top-3 md:top-4 left-[calc(100%+8px)] z-10 max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
+                    <div className="absolute top-3 md:top-4 left-[calc(100%+8px)] z-10 w-max max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
                       <div className="relative bg-background/90 backdrop-blur-sm border border-border rounded-xl px-3 py-1.5 shadow-lg">
-                        <p className="text-xs md:text-sm text-foreground italic truncate pr-1">
+                        <p className="text-xs md:text-sm text-foreground italic truncate">
                           {profileStatus.url ? (
                             <a href={profileStatus.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                              {profileStatus.status}
+                              <EmojifiedText tags={profileStatus.tags}>{profileStatus.status}</EmojifiedText>
                             </a>
                           ) : (
-                            profileStatus.status
+                            <EmojifiedText tags={profileStatus.tags}>{profileStatus.status}</EmojifiedText>
                           )}
                         </p>
                         {/* Speech bubble triangle tail — bottom-left corner, points diagonally down-left toward avatar */}
@@ -2172,6 +2395,8 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                   >
                     <MoreHorizontal className="size-5" />
                   </Button>
+                  {/* NIP-5A root site, if they've published one */}
+                  <ProfileNsiteButton pubkey={pubkey} displayName={displayName} />
                   {/* Follow QR code button (own profile only) */}
                   {isOwnProfile && (
                     <Button
@@ -2184,9 +2409,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       <QrCode className="size-5" />
                     </Button>
                   )}
-                  {/* Profile reaction button */}
-                  {!isOwnProfile && authorEvent && (
-                    <ProfileReactionButton profileEvent={authorEvent} />
+                  {/* Love List toggle */}
+                  {!isOwnProfile && (
+                    <ProfileLoveButton pubkey={pubkey} displayName={displayName} isFollowing={isFollowing} onLoved={handleLoved} />
                   )}
                   {isOwnProfile ? (
                     <Link to="/settings/profile">
@@ -2210,14 +2435,26 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </div>
               </div>
 
-              <h2
-                className="text-xl font-bold truncate"
-                style={effectiveProfileTitleFont ? { fontFamily: 'var(--title-font-family)' } : undefined}
-              >
-                {metadataEvent ? (
-                  <EmojifiedText tags={metadataEvent.tags}>{displayName}</EmojifiedText>
-                ) : displayName}
-              </h2>
+              <div className="flex items-center gap-2 min-w-0">
+                <h2
+                  className="text-xl font-bold truncate"
+                  style={effectiveProfileTitleFont ? { fontFamily: 'var(--title-font-family)' } : undefined}
+                >
+                  {metadataEvent ? (
+                    <EmojifiedText tags={metadataEvent.tags}>{displayName}</EmojifiedText>
+                  ) : displayName}
+                </h2>
+                {lovesYou ? (
+                  <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-pink-500/10 px-2 py-0.5 text-xs font-medium text-pink-600 dark:text-pink-400">
+                    <Heart className="size-3 fill-current" aria-hidden="true" />
+                    Loves you
+                  </span>
+                ) : !isOwnProfile && profileFollowsMe ? (
+                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                    Follows you
+                  </span>
+                ) : null}
+              </div>
               {metadata?.nip05 && (
                 <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" />
               )}
@@ -2235,7 +2472,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </div>
               )}
 
-               {/* Followers / Following count + Streak indicator */}
+               {/* Followers / Following / Loved counts */}
                <div className="flex items-center gap-4 mt-2">
                 {followersCount > 0 && (
                   <button
@@ -2257,16 +2494,15 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     <span className="text-sm text-muted-foreground">following</span>
                   </Link>
                 )}
-                {streak > 1 && (
-                  <div
-                    className="flex items-center gap-1 text-accent"
-                    title={`${streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak} posts within ${STREAK_WINDOW_HOURS}h windows`}
+                {lovedCount > 0 && pubkey && (
+                  <Link
+                    to={`/${nip19.naddrEncode({ kind: LOVE_LIST_KIND, pubkey, identifier: '' })}`}
+                    className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                    title={`${lovedCount} loved`}
                   >
-                    <Flame className="size-4 fill-accent" />
-                    <span className="text-sm font-bold tabular-nums">
-                      {streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak}
-                    </span>
-                  </div>
+                    <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(lovedCount)}</span>
+                    <span className="text-sm text-muted-foreground">loved</span>
+                  </Link>
                 )}
               </div>
 
@@ -2276,10 +2512,16 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 </p>
               )}
 
+              {/* Interests (kind 10015) shared with the viewer */}
+              {sharedInterests.length > 0 && <SharedInterests tags={sharedInterests} />}
+
               {/* Badge preview */}
               {badgeRefs.length > 0 && (
                 <div className="flex items-center gap-1.5 mt-2">
                   {firstBadgeRefs.map((ref) => {
+                    if (badgeDefsLoading) {
+                      return <Skeleton key={ref.aTag} className="size-8 rounded-lg" />;
+                    }
                     const badge = badgeMap.get(ref.aTag);
                     if (!badge) return null;
                     return (
@@ -2311,6 +2553,40 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
           )}
         </div>
 
+        {/* Birthday — a quiet typographic calendar page: centered stack of
+            BIRTHDAY TODAY, a hairline rule, month over a big day number, and
+            the jingle mute toggle. */}
+        {isBirthday && birthday?.month !== undefined && birthday?.day !== undefined && (
+          <div
+            className="flex flex-col items-center px-4 pb-6 pt-2 text-center"
+            title={isOwnProfile ? 'Happy birthday!' : `It's ${displayName}'s birthday today!`}
+          >
+            <span
+              className="text-2xl leading-relaxed text-amber-700 dark:text-amber-400"
+              style={{ fontFamily: "'Pacifico', cursive" }}
+            >
+              Birthday today
+            </span>
+            <span className="my-3 h-px w-12 bg-border" aria-hidden="true" />
+            <span className="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
+              {new Date(2000, birthday.month - 1, 1).toLocaleDateString(undefined, { month: 'long' })}
+            </span>
+            <span className="mt-1 text-5xl font-extrabold leading-none tabular-nums">
+              {birthday.day}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="mt-3 size-8 rounded-full text-muted-foreground hover:text-foreground"
+              onClick={() => setJingleMuted((m) => !m)}
+              aria-label={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
+              title={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
+            >
+              {jingleMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+            </Button>
+          </div>
+        )}
+
         {/* Tabs */}
         <SubHeaderBar pinned>
           {/* Skeleton while kind 16769 is loading */}
@@ -2330,7 +2606,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 label={tab.label}
                 active={activeTab === tabId}
                 onClick={() => {
-                  setActiveTab(tabId);
+                  selectTab(tabId);
                   if (tab.label === 'Media') setSidebarMediaUrl(null);
                 }}
                 className="flex-initial shrink-0 px-4"
@@ -2352,7 +2628,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                           key={tab.label}
                           tab={tab}
                           active={activeTab === tabId}
-                          onSelect={() => setActiveTab(tabId)}
+                          onSelect={() => selectTab(tabId)}
                           onRemove={() => handleRemoveLocalTab(tab.label)}
                           onEdit={!tab.isCore && tab.tab ? () => { setEditingTab(tab.tab); setTabModalOpen(true); } : undefined}
                         />
@@ -2384,7 +2660,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     {missingDefaults.map((label) => {
                       const tabId = CORE_TAB_IDS[label] ?? label;
                       return (
-                        <DropdownMenuItem key={label} onClick={() => setActiveTab(tabId)}>
+                        <DropdownMenuItem key={label} onClick={() => selectTab(tabId)}>
                           {label}
                         </DropdownMenuItem>
                       );
@@ -2400,7 +2676,12 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             <div className="flex items-center shrink-0 ml-auto">
               {/* + dropdown — only visible in edit mode */}
               {tabEditMode && (
-                <DropdownMenu>
+                // modal={false} is required: the "Add custom tab" item opens a Radix
+                // Dialog. A modal DropdownMenu locks `document.body` with
+                // `pointer-events: none`; opening the Dialog mid-close makes it capture
+                // that value as the body's "previous" state and restore it on close,
+                // freezing all pointer interaction (most reproducible on touch).
+                <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <button
                       className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
@@ -2455,7 +2736,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         <div style={{ height: ARC_OVERHANG_PX }} />
 
         {/* Add/edit single tab modal */}
-        {pubkey && (
+        {pubkey && tabModalOpen && (
           <ProfileTabEditModal
             open={tabModalOpen}
             onOpenChange={setTabModalOpen}
@@ -2692,6 +2973,17 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         {/* Follow QR dialog (own profile action bar button) */}
         {isOwnProfile && (
           <FollowQRDialog open={followQROpen} onOpenChange={setFollowQROpen} />
+        )}
+
+        {/* Birthday wish composer — prefilled mention (someone else's birthday only) */}
+        {!isOwnProfile && birthdayNpub && (
+          <ReplyComposeModal
+            open={birthdayComposeOpen}
+            onOpenChange={setBirthdayComposeOpen}
+            initialContent={`Happy birthday, nostr:${birthdayNpub}! 🎂🎉`}
+            title="Wish a happy birthday"
+            placeholder={`Wish ${displayName} a happy birthday...`}
+          />
         )}
 
         {/* Followers List Modal */}

@@ -3,7 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { parseAuthorEvent } from '@/hooks/useAuthor';
-import { useEventStore } from '@/hooks/useEventStore';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 
 export interface AuthorData {
   pubkey: string;
@@ -14,8 +14,8 @@ export interface AuthorData {
 /**
  * Batch fetch multiple author profiles in a single query.
  *
- * Each individual profile lookup is batched automatically by the NostrBatcher
- * proxy, so this hook's main value is providing a stable Map interface and
+ * Each individual profile lookup is batched automatically by the AppPool,
+ * so this hook's main value is providing a stable Map interface and
  * seeding individual ['author', pubkey] cache entries.
  *
  * @param pubkeys - Array of pubkeys to fetch profiles for
@@ -24,7 +24,7 @@ export interface AuthorData {
 export function useAuthors(pubkeys: string[]) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
-  const eventStore = useEventStore();
+  const { store } = useNostrStorage();
 
   // Deduplicate and sort for a stable query key
   const uniquePubkeys = [...new Set(pubkeys)].sort();
@@ -41,7 +41,6 @@ export function useAuthors(pubkeys: string[]) {
     let cancelled = false;
 
     void (async () => {
-      const store = await eventStore;
       const cachedEvents = await store.query([{ kinds: [0], authors: uniquePubkeys }]);
       if (cancelled || cachedEvents.length === 0) {
         return;
@@ -72,7 +71,7 @@ export function useAuthors(pubkeys: string[]) {
     return () => {
       cancelled = true;
     };
-  }, [pubkeysKey, uniquePubkeys, eventStore, queryClient]);
+  }, [pubkeysKey, uniquePubkeys, store, queryClient]);
 
   return useQuery<Map<string, AuthorData>>({
     queryKey: ['authors', pubkeysKey],
@@ -88,21 +87,47 @@ export function useAuthors(pubkeys: string[]) {
         authorMap.set(pubkey, { pubkey });
       }
 
-      const store = await eventStore;
-
-      // Query all profiles. The NostrBatcher proxy will automatically
+      // Query all profiles. The AppPool will automatically
       // combine this with any other concurrent kind:0 queries.
       const events = await nostr.query(
         [{ kinds: [0], authors: uniquePubkeys, limit: uniquePubkeys.length }],
         { signal },
       );
 
+      // Never downgrade to an older profile than one we already hold. Relay
+      // propagation lags right after a profile edit, so a batch fetch can
+      // return a stale kind 0 — unconditionally seeding it into
+      // ['author', pubkey] would clobber a freshly-saved profile (e.g.
+      // blanking a just-added birthday). Prefer the newest of
+      // {relay result, query cache, local store} per author.
+      const storedEvents = events.length > 0
+        ? await store.query([{ kinds: [0], authors: [...new Set(events.map((e) => e.pubkey))] }])
+        : [];
+      const newestStored = new Map<string, NostrEvent>();
+      for (const stored of storedEvents) {
+        const current = newestStored.get(stored.pubkey);
+        if (!current || stored.created_at > current.created_at) {
+          newestStored.set(stored.pubkey, stored);
+        }
+      }
+
       for (const event of events) {
-        const parsed = parseAuthorEvent(event);
+        let newest = event;
+        const existing = queryClient.getQueryData<AuthorData>(['author', event.pubkey]);
+        if (existing?.event && existing.event.created_at > newest.created_at) {
+          newest = existing.event;
+        }
+        const stored = newestStored.get(event.pubkey);
+        if (stored && stored.created_at > newest.created_at) {
+          newest = stored;
+        }
+
+        const parsed = parseAuthorEvent(newest);
         authorMap.set(event.pubkey, { pubkey: event.pubkey, ...parsed });
         // Seed individual author cache
         queryClient.setQueryData(['author', event.pubkey], parsed);
-        // Persist to IndexedDB (fire-and-forget)
+        // Persist the relay copy to IndexedDB (fire-and-forget) — the store
+        // keeps the newest replaceable event itself.
         void store.event(event);
       }
 

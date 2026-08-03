@@ -191,7 +191,18 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         return client.updateSubscription({
           subscription_id: `${baseId}-${tmpl.id}`,
           domain: DOMAIN,
-          updates: { is_active: isActive, filter },
+          updates: {
+            is_active: isActive,
+            filter,
+            // Re-send the notification template so text improvements reach
+            // subscriptions registered before the template changed.
+            notification: {
+              title: tmpl.title,
+              body: tmpl.body,
+              icon: '/icon-192.png',
+              badge: '/icon-192.png',
+            },
+          },
         }).catch((err) => {
           console.error(`[push] Failed to update ${tmpl.id} (is_active=${isActive}):`, err);
         });

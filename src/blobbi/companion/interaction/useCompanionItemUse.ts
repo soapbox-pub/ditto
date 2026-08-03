@@ -14,7 +14,7 @@
 
 import { useState, useCallback } from 'react';
 
-import type { ShopItemCategory } from '@/blobbi/shop/types/shop.types';
+import type { ShopItemCategory } from '@blobbi-kit/core/types/shop';
 import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 
 import type { CompanionItem, CompanionMenuAction } from './types';

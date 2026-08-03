@@ -38,7 +38,6 @@ import {
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { TabButton } from '@/components/TabButton';
-import { FabButton } from '@/components/FabButton';
 import { toast } from '@/hooks/useToast';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -226,8 +225,8 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     return drafts.sort((a, b) => b.updatedAt - a.updatedAt);
   }, [relayDrafts, localDrafts]);
 
-  /** Load a draft or published article into the editor. */
-  const handleLoadItem = useCallback((item: ArticleData & { publishedAt?: number }, isPublishedArticle: boolean) => {
+  /** Load a draft into the editor. (Published articles open via the dedicated edit route.) */
+  const handleLoadDraft = useCallback((item: ArticleData) => {
     setArticle({
       title: item.title,
       summary: item.summary,
@@ -237,18 +236,28 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
       slug: item.slug,
     });
     slugManuallyEdited.current = !!item.slug;
-    setIsEditMode(isPublishedArticle);
-    setOriginalSlug(isPublishedArticle ? item.slug : null);
-    setOriginalPublishedAt(item.publishedAt ?? null);
+    setIsEditMode(false);
+    setOriginalSlug(null);
+    setOriginalPublishedAt(null);
     setHasUnsavedChanges(false);
     setActiveTab('write');
     toast({
-      title: isPublishedArticle ? 'Article loaded for editing' : 'Draft loaded',
-      description: isPublishedArticle
-        ? 'Make changes and publish to update your article.'
-        : 'Your draft has been loaded into the editor.',
+      title: 'Draft loaded',
+      description: 'Your draft has been loaded into the editor.',
     });
   }, []);
+
+  /**
+   * Navigate to the dedicated edit route for a published article. Using a
+   * proper route (rather than mutating editor state in place) keeps the slug
+   * fixed and ensures the publish flow treats this as an update, not a new
+   * article that would collide with the existing slug. The route param is the
+   * article's `d` tag; editing is scoped to the logged-in user's own articles.
+   */
+  const handleEditPublished = useCallback((pub: { slug: string }) => {
+    if (!user || !pub.slug) return;
+    navigate(`/articles/edit/${encodeURIComponent(pub.slug)}`);
+  }, [user, navigate]);
 
   const handleDeleteDraft = useCallback(async () => {
     if (!deleteTarget) return;
@@ -684,8 +693,12 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                         updateArticle('slug', e.target.value);
                       }}
                       placeholder="article-url-slug"
-                      className="h-8 font-mono text-xs"
+                      disabled={isEditMode}
+                      className="h-8 font-mono text-xs disabled:opacity-70"
                     />
+                    {isEditMode && (
+                      <p className="text-[11px] text-muted-foreground">The slug can't be changed after publishing.</p>
+                    )}
                   </div>
 
                   <div className="space-y-1.5">
@@ -750,8 +763,12 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                       updateArticle('slug', e.target.value);
                     }}
                     placeholder="article-url-slug"
-                    className="h-8 font-mono text-xs"
+                    disabled={isEditMode}
+                    className="h-8 font-mono text-xs disabled:opacity-70"
                   />
+                  {isEditMode && (
+                    <p className="text-[11px] text-muted-foreground">The slug can't be changed after publishing.</p>
+                  )}
                 </div>
                 <div className="space-y-1.5 flex-1">
                   <Label className="text-muted-foreground text-xs inline-flex items-center gap-1 leading-none">
@@ -816,15 +833,30 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                   </>
                 )}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSaveDraft}
-                className="rounded-full gap-1.5 shrink-0"
-              >
-                <Save className="size-3.5" />
-                Save Draft
-              </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveDraft}
+                  className="rounded-full gap-1.5 shrink-0"
+                >
+                  <Save className="size-3.5" />
+                  Save Draft
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handlePublish}
+                  disabled={isPublishing || !user}
+                  className="rounded-full gap-1.5 shrink-0"
+                >
+                  {isPublishing ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Send className="size-3.5" />
+                  )}
+                  {isEditMode ? 'Update' : 'Publish'}
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -858,7 +890,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                     <div
                       key={draft.id}
                       className="group p-4 rounded-xl border border-border hover:border-primary/30 hover:bg-card transition-all cursor-pointer"
-                      onClick={() => handleLoadItem(draft, false)}
+                      onClick={() => handleLoadDraft(draft)}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
@@ -911,7 +943,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                     <div
                       key={pub.id}
                       className="group p-4 rounded-xl border border-border hover:border-green-500/30 hover:bg-card transition-all cursor-pointer"
-                      onClick={() => handleLoadItem(pub, true)}
+                      onClick={() => handleEditPublished(pub)}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
@@ -938,37 +970,6 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
           )}
         </div>
       )}
-
-      {/* Publish FAB — mobile: fixed bottom right, hidden when keyboard is up */}
-      {!keyboardVisible && (
-        <div className="fixed bottom-fab right-6 z-30 sidebar:hidden">
-          <FabButton
-            onClick={handlePublish}
-            disabled={isPublishing || !user}
-            title={isEditMode ? 'Update article' : 'Publish article'}
-            icon={isPublishing
-              ? <Loader2 size={18} className="animate-spin" />
-              : <Send strokeWidth={3} size={18} />
-            }
-          />
-        </div>
-      )}
-      {/* Publish FAB — desktop: sticky within column */}
-      <div className="hidden sidebar:block sticky bottom-6 z-30 pointer-events-none">
-        <div className="flex justify-end pr-4">
-          <div className="pointer-events-auto">
-            <FabButton
-              onClick={handlePublish}
-              disabled={isPublishing || !user}
-              title={isEditMode ? 'Update article' : 'Publish article'}
-              icon={isPublishing
-                ? <Loader2 size={18} className="animate-spin" />
-                : <Send strokeWidth={3} size={18} />
-              }
-            />
-          </div>
-        </div>
-      </div>
 
       {/* Leave Confirmation Dialog */}
       <AlertDialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>

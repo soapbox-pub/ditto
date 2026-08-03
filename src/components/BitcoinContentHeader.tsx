@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBitcoinTx } from '@/hooks/useBitcoinTx';
 import { useBitcoinAddress } from '@/hooks/useBitcoinAddress';
-import { satsToBTC, satsToUSD, formatSats, formatBTC } from '@/lib/bitcoin';
+import { satsToBTC, satsToUSD, formatSats, formatBTC } from '@/lib/bitcoinMoney';
 import type { TxDetail, TxInput, TxOutput } from '@/lib/bitcoin';
 
 // ---------------------------------------------------------------------------

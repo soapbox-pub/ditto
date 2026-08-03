@@ -1,20 +1,17 @@
 import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createHead, UnheadProvider } from "@unhead/react/client";
 import { BrowserRouter } from "react-router-dom";
 import { AppProvider } from "@/components/AppProvider";
-import { EventStoreProvider } from "@/components/EventStoreProvider";
 import NostrProvider from "@/components/NostrProvider";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
+import { I18nProvider } from "@/components/I18nProvider";
 
 interface TestAppProps {
   children: React.ReactNode;
 }
 
 export function TestApp({ children }: TestAppProps) {
-  const head = createHead();
-
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -46,6 +43,7 @@ export function TestApp({ children }: TestAppProps) {
       showHighlights: false,
       feedIncludeHighlights: false,
       feedIncludeCampaigns: false,
+      feedIncludeAttestations: false,
       showEvents: false,
       feedIncludeEvents: false,
       showVines: true,
@@ -53,13 +51,20 @@ export function TestApp({ children }: TestAppProps) {
       showTreasures: false,
       showTreasureGeocaches: true,
       showTreasureFoundLogs: true,
+      showQuizzes: false,
+      showQuizDefinitions: true,
+      showQuizResults: true,
+      feedIncludeQuizzes: false,
+      feedIncludeQuizResults: false,
       showColors: false,
+      showMemoryCards: false,
       showPeopleLists: true,
       feedIncludeVines: false,
       feedIncludePolls: false,
       feedIncludeTreasureGeocaches: false,
       feedIncludeTreasureFoundLogs: false,
       feedIncludeColors: false,
+      feedIncludeMemoryCards: false,
       feedIncludePeopleLists: false,
       showDecks: false,
       feedIncludeDecks: false,
@@ -89,7 +94,22 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludePodcastEpisodes: false,
       feedIncludePodcastTrailers: false,
       showDevelopment: false,
-      feedIncludeDevelopment: false,
+      feedIncludeGitRepos: false,
+      feedIncludeGitPushes: false,
+      feedIncludeGitPatches: false,
+      feedIncludeGitPullRequests: false,
+      feedIncludeGitPrUpdates: false,
+      feedIncludeGitIssues: false,
+      feedIncludeGitStatusReopened: false,
+      feedIncludeGitStatusResolved: false,
+      feedIncludeGitStatusClosed: false,
+      feedIncludeGitStatusDraft: false,
+      feedIncludeCustomNips: false,
+      feedIncludeNsiteRoots: false,
+      feedIncludeNsiteNamed: false,
+      feedIncludeZapstoreApps: false,
+      feedIncludeZapstoreReleases: false,
+      feedIncludeAppHandlers: false,
       showBadges: false,
       showBadgeDefinitions: true,
       showProfileBadges: true,
@@ -98,6 +118,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeProfileBadges: false,
       feedIncludeBadgeAwards: false,
       feedIncludeVanish: true,
+      feedIncludeLoveLists: true,
       feedIncludeBlobbi: true,
       showBirdstar: false,
       feedIncludeBirdDetections: false,
@@ -118,6 +139,7 @@ export function TestApp({ children }: TestAppProps) {
     corsProxy: "https://proxy.shakespeare.diy/?url={href}",
     magicMouse: false,
     contentWarningPolicy: "blur",
+    exemptFollowsFromFilters: false,
     sentryDsn: "",
     sentryEnabled: false,
     plausibleDomain: "",
@@ -129,24 +151,23 @@ export function TestApp({ children }: TestAppProps) {
     esploraApis: ['https://mempool.space/api'],
     currencyDisplay: 'usd',
     sidebarWidgets: [],
+    maxCachedEventAge: 604800,
   };
 
   return (
-    <UnheadProvider head={head}>
-      <AppProvider storageKey="test-app-config" defaultConfig={defaultConfig}>
+    <AppProvider storageKey="test-app-config" defaultConfig={defaultConfig}>
+      <I18nProvider>
         <QueryClientProvider client={queryClient}>
           <NostrLoginProvider storageKey="test-login">
             <NostrProvider>
-              <EventStoreProvider>
-                <NWCProvider>
-                  <BrowserRouter>{children}</BrowserRouter>
-                </NWCProvider>
-              </EventStoreProvider>
+              <NWCProvider>
+                <BrowserRouter>{children}</BrowserRouter>
+              </NWCProvider>
             </NostrProvider>
           </NostrLoginProvider>
         </QueryClientProvider>
-      </AppProvider>
-    </UnheadProvider>
+      </I18nProvider>
+    </AppProvider>
   );
 }
 

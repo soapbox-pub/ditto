@@ -3,9 +3,10 @@ import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
-  Award, BarChart3, Bird, Bitcoin, BookOpen, Camera, Clapperboard, Egg, FileText, Film,
-  GitBranch, GitPullRequest, HandHeart, Mail, MapPin, MessageSquare, Mic, Music,
-  Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, SmilePlus, Sparkles,
+  Award, BarChart3, Bird, Bitcoin, BookOpen, CalendarClock, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Egg, FileText, Film,
+  GitBranch, GitPullRequest, HandHeart, Heart, Mail, MapPin, MessageSquare, Mic, Music, Newspaper,
+  Video,
+  Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, ShieldCheck, SmilePlus, Sparkles,
   Stars, UserCheck, Users, Vote, Zap,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -18,7 +19,7 @@ import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { LinkPreview } from '@/components/LinkPreview';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
-import { ReactionEmoji } from '@/components/CustomEmoji';
+import { ReactionEmoji, EmojifiedText } from '@/components/CustomEmoji';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -129,9 +130,17 @@ const KIND_LABELS: Record<number, string> = {
   1068: 'a poll',
   1111: 'a comment',
   1222: 'a voice message',
+  1311: 'a live chat message',
   8211: 'a letter',
+  15683: 'a Love List',
   1617: 'a patch',
   1618: 'a pull request',
+  1619: 'a pull request update',
+  1621: 'an issue',
+  1630: 'a status update',
+  1631: 'a status update',
+  1632: 'a status update',
+  1633: 'a status update',
   2473: 'a bird detection',
   12473: 'a Birdex',
   3367: 'a color moment',
@@ -144,21 +153,27 @@ const KIND_LABELS: Record<number, string> = {
   30008: 'a badge set',
   30009: 'a badge',
   30023: 'an article',
+  33953: 'an ebook',
+  34609: 'a magazine',
+  39731: 'a magazine issue',
   30030: 'an emoji pack',
   30054: 'a podcast episode',
   30055: 'a podcast trailer',
   3063: 'a Zapstore asset',
   30063: 'a Zapstore release',
   30311: 'a stream',
+  30312: 'a room',
+  30313: 'a meeting',
   30315: 'a status',
   30617: 'a repository',
+  30618: 'a repository update',
   30817: 'a custom NIP',
   31922: 'a calendar event',
   31923: 'a calendar event',
   31990: 'an app',
   32267: 'a Zapstore app',
   34139: 'a playlist',
-  34236: 'a divine',
+  34236: 'a short video',
   34550: 'a community',
   35128: 'an nsite',
   36767: 'a theme',
@@ -172,7 +187,10 @@ const KIND_LABELS: Record<number, string> = {
   9802: 'a highlight',
   8333: 'a zap',
   31124: 'a Blobbi',
+  31871: 'an attestation',
   33863: 'a fundraiser',
+  37849: 'a quiz',
+  7849: 'a quiz result',
 };
 
 /** Kind-specific icons — matches sidebar and NoteCard icons. */
@@ -190,22 +208,36 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   1018: Vote,
   1068: BarChart3,
   1222: Mic,
+  1311: Radio,
   1617: FileText,
   8211: Mail,
+  15683: Heart,
   1618: GitPullRequest,
+  1619: GitPullRequest,
+  1621: CircleDot,
+  1630: CircleDot,
+  1631: CircleCheck,
+  1632: CircleX,
+  1633: CircleDashed,
   15128: Rocket,
   35128: Rocket,
   10008: Award,
   30008: Award,
   30009: Award,
   30023: BookOpen,
+  33953: BookOpen,
+  34609: Newspaper,
+  39731: Newspaper,
   30030: SmilePlus,
   30054: Podcast,
   30055: Podcast,
   3063: Package,
   30063: Package,
   30311: Radio,
+  30312: Video,
+  30313: CalendarClock,
   30617: GitBranch,
+  30618: GitBranch,
   31990: Package,
   32267: Package,
   34236: Clapperboard,
@@ -227,7 +259,10 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   2473: Bird,
   12473: Bird,
   30621: Stars,
+  31871: ShieldCheck,
   33863: HandHeart,
+  37849: ClipboardList,
+  7849: ClipboardCheck,
 };
 
 /**
@@ -464,7 +499,7 @@ function ReplyToCommentContext({ pubkey, eventId, className }: { pubkey: string;
           className="text-primary hover:underline truncate"
           onClick={(e) => e.stopPropagation()}
         >
-          @{displayName}
+          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
         </Link>
       </ProfileHoverCard>
     </CommentContextRow>
@@ -522,7 +557,7 @@ function FollowListCommentContext({ pubkey, className }: { pubkey: string; class
           className="text-primary hover:underline truncate"
           onClick={(e) => e.stopPropagation()}
         >
-          @{displayName}'s
+          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>'s
         </Link>
       </ProfileHoverCard>
       <Link
@@ -552,7 +587,7 @@ function ProfileCommentContext({ pubkey, className }: { pubkey: string; classNam
           className="text-primary hover:underline truncate"
           onClick={(e) => e.stopPropagation()}
         >
-          @{displayName}
+          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
         </Link>
       </ProfileHoverCard>
     </CommentContextRow>
@@ -602,7 +637,7 @@ function ProfileBadgesCommentContext({ root, className }: { root: CommentRoot; c
           className="text-primary hover:underline truncate"
           onClick={(e) => e.stopPropagation()}
         >
-          @{displayName}
+          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
         </Link>
       </ProfileHoverCard>
     </CommentContextRow>
@@ -732,7 +767,7 @@ function ReactionCommentContext({ event, className }: { event: NostrEvent; class
             className="text-primary hover:underline truncate cursor-pointer"
             onClick={(e) => e.stopPropagation()}
           >
-            @{displayName}
+            @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
           </Link>
         </ProfileHoverCard>
       )}
@@ -794,7 +829,7 @@ function ZapCommentContext({ event, className }: { event: NostrEvent; className?
                 className="text-primary hover:underline truncate cursor-pointer"
                 onClick={(e) => e.stopPropagation()}
               >
-                @{senderName}
+                @<EmojifiedText tags={author.data?.event?.tags ?? []}>{senderName}</EmojifiedText>
               </Link>
             </ProfileHoverCard>
           )}
@@ -834,7 +869,7 @@ function HighlightCommentContext({ event, className }: { event: NostrEvent; clas
           className="text-primary hover:underline truncate"
           onClick={(e) => e.stopPropagation()}
         >
-          @{displayName}'s
+          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>'s
         </Link>
       </ProfileHoverCard>
       <EventHoverLink
@@ -886,14 +921,14 @@ function CampaignCommentContext({ root, className }: { root: CommentRoot; classN
         <ProfileHoverCard pubkey={pubkey} asChild>
           <Link
             to={profileLink}
-            className="text-primary hover:underline truncate"
-            onClick={(e) => e.stopPropagation()}
-          >
-            @{displayName}'s
-          </Link>
+          className="text-primary hover:underline truncate"
+          onClick={(e) => e.stopPropagation()}
+        >
+          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
+        </Link>
         </ProfileHoverCard>
       ) : (
-        <span className="truncate">@{displayName}'s</span>
+        <span className="truncate">@<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>'s</span>
       )}
       {campaignLink && hoverContent ? (
         <EventHoverLink
@@ -932,7 +967,7 @@ function PollVoteCommentContext({ event, className }: { event: NostrEvent; class
             className="text-primary hover:underline truncate cursor-pointer"
             onClick={(e) => e.stopPropagation()}
           >
-            @{displayName}
+            @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
           </Link>
         </ProfileHoverCard>
       )}

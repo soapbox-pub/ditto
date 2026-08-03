@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { useIntl } from 'react-intl';
 import {
   TrendingUp,
   Flame,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
 import { BlueskyIcon } from '@/components/icons/BlueskyIcon';
+import type { WidgetConfig } from '@/contexts/AppContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -190,6 +192,17 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
 /** Pre-built Map for O(1) widget definition lookup. */
 const WIDGET_MAP = new Map(WIDGET_DEFINITIONS.map((w) => [w.id, w]));
 
+/**
+ * Default right-sidebar widgets for fresh installs / accounts with no
+ * synced widget config. Kept here so both the AppConfig default and the
+ * account-switch reset in NostrSync reference a single source of truth.
+ */
+export const DEFAULT_SIDEBAR_WIDGETS: WidgetConfig[] = [
+  { id: 'trends' },
+  { id: 'hot-posts' },
+  { id: 'wikipedia' },
+];
+
 /** Lookup a widget definition by ID. */
 export function getWidgetDefinition(id: string): WidgetDefinition | undefined {
   return WIDGET_MAP.get(id);
@@ -201,3 +214,61 @@ export const WIDGET_CATEGORIES: Record<string, string> = {
   content: 'Content',
   discovery: 'Discovery',
 };
+
+// ── Translated labels ─────────────────────────────────────────────────────────
+
+/** Maps registry widget IDs to their i18n key stem under `widgets.*`. */
+const WIDGET_I18N_STEMS: Record<string, string> = {
+  'trends': 'trending',
+  'hot-posts': 'hotPosts',
+  'wikipedia': 'wikipedia',
+  'bluesky': 'bluesky',
+  'nostr-clients': 'nostrClients',
+  'blobbi': 'blobbi',
+  'status': 'status',
+  'ai-chat': 'aiChat',
+  'feed:photos': 'photo',
+  'feed:music': 'music',
+  'feed:articles': 'articles',
+  'feed:events': 'events',
+};
+
+/** i18n key stem for a widget ID, used to build `widgets.<stem>.*` keys. */
+export function widgetI18nStem(id: string): string {
+  return WIDGET_I18N_STEMS[id] ?? id;
+}
+
+/**
+ * Translated display label for a widget ID, for use in components.
+ * Looks up `widgets.<stem>.title` in the active locale and falls back to the
+ * registry's English label when the key is missing. Unknown IDs pass through
+ * untranslated.
+ */
+export function useWidgetLabel(id: string): string {
+  const intl = useIntl();
+  const def = WIDGET_MAP.get(id);
+  if (!def) return id;
+  return intl.formatMessage({ id: `widgets.${widgetI18nStem(id)}.title`, defaultMessage: def.label });
+}
+
+/**
+ * Translated description for a widget ID, for use in the widget picker.
+ * Looks up `widgets.<stem>.description` in the active locale and falls back to
+ * the registry's English description when the key is missing.
+ */
+export function useWidgetDescription(id: string): string {
+  const intl = useIntl();
+  const def = WIDGET_MAP.get(id);
+  if (!def) return '';
+  return intl.formatMessage({ id: `widgets.${widgetI18nStem(id)}.description`, defaultMessage: def.description });
+}
+
+/**
+ * Translated category label for the widget picker.
+ * Looks up `widgets.categories.<category>` and falls back to the English
+ * label from WIDGET_CATEGORIES when the key is missing.
+ */
+export function useWidgetCategoryLabel(category: string): string {
+  const intl = useIntl();
+  return intl.formatMessage({ id: `widgets.categories.${category}`, defaultMessage: WIDGET_CATEGORIES[category] ?? category });
+}

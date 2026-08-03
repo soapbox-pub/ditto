@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { GripVertical, Rocket, X } from 'lucide-react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { useSortable, CSS } from '@/lib/sortable';
 import { nip19 } from 'nostr-tools';
 import { useCallback, useMemo } from 'react';
 

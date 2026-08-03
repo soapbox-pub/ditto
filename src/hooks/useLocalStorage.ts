@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 /**
  * Generic hook for managing localStorage state
@@ -24,28 +24,30 @@ export function useLocalStorage<T>(
     }
   });
 
-  const setValue = (value: T | ((prev: T) => T)) => {
-    try {
-      if (value instanceof Function) {
-        // Use React's functional setState so the updater always receives the
-        // latest state, even when multiple setValue calls are batched before a
-        // re-render (fixes stale-closure resets on the first click).
-        setState((prev) => {
-          const next = value(prev);
-          // Skip if the updater returned the same reference (nothing changed)
-          if (next === prev) return prev;
-          localStorage.setItem(key, serialize(next));
-          return next;
-        });
-      } else {
-        if (value === state) return;
-        setState(value);
-        localStorage.setItem(key, serialize(value));
+  // Keep the (potentially inline) serializer in a ref so `setValue` can stay
+  // referentially stable across renders — consumers put it in context values
+  // and dependency arrays.
+  const serializeRef = useRef(serialize);
+  useEffect(() => {
+    serializeRef.current = serialize;
+  });
+
+  const setValue = useCallback((value: T | ((prev: T) => T)) => {
+    // Use React's functional setState so the updater always receives the
+    // latest state, even when multiple setValue calls are batched before a
+    // re-render (fixes stale-closure resets on the first click).
+    setState((prev) => {
+      const next = value instanceof Function ? value(prev) : value;
+      // Skip if nothing changed (same reference)
+      if (next === prev) return prev;
+      try {
+        localStorage.setItem(key, serializeRef.current(next));
+      } catch (error) {
+        console.warn(`Failed to save ${key} to localStorage:`, error);
       }
-    } catch (error) {
-      console.warn(`Failed to save ${key} to localStorage:`, error);
-    }
-  };
+      return next;
+    });
+  }, [key]);
 
   // Re-read from localStorage when the key changes (e.g. user-scoped keys
   // switching to a different user). The useState initializer only runs once,

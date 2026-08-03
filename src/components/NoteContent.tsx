@@ -5,24 +5,29 @@ import { nip19 } from 'nostr-tools';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { getAvatarShape } from '@/lib/avatarShape';
-import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { LinkEmbed } from '@/components/LinkEmbed';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
+import { ArmadaInviteEmbed } from '@/components/ArmadaInviteEmbed';
 import { LightningInvoiceCard } from '@/components/LightningInvoiceCard';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { Lightbox, ImageGallery } from '@/components/ImageGallery';
-import { ProfileHoverCard } from '@/components/ProfileHoverCard';
-import { EmojifiedText, CustomEmojiImg } from '@/components/CustomEmoji';
+import { NostrMention } from '@/components/NostrMention';
+import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { buildEmojiMap } from '@/lib/customEmoji';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { COUNTRIES } from '@/lib/countries';
-import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX } from '@/lib/mediaUrls';
+import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
+import { parseBlossomUri, resolveBlossomUri, type BlossomUri } from '@/lib/blossomUri';
+import { useBlossomUri } from '@/hooks/useBlossomUri';
+import { useAppContext } from '@/hooks/useAppContext';
+import { getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { parseImetaMap } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { parseArmadaInvite, type ArmadaInvite } from '@/lib/armadaInvite';
 import { HASHTAG_PATTERN } from '@/lib/hashtag';
 import { highlightSourceAttrs } from '@/lib/highlightSource';
 import { cn } from '@/lib/utils';
@@ -45,6 +50,11 @@ interface NoteContentProps {
   /** Root wrapper element. Defaults to `'div'`. Use `'span'` when embedding
    *  inside an already-block container (e.g. inside a markdown `<p>`). */
   as?: 'div' | 'span';
+  /** When true, leading/trailing whitespace on the edge text tokens is preserved
+   *  instead of trimmed. Use when this instance renders only a fragment of a larger
+   *  block (e.g. a single text leaf between markdown inline elements), so the spaces
+   *  separating it from sibling nodes (links, emphasis) survive. */
+  preserveEdgeWhitespace?: boolean;
   /** When set, occurrences of this substring in plain-text tokens are wrapped
    *  in `<mark>` (used to highlight a NIP-84 excerpt inside its source note). */
   highlightText?: string;
@@ -258,10 +268,12 @@ type ContentToken =
   | { type: 'mention'; pubkey: string }
   | { type: 'nevent-embed'; eventId: string; relays?: string[]; author?: string }
   | { type: 'naddr-embed'; addr: AddrCoords; url?: string }
+  | { type: 'armada-invite'; invite: ArmadaInvite }
   | { type: 'nostr-link'; id: string; raw: string }
   | { type: 'hashtag'; tag: string; raw: string }
   | { type: 'relay-link'; url: string }
-  | { type: 'lightning-invoice'; invoice: string };
+  | { type: 'lightning-invoice'; invoice: string }
+  | { type: 'blossom-uri'; uri: BlossomUri; raw: string };
 
 /**
  * Regex segment matching a single visual emoji unit, including:
@@ -320,7 +332,14 @@ export function NoteContent({
   disableMediaEmbeds = false,
   as: Wrapper = 'div',
   highlightText,
+  preserveEdgeWhitespace = false,
 }: NoteContentProps) {
+  const { config } = useAppContext();
+  const blossomServers = useMemo(
+    () => getEffectiveBlossomServers(config.blossomServerMetadata, config.useAppBlossomServers),
+    [config.blossomServerMetadata, config.useAppBlossomServers],
+  );
+
   const tokens = useMemo(() => {
     const text = event.content;
     // Match: BOLT11 invoices | URLs | nostr:-prefixed NIP-19 ids | @-prefixed or bare NIP-19 ids | hashtags
@@ -331,7 +350,8 @@ export function NoteContent({
       + '|((?:https?|wss?):\\/\\/[^\\s]+)'
       + '|nostr:(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)'
       + '|@?(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)'
-      + `|(${HASHTAG_PATTERN})`,
+      + `|(${HASHTAG_PATTERN})`
+      + '|(blossom:[a-f0-9]{64}\\.[a-z0-9]+(?:\\?[^\\s]*)?)',
       'giu',
     );
 
@@ -345,6 +365,7 @@ export function NoteContent({
       const bolt11 = match[1];
       let url = match[2];
       const hashtag = match[7];
+      const blossom = match[8];
       const { 3: nostrPrefix, 4: nostrData, 5: barePrefix, 6: bareData } = match;
       const index = match.index;
       hadMatches = true;
@@ -425,7 +446,13 @@ export function NoteContent({
 
         // Check if the URL contains an naddr1 identifier → embed as Nostr event + preserve link
         const naddrFromUrl = extractNaddrFromUrl(url);
-        if (naddrFromUrl) {
+        const armadaInvite = parseArmadaInvite(url);
+        if (armadaInvite) {
+          // Encrypted community invite (kind 33301). Its bundle content is
+          // NIP-44 encrypted, so never let it fall through to the generic
+          // naddr embed — render an "open in a compatible app" card instead.
+          result.push({ type: 'armada-invite', invite: armadaInvite });
+        } else if (naddrFromUrl) {
           result.push({ type: 'naddr-embed', addr: naddrFromUrl, url });
         } else if (isEndOfLine) {
           // Standalone URL at end of line → rich embed (YouTube, Tweet, or link preview)
@@ -456,7 +483,14 @@ export function NoteContent({
               author: decoded.data.author,
             });
           } else if (decoded.type === 'naddr') {
-            result.push({ type: 'naddr-embed', addr: decoded.data as AddrCoords });
+            const bareInvite = parseArmadaInvite(nostrId);
+            if (bareInvite) {
+              // A bare invite-bundle naddr with no fragment: encrypted, can't
+              // render as a plain event. Surface it as an incomplete invite.
+              result.push({ type: 'armada-invite', invite: bareInvite });
+            } else {
+              result.push({ type: 'naddr-embed', addr: decoded.data as AddrCoords });
+            }
           } else {
             result.push({ type: 'nostr-link', id: nostrId, raw: fullMatch });
           }
@@ -466,6 +500,44 @@ export function NoteContent({
       } else if (hashtag) {
         const tag = hashtag.slice(1);
         result.push({ type: 'hashtag', tag, raw: hashtag });
+      } else if (blossom) {
+        const uri = parseBlossomUri(blossom);
+        if (uri) {
+          // Trim trailing whitespace on the preceding text token so the blob
+          // renders as its own block, mirroring image/media URL handling.
+          if (result.length > 0) {
+            const prev = result[result.length - 1];
+            if (prev.type === 'text') {
+              prev.value = prev.value.replace(/\s+$/, '');
+            }
+          }
+          // Resolve image blobs to a concrete URL up front and emit an
+          // `image-embed` token so consecutive blossom images group into a
+          // gallery and share the lightbox, exactly like http image URLs.
+          // (InlineImage still swaps across Blossom servers on load error.)
+          // Non-image blobs stay as `blossom-uri` tokens and render as their
+          // own players / download links.
+          const mime = mimeFromExt(uri.ext);
+          if (mime.startsWith('image/')) {
+            const [resolved] = resolveBlossomUri(uri, blossomServers);
+            if (resolved) {
+              result.push({ type: 'image-embed', url: resolved });
+            } else {
+              result.push({ type: 'blossom-uri', uri, raw: blossom });
+            }
+          } else {
+            result.push({ type: 'blossom-uri', uri, raw: blossom });
+          }
+          lastIndex = index + fullMatch.length;
+          const remaining = text.substring(lastIndex);
+          const leadingWs = remaining.match(/^\s+/);
+          if (leadingWs) {
+            lastIndex += leadingWs[0].length;
+          }
+          continue;
+        }
+        // Unparseable → leave as plain text.
+        result.push({ type: 'text', value: fullMatch });
       }
 
       lastIndex = index + fullMatch.length;
@@ -542,7 +614,7 @@ export function NoteContent({
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
       const isBlock = token.type === 'image-embed' || token.type === 'media-embed' || token.type === 'link-embed' || token.type === 'nevent-embed'
-        || (token.type === 'naddr-embed' && !token.url) || token.type === 'lightning-invoice';
+        || token.type === 'naddr-embed' || token.type === 'lightning-invoice';
 
       if (isBlock) {
         // Strip all trailing whitespace from the preceding text token.
@@ -564,8 +636,11 @@ export function NoteContent({
       }
     }
 
-    // Trim leading/trailing whitespace from edge text tokens
-    if (result.length > 0) {
+    // Trim leading/trailing whitespace from edge text tokens.
+    // Skipped when this instance is only a fragment of a larger block (e.g. a
+    // markdown text leaf sitting between inline links/emphasis) — there the
+    // edge spaces are meaningful separators between sibling nodes.
+    if (!preserveEdgeWhitespace && result.length > 0) {
       const first = result[0];
       if (first.type === 'text') {
         first.value = first.value.replace(/^\s+/, '');
@@ -578,7 +653,7 @@ export function NoteContent({
 
     // Filter out empty text tokens
     return result.filter((t) => !(t.type === 'text' && t.value === ''));
-  }, [event]);
+  }, [event, preserveEdgeWhitespace, blossomServers]);
 
   // Build emoji map for NIP-30 custom emoji rendering.
   // Merge the event's own emoji tags with the viewer's custom emoji collection
@@ -677,9 +752,11 @@ export function NoteContent({
             return <span key={i}>{linkifyFlags(maybeMark(emojify(token.value, emojiMap, isEmojiOnly ? 'inline h-12 w-12 object-contain align-text-bottom' : undefined), highlightText))}</span>;
           case 'image-embed': {
             if (disableEmbeds || disableMediaEmbeds) {
-              // In preview contexts (e.g. triple-dot menu), replace image URLs
-              // with a newline so text flow is preserved without showing raw URLs.
-              return <span key={i}>{'\n'}</span>;
+              // In preview contexts (triple-dot menu, quote cards) media is
+              // rendered elsewhere or omitted. Render nothing — surrounding
+              // text whitespace is already collapsed during tokenization, so
+              // emitting a newline here only adds a redundant blank line.
+              return null;
             }
             const imgIndex = tokenImageIndex.get(i) ?? 0;
             return (
@@ -692,7 +769,7 @@ export function NoteContent({
           }
           case 'image-gallery': {
             if (disableEmbeds || disableMediaEmbeds) {
-              return <span key={i}>{token.urls.map(() => '\n').join('')}</span>;
+              return null;
             }
             const galleryStartIndex = tokenImageIndex.get(i) ?? 0;
             const galleryLightboxIndex =
@@ -745,12 +822,12 @@ export function NoteContent({
             );
           case 'media-embed': {
             if (disableEmbeds || disableMediaEmbeds) {
-              return <span key={i}>{'\n'}</span>;
+              return null;
             }
             const imeta = imetaMap.get(token.url);
             const mime = imeta?.mime ?? '';
             const isWebxdc = mime === 'application/x-webxdc' || mime === 'application/vnd.webxdc+zip' || token.url.endsWith('.xdc');
-            const isAudio = mime.startsWith('audio/') || /\.(mp3|wav|ogg|flac|m4a|aac|opus)(\?[^\s]*)?$/i.test(token.url);
+            const isAudio = mime.startsWith('audio/') || /\.(mp3|mpga|wav|ogg|flac|m4a|aac|opus)(\?[^\s]*)?$/i.test(token.url);
             if (isWebxdc && imeta) {
               return <WebxdcEmbed key={i} url={token.url} uuid={imeta.webxdc} name={imeta.summary} icon={imeta.thumbnail} />;
             }
@@ -807,22 +884,14 @@ export function NoteContent({
                 </Link>
               );
             }
-            return (
-              <span key={i}>
-                {token.url && (
-                  <a
-                    href={token.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline break-all"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {token.url}
-                  </a>
-                )}
-                <EmbeddedNaddr addr={token.addr} className="my-2.5" />
-              </span>
-            );
+            // Both bare `nostr:naddr1…` references and `https://…/naddr1…`
+            // links render as the rich card. The raw URL is intentionally not
+            // shown above it — the card itself links to the content, matching
+            // how nevent/link embeds behave. When the naddr came from a
+            // non-Ditto URL the card surfaces an "Open" button via `sourceUrl`.
+            return <EmbeddedNaddr key={i} addr={token.addr} className="my-2.5" sourceUrl={token.url} />;
+          case 'armada-invite':
+            return <ArmadaInviteEmbed key={i} invite={token.invite} />;
           case 'mention':
             return <NostrMention key={i} pubkey={token.pubkey} />;
           case 'nostr-link':
@@ -863,6 +932,21 @@ export function NoteContent({
               return <span key={i} className="text-primary break-all">{token.invoice}</span>;
             }
             return <LightningInvoiceCard key={i} invoice={token.invoice} />;
+          case 'blossom-uri':
+            if (disableEmbeds || disableMediaEmbeds) {
+              return null;
+            }
+            return (
+              <BlossomEmbed
+                key={i}
+                uri={token.uri}
+                raw={token.raw}
+                artist={authorDisplayName}
+                avatarUrl={authorMetadata?.picture}
+                avatarFallback={authorDisplayName[0]?.toUpperCase() ?? '?'}
+                avatarShape={getAvatarShape(authorMetadata)}
+              />
+            );
         }
       })}
 
@@ -911,28 +995,128 @@ function InlineImage({ url, onClick }: { url: string; onClick: (e: React.MouseEv
   );
 }
 
-function NostrMention({ pubkey }: { pubkey: string }) {
-  const author = useAuthor(pubkey);
-  const hasRealName = !!(author.data?.metadata?.name || author.data?.metadata?.display_name);
-  const displayName = author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? 'Anonymous';
-  const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
+interface BlossomEmbedProps {
+  uri: BlossomUri;
+  raw: string;
+  artist?: string;
+  avatarUrl?: string;
+  avatarFallback?: string;
+  avatarShape?: ReturnType<typeof getAvatarShape>;
+}
 
-  return (
-    <ProfileHoverCard pubkey={pubkey} asChild>
-      <Link
-        to={profileUrl}
-        className={cn(
-          'font-medium hover:underline',
-          hasRealName
-            ? 'text-primary'
-            : 'text-muted-foreground hover:text-foreground',
-        )}
+/**
+ * Renders a BUD-10 `blossom:` URI. The URI is resolved to a concrete HTTPS URL
+ * (via `xs` server hints then the user's Blossom servers), then displayed as an
+ * image, video, or audio player based on the file extension. Non-media blobs
+ * (pdf, bin, …) fall back to a download link. If no server can serve the blob,
+ * a plain link to the first candidate is shown.
+ */
+function BlossomEmbed({ uri, raw, artist, avatarUrl, avatarFallback, avatarShape }: BlossomEmbedProps) {
+  const { src, onError, failed } = useBlossomUri(uri);
+  const [loaded, setLoaded] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const mime = mimeFromExt(uri.ext);
+  const category = mime.startsWith('image/')
+    ? 'image'
+    : mime.startsWith('video/')
+      ? 'video'
+      : mime.startsWith('audio/')
+        ? 'audio'
+        : 'file';
+
+  // No resolvable server, or every candidate failed to load: show a link so the
+  // reference isn't silently lost.
+  if (!src || failed) {
+    return (
+      <a
+        href={src}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary hover:underline break-all"
         onClick={(e) => e.stopPropagation()}
       >
-        @{author.data?.event ? (
-          <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-        ) : displayName}
-      </Link>
-    </ProfileHoverCard>
+        {raw}
+      </a>
+    );
+  }
+
+  if (category === 'image') {
+    return (
+      <>
+        <button
+          type="button"
+          className="block my-2 rounded-lg overflow-hidden w-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          onClick={(e) => { e.stopPropagation(); setLightboxOpen(true); }}
+        >
+          <div className={cn('relative w-full rounded-lg overflow-hidden', !loaded && 'bg-muted')} style={!loaded ? { minHeight: 200 } : undefined}>
+            <img
+              src={src}
+              alt=""
+              className="block w-full h-auto rounded-lg hover:opacity-90 transition-opacity"
+              loading="lazy"
+              onLoad={() => setLoaded(true)}
+              onError={() => { setLoaded(true); onError(); }}
+            />
+          </div>
+        </button>
+        {lightboxOpen && (
+          <Lightbox
+            images={[src]}
+            currentIndex={0}
+            onClose={() => setLightboxOpen(false)}
+            onNext={() => {}}
+            onPrev={() => {}}
+          />
+        )}
+      </>
+    );
+  }
+
+  if (category === 'video') {
+    return <VideoPlayer src={src} artist={artist} />;
+  }
+
+  if (category === 'audio') {
+    return (
+      <AudioVisualizer
+        src={src}
+        mime={mime}
+        avatarUrl={avatarUrl}
+        avatarFallback={avatarFallback}
+        avatarShape={avatarShape}
+      />
+    );
+  }
+
+  // Non-media blob (pdf, bin, …) — link to download it.
+  return (
+    <a
+      href={src}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2 my-2 px-3 py-2 rounded-lg border bg-muted/40 hover:bg-muted text-primary break-all"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <span className="font-medium">Blossom file</span>
+      <span className="text-muted-foreground text-sm">
+        {uri.sha256.slice(0, 8)}…{uri.ext ? `.${uri.ext}` : ''}
+        {typeof uri.size === 'number' ? ` · ${formatBytes(uri.size)}` : ''}
+      </span>
+    </a>
   );
 }
+
+/** Human-readable byte size (e.g. "1.2 MB"). */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`;
+}
+

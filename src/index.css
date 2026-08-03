@@ -35,6 +35,28 @@
 
   *::-webkit-scrollbar {
     display: none;
+    width: 0;
+    height: 0;
+  }
+
+  /* Harden the hide on the document scroller specifically. The universal rule
+     above is enough on modern engines, but some Android System WebView builds
+     draw a classic, space-reserving scrollbar on the root that neither
+     `scrollbar-width: none` (unsupported before Chromium 121) nor a universal
+     `::-webkit-scrollbar` reliably suppresses. Target the actual scrollers
+     explicitly — and force zero track size — so the long window-scrolled feed
+     never shows a gutter. */
+  html,
+  body {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   /* Visible thin scrollbar inside the room editor modal */
@@ -57,6 +79,18 @@
 }
 
 @layer utilities {
+  /* ── Feed item render skipping ────────────────────────────────────────────
+     Applied to each feed-item wrapper so the browser skips layout/paint/style
+     for off-screen cards — the dominant scroll cost on low-end phones once a
+     long feed has accumulated. `contain-intrinsic-size: auto 300px` gives
+     unrendered cards a placeholder height (post-render, `auto` remembers the
+     real height) so the scrollbar stays stable. IntersectionObservers inside
+     the cards keep working. Safe no-op on engines without support. */
+  .cv-feed-item {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 300px;
+  }
+
   /* ── Safe-area inset utilities ────────────────────────────────────────────
      Use var(--safe-area-inset-*, …) as the outer wrapper so that
      Capacitor's SystemBars plugin (which injects --safe-area-inset-* CSS
@@ -135,6 +169,18 @@
     }
   }
 
+  /* Pinned sticky page header (counterpart of SubHeaderBar's pinned mode for
+     full PageHeader-style headers): when the mobile top bar slides away, move
+     from top-mobile-bar to the very top and absorb the device safe area into
+     the header's own padding (1rem = the header's py-4). Toggled alongside
+     a transition-[top,padding-top] for a smooth slide. */
+  @media (max-width: 899px) {
+    .header-pinned-top {
+      top: 0 !important;
+      padding-top: calc(1rem + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) !important;
+    }
+  }
+
   /* AI chat height on mobile: full viewport minus top bar, extends behind bottom nav.
      Padding-bottom keeps input above the nav. */
   .ai-chat-height {
@@ -151,6 +197,14 @@
   .livestream-height {
     height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
     max-height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  }
+  /* Above the sidebar breakpoint the mobile top bar and bottom nav are hidden,
+     so the locked layout gets the full viewport */
+  @media (min-width: 900px) {
+    .livestream-height {
+      height: 100dvh;
+      max-height: 100dvh;
+    }
   }
 
   /* Vine feed slide height: full viewport on mobile (top bar + bottom nav are
@@ -1007,4 +1061,24 @@
 @keyframes furniture-hold-fill {
   from { width: 0%; }
   to   { width: 100%; }
+}
+
+/* ── Kill the native video placeholder/play-circle ────────────────────────────
+   Android WebView (Chromium) and iOS WKWebView paint a large stretched gray
+   play-circle over any poster-less <video> while it loads, drawn by the media
+   controls shadow DOM. We render our own posters and play buttons, so suppress
+   every flavour of the built-in overlay. Scoped to the app's custom players via
+   data-no-native-poster so we never break <video controls> elsewhere. */
+video[data-no-native-poster] {
+  background-color: transparent;
+}
+video[data-no-native-poster]::-webkit-media-controls,
+video[data-no-native-poster]::-webkit-media-controls-overlay-play-button,
+video[data-no-native-poster]::-webkit-media-controls-overlay-enclosure,
+video[data-no-native-poster]::-webkit-media-controls-start-playback-button,
+video[data-no-native-poster]::-internal-media-controls-overlay-cast-button {
+  display: none !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  opacity: 0 !important;
 }

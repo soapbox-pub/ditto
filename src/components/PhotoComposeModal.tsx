@@ -4,15 +4,16 @@ import { encode as blurhashEncode } from 'blurhash';
 
 import {
   Dialog,
-  DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ComposeDialogContent } from '@/components/ComposeDialogContent';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
+import { prependEventToFeeds } from '@/lib/feedUtils';
 import { useToast } from '@/hooks/useToast';
 import { useAppContext } from '@/hooks/useAppContext';
 import { resizeImage } from '@/lib/resizeImage';
@@ -243,14 +244,14 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
       // NIP-31 alt tag for clients that don't support kind 20
       tags.push(['alt', `Photo: ${title.trim()}`]);
 
-      await createEvent({
+      const published = await createEvent({
         kind: 20,
         content: captionText,
         tags,
       });
 
-      // Invalidate feeds to show the new photo
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      // Optimistically show the new photo in cached feeds.
+      prependEventToFeeds(queryClient, published);
       queryClient.invalidateQueries({ queryKey: ['trending'] });
 
       toast({ title: 'Photo published!', description: 'Your photo has been shared.' });
@@ -264,8 +265,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-w-[520px] max-h-[85vh] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden flex flex-col"
+      <ComposeDialogContent
         onPaste={handlePaste}
       >
         {/* Header */}
@@ -485,7 +485,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
             )}
           </Button>
         </div>
-      </DialogContent>
+      </ComposeDialogContent>
     </Dialog>
   );
 }

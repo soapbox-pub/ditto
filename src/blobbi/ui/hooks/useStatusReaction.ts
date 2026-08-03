@@ -25,7 +25,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { BlobbiEmotion } from '../lib/emotion-types';
-import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
+import type { BlobbiStats } from '@blobbi-kit/core/types/blobbi';
 import {
   resolveStatusRecipe,
   EMPTY_RECIPE,

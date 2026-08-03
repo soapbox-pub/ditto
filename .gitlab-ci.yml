@@ -36,9 +36,12 @@ deploy-nsite:
   variables:
     NSYTE_VERSION: "v0.27.0"
   script:
-    # Build the web app
+    # Build in nsite mode: code splitting is disabled so the whole app ships as
+    # one app.js + one app.css, keeping the dist/ file count (and therefore the
+    # signed site manifest) small enough to fit the NIP-46 bunker's 65535-byte
+    # sign_event request.
     - npm ci
-    - npm run build
+    - npx vite build -l error --mode nsite
     - cp dist/index.html dist/404.html
 
     # Download nsyte binary

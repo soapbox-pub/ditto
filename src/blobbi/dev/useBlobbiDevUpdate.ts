@@ -16,9 +16,9 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbiCompanion, BlobbiStage } from '@/blobbi/core/lib/blobbi';
-import { KIND_BLOBBI_STATE, updateBlobbiTags, getLocalDayString, adjustSeedForAdultType } from '@/blobbi/core/lib/blobbi';
-import type { AdultForm } from '@/blobbi/adult-blobbi/types/adult.types';
+import type { BlobbiCompanion, BlobbiStage } from '@blobbi-kit/core';
+import { KIND_BLOBBI_STATE, updateBlobbiTags, getLocalDayString, adjustSeedForAdultType } from '@blobbi-kit/core';
+import type { AdultForm } from '@blobbi-kit/core/types/adult';
 import type { BlobbiDevUpdates } from './BlobbiDevEditor';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

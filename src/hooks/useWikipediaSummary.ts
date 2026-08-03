@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { useLanguage } from '@/hooks/useLanguage';
+
 export interface WikipediaSummary {
   /** Page title. */
   title: string;
@@ -27,12 +29,13 @@ export interface WikipediaSummary {
 
 async function fetchWikipediaSummary(
   title: string,
+  lang: string,
   signal?: AbortSignal,
 ): Promise<WikipediaSummary | null> {
   try {
     const encoded = encodeURIComponent(title.replace(/ /g, '_'));
     const response = await fetch(
-      `https://en.wikipedia.org/api/rest_v1/page/summary/${encoded}`,
+      `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encoded}`,
       {
         signal,
         headers: { Accept: 'application/json' },
@@ -68,7 +71,7 @@ async function fetchWikipediaSummary(
             height: data.originalimage.height,
           }
         : undefined,
-      articleUrl: data.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${encoded}`,
+      articleUrl: data.content_urls?.desktop?.page ?? `https://${lang}.wikipedia.org/wiki/${encoded}`,
     };
   } catch {
     return null;
@@ -77,12 +80,15 @@ async function fetchWikipediaSummary(
 
 /**
  * Fetch a Wikipedia page summary for a given article title.
- * Uses the Wikimedia REST API `/page/summary/{title}`.
+ * Uses the Wikimedia REST API `/page/summary/{title}`, targeting the
+ * user's selected interface language (e.g. `de.wikipedia.org`).
  */
 export function useWikipediaSummary(title: string | null) {
+  const { locale } = useLanguage();
+
   return useQuery({
-    queryKey: ['wikipedia-summary', title],
-    queryFn: ({ signal }) => fetchWikipediaSummary(title!, signal),
+    queryKey: ['wikipedia-summary', locale, title],
+    queryFn: ({ signal }) => fetchWikipediaSummary(title!, locale, signal),
     enabled: !!title,
     staleTime: 1000 * 60 * 60 * 24, // 24 hours
     gcTime: 1000 * 60 * 60 * 24 * 7, // 7 days

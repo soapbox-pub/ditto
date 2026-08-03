@@ -9,8 +9,10 @@ import {
   ACTIVE_THEME_KIND,
   buildThemeDefinitionTags,
   buildActiveThemeTags,
+  parseActiveProfileTheme,
   titleToSlug,
   type ThemeDefinition,
+  type ActiveProfileTheme,
 } from '@/lib/themeEvent';
 import { resolveFontUrl } from '@/lib/fontLoader';
 
@@ -81,6 +83,14 @@ export function usePublishTheme() {
     const resolved = resolveThemeForPublishing(opts.themeConfig);
     const tags = buildActiveThemeTags(resolved, opts.sourceAuthor, opts.sourceIdentifier, opts.description);
 
+    // Optimistically apply the active theme so it takes effect immediately,
+    // before the relay round-trip. Parse a synthetic event from the same tags.
+    const optimistic = parseActiveProfileTheme({
+      id: '', pubkey: user.pubkey, created_at: Math.floor(Date.now() / 1000),
+      kind: ACTIVE_THEME_KIND, tags, content: '', sig: '',
+    });
+    queryClient.setQueryData<ActiveProfileTheme | null>(['activeProfileTheme', user.pubkey], optimistic);
+
     await publishEvent({
       kind: ACTIVE_THEME_KIND,
       content: '',
@@ -118,6 +128,9 @@ export function usePublishTheme() {
   /** Clear the active profile theme by publishing an empty kind 16767 replacement. */
   const clearActiveTheme = useCallback(async () => {
     if (!user) throw new Error('Must be logged in');
+
+    // Optimistically clear the active theme so it reverts immediately.
+    queryClient.setQueryData<ActiveProfileTheme | null>(['activeProfileTheme', user.pubkey], null);
 
     await publishEvent({
       kind: ACTIVE_THEME_KIND,

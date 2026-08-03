@@ -27,7 +27,7 @@
  * applyVisualRecipe(). No separate body effects channel is needed.
  */
 
-import type { BlobbiStats } from '@/blobbi/core/types/blobbi';
+import type { BlobbiStats } from '@blobbi-kit/core/types/blobbi';
 import type { BlobbiEmotion } from './emotion-types';
 import type {
   BlobbiVisualRecipe,

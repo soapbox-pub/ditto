@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
-import { nip19 } from 'nostr-tools';
-import type { AddressPointer } from 'nostr-tools/nip19';
 import { Loader2 } from 'lucide-react';
 
 import { ArticleEditor, type ArticleData } from '@/components/articles/ArticleEditor';
@@ -11,12 +9,12 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getLocalDrafts } from '@/lib/localDrafts';
 import { parseArticleEvent } from '@/lib/articleHelpers';
 
-/** Thin page wrapper for /articles/new and /articles/edit/:naddr */
+/** Thin page wrapper for /articles/new and /articles/edit/:slug */
 export function ArticleEditorPage() {
   useLayoutOptions({ showFAB: false, hasSubHeader: true });
 
   const [searchParams] = useSearchParams();
-  const { naddr: naddrParam } = useParams<{ naddr: string }>();
+  const { slug: editSlug } = useParams<{ slug: string }>();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
 
@@ -24,7 +22,16 @@ export function ArticleEditorPage() {
 
   const [initialData, setInitialData] = useState<(Partial<ArticleData> & { publishedAt?: number }) | undefined>(undefined);
   const [editMode, setEditMode] = useState(false);
-  const [loading, setLoading] = useState(!!naddrParam || !!draftSlug);
+  const [loading, setLoading] = useState(!!editSlug || !!draftSlug);
+
+  // Reset state whenever the route target changes so navigating between
+  // /articles/new and /articles/edit/:slug (or between two articles) doesn't
+  // leave stale data from the previous target on screen.
+  useEffect(() => {
+    setInitialData(undefined);
+    setEditMode(false);
+    setLoading(!!editSlug || !!draftSlug);
+  }, [editSlug, draftSlug]);
 
   // Load draft from relay (NIP-37 kind 31234, encrypted) or localStorage if ?draft=<slug>
   useEffect(() => {
@@ -77,40 +84,30 @@ export function ArticleEditorPage() {
     loadDraft();
   }, [draftSlug, user, nostr]);
 
-  // Load existing article for editing if /articles/edit/:naddr
+  // Load an existing published article for editing if /articles/edit/:slug.
+  // The slug is the article's `d` tag. Editing is restricted to the logged-in
+  // user's own articles, so the author is implicitly the current user.
   useEffect(() => {
-    if (!naddrParam) return;
+    if (!editSlug) return;
 
-    let decoded: { type: string; data: AddressPointer };
-    try {
-      decoded = nip19.decode(naddrParam) as { type: 'naddr'; data: AddressPointer };
-      if (decoded.type !== 'naddr') {
-        setLoading(false);
-        return;
-      }
-    } catch {
+    if (!user) {
       setLoading(false);
       return;
     }
 
-    const addr = decoded.data;
-
-    // Only allow editing your own articles
-    if (user && addr.pubkey !== user.pubkey) {
-      setLoading(false);
-      return;
-    }
+    let cancelled = false;
 
     nostr
       .query([
         {
-          kinds: [addr.kind],
-          authors: [addr.pubkey],
-          '#d': [addr.identifier],
+          kinds: [30023],
+          authors: [user.pubkey],
+          '#d': [editSlug],
           limit: 1,
         },
       ])
       .then((events) => {
+        if (cancelled) return;
         if (events.length > 0) {
           setInitialData(parseArticleEvent(events[0]));
           setEditMode(true);
@@ -120,9 +117,13 @@ export function ArticleEditorPage() {
         console.error('Failed to load article for editing:', err);
       })
       .finally(() => {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       });
-  }, [naddrParam, nostr, user]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editSlug, nostr, user]);
 
   if (loading) {
     return (
@@ -132,5 +133,7 @@ export function ArticleEditorPage() {
     );
   }
 
-  return <ArticleEditor initialData={initialData} editMode={editMode} />;
+  // Key on the route target so the editor fully remounts (resetting all its
+  // internal state) when navigating between new / edit / a different article.
+  return <ArticleEditor key={editSlug ?? draftSlug ?? 'new'} initialData={initialData} editMode={editMode} />;
 }

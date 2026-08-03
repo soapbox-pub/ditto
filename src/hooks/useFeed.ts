@@ -1,12 +1,14 @@
 import { useNostr } from '@nostrify/react';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from './useAppContext';
 import { useCurrentUser } from './useCurrentUser';
 import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
+import { useLoveList } from './useLoveList';
 import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { parseAuthorEvent } from './useAuthor';
-import { useEventStore } from './useEventStore';
+import { useNostrStorage } from './useNostrStorage';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import {
   getPaginationCursor,
@@ -32,6 +34,18 @@ const OVER_FETCH_MULTIPLIER = 3;
 // Re-export FeedItem for backwards compatibility
 export type { FeedItem };
 
+/**
+ * Drop reply items when the user has disabled "Show replies in feed".
+ * Applies to the target event regardless of wrapper — a repost, reaction,
+ * or zap of a reply still surfaces the reply, so those are filtered too.
+ * Profile-zap fallback cards are kept: `item.event` there is the zap
+ * receipt itself (whose `e` tag would trip isReplyEvent), and the card
+ * renders the zap activity, not the unresolved target.
+ */
+function excludeReplies(items: FeedItem[]): FeedItem[] {
+  return items.filter((item) => item.profileZapRecipient || !isReplyEvent(item.event));
+}
+
 /** Extended FeedItem with pagination metadata. */
 interface FeedPage {
   items: FeedItem[];
@@ -46,25 +60,41 @@ interface UseFeedOptions {
   kinds?: number[];
   /** Additional tag filters to apply (e.g. `{ '#m': ['application/x-webxdc'] }`). */
   tagFilters?: Record<string, string[]>;
+  /**
+   * Apply `sort:hot` to the Global tab even on kind-specific pages. Keeps spam
+   * and low-quality events out of easy view on curated kind feeds (Articles,
+   * Highlights) the same way the homepage Global tab does.
+   */
+  hotGlobal?: boolean;
 }
 
-/** Hook to fetch the global, followed, or communities feed with infinite scroll pagination. */
-export function useFeed(tab: 'follows' | 'global' | 'communities', options?: UseFeedOptions) {
+/** Hook to fetch the global, followed, loved, or communities feed with infinite scroll pagination. */
+export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', options?: UseFeedOptions) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
+  // Loved people (kind 15683 Love List) power the dedicated Loved tab.
+  // `lovedPubkeys` resolves to [] (never errors) on a relay miss, so it can't
+  // block the feed. Like the follow list, it's excluded from the query key —
+  // love mutations explicitly invalidate ['feed'].
+  const { lovedPubkeys } = useLoveList();
   // Subtract muted pubkeys from the `authors` filter so muted posts never
   // cross the wire. Render-layer mute filters remain as defense in depth
   // (e.g. posts authored by an unmuted user that embed/mention a muted one).
   const { excludeMuted, mutedKey } = useMutedAuthorFilter();
   const { feedSettings } = useFeedSettings();
-  const eventStore = useEventStore();
+  const { store } = useNostrStorage();
 
   // Build the full kinds list from user settings, or use the override.
-  const allKinds = options?.kinds ?? getEnabledFeedKinds(feedSettings);
+  // When replies are hidden, NIP-22 comment kinds (1111 / 1244) are dropped
+  // from settings-derived queries entirely — every comment is a reply, so
+  // fetching them only wastes bandwidth on events the filter discards.
+  const settingsKinds = getEnabledFeedKinds(feedSettings);
+  const allKinds = options?.kinds ??
+    (feedSettings.followsFeedShowReplies ? settingsKinds : settingsKinds.filter((k) => k !== 1111 && k !== 1244));
 
   const tagFilters = options?.tagFilters;
 
@@ -75,7 +105,13 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
   // For the follows tab, wait until the follow list is loaded before running any query.
   // Without this guard, the query falls through to the global branch while followList is still loading.
   // Allow query to run if not on follows tab, OR if follow list has loaded (even if empty).
-  const followsReady = tab !== 'follows' || (!!user && followList !== undefined);
+  // The loved tab gates on the love list the same way.
+  const followsReady =
+    tab === 'follows'
+      ? !!user && followList !== undefined
+      : tab === 'loved'
+        ? !!user && lovedPubkeys !== undefined
+        : true;
 
   // Load community pubkeys from localStorage
   const communityPubkeys = (() => {
@@ -100,7 +136,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
     // on page load because feedSettings is read from localStorage
     // synchronously — the encrypted settings sync at ~5s only calls
     // updateConfig if values actually differ (NostrSync changed guard).
-    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, mutedKey],
+    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, mutedKey, options?.hotGlobal ?? false],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(8000);
       const now = Math.floor(Date.now() / 1000);
@@ -150,12 +186,29 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
 
         // Seed the author query cache from the metadata we already fetched
         // for NIP-05 verification, so downstream useAuthor() calls are instant.
-        const store = await eventStore;
-        for (const meta of metadataEvents) {
-          if (!queryClient.getQueryData(['author', meta.pubkey])) {
-            const parsed = parseAuthorEvent(meta);
-            queryClient.setQueryData(['author', meta.pubkey], parsed);
-            // Persist to IndexedDB (fire-and-forget)
+        // Only fills empty entries — but on a fresh page load the cache is
+        // empty, so a stale relay copy could be seeded and marked fresh,
+        // blocking useAuthor's guarded fetch. Prefer the newest of
+        // {relay copy, local store} so a just-saved profile isn't downgraded.
+        if (metadataEvents.length > 0) {
+          const unseeded = metadataEvents.filter((meta) => !queryClient.getQueryData(['author', meta.pubkey]));
+          const storedEvents = unseeded.length > 0
+            ? await store.query([{ kinds: [0], authors: [...new Set(unseeded.map((e) => e.pubkey))] }])
+            : [];
+          const newestStored = new Map<string, NostrEvent>();
+          for (const stored of storedEvents) {
+            const current = newestStored.get(stored.pubkey);
+            if (!current || stored.created_at > current.created_at) {
+              newestStored.set(stored.pubkey, stored);
+            }
+          }
+
+          for (const meta of unseeded) {
+            const stored = newestStored.get(meta.pubkey);
+            const newest = stored && stored.created_at > meta.created_at ? stored : meta;
+            queryClient.setQueryData(['author', meta.pubkey], parseAuthorEvent(newest));
+            // Persist the relay copy to IndexedDB (fire-and-forget) — the
+            // store keeps the newest replaceable event itself.
             void store.event(meta);
           }
         }
@@ -197,17 +250,58 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
 
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {
-          dedupedItems = dedupedItems.filter(
-            (item) => item.repostedBy || item.reactedBy || item.zappedBy || item.profileZapRecipient || !isReplyEvent(item.event),
-          );
+          dedupedItems = excludeReplies(dedupedItems);
         }
 
         // Seed event cache so embedded note previews resolve instantly.
-        // Authors, stats, and reactions are batched automatically by NostrBatcher
+        // Authors, stats, and reactions are batched automatically by AppPool
         // when NoteCard components mount.
         cacheEvents(dedupedItems);
 
         return { items: dedupedItems, oldestQueryTimestamp, rawCount: validFilteredEvents.length };
+      } else if (tab === 'loved' && user && lovedPubkeys !== undefined) {
+        // Loved feed — posts and extra kinds from people on the user's Love
+        // List (kind 15683), minus anyone also muted (mute wins). Reposts and
+        // reactions are excluded: the Loved tab surfaces what loved people
+        // post, not what they boost or react to.
+        const lovedAuthors = excludeMuted(lovedPubkeys);
+
+        // Empty love list — never query with an empty authors array (that
+        // would match everyone). Render the empty state instead.
+        if (lovedAuthors.length === 0) {
+          return { items: [], oldestQueryTimestamp: now, rawCount: 0 };
+        }
+
+        const lovedKinds = allKinds.filter((k) => !isRepostKind(k) && !isReactionKind(k));
+        const fetchLimit = !feedSettings.followsFeedShowReplies ? PAGE_SIZE * OVER_FETCH_MULTIPLIER : PAGE_SIZE;
+        const filter: Record<string, unknown> = { kinds: lovedKinds, authors: lovedAuthors, limit: fetchLimit, ...tagFilters };
+        if (pageParam) {
+          filter.until = pageParam;
+        }
+
+        const rawEvents = await nostr.query(
+          [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
+          { signal },
+        );
+
+        const validEvents = rawEvents.filter((ev) => ev.created_at <= now);
+        const oldestQueryTimestamp = getPaginationCursor(validEvents);
+
+        // Unwrap reposts / reactions / zaps so the target event renders
+        // with the wrapper as an overlay header.
+        const items = await buildFeedItems(validEvents, nostr, signal);
+
+        let dedupedItems = dedupeFeedItems(items);
+
+        // Filter replies if the user has disabled them
+        if (!feedSettings.followsFeedShowReplies) {
+          dedupedItems = excludeReplies(dedupedItems);
+        }
+
+        // Seed event cache so embedded note previews resolve instantly.
+        cacheEvents(dedupedItems);
+
+        return { items: dedupedItems, oldestQueryTimestamp, rawCount: validEvents.length };
       } else if (tab === 'follows' && user && followList !== undefined) {
         // Follows feed — posts, reposts, and extra kinds from people you follow,
         // minus anyone you've also muted (mute wins, no wasted bandwidth).
@@ -238,9 +332,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
 
         // Filter replies if the user has disabled them
         if (!feedSettings.followsFeedShowReplies) {
-          dedupedItems = dedupedItems.filter(
-            (item) => item.repostedBy || item.reactedBy || item.zappedBy || item.profileZapRecipient || !isReplyEvent(item.event),
-          );
+          dedupedItems = excludeReplies(dedupedItems);
         }
 
         // Seed event cache so embedded note previews resolve instantly.
@@ -253,9 +345,11 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         // unwrap step. Users will see those overlays on the Follows tab.
         const globalKinds = allKinds.filter((k) => !isRepostKind(k) && !isReactionKind(k) && !isZapKind(k));
         const filter: Record<string, unknown> = { kinds: globalKinds, limit: PAGE_SIZE, ...tagFilters };
-        // Use hot sorting on the homepage Global tab for better content quality,
-        // but not on kind-specific pages that pass custom kinds.
-        if (tab === 'global' && !options?.kinds) {
+        // Use hot sorting on the homepage Global tab for better content quality.
+        // Kind-specific pages normally show a raw chronological global feed, but
+        // can opt into hot sorting (e.g. Articles, Highlights) to keep spam and
+        // low-quality events out of easy view.
+        if (tab === 'global' && (!options?.kinds || options?.hotGlobal)) {
           filter.search = 'sort:hot protocol:nostr';
         }
         if (pageParam) {

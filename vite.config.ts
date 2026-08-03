@@ -123,9 +123,51 @@ function getCommitTag(): string {
   }
 }
 
+/**
+ * Vite plugin that removes legacy `.woff` fallback sources from @font-face
+ * `src` lists in imported CSS (the static @fontsource packages ship each font
+ * as `url(x.woff2) format('woff2'), url(x.woff) format('woff')`).
+ *
+ * Every runtime Ditto supports — modern browsers, iOS WKWebView, Android
+ * WebView — supports WOFF2 (universal since ~2016; the app's `esnext` build
+ * target excludes anything older), so the `format()` negotiation never selects
+ * the WOFF branch. Stripping the reference before Vite's CSS pipeline resolves
+ * `url()`s means the ~46 duplicate .woff assets (~1 MB) are never emitted:
+ * they'd otherwise be packed verbatim into the APK/IPA (already-compressed
+ * font data, so zip can't shrink it) and published to nsite.
+ *
+ * Variable fonts (@fontsource-variable/*) are woff2-only and unaffected.
+ */
+function stripWoffFallbacks(): Plugin {
+  return {
+    name: "ditto:strip-woff-fallbacks",
+    enforce: "pre", // run before vite:css resolves url() references
+    transform(code, id) {
+      if (!id.includes("@fontsource") || !/\.css(\?|$)/.test(id)) return;
+      // Remove `, url(<anything>.woff) format('woff')` fallback clauses.
+      // Only matches bare .woff (the woff2 clause says format('woff2')).
+      const stripped = code.replace(
+        /,\s*url\([^)]+\.woff\)\s*format\(['"]woff['"]\)/g,
+        "",
+      );
+      if (stripped === code) return;
+      return { code: stripped, map: null };
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+
+  // The nsite build (`vite build --mode nsite`) emits a minimal number of files.
+  // nsite is published by signing a site *manifest* (the list of every file in
+  // dist/) through a NIP-46 bunker, which NIP-44-encrypts the whole sign_event
+  // request — and that must stay under 65535 bytes. The normal ~470-chunk build
+  // overflows it ("invalid plaintext size"). In nsite mode we disable code
+  // splitting so the app ships as one app.js + one app.css, dropping dist/ to
+  // ~one-third the files. Every other build keeps fine-grained lazy loading.
+  const isNsite = mode === 'nsite';
 
   return {
   server: {
@@ -135,10 +177,9 @@ export default defineConfig(({ mode }) => {
   },
   plugins: [
     react(),
+    stripWoffFallbacks(),
     visualizer({
-      // Write the bundle-analysis report outside dist/ so it is not published
-      // to the public nsite and does not count toward the manifest file list.
-      filename: "bundle-report.html",
+      filename: "dist/bundle.html",
       template: "treemap",
       gzipSize: true,
     }),
@@ -155,55 +196,69 @@ export default defineConfig(({ mode }) => {
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
+    // Only run Ditto's own tests. Blobbi lives in the published @blobbi-kit/*
+    // packages (node_modules), whose internal tests are not part of this run.
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
     onConsoleLog(log) {
       return !log.includes("React Router Future Flag Warning");
     },
     env: {
       DEBUG_PRINT_LIMIT: '0', // Suppress DOM output that exceeds AI context windows
     },
+    server: {
+      deps: {
+        // Inline the published @blobbi-kit packages so Vitest transforms them
+        // through its pipeline. Without this they resolve as externalized
+        // node_modules, and `vi.mock()` calls in tests (e.g. mocking
+        // '@nostrify/react') never intercept the imports made inside them.
+        inline: [/@blobbi-kit\//],
+      },
+    },
   },
   build: {
     target: 'esnext',
     rollupOptions: {
-      output: {
-        manualChunks(id) {
-          // Consolidate lucide icons into a single chunk instead of 60+ micro-chunks.
-          if (id.includes('node_modules/lucide-react')) {
-            return 'lucide-icons';
+      output: isNsite
+        ? {
+            // Disable code splitting so every dynamic import folds into the single
+            // entry chunk: the build emits exactly one JS file, and Vite emits one
+            // CSS file alongside it.
+            codeSplitting: false,
+            entryFileNames: 'assets/app-[hash].js',
+            assetFileNames: (assetInfo: { names?: string[] }) => {
+              const name = assetInfo.names?.[0] ?? '';
+              if (name.endsWith('.css')) return 'assets/app-[hash].css';
+              return 'assets/[name]-[hash][extname]';
+            },
           }
-          // Group third-party code into a few stable vendor chunks. This keeps
-          // the dist/ file count (and therefore the nsite manifest) small enough
-          // to sign through a NIP-46 bunker, whose sign_event request is
-          // NIP-44-encrypted and must stay under 65535 bytes. Splitting by
-          // library (rather than one giant vendor chunk) preserves lazy loading
-          // so routes only fetch the vendor code they need. Fonts are left alone
-          // so their per-weight lazy loading still works.
-          if (id.includes('node_modules') && !id.includes('@fontsource')) {
-            if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(id)) {
-              return 'vendor-react';
-            }
-            if (id.includes('node_modules/@nostrify') || id.includes('node_modules/nostr-tools') || id.includes('node_modules/@noble') || id.includes('node_modules/@scure') || id.includes('node_modules/applesauce')) {
-              return 'vendor-nostr';
-            }
-            if (id.includes('node_modules/@radix-ui')) {
-              return 'vendor-radix';
-            }
-            if (id.includes('node_modules/@tanstack')) {
-              return 'vendor-tanstack';
-            }
-          }
-        },
-      },
+        : {
+            manualChunks(id: string) {
+              // Consolidate lucide icons into a single chunk instead of 60+ micro-chunks.
+              if (id.includes('node_modules/lucide-react')) {
+                return 'lucide-icons';
+              }
+            },
+          },
     },
   },
   optimizeDeps: {
-    exclude: ['@capacitor/filesystem', '@capacitor/share'],
+    exclude: ['@capacitor/filesystem', '@capacitor/share', '@capacitor/app-launcher'],
   },
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
+    alias: [
+      // @blobbi-kit/core and @blobbi-kit/react resolve through their installed
+      // package exports in node_modules (published npm packages), not source aliases.
+      { find: "@", replacement: path.resolve(__dirname, "./src") },
+    ],
+    // Dedupe the React-context-bearing singletons so a dependency can't pull in a
+    // second copy of them (which breaks useContext).
+    dedupe: [
+      'react',
+      'react-dom',
+      'react/jsx-runtime',
+      '@nostrify/react',
+      '@tanstack/react-query',
+    ],
   },
 };
 });

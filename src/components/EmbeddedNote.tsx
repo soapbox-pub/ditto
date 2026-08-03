@@ -2,22 +2,36 @@ import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useRef
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { Award, BarChart3, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Quote, Zap, Clock } from 'lucide-react';
+import { Award, BarChart3, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Quote, Zap, Clock, ClipboardCheck } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BrokenEventFallback } from '@/components/BrokenEventFallback';
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
+import { EmbeddedGitCard } from '@/components/EmbeddedGitCard';
+import { EMBEDDED_GIT_KINDS } from '@/lib/gitActivity';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { VanishCardCompact } from '@/components/VanishEventContent';
 import { EncryptedMessageCompact } from '@/components/EncryptedMessageContent';
 import { EncryptedLetterCompact } from '@/components/EncryptedLetterContent';
+import { LoveListCompact } from '@/components/LoveListContent';
+import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
 import { EmbeddedProfileBadgesCard } from '@/components/EmbeddedNaddr';
+import { EmbeddedAttestationCard } from '@/components/EmbeddedAttestationCard';
+import { ATTESTATION_KIND } from '@/lib/attestation';
+import { QUIZ_RESULT_KIND, parseQuizResult } from '@/lib/quiz';
+import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
+import { EmbeddedPublicationCard } from '@/components/EmbeddedPublicationCard';
+import { ARTICLE_KINDS } from '@/lib/articleHelpers';
+import { PUBLICATION_KINDS } from '@/lib/publications';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
+import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
+import { MEMORY_CARD_KIND } from '@/lib/memorycard';
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
 import { isPeopleListKind } from '@/lib/packUtils';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { NoteContent } from '@/components/NoteContent';
+import { LiveChatContext } from '@/components/LiveChatContext';
 import { useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -32,6 +46,10 @@ import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
 import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
+import { parseImetaMap } from '@/lib/imeta';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { ImageGallery } from '@/components/ImageGallery';
+import { VideoPlayer } from '@/components/VideoPlayer';
 import { getKindLabel, getKindIcon, getEventFallbackText } from '@/lib/extraKinds';
 import { usePollVoteLabel } from '@/hooks/usePollVoteLabel';
 
@@ -98,6 +116,12 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
     return <EncryptedLetterCompact event={event} className={className} />;
   }
 
+  // Kind 15683 Love Lists (see NIP.md) get a compact paper card. All the
+  // data lives in `p` tags, so the generic fallback would render empty.
+  if (event.kind === LOVE_LIST_KIND) {
+    return <LoveListCompact event={event} className={className} />;
+  }
+
   // Profile badges (kind 10008 / legacy 30008 with d=profile_badges) get a
   // compact badge row preview. NIP-51 badge sets fall through to the generic
   // embedded card.
@@ -131,6 +155,28 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
     return <EmbeddedHighlightCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
+  // Kind 1311 NIP-53 live chat messages get a compact card that shows the
+  // message plus the stream it was posted in. Without this branch the generic
+  // card would render the message with no anchor — a floating chat line.
+  if (event.kind === 1311) {
+    return <EmbeddedLiveChatCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Kind 31871 attestations get a compact status card. The generic fallback
+  // would show only the description text with no state pill — and feed it
+  // through the kind-1 tokenizer.
+  if (event.kind === ATTESTATION_KIND) {
+    return <EmbeddedAttestationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Kind 7849 quiz results (see NIP.md) get a compact card showing the
+  // taker's outcome. The generic fallback would render only the comment
+  // (or the `alt` tag) with no result — and feed it through the kind-1
+  // tokenizer.
+  if (event.kind === QUIZ_RESULT_KIND) {
+    return <EmbeddedQuizResultCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   // Kind 1068 NIP-88 polls get a compact card showing the question + a
   // preview of the options. Without this branch, polls fall through to
   // `EmbeddedNoteCard`, which has no concept of `option` tags and would
@@ -147,6 +193,20 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
     return <EmbeddedPollVoteCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
+  // NIP-34 git events (patches, PRs, PR updates, issues, statuses) get a
+  // compact card with kind label + subject + repo. The generic fallback
+  // would show only the `alt` tag — or feed a `git format-patch` diff /
+  // status comment through the kind-1 tokenizer.
+  if (EMBEDDED_GIT_KINDS.has(event.kind)) {
+    return <EmbeddedGitCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Memory-card blocks (kind 38192) decode to a save icon + title instead of
+  // dumping the 16 KB hex content as text.
+  if (event.kind === MEMORY_CARD_KIND) {
+    return <EmbeddedMemoryCardCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   // People-list events (kind 3 follow lists) get a dedicated card showing
   // title + avatar stack + member count. The generic fallback renders empty
   // because all the data lives in `p` tags, not content or title tags.
@@ -154,7 +214,59 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
     return <EmbeddedPeopleListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
+  // Long-form articles (NIP-23) quoted via nevent get the same rich
+  // link-preview-style card as naddr embeds: cover image, title, summary,
+  // author byline.
+  if (ARTICLE_KINDS.has(event.kind)) {
+    return <EmbeddedArticleCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Magazines, magazine issues, and ebooks get a compact cover + title card.
+  if (PUBLICATION_KINDS.has(event.kind)) {
+    return <EmbeddedPublicationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} highlightText={highlightText} />;
+}
+
+/** Compact inline card for kind 1311 NIP-53 live chat messages. */
+function EmbeddedLiveChatCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+
+  const text = event.content.trim();
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={neventId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <LiveChatContext
+        event={event}
+        className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0 overflow-hidden"
+      />
+      {text ? (
+        <p className="text-sm whitespace-pre-wrap break-words line-clamp-4 text-foreground">
+          {text}
+        </p>
+      ) : (
+        <p className="text-xs italic text-muted-foreground">Live chat message</p>
+      )}
+    </EmbeddedCardShell>
+  );
 }
 
 /** Compact inline card for kind 9802 NIP-84 highlight events. */
@@ -195,6 +307,70 @@ function EmbeddedHighlightCard({
         </blockquote>
       ) : (
         <p className="text-xs italic text-muted-foreground">Highlighted media</p>
+      )}
+    </EmbeddedCardShell>
+  );
+}
+
+/**
+ * Compact inline card for kind 7849 quiz results (see NIP.md).
+ * Shows the taker's comment (plain text — not the kind-1 tokenizer, since a
+ * result's content is short prose) and the denormalized outcome labels.
+ */
+function EmbeddedQuizResultCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event.id, event.pubkey],
+  );
+
+  const result = useMemo(() => parseQuizResult(event), [event]);
+
+  const summary = result
+    ? result.outcomes.length > 0
+      ? result.outcomes.map((o) => o.label).join(', ')
+      : result.scores.map((s) => `${s.label ?? s.dimension}: ${s.value}`).join(' · ')
+    : undefined;
+
+  const image = result?.outcomes.find((o) => o.image)?.image;
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={neventId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <ClipboardCheck className="size-3" />
+        Quiz result
+      </div>
+      {result?.comment && (
+        <p className="text-sm whitespace-pre-wrap break-words line-clamp-2 text-foreground">
+          {result.comment}
+        </p>
+      )}
+      {image && (
+        <img
+          src={image}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="max-h-32 w-full rounded-lg border object-cover"
+        />
+      )}
+      {summary ? (
+        <p className="text-base font-bold text-foreground line-clamp-2">{summary}</p>
+      ) : (
+        <p className="text-xs italic text-muted-foreground">Took a quiz</p>
       )}
     </EmbeddedCardShell>
   );
@@ -704,6 +880,40 @@ function EmbeddedNoteCard({
     return { imgs, vids, auds, apps, links, photos: 0 };
   }, [event.content, event.tags, isPhoto, isBlobbiState]);
 
+  // imeta map (dim/blurhash/poster) for sizing media previews
+  const imetaMap = useMemo(() => parseImetaMap(event.tags), [event.tags]);
+
+  // Extract media to preview inline (images + first video). Photo events (kind
+  // 20) carry their media in imeta `url` fields; content kinds carry URLs in
+  // the body. We show the actual media instead of only a "Photo"/"Video" chip.
+  const previewMedia = useMemo((): { images: string[]; video?: string } => {
+    if (isBlobbiState) return { images: [] };
+    // Collect ordered image + first video URLs.
+    if (isPhoto) {
+      const images: string[] = [];
+      for (const tag of event.tags) {
+        if (tag[0] !== 'imeta') continue;
+        const urlPart = tag.find((p) => p.startsWith('url '));
+        const url = urlPart ? sanitizeUrl(urlPart.slice(4)) : undefined;
+        if (url) images.push(url);
+      }
+      return { images };
+    }
+    const imageMatches = event.content.match(new RegExp(IMAGE_URL_REGEX.source, 'gi')) || [];
+    const images = imageMatches
+      .map((u) => sanitizeUrl(u))
+      .filter((u): u is string => !!u);
+    // First non-image embeddable media (video/webxdc) — prefer video preview.
+    const videoUrls = extractVideoUrls(event.content)
+      .map((u) => sanitizeUrl(u))
+      .filter((u): u is string => !!u);
+    const video = images.length === 0 ? videoUrls[0] : undefined;
+    return { images, video };
+  }, [event.content, event.tags, isPhoto, isBlobbiState]);
+
+  const hasMediaPreview = previewMedia.images.length > 0 || !!previewMedia.video;
+
+
   // Kind label for non-text-note kinds
   const kindMeta = useMemo(() => {
     const label = getKindLabel(event.kind);
@@ -717,13 +927,15 @@ function EmbeddedNoteCard({
   const tagMeta = useMemo(() => {
     // Content kinds with real content always render that content below.
     if (isContentKind && hasContent) return undefined;
+    // Photo events render their images inline — never fall back to alt text.
+    if (isPhoto && hasMediaPreview) return undefined;
     // NIP-31 `alt` is the author's own fallback for clients that can't
     // render the kind. Other tags (title, name, d, …) have kind-specific
     // semantics and are not reliably safe as user-facing preview text.
     const altText = getEventFallbackText(event);
     if (!altText) return undefined;
     return { title: altText, description: undefined as string | undefined };
-  }, [isContentKind, hasContent, event]);
+  }, [isContentKind, hasContent, isPhoto, hasMediaPreview, event]);
 
   // Truly unknown kind: not a content kind, no Blobbi inline visual, no `alt`
   // fallback text, AND we don't recognize the kind via `getKindLabel`. Only
@@ -742,6 +954,11 @@ function EmbeddedNoteCard({
   if (hasCW && config.contentWarningPolicy === 'hide') {
     return null;
   }
+
+  // Media preview is shown for content kinds (and photos) when not blurred.
+  const showMediaPreview =
+    hasMediaPreview && !isBlobbiState && !tagMeta && !isUnknownKind && !isKnownKindWithoutPreview &&
+    !(hasCW && config.contentWarningPolicy === 'blur');
 
   const hasChips = !hasCW && (
     attachments.photos > 0 || attachments.imgs > 0 || attachments.vids > 0 ||
@@ -786,7 +1003,33 @@ function EmbeddedNoteCard({
           This event kind is not supported
         </p>
       ) : (
-        <EmbedTruncatedContent event={event} expanded={contentExpanded} onOverflowChange={setContentOverflows} highlightText={highlightText} />
+        <>
+          {/* Text body (media URLs are stripped here and rendered as a
+              gallery/player below). Empty content renders nothing. */}
+          <EmbedTruncatedContent event={event} expanded={contentExpanded} onOverflowChange={setContentOverflows} highlightText={highlightText} />
+          {showMediaPreview && (
+            <div onClick={(e) => e.stopPropagation()}>
+              {previewMedia.images.length > 0 ? (
+                <ImageGallery
+                  images={previewMedia.images}
+                  maxVisible={4}
+                  maxGridHeight="320px"
+                  imetaMap={imetaMap}
+                  className="mt-1.5"
+                />
+              ) : previewMedia.video ? (
+                <div className="mt-1.5 overflow-hidden rounded-2xl">
+                  <VideoPlayer
+                    src={previewMedia.video}
+                    poster={imetaMap.get(previewMedia.video)?.thumbnail}
+                    dim={imetaMap.get(previewMedia.video)?.dim}
+                    blurhash={imetaMap.get(previewMedia.video)?.blurhash}
+                  />
+                </div>
+              ) : null}
+            </div>
+          )}
+        </>
       )}
 
       {/* Attachment / kind indicator chips + Read more toggle */}
@@ -860,6 +1103,9 @@ function EmbedTruncatedContent({ event, expanded, onOverflowChange, highlightTex
 }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = useState(false);
+  // When clipped, how far the inner content is shifted up so the highlighted
+  // excerpt stays inside the visible window. 0 means "anchored at the top".
+  const [highlightOffset, setHighlightOffset] = useState(0);
 
   const measure = useCallback(() => {
     const el = contentRef.current;
@@ -867,7 +1113,42 @@ function EmbedTruncatedContent({ event, expanded, onOverflowChange, highlightTex
     const doesOverflow = el.scrollHeight > EMBED_MAX_HEIGHT;
     setOverflows(doesOverflow);
     onOverflowChange(doesOverflow);
-  }, [onOverflowChange]);
+
+    // For NIP-84 highlights, the marked excerpt may sit far below the top of a
+    // long source note. Clipping rigidly from the top would hide the entire
+    // point of the embed behind "Read more". Instead, shift the content up so
+    // the first `<mark>` lands inside the visible window.
+    if (!doesOverflow || !highlightText) {
+      setHighlightOffset(0);
+      return;
+    }
+
+    const mark = el.querySelector('mark');
+    if (!mark) {
+      setHighlightOffset(0);
+      return;
+    }
+
+    const contentTop = el.getBoundingClientRect().top;
+    const markRect = mark.getBoundingClientRect();
+    const markTop = markRect.top - contentTop;
+    const markBottom = markRect.bottom - contentTop;
+
+    // If the mark already fits inside the first window, leave it anchored.
+    if (markBottom <= EMBED_MAX_HEIGHT) {
+      setHighlightOffset(0);
+      return;
+    }
+
+    // Center the highlight in the window where possible, clamped so we never
+    // scroll past the end of the content (which would reveal empty space).
+    const markHeight = markBottom - markTop;
+    const desired = markHeight >= EMBED_MAX_HEIGHT
+      ? markTop // taller-than-window highlight: pin its start to the top
+      : markTop - (EMBED_MAX_HEIGHT - markHeight) / 2;
+    const maxOffset = el.scrollHeight - EMBED_MAX_HEIGHT;
+    setHighlightOffset(Math.max(0, Math.min(desired, maxOffset)));
+  }, [onOverflowChange, highlightText]);
 
   useEffect(() => {
     measure();
@@ -885,14 +1166,26 @@ function EmbedTruncatedContent({ event, expanded, onOverflowChange, highlightTex
     return () => imgs.forEach((img) => img.removeEventListener('load', measure));
   }, [measure]);
 
+  const clipped = !expanded && overflows;
+  // Reset the offset to 0 when the user expands so all content is reachable.
+  const offset = clipped ? highlightOffset : 0;
+
   return (
     <div
-      ref={contentRef}
       className="relative overflow-hidden"
-      style={!expanded && overflows ? { maxHeight: EMBED_MAX_HEIGHT } : undefined}
+      style={clipped ? { maxHeight: EMBED_MAX_HEIGHT } : undefined}
     >
-      <NoteContent event={event} className="text-sm leading-relaxed" disableMediaEmbeds disableNoteEmbeds highlightText={highlightText} />
-      {!expanded && overflows && (
+      <div style={offset > 0 ? { marginTop: -offset } : undefined}>
+        <div ref={contentRef}>
+          <NoteContent event={event} className="text-sm leading-relaxed" disableMediaEmbeds disableNoteEmbeds highlightText={highlightText} />
+        </div>
+      </div>
+      {/* Top fade — only shown when content is clipped above the window. */}
+      {clipped && offset > 0 && (
+        <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-background to-transparent pointer-events-none" />
+      )}
+      {/* Bottom fade — shown when there is still content below the window. */}
+      {clipped && (
         <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-background to-transparent pointer-events-none" />
       )}
     </div>

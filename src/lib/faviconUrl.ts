@@ -1,4 +1,4 @@
-import UriTemplate from 'uri-templates';
+import { fillUriTemplate } from '@/lib/uriTemplate';
 
 export interface TemplateUrlOpts {
   template: string;
@@ -12,7 +12,7 @@ export interface TemplateUrlOpts {
 export function templateUrl(opts: TemplateUrlOpts): string {
   const u = new URL(opts.url);
 
-  return UriTemplate(opts.template).fill({
+  return fillUriTemplate(opts.template, {
     url: u.href,
     href: u.href,
     origin: u.origin,

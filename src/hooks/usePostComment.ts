@@ -1,5 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
+import { insertReplyIntoThreads } from '@/lib/insertReply';
 import { NKinds, type NostrEvent } from '@nostrify/nostrify';
 import { isNostrId } from '@/lib/nostrId';
 
@@ -12,6 +15,7 @@ interface PostCommentParams {
 
 /** Post a NIP-22 (kind 1111) comment on an event. */
 export function usePostComment() {
+  const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
 
@@ -43,15 +47,21 @@ export function usePostComment() {
         tags,
       });
 
+      // Rebroadcast the original event(s) alongside the comment (best-effort).
+      // Only Nostr events (not URLs or NIP-73 identifiers) can be rebroadcast.
+      if (reply && typeof reply !== 'string' && !(reply instanceof URL)) {
+        rebroadcastEvent(nostr, reply);
+      }
+      if (typeof root !== 'string' && !(root instanceof URL)) {
+        rebroadcastEvent(nostr, root);
+      }
+
       return event;
     },
-    onSuccess: (_, { root }) => {
-      const rootKey = root instanceof URL ? root.toString() : typeof root === 'string' ? root : root.id;
-
-      // Invalidate and refetch comments
-      queryClient.invalidateQueries({
-        queryKey: ['nostr', 'comments', rootKey]
-      });
+    onSuccess: (event, { root }) => {
+      // Show the comment immediately instead of refetching, which would race
+      // the relay's write→read indexing and come back without it.
+      insertReplyIntoThreads(queryClient, event, root);
     },
   });
 }

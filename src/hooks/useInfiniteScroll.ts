@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useInView } from 'react-intersection-observer';
+import { useInView } from '@/hooks/useInView';
 
 interface UseInfiniteScrollOptions {
   /** Whether there are more pages to fetch. */

@@ -6,12 +6,13 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
 
-import type { BlobbiCompanion, BlobbonautProfile } from '@/blobbi/core/lib/blobbi';
+import type { BlobbiCompanion, BlobbonautProfile } from '@blobbi-kit/core/blobbi';
 import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
-} from '@/blobbi/core/lib/blobbi';
-import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
+  buildBlobbiAddress,
+} from '@blobbi-kit/core/blobbi';
+import { applyBlobbiDecay } from '@blobbi-kit/core/blobbi-decay';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import {
   applyItemEffects,
@@ -24,11 +25,11 @@ import {
   type InventoryAction,
   ACTION_METADATA,
 } from '../lib/blobbi-action-utils';
-import { trackEvolutionMissionTally, readEvolutionFromStorage, trackInventoryDailyActions } from '../lib/daily-mission-tracker';
-import { serializeEvolutionContent } from '@/blobbi/core/lib/missions';
-import { getStreakTagUpdates } from '../lib/blobbi-streak';
-import { calculateInventoryActionXP, applyXPGain, formatXPGain } from '../lib/blobbi-xp';
-import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@/blobbi/core/lib/blobbi-interaction';
+import { trackEvolutionMissionTally, readEvolutionFromStorage, trackInventoryDailyActions } from '@blobbi-kit/react/lib/daily-mission-tracker';
+import { serializeEvolutionContent } from '@blobbi-kit/core/missions';
+import { getStreakTagUpdates } from '@blobbi-kit/react/lib/blobbi-streak';
+import { calculateInventoryActionXP, applyXPGain, formatXPGain } from '@blobbi-kit/react/lib/blobbi-xp';
+import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@blobbi-kit/core/blobbi-interaction';
 
 // Import NostrEvent type
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -58,16 +59,13 @@ export interface UseItemResult {
 export interface UseBlobbiUseInventoryItemParams {
   companion: BlobbiCompanion | null;
   profile: BlobbonautProfile | null;
-  /** Called after ensuring companion is canonical (from migration helper) */
+  /** Called to fetch fresh companion + profile data before acting (read step of read-modify-write) */
   ensureCanonicalBeforeAction: () => Promise<{
     companion: BlobbiCompanion;
     content: string;
     allTags: string[][];
-    wasMigrated: boolean;
-    /** Latest profile tags after migration */
+    /** Latest profile tags */
     profileAllTags: string[][];
-    /** Latest profile storage after migration */
-    profileStorage: import('@/blobbi/core/lib/blobbi').StorageItem[];
   } | null>;
   /** Update companion event in local cache */
   updateCompanionEvent: (event: NostrEvent) => void;
@@ -304,7 +302,7 @@ export function useBlobbiUseInventoryItem({
       // The 31124 canonical state is already updated above. Invalidate the
       // interactions query so the social projection picks up the new 1124.
       {
-        const coordinate = `31124:${canonical.companion.event.pubkey}:${canonical.companion.d}`;
+        const coordinate = buildBlobbiAddress(canonical.companion.event.pubkey, canonical.companion.d);
         queryClient.invalidateQueries({
           queryKey: ['blobbi-interactions', coordinate],
         });

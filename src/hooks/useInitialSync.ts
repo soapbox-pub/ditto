@@ -228,8 +228,14 @@ export function useInitialSync() {
               if (parsed.contentWarningPolicy) {
                 updates.contentWarningPolicy = parsed.contentWarningPolicy;
               }
+              if (parsed.exemptFollowsFromFilters !== undefined) {
+                updates.exemptFollowsFromFilters = parsed.exemptFollowsFromFilters;
+              }
               if (parsed.sidebarOrder && parsed.sidebarOrder.length > 0) {
                 updates.sidebarOrder = parsed.sidebarOrder;
+              }
+              if (parsed.sidebarWidgets) {
+                updates.sidebarWidgets = parsed.sidebarWidgets;
               }
               if (parsed.homePage) {
                 updates.homePage = parsed.homePage;

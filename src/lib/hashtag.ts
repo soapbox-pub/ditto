@@ -24,3 +24,19 @@ export function hashtagRegex(): RegExp {
 export function extractHashtags(content: string): string[] {
   return content.match(hashtagRegex())?.map((h) => h.slice(1).toLowerCase()) ?? [];
 }
+
+/**
+ * Normalize an event-sourced `t` tag value into a renderable hashtag.
+ *
+ * `t` tags are untrusted strings — they may contain whitespace, control
+ * characters, or arbitrarily long junk that breaks layouts or misleads users.
+ * Returns the trimmed, lowercased, `#`-stripped value only if the whole
+ * string matches the hashtag alphabet and fits `maxLength`; otherwise
+ * `undefined`.
+ */
+export function normalizeTagValue(value: unknown, maxLength = 64): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim().replace(/^#/, '').toLowerCase();
+  if (!normalized || normalized.length > maxLength) return undefined;
+  return new RegExp(`^${HASHTAG_PATTERN}$`, 'u').test(`#${normalized}`) ? normalized : undefined;
+}

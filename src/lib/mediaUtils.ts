@@ -1,6 +1,8 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { extractBlossomUris, resolveBlossomUri, resolveBlossomUrl } from '@/lib/blossomUri';
 import { getContentWarning } from '@/lib/contentWarning';
+import { mimeFromExt } from '@/lib/mediaUrls';
 
 export type MediaType = 'image' | 'video' | 'audio';
 
@@ -16,7 +18,7 @@ function detectType(url: string, mime?: string, eventKind?: number): MediaType {
     if (mime.startsWith('image/')) return 'image';
   }
   if (/\.(mp4|webm|mov|qt|m3u8)(\?.*)?$/i.test(url)) return 'video';
-  if (/\.(mp3|ogg|flac|wav|aac|opus)(\?.*)?$/i.test(url)) return 'audio';
+  if (/\.(mp3|mpga|ogg|flac|wav|aac|opus)(\?.*)?$/i.test(url)) return 'audio';
   // Fall back to event kind for extensionless URLs (e.g. Blossom content-addressed URLs)
   if (eventKind !== undefined) {
     if (VIDEO_KINDS.has(eventKind)) return 'video';
@@ -70,11 +72,36 @@ function parseImeta(tags: string[][]): { url: string; blurhash?: string; dim?: s
 }
 
 function extractMediaUrls(content: string): string[] {
-  return content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|qt|mp3|ogg|flac|wav|aac|opus)(\?[^\s]*)?/gi) ?? [];
+  return content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|qt|mp3|mpga|ogg|flac|wav|aac|opus)(\?[^\s]*)?/gi) ?? [];
 }
 
-export function eventToMediaItem(event: NostrEvent): MediaItem | null {
-  const imeta = parseImeta(event.tags);
+/**
+ * Extract BUD-10 `blossom:` media URIs from content and resolve them to
+ * fetchable HTTPS blob URLs. Non-media extensions (pdf, bin, ...) are skipped.
+ */
+function extractBlossomMediaUrls(content: string, blossomServers: string[]): string[] {
+  const urls: string[] = [];
+  for (const { uri } of extractBlossomUris(content)) {
+    const mime = mimeFromExt(uri.ext);
+    if (!/^(image|video|audio)\//.test(mime)) continue;
+    const [url] = resolveBlossomUri(uri, blossomServers);
+    if (url) urls.push(url);
+  }
+  return urls;
+}
+
+/**
+ * Convert an event into a {@link MediaItem} for gallery display.
+ *
+ * @param blossomServers - The viewer's effective Blossom servers, used to
+ * resolve BUD-10 `blossom:` URIs (in imeta tags or kind-1 content) into
+ * fetchable HTTPS URLs when the URI carries no usable `xs` server hint.
+ */
+export function eventToMediaItem(event: NostrEvent, blossomServers: string[] = []): MediaItem | null {
+  const imeta = parseImeta(event.tags).flatMap((entry) => {
+    const url = resolveBlossomUrl(entry.url, blossomServers);
+    return url ? [{ ...entry, url }] : [];
+  });
   const cw = getContentWarning(event);
   if (imeta.length > 0) {
     const first = imeta[0];
@@ -95,7 +122,10 @@ export function eventToMediaItem(event: NostrEvent): MediaItem | null {
     };
   }
   if (event.kind === 1) {
-    const urls = extractMediaUrls(event.content);
+    const urls = [
+      ...extractMediaUrls(event.content),
+      ...extractBlossomMediaUrls(event.content, blossomServers),
+    ];
     if (urls.length > 0) {
       const types = urls.map((u) => detectType(u));
       return {

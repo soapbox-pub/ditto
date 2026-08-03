@@ -1,12 +1,14 @@
 import { Quote, Undo2 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { useState } from 'react';
+import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { impactLight } from '@/lib/haptics';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useDeleteEvent } from '@/hooks/useDeleteEvent';
 import { useRepostStatus } from '@/hooks/useRepostStatus';
@@ -25,6 +27,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
   const [open, setOpen] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const { mutate: publishEvent } = useNostrPublish();
   const { mutate: deleteEvent } = useDeleteEvent();
   const repostEventId = useRepostStatus(event.id);
@@ -79,6 +82,8 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
         onSuccess: () => {
           toast({ title: 'Reposted!' });
           setOpen(false);
+          // Rebroadcast the original event alongside the repost (best-effort).
+          rebroadcastEvent(nostr, event);
           // Delay invalidation so the relay has time to index the new event.
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });

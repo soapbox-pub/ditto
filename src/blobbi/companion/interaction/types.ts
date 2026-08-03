@@ -8,7 +8,7 @@
  * - Blobbi reactions to items
  */
 
-import type { ShopItemCategory, ItemEffect } from '@/blobbi/shop/types/shop.types';
+import type { ShopItemCategory, ItemEffect } from '@blobbi-kit/core/types/shop';
 
 // ─── Menu Actions ─────────────────────────────────────────────────────────────
 

@@ -68,6 +68,8 @@ export interface FeedSettings {
   feedIncludeHighlights: boolean;
   /** Include Agora Fundraisers (kind 33863) in the follows/global feed */
   feedIncludeCampaigns: boolean;
+  /** Include Attestations (kind 31871) in the follows/global feed */
+  feedIncludeAttestations: boolean;
   /** Show Events (kind 31922/31923) link in sidebar */
   showEvents: boolean;
   /** Include calendar events in the follows/global feed */
@@ -82,8 +84,20 @@ export interface FeedSettings {
   showTreasureGeocaches: boolean;
   /** Show Found logs (kind 7516) in Treasures */
   showTreasureFoundLogs: boolean;
+  /** Show Quizzes link in sidebar */
+  showQuizzes: boolean;
+  /** Show Quiz definitions (kind 37849) in Quizzes */
+  showQuizDefinitions: boolean;
+  /** Show Quiz results (kind 7849) in Quizzes */
+  showQuizResults: boolean;
+  /** Include Quiz definitions (kind 37849) in the follows/global feed */
+  feedIncludeQuizzes: boolean;
+  /** Include Quiz results (kind 7849) in the follows/global feed */
+  feedIncludeQuizResults: boolean;
   /** Show Colors (kind 3367) link in sidebar */
   showColors: boolean;
+  /** Show Memory Cards (kind 38192) link in sidebar */
+  showMemoryCards: boolean;
   /** Show People Lists (kind 39089 follow packs, kind 30000 people sets) link in sidebar */
   showPeopleLists: boolean;
   /** Include Vines in the follows/global feed */
@@ -96,6 +110,8 @@ export interface FeedSettings {
   feedIncludeTreasureFoundLogs: boolean;
   /** Include Colors in the follows/global feed */
   feedIncludeColors: boolean;
+  /** Include Memory Cards (kind 38192) in the follows/global feed */
+  feedIncludeMemoryCards: boolean;
   /** Include People Lists (kind 3 follow lists, kind 30000 people sets, kind 39089 follow packs) in the follows/global feed */
   feedIncludePeopleLists: boolean;
   /** Show Magic Decks (kind 37381) link in sidebar */
@@ -152,10 +168,40 @@ export interface FeedSettings {
   feedIncludePodcastEpisodes: boolean;
   /** Include podcast trailers (kind 30055) in the follows/global feed */
   feedIncludePodcastTrailers: boolean;
-  /** Show Development (NIP-34 repos, patches, PRs, custom NIPs, app submissions) link in sidebar */
+  /** Show Development (NIP-34 git, custom NIPs, nsites, apps) link in sidebar */
   showDevelopment: boolean;
-  /** Include Development content in the follows/global feed */
-  feedIncludeDevelopment: boolean;
+  /** Include git repository announcements (kind 30617) in the follows/global feed */
+  feedIncludeGitRepos: boolean;
+  /** Include git pushes / repository state updates (kind 30618) in the follows/global feed */
+  feedIncludeGitPushes: boolean;
+  /** Include git patches (kind 1617) in the follows/global feed */
+  feedIncludeGitPatches: boolean;
+  /** Include git pull requests (kind 1618) in the follows/global feed */
+  feedIncludeGitPullRequests: boolean;
+  /** Include git pull request updates (kind 1619) in the follows/global feed */
+  feedIncludeGitPrUpdates: boolean;
+  /** Include git issues (kind 1621) in the follows/global feed */
+  feedIncludeGitIssues: boolean;
+  /** Include git reopened statuses (kind 1630) in the follows/global feed */
+  feedIncludeGitStatusReopened: boolean;
+  /** Include git resolved/applied/merged statuses (kind 1631) in the follows/global feed */
+  feedIncludeGitStatusResolved: boolean;
+  /** Include git closed statuses (kind 1632) in the follows/global feed */
+  feedIncludeGitStatusClosed: boolean;
+  /** Include git draft statuses (kind 1633) in the follows/global feed */
+  feedIncludeGitStatusDraft: boolean;
+  /** Include custom NIP proposals (kind 30817) in the follows/global feed */
+  feedIncludeCustomNips: boolean;
+  /** Include root nsite deployments (kind 15128) in the follows/global feed */
+  feedIncludeNsiteRoots: boolean;
+  /** Include named nsite deployments (kind 35128) in the follows/global feed */
+  feedIncludeNsiteNamed: boolean;
+  /** Include Zapstore app listings (kind 32267) in the follows/global feed */
+  feedIncludeZapstoreApps: boolean;
+  /** Include Zapstore release announcements (kind 30063) in the follows/global feed */
+  feedIncludeZapstoreReleases: boolean;
+  /** Include NIP-89 app handler announcements (kind 31990) in the follows/global feed */
+  feedIncludeAppHandlers: boolean;
   /** Show Badges (NIP-58 kind 30009) link in sidebar */
   showBadges: boolean;
   /** Show badge definitions (kind 30009) on the Badges page */
@@ -172,6 +218,8 @@ export interface FeedSettings {
   feedIncludeBadgeAwards: boolean;
   /** Include Request to Vanish events (kind 62) in the follows/global feed */
   feedIncludeVanish: boolean;
+  /** Include Love List updates (kind 15683, see NIP.md) in the follows/global feed */
+  feedIncludeLoveLists: boolean;
   /** Include Blobbi pet updates (kind 31124) in the follows/global feed */
   feedIncludeBlobbi: boolean;
   /** Show Birdstar (kind 2473 bird detections + kind 30621 custom constellations) link in sidebar */
@@ -232,6 +280,11 @@ export interface AppConfig {
   client?: string;
   /** Enable Magic Mouse mode: cursor/finger emanates magical fire in the primary color */
   magicMouse: boolean;
+  /**
+   * Interface language, e.g. "en", "de", "ja". When unset, the browser/OS
+   * locale is used (the "System default" option in the language picker).
+   */
+  locale?: string;
   /** Current theme */
   theme: Theme;
   /** Custom theme config (colors, fonts, background). Only used when theme === "custom". */
@@ -276,6 +329,12 @@ export interface AppConfig {
   corsProxy: string;
   /** How to handle NIP-36 content-warning events (blur, hide, or show). Default: "blur". */
   contentWarningPolicy: ContentWarningPolicy;
+  /**
+   * Exempt followed accounts from content-based filters (muted hashtags and
+   * muted words). Explicit pubkey and thread mutes still apply. Synced across
+   * devices via encrypted settings. Default: false.
+   */
+  exemptFollowsFromFilters: boolean;
   /** Sentry DSN for error reporting (empty string = disabled). */
   sentryDsn: string;
   /** Whether the user has enabled Sentry error reporting. */
@@ -323,6 +382,17 @@ export interface AppConfig {
   currencyDisplay: CurrencyDisplay;
   /** Ordered list of right sidebar widget configs. Each entry is a widget type ID with optional display settings. */
   sidebarWidgets: WidgetConfig[];
+  /**
+   * Maximum age, in seconds, of events kept in the local IndexedDB event
+   * cache. After each write flush, events older than this are pruned based on
+   * their author: a logged-in account's own events are never evicted (any
+   * kind); a followed account's replaceable/addressable events are never
+   * evicted, but its regular events are; everyone else's events are evicted
+   * regardless of kind. "Followed" is the union of all logged-in accounts'
+   * contact lists. A non-positive value disables age-based eviction.
+   * Default: 604800 (7 days).
+   */
+  maxCachedEventAge: number;
 }
 
 /** Configuration for a single widget in the right sidebar. */

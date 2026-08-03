@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
+import { useInView } from '@/hooks/useInView';
 import { nip19 } from 'nostr-tools';
 import { UserPlus, Loader2, CheckCircle2, Copy, Check } from 'lucide-react';
 
@@ -31,7 +31,7 @@ import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { buildThemeCssFromCore } from '@/themes';
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
-import LoginDialog from '@/components/auth/LoginDialog';
+import { LoginFlow } from '@/components/auth/LoginFlow';
 import { feedItemKey, type FeedItem } from '@/lib/feedUtils';
 import type { AddressPointer } from 'nostr-tools/nip19';
 import NotFound from './NotFound';
@@ -367,7 +367,7 @@ function FollowView({ pubkey }: { pubkey: string }) {
         </div>
       </div>
 
-      <LoginDialog
+      <LoginFlow
         isOpen={loginOpen}
         onClose={() => setLoginOpen(false)}
         onLogin={() => setLoginOpen(false)}
@@ -603,7 +603,7 @@ function FollowPackView({ addr, relays }: { addr: AddrCoords; relays?: string[] 
         </div>
       </div>
 
-      <LoginDialog
+      <LoginFlow
         isOpen={loginOpen}
         onClose={() => setLoginOpen(false)}
         onLogin={() => setLoginOpen(false)}

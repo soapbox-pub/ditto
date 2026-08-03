@@ -16,7 +16,7 @@ import {
   getLocalDayString,
   type BlobbiVisualTraits,
   type BlobbiStats,
-} from '@/blobbi/core/lib/blobbi';
+} from '@blobbi-kit/core';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -183,7 +183,6 @@ export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
     
     // Required but not used for preview rendering
     isLegacy: false,
-    needsSeedIdentitySync: false,
     lastInteraction: preview.createdAt,
     lastDecayAt: preview.createdAt,
     generation: 1,

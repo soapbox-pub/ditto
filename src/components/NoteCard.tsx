@@ -3,12 +3,20 @@ import {
   Award,
   Bird,
   Camera,
+  CircleCheck,
+  CircleDashed,
+  CircleDot,
+  CircleX,
+  ClipboardCheck,
+  ClipboardList,
   Egg,
   FileCode,
   FileText,
   GitBranch,
   GitPullRequest,
+  GitPullRequestArrow,
   HandHeart,
+  Heart,
   ListMusic,
   Mail,
   MessageCircle,
@@ -19,6 +27,9 @@ import {
   Package,
   Play,
   Radio,
+  CalendarClock,
+  Video,
+  ShieldCheck,
   SmilePlus,
   PartyPopper,
   Sparkles,
@@ -28,15 +39,17 @@ import {
   Volume2,
   VolumeX,
   Zap,
+  Newspaper,
+  BookOpen,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import { type ReactNode, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useInView } from "@/hooks/useInView";
 import { Link } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
-const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
-const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
+const EmbeddedArticleCard = lazy(() => import("@/components/EmbeddedArticleCard").then(m => ({ default: m.EmbeddedArticleCard })));
+const EmbeddedPublicationCard = lazy(() => import("@/components/EmbeddedPublicationCard").then(m => ({ default: m.EmbeddedPublicationCard })));const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const BlobbiSocialActions = lazy(() => import("@/components/BlobbiSocialActions").then(m => ({ default: m.BlobbiSocialActions })));
-import { parseBlobbiEvent } from "@/blobbi/core/lib/blobbi";
 import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
 import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 import {
@@ -49,12 +62,16 @@ import { BadgeAwardCard } from "@/components/BadgeAwardCard";
 import { BadgeContent } from "@/components/BadgeContent";
 import { BadgeSetContent } from "@/components/BadgeSetContent";
 import { CalendarEventContent } from "@/components/CalendarEventContent";
+import { CelebrationOverlay, CELEBRATION_DURATION_MS } from "@/components/CelebrationOverlay";
+import { PartyHat } from "@/components/BirthdayRain";
 import {
   ColorMomentContent,
   ColorMomentEyeButton,
 } from "@/components/ColorMomentContent";
+import { MemoryCardContent } from "@/components/MemoryCardContent";
 import { BrokenEventFallback } from "@/components/BrokenEventFallback";
 import { CommentContext } from "@/components/CommentContext";
+import { LiveChatContext } from "@/components/LiveChatContext";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EmojifiedText, ReactionEmoji } from "@/components/CustomEmoji";
@@ -69,8 +86,19 @@ import { BirdDetectionContent } from "@/components/BirdDetectionContent";
 import { BirdexContent } from "@/components/BirdexContent";
 import { ConstellationContent } from "@/components/ConstellationContent";
 import { GitRepoCard } from "@/components/GitRepoCard";
+const GitStatusCard = lazy(() => import("@/components/GitStatusCard").then(m => ({ default: m.GitStatusCard })));
+const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ default: m.IssueCard })));
+import { PrUpdateCard } from "@/components/PrUpdateCard";
+import { RepoStateCard } from "@/components/RepoStateCard";
 import { HighlightContent } from "@/components/HighlightContent";
-import { CampaignContent } from "@/components/CampaignContent";
+import { StatusContent } from "@/components/StatusContent";
+import { InteractiveRoomContent } from "@/components/InteractiveRoomContent";
+import { QuizContent } from "@/components/quiz/QuizContent";
+import { QuizResultContent } from "@/components/quiz/QuizResultContent";
+import { QUIZ_KIND, QUIZ_RESULT_KIND } from "@/lib/quiz";
+import { AttestationContent } from "@/components/AttestationContent";
+import { ATTESTATION_KIND } from "@/lib/attestation";
+import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { ZapContent } from "@/components/ZapContent";
 import { NsiteCard } from "@/components/NsiteCard";
 import { ImageGallery } from "@/components/ImageGallery";
@@ -96,6 +124,7 @@ import { ThemeContent } from "@/components/ThemeContent";
 import { UnknownKindContent } from "@/components/UnknownKindContent";
 import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
+import { LoveListContent } from "@/components/LoveListContent";
 import { VanishCardCompact } from "@/components/VanishEventContent";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { ZapstoreReleaseContent, ZapstoreAssetContent } from "@/components/ZapstoreReleaseContent";
@@ -103,19 +132,24 @@ import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { isBadgeSetEvent, isProfileBadgesEvent } from "@/lib/badgeUtils";
+import { canCelebrate, detectCelebration, markCelebrated } from "@/lib/celebrations";
+import { parseBirthdayFromContent, isBirthdayToday } from "@/lib/birthday";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { ZapDialog } from "@/components/ZapDialog";
 import { useAppContext } from "@/hooks/useAppContext";
+import { useEvent } from "@/hooks/useEvent";
+import { NGIT_RELAY } from "@/lib/appRelays";
+import { getGitRepoRef, getGitRootRef, gitStatusVerb, gitTicketNoun } from "@/lib/gitActivity";
 import { useAuthor } from "@/hooks/useAuthor";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useLoveList, LOVE_LIST_KIND } from "@/hooks/useLoveList";
 import { useNip05Verify } from "@/hooks/useNip05Verify";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useEventStats } from "@/hooks/useTrending";
-import { useUserZap } from "@/hooks/useUserZap";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
 import { extractZapMessage } from "@/hooks/useEventInteractions";
 import { getZapAmountSats, getZapSenderPubkey } from "@/lib/zapHelpers";
@@ -124,13 +158,15 @@ import { getContentWarning } from "@/lib/contentWarning";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
-import { isSingleImagePost } from "@/lib/noteContent";
+import { isNostrId } from "@/lib/nostrId";
+import { isMediaDominantPost } from "@/lib/noteContent";
 import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
 import { publishedAtAction } from "@/lib/publishedAtAction";
 import { parseBadgeSet } from "@/lib/parseBadgeSet";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
+import { BLANK_POSTER } from "@/lib/blankPoster";
 import { encodeEventAddress } from "@/lib/encodeEvent";
 import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
 
@@ -292,6 +328,11 @@ interface NoteCardProps {
   highlight?: boolean;
   /** If true, suppress the kind-derived action header (e.g. "created a badge"). Used when the parent already provides context. */
   hideKindHeader?: boolean;
+  /** If true and `event` is a zap (kind 9735/8333), render it like a normal
+   *  reply — sender avatar + the zap comment as body text with a small amber
+   *  amount badge — instead of the compact zap activity card. Used in reply
+   *  threads where a zap-with-comment reads better as a reply. */
+  zapAsReply?: boolean;
 }
 
 /** Gets a tag value by name. */
@@ -309,6 +350,13 @@ function isInteractiveTarget(e: React.MouseEvent): boolean {
     target.closest("[data-vaul-drawer]") ||
     target.closest("[data-vaul-drawer-overlay]") ||
     target.closest('[data-testid="zap-modal"]') ||
+    // Radix popper-based content (dropdowns, popovers, selects, tooltips) renders
+    // in a portal as a sibling of the card/dialog, so the click target isn't a DOM
+    // descendant of the dialog. Match it explicitly so selecting a menu item (e.g.
+    // a payment-method switcher option) doesn't bubble out and navigate to the post.
+    target.closest("[data-radix-popper-content-wrapper]") ||
+    target.closest('[role="menu"]') ||
+    target.closest('[role="menuitem"]') ||
     target.closest("button") ||
     target.closest("a")
   );
@@ -329,7 +377,7 @@ function isDeprecatedFollowSet(event: NostrEvent): boolean {
   return false;
 }
 
-export const NoteCard = memo(function NoteCard({
+const NoteCardImpl = memo(function NoteCardImpl({
   event,
   className,
   repostedBy,
@@ -343,10 +391,14 @@ export const NoteCard = memo(function NoteCard({
   threadedLast,
   highlight,
   hideKindHeader,
+  zapAsReply,
 }: NoteCardProps) {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
+  // Love List membership — shows a small heart next to loved authors' names.
+  const { isLoved } = useLoveList();
+  const authorIsLoved = isLoved(event.pubkey);
   // Sender of a zap event (kind 9735 or 8333). `getZapSenderPubkey` handles
   // both kinds — kind 9735 reads the P tag / description.pubkey because the
   // receipt is signed by the LNURL server, kind 8333 returns `event.pubkey`
@@ -376,11 +428,61 @@ export const NoteCard = memo(function NoteCard({
     profileZapRecipient,
   );
 
+  // Zap sender's nip05 — verified so the zap-as-reply layout can show the
+  // sender's username line just like a normal reply. Hook runs unconditionally
+  // with `undefined` when the card isn't a zap.
+  const zapSenderNip05 = zapSenderMeta?.nip05;
+  const { data: zapSenderNip05Verified, isPending: zapSenderNip05Pending } = useNip05Verify(
+    zapSenderNip05,
+    zapSenderPubkey || undefined,
+  );
+
   const pollVoteLabel = usePollVoteLabel(event);
+
+  // Celebration effect — text notes containing celebratory words/emojis
+  // ("congrats", "happy birthday", "gm", 🎉…) play a one-shot particle
+  // overlay once the card has been mostly in view for a beat (the dwell
+  // keeps the effect from spraying mid-scroll, where it reads as visual
+  // noise). Eligibility (once per event per session) lives
+  // in @/lib/celebrations; skipped entirely under prefers-reduced-motion.
+  // The observer is skipped for ordinary notes so the feed doesn't pay for
+  // it.
+  const celebration = useMemo(
+    () => (event.kind === 1 ? detectCelebration(event.content) : undefined),
+    [event],
+  );
+  const [celebrating, setCelebrating] = useState(false);
+  const { ref: celebrationRef, inView: celebrationInView } = useInView({
+    threshold: 0.6,
+    skip: !celebration || celebrating || !canCelebrate(event.id),
+  });
+  useEffect(() => {
+    if (!celebration || !celebrationInView) return;
+    if (!canCelebrate(event.id)) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Arm after a short dwell; scrolling away flips `celebrationInView` and
+    // the cleanup cancels before anything plays.
+    const arm = setTimeout(() => {
+      markCelebrated(event.id);
+      setCelebrating(true);
+    }, 400);
+    return () => clearTimeout(arm);
+  }, [celebration, celebrationInView, event.id]);
+  useEffect(() => {
+    if (!celebrating) return;
+    const timeout = setTimeout(() => setCelebrating(false), CELEBRATION_DURATION_MS);
+    return () => clearTimeout(timeout);
+  }, [celebrating]);
 
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
+  // NIP-24 birthday — the author's avatar wears a party hat all day.
+  const authorEventContent = author.data?.event?.content;
+  const isAuthorBirthday = useMemo(
+    () => isBirthdayToday(parseBirthdayFromContent(authorEventContent)),
+    [authorEventContent],
+  );
   const nip05 = metadata?.nip05;
   const { data: nip05Verified, isPending: nip05Pending } = useNip05Verify(
     nip05,
@@ -407,10 +509,6 @@ export const NoteCard = memo(function NoteCard({
   // On-chain zaps are always available; Lightning is offered inside the dialog
   // when the author has lud06/lud16.
   const canZapAuthor = !!user && user.pubkey !== event.pubkey;
-  // Fills the bolt icon once the user has zapped this event on either rail.
-  // Optimistic cache is set by the send hooks, so the icon fills instantly
-  // on success without waiting for the relay echo.
-  const isZapped = useUserZap(canZapAuthor ? event.id : undefined) === true;
 
   // Profile-zap variants: when the card targets a recipient profile rather
   // than a specific note, the action bar attaches to the recipient's kind-0
@@ -419,7 +517,6 @@ export const NoteCard = memo(function NoteCard({
   const recipientEvent = recipient.data?.event;
   const { data: recipientStats } = useEventStats(recipientEvent?.id, recipientEvent);
   const canZapRecipient = !!user && !!profileZapRecipient && user.pubkey !== profileZapRecipient;
-  const isRecipientZapped = useUserZap(canZapRecipient ? recipientEvent?.id : undefined) === true;
 
   // Money formatter (USD by default, with sats fallback). Reused for the
   // "X zapped Y" wrapper header and the kind 9735 zap-receipt card below.
@@ -427,6 +524,7 @@ export const NoteCard = memo(function NoteCard({
 
   const { onClick: openPost, onAuxClick: auxOpenPost } = useOpenPost(
     `/${encodedId}`,
+    event,
   );
 
   // Profile-zap card click target: the recipient's profile, not the zap event.
@@ -450,13 +548,16 @@ export const NoteCard = memo(function NoteCard({
   const isGeocache = event.kind === 37516;
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
+  const isMemoryCard = event.kind === 38192;
   const isBirdDetection = event.kind === 2473;
   const isBirdex = event.kind === 12473;
   const isConstellation = event.kind === 30621;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isArticle = event.kind === 30023;
+  const isPublication = PUBLICATION_KINDS.has(event.kind);
   const isMagicDeck = event.kind === 37381;
   const isStream = event.kind === 30311;
+  const isRoom = event.kind === 30312 || event.kind === 30313;
   const isFileMetadata = event.kind === 1063;
   const isThemeDefinition = event.kind === 36767;
   const isActiveTheme = event.kind === 16767;
@@ -481,8 +582,12 @@ export const NoteCard = memo(function NoteCard({
   const isAudioKind =
     isMusicTrack || isMusicPlaylist || isPodcastEpisode || isPodcastTrailer;
   const isGitRepo = event.kind === 30617;
+  const isRepoState = event.kind === 30618;
   const isPatch = event.kind === 1617;
   const isPullRequest = event.kind === 1618;
+  const isPrUpdate = event.kind === 1619;
+  const isIssue = event.kind === 1621;
+  const isGitStatus = event.kind >= 1630 && event.kind <= 1633;
   const isCustomNip = event.kind === 30817;
   const isNsite = event.kind === 15128 || event.kind === 35128;
   const isZapstoreApp = event.kind === 32267;
@@ -491,8 +596,13 @@ export const NoteCard = memo(function NoteCard({
   const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
+  const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
+  const isStatus = event.kind === 30315;
+  const isAttestation = event.kind === ATTESTATION_KIND;
   const isCampaign = event.kind === 33863;
+  const isQuiz = event.kind === QUIZ_KIND;
+  const isQuizResult = event.kind === QUIZ_RESULT_KIND;
   const isVanish = event.kind === 62;
   const isZap = event.kind === 9735 || event.kind === 8333;
   // Multi-recipient onchain zap (NIP-BC batch form): more than one `p` tag.
@@ -505,26 +615,31 @@ export const NoteCard = memo(function NoteCard({
   );
   const isProfile = event.kind === 0;
   const isBlobbiState = event.kind === 31124;
-  const blobbiCompanion = useMemo(() => isBlobbiState ? parseBlobbiEvent(event) : null, [event, isBlobbiState]);
+  // Read the two tags needed for the interact gate directly instead of importing
+  // @blobbi-kit/core's parseBlobbiEvent here — that would drag ~48K of the kit
+  // into the eager bundle. BlobbiSocialActions (lazy) does the full parse itself.
   const showBlobbiInteract = isBlobbiState
     && !!user
     && user.pubkey !== event.pubkey
-    && !!blobbiCompanion?.socialOpen
-    && blobbiCompanion?.stage !== 'egg';
-  const isDevKind = isGitRepo || isPatch || isPullRequest || isCustomNip || isNsite;
+    && event.tags.some((t) => t[0] === 'social' && t[1] === 'open')
+    && event.tags.find((t) => t[0] === 'stage')?.[1] !== 'egg';
+  const isDevKind = isGitRepo || isRepoState || isPatch || isPullRequest || isPrUpdate || isIssue || isGitStatus || isCustomNip || isNsite;
   const isTextNote =
     !isVine &&
     !isPoll &&
     !isGeocache &&
     !isFoundLog &&
     !isColor &&
+    !isMemoryCard &&
     !isBirdDetection &&
     !isBirdex &&
     !isConstellation &&
     !isPeopleList &&
     !isArticle &&
+    !isPublication &&
     !isMagicDeck &&
     !isStream &&
+    !isRoom &&
     !isFileMetadata &&
     !isTheme &&
     !isVoiceMessage &&
@@ -544,21 +659,29 @@ export const NoteCard = memo(function NoteCard({
     !isAppHandler &&
     !isEncryptedDM &&
     !isLetter &&
+    !isLoveList &&
     !isHighlight &&
+    !isStatus &&
+    !isAttestation &&
     !isCampaign &&
+    !isQuiz &&
+    !isQuizResult &&
     !isVanish &&
     !isZap &&
     !isProfile &&
     !isBlobbiState;
 
   const isComment = event.kind === 1111;
-  const isReply = isTextNote && !isComment && isReplyEvent(event);
+  const isLiveChat = event.kind === 1311;
+  const isReply = isTextNote && !isComment && !isLiveChat && isReplyEvent(event);
   // Unknown kinds land in the `isTextNote` branch (it's the negation of every
   // known-kind flag above). For anything other than real text-note kinds
   // (1 / 11 / 1111), render a NIP-31 fallback instead of feeding arbitrary
-  // content into the kind-1 tokenizer.
+  // content into the kind-1 tokenizer. Kind 1311 (NIP-53 live chat message)
+  // is also prose — it carries NIP-21 mentions and q tags — so it renders
+  // through the tokenizer like a text note rather than tombstoning.
   const isUnknownKind =
-    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111;
+    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111 && event.kind !== 1311;
 
   // Find all people being replied to (for "Replying to @user1 and @user2")
   const replyToPubkeys = useMemo(() => {
@@ -570,9 +693,12 @@ export const NoteCard = memo(function NoteCard({
     );
 
     if (pTags.length > 0) {
-      // Remove duplicates and filter out undefined/empty pubkeys
+      // Remove duplicates and filter out malformed pubkeys. `p` tag values are
+      // attacker-controlled; an invalid one (e.g. odd-length hex) crashes
+      // `nip19.npubEncode` downstream in ReplyContext. Validate at this parse
+      // layer so renderers can assume well-formed hex.
       return [
-        ...new Set(pTags.map(([, pubkey]) => pubkey).filter(Boolean)),
+        ...new Set(pTags.map(([, pubkey]) => pubkey).filter(isNostrId)),
       ] as string[];
     }
 
@@ -580,7 +706,7 @@ export const NoteCard = memo(function NoteCard({
     const allPTags = event.tags.filter(([name]) => name === "p");
     if (allPTags.length > 0) {
       return [
-        ...new Set(allPTags.map(([, pubkey]) => pubkey).filter(Boolean)),
+        ...new Set(allPTags.map(([, pubkey]) => pubkey).filter(isNostrId)),
       ] as string[];
     }
 
@@ -593,7 +719,10 @@ export const NoteCard = memo(function NoteCard({
     );
     const replyTag = eTags.find(([, , , marker]) => marker === "reply");
     const rootTag = eTags.find(([, , , marker]) => marker === "root");
-    const parentAuthor = replyTag?.[4] || rootTag?.[4] || event.pubkey;
+    // NIP-10 pubkey hints (5th element) are attacker-controlled; fall back to
+    // the event author (self-reply) if the hint isn't valid hex.
+    const hint = replyTag?.[4] || rootTag?.[4];
+    const parentAuthor = isNostrId(hint) ? hint : event.pubkey;
     return [parentAuthor];
   }, [event.tags, isTextNote, isReply, event.pubkey]);
 
@@ -643,6 +772,7 @@ export const NoteCard = memo(function NoteCard({
     <>
       {/* Reply context (kind 1) or comment context (kind 1111) — shown above content */}
       {isComment && <CommentContext event={event} />}
+      {isLiveChat && <LiveChatContext event={event} />}
       {isReply && (
         <ReplyContext
           pubkeys={replyToPubkeys}
@@ -681,6 +811,8 @@ export const NoteCard = memo(function NoteCard({
           <FoundLogContent event={event} />
         ) : isColor ? (
           <ColorMomentContent event={event} />
+        ) : isMemoryCard ? (
+          <MemoryCardContent event={event} />
         ) : isBirdDetection ? (
           <BirdDetectionContent event={event} />
         ) : isBirdex ? (
@@ -691,7 +823,11 @@ export const NoteCard = memo(function NoteCard({
           <PeopleListContent event={event} />
         ) : isArticle ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
-            <ArticleContent event={event} preview className="mt-2" />
+            <EmbeddedArticleCard event={event} className="mt-2" />
+          </Suspense>
+        ) : isPublication ? (
+          <Suspense fallback={<Skeleton className="h-28 w-full rounded-lg" />}>
+            <EmbeddedPublicationCard event={event} className="mt-2" hideAuthor />
           </Suspense>
         ) : isMagicDeck ? (
           <MagicDeckContent event={event} />
@@ -731,6 +867,18 @@ export const NoteCard = memo(function NoteCard({
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <PullRequestCard event={event} />
           </Suspense>
+        ) : isIssue ? (
+          <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+            <IssueCard event={event} />
+          </Suspense>
+        ) : isPrUpdate ? (
+          <PrUpdateCard event={event} />
+        ) : isGitStatus ? (
+          <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+            <GitStatusCard event={event} />
+          </Suspense>
+        ) : isRepoState ? (
+          <RepoStateCard event={event} />
         ) : isCustomNip ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <CustomNipCard event={event} />
@@ -761,10 +909,22 @@ export const NoteCard = memo(function NoteCard({
           <EncryptedMessageContent event={event} compact />
         ) : isLetter ? (
           <EncryptedLetterContent event={event} compact />
+        ) : isLoveList ? (
+          <LoveListContent event={event} compact />
         ) : isHighlight ? (
           <HighlightContent event={event} />
+        ) : isStatus ? (
+          <StatusContent event={event} />
+        ) : isRoom ? (
+          <InteractiveRoomContent event={event} />
+        ) : isAttestation ? (
+          <AttestationContent event={event} />
         ) : isCampaign ? (
           <CampaignContent event={event} />
+        ) : isQuiz ? (
+          <QuizContent event={event} />
+        ) : isQuizResult ? (
+          <QuizResultContent event={event} />
         ) : isProfile ? (
           <ProfileCardContent event={event} />
         ) : isBlobbiState ? (
@@ -810,6 +970,13 @@ export const NoteCard = memo(function NoteCard({
             )}
           </Link>
         </ProfileHoverCard>
+        {authorIsLoved && (
+          <Heart
+            className="size-3.5 shrink-0 text-red-500 fill-red-500"
+            aria-label="On your Love List"
+            role="img"
+          />
+        )}
         {metadata?.bot && (
           <span className="text-xs text-primary shrink-0" title="Bot account">
             🤖
@@ -842,7 +1009,7 @@ export const NoteCard = memo(function NoteCard({
     <ProfileHoverCard pubkey={event.pubkey} asChild>
       <Link
         to={profileUrl}
-        className="shrink-0"
+        className="relative shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
         <Avatar shape={avatarShape} className={threaded || threadedLast ? "size-10" : "size-11"}>
@@ -851,6 +1018,15 @@ export const NoteCard = memo(function NoteCard({
             {displayName[0]?.toUpperCase()}
           </AvatarFallback>
         </Avatar>
+        {/* Birthday party hat — perched on the author's avatar all day.
+            Seated well onto the head (not floating above it) because the
+            card wrapper is overflow-hidden with only ~12px of top padding —
+            anything poking further up gets clipped. */}
+        {isAuthorBirthday && (
+          <div className="pointer-events-none absolute -top-3.5 -right-2 z-10 rotate-[18deg]">
+            <PartyHat className="size-8 drop-shadow-sm" pomScale={1.15} />
+          </div>
+        )}
       </Link>
     </ProfileHoverCard>
   );
@@ -863,14 +1039,12 @@ export const NoteCard = memo(function NoteCard({
     target?: NostrEvent;
     targetStats?: typeof stats;
     canZap?: boolean;
-    zapped?: boolean;
     onReply?: () => void;
     onMore?: () => void;
   }) => {
     const t = opts?.target ?? event;
     const s = opts?.targetStats ?? stats;
     const cz = opts?.canZap ?? canZapAuthor;
-    const zd = opts?.zapped ?? isZapped;
     const reply = opts?.onReply ?? (() => setReplyOpen(true));
     const more = opts?.onMore ?? (() => setMoreMenuOpen(true));
     return (
@@ -911,12 +1085,13 @@ export const NoteCard = memo(function NoteCard({
           eventId={t.id}
           eventPubkey={t.pubkey}
           eventKind={t.kind}
+          reactedEvent={t}
           reactionCount={s?.reactions}
         />
 
         {showBlobbiInteract && (
           <Suspense fallback={null}>
-            <BlobbiSocialActions event={t} source="blobbi-feed" companion={blobbiCompanion} onInteractionSuccess={handleBlobbiInteractionSuccess} />
+            <BlobbiSocialActions event={t} source="blobbi-feed" onInteractionSuccess={handleBlobbiInteractionSuccess} />
           </Suspense>
         )}
 
@@ -926,16 +1101,14 @@ export const NoteCard = memo(function NoteCard({
               type="button"
               className={cn(
                 "flex items-center gap-1.5 rounded-full transition-colors",
-                zd
-                  ? "text-amber-500 hover:text-amber-500/80 hover:bg-amber-500/10"
-                  : "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10",
+                "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10",
                 showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2",
               )}
-              title={zd ? "Zapped" : "Zap"}
+              title="Zap"
             >
               <Zap
                 className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"}
-                fill={zd ? "currentColor" : "none"}
+                fill="none"
               />
               {s?.zapAmount ? (
                 <span className="text-sm tabular-nums">
@@ -963,75 +1136,10 @@ export const NoteCard = memo(function NoteCard({
 
   const actionButtons = renderActionButtons();
 
-  // ── Vanish layout (kind 62) — dramatic card, no author row ──
-  if (isVanish) {
-    // Threaded vanish (ancestor in a reply thread — needs connector line + avatar column)
-    if (threaded || threadedLast) {
-      return (
-        <article
-          className={cn(
-            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-            threaded ? "pb-0" : "pb-3 border-b border-border",
-            className,
-          )}
-          onClick={handleCardClick}
-          onAuxClick={handleAuxClick}
-        >
-          <div className="flex gap-3">
-            <div className="flex flex-col items-center">
-              {avatarElement}
-              {threaded && (
-                <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
-              )}
-            </div>
-            <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
-              <VanishCardCompact event={event} timestamp={timeAgo(event.created_at)} />
-              {!compact && (
-                <>
-                  {actionButtons}
-                  <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
-                  <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
-                </>
-              )}
-            </div>
-          </div>
-        </article>
-      );
-    }
-
-    return (
-      <article
-        className={cn(
-          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-          className,
-        )}
-        onClick={handleCardClick}
-        onAuxClick={handleAuxClick}
-      >
-        <VanishCardCompact event={event} />
-        {!compact && (
-          <>
-            {actionButtons}
-            <NoteMoreMenu
-              event={event}
-              open={moreMenuOpen}
-              onOpenChange={setMoreMenuOpen}
-            />
-            <ReplyComposeModal
-              event={event}
-              open={replyOpen}
-              onOpenChange={setReplyOpen}
-            />
-          </>
-        )}
-      </article>
-    );
-  }
-
   // Wrapper header — shown above activity-card layouts (reaction/repost/zap/poll vote)
   // and above the normal layout when this event was surfaced via a repost,
-  // reaction, or zap. The activity-card branches return early so they need
-  // it computed up here.
+  // reaction, or zap. The activity-card branches (and the vanish layout below)
+  // return early so it needs to be computed up here.
   const wrapperHeader = reactedBy ? (
     <EventActionHeader
       pubkey={reactedBy.pubkey}
@@ -1071,6 +1179,73 @@ export const NoteCard = memo(function NoteCard({
     />
   ) : undefined;
 
+  // ── Vanish layout (kind 62) — dramatic card, no author row ──
+  if (isVanish) {
+    // Threaded vanish (ancestor in a reply thread — needs connector line + avatar column)
+    if (threaded || threadedLast) {
+      return (
+        <article
+          className={cn(
+            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+            threaded ? "pb-0" : "pb-3 border-b border-border",
+            className,
+          )}
+          onClick={handleCardClick}
+          onAuxClick={handleAuxClick}
+        >
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              {avatarElement}
+              {threaded && (
+                <div className={cn("w-0.5 flex-1 mt-2 rounded-full", threadedLineClassName || "bg-foreground/20")} />
+              )}
+            </div>
+            <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
+              {wrapperHeader}
+              <VanishCardCompact event={event} timestamp={timeAgo(event.created_at)} />
+              {!compact && (
+                <>
+                  {actionButtons}
+                  <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+                  <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+                </>
+              )}
+            </div>
+          </div>
+        </article>
+      );
+    }
+
+    return (
+      <article
+        className={cn(
+          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
+      >
+        {wrapperHeader}
+        <VanishCardCompact event={event} />
+        {!compact && (
+          <>
+            {actionButtons}
+            <NoteMoreMenu
+              event={event}
+              open={moreMenuOpen}
+              onOpenChange={setMoreMenuOpen}
+            />
+            <ReplyComposeModal
+              event={event}
+              open={replyOpen}
+              onOpenChange={setReplyOpen}
+            />
+          </>
+        )}
+      </article>
+    );
+  }
+
   // ── Profile-targeted zap layout (kind 8333 / 9735) ──
   // Used when the zap has no resolvable target note — either because
   // it tips a profile directly (no `e` tag) or because the e-tagged
@@ -1083,6 +1258,101 @@ export const NoteCard = memo(function NoteCard({
   // author block, with the standard action bar attached to the
   // recipient's kind-0 event below. Clicking the card navigates to
   // the recipient's profile.
+  // ── Zap-as-reply layout (kind 9735 / 8333) ──
+  // In a reply thread, a zap that carries a comment reads better as a normal
+  // reply: the sender's avatar and name head the card, the comment is the
+  // body, and a small amber badge marks it (and shows the amount) as a zap.
+  if (isZap && zapAsReply) {
+    const zapAmountSats = getZapAmountSats(event);
+    const zapMessage = extractZapMessage(event) || (event.kind === 8333 ? event.content : "");
+    // Who/what is being zapped — the `p` recipients (validated, sender excluded)
+    // and the zapped event, mirroring a reply's "Replying to" context row.
+    const zapRecipients = [
+      ...new Set(event.tags.filter(([n]) => n === "p").map(([, v]) => v).filter(isNostrId)),
+    ].filter((pk) => pk !== zapSenderPubkey);
+    const zappedEventId = event.tags.find(([n]) => n === "e")?.[1];
+    return (
+      <article
+        className={cn(
+          "relative px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          highlight && "animate-highlight-fade",
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
+      >
+        {/* Header: sender avatar + name/badge stacked (normal-reply style) */}
+        <div className="flex items-center gap-3">
+          {zapSender.isLoading ? (
+            <Skeleton className="size-11 rounded-full shrink-0" />
+          ) : (
+            <ProfileHoverCard pubkey={zapSenderPubkey} asChild>
+              <Link to={zapSenderUrl} className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+                <Avatar shape={zapSenderShape} className="size-11">
+                  <AvatarImage src={zapSenderMeta?.picture} alt={zapSenderName} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                    {zapSenderName[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
+            </ProfileHoverCard>
+          )}
+          <div className="min-w-0 flex-1 min-h-[42px] flex flex-col justify-center">
+            <div className="flex items-center gap-1.5">
+              <ProfileHoverCard pubkey={zapSenderPubkey} asChild>
+                <Link
+                  to={zapSenderUrl}
+                  className="font-bold text-[15px] hover:underline truncate"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {zapSender.data?.event ? (
+                    <EmojifiedText tags={zapSender.data.event.tags}>{zapSenderName}</EmojifiedText>
+                  ) : (
+                    zapSenderName
+                  )}
+                </Link>
+              </ProfileHoverCard>
+              <span className="inline-flex items-center gap-1 text-sm font-semibold text-amber-500 shrink-0">
+                <Zap className="size-3.5 fill-amber-500" />
+                {zapAmountSats > 0 ? formatMoney(zapAmountSats) : "zapped"}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 pr-2">
+              {zapSenderNip05 && zapSenderNip05Pending && <Skeleton className="h-3 w-24" />}
+              {zapSenderNip05 && zapSenderNip05Pending && <span className="shrink-0">·</span>}
+              {zapSenderNip05 && zapSenderNip05Verified && (
+                <Nip05Badge nip05={zapSenderNip05} pubkey={zapSenderPubkey} />
+              )}
+              {zapSenderNip05 && zapSenderNip05Verified && <span className="shrink-0">·</span>}
+              <span className="shrink-0 whitespace-nowrap">{timeAgo(event.created_at)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* "Zapping @recipient" context, mirroring a reply's "Replying to" row */}
+        {zapRecipients.length > 0 && (
+          <ReplyContext
+            label="Zapping"
+            pubkeys={zapRecipients}
+            parentEventId={isNostrId(zappedEventId) ? zappedEventId : undefined}
+          />
+        )}
+
+        {/* The zap comment, rendered as normal reply body text */}
+        {zapMessage && (
+          <div className="mt-2 whitespace-pre-wrap break-words">
+            <NoteContent event={{ ...event, content: zapMessage }} className="text-[15px] leading-relaxed" />
+          </div>
+        )}
+
+        {/* Standard reply interaction bar, bound to the zap event */}
+        {actionButtons}
+        <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+        <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+      </article>
+    );
+  }
+
   if (isZap && profileZapRecipient && !isMultiRecipientOnchainZap) {
     const zapSats = getZapAmountSats(event);
     // Kind 8333: event.pubkey is the sender. Kind 9735: P tag / description.pubkey.
@@ -1186,7 +1456,6 @@ export const NoteCard = memo(function NoteCard({
               target: recipientEvent,
               targetStats: recipientStats,
               canZap: canZapRecipient,
-              zapped: isRecipientZapped,
               onReply: () => setRecipientReplyOpen(true),
               onMore: () => setRecipientMoreMenuOpen(true),
             })}
@@ -1338,8 +1607,11 @@ export const NoteCard = memo(function NoteCard({
   // ── Threaded layout (with or without connector line) ──
   if (threaded || threadedLast) {
     // Kind action header (e.g. "updated their badges") — same logic as normal layout
-    const threadedKindHeader = !repostedBy && !reactedBy && !zappedBy && !profileZapRecipient && !hideKindHeader && KIND_HEADER_MAP[event.kind]
-      ? (() => {
+    const threadedKindHeader = !repostedBy && !reactedBy && !zappedBy && !profileZapRecipient && !hideKindHeader
+      ? isGitStatus
+        ? <GitStatusActionHeader event={event} />
+        : KIND_HEADER_MAP[event.kind]
+        ? (() => {
           const cfg = KIND_HEADER_MAP[event.kind];
           const isLive = event.kind === 30311 && getEffectiveStreamStatus(event) === "live";
           return (
@@ -1357,6 +1629,7 @@ export const NoteCard = memo(function NoteCard({
             />
           );
         })()
+        : null
       : null;
 
     return (
@@ -1400,17 +1673,21 @@ export const NoteCard = memo(function NoteCard({
   // ── Normal layout ──
   return (
     <article
+      ref={celebrationRef}
       className={cn(
-        "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+        "relative px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
         highlight && "animate-highlight-fade",
         className,
       )}
       onClick={handleCardClick}
       onAuxClick={handleAuxClick}
     >
+      {celebrating && celebration && <CelebrationOverlay variant={celebration} />}
       {/* Action header — wrapper (repost/reaction/zap) takes priority, otherwise derived from event kind */}
       {wrapperHeader ? (
         wrapperHeader
+      ) : !hideKindHeader && !profileZapRecipient && isGitStatus ? (
+        <GitStatusActionHeader event={event} />
       ) : (
         !hideKindHeader && !profileZapRecipient && KIND_HEADER_MAP[event.kind] &&
         (() => {
@@ -1469,6 +1746,29 @@ export const NoteCard = memo(function NoteCard({
   );
 });
 
+/**
+ * Per-card error boundary.
+ *
+ * A single malformed event (e.g. an attacker-controlled tag that trips
+ * `nip19.*Encode`) must not take down the whole feed. The inner boundary in
+ * `NoteCardImpl` only covers the kind-based content dispatch; this outer one
+ * catches anything that throws elsewhere in the card — reply/comment context,
+ * author header, action bars — and degrades to a `BrokenEventFallback`
+ * tombstone instead of escaping to the app-level boundary in `MainLayout`.
+ */
+export function NoteCard(props: NoteCardProps) {
+  return (
+    <ErrorBoundary
+      fallback={<BrokenEventFallback className={props.className} />}
+      sentryLevel="error"
+      sentryTags={{ errorBoundary: 'note-card-outer', kind: props.event.kind }}
+      resetKeys={[props.event.id]}
+    >
+      <NoteCardImpl {...props} />
+    </ErrorBoundary>
+  );
+}
+
 const MAX_HEIGHT = 400; // px — posts taller than this get truncated
 
 /** Truncates long text note content with a "Read more" fade + button.
@@ -1482,12 +1782,12 @@ function TruncatedNoteContent({
   const [overflows, setOverflows] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  const singleImage = isSingleImagePost(event);
+  const mediaDominant = isMediaDominantPost(event);
 
   const measure = useCallback(() => {
     const el = contentRef.current;
-    if (el) setOverflows(!singleImage && el.scrollHeight > MAX_HEIGHT);
-  }, [singleImage]);
+    if (el) setOverflows(!mediaDominant && el.scrollHeight > MAX_HEIGHT);
+  }, [mediaDominant]);
 
   useEffect(() => {
     measure();
@@ -1785,14 +2085,37 @@ function VineMedia({
       {imeta?.url && (
         <div
           ref={containerRef}
-          className="relative mt-3 rounded-2xl overflow-hidden cursor-pointer"
+          className={cn(
+            'relative mt-3 rounded-2xl overflow-hidden cursor-pointer bg-black',
+            // With preload="none" the <video> has no intrinsic height until it
+            // plays. With no thumbnail to set the box height, fall back to a 16:9
+            // box (most videos are landscape) instead of a square-ish sliver.
+            !imeta.thumbnail && !isPlaying && 'aspect-video',
+          )}
           onClick={handlePlayToggle}
         >
+          {/* When there's a thumbnail it drives the box size (the <video> below
+              is absolutely positioned on top); the plain <img> avoids WebView's
+              native gray play-circle that a poster-bearing <video> would draw. */}
+          {imeta.thumbnail && !isPlaying && (
+            <img
+              src={imeta.thumbnail}
+              alt=""
+              aria-hidden
+              className="w-full max-h-[70vh] object-cover"
+            />
+          )}
           <video
             ref={videoRef}
             src={imeta.url}
-            poster={imeta.thumbnail}
-            className="w-full max-h-[70vh] object-cover"
+            data-no-native-poster=""
+            poster={BLANK_POSTER}
+            className={cn(
+              'w-full max-h-[70vh] object-cover',
+              // Fill on top of the thumbnail (which sets the height) when one is
+              // present; otherwise lay out normally.
+              imeta.thumbnail && !isPlaying && 'absolute inset-0 h-full',
+            )}
             loop
             playsInline
             muted={isMuted}
@@ -2049,6 +2372,21 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     noun: "photo",
     nounRoute: "/photos",
   },
+  [MAGAZINE_KIND]: {
+    icon: Newspaper,
+    action: (event) => publishedAtAction(event, { created: "published a", updated: "updated a", fallback: "published a" }),
+    noun: "magazine",
+  },
+  [MAGAZINE_ISSUE_KIND]: {
+    icon: Newspaper,
+    action: (event) => publishedAtAction(event, { created: "published a", updated: "updated a", fallback: "published a" }),
+    noun: "magazine issue",
+  },
+  [EBOOK_KIND]: {
+    icon: BookOpen,
+    action: (event) => publishedAtAction(event, { created: "published an", updated: "updated an", fallback: "published an" }),
+    noun: "ebook",
+  },
   4: {
     icon: Mail,
     action: "sent an",
@@ -2059,6 +2397,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: "sent a",
     noun: "letter",
     nounRoute: "/letters",
+  },
+  [LOVE_LIST_KIND]: {
+    icon: Heart,
+    iconClassName: "text-red-500",
+    action: (event) => publishedAtAction(event, { created: "wrote their", updated: "updated their", fallback: "updated their" }),
+    noun: "Love List",
   },
   37516: {
     icon: ChestIcon,
@@ -2095,6 +2439,11 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: (event) => publishedAtAction(event, { created: "created an", updated: "updated an", fallback: "shared an" }),
     noun: "emoji pack",
     nounRoute: "/emojis",
+  },
+  30315: {
+    icon: SmilePlus,
+    action: "updated their",
+    noun: "status",
   },
   8: {
     icon: Award,
@@ -2140,6 +2489,21 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
         ? "is streaming"
         : "streamed",
   },
+  30312: {
+    icon: Video,
+    action: (event) => publishedAtAction(event, { created: "opened a", updated: "updated a", fallback: "opened a" }),
+    noun: "room",
+  },
+  30313: {
+    icon: CalendarClock,
+    action: (event) => {
+      const status = event.tags.find(([n]) => n === "status")?.[1];
+      if (status === "live") return "is hosting a";
+      if (status === "ended") return "hosted a";
+      return "scheduled a";
+    },
+    noun: "meeting",
+  },
   32267: {
     icon: Package,
     action: (event) => publishedAtAction(event, { created: "published a Zapstore app", updated: "updated a Zapstore app", fallback: "published a Zapstore app" }),
@@ -2174,6 +2538,28 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     noun: "pull request",
     nounRoute: "/development",
   },
+  1619: {
+    icon: GitPullRequestArrow,
+    action: "updated a",
+    noun: "pull request",
+    nounRoute: "/development",
+  },
+  1621: {
+    icon: CircleDot,
+    action: "opened an",
+    noun: "issue",
+    nounRoute: "/development",
+  },
+  // NIP-34 status events (1630-1633) intentionally have no header entry:
+  // whether the referenced root is an issue, patch, or pull request is
+  // only known after fetching it, so GitStatusCard renders the precise
+  // sentence ("Closed issue: ...", "Merged pull request: ...") itself.
+  30618: {
+    icon: GitBranch,
+    action: "pushed to a",
+    noun: "repository",
+    nounRoute: "/development",
+  },
   30817: {
     icon: FileCode,
     action: (event) => publishedAtAction(event, { created: "proposed a", updated: "updated a", fallback: "proposed a" }),
@@ -2201,6 +2587,23 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: "shared a",
     noun: "highlight",
     nounRoute: "/highlights",
+  },
+  [QUIZ_KIND]: {
+    icon: ClipboardList,
+    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated their", fallback: "shared a" }),
+    noun: "quiz",
+    nounRoute: "/quizzes",
+  },
+  [QUIZ_RESULT_KIND]: {
+    icon: ClipboardCheck,
+    action: "got a",
+    noun: "quiz result",
+    nounRoute: "/quizzes",
+  },
+  31871: {
+    icon: ShieldCheck,
+    action: (event) => publishedAtAction(event, { created: "published an", updated: "updated an", fallback: "published an" }),
+    noun: "attestation",
   },
   33863: {
     icon: HandHeart,
@@ -2345,5 +2748,63 @@ export function EventActionHeader({
         </span>
       </div>
     </div>
+  );
+}
+
+/** Badge icon per NIP-34 status kind for the action header. */
+const GIT_STATUS_HEADER_ICONS: Record<number, React.ComponentType<{ className?: string }>> = {
+  1630: CircleDot,
+  1631: CircleCheck,
+  1632: CircleX,
+  1633: CircleDashed,
+};
+
+/**
+ * Action header for NIP-34 status events (kinds 1630-1633), e.g.
+ * "Alice closed an issue" / "Alice merged a pull request".
+ *
+ * Whether the referenced root is an issue, patch, or pull request is only
+ * known after fetching it (kind 1631 alone means resolved/applied/merged
+ * depending on the root's kind), so this can't be a static
+ * `KIND_HEADER_MAP` entry. The root query shares its cache entry with the
+ * one `GitStatusCard` makes, so no extra relay round-trip happens. Until
+ * the root resolves, only the verb is shown ("Alice closed …").
+ */
+function GitStatusActionHeader({ event }: { event: NostrEvent }) {
+  const rootRef = getGitRootRef(event);
+  const repoRef = getGitRepoRef(event);
+
+  const relayHints = [
+    ...(rootRef?.relay ? [rootRef.relay] : []),
+    ...(repoRef?.relay ? [repoRef.relay] : []),
+    NGIT_RELAY,
+  ];
+
+  const { data: root } = useEvent(rootRef?.id, relayHints, repoRef?.pubkey);
+
+  const noun = gitTicketNoun(root?.kind);
+  const article = noun === 'issue' ? 'an' : 'a';
+
+  let action: string;
+  let linkedNoun: string | undefined;
+  if (event.kind === 1633) {
+    // "marked a pull request as draft" — the trailing "as draft" rules
+    // out the linked-noun pattern, so build the full phrase.
+    action = noun ? `marked ${article} ${noun} as draft` : 'marked as draft';
+  } else {
+    const verb = gitStatusVerb(event.kind, root?.kind);
+    action = noun ? `${verb} ${article}` : verb;
+    linkedNoun = noun;
+  }
+
+  return (
+    <EventActionHeader
+      pubkey={event.pubkey}
+      icon={GIT_STATUS_HEADER_ICONS[event.kind] ?? CircleDot}
+      iconClassName="text-muted-foreground"
+      action={action}
+      noun={linkedNoun}
+      nounRoute={linkedNoun ? "/development" : undefined}
+    />
   );
 }

@@ -9,6 +9,7 @@ import { usePlayerControls } from '@/hooks/usePlayerControls';
 import { useVideoThumbnail } from '@/hooks/useVideoThumbnail';
 import { useAppContext } from '@/hooks/useAppContext';
 import { formatTime } from '@/lib/formatTime';
+import { BLANK_POSTER } from '@/lib/blankPoster';
 
 interface VideoPlayerProps {
   src: string;
@@ -90,11 +91,23 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
-  // True once the video has enough data to display a frame (or has a poster/generated thumbnail)
-  const [videoReady, setVideoReady] = useState(!!poster);
+  // True once the video element has decoded its first frame.
+  const [videoReady, setVideoReady] = useState(false);
+  // True once the poster <img> overlay has actually finished loading. We render
+  // the poster as a separate image (not the native `poster` attribute) because
+  // Android WebView paints a big stretched gray play-circle placeholder while a
+  // poster-bearing <video> loads, and that shows through behind our controls.
+  const [posterLoaded, setPosterLoaded] = useState(false);
+  // Aspect ratio discovered at runtime when the note has no NIP-94 `dim` tag —
+  // from the thumbnail image's natural size, or failing that the video's own
+  // metadata once it loads. Until something real is known we default to 16:9
+  // (most videos are landscape) so the player never renders as a square.
+  const [discoveredAspect, setDiscoveredAspect] = useState<string | undefined>(undefined);
 
   const dimensions = parseDim(dim);
-  const aspectRatio = dimensions ? `${dimensions.width} / ${dimensions.height}` : undefined;
+  const aspectRatio = dimensions
+    ? `${dimensions.width} / ${dimensions.height}`
+    : (discoveredAspect ?? '16 / 9');
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -231,13 +244,13 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
         'relative mt-3 rounded-2xl overflow-hidden border border-border bg-black group',
         className,
       )}
-      style={aspectRatio ? { aspectRatio } : undefined}
+      style={{ aspectRatio }}
       onMouseMove={revealControls}
       onMouseLeave={() => { if (isPlaying) scheduleHide(); }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Blurhash placeholder — shown until the video has a displayable frame */}
-      {isValidBlurhash(blurhash) && !videoReady && !generatedPoster && (
+      {/* Blurhash placeholder — shown until a thumbnail or playback frame appears */}
+      {isValidBlurhash(blurhash) && !hasStarted && !(generatedPoster && posterLoaded) && (
         <Blurhash
           hash={blurhash}
           width="100%"
@@ -252,20 +265,24 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
       <video
         ref={videoRef}
         src={isHls ? undefined : src}
-        poster={generatedPoster}
+        data-no-native-poster=""
+        poster={BLANK_POSTER}
         className={cn(
           'w-full cursor-pointer',
-          // When dim is known the container already has the correct aspect ratio,
-          // so the video just needs to fill it (absolute inset-0). Without dim we
-          // fall back to the original constrained height with object-cover so the
-          // player doesn't grow to an unmanageable size.
-          aspectRatio
-            ? 'absolute inset-0 h-full object-cover'
-            : 'max-h-[70vh] object-cover',
+          // The container always carries an aspect ratio now (real dim, the
+          // thumbnail's natural size, or a 16:9 default), so the video just
+          // fills it.
+          'absolute inset-0 h-full object-cover',
           // In fullscreen the video element fills the whole screen, so object-cover
           // would crop it. Contain it instead, and reset the positioning/size
           // constraints from normal layout so the frame centers within the viewport.
           'fullscreen:object-contain fullscreen:static fullscreen:max-h-none fullscreen:h-full fullscreen:w-full',
+          // The element shows a transparent poster until playback, so keep it
+          // hidden while the thumbnail <img> overlay is covering it. Reveal it
+          // once playback starts, or — when there's no thumbnail — as soon as it
+          // has decoded a frame so the user sees something before pressing play.
+          'transition-opacity duration-150',
+          (hasStarted || (videoReady && !generatedPoster)) ? 'opacity-100' : 'opacity-0',
         )}
         playsInline
         preload="metadata"
@@ -275,14 +292,48 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
         onPlay={() => { setIsPlaying(true); setHasStarted(true); }}
         onPause={() => setIsPlaying(false)}
         onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime ?? 0)}
-        onLoadedMetadata={() => setDuration(videoRef.current?.duration ?? 0)}
+        onLoadedMetadata={() => {
+          const video = videoRef.current;
+          if (!video) return;
+          setDuration(video.duration ?? 0);
+          // Use the video's real dimensions when the note carried no dim tag and
+          // no thumbnail told us the aspect first.
+          if (!dimensions && video.videoWidth > 0 && video.videoHeight > 0) {
+            setDiscoveredAspect((prev) => prev ?? `${video.videoWidth} / ${video.videoHeight}`);
+          }
+        }}
         onDurationChange={() => setDuration(videoRef.current?.duration ?? 0)}
         onLoadedData={() => setVideoReady(true)}
         onError={onBlossomError}
       />
 
-      {/* Big centered play button before first play */}
-      {!hasStarted && (
+      {/* Poster/thumbnail overlay — rendered as a plain <img> so it never
+          triggers WebView's native video placeholder. Stays visible until the
+          user actually starts playback (the <video> shows a transparent poster
+          until then, so we can't rely on it painting a frame on its own). */}
+      {generatedPoster && !hasStarted && (
+        <img
+          src={generatedPoster}
+          alt=""
+          aria-hidden
+          className={cn(
+            'absolute inset-0 w-full h-full object-cover pointer-events-none transition-opacity duration-150',
+            posterLoaded ? 'opacity-100' : 'opacity-0',
+          )}
+          onLoad={(e) => {
+            setPosterLoaded(true);
+            const img = e.currentTarget;
+            if (!dimensions && img.naturalWidth > 0 && img.naturalHeight > 0) {
+              setDiscoveredAspect((prev) => prev ?? `${img.naturalWidth} / ${img.naturalHeight}`);
+            }
+          }}
+        />
+      )}
+
+      {/* Big centered play button before first play. Held back until there is
+          something real to sit on top of (a loaded poster or a decoded video
+          frame) so we never flash the button over WebView's gray placeholder. */}
+      {!hasStarted && (videoReady || posterLoaded) && (
         <div
           className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer"
           onClick={handleVideoClick}

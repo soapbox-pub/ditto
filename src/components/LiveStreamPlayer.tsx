@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import type Hls from 'hls.js';
 import { Play, Pause, Volume1, Volume2, VolumeX, Expand, Minimize } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { BLANK_POSTER } from '@/lib/blankPoster';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
 
 interface LiveStreamPlayerProps {
@@ -210,7 +211,8 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
     >
       <video
         ref={videoRef}
-        poster={poster}
+        data-no-native-poster=""
+        poster={poster || BLANK_POSTER}
         className="w-full h-full object-contain cursor-pointer"
         playsInline
         autoPlay

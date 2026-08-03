@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
+import { BackButtonHandler } from "@/components/BackButtonHandler";
 import { DeepLinkHandler } from "@/components/DeepLinkHandler";
 import { HighlightSelectionButton } from "@/components/HighlightSelectionButton";
 import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
@@ -13,20 +14,18 @@ import { ScrollToTop } from "./components/ScrollToTop";
 import { VersionCheck } from "./components/VersionCheck";
 import { useCurrentUser } from "./hooks/useCurrentUser";
 import { useProfileUrl } from "./hooks/useProfileUrl";
-import { getExtraKindDef } from "./lib/extraKinds";
+import { getExtraKindDef, getSectionKinds } from "./lib/extraKinds";
 
 // Critical-path pages: eagerly loaded (landing + fallback)
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-
-// Lazy-loaded companion layer (~450K code-split)
-const BlobbiCompanionLayer = lazy(() => import("@/blobbi/companion").then(m => ({ default: m.BlobbiCompanionLayer })));
+import { BlobbiCompanionGate } from "@/components/BlobbiCompanionGate";
 
 // Lazy-loaded compose modal (pulls in emoji-mart ~620K)
 const ReplyComposeModal = lazy(() => import("@/components/ReplyComposeModal").then(m => ({ default: m.ReplyComposeModal })));
 
-// Lazy-loaded emoji pack dialog
-const EmojiPackDialog = lazy(() => import("@/components/EmojiPackDialog").then(m => ({ default: m.EmojiPackDialog })));
+// Lazy-loaded emoji packs page (Discover + My Packs tabs)
+const EmojiPacksPage = lazy(() => import("./pages/EmojiPacksPage").then(m => ({ default: m.EmojiPacksPage })));
 
 // HomePage eagerly imported all page components; now lazy-loaded
 const HomePage = lazy(() => import("./pages/HomePage").then(m => ({ default: m.HomePage })));
@@ -57,6 +56,7 @@ const LetterComposePage = lazy(() => import("./pages/LetterComposePage").then(m 
 const LetterPreferencesPage = lazy(() => import("./pages/LetterPreferencesPage").then(m => ({ default: m.LetterPreferencesPage })));
 const LettersPage = lazy(() => import("./pages/LettersPage").then(m => ({ default: m.LettersPage })));
 const MagicSettingsPage = lazy(() => import("./pages/MagicSettingsPage").then(m => ({ default: m.MagicSettingsPage })));
+const MemoryCardsPage = lazy(() => import("./pages/MemoryCardsPage").then(m => ({ default: m.MemoryCardsPage })));
 const MusicPage = lazy(() => import("./pages/MusicPage").then(m => ({ default: m.MusicPage })));
 const NetworkSettingsPage = lazy(() => import("./pages/NetworkSettingsPage").then(m => ({ default: m.NetworkSettingsPage })));
 const NIP19Page = lazy(() => import("./pages/NIP19Page").then(m => ({ default: m.NIP19Page })));
@@ -72,6 +72,8 @@ const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ defa
 const SharePage = lazy(() => import("./pages/SharePage").then(m => ({ default: m.SharePage })));
 const ThemesPage = lazy(() => import("./pages/ThemesPage").then(m => ({ default: m.ThemesPage })));
 const TreasuresPage = lazy(() => import("./pages/TreasuresPage").then(m => ({ default: m.TreasuresPage })));
+const QuizzesPage = lazy(() => import("./pages/QuizzesPage").then(m => ({ default: m.QuizzesPage })));
+const CreateQuizPage = lazy(() => import("./pages/CreateQuizPage").then(m => ({ default: m.CreateQuizPage })));
 const TrendsPage = lazy(() => import("./pages/TrendsPage").then(m => ({ default: m.TrendsPage })));
 const UserListsPage = lazy(() => import("./pages/UserListsPage").then(m => ({ default: m.UserListsPage })));
 const VideosFeedPage = lazy(() => import("./pages/VideosFeedPage").then(m => ({ default: m.VideosFeedPage })));
@@ -89,8 +91,6 @@ const colorsDef = getExtraKindDef("colors")!;
 const packsDef = getExtraKindDef("packs")!;
 const articlesDef = getExtraKindDef("articles")!;
 const decksDef = getExtraKindDef("decks")!;
-const emojisDef = getExtraKindDef("emojis")!;
-const developmentDef = getExtraKindDef("development")!;
 const highlightsDef = getExtraKindDef("highlights")!;
 
 /** Polls feed page with a FAB that opens the compose modal (poll mode via + menu). */
@@ -107,26 +107,6 @@ function PollsFeedPage() {
       {composeOpen && (
         <Suspense fallback={null}>
           <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} initialMode="poll" />
-        </Suspense>
-      )}
-    </>
-  );
-}
-
-/** Emoji feed page with a FAB that opens the emoji pack creation dialog. */
-function EmojiFeedPage() {
-  const [composeOpen, setComposeOpen] = useState(false);
-  return (
-    <>
-      <KindFeedPage
-        kind={emojisDef.kind}
-        title={emojisDef.label}
-        icon={sidebarItemIcon("emojis", "size-5")}
-        onFabClick={() => setComposeOpen(true)}
-      />
-      {composeOpen && (
-        <Suspense fallback={null}>
-          <EmojiPackDialog open={composeOpen} onOpenChange={setComposeOpen} />
         </Suspense>
       )}
     </>
@@ -150,12 +130,11 @@ export function AppRouter() {
         <MinimizedAudioBar />
         <AudioNavigationGuard />
         <DeepLinkHandler />
+        <BackButtonHandler />
         <ScrollToTop />
         <HighlightSelectionButton />
         <BlobbiActionsProvider>
-          <Suspense fallback={null}>
-            <BlobbiCompanionLayer />
-          </Suspense>
+          <BlobbiCompanionGate />
           <Routes>
           {/* Auto-follow deep link: fullscreen immersive (no sidebars/nav) */}
           <Route path="/follow/:npub" element={<FollowPage />} />
@@ -196,11 +175,19 @@ export function AppRouter() {
               path="/streams"
               element={<Navigate to="/videos" replace />}
             />
-            <Route path="/vines" element={<VinesFeedPage />} />
+            <Route path="/shorts" element={<VinesFeedPage />} />
+            {/* /vines and /divines redirect to /shorts for backward compatibility */}
+            <Route path="/vines" element={<Navigate to="/shorts" replace />} />
+            <Route path="/divines" element={<Navigate to="/shorts" replace />} />
             <Route path="/music" element={<MusicPage />} />
             <Route path="/podcasts" element={<PodcastsFeedPage />} />
             <Route path="/polls" element={<PollsFeedPage />} />
             <Route path="/treasures" element={<TreasuresPage />} />
+            <Route path="/quizzes" element={<QuizzesPage />} />
+            <Route path="/quizzes/new" element={<CreateQuizPage />} />
+            <Route path="/memory-cards" element={<MemoryCardsPage />} />
+            <Route path="/memory-cards/:npub" element={<MemoryCardsPage />} />
+            <Route path="/memory-cards/:npub/:cardId" element={<MemoryCardsPage />} />
             <Route
               path="/colors"
               element={
@@ -223,7 +210,7 @@ export function AppRouter() {
             />
             <Route path="/webxdc" element={<WebxdcFeedPage />} />
             <Route path="/articles/new" element={<ArticleEditorPage />} />
-            <Route path="/articles/edit/:naddr" element={<ArticleEditorPage />} />
+            <Route path="/articles/edit/:slug" element={<ArticleEditorPage />} />
             <Route
               path="/articles"
               element={
@@ -256,16 +243,13 @@ export function AppRouter() {
                 />
               }
             />
-            <Route path="/emojis" element={<EmojiFeedPage />} />
+            <Route path="/emojis" element={<EmojiPacksPage />} />
             <Route
               path="/development"
               element={
                 <KindFeedPage
-                  kind={[
-                    developmentDef.kind,
-                    ...(developmentDef.extraFeedKinds ?? []),
-                  ]}
-                  title={developmentDef.label}
+                  kind={getSectionKinds("development")}
+                  title="Development"
                   icon={sidebarItemIcon("development", "size-5")}
                   showFAB={false}
                 />

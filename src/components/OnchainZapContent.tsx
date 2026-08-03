@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { AlertTriangle, Loader2, Bitcoin, Copy, Check } from 'lucide-react';
+import { AlertTriangle, Loader2, Bitcoin, Copy, Check, MessageCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
@@ -32,8 +32,9 @@ import {
 } from '@/lib/bitcoin';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ParsedCampaign } from '@/lib/campaign';
+import type { BitcoinRecipientOverride } from '@/hooks/useOnchainZap';
 
-const USD_PRESETS = [1, 5, 10, 25, 100];
+const USD_PRESETS = [1, 5, 20, 50, 100];
 
 const FEE_SPEED_LABELS: Record<OnchainFeeSpeed, string> = {
   fastest: '~10 min',
@@ -93,6 +94,13 @@ interface OnchainZapContentProps {
    * zap UI entirely and rely on its own QR / Open-native-wallet path.
    */
   campaign?: ParsedCampaign;
+  /**
+   * Optional NIP-A3 Bitcoin payment-target override. When set, the zap pays
+   * this address/code instead of the recipient's derived Taproot address.
+   * A `bc1…` override still publishes a kind 8333 attribution; an `sp1…`
+   * override routes onto the silent-payment rail and publishes no event.
+   */
+  bitcoinTarget?: BitcoinRecipientOverride;
   /** Called with the tx result when a zap successfully broadcasts. */
   onSuccess?: (result: { txid: string; amountSats: number }) => void;
   /** Called when the user dismisses without a send (e.g. "Done" in the
@@ -108,7 +116,7 @@ interface OnchainZapContentProps {
  * UX mirrors the Lightning zap flow: one screen, one button, no review step.
  * Balance, fee breakdown, and confirmation are all hidden unless needed.
  */
-export function OnchainZapContent({ target, campaign, onSuccess, onClose }: OnchainZapContentProps) {
+export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, onClose }: OnchainZapContentProps) {
   const { user } = useCurrentUser();
   const { capability } = useBitcoinSigner();
   const { logins } = useNostrLogin();
@@ -117,6 +125,8 @@ export function OnchainZapContent({ target, campaign, onSuccess, onClose }: Onch
   const loginType = logins[0]?.type;
 
   const [usdAmount, setUsdAmount] = useState<number | string>(5);
+  const [comment, setComment] = useState('');
+  const [showComment, setShowComment] = useState(false);
   const [feeSpeed, setFeeSpeed] = useState<OnchainFeeSpeed>('halfHour');
   const [error, setError] = useState('');
   const [feePopoverOpen, setFeePopoverOpen] = useState(false);
@@ -137,8 +147,11 @@ export function OnchainZapContent({ target, campaign, onSuccess, onClose }: Onch
     if (campaign) {
       return campaign.wallets.onchain?.value ?? campaign.wallets.sp?.value ?? '';
     }
+    if (bitcoinTarget) {
+      return bitcoinTarget.value;
+    }
     return nostrPubkeyToBitcoinAddress(target.pubkey);
-  }, [campaign, target.pubkey]);
+  }, [campaign, bitcoinTarget, target.pubkey]);
   const truncatedRecipient = recipientAddress
     ? `${recipientAddress.slice(0, 10)}…${recipientAddress.slice(-8)}`
     : '';
@@ -242,7 +255,7 @@ export function OnchainZapContent({ target, campaign, onSuccess, onClose }: Onch
   // whether `campaign` is set.
   const profileZap = useOnchainZap(target, (result) => {
     onSuccess?.({ txid: result.txid, amountSats: result.amountSats });
-  });
+  }, bitcoinTarget);
   const campaignZap = useCampaignZap(campaign ?? null, (result) => {
     onSuccess?.({ txid: result.txid, amountSats: result.amountSats });
   });
@@ -273,7 +286,7 @@ export function OnchainZapContent({ target, campaign, onSuccess, onClose }: Onch
     }
 
     try {
-      await zapAsync({ amountSats, comment: '', feeSpeed });
+      await zapAsync({ amountSats, comment: comment.trim(), feeSpeed });
       // onSuccess (passed to useOnchainZap) closes the dialog; toast is shown by the hook.
     } catch (err) {
       // Capability errors flip the UI via `reportSignerUnsupported` in the
@@ -282,7 +295,7 @@ export function OnchainZapContent({ target, campaign, onSuccess, onClose }: Onch
       const isCapability = /does not support|doesn't support|signpsbt|sign_psbt/i.test(msg);
       if (!isCapability) setError(msg);
     }
-  }, [user, target.pubkey, campaign, btcPrice, amountSats, utxos, insufficient, zapAsync, feeSpeed, isLarge, confirmArmed]);
+  }, [user, target.pubkey, campaign, btcPrice, amountSats, utxos, insufficient, zapAsync, comment, feeSpeed, isLarge, confirmArmed]);
 
   // ── Signer not supported ──────────────────────────────────────
   // The user's signer can't sign PSBTs locally (extension without signPsbt,
@@ -318,6 +331,7 @@ export function OnchainZapContent({ target, campaign, onSuccess, onClose }: Onch
       <UnsupportedSignerQR
         recipientAddress={recipientAddress}
         truncatedRecipient={truncatedRecipient}
+        isSilentPayment={bitcoinTarget?.mode === 'sp'}
         amountSats={amountSats}
         btcPrice={btcPrice}
         usdAmount={usdAmount}
@@ -381,7 +395,7 @@ export function OnchainZapContent({ target, campaign, onSuccess, onClose }: Onch
           <ToggleGroupItem
             key={v}
             value={String(v)}
-            className="h-8 min-w-0 text-xs font-semibold px-1"
+            className="h-8 min-w-0 rounded-full text-xs font-semibold px-1"
           >
             ${v}
           </ToggleGroupItem>
@@ -393,25 +407,53 @@ export function OnchainZapContent({ target, campaign, onSuccess, onClose }: Onch
         <p className="text-xs text-destructive">{error}</p>
       )}
 
-      <Button
-        onClick={handleZap}
-        disabled={!btcPrice || amountSats <= 0 || isZapping || insufficient}
-        variant={(insufficient || isLarge) && !isZapping ? 'destructive' : 'default'}
-        className="w-full"
-      >
-        {isZapping ? (
-          <>
-            <Loader2 className="size-4 mr-1.5 animate-spin" />
-            {progressLabel(progress)}
-          </>
-        ) : insufficient ? (
-          <>Not enough Bitcoin</>
-        ) : isLarge && confirmArmed ? (
-          <>Tap again to send {totalUsdString}</>
-        ) : (
-          <>Send {totalUsdString || (hasValidAmount ? `$${currentUsd}` : '')}</>
-        )}
-      </Button>
+      {/* Optional comment — becomes the kind 8333 receipt's content. Revealed
+          by the icon on the Send row so it costs no space until wanted. */}
+      {showComment && (
+        <Input
+          type="text"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Add a comment (optional)"
+          maxLength={280}
+          aria-label="Comment"
+          autoFocus
+          className="text-sm rounded-full motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-200"
+        />
+      )}
+
+      <div className="flex items-center gap-2">
+        <Button
+          onClick={handleZap}
+          disabled={!btcPrice || amountSats <= 0 || isZapping || insufficient}
+          variant={(insufficient || isLarge) && !isZapping ? 'destructive' : 'default'}
+          className="flex-1 rounded-full"
+        >
+          {isZapping ? (
+            <>
+              <Loader2 className="size-4 mr-1.5 animate-spin" />
+              {progressLabel(progress)}
+            </>
+          ) : insufficient ? (
+            <>Not enough Bitcoin</>
+          ) : isLarge && confirmArmed ? (
+            <>Tap again to send {totalUsdString}</>
+          ) : (
+            <>Send {totalUsdString || (hasValidAmount ? `$${currentUsd}` : '')}</>
+          )}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => setShowComment((v) => !v)}
+          aria-label="Add a comment"
+          aria-pressed={showComment}
+          className={`rounded-full ${comment.trim() ? 'text-primary' : 'text-muted-foreground'}`}
+        >
+          <MessageCircle className="size-4" />
+        </Button>
+      </div>
 
       {/* Fee line — click to open speed picker */}
       {amountSats > 0 && (
@@ -480,6 +522,8 @@ function progressLabel(progress: 'idle' | 'building' | 'signing' | 'broadcasting
 interface UnsupportedSignerQRProps {
   recipientAddress: string;
   truncatedRecipient: string;
+  /** When true, `recipientAddress` is a BIP-352 silent-payment code. */
+  isSilentPayment?: boolean;
   amountSats: number;
   btcPrice: number | undefined;
   usdAmount: number | string;
@@ -497,6 +541,7 @@ interface UnsupportedSignerQRProps {
 function UnsupportedSignerQR({
   recipientAddress,
   truncatedRecipient,
+  isSilentPayment,
   amountSats,
   btcPrice,
   usdAmount,
@@ -508,13 +553,23 @@ function UnsupportedSignerQR({
   const [copied, setCopied] = useState<'address' | 'uri' | null>(null);
 
   // BIP-21 URI. Include `amount` (in BTC, 8 decimals) only when > 0 so an
-  // empty-amount placeholder QR doesn't include `?amount=0`.
+  // empty-amount placeholder QR doesn't include `?amount=0`. Silent-payment
+  // codes go in the `sp=` parameter (the URI has no on-chain path) so
+  // BIP-352-aware wallets pick them up.
   const bip21 = useMemo(() => {
     if (!recipientAddress) return '';
-    if (amountSats <= 0) return `bitcoin:${recipientAddress}`;
-    const btc = (amountSats / 100_000_000).toFixed(8);
-    return `bitcoin:${recipientAddress}?amount=${btc}`;
-  }, [recipientAddress, amountSats]);
+    const params = new URLSearchParams();
+    if (amountSats > 0) {
+      params.set('amount', (amountSats / 100_000_000).toFixed(8));
+    }
+    if (isSilentPayment) {
+      params.set('sp', recipientAddress);
+      const qs = params.toString();
+      return qs ? `bitcoin:?${qs}` : `bitcoin:?sp=${recipientAddress}`;
+    }
+    const qs = params.toString();
+    return qs ? `bitcoin:${recipientAddress}?${qs}` : `bitcoin:${recipientAddress}`;
+  }, [recipientAddress, amountSats, isSilentPayment]);
 
   const explanation =
     loginType === 'extension'
@@ -557,7 +612,7 @@ function UnsupportedSignerQR({
           <ToggleGroupItem
             key={v}
             value={String(v)}
-            className="h-8 min-w-0 text-xs font-semibold px-1"
+            className="h-8 min-w-0 rounded-full text-xs font-semibold px-1"
           >
             ${v}
           </ToggleGroupItem>

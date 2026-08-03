@@ -3,14 +3,13 @@
 
 import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { InferSeoMetaPlugin } from "@unhead/addons";
-import { createHead, UnheadProvider } from "@unhead/react/client";
 import { AppProvider } from "@/components/AppProvider";
-import { EventStoreProvider } from "@/components/EventStoreProvider";
+import { I18nProvider } from "@/components/I18nProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
 import { NativeNotifications } from "@/components/NativeNotifications";
 import NostrProvider from "@/components/NostrProvider";
 import { NostrSync } from "@/components/NostrSync";
+import { NotificationStream } from "@/components/NotificationStream";
 import { PlausibleProvider } from "@/components/PlausibleProvider";
 import { SentryProvider } from "@/components/SentryProvider";
 
@@ -22,12 +21,9 @@ import { NWCProvider } from "@/contexts/NWCContext";
 import { DittoConfigSchema, type DittoConfig } from "@/lib/schemas";
 import { secureStorage } from "@/lib/secureStorage";
 import { DEFAULT_ESPLORA_APIS } from "@/lib/esplora";
+import { DEFAULT_SIDEBAR_WIDGETS } from "@/lib/sidebarWidgets";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
 import AppRouter from "./AppRouter";
-
-const head = createHead({
-  plugins: [InferSeoMetaPlugin()],
-});
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,6 +63,7 @@ const hardcodedConfig: AppConfig = {
     showHighlights: true,
     feedIncludeHighlights: true,
     feedIncludeCampaigns: true,
+    feedIncludeAttestations: false,
     showEvents: true,
     feedIncludeEvents: true,
     showVines: true,
@@ -74,13 +71,20 @@ const hardcodedConfig: AppConfig = {
     showTreasures: true,
     showTreasureGeocaches: true,
     showTreasureFoundLogs: true,
+    showQuizzes: true,
+    showQuizDefinitions: true,
+    showQuizResults: true,
+    feedIncludeQuizzes: true,
+    feedIncludeQuizResults: true,
     showColors: true,
+    showMemoryCards: true,
     showPeopleLists: true,
     feedIncludeVines: true,
     feedIncludePolls: true,
     feedIncludeTreasureGeocaches: true,
     feedIncludeTreasureFoundLogs: true,
     feedIncludeColors: true,
+    feedIncludeMemoryCards: true,
     feedIncludePeopleLists: true,
     showDecks: true,
     feedIncludeDecks: true,
@@ -110,7 +114,24 @@ const hardcodedConfig: AppConfig = {
     feedIncludePodcastEpisodes: true,
     feedIncludePodcastTrailers: true,
     showDevelopment: true,
-    feedIncludeDevelopment: true,
+    feedIncludeGitRepos: true,
+    // Per-push / per-transition machine-generated git events default off in
+    // the mixed home feed (they still always show on /development).
+    feedIncludeGitPushes: false,
+    feedIncludeGitPatches: true,
+    feedIncludeGitPullRequests: true,
+    feedIncludeGitPrUpdates: false,
+    feedIncludeGitIssues: true,
+    feedIncludeGitStatusReopened: false,
+    feedIncludeGitStatusResolved: false,
+    feedIncludeGitStatusClosed: false,
+    feedIncludeGitStatusDraft: false,
+    feedIncludeCustomNips: true,
+    feedIncludeNsiteRoots: true,
+    feedIncludeNsiteNamed: true,
+    feedIncludeZapstoreApps: true,
+    feedIncludeZapstoreReleases: true,
+    feedIncludeAppHandlers: true,
     showBadges: true,
     showBadgeDefinitions: true,
     showProfileBadges: true,
@@ -119,6 +140,7 @@ const hardcodedConfig: AppConfig = {
     feedIncludeProfileBadges: true,
     feedIncludeBadgeAwards: true,
     feedIncludeVanish: true,
+    feedIncludeLoveLists: true,
     feedIncludeBlobbi: true,
     showBirdstar: true,
     feedIncludeBirdDetections: true,
@@ -149,6 +171,7 @@ const hardcodedConfig: AppConfig = {
   linkPreviewUrl: "https://ditto.pub/api/link-preview/{url}",
   corsProxy: "https://proxy.shakespeare.diy/?url={href}",
   contentWarningPolicy: "blur",
+  exemptFollowsFromFilters: false,
   sentryDsn: import.meta.env.VITE_SENTRY_DSN || "",
   sentryEnabled: true,
   plausibleDomain: import.meta.env.VITE_PLAUSIBLE_DOMAIN || "",
@@ -160,11 +183,8 @@ const hardcodedConfig: AppConfig = {
   sandboxDomain: 'iframe.diy',
   esploraApis: [...DEFAULT_ESPLORA_APIS],
   currencyDisplay: 'usd',
-  sidebarWidgets: [
-    { id: 'trends' },
-    { id: 'hot-posts' },
-    { id: 'wikipedia' },
-  ],
+  sidebarWidgets: DEFAULT_SIDEBAR_WIDGETS,
+  maxCachedEventAge: 604800,
 };
 
 /**
@@ -198,34 +218,33 @@ export function App() {
 
 
   return (
-    <UnheadProvider head={head}>
-      <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
+    <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
+      <I18nProvider>
         <SentryProvider>
           <PlausibleProvider>
             <QueryClientProvider client={queryClient}>
               <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
                 <NostrProvider>
-                  <EventStoreProvider>
-                    <NostrSync />
-                    <NativeNotifications />
+                  <NostrSync />
+                  <NativeNotifications />
+                  <NotificationStream />
 
-                      <NWCProvider>
-                        <EmotionDevProvider>
-                          <TooltipProvider>
-                            <InitialSyncGate>
-                              <AppRouter />
-                            </InitialSyncGate>
-                          </TooltipProvider>
-                        </EmotionDevProvider>
-                      </NWCProvider>
-                  </EventStoreProvider>
+                  <NWCProvider>
+                    <EmotionDevProvider>
+                      <TooltipProvider>
+                        <InitialSyncGate>
+                          <AppRouter />
+                        </InitialSyncGate>
+                      </TooltipProvider>
+                    </EmotionDevProvider>
+                  </NWCProvider>
                 </NostrProvider>
               </NostrLoginProvider>
             </QueryClientProvider>
           </PlausibleProvider>
         </SentryProvider>
-      </AppProvider>
-    </UnheadProvider>
+      </I18nProvider>
+    </AppProvider>
   );
 }
 

@@ -4,10 +4,33 @@ import { NostrContext } from '@nostrify/react';
 import { NUser, useNostrLogin } from '@nostrify/react/login';
 import type { NostrSigner } from '@nostrify/types';
 import { useAppContext } from '@/hooks/useAppContext';
-import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
-import { NostrBatcher } from '@/lib/NostrBatcher';
-import { NIndexedDBStore } from '@/lib/NIndexedDBStore';
-import { EventStoreContext } from '@/contexts/EventStoreContext';
+import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
+import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
+import { GIT_ACTIVITY_KINDS } from '@/lib/gitActivity';
+import { AppPool } from '@/lib/AppPool';
+import { NIndexedDB } from '@nostrify/indexeddb';
+import { NostrStorageContext } from '@/contexts/NostrStorageContext';
+
+/**
+ * IndexedDB database name for the events cache.
+ *
+ * `@nostrify/indexeddb` installs its own schema at version 1, while the old
+ * in-tree `NIndexedDB` used the `ditto-events` database at version 2. Opening
+ * an existing database at a *lower* version throws, which the package catches
+ * and degrades to a permanent no-op. To avoid that, the package-backed cache
+ * lives under a fresh name; the old `ditto-events` database is a disposable
+ * cache (everything re-fetches from relays) and is deleted on startup.
+ */
+const EVENTS_DB_NAME = 'nostr';
+
+/** Best-effort deletion of the abandoned legacy events cache database. */
+function deleteLegacyEventsDB(): void {
+  try {
+    indexedDB?.deleteDatabase('ditto-events');
+  } catch {
+    // Ignore — the legacy database is disposable.
+  }
+}
 
 interface NostrProviderProps {
   children: React.ReactNode;
@@ -21,13 +44,15 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Create NPool instance only once
   const pool = useRef<NPool | undefined>(undefined);
 
-  // Open the IndexedDB event store once. It's shared two ways: the batcher
+  // Open the IndexedDB event store once. It's shared two ways: the AppPool
   // writes every relay result into it (cache-first reads elsewhere), and it's
-  // provided through EventStoreContext so hooks can read it directly. Opening
-  // it here (rather than in a child EventStoreProvider) lets the batcher and
-  // the rest of the app share a single connection.
-  const eventStore = useRef<Promise<NIndexedDBStore> | undefined>(undefined);
-  eventStore.current ??= NIndexedDBStore.open();
+  // provided through NostrStorageContext so hooks can read it directly. Opening
+  // it here lets the AppPool and
+  // the rest of the app share a single connection. The cache is append-only;
+  // it is never automatically pruned.
+  const eventStore = useRef<NIndexedDB | undefined>(undefined);
+  eventStore.current ??= new NIndexedDB(EVENTS_DB_NAME);
+
 
   // Use refs so the pool always has the latest data
   const effectiveRelays = useRef(getEffectiveRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays));
@@ -54,6 +79,14 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
           return NUser.fromBunkerLogin(currentLogin, pool.current!).signer;
         case 'extension':
           return NUser.fromExtensionLogin(currentLogin).signer;
+        case 'x-android-signer': {
+          // Native Android signer app (Amber, etc.) via NIP-55. Seeded with the
+          // login's known pubkey so answering a challenge never triggers a
+          // getPublicKey round-trip. NOT wrapped in signerWithNudge — like
+          // every other branch here, this is the AUTH-only signer.
+          const { packageName } = currentLogin.data as { packageName: string };
+          return new AndroidNativeSigner(packageName, currentLogin.pubkey);
+        }
         default:
           return undefined;
       }
@@ -80,8 +113,9 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Initialize NPool only once
   if (!pool.current) {
     pool.current = new NPool({
-      open(url: string) {
-        return new NRelay1(url, {
+      open(relayUrl: string) {
+        const url = new URL(relayUrl);
+        return new NRelay1(url.href, {
           // NIP-42: Respond to relay AUTH challenges by signing a kind
           // 22242 ephemeral event with the current user's signer.
           auth: async (challenge: string) => {
@@ -93,7 +127,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
               kind: 22242,
               content: '',
               tags: [
-                ['relay', url],
+                ['relay', url.href],
                 ['challenge', challenge],
               ],
               created_at: Math.floor(Date.now() / 1000),
@@ -119,10 +153,21 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
           .filter(r => r.read)
           .map(r => r.url);
 
-        // Include zapstore relay for kind 32267 (apps), 30063 (releases), and 3063 (assets)
+        // Development kinds live on specialized relays the user's read
+        // relays rarely carry: Zapstore kinds (apps/releases/assets) on the
+        // Zapstore relay and NIP-34 git kinds on the ngit relay. When a
+        // query asks *only* for development kinds (e.g. the /development
+        // feed or a git root-event lookup), fan out to the matching special
+        // relays in addition to the read relays. Mixed feeds that include
+        // kind 1 etc. never match, so ordinary traffic doesn't hit them.
         const ZAPSTORE_KINDS = [32267, 30063, 3063];
-        if (filters.every((f) => f?.kinds?.every((k) => ZAPSTORE_KINDS.includes(k)))) {
-          return new Map([ZAPSTORE_RELAY, ...readRelays].map(url => [url, filters]));
+        const DEV_KINDS = [...ZAPSTORE_KINDS, ...GIT_ACTIVITY_KINDS, 30817, 15128, 35128, 31990];
+        if (filters.every((f) => f?.kinds?.length && f.kinds.every((k) => DEV_KINDS.includes(k)))) {
+          const urls = new Set<string>();
+          if (filters.some((f) => f.kinds?.some((k) => ZAPSTORE_KINDS.includes(k)))) urls.add(ZAPSTORE_RELAY);
+          if (filters.some((f) => f.kinds?.some((k) => GIT_ACTIVITY_KINDS.includes(k)))) urls.add(NGIT_RELAY);
+          for (const url of readRelays) urls.add(url);
+          return new Map([...urls].map((url) => [url, filters]));
         }
 
         for (const url of readRelays) {
@@ -147,14 +192,24 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     });
   }
 
-  // Wrap the pool in a batching proxy. The proxy intercepts `.query()`
-  // calls to automatically combine batchable filter patterns (profiles,
-  // events by ID, reactions, d-tag lookups) into single REQs.
-  // All other methods pass through directly to the underlying pool.
-  const batcher = useRef<NostrBatcher | undefined>(undefined);
-  if (!batcher.current && pool.current) {
-    batcher.current = new NostrBatcher(pool.current, eventStore.current);
+  // Wrap the pool in our app-specific AppPool. It has the same interface as
+  // NPool but layers on local caching and transparent request batching:
+  // `.query()` calls are intercepted to automatically combine batchable filter
+  // patterns (profiles, events by ID, reactions, d-tag lookups) into single
+  // REQs, and results are mirrored into the local cache. All other methods pass
+  // through directly to the underlying pool.
+  const appPool = useRef<AppPool | undefined>(undefined);
+  if (!appPool.current && pool.current) {
+    appPool.current = new AppPool(pool.current, eventStore.current);
+    appPool.current.setLoggedInPubkeys(logins.map((l) => l.pubkey));
   }
+
+  // Keep the AppPool's notion of "who is logged in" current. It uses this to
+  // decide which events are worth caching: everything from a logged-in account,
+  // plus replaceable events from people those accounts follow.
+  useEffect(() => {
+    appPool.current?.setLoggedInPubkeys(logins.map((l) => l.pubkey));
+  }, [logins]);
 
   // Cleanup: Close all relay connections when the provider unmounts
   useEffect(() => {
@@ -165,15 +220,21 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     };
   }, []);
 
-  // Provide the batcher as the `nostr` object. It has the same interface
-  // as NPool, so hooks using `useNostr()` get transparent batching.
-  // The `as unknown as NPool` cast is safe because NostrBatcher exposes
+  // Drop the abandoned legacy events cache database (replaced by the
+  // package-backed store under a new name). Best-effort, runs once.
+  useEffect(() => {
+    deleteLegacyEventsDB();
+  }, []);
+
+  // Provide the AppPool as the `nostr` object. It has the same interface
+  // as NPool, so hooks using `useNostr()` get transparent caching and batching.
+  // The `as unknown as NPool` cast is safe because AppPool exposes
   // all the same methods hooks use: query, event, req, relay, group, close.
   return (
-    <NostrContext.Provider value={{ nostr: (batcher.current ?? pool.current) as unknown as NPool }}>
-      <EventStoreContext.Provider value={eventStore.current}>
+    <NostrContext.Provider value={{ nostr: (appPool.current ?? pool.current) as unknown as NPool }}>
+      <NostrStorageContext.Provider value={eventStore.current}>
         {children}
-      </EventStoreContext.Provider>
+      </NostrStorageContext.Provider>
     </NostrContext.Provider>
   );
 };

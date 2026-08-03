@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { ArrowLeft, Globe, MessageCircle, MessageSquare, MoreHorizontal, Repeat2, Star, AlertTriangle, PanelLeft, Trash2 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -35,8 +35,7 @@ import { useComments } from '@/hooks/useComments';
 import { useBookReviews } from '@/hooks/useBookReviews';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
-import { useMuteList } from '@/hooks/useMuteList';
-import { isEventMuted } from '@/lib/muteHelpers';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -167,7 +166,6 @@ function ExternalActionBar({ content, onComment, commentCount }: ExternalActionB
 // ---------------------------------------------------------------------------
 
 export function ExternalContentPage() {
-  const { config } = useAppContext();
   const { '*': rawUri } = useParams();
   const location = useLocation();
 
@@ -183,6 +181,31 @@ export function ExternalContentPage() {
     // Otherwise it's a bare URL — reattach any query string the browser separated out.
     return rawUri + location.search;
   }, [rawUri, location.search]);
+
+  return <ExternalContentView uri={uri} />;
+}
+
+interface ExternalContentViewProps {
+  /** The external content identifier (URL, `isbn:...`, `iso3166:...`, etc.). */
+  uri: string;
+  /**
+   * Optional id of a comment to highlight and scroll to. Used when this view is
+   * rendered as the detail page for a specific kind 1111 comment, so the focused
+   * comment stands out within the full thread.
+   */
+  focusedEventId?: string;
+}
+
+/**
+ * Renders the external-content discussion page body: a content-specific header,
+ * action bar, and the full threaded comment list for the given identifier.
+ *
+ * Driven by a `uri` prop so it can be reused both by the `/i/*` route
+ * ({@link ExternalContentPage}) and by the kind 1111 comment detail page, which
+ * renders the same UI inline rather than forcing a second click into `/i/`.
+ */
+export function ExternalContentView({ uri, focusedEventId }: ExternalContentViewProps) {
+  const { config } = useAppContext();
 
   const content = useMemo(() => {
     if (!uri) return null;
@@ -238,15 +261,13 @@ export function ExternalContentPage() {
 
   const commentRoot: URL | `#${string}` | undefined = commentRootUrl ?? commentRootId;
 
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { data: commentsData, isLoading: commentsLoading } = useComments(commentRoot, 500);
 
   // Build a reply tree: direct replies each paired with their first sub-reply.
   const orderedReplies = useMemo(() => {
     const topLevel = commentsData?.topLevelComments ?? [];
-    const filteredTopLevel = muteItems.length > 0
-      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
-      : topLevel;
+    const filteredTopLevel = topLevel.filter((r) => !isMuted(r));
 
     // Country feeds are social feeds (newest-first); other types are threaded conversations (oldest-first)
     const sorted = [...filteredTopLevel].sort((a, b) =>
@@ -262,7 +283,7 @@ export function ExternalContentPage() {
         firstSubReply: directReplies[0] as import('@nostrify/nostrify').NostrEvent | undefined,
       };
     });
-  }, [commentsData, muteItems, content?.type]);
+  }, [commentsData, isMuted, content?.type]);
 
   // FAB opens the comment compose dialog
   const [composeOpen, setComposeOpen] = useState(false);
@@ -339,12 +360,14 @@ export function ExternalContentPage() {
           commentRoot={commentRoot}
           orderedReplies={orderedReplies}
           commentsLoading={commentsLoading}
+          focusedEventId={focusedEventId}
         />
       ) : (
         <ExternalCommentsSection
           commentRoot={commentRoot}
           orderedReplies={orderedReplies}
           commentsLoading={commentsLoading}
+          focusedEventId={focusedEventId}
         />
       )}
     </main>
@@ -360,10 +383,12 @@ interface ExternalCommentsSectionProps {
   commentRoot: URL | `#${string}` | undefined;
   orderedReplies: Array<{ reply: NostrEvent; firstSubReply?: NostrEvent }>;
   commentsLoading: boolean;
+  /** Highlight the comment matching this id within the thread, if present. */
+  focusedEventId?: string;
 }
 
 /** Inline compose box + threaded replies list (or loading/empty state). */
-function ExternalCommentsSection({ commentRoot, orderedReplies, commentsLoading }: ExternalCommentsSectionProps) {
+function ExternalCommentsSection({ commentRoot, orderedReplies, commentsLoading, focusedEventId }: ExternalCommentsSectionProps) {
   return (
     <>
       {commentRoot && <ComposeBox compact replyTo={commentRoot} />}
@@ -371,7 +396,7 @@ function ExternalCommentsSection({ commentRoot, orderedReplies, commentsLoading 
         {commentsLoading ? (
           <CommentsSkeleton />
         ) : orderedReplies.length > 0 ? (
-          <FlatThreadedReplyList replies={orderedReplies} />
+          <FlatThreadedReplyList replies={orderedReplies} focusedEventId={focusedEventId} />
         ) : (
           <CommentsEmptyState />
         )}
@@ -423,11 +448,12 @@ interface BookContentTabsProps {
   commentRoot: URL | `#${string}` | undefined;
   orderedReplies: Array<{ reply: NostrEvent; firstSubReply?: NostrEvent }>;
   commentsLoading: boolean;
+  focusedEventId?: string;
 }
 
 type BookTab = 'comments' | 'reviews';
 
-function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading }: BookContentTabsProps) {
+function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading, focusedEventId }: BookContentTabsProps) {
   const { user } = useCurrentUser();
   const { data: reviews = [], isLoading: reviewsLoading } = useBookReviews(isbn);
   const [activeTab, setActiveTab] = useState<BookTab>('comments');
@@ -456,6 +482,7 @@ function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading }:
           commentRoot={commentRoot}
           orderedReplies={orderedReplies}
           commentsLoading={commentsLoading}
+          focusedEventId={focusedEventId}
         />
       ) : (
         <>

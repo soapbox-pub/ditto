@@ -269,6 +269,16 @@ The router provides automatic scroll-to-top on navigation and a 404 `NotFound` p
 - Component-based architecture with hooks
 - **Never use the `any` type.**
 
+## Internationalization (i18n)
+
+UI strings use FormatJS (`react-intl`), English inline at the call site. Translations live in `src/i18n/locales/*.json`.
+
+- **Never write user-visible text outside `<FormattedMessage>` / `intl.formatMessage()`.** Prefer `<FormattedMessage>` in JSX; use `intl.formatMessage()` only for string values (props, `title`, `aria-label`, `toast`).
+- **Never add or update non-English translations unless explicitly asked.** New strings ship untranslated by design — they fall back to the inline English.
+- **Ids and `defaultMessage` must be static literals**, never template strings or variables, or `npm run i18n:extract` can't see them. For lists, attach `defineMessage({ id, defaultMessage })` descriptors to the data and spread/pass them: `<FormattedMessage {...item.label} />`.
+- Ids are `area.key`. Keep them stable when the English wording changes; change an id only when its meaning changes.
+- ICU for plurals/values: `{count, plural, one {# item} other {# items}}`. Escape literal braces with apostrophes: `'{hostname}'`.
+
 ## Design Standards
 
 Designs should be polished and production-ready. Concrete rules:

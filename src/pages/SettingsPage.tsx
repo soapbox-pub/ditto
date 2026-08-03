@@ -1,7 +1,8 @@
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { ChevronRight, Settings } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { defineMessage, FormattedMessage, useIntl, type MessageDescriptor } from 'react-intl';
 import { PageHeader } from '@/components/PageHeader';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -13,8 +14,8 @@ const RequestToVanishDialog = lazy(() => import('@/components/RequestToVanishDia
 
 interface SettingsSection {
   id: string;
-  label: string;
-  description: string;
+  label: MessageDescriptor;
+  description: MessageDescriptor;
   illustration?: string;
   path: string;
   requiresAuth?: boolean;
@@ -23,59 +24,60 @@ interface SettingsSection {
 const settingsSections: SettingsSection[] = [
   {
     id: 'profile',
-    label: 'Profile',
-    description: 'Edit your display name, bio, and avatar',
+    label: defineMessage({ id: 'settings.sections.profile.label', defaultMessage: 'Profile' }),
+    description: defineMessage({ id: 'settings.sections.profile.description', defaultMessage: 'Edit your display name, bio, and avatar' }),
     illustration: '/profile-intro.png',
     path: '/settings/profile',
     requiresAuth: true,
   },
   {
     id: 'feed',
-    label: 'Home Feed',
-    description: 'Choose what types of posts appear in your home feed',
+    label: defineMessage({ id: 'settings.sections.feed.label', defaultMessage: 'Home Feed' }),
+    description: defineMessage({ id: 'settings.sections.feed.description', defaultMessage: 'Choose what types of posts appear in your home feed' }),
     illustration: '/community-intro.png',
     path: '/settings/feed',
   },
   {
     id: 'content',
-    label: 'Content',
-    description: 'Muted users, hashtags, and sensitive content settings',
+    label: defineMessage({ id: 'settings.sections.content.label', defaultMessage: 'Content' }),
+    description: defineMessage({ id: 'settings.sections.content.description', defaultMessage: 'Muted users, hashtags, and sensitive content settings' }),
     illustration: '/mute-intro.png',
     path: '/settings/content',
   },
   {
     id: 'network',
-    label: 'Network',
-    description: 'Relays and file upload servers',
+    label: defineMessage({ id: 'settings.sections.network.label', defaultMessage: 'Network' }),
+    description: defineMessage({ id: 'settings.sections.network.description', defaultMessage: 'Relays and file upload servers' }),
     illustration: '/relay-intro.png',
     path: '/settings/network',
     requiresAuth: true,
   },
   {
     id: 'notifications',
-    label: 'Notifications',
-    description: 'Configure push notification preferences',
+    label: defineMessage({ id: 'settings.sections.notifications.label', defaultMessage: 'Notifications' }),
+    description: defineMessage({ id: 'settings.sections.notifications.description', defaultMessage: 'Configure push notification preferences' }),
     illustration: '/notification-intro.png',
     path: '/settings/notifications',
     requiresAuth: true,
   },
   {
     id: 'advanced',
-    label: 'Advanced',
-    description: 'Wallet, system, and power user settings',
+    label: defineMessage({ id: 'settings.sections.advanced.label', defaultMessage: 'Advanced' }),
+    description: defineMessage({ id: 'settings.sections.advanced.description', defaultMessage: 'Wallet, system, and power user settings' }),
     illustration: '/advanced-intro.png',
     path: '/settings/advanced',
   },
   {
     id: 'magic',
-    label: 'Magic',
-    description: 'Enchanted cursor effects and mystical interface powers',
+    label: defineMessage({ id: 'settings.sections.magic.label', defaultMessage: 'Magic' }),
+    description: defineMessage({ id: 'settings.sections.magic.description', defaultMessage: 'Enchanted cursor effects and mystical interface powers' }),
     illustration: '/magic-intro.png',
     path: '/settings/magic',
   },
 ];
 
 export function SettingsPage() {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
   const navigate = useNavigate();
@@ -94,8 +96,8 @@ export function SettingsPage() {
   useLayoutOptions({});
 
   useSeoMeta({
-    title: `Settings | ${config.appName}`,
-    description: `Manage your ${config.appName} settings`,
+    title: `${intl.formatMessage({ id: 'settings.title', defaultMessage: "Settings" })} | ${config.appName}`,
+    description: intl.formatMessage({ id: 'settings.metaDescription', defaultMessage: "Manage your {appName} settings" }, { appName: config.appName }),
   });
 
   // Magic section only appears in the menu once unlocked
@@ -112,22 +114,22 @@ export function SettingsPage() {
     setTimeout(() => setSigilFlash(false), 1000);
     updateConfig((c) => ({ ...c, magicMouse: true }));
     toast({
-      title: '✨ Magical potential unlocked',
-      description: 'You have awakened the arcane. Your cursor now burns with enchanted fire.',
+      title: intl.formatMessage({ id: 'settings.magicUnlocked', defaultMessage: "✨ Magical potential unlocked" }),
+      description: intl.formatMessage({ id: 'settings.magicUnlockedDescription', defaultMessage: "You have awakened the arcane. Your cursor now burns with enchanted fire." }),
     });
   }
 
   return (
     <main className="relative min-h-screen pb-16 sidebar:pb-0">
       {/* Page header */}
-      <PageHeader title="Settings" icon={<Settings className="size-5" />} backTo="/" />
+      <PageHeader title={intl.formatMessage({ id: 'settings.title', defaultMessage: "Settings" })} icon={<Settings className="size-5" />} backTo="/" />
 
       {/* Codex heading + exposition */}
       <div className="px-7 pb-4 pt-4 text-center space-y-2.5">
         <p className="text-xs text-muted-foreground leading-relaxed select-none">
-          Shape your identity, tune your feed, and manage how you connect to the Nostr network.<br />Everything you need to make this place feel like yours.
+          <FormattedMessage id="settings.intro" defaultMessage={"Shape your identity, tune your feed, and manage how you connect to the Nostr network."} /><br /><FormattedMessage id="settings.introSub" defaultMessage={"Everything you need to make this place feel like yours."} />
         </p>
-        <p className="text-[10px] tracking-[0.5em] uppercase text-primary/60 select-none pt-6">Codex of Configuration</p>
+        <p className="text-[10px] tracking-[0.5em] uppercase text-primary/60 select-none pt-6"><FormattedMessage id="settings.codex" defaultMessage={"Codex of Configuration"} /></p>
       </div>
 
       {/* Tome ornament */}
@@ -152,9 +154,9 @@ export function SettingsPage() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{section.label}</p>
+                  <p className="text-sm font-semibold"><FormattedMessage {...section.label} /></p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {section.description}
+                    <FormattedMessage {...section.description} />
                   </p>
                 </div>
                 <ChevronRight className="size-4 text-primary/40 shrink-0 group-hover:text-primary/70 transition-colors" strokeWidth={4} />
@@ -174,7 +176,7 @@ export function SettingsPage() {
             onClick={() => setDeleteAccountOpen(true)}
             className="text-xs text-destructive-foreground bg-destructive/80 hover:bg-destructive rounded-full px-4 py-1.5 transition-colors"
           >
-            Delete Account
+            <FormattedMessage id="settings.deleteAccount" defaultMessage={"Delete Account"} />
           </button>
         </div>
       )}
@@ -202,7 +204,7 @@ export function SettingsPage() {
         <button
           onClick={unlockMagic}
           className="relative group focus:outline-none"
-          aria-label={config.magicMouse ? 'Open Magic settings' : 'Unlock magical potential'}
+          aria-label={config.magicMouse ? intl.formatMessage({ id: 'settings.openMagic', defaultMessage: "Open Magic settings" }) : intl.formatMessage({ id: 'settings.unlockMagic', defaultMessage: "Unlock magical potential" })}
         >
           {/* Ambient radial glow pool — tight, close to the image */}
           <div

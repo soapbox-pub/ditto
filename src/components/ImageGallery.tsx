@@ -1,16 +1,20 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Download, Loader2 } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
+import { useIntl } from 'react-intl';
+import { Capacitor } from '@capacitor/core';
 import { cn } from '@/lib/utils';
 import { isValidBlurhash } from '@/lib/blurhash';
-import { openUrl } from '@/lib/downloadFile';
+import { downloadUrl } from '@/lib/downloadFile';
+import { useToast } from '@/hooks/useToast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getAvatarShape } from '@/lib/avatarShape';
+import { useBackDismiss } from '@/hooks/useBackDismiss';
 
 /** Minimal imeta fields needed for pre-load sizing. */
 interface ImetaDimensions {
@@ -327,6 +331,10 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     setLoadedUrls((prev) => { const next = new Set(prev); next.add(url); return next; });
   }, []);
 
+  const { toast } = useToast();
+  const intl = useIntl();
+  const [downloading, setDownloading] = useState(false);
+
   const currentUrl = images[currentIndex];
   const isLoaded = loadedUrls.has(currentUrl);
   const hasMultiple = images.length > 1;
@@ -339,6 +347,10 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = original; };
   }, []);
+
+  // Back gesture (iOS edge-swipe / Android) closes the lightbox instead of
+  // navigating the page away.
+  useBackDismiss(onClose);
 
   // Keyboard navigation
   useEffect(() => {
@@ -531,9 +543,46 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     onClose();
   };
 
-  const handleDownload = (e: React.MouseEvent) => {
+  const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation(); e.preventDefault();
-    openUrl(currentUrl);
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const result = await downloadUrl(currentUrl);
+      if (result === 'downloaded') {
+        const platform = Capacitor.getPlatform();
+        toast(
+          platform === 'android'
+            ? {
+                title: intl.formatMessage({ id: 'gallery.savedAndroid', defaultMessage: 'Downloading' }),
+                description: intl.formatMessage({ id: 'gallery.savedAndroidDescription', defaultMessage: 'Saving to your Downloads folder.' }),
+              }
+            : platform === 'ios'
+              ? {
+                  title: intl.formatMessage({ id: 'gallery.savedNative', defaultMessage: 'Saved to your device' }),
+                  description: intl.formatMessage({ id: 'gallery.savedNativeDescription', defaultMessage: "You'll find it in the Ditto folder in Files." }),
+                }
+              : {
+                  title: intl.formatMessage({ id: 'gallery.savedWeb', defaultMessage: 'Saved' }),
+                  description: intl.formatMessage({ id: 'gallery.savedWebDescription', defaultMessage: 'Check your downloads folder.' }),
+                },
+        );
+      } else {
+        // Couldn't download directly (e.g. CORS) — we opened it instead.
+        toast({
+          title: intl.formatMessage({ id: 'gallery.downloadOpened', defaultMessage: 'Opened in a new tab' }),
+          description: intl.formatMessage({ id: 'gallery.downloadOpenedDescription', defaultMessage: "This file couldn't be downloaded directly, so it opened in a new tab. Save it from there." }),
+        });
+      }
+    } catch {
+      toast({
+        title: intl.formatMessage({ id: 'gallery.downloadFailed', defaultMessage: 'Download failed' }),
+        description: intl.formatMessage({ id: 'gallery.downloadFailedDescription', defaultMessage: 'Could not download this file. Please try again.' }),
+        variant: 'destructive',
+      });
+    } finally {
+      setDownloading(false);
+    }
   };
 
   // Only render the current image and its immediate neighbours
@@ -564,8 +613,8 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
           )}
           <div className="flex items-center gap-1">
             {showDownload && (
-              <button onClick={handleDownload} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="Open original">
-                <Download className="size-5" />
+              <button onClick={handleDownload} disabled={downloading} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-60 disabled:cursor-wait" title="Download">
+                {downloading ? <Loader2 className="size-5 animate-spin" /> : <Download className="size-5" />}
               </button>
             )}
             <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="Close (Esc)">

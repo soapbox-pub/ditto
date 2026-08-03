@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { useLanguage } from '@/hooks/useLanguage';
+
 /** A search result from the Wikipedia search API. */
 export interface WikipediaSearchResult {
   /** Article title */
@@ -22,6 +24,7 @@ interface PageResult {
 
 async function searchWikipedia(
   query: string,
+  lang: string,
   signal?: AbortSignal,
 ): Promise<WikipediaSearchResult[]> {
   const params = new URLSearchParams({
@@ -39,7 +42,7 @@ async function searchWikipedia(
   });
 
   const res = await fetch(
-    `https://en.wikipedia.org/w/api.php?${params}`,
+    `https://${lang}.wikipedia.org/w/api.php?${params}`,
     { signal, headers: { Accept: 'application/json' } },
   );
 
@@ -53,16 +56,18 @@ async function searchWikipedia(
     .map((p) => ({
       title: p.title,
       description: p.description ?? '',
-      url: `https://en.wikipedia.org/wiki/${encodeURIComponent(p.title.replace(/ /g, '_'))}`,
+      url: `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(p.title.replace(/ /g, '_'))}`,
       thumbnail: p.thumbnail?.source,
     }));
 }
 
-/** Hook to search Wikipedia articles by title/content. */
+/** Hook to search Wikipedia articles by title/content in the user's language. */
 export function useWikipediaSearch(query: string) {
+  const { locale } = useLanguage();
+
   return useQuery({
-    queryKey: ['wikipedia-search', query],
-    queryFn: ({ signal }) => searchWikipedia(query, signal),
+    queryKey: ['wikipedia-search', locale, query],
+    queryFn: ({ signal }) => searchWikipedia(query, locale, signal),
     enabled: query.trim().length >= 2,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,

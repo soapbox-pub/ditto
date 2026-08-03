@@ -14,6 +14,7 @@ export const CLIENTS: ClientDef[] = [
   {
     tags: [
       'diVine',
+      'Divine',
       'divine-web',
       'divine-web/1.0',
       'divine-mobile/1.0',
@@ -25,7 +26,7 @@ export const CLIENTS: ClientDef[] = [
     color: 'hsl(280, 68%, 55%)',
   },
   { tags: ['Amethyst'], label: 'Amethyst', color: 'hsl(258, 70%, 55%)' },
-  { tags: ['Primal Web', 'Primal Android'], label: 'Primal', color: 'hsl(348, 83%, 47%)' },
+  { tags: ['Primal Web', 'Primal Android', 'Primal iOS'], label: 'Primal', color: 'hsl(348, 83%, 47%)' },
   { tags: ['Wisp'], label: 'Wisp', color: 'hsl(170, 75%, 42%)' },
 ];
 

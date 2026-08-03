@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSeoMeta } from '@unhead/react';
-import { useInView } from 'react-intersection-observer';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
+import { useInView } from '@/hooks/useInView';
 import {
   ArrowLeft,
   ExternalLink,
@@ -375,7 +375,7 @@ function BlueskySearchBar() {
             if (debouncedQuery.length >= 1) setDropdownOpen(true);
           }}
           onKeyDown={handleKeyDown}
-          className="pl-9 pr-9 h-9 text-base md:text-sm"
+          className="pl-9 pr-9 h-9 text-base md:text-sm rounded-full"
         />
         {query ? (
           <button

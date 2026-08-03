@@ -1,6 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useState } from 'react';
 import { NoteCard } from '@/components/NoteCard';
+import { ZAP_KINDS } from '@/lib/feedUtils';
 import { cn } from '@/lib/utils';
 
 /** Maximum nesting depth before collapsing the rest of the thread. */
@@ -41,7 +42,8 @@ function ReplyThread({ node, depth, depthless }: { node: ReplyNode; depth: numbe
   }
 
   if (!hasChildren) {
-    return <NoteCard event={node.event} />;
+    // Zaps injected into the thread as leaf nodes render like a normal reply.
+    return <NoteCard event={node.event} zapAsReply={ZAP_KINDS.has(node.event.kind)} />;
   }
 
   // Once expanded past the depth cap, skip further caps for this subtree
@@ -103,13 +105,22 @@ export interface ThreadedReply {
 }
 
 /** Renders replies as a flat list, each with at most one sub-reply hint. */
-export function FlatThreadedReplyList({ replies }: { replies: ThreadedReply[] }) {
+export function FlatThreadedReplyList({
+  replies,
+  focusedEventId,
+}: {
+  replies: ThreadedReply[];
+  /** Highlight the reply (or sub-reply) matching this id, if present. */
+  focusedEventId?: string;
+}) {
   return (
     <div>
       {replies.map(({ reply, firstSubReply }) => (
         <div key={reply.id}>
-          <NoteCard event={reply} threaded={!!firstSubReply} />
-          {firstSubReply && <NoteCard event={firstSubReply} threadedLast />}
+          <NoteCard event={reply} threaded={!!firstSubReply} highlight={reply.id === focusedEventId} />
+          {firstSubReply && (
+            <NoteCard event={firstSubReply} threadedLast highlight={firstSubReply.id === focusedEventId} />
+          )}
         </div>
       ))}
     </div>

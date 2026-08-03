@@ -7,7 +7,7 @@ import { openDB, type IDBPDatabase } from 'idb';
 // just the NIP-05 resolution cache). Callers should import `openDatabase()`
 // rather than managing their own `openDB` calls.
 //
-// Cached Nostr events live in a separate database — see `NIndexedDBStore`.
+// Cached Nostr events live in a separate database — see `NIndexedDB`.
 //
 // When IndexedDB is unavailable (e.g. iOS Lockdown Mode, certain private-
 // browsing modes) every function in this module still works — callers get

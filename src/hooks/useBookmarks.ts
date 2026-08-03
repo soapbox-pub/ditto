@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { optimisticPatchEventTags, rollbackEvent, toggleTag } from '@/lib/optimisticEvent';
 
 /** Hook to manage the user's NIP-51 bookmark list (kind 10003). */
 export function useBookmarks() {
@@ -91,6 +92,20 @@ export function useBookmarks() {
         created_at: Math.floor(Date.now() / 1000),
         prev: prev ?? undefined,
       });
+    },
+    // Optimistically flip the bookmark icon before the relay round-trip by
+    // patching the cached kind 10003 event's `e` tags. Snapshot for rollback.
+    onMutate: (eventId: string) => {
+      const key = ['bookmarks', user?.pubkey];
+      const snapshot = optimisticPatchEventTags(queryClient, key, {
+        kind: 10003,
+        pubkey: user?.pubkey ?? '',
+        transform: (tags) => toggleTag(tags, 'e', eventId),
+      });
+      return { snapshot, key };
+    },
+    onError: (_err, _eventId, ctx) => {
+      if (ctx) rollbackEvent(queryClient, ctx.key, ctx.snapshot);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookmarks', user?.pubkey] });

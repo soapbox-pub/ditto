@@ -100,33 +100,47 @@ export function useExternalEyeOffset({
     const maxMovementYUp = variant === 'baby' ? BABY_EXTERNAL_EYE_MAX_Y_UP : ADULT_EXTERNAL_EYE_MAX_Y_UP;
     const maxMovementYDown = variant === 'baby' ? BABY_EXTERNAL_EYE_MAX_Y_DOWN : ADULT_EXTERNAL_EYE_MAX_Y_DOWN;
     
-    const applyOffset = () => {
+    // The gaze lerp settles asymptotically, so once the eyes stop moving the
+    // computed transform is identical (after rounding) frame after frame.
+    // Skip the per-frame querySelectorAll + setAttribute in that case, but
+    // still re-apply periodically so a swapped SVG (emotion recipe change)
+    // never keeps stale eye positions for long.
+    const REAPPLY_INTERVAL_MS = 500;
+    let lastTransform: string | null = null;
+    let lastAppliedTime = 0;
+    
+    const applyOffset = (timestamp: number) => {
       const offset = activeOffsetRef.current;
       if (!offset || !containerRef.current) {
         animationRef.current = requestAnimationFrame(applyOffset);
         return;
       }
       
-      // Target the inner gaze groups, not the outer eye groups.
-      // This allows CSS animations (like sleepy wake-glance) to run on .blobbi-eye
-      // while we control gaze position on the nested .blobbi-eye-gaze elements.
-      const gazeElements = containerRef.current.querySelectorAll<SVGGElement>(
-        `.${EYE_CLASSES.gazeLeft}, .${EYE_CLASSES.gazeRight}`
-      );
+      // Convert -1 to 1 offset to pixel movement
+      const x = offset.x * maxMovementX;
+
+      // Asymmetric vertical movement:
+      // - Upward (negative y): stronger movement for clear "looking up" effect
+      // - Downward (positive y): reduced movement to avoid looking too droopy
+      // Y offset: -1 = looking up, +1 = looking down
+      const y = offset.y < 0
+        ? offset.y * maxMovementYUp // Looking up: full range
+        : offset.y * maxMovementYDown; // Looking down: reduced range
+
+      // Round to 1/100 px — smaller deltas are invisible and only exist
+      // because the lerp never quite reaches its target.
+      const transform = `translate(${Math.round(x * 100) / 100} ${Math.round(y * 100) / 100})`;
       
-      if (gazeElements.length > 0) {
-        // Convert -1 to 1 offset to pixel movement
-        const x = offset.x * maxMovementX;
-
-        // Asymmetric vertical movement:
-        // - Upward (negative y): stronger movement for clear "looking up" effect
-        // - Downward (positive y): reduced movement to avoid looking too droopy
-        // Y offset: -1 = looking up, +1 = looking down
-        const y = offset.y < 0
-          ? offset.y * maxMovementYUp // Looking up: full range
-          : offset.y * maxMovementYDown; // Looking down: reduced range
-
-        const transform = `translate(${x} ${y})`;
+      if (transform !== lastTransform || timestamp - lastAppliedTime >= REAPPLY_INTERVAL_MS) {
+        lastTransform = transform;
+        lastAppliedTime = timestamp;
+        
+        // Target the inner gaze groups, not the outer eye groups.
+        // This allows CSS animations (like sleepy wake-glance) to run on .blobbi-eye
+        // while we control gaze position on the nested .blobbi-eye-gaze elements.
+        const gazeElements = containerRef.current.querySelectorAll<SVGGElement>(
+          `.${EYE_CLASSES.gazeLeft}, .${EYE_CLASSES.gazeRight}`
+        );
         
         gazeElements.forEach((el) => {
           el.setAttribute('transform', transform);

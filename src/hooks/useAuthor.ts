@@ -3,7 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useCacheFirstSeed } from '@/hooks/useCacheFirstSeed';
-import { useEventStore } from '@/hooks/useEventStore';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 
 export type AuthorResult = { event?: NostrEvent; metadata?: NostrMetadata };
 
@@ -20,7 +20,7 @@ export function parseAuthorEvent(event: NostrEvent): { event: NostrEvent; metada
 export function useAuthor(pubkey: string | undefined) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
-  const eventStore = useEventStore();
+  const { store } = useNostrStorage();
 
   // Seed the query from the local event store so a known profile renders
   // immediately, without waiting on the network. The network query below
@@ -38,8 +38,6 @@ export function useAuthor(pubkey: string | undefined) {
       if (!pubkey) {
         return {};
       }
-
-      const store = await eventStore;
 
       const [event] = await nostr.query(
         [{ kinds: [0], authors: [pubkey], limit: 1 }],
@@ -62,10 +60,25 @@ export function useAuthor(pubkey: string | undefined) {
         return {};
       }
 
+      // Never downgrade to an older profile than one we already hold. Relay
+      // propagation lags, so right after the user edits their profile a relay
+      // may still serve the previous kind 0 — returning it here would clobber
+      // the freshly-saved event (e.g. blanking a just-added birthday). Prefer
+      // the newest of {relay result, query cache, local store}.
+      const existing = queryClient.getQueryData<AuthorResult>(['author', pubkey]);
+      const [stored] = await store.query([{ kinds: [0], authors: [pubkey] }]);
+      let newest = event;
+      if (existing?.event && existing.event.created_at > newest.created_at) {
+        newest = existing.event;
+      }
+      if (stored && stored.created_at > newest.created_at) {
+        newest = stored;
+      }
+
       // Persist the fresh event to the local store (fire-and-forget).
       void store.event(event);
 
-      return parseAuthorEvent(event);
+      return parseAuthorEvent(newest);
     },
     enabled: !!pubkey,
     staleTime: 5 * 60 * 1000,   // 5 minutes

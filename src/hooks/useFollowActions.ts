@@ -3,7 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
-import { useEventStore } from './useEventStore';
+import { useNostrStorage } from './useNostrStorage';
 import { useCacheFirstSeed } from './useCacheFirstSeed';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { contactListPubkeys, fetchContactList } from '@/lib/contactList';
@@ -32,7 +32,7 @@ export interface FollowListData {
 export function useFollowList() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const eventStore = useEventStore();
+  const { store } = useNostrStorage();
 
   // Seed from the locally cached kind 3 so the follow list (and therefore the
   // home/follows feed, which gates on it) is available on first render without
@@ -49,7 +49,6 @@ export function useFollowList() {
     queryKey: ['follow-list', user?.pubkey ?? ''],
     queryFn: async ({ signal }) => {
       if (!user) return { event: null, pubkeys: [] };
-      const store = await eventStore;
       const event = await fetchContactList(nostr, store, user.pubkey, { signal, timeout: 5000 });
       return { event, pubkeys: contactListPubkeys(event) };
     },
@@ -91,7 +90,7 @@ export function useFollowActions(): UseFollowActionsReturn {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
-  const eventStore = useEventStore();
+  const { store } = useNostrStorage();
 
   const [isPending, setIsPending] = useState(false);
 
@@ -103,7 +102,6 @@ export function useFollowActions(): UseFollowActionsReturn {
       try {
         // ① Fetch the freshest kind 3 event via pool, falling back to the
         // locally cached copy so a relay miss can't wipe the follow list.
-        const store = await eventStore;
         const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] }, { store });
 
         // ② Separate tags into `p` tags (follow entries) and everything else
@@ -128,20 +126,31 @@ export function useFollowActions(): UseFollowActionsReturn {
         // ⑤ Preserve the content field (relay hints / petnames in some clients)
         const content = prev?.content ?? '';
 
-        await publishEvent({
+        const published = await publishEvent({
           kind: 3,
           content,
           tags: newTags,
           prev: prev ?? undefined,
         });
 
-        // ⑥ Invalidate cached follow-list queries so UI updates
+        // ⑥ Optimistically reflect the new follow list immediately. Relays often
+        // haven't indexed the just-published event yet, so an immediate refetch
+        // would read stale data and the UI wouldn't update until a later reload.
+        // Seed the store + query cache with the event we just published so the
+        // cache-fallback path in `fetchContactList` is also correct.
+        void store.event(published);
+        queryClient.setQueryData<FollowListData>(['follow-list', user.pubkey], {
+          event: published,
+          pubkeys: contactListPubkeys(published),
+        });
+
+        // ⑦ Invalidate so the relay copy stays authoritative once it propagates.
         queryClient.invalidateQueries({ queryKey: ['follow-list'] });
       } finally {
         setIsPending(false);
       }
     },
-    [nostr, user, publishEvent, queryClient, eventStore],
+    [nostr, user, publishEvent, queryClient, store],
   );
 
   const follow = useCallback(
@@ -162,7 +171,6 @@ export function useFollowActions(): UseFollowActionsReturn {
       try {
         // ① Fetch the freshest kind 3 event via pool, falling back to the
         // locally cached copy so a relay miss can't wipe the follow list.
-        const store = await eventStore;
         const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] }, { store });
 
         // ② Separate p-tags from everything else (preserve relay hints, petnames, etc.)
@@ -184,14 +192,23 @@ export function useFollowActions(): UseFollowActionsReturn {
         if (newPTags.length === 0) return 0;
 
         // ④ Publish (non-p tags first, then existing p tags, then new p tags)
-        await publishEvent({
+        const published = await publishEvent({
           kind: 3,
           content: prev?.content ?? '',
           tags: [...nonPTags, ...existingPTags, ...newPTags],
           prev: prev ?? undefined,
         });
 
-        // ⑤ Invalidate cached follow-list queries so UI updates
+        // ⑤ Optimistically reflect the new follow list immediately (see
+        // mutateFollowList for why we seed the store + cache before the relay
+        // has indexed the event).
+        void store.event(published);
+        queryClient.setQueryData<FollowListData>(['follow-list', user.pubkey], {
+          event: published,
+          pubkeys: contactListPubkeys(published),
+        });
+
+        // ⑥ Invalidate so the relay copy stays authoritative once it propagates.
         queryClient.invalidateQueries({ queryKey: ['follow-list'] });
 
         return newPTags.length;
@@ -199,7 +216,7 @@ export function useFollowActions(): UseFollowActionsReturn {
         setIsPending(false);
       }
     },
-    [nostr, user, publishEvent, queryClient, eventStore],
+    [nostr, user, publishEvent, queryClient, store],
   );
 
   return { isPending, follow, unfollow, followMany };

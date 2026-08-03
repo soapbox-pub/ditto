@@ -1,5 +1,452 @@
 # Changelog
 
+## [2.34.6] - 2026-08-01
+
+Sidebar got a makeover with clearer sections and easier access. Add comments to your zaps, manage your emoji packs, and enjoy better login flows. UI polish across search fields and feeds with full internationalization support.
+
+### Added
+- Optional comment field for Lightning and on-chain zaps
+- Emoji pack origin tracking and management
+
+### Changed
+- Sidebar reorganized: Pages section split into "Yours" and "App", Emojis and Themes moved out of Tools, "More..." menu grouped into sections
+- Search fields now have rounded corners across the app
+- Login and account-switcher UI now fully internationalized
+- Automatically log in after uploading a key file instead of requiring manual navigation
+- Articles, Highlights, and Polls tabs now hot-sort by latest activity
+
+## [2.34.5] - 2026-07-31
+
+Customize your profile tabs with any name you want — even "Posts" if that's your vibe. Image lightbox now plays nice with the back gesture. Android scrollbars got tamed. Polish everywhere.
+
+### Added
+- Custom profile tabs can now be named anything you want
+
+### Changed
+- Image lightbox now closes when you tap the back gesture
+
+### Fixed
+- Cleaned up Android WebView scrollbars for a smoother appearance
+
+## [2.34.4] - 2026-07-30
+
+Post-login setup is now guided with clear steps instead of silent prompts. Your audio player now handles mpga files.
+
+### Added
+- Support for mpga audio format
+
+### Changed
+- Post-login setup now uses a guided flow instead of silent prompts for notifications and battery optimization
+
+## [2.34.3] - 2026-07-30
+
+Profile tabs are now shareable — link directly to someone's photos, articles, or any other tab. Media downloads now save to your device instead of opening in a new browser tab. Also includes fixes for the Lightning Wallet button on web and the compose textarea scrolling issue.
+
+### Added
+- Share and link directly to specific profile tabs via the URL
+
+### Changed
+- Images and media now save to your device when downloaded, instead of opening in a new tab
+
+### Fixed
+- Open in Lightning Wallet button not working on web
+- Full-screen compose textarea jumping to the top when typing at the bottom
+
+## [2.34.2] - 2026-07-29
+
+User statuses now appear as cards in feeds and embeds, with custom emoji, expiration, and optional links. Zaps with comments show up as replies under posts. Wikipedia searches appear in your preferred language, and external links open in your phone's browser. Several fixes smooth out homepage navigation, live-stream search, and emoji loading.
+
+### Added
+- User status cards in feeds, detail pages, and quote embeds, with custom emoji, expiration support, and link previews
+- Zaps with comments now appear as replies under posts
+- Emoji pack creation improvements
+
+### Changed
+- Wikipedia results now appear in your preferred language
+
+### Fixed
+- External links now open in the phone's browser instead of the share sheet
+- Homepage setting no longer silently falls back to the Feed tab for certain page types
+- Search page no longer lags during live streams
+- Broken-image icons no longer appear when a custom emoji fails to load
+
+## [2.34.1] - 2026-07-26
+
+Profiles can be planets now. If someone has published their own website to Nostr, a little globe button appears on their profile — tap it and the whole site opens right inside Ditto, no browser tab required. Go wander around someone's corner of the internet without ever leaving the feed.
+
+### Added
+- A globe button on profiles that opens the person's published website inside Ditto
+
+## [2.34.0] - 2026-07-24
+
+Ditto speaks your language. Settings, profile editing, navigation, and sidebar widgets are now translated into German and Japanese, with a language picker under Settings → Advanced — or leave it on System default and Ditto follows your device. Replies got quicker too: post one and it shows up in the thread right away, and it stays there after a refresh instead of disappearing until the network catches up.
+
+### Added
+- German and Japanese translations across settings, profile editing, navigation, and sidebar widgets
+- A language picker in Settings → Advanced, including a System default option that follows your device language
+
+### Fixed
+- Replies appear in the thread the moment you post them, including replies to replies and voice replies
+- Your own replies stay visible after a refresh instead of vanishing until the network catches up
+
+## [2.33.0] - 2026-07-24
+
+Memory cards are here. Ditto now speaks PlayStation 1: upload a memory card image and it goes up block by block, animated save icons and all. Browse cards from people you follow or from the whole network, watch the icons spin, copy a save onto your own card, or download the whole thing as a file you can drop straight into an emulator. This release also unfreezes the Add custom tab dialog on your profile and fixes Android sign-in with Amber on relays that ask you to authenticate.
+
+### Added
+- PlayStation 1 memory cards: a new Memory Cards page with Mine, Follows, and Global tabs, plus save titles, regions, and animated icons decoded straight from the raw save data
+- Upload a memory card image to publish or update your own card, download any card as a file for your emulator, copy a single save, or clone an entire card
+
+### Fixed
+- Opening the Add custom tab dialog on your profile no longer leaves the page frozen and unclickable
+- The content type picker inside the custom tab dialog now spans the full field instead of hanging off-center
+- Signing in on Android with Amber or another external signer app now works on relays that require authentication
+
+## [2.32.0] - 2026-07-21
+
+Shorts are here — short videos have a new name and live at /shorts. Android users can now sign in with Amber and other native signing apps for a more secure experience. This release also brings live chat to livestreams, renders meeting spaces and rooms, and updates Bitcoin payment preset amounts.
+
+### Added
+- Android native signer login — sign in on Android with Amber or other external signer apps
+- Live chat messages inside livestreams
+- Meeting spaces and rooms
+
+### Changed
+- Renamed Vines to Shorts; now available at /shorts
+- Updated Bitcoin payment preset amounts to $1/$5/$20/$50/$100
+- Updated zap-all preset total amounts to $5/$10/$20/$50/$100
+
+### Fixed
+- Custom emoji now render in reply and comment thread author names
+- Repost indicator now shows correctly above reposted deletion-request posts
+- Individual post cards no longer crash the entire feed when they encounter an error
+- Reply threads no longer crash on malformed author IDs
+
+## [2.31.1] - 2026-07-16
+
+Community invite links now come to life in your feed. When someone shares an invite to a private community, Ditto unlocks it and shows a rich preview — the community's name, icon, and channel count — right inline, so you know exactly what you're joining before you tap through. You can open the invite in a compatible app or copy the link to share it along.
+
+### Added
+- Community invite links now show a live preview with the community's name, icon, and channel count, with options to open or copy the invite
+
+## [2.31.0] - 2026-07-14
+
+Quizzes come to Ditto! Build your own quizzes — personality tests, "which character are you," trivia, and more — with cover art and a custom picture for every possible outcome. Take a friend's quiz right in the app, see your result, and choose to share it to your feed. Browse the new Quizzes feed to discover what everyone's making, and get a heads-up when someone takes yours.
+
+### Added
+- Create, take, and share quizzes: design personality tests, typologies, and trivia with cover images and a picture for each outcome
+- A new Quizzes feed and builder for discovering and making quizzes, with results that show your followers first
+- Get notified when someone takes your quiz
+
+## [2.30.1] - 2026-07-14
+
+Fixes a frustrating snag when tidying up your follow packs: editing a pack's details or members no longer leaves the page frozen and unclickable once you're done.
+
+### Fixed
+- Editing a follow pack's details or members no longer leaves the page unresponsive after the dialog closes
+
+## [2.30.0] - 2026-07-14
+
+Take charge of your follow packs and lists. Owners can now edit the title, description, and cover image of their follow packs and lists right from the detail page, and manage members — adding or removing people — all from one place. Under the hood, Ditto is lighter on your battery and memory too: your Blobbi companion sips power while idle, and long scrolling feeds stay smooth without bogging down your phone.
+
+### Added
+- Owners can edit their follow packs and lists — title, description, cover image, and members — directly from the detail page
+
+### Changed
+- Long feeds use less memory while scrolling, keeping the app smooth over long sessions
+- Your Blobbi companion now uses far less power while idle
+
+### Fixed
+- Zap dialogs can now scroll on short screens, so the on-chain payment details are always reachable
+- Games and apps can now capture your mouse pointer when they need to
+
+## [2.29.0] - 2026-07-09
+
+Ditto now reads like a newsstand: magazines, magazine issues, and ebooks show up in your feed with their covers and details, and you can flip through them right inside the app. Tap to open a publication and read the PDF page by page in a clean, distraction-free viewer — no downloads or extra apps required.
+
+### Added
+- Magazines, magazine issues, and ebooks now appear in your feed with cover art and details, and you can read their PDFs inline in a full-screen viewer
+
+## [2.28.2] - 2026-07-07
+
+A speed and stability tune-up. Ditto now launches lighter and scrolls smoother, feeds render more efficiently, and profiles load reliably even on slower phones. GIF search moves to a new provider, mentions in profile bios now link to the person, and a handful of annoyances are gone — a battery-draining background loop, an untappable search box on mobile, and a notification dot that wouldn't clear.
+
+### Added
+- Mentions in profile bios now link straight to the person's profile
+
+### Changed
+- GIF search now runs on a new provider for better results
+- The app launches lighter and feels snappier — faster startup, smoother scrolling, and less stutter while your feed loads
+
+### Fixed
+- Fixed a background loop that could quietly drain your battery
+- Profiles now load reliably on slower phones instead of getting stuck
+- The search box in the mobile "More" menu is tappable again
+- The notification dot now clears properly instead of lingering
+- Reposts, reactions, and zaps of replies no longer show up when replies are hidden, and replies are now consistently treated as replies in your feed
+
+## [2.28.1] - 2026-07-04
+
+A small patch to keep the party going: birthday celebrations now linger six hours past midnight, so night owls and friends in earlier timezones don't miss the balloons. Also fixes Blobbi hatching so your freshly hatched Blobbi gets its evolution missions right away, hatching counts toward your care streak, and naming your new friend no longer wipes its missions.
+
+### Changed
+- Birthday celebrations now last six hours past midnight, so the party doesn't cut off abruptly for night owls and well-wishers in earlier timezones
+
+### Fixed
+- Hatching a Blobbi now starts its evolution missions immediately and counts toward your care streak, and naming your new Blobbi no longer wipes those missions
+
+## [2.28.0] - 2026-07-03
+
+Android notifications get a major upgrade: they now arrive instantly, show the sender's picture, and stack neatly into a single conversation as they pile up — and Ditto helps you keep them flowing with a one-tap battery setting. Profiles now show the interests you have in common with whoever you're visiting. Plus clearer notification text that says exactly who did what, and a prettier birthday celebration with big balloons that float up the page.
+
+### Added
+- See the interests you have in common with someone right on their profile
+- Android notifications now arrive instantly and show the sender's picture, stacking into a single conversation-style notification as they pile up
+- Ditto now asks to enable notifications right after you log in, with a one-tap option to keep them arriving reliably in the background
+
+### Changed
+- Notification text now tells you exactly who did what — like "Alice reacted to your post" — instead of generic exclamations
+- Birthday celebrations got a makeover: a festive script heading styled like a calendar page, and a handful of big balloons that float up the profile
+
+### Fixed
+- Repost notifications no longer show raw technical data as the message body
+
+## [2.27.2] - 2026-07-03
+
+Feeds now feel instant: voice notes, polls, photos, and mini-app posts show up the moment you share them, and new posts no longer flicker and vanish before the feed catches up. There's a new one-tap button to wish someone a happy birthday when you land on their profile, plus an opt-in content type for signed truthfulness claims. Also fixed the GIF and sticker search collapsing in the composer and the birthday dropdowns in the profile editor.
+
+### Added
+- A one-tap button on birthday profiles to send someone a happy-birthday post
+- Optional support for signed truthfulness claims — turn it on in content settings to see them in your feed
+
+### Changed
+- Voice notes, polls, photos, and mini-app posts now appear in your feed instantly when you share them, instead of waiting for a refresh
+
+### Fixed
+- New posts no longer briefly appear and then vanish from the feed after sharing
+- The GIF and sticker search in the post composer no longer collapses when you tap the search box on desktop
+- The month and day dropdowns in the profile editor now show your saved birthday instead of staying blank
+
+## [2.27.1] - 2026-07-03
+
+Birthday polish: the celebration tune now starts on its own when you open someone's birthday profile instead of waiting for a tap, saved birthdays stick around after a refresh, and party hats now show up everywhere they should — on the composer as you write and on the post you're viewing in a thread.
+
+### Fixed
+- Birthday music now plays automatically on mobile instead of only starting after your first tap
+- Your saved birthday no longer disappears from the profile editor after a refresh
+- Party hats now appear on your avatar in the composer and on the author's avatar in the post you're viewing
+
+## [2.27.0] - 2026-07-03
+
+Birthdays are here! Add yours in the profile editor and, when your big day rolls around, Ditto throws a party — confetti and balloons rain across your profile, a little party hat perches on your avatar, and a cheery tune plays to celebrate. You'll spot party hats on other people's birthdays too. Also fixed the avatar-shape picker so it no longer freezes the page, tidied up the GM sunrise animation, and Ditto now starts up noticeably faster.
+
+### Added
+- Set your birthday in the profile editor and celebrate it with confetti, balloons, a party hat on your avatar, and a festive jingle — party hats also appear on other people's birthdays in profiles and posts
+
+### Changed
+- Ditto now loads faster on first open
+
+### Fixed
+- Choosing an avatar shape no longer freezes the page or opens an empty picker
+- The GM sunrise now animates above post media instead of hiding behind images
+
+## [2.26.1] - 2026-07-03
+
+A quick fix for logging in: pasting your secret key into the login field no longer sets off the clipboard safety warning meant to stop you from posting it publicly.
+
+### Fixed
+- Pasting a secret key into the login field no longer triggers the accidental-paste warning
+
+## [2.26.0] - 2026-07-03
+
+Composing on mobile is a whole new experience — a full-screen editor with a slick animated emoji, GIF, and sticker tray. The Development feed now shows the full life of open-source projects: issues, pull requests, and status updates. Posts tagged #nsfw are tucked behind content warnings, and you can exempt people you follow from your muted words. Plus smarter search, a better mention autocomplete, and a proper eulogy for deleted posts.
+
+### Added
+- The Development feed now shows the full life of open-source projects — issues, pull requests, and status updates — with quick links to NostrHub and Gitworkshop and a feed toggle for each activity type
+- Posts tagged with sensitive hashtags like #nsfw are now hidden behind a content warning
+- A new synced setting to exempt people you follow from your muted words and hashtags
+- When a post no longer exists, Ditto now tells you it was deleted by its author (and why, if they said) instead of offering futile retries — with a fitting word from Sartre
+- Geocache found logs and comments now show the treasure they belong to at the top of the thread
+
+### Changed
+- Composing on mobile is now a full-screen, keyboard-aware experience
+- The emoji, GIF, and sticker pickers open in a smoothly animated tray, and search results expand to fill the composer
+- The home feed and content settings pages are cleaner and load instantly
+
+### Fixed
+- Search results now show recent posts first instead of old ones
+- The mention autocomplete no longer closes while scrolling it, and picking a suggestion works reliably on touch screens
+- Mentioning someone via a profile link now properly notifies them
+- The sidebar's More menu no longer hides under the status bar on mobile
+
+## [2.25.2] - 2026-07-02
+
+A small fix so that "GM" notes wrapped in quotation marks now correctly trigger the sunrise celebration.
+
+### Fixed
+- GM sunrise animation now fires when note content is wrapped in quotes (e.g. "GM")
+
+## [2.25.1] - 2026-07-02
+
+A fresh login screen with a playful animated key that unlocks the Ditto planet, a one-tap login for browser extension users, and fixes for profile media galleries not showing Blossom-hosted content and a lag on Android taps.
+
+### Added
+- The login screen now greets you with an animated key unlocking Ditto
+- If you have a Nostr browser extension installed, logging in is now a single tap — your account is detected and confirmed automatically
+
+### Fixed
+- Profile media galleries and the Photos feed now correctly display Blossom-hosted images and videos
+- Tapping items on Android no longer feels sluggish due to an overly heavy haptic sequence
+
+## [2.25.0] - 2026-07-02
+
+Ditto feels instant now. Your posts pop into the feed the moment you hit publish, and bookmarking, pinning, muting, liking, and following all land right away instead of waiting on the network. Love a profile and hearts rain down over their header, with the love letter card getting its own gentle drift of floating hearts. Plus you can now unmute a conversation straight from the note menu, and a batch of little fixes and polish.
+
+### Added
+- Your new posts appear in the feed instantly when you publish, no waiting for the network
+- Bookmarks, pins, mutes, likes, follows, and more now update the moment you tap, with a graceful undo if a publish fails
+- Loving a profile now showers hearts across their header
+- The love letter card comes alive with hearts that gently drift and float upward
+- Unmute a conversation right from the note menu
+
+### Changed
+- Opening a note always plays its celebration now, even after a busy morning feed has used up the session's animations
+
+### Fixed
+- Selection haptics now work on Android
+- Bookmarking a post now confirms with a toast and tells you if it failed
+
+## [2.24.0] - 2026-07-01
+
+Something wonderful happens on the feed now. Notifications are instant on every platform. Sharing into Ditto works when installed as a web app. Android users on persistent notifications can fix battery issues with one tap.
+
+### Added
+- Feed cards come alive with particle effects — confetti, balloons, sunrises, and more
+- Reacting to a post sends a satisfying burst of particles from the heart
+- Notifications are now instant on web and Android, powered by a live relay connection instead of polling
+- Sharing from other apps now works when Ditto is installed as a web app
+- iOS visitors to the web app see a native App Store banner
+- Android: the persistent notification service now survives reboots
+- Android: a one-tap button in notification settings to fix battery optimization issues
+
+## [2.23.5] - 2026-07-01
+
+Your feed now keeps up with the conversation in real time — a tappable pill appears when new posts arrive, so you never have to guess when to refresh. Search gains a "Ditto users only" filter, articles show a reading-time estimate and render as tidy preview cards in the feed, and editing your published articles is smoother than ever. Posts can now embed content-addressed images, video, and audio that stay reachable even if a server goes down. Plus a big speed-up to app startup and a batch of fixes.
+
+### Added
+- A live "new posts" pill appears on your feed when fresh posts arrive — tap it to refresh and jump to the top
+- A "Ditto users only" filter in search scopes results to people posting from Ditto
+- Articles show a "min read" estimate on feed cards and the article page
+- Posts can embed content-addressed images, videos, and audio that fall back across servers if one is unavailable
+
+### Changed
+- Feed articles now appear as compact preview cards with cover image, summary, and a reading-time footer
+- Editing your published articles now opens a dedicated page with the slug locked, fixing stale content and spurious errors when switching between articles
+- The article editor's publish action is now a normal button next to Save Draft instead of a floating corner button
+- Articles render with proper typographic quotes, dashes, and ellipses
+- Highlights now scroll their quoted excerpt into view so you see the point of the highlight right away
+- The app starts up faster by loading its Bitcoin signing tools only when you actually send an on-chain payment
+- The suggested follow packs during onboarding are now a selectable grid — pick several and follow them all at once
+
+### Fixed
+- The follow button now updates instantly instead of reverting until you reload the page
+- Search no longer stops loading more results prematurely
+- Vivid, saturated theme colors now get readable text instead of unreadable dark text
+- Your original companion no longer gets replaced by an egg after a profile hiccup
+
+## [2.23.4] - 2026-06-18
+
+A performance tune-up that makes profiles and feeds load faster by trimming away redundant background network requests. Tabs, dialogs, and zap buttons now only fetch what they need, when you need it.
+
+### Changed
+- Profiles and feeds load faster with fewer wasteful network requests
+
+## [2.23.3] - 2026-06-18
+
+A polish-focused update for how content shows up in your feed. Quoted posts now display their photos and videos inline, articles get rich preview cards, and short or media-heavy posts stop getting cut off early. Links to outside articles gain a one-tap "Open" button, Reddit embeds show at full height, and your home-screen widgets now stay in sync across all your devices. Plus assorted fixes to video previews, search, and embed spacing.
+
+### Added
+- Your sidebar widgets now sync across all your devices
+
+### Changed
+- Quoted posts now show their photos and videos inline, and articles render as rich preview cards
+- Articles linked from outside Ditto show an "Open" button and a source chip with the site's name and icon
+- Short posts, multi-image galleries, and video and audio posts are no longer cut off early in the feed
+- Reddit embeds now render at their full height
+- The profile "Posts" tab is now labeled "Feed"
+- External link discussions now appear inline on comment pages
+- The "Event not found" screen now has a "Try again" button
+- Old-format companion (Blobbi) items from other apps are now hidden instead of showing up broken
+
+### Fixed
+- Video previews now play correctly in the mobile app
+- Searching again while already on the search page now works
+
+## [2.23.2] - 2026-06-14
+
+Ditto feels faster. Posts and profiles you've already seen now load instantly from your device, your own posts show up the moment you publish them, and the app holds up better when your connection is spotty. App pages also gained an Active Users graph so you can see how busy an app is at a glance, and the music section has a fresh set of curated artists to discover.
+
+### Added
+- App pages now show an Active Users graph
+
+### Changed
+- The app now stores content on your device for instant loads, immediate display of your own posts, and smoother browsing on flaky connections
+- Refreshed the curated artists and follows powering the music Discover section
+
+## [2.23.1] - 2026-06-12
+
+Profiles get more expressive. Your profile now shows how many people love you, linking straight to the list, and visitors can see at a glance when you follow them back or have them on your Love List. The Loved tab is tidier too, showing only original posts from the people you love. On Android, the back gesture on the home screen now minimizes the app like you'd expect, and a few rough edges in articles and feeds have been smoothed out.
+
+### Added
+- Profiles show a "Loves you" pill when that person has you on their Love List
+- Profiles show a "Follows you" pill when that person follows you
+
+### Changed
+- Profiles now show how many people love you, linking to the full list, in place of the old streak
+- The Loved tab shows only original posts, hiding reposts and reactions
+- Removed the reaction button from profile actions
+- On Android, the back gesture on the home screen now minimizes the app instead of doing nothing
+
+### Fixed
+- Feeds no longer briefly collapse to an empty state while refreshing
+- Article text spacing around links and list items now renders correctly
+
+## [2.23.0] - 2026-06-11
+
+Ditto now has a Love List — a tier above following, for the people you truly love. Add them from any profile and a dedicated Loved tab at the front of your feed shows only their posts. Updates to your Love List go out as a beautiful handwritten love letter card. You can also set up multiple ways for people to support you: configure Lightning, on-chain Bitcoin, or any other payment method in your profile settings, and your fans can pick whichever works best for them.
+
+### Added
+- Love List: mark the people you love from their profile, and a dedicated Loved tab on your home feed shows only their posts
+- Love List updates are posted as handwritten love letter cards with hearts and a wax seal
+- A heart badge appears next to loved authors' names in your feed
+- Set up multiple payment methods in profile settings so supporters can choose how they send you money
+- The send-money dialog now shows all of your payment methods with a switcher
+
+### Fixed
+- Live stream video no longer scrolls off-screen when scrolling through the chat
+
+## [2.22.1] - 2026-06-11
+
+A quick fix for Android: the app could fail to open on the latest version, getting stuck before it ever loaded. It now starts up reliably again.
+
+### Fixed
+- The Android app no longer fails to load on startup
+
+## [2.22.0] - 2026-06-10
+
+Make your Blobbi's room your own: a new room editor lets you decorate the walls and floors with patterns, colors, and angles, then fill the space with furniture you've collected. You can also highlight your favorite lines now -- just select any text in a post or article and tap Highlight to share the passage. Search is sharper too, with a new sort:top option for surfacing the best results.
+
+### Added
+- Decorate your Blobbi's room with custom wall and floor patterns, colors, and angles, then arrange the furniture you've collected
+- Highlight a passage from any post or article by selecting the text and tapping Highlight to share it
+- Add sort:top to a search to surface the most popular results first
+
+### Changed
+- Search results are quicker and steadier, without the old flicker while loading
+
+### Fixed
+- Profile and post links shared as web addresses no longer 404 on Android
+
 ## [2.21.0] - 2026-06-07
 
 Share into Ditto from anywhere on Android: hit Share in any app and you can post the text straight to your feed, or jump into the conversation around a link. A new Nostr Clients widget in the sidebar lets you hop between the apps people are posting from, and every client page now shows how many people are active on it with a 30-day usage chart. The Trends page gains a Unique Users by Client chart so you can see which apps the community is posting from at a glance.

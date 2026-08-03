@@ -1,4 +1,4 @@
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useParams } from 'react-router-dom';
 import { TagFeedPage } from '@/components/TagFeedPage';
 import { useAppContext } from '@/hooks/useAppContext';

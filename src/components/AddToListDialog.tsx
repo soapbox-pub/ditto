@@ -7,7 +7,6 @@
  */
 import { useState } from 'react';
 import { Plus, Loader2, List, Users, X, PartyPopper, Check } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -19,8 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUserLists } from '@/hooks/useUserLists';
-import { useFollowPacks } from '@/hooks/useFollowPacks';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useFollowPacks, useFollowPackActions } from '@/hooks/useFollowPacks';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from '@/hooks/useToast';
 import type { FollowPack } from '@/hooks/useFollowPacks';
@@ -39,8 +37,7 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
   const { user } = useCurrentUser();
   const { lists, isLoading: listsLoading, addToList, createList, isInList } = useUserLists();
   const { data: followPacks = [], isLoading: packsLoading } = useFollowPacks();
-  const { mutateAsync: publishEvent } = useNostrPublish();
-  const queryClient = useQueryClient();
+  const { addToPack } = useFollowPackActions();
 
   const [newListName, setNewListName] = useState('');
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -76,14 +73,8 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
     if (pendingId) return;
     setPendingId(pack.id);
     try {
-      const newTags = [...pack.event.tags, ['p', pubkey]];
-      await publishEvent({
-        kind: 39089,
-        content: pack.event.content ?? '',
-        tags: newTags,
-      });
+      await addToPack.mutateAsync({ packId: pack.id, pubkey });
       setAddedPackIds((prev) => new Set(prev).add(pack.id));
-      queryClient.invalidateQueries({ queryKey: ['own-follow-packs', user?.pubkey] });
       toast({ title: `Added to "${pack.title}"` });
     } catch {
       toast({ title: 'Failed to add to pack', variant: 'destructive' });

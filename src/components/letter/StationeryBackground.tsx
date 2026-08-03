@@ -37,23 +37,57 @@ interface EmojiFrameProps {
   thickness: number;
   emojis: string[];
   defaultBg: string;
+  /**
+   * Jitter positions, rotations, and sizes for a hand-scattered look
+   * (deterministic, so the frame renders identically every time).
+   */
+  scatter?: boolean;
+  /**
+   * Keep `defaultBg` for the band even when a tint is applied — the tint then
+   * only recolors the emojis (via the blend overlay) instead of also
+   * darkening the band background.
+   */
+  keepDefaultBg?: boolean;
 }
 
-function EmojiFrame({ tint, thickness, emojis, defaultBg }: EmojiFrameProps) {
+/** Deterministic pseudo-random in [0, 1) from an index + salt. */
+function jitter(i: number, salt: number): number {
+  const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/**
+ * Emoji border band (also reused by LoveListContent for its hearts frame).
+ * Positions itself at `inset: -thickness` of its nearest positioned ancestor
+ * with `zIndex: -1` — render it inside a `relative isolate` wrapper that has
+ * `thickness` of surrounding padding to expose the band.
+ */
+export function EmojiFrame({ tint, thickness, emojis, defaultBg, scatter, keepDefaultBg }: EmojiFrameProps) {
   const t = thickness;
-  const bgColor = tint ? darkenHex(tint, 0.45) : defaultBg;
+  const bgColor = tint && !keepDefaultBg ? darkenHex(tint, 0.45) : defaultBg;
 
   const flowers = useMemo(() => {
-    const gap = 48;
+    const gap = scatter ? 40 : 48;
     const row1 = 8;
     const row2 = t - 4;
 
-    const items: { emoji: string; left: string; top: string; size: number; rot: number }[] = [];
+    const items: { emoji: string; left: string; top: string; size: number; rot: number; jx: number; jy: number }[] = [];
     let ei = 0;
     const next = () => emojis[ei++ % emojis.length];
 
     const place = (left: string, top: string) => {
-      items.push({ emoji: next(), left, top, size: 40, rot: 0 });
+      const i = items.length;
+      items.push(scatter
+        ? {
+          emoji: next(),
+          left,
+          top,
+          size: 26 + jitter(i, 1) * 18,
+          rot: (jitter(i, 2) - 0.5) * 60,
+          jx: (jitter(i, 3) - 0.5) * 14,
+          jy: (jitter(i, 4) - 0.5) * 14,
+        }
+        : { emoji: next(), left, top, size: 40, rot: 0, jx: 0, jy: 0 });
     };
 
     for (const d of [row1, row2]) {
@@ -66,7 +100,7 @@ function EmojiFrame({ tint, thickness, emojis, defaultBg }: EmojiFrameProps) {
     }
 
     return items;
-  }, [emojis, t]);
+  }, [emojis, t, scatter]);
 
   return (
     <div
@@ -87,7 +121,7 @@ function EmojiFrame({ tint, thickness, emojis, defaultBg }: EmojiFrameProps) {
             left: f.left,
             top: f.top,
             fontSize: `${f.size}px`,
-            transform: `rotate(${f.rot}deg) translate(-50%, -50%)`,
+            transform: `translate(${f.jx}px, ${f.jy}px) rotate(${f.rot}deg) translate(-50%, -50%)`,
             lineHeight: 1,
           }}
         >

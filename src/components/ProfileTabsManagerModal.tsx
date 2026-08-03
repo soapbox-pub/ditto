@@ -15,16 +15,14 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
   arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+  CSS,
+  type DragEndEvent,
+} from '@/lib/sortable';
 import { GripVertical, Pencil, Trash2, Plus, Loader2 } from 'lucide-react';
 import {
   Dialog,

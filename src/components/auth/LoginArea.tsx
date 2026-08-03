@@ -2,8 +2,9 @@
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
 import { useState } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Button } from '@/components/ui/button.tsx';
-import LoginDialog from './LoginDialog';
+import { LoginFlow } from './LoginFlow';
 import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
 import { AccountSwitcher } from './AccountSwitcher';
 import { useOnboarding } from '@/hooks/useOnboarding';
@@ -32,18 +33,18 @@ export function LoginArea({ className }: LoginAreaProps) {
             onClick={() => setLoginDialogOpen(true)}
             className='flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground w-full font-medium transition-all hover:bg-primary/90 animate-scale-in'
           >
-            <span className='truncate'>Log in</span>
+            <span className='truncate'><FormattedMessage id="loginArea.logIn" defaultMessage="Log in" /></span>
           </Button><Button
             onClick={startSignup}
             variant="outline"
             className="flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-all"
           >
-            <span>Sign up</span>
+            <span><FormattedMessage id="loginArea.signUp" defaultMessage="Sign up" /></span>
           </Button>
         </div>
       )}
 
-      <LoginDialog
+      <LoginFlow
         isOpen={loginDialogOpen}
         onClose={() => setLoginDialogOpen(false)}
         onLogin={handleLogin}

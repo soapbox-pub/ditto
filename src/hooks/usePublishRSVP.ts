@@ -1,6 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { rollbackQuery } from '@/lib/optimisticEvent';
 
 type RSVPStatus = 'accepted' | 'declined' | 'tentative';
 
@@ -11,6 +14,11 @@ interface PublishRSVPParams {
   note?: string;
 }
 
+interface MyRSVPData {
+  status: RSVPStatus | null;
+  event: NostrEvent | null;
+}
+
 /**
  * Publish or update an RSVP for a NIP-52 calendar event.
  *
@@ -19,6 +27,7 @@ interface PublishRSVPParams {
  */
 export function usePublishRSVP() {
   const queryClient = useQueryClient();
+  const { user } = useCurrentUser();
   const { mutateAsync: createEvent } = useNostrPublish();
 
   return useMutation({
@@ -37,6 +46,25 @@ export function usePublishRSVP() {
           ['p', eventAuthorPubkey],
         ],
       });
+    },
+    // Optimistically set the user's RSVP status so the button flips instantly.
+    onMutate: ({ eventCoord, status, note }: PublishRSVPParams) => {
+      const key = ['my-rsvp', user?.pubkey, eventCoord];
+      const snapshot = queryClient.getQueryData<MyRSVPData>(key);
+      const optimisticEvent: NostrEvent = {
+        id: `optimistic-rsvp-${eventCoord}`,
+        pubkey: user?.pubkey ?? '',
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 31925,
+        tags: [['a', eventCoord], ['d', eventCoord], ['status', status]],
+        content: note ?? '',
+        sig: '',
+      };
+      queryClient.setQueryData<MyRSVPData>(key, { status, event: optimisticEvent });
+      return { snapshot, key };
+    },
+    onError: (_err, _variables, ctx) => {
+      if (ctx) rollbackQuery(queryClient, ctx.key, ctx.snapshot);
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['event-rsvps', variables.eventCoord] });

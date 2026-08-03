@@ -5,7 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { useAuthor } from '@/hooks/useAuthor';
-import { satsToUSD } from '@/lib/bitcoin';
+import { satsToUSD } from '@/lib/bitcoinMoney';
 
 interface ZapSuccessScreenProps {
   /** Recipient pubkey (hex). Used to resolve the author avatar + name

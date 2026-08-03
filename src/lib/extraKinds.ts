@@ -1,7 +1,7 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
-import { Bird, Globe, GitPullRequestArrow, MessageSquareMore, CircleAlert, Stars, UserCheck, Users } from 'lucide-react';
+import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, Stars, UserCheck, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -74,6 +74,14 @@ export interface ExtraKindDef {
   blurb?: string;
   /** External sites where users can create or participate in this kind of content. */
   sites?: ExtraKindSite[];
+  /**
+   * Hot-sort the Global tab (via `sort:hot`) instead of showing a raw
+   * chronological feed, to keep spam and low-quality events out of easy view.
+   * Only set this on kinds the relay actually ranks with enough hot data to
+   * fill a page (e.g. articles, highlights, polls) — otherwise the tab ends up
+   * empty or truncated. Applied by KindFeedPage via the `useFeed` global branch.
+   */
+  hotGlobal?: boolean;
 }
 
 /** All supported extra content kinds, ordered by section (feed → media → social → whimsy). */
@@ -145,6 +153,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   {
     kind: 30023,
     id: 'articles',
+    hotGlobal: true,
     showKey: 'showArticles',
     feedKey: 'feedIncludeArticles',
     label: 'Articles',
@@ -214,9 +223,9 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'vines',
     showKey: 'showVines',
     feedKey: 'feedIncludeVines',
-    label: 'Divines',
+    label: 'Shorts',
     description: 'Short-form videos',
-    route: 'vines',
+    route: 'shorts',
     addressable: true,
     section: 'media',
     blurb: 'Short video clips. Record and share from a dedicated app.',
@@ -352,6 +361,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   {
     kind: 1068,
     id: 'polls',
+    hotGlobal: true,
     showKey: 'showPolls',
     feedKey: 'feedIncludePolls',
     label: 'Polls',
@@ -388,6 +398,18 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'social',
     feedOnly: true,
     blurb: 'When someone permanently leaves Nostr, their Request to Vanish event signals the end of their identity on the network.',
+  },
+  // Love Lists (feed-only — Ditto custom kind 15683, see NIP.md)
+  {
+    kind: 15683,
+    id: 'love-lists',
+    feedKey: 'feedIncludeLoveLists',
+    label: 'Love Lists',
+    description: 'Love List updates — the people someone truly loves (kind 15683)',
+    addressable: false,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'A Love List names the people someone truly loves. The kind number spells "1·LOVE" on a phone keypad, and updates render as a paper love letter in the feed. Your own loved ones get a dedicated Loved tab at the front of your home feed.',
   },
   // Whimsy
   {
@@ -494,6 +516,18 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
       },
     ],
   },
+  {
+    kind: 38192,
+    id: 'cards',
+    showKey: 'showMemoryCards',
+    feedKey: 'feedIncludeMemoryCards',
+    label: 'Memory Cards',
+    description: 'PlayStation 1 memory cards shared over Nostr (kind 38192)',
+    route: 'memory-cards',
+    addressable: true,
+    section: 'whimsy',
+    blurb: 'PlayStation 1 memory cards, published block-by-block to Nostr. Browse cards shared by others, watch their animated save icons, and open a card to see all 16 blocks. Titles, regions and icons are decoded straight from the raw save bytes.',
+  },
   // Blobbi (feed-only — dedicated page at /blobbi)
   {
     kind: 31124,
@@ -506,10 +540,42 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedOnly: true,
     blurb: 'Virtual pet companions living on Nostr. Care for them, watch them grow, and share their journey.',
   },
+  // Quizzes — kind 37849 quiz definitions (addressable) + kind 7849 quiz
+  // results (regular). See NIP.md.
+  {
+    kind: 37849,
+    id: 'quizzes',
+    showKey: 'showQuizzes',
+    label: 'Quizzes',
+    description: 'Quizzes & quiz results',
+    route: 'quizzes',
+    addressable: true,
+    section: 'whimsy',
+    blurb: 'Personality tests, trivia, sorting quizzes — create one, share it, and see which results your friends got. All scoring is transparent and declared in the event itself.',
+    subKinds: [
+      {
+        kind: 37849,
+        showKey: 'showQuizDefinitions',
+        feedKey: 'feedIncludeQuizzes',
+        label: 'Quizzes',
+        description: 'Quiz definitions',
+        addressable: true,
+      },
+      {
+        kind: 7849,
+        showKey: 'showQuizResults',
+        feedKey: 'feedIncludeQuizResults',
+        label: 'Quiz Results',
+        description: 'Results people shared after taking a quiz',
+        addressable: false,
+      },
+    ],
+  },
   // NIP-84 Highlights — kind 9802 (regular)
   {
     kind: 9802,
     id: 'highlights',
+    hotGlobal: true,
     showKey: 'showHighlights',
     feedKey: 'feedIncludeHighlights',
     label: 'Highlights',
@@ -518,6 +584,21 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     addressable: false,
     section: 'social',
     blurb: "Highlights are excerpts people find valuable — a paragraph from an article, a passage from a blog post, or a quote from anywhere on the web. Browse what people are reading and what's resonating.",
+  },
+  // Attestations — kind 31871 (addressable). Feed-only: opening an
+  // attestation's naddr lands on PostDetailPage, which renders via
+  // AttestationContent. Attestations are truthfulness claims about other
+  // Nostr events ("Attestations" draft NIP).
+  {
+    kind: 31871,
+    id: 'attestations',
+    feedKey: 'feedIncludeAttestations',
+    label: 'Attestations',
+    description: 'Truthfulness claims about other Nostr events (kind 31871)',
+    addressable: true,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'Attestations are signed truthfulness claims about other Nostr events — an attestor verifies a claim and publishes whether it is valid, invalid, still being verified, or revoked. They enable a web of trust for notes.',
   },
   // Fundraisers — kind 33863 (addressable). Feed-only: opening a
   // campaign's naddr lands on PostDetailPage, which knows how to render
@@ -578,15 +659,175 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     kind: 30617,
     id: 'development',
     showKey: 'showDevelopment',
-    feedKey: 'feedIncludeDevelopment',
-    extraFeedKinds: [1617, 1618, 30817, 15128, 35128, 32267, 30063, 31990],
-    label: 'Development',
-    description: 'Git repos, patches, PRs, nsites, apps, and custom NIPs',
+    label: 'Git',
+    description: 'Nostr-native git collaboration (NIP-34)',
     route: 'development',
     addressable: true,
     section: 'development',
-    blurb: 'Nostr-native git repositories, patches, pull requests, nsite deployments, custom NIPs, and published applications.',
-    sites: [{ url: 'https://gitworkshop.dev', name: 'Gitworkshop' }, { url: 'https://nostrhub.io', name: 'NostrHub' }],
+    blurb: 'Nostr-native git activity — repositories, pushes, patches, pull requests, issues, and status changes.',
+    sites: [{ url: 'https://nostrhub.io', name: 'NostrHub' }, { url: 'https://gitworkshop.dev', name: 'Gitworkshop' }],
+    subKinds: [
+      {
+        kind: 30617,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeGitRepos',
+        label: 'Repositories',
+        description: 'Repository announcements',
+        addressable: true,
+      },
+      {
+        kind: 30618,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeGitPushes',
+        label: 'Pushes',
+        description: 'Repository state updates — branches and tags after a push',
+        addressable: true,
+      },
+      {
+        kind: 1617,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeGitPatches',
+        label: 'Patches',
+        description: 'Code patches sent to a repository',
+        addressable: false,
+      },
+      {
+        kind: 1618,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeGitPullRequests',
+        label: 'Pull Requests',
+        description: 'Proposed branches to merge',
+        addressable: false,
+      },
+      {
+        kind: 1619,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeGitPrUpdates',
+        label: 'Pull Request Updates',
+        description: 'New commits pushed to an open pull request',
+        addressable: false,
+      },
+      {
+        kind: 1621,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeGitIssues',
+        label: 'Issues',
+        description: 'Bug reports, feature requests, and questions',
+        addressable: false,
+      },
+      {
+        kind: 1630,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeGitStatusReopened',
+        label: 'Reopened Statuses',
+        description: 'Issues and PRs marked open again',
+        addressable: false,
+      },
+      {
+        kind: 1631,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeGitStatusResolved',
+        label: 'Resolved Statuses',
+        description: 'Issues resolved, patches applied, PRs merged',
+        addressable: false,
+      },
+      {
+        kind: 1632,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeGitStatusClosed',
+        label: 'Closed Statuses',
+        description: 'Issues and PRs closed without merging',
+        addressable: false,
+      },
+      {
+        kind: 1633,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeGitStatusDraft',
+        label: 'Draft Statuses',
+        description: 'PRs marked as drafts',
+        addressable: false,
+      },
+    ],
+  },
+  {
+    kind: 30817,
+    id: 'custom-nips',
+    feedKey: 'feedIncludeCustomNips',
+    label: 'Custom NIPs',
+    description: 'Community protocol proposals',
+    addressable: true,
+    section: 'development',
+    feedOnly: true,
+    blurb: 'Community-drafted Nostr protocol proposals published on NostrHub.',
+    sites: [{ url: 'https://nostrhub.io', name: 'NostrHub' }],
+  },
+  {
+    kind: 15128,
+    id: 'nsites',
+    label: 'Nsites',
+    description: 'Static websites hosted on Nostr',
+    addressable: false,
+    section: 'development',
+    feedOnly: true,
+    blurb: 'Static websites deployed to Blossom servers and announced on Nostr.',
+    subKinds: [
+      {
+        kind: 15128,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeNsiteRoots',
+        label: 'Root Sites',
+        description: 'A user\'s main nsite deployment',
+        addressable: false,
+      },
+      {
+        kind: 35128,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeNsiteNamed',
+        label: 'Named Sites',
+        description: 'Additional named nsite deployments',
+        addressable: true,
+      },
+    ],
+  },
+  {
+    kind: 32267,
+    id: 'zapstore',
+    label: 'Zapstore',
+    description: 'App store publishing on Nostr',
+    addressable: true,
+    section: 'development',
+    feedOnly: true,
+    blurb: 'Application listings and version releases published to the Zapstore app store.',
+    sites: [{ url: 'https://zapstore.dev', name: 'Zapstore' }],
+    subKinds: [
+      {
+        kind: 32267,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeZapstoreApps',
+        label: 'Apps',
+        description: 'App listings',
+        addressable: true,
+      },
+      {
+        kind: 30063,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeZapstoreReleases',
+        label: 'Releases',
+        description: 'New app version announcements',
+        addressable: true,
+      },
+    ],
+  },
+  {
+    kind: 31990,
+    id: 'app-handlers',
+    feedKey: 'feedIncludeAppHandlers',
+    label: 'App Handlers',
+    description: 'NIP-89 application handler announcements',
+    addressable: true,
+    section: 'development',
+    feedOnly: true,
+    blurb: 'Applications announcing which event kinds they can display or handle (NIP-89).',
   },
 ];
 
@@ -633,6 +874,34 @@ export function getPageKinds(def: ExtraKindDef, feedSettings: FeedSettings): num
 }
 
 /**
+ * Every kind number a def covers — parent kind, extraFeedKinds, and all
+ * subKinds with their extraFeedKinds — regardless of user toggles. Used
+ * for dedicated pages that always show the full category.
+ */
+export function getDefKinds(def: ExtraKindDef): number[] {
+  const kinds = new Set<number>([def.kind, ...(def.extraFeedKinds ?? [])]);
+  for (const sub of def.subKinds ?? []) {
+    kinds.add(sub.kind);
+    for (const k of sub.extraFeedKinds ?? []) kinds.add(k);
+  }
+  return [...kinds];
+}
+
+/**
+ * Every kind number covered by all defs in a section, regardless of user
+ * toggles. Used by section-wide pages (e.g. /development shows git
+ * activity, custom NIPs, nsites, and apps together).
+ */
+export function getSectionKinds(section: ExtraKindSection): number[] {
+  const kinds = new Set<number>();
+  for (const def of EXTRA_KINDS) {
+    if (def.section !== section) continue;
+    for (const k of getDefKinds(def)) kinds.add(k);
+  }
+  return [...kinds];
+}
+
+/**
  * Specific labels for kinds that don't have their own top-level ExtraKindDef.
  * These are kinds buried in `extraFeedKinds` arrays or otherwise needing
  * a label more specific than their parent category.
@@ -644,11 +913,19 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   16: 'repost',
   30000: 'follow set',
   1617: 'patch',
-  1618: 'patch comment',
+  1618: 'pull request',
+  1619: 'pull request update',
+  1621: 'issue',
+  1630: 'status update',
+  1631: 'status update',
+  1632: 'status update',
+  1633: 'status update',
+  30618: 'repository update',
   15128: 'nsite',
   35128: 'nsite',
   30008: 'badge set',
-  30817: 'repository issue',
+  30817: 'custom NIP',
+  31871: 'attestation',
   32267: 'Zapstore app',
   31990: 'app',
   30063: 'Zapstore release',
@@ -664,13 +941,22 @@ const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: st
   16: RepostIcon,
   30000: Users,
   1617: GitPullRequestArrow,
-  1618: MessageSquareMore,
+  1618: GitPullRequest,
+  1619: GitPullRequestArrow,
+  1621: CircleDot,
+  1630: CircleDot,
+  1631: CircleCheck,
+  1632: CircleX,
+  1633: CircleDashed,
+  30618: GitBranch,
   15128: Globe,
+  15683: Heart,
   35128: Globe,
   30817: CircleAlert,
   2473: Bird,
   12473: Bird,
   30621: Stars,
+  7849: ClipboardCheck,
 };
 
 /**

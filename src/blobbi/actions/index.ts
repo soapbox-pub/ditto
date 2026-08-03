@@ -9,7 +9,7 @@ export { InlineSingCard } from './components/InlineSingCard';
 export { useBlobbiUseInventoryItem } from './hooks/useBlobbiUseInventoryItem';
 export type { UseItemRequest, UseItemResult, UseBlobbiUseInventoryItemParams } from './hooks/useBlobbiUseInventoryItem';
 
-export { useBlobbiHatch, useBlobbiEvolve } from './hooks/useBlobbiStageTransition';
+export { useBlobbiEvolve } from './hooks/useBlobbiStageTransition';
 export type { 
   UseBlobbiStageTransitionParams, 
   StageTransitionResult,
@@ -35,8 +35,8 @@ export type {
   StopEvolutionResult,
 } from './hooks/useBlobbiIncubation';
 
-export { useActiveTaskProcess, filterPersistentTasks as filterPersistentTasksFromProcess, filterDynamicTasks } from './hooks/useActiveTaskProcess';
-export type { TaskProcessType, TaskProcessConfig, ActiveTaskProcessResult } from './hooks/useActiveTaskProcess';
+export { useActiveTaskProcess, filterPersistentTasks as filterPersistentTasksFromProcess, filterDynamicTasks } from '@blobbi-kit/react/hooks/useActiveTaskProcess';
+export type { TaskProcessType, TaskProcessConfig, ActiveTaskProcessResult } from '@blobbi-kit/react/hooks/useActiveTaskProcess';
 
 export { 
   useHatchTasks, 
@@ -45,8 +45,8 @@ export {
   KIND_COLOR_MOMENT,
   HATCH_REQUIRED_INTERACTIONS,
   REQUIRED_INTERACTIONS, // Legacy export
-} from './hooks/useHatchTasks';
-export type { HatchTask, HatchTasksResult, TaskType } from './hooks/useHatchTasks';
+} from '@blobbi-kit/react/hooks/useHatchTasks';
+export type { HatchTask, HatchTasksResult, TaskType } from '@blobbi-kit/react/hooks/useHatchTasks';
 
 export {
   useEvolveTasks,
@@ -55,8 +55,8 @@ export {
   EVOLVE_REQUIRED_COLOR_MOMENTS,
   EVOLVE_REQUIRED_INTERACTIONS,
   EVOLVE_STAT_THRESHOLD,
-} from './hooks/useEvolveTasks';
-export type { EvolveTasksResult } from './hooks/useEvolveTasks';
+} from '@blobbi-kit/react/hooks/useEvolveTasks';
+export type { EvolveTasksResult } from '@blobbi-kit/react/hooks/useEvolveTasks';
 
 export { useBlobbiDirectAction, DIRECT_ACTION_HAPPINESS_EFFECTS } from './hooks/useBlobbiDirectAction';
 export type { DirectActionRequest, DirectActionResult, UseBlobbiDirectActionParams } from './hooks/useBlobbiDirectAction';
@@ -88,7 +88,7 @@ export {
 } from './lib/blobbi-activity-state';
 
 // Re-export stat bounds from canonical source
-export { STAT_MIN, STAT_MAX } from '@/blobbi/core/lib/blobbi';
+export { STAT_MIN, STAT_MAX } from '@blobbi-kit/core/blobbi';
 
 // Utilities
 export {
@@ -104,7 +104,6 @@ export {
   DIRECT_ACTION_METADATA,
   ALL_ACTION_METADATA,
   GENERAL_ITEM_USABLE_STAGES,
-  EGG_ALLOWED_ACTIONS,
   EGG_ALLOWED_INVENTORY_ACTIONS,
   EGG_ALLOWED_DIRECT_ACTIONS,
   EGG_VISIBLE_INVENTORY_ACTIONS,
@@ -114,11 +113,9 @@ export {
   clampStat,
   applyStat,
   applyItemEffects,
-  decrementStorageItem,
   canUseAction,
   canUseDirectAction,
   isActionVisibleForStage,
-  canUseInventoryItems,
   getStageRestrictionMessage,
   previewStatChangesWithSegments,
   hasMedicineEffectForEgg,
@@ -128,11 +125,13 @@ export {
 } from './lib/blobbi-action-utils';
 
 // Daily Missions
-export { useDailyMissions } from './hooks/useDailyMissions';
-export type { DailyMissionView, UseDailyMissionsResult } from './hooks/useDailyMissions';
+export { useDailyMissions } from '@blobbi-kit/react/hooks/useDailyMissions';
+export type { DailyMissionView, UseDailyMissionsResult } from '@blobbi-kit/react/hooks/useDailyMissions';
 export { useAwardDailyXp, useClaimMissionReward } from './hooks/useClaimMissionReward';
-export { usePersistEvolutionProgress } from './hooks/usePersistEvolutionProgress';
-export { usePersistDailyProgress } from './hooks/usePersistDailyProgress';
+export { usePersistEvolutionProgress } from '@blobbi-kit/react/hooks/usePersistEvolutionProgress';
+export type { PersistEvolutionProgressOptions } from '@blobbi-kit/react/hooks/usePersistEvolutionProgress';
+export { usePersistDailyProgress } from '@blobbi-kit/react/hooks/usePersistDailyProgress';
+export type { PersistDailyProgressOptions } from '@blobbi-kit/react/hooks/usePersistDailyProgress';
 export type { AwardDailyXpRequest, AwardDailyXpResult, ClaimMissionRequest, ClaimMissionResult } from './hooks/useClaimMissionReward';
 export { useRerollMission } from './hooks/useRerollMission';
 export type { RerollMissionRequest, RerollMissionResult } from './hooks/useRerollMission';
@@ -140,7 +139,7 @@ export {
   trackDailyMissionProgress,
   trackDailyMissionEvent,
   trackMultipleDailyMissionActions,
-} from './lib/daily-mission-tracker';
+} from '@blobbi-kit/react/lib/daily-mission-tracker';
 export type {
   DailyMissionAction,
   DailyMissionDefinition,
@@ -148,7 +147,7 @@ export type {
   TallyMission,
   EventMission,
   MissionsContent,
-} from './lib/daily-missions';
+} from '@blobbi-kit/react/lib/daily-missions';
 
 // Progression
 export {
@@ -159,8 +158,8 @@ export {
   getUnlocks,
   buildXpTagUpdates,
   MAX_LEVEL,
-} from '@/blobbi/core/lib/progression';
-export type { Unlocks } from '@/blobbi/core/lib/progression';
+} from '@blobbi-kit/core/progression';
+export type { Unlocks } from '@blobbi-kit/core/progression';
 
 // Missions content model
 export {
@@ -170,15 +169,15 @@ export {
   isTallyMission,
   isEventMission,
   missionProgress,
-} from '@/blobbi/core/lib/missions';
-export type { ProfileContent } from '@/blobbi/core/lib/missions';
+} from '@blobbi-kit/core/missions';
+export type { ProfileContent } from '@blobbi-kit/core/missions';
 
-// Item cooldown
-export { isItemOnCooldown, setItemCooldown, subscribeCooldowns } from './lib/item-cooldown';
-export { ITEM_COOLDOWN_SUCCESS_MS, ITEM_COOLDOWN_FAILURE_MS } from './lib/item-cooldown';
-export { useItemCooldown } from './hooks/useItemCooldown';
+// Item cooldown (extracted to @blobbi-kit/react)
+export { isItemOnCooldown, setItemCooldown, subscribeCooldowns } from '@blobbi-kit/react/lib/item-cooldown';
+export { ITEM_COOLDOWN_SUCCESS_MS, ITEM_COOLDOWN_FAILURE_MS } from '@blobbi-kit/react/lib/item-cooldown';
+export { useItemCooldown } from '@blobbi-kit/react/hooks/useItemCooldown';
 
-// Action XP
+// Action XP (extracted to @blobbi-kit/react)
 export {
   ACTION_XP,
   INVENTORY_ACTION_XP,
@@ -188,22 +187,22 @@ export {
   calculateInventoryActionXP,
   applyXPGain,
   formatXPGain,
-} from './lib/blobbi-xp';
+} from '@blobbi-kit/react/lib/blobbi-xp';
 
-// Streak tracking
+// Streak tracking (extracted to @blobbi-kit/react)
 export {
   calculateStreakUpdate,
   getStreakTagUpdates,
   needsStreakUpdate,
   getStreakStatus,
-} from './lib/blobbi-streak';
+} from '@blobbi-kit/react/lib/blobbi-streak';
 export type {
   StreakUpdateResult,
   StreakTagUpdates,
-} from './lib/blobbi-streak';
+} from '@blobbi-kit/react/lib/blobbi-streak';
 
-export { useBlobbiCareActivity } from './hooks/useBlobbiCareActivity';
+export { useBlobbiCareActivity } from '@blobbi-kit/react/hooks/useBlobbiCareActivity';
 export type {
-  UseBlobbiCareActivityParams,
+  UseBlobbiCareActivityOptions,
   CareActivityResult,
-} from './hooks/useBlobbiCareActivity';
+} from '@blobbi-kit/react/hooks/useBlobbiCareActivity';

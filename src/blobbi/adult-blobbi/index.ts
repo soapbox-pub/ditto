@@ -17,7 +17,7 @@ export type {
   AdultVariant,
   AdultSvgCustomization,
   AdultSvgResolverOptions,
-} from './types/adult.types';
+} from '@blobbi-kit/core/types/adult';
 
 export {
   ADULT_FORMS,
@@ -26,7 +26,7 @@ export {
   getDefaultAdultForm,
   resolveAdultForm,
   deriveAdultFormFromSeed,
-} from './types/adult.types';
+} from '@blobbi-kit/core/types/adult';
 
 // SVG Resolution
 export {

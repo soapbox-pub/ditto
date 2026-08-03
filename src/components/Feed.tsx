@@ -1,20 +1,23 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useInView } from 'react-intersection-observer';
+import { useInView } from '@/hooks/useInView';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LandingHero } from '@/components/LandingHero';
+import { LazyFeedItem } from '@/components/LazyFeedItem';
 import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FeedEmptyState } from '@/components/FeedEmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, MapPin } from 'lucide-react';
-import LoginDialog from '@/components/auth/LoginDialog';
+import { Heart, Loader2, MapPin } from 'lucide-react';
+import { LoginFlow } from '@/components/auth/LoginFlow';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeed } from '@/hooks/useFeed';
+import { useFeedStream } from '@/hooks/useFeedStream';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
 import { useIsOnline } from '@/hooks/useIsOnline';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { DITTO_RELAYS } from '@/lib/appRelays';
@@ -22,7 +25,8 @@ import { getStorageKey } from '@/lib/storageKey';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedTab } from '@/hooks/useFeedTab';
 import { useInterests } from '@/hooks/useInterests';
-import { useMuteList } from '@/hooks/useMuteList';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
+import { useLoveList } from '@/hooks/useLoveList';
 import { useTabFeed } from '@/hooks/useProfileFeed';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
@@ -32,7 +36,8 @@ import { useStickyFeedItems } from '@/hooks/useStickyFeedItems';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { diversifyFeedPages } from '@/lib/feedDiversity';
 import { isRepostKind, shouldHideFeedEvent, feedItemKey } from '@/lib/feedUtils';
-import { isEventMuted } from '@/lib/muteHelpers';
+import { cn } from '@/lib/utils';
+import { NewPostsPill } from '@/components/NewPostsPill';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { TabButton } from '@/components/TabButton';
@@ -40,7 +45,7 @@ import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { SavedFeed } from '@/contexts/AppContext';
 
-type CoreFeedTab = 'follows' | 'global' | 'communities' | 'ditto';
+type CoreFeedTab = 'follows' | 'loved' | 'global' | 'communities' | 'ditto';
 type FeedTab = CoreFeedTab | string; // string = saved feed id
 
 interface FeedProps {
@@ -61,17 +66,24 @@ interface FeedProps {
    * render it before Follows. Used by the client feed page.
    */
   globalFirst?: boolean;
+  /**
+   * Apply `sort:hot` to the Global tab on kind-specific pages to keep spam and
+   * low-quality events out of easy view (e.g. Articles, Highlights).
+   */
+  hotGlobal?: boolean;
 }
 
-export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home', globalFirst }: FeedProps = {}) {
+export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home', globalFirst, hotGlobal }: FeedProps = {}) {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
+  const { lovedPubkeys } = useLoveList();
   const { savedFeeds } = useSavedFeeds();
   const { hashtags } = useInterests();
   const { hashtags: geotags } = useInterests('g');
   const { data: curatorFollowList, isError: isCuratorError } = useCuratorFollowList();
   const { data: followData } = useFollowList();
+  const { excludeMuted } = useMutedAuthorFilter();
   const isOnline = useIsOnline();
 
   // Tab settings from localStorage
@@ -107,10 +119,18 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
 
+  // The Loved tab only exists when the user actually loves someone. Hidden
+  // (and clamped back to Follows) when the Love List is empty or still loading.
+  const hasLovedPeople = !!user && (lovedPubkeys?.length ?? 0) > 0;
+
   // Kind-specific pages only support Follows + Global. Clamp any other
   // persisted tab (e.g. 'ditto', 'communities') back to the appropriate default.
   // Logged-out users must land on 'global' since 'follows' requires a user.
   const activeTab: FeedTab = (() => {
+    // 'loved' is only valid on the home feed while the Love List is non-empty.
+    if (rawActiveTab === 'loved' && (kinds || !hasLovedPeople)) {
+      return user ? 'follows' : 'global';
+    }
     if (!kinds) return rawActiveTab; // Home feed: no clamping
     if (rawActiveTab === 'global') return 'global';
     if (rawActiveTab === 'follows' && user) return 'follows';
@@ -140,15 +160,15 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const useDittoTab = user && activeTab === 'ditto' && !kinds;
 
   // Standard feed query (used when logged in, or on kind-specific pages, or core tabs)
-  const isCoreFeedTab = activeTab === 'follows' || activeTab === 'global' || activeTab === 'communities' || activeTab === 'ditto';
-  type UseFeedTab = 'follows' | 'global' | 'communities';
+  const isCoreFeedTab = activeTab === 'follows' || activeTab === 'loved' || activeTab === 'global' || activeTab === 'communities' || activeTab === 'ditto';
+  type UseFeedTab = 'follows' | 'loved' | 'global' | 'communities';
   const feedTabForQuery: UseFeedTab =
-    activeTab === 'follows' || activeTab === 'global' || activeTab === 'communities'
+    activeTab === 'follows' || activeTab === 'loved' || activeTab === 'global' || activeTab === 'communities'
       ? (activeTab as UseFeedTab)
       : 'global';
   const feedQuery = useFeed(
     isCoreFeedTab ? feedTabForQuery : 'global',
-    (kinds || tagFilters) ? { kinds, tagFilters } : undefined,
+    (kinds || tagFilters) ? { kinds, tagFilters, hotGlobal } : undefined,
   );
 
   // Curated Ditto feed: latest content from the curator's follow list.
@@ -166,6 +186,44 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   );
 
   const handleRefresh = usePageRefresh(queryKey);
+
+  // Live auto-refresh: detect new posts arriving on the active feed and surface
+  // a "N new posts" pill, without re-sorting the feed under the user's scroll.
+  // Only the core author/global tabs stream — the curated Ditto tab, saved
+  // feeds, and hashtag/geotag tabs render their own content below.
+  const { feedSettings } = useFeedSettings();
+  const streamAuthors = useMemo<string[] | undefined>(() => {
+    if (feedTabForQuery === 'follows') {
+      const follows = excludeMuted(followData?.pubkeys ?? []);
+      return user ? [...follows, user.pubkey] : follows;
+    }
+    if (feedTabForQuery === 'loved') {
+      return excludeMuted(lovedPubkeys ?? []);
+    }
+    // global / communities: communities derive authors internally in useFeed;
+    // skip streaming there to avoid a second localStorage read. Global has no authors.
+    return undefined;
+  }, [feedTabForQuery, followData?.pubkeys, lovedPubkeys, user, excludeMuted]);
+
+  // Stream only for the core feed tabs, when not the curated Ditto query.
+  const streamEnabled =
+    isCoreFeedTab &&
+    !useDittoQuery &&
+    (feedTabForQuery === 'follows' || feedTabForQuery === 'loved' || feedTabForQuery === 'global');
+
+  const { newPostCount, reset: resetNewPosts } = useFeedStream({
+    tab: feedTabForQuery,
+    authors: streamAuthors,
+    kinds,
+    showReplies: feedSettings.followsFeedShowReplies,
+    enabled: streamEnabled,
+  });
+
+  const handleShowNewPosts = () => {
+    resetNewPosts();
+    handleRefresh();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const {
     data: rawData,
@@ -212,7 +270,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
               if (seen.has(event.id)) return false;
               seen.add(event.id);
               if (shouldHideFeedEvent(event)) return false;
-              if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+              if (isMuted(event)) return false;
               return true;
             })
             .map((event): FeedItem => ({ event, sortTimestamp: event.created_at })),
@@ -231,14 +289,19 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         if (!key || seen.has(key)) return false;
         seen.add(key);
         if (shouldHideFeedEvent(item.event)) return false;
-        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
+        if (isMuted(item.event)) return false;
         return true;
       });
-  }, [rawData?.pages, muteItems, useDittoQuery]);
+  }, [rawData?.pages, isMuted, useDittoQuery]);
 
-  // Retain the last non-empty list so a key change / background refetch never
-  // flashes the empty state over a feed the user is actively reading.
-  const feedItems = useStickyFeedItems(derivedItems, isFetching);
+  // Retain the last non-empty list so a key change / background refetch /
+  // settled-empty relay miss never flashes the empty state over a feed the
+  // user is actively reading. Retention resets when the viewed feed identity
+  // (account or tab) changes.
+  const feedItems = useStickyFeedItems(
+    derivedItems,
+    `${user?.pubkey ?? ''}:${useDittoQuery ? 'ditto' : activeTab}`,
+  );
 
   // Show skeletons while loading, but not if the curator list query errored
   // (that would leave logged-out users staring at infinite skeletons).
@@ -276,17 +339,24 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     }
 
     const isFollows = activeTab === 'follows';
+    const isLoved = activeTab === 'loved';
     const baseMessage = !isOnline
       ? isFollows
         ? "We couldn't load posts from people you follow."
-        : "We couldn't load the feed."
+        : isLoved
+          ? "We couldn't load posts from the people you love."
+          : "We couldn't load the feed."
       : isError
         ? isFollows
           ? "Something went wrong loading posts from people you follow."
-          : 'Something went wrong loading the feed.'
+          : isLoved
+            ? 'Something went wrong loading posts from the people you love.'
+            : 'Something went wrong loading the feed.'
         : isFollows
           ? "We couldn't find any recent posts from people you follow."
-          : 'No posts found. Check your relay connections or come back soon.';
+          : isLoved
+            ? "No recent posts from the people you love. Add more people from their profile's ⋯ menu."
+            : 'No posts found. Check your relay connections or come back soon.';
 
     return {
       message: baseMessage,
@@ -316,6 +386,14 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         <SubHeaderBar>
           {globalFirst && (
             <TabButton label="All" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
+          )}
+          {!isKindSpecificPage && hasLovedPeople && (
+            <TabButton label="Loved" active={activeTab === 'loved'} onClick={() => handleSetActiveTab('loved')}>
+              <span className="flex items-center justify-center gap-1">
+                <Heart className={cn('size-3.5', activeTab === 'loved' && 'fill-red-500 text-red-500')} />
+                Loved
+              </span>
+            </TabButton>
           )}
           <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
           {!isKindSpecificPage && showDittoFeed && (
@@ -369,18 +447,22 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         <SavedFeedContent feed={activeSavedFeed} />
       ) : (
         <PullToRefresh onRefresh={handleRefresh}>
+          {/* New posts pill — live auto-refresh. Never re-sorts the feed:
+              tapping it refreshes and scrolls to top. */}
+          <NewPostsPill count={newPostCount} onClick={handleShowNewPosts} />
           {feedItems.length > 0 ? (
             <div>
-              {feedItems.map((item: FeedItem) => (
-                <NoteCard
-                  key={feedItemKey(item)}
-                  event={item.event}
-                  repostedBy={item.repostedBy}
-                  repostEvent={item.repostEvent}
-                  reactedBy={item.reactedBy}
-                  zappedBy={item.zappedBy}
-                  profileZapRecipient={item.profileZapRecipient}
-                />
+              {feedItems.map((item: FeedItem, index: number) => (
+                <LazyFeedItem key={feedItemKey(item)} className="cv-feed-item" initialInView={index < 10}>
+                  <NoteCard
+                    event={item.event}
+                    repostedBy={item.repostedBy}
+                    repostEvent={item.repostEvent}
+                    reactedBy={item.reactedBy}
+                    zappedBy={item.zappedBy}
+                    profileZapRecipient={item.profileZapRecipient}
+                  />
+                </LazyFeedItem>
               ))}
               {hasNextPage && (
                 <div ref={scrollRef} className="py-4">
@@ -406,7 +488,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
       {/* Login/Signup dialogs (only needed on main feed) */}
       {!kinds && (
-        <LoginDialog
+        <LoginFlow
           isOpen={loginDialogOpen}
           onClose={() => setLoginDialogOpen(false)}
           onLogin={() => setLoginDialogOpen(false)}
@@ -421,7 +503,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
   const { user } = useCurrentUser();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
 
   // Resolve variable placeholders ($follows etc.) the same way profile tabs do
   const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(
@@ -447,7 +529,6 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   const {
     data: rawData,
     isLoading: isFeedLoading,
-    isFetching,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -481,14 +562,15 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
         if (!key || seen.has(key)) return false;
         seen.add(key);
         if (shouldHideFeedEvent(item.event)) return false;
-        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
+        if (isMuted(item.event)) return false;
         return true;
       });
-  }, [rawData?.pages, muteItems]);
+  }, [rawData?.pages, isMuted]);
 
   // Retain the last non-empty list so a key change / refetch never flashes the
-  // empty state over content the user is reading.
-  const feedItems = useStickyFeedItems(derivedItems, isResolving || isFetching);
+  // empty state over content the user is reading. Resets when the saved feed
+  // (or account) changes — this component is reused across saved feed tabs.
+  const feedItems = useStickyFeedItems(derivedItems, `${user?.pubkey ?? ''}:${feed.id}`);
 
   if (isLoading && feedItems.length === 0) {
     return (
@@ -511,16 +593,17 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
-        {feedItems.map((item) => (
-          <NoteCard
-            key={feedItemKey(item)}
-            event={item.event}
-            repostedBy={item.repostedBy}
-            repostEvent={item.repostEvent}
-            reactedBy={item.reactedBy}
-            zappedBy={item.zappedBy}
-            profileZapRecipient={item.profileZapRecipient}
-          />
+        {feedItems.map((item, index) => (
+          <LazyFeedItem key={feedItemKey(item)} className="cv-feed-item" initialInView={index < 10}>
+            <NoteCard
+              event={item.event}
+              repostedBy={item.repostedBy}
+              repostEvent={item.repostEvent}
+              reactedBy={item.reactedBy}
+              zappedBy={item.zappedBy}
+              profileZapRecipient={item.profileZapRecipient}
+            />
+          </LazyFeedItem>
         ))}
         {hasNextPage && (
           <div ref={scrollRef} className="py-4">
@@ -540,7 +623,7 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
 /** Renders a feed of posts tagged with a specific hashtag. */
 function HashtagFeedContent({ tag }: { tag: string }) {
   const { nostr } = useNostr();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { feedSettings } = useFeedSettings();
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
   const kindsKey = [...kinds].sort().join(',');
@@ -548,7 +631,7 @@ function HashtagFeedContent({ tag }: { tag: string }) {
   const queryKey = useMemo(() => ['hashtag-feed', tag, kindsKey], [tag, kindsKey]);
   const handleRefresh = usePageRefresh(queryKey);
 
-  const { data: events, isLoading, isFetching } = useQuery<NostrEvent[]>({
+  const { data: events, isLoading } = useQuery<NostrEvent[]>({
     queryKey,
     queryFn: async ({ signal }) => {
       const ditto = nostr.group(DITTO_RELAYS);
@@ -561,12 +644,12 @@ function HashtagFeedContent({ tag }: { tag: string }) {
 
   const derivedEvents = useMemo((): NostrEvent[] => {
     if (!events) return [];
-    if (muteItems.length === 0) return events;
-    return events.filter((e) => !isEventMuted(e, muteItems));
-  }, [events, muteItems]);
+    return events.filter((e) => !isMuted(e));
+  }, [events, isMuted]);
 
-  // Retain the last non-empty list across key changes / refetches.
-  const filteredEvents = useStickyFeedItems(derivedEvents, isFetching);
+  // Retain the last non-empty list across key changes / refetches; resets when
+  // the viewed hashtag changes (this component is reused across hashtag tabs).
+  const filteredEvents = useStickyFeedItems(derivedEvents, tag);
 
   if (isLoading && filteredEvents.length === 0) {
     return (
@@ -589,8 +672,10 @@ function HashtagFeedContent({ tag }: { tag: string }) {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
-        {filteredEvents.map((event) => (
-          <NoteCard key={event.id} event={event} />
+        {filteredEvents.map((event, index) => (
+          <LazyFeedItem key={event.id} className="cv-feed-item" initialInView={index < 10}>
+            <NoteCard event={event} />
+          </LazyFeedItem>
         ))}
       </div>
     </PullToRefresh>
@@ -600,7 +685,7 @@ function HashtagFeedContent({ tag }: { tag: string }) {
 /** Renders a feed of posts tagged with a specific geohash. */
 function GeotagFeedContent({ tag }: { tag: string }) {
   const { nostr } = useNostr();
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { feedSettings } = useFeedSettings();
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
   const kindsKey = [...kinds].sort().join(',');
@@ -608,7 +693,7 @@ function GeotagFeedContent({ tag }: { tag: string }) {
   const queryKey = useMemo(() => ['geotag-feed', tag, kindsKey], [tag, kindsKey]);
   const handleRefresh = usePageRefresh(queryKey);
 
-  const { data: events, isLoading, isFetching } = useQuery<NostrEvent[]>({
+  const { data: events, isLoading } = useQuery<NostrEvent[]>({
     queryKey,
     queryFn: async ({ signal }) => {
       const ditto = nostr.group(DITTO_RELAYS);
@@ -622,12 +707,12 @@ function GeotagFeedContent({ tag }: { tag: string }) {
 
   const derivedEvents = useMemo((): NostrEvent[] => {
     if (!events) return [];
-    if (muteItems.length === 0) return events;
-    return events.filter((e) => !isEventMuted(e, muteItems));
-  }, [events, muteItems]);
+    return events.filter((e) => !isMuted(e));
+  }, [events, isMuted]);
 
-  // Retain the last non-empty list across key changes / refetches.
-  const filteredEvents = useStickyFeedItems(derivedEvents, isFetching);
+  // Retain the last non-empty list across key changes / refetches; resets when
+  // the viewed geotag changes (this component is reused across geotag tabs).
+  const filteredEvents = useStickyFeedItems(derivedEvents, tag);
 
   if (isLoading && filteredEvents.length === 0) {
     return (
@@ -650,8 +735,10 @@ function GeotagFeedContent({ tag }: { tag: string }) {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
-        {filteredEvents.map((event) => (
-          <NoteCard key={event.id} event={event} />
+        {filteredEvents.map((event, index) => (
+          <LazyFeedItem key={event.id} className="cv-feed-item" initialInView={index < 10}>
+            <NoteCard event={event} />
+          </LazyFeedItem>
         ))}
       </div>
     </PullToRefresh>

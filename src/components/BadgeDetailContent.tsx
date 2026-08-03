@@ -5,7 +5,7 @@ import { nip19 } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
-import { useInView } from 'react-intersection-observer';
+import { useInView } from '@/hooks/useInView';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -24,8 +24,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { usePendingBadges } from '@/hooks/usePendingBadges';
 import { useAcceptBadge } from '@/hooks/useAcceptBadge';
 import { useComments } from '@/hooks/useComments';
-import { useMuteList } from '@/hooks/useMuteList';
-import { isEventMuted } from '@/lib/muteHelpers';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { parseBadgeDefinition } from '@/lib/parseBadgeDefinition';
 import { useCardTilt } from '@/hooks/useCardTilt';
@@ -109,14 +108,12 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const { data: membersMap, isLoading: membersLoading } = useAuthors(previewPubkeys);
 
   // Comments (NIP-22 kind 1111 on this addressable event)
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);
 
   const orderedReplies = useMemo(() => {
     const topLevel = commentsData?.topLevelComments ?? [];
-    const filtered = muteItems.length > 0
-      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
-      : topLevel;
+    const filtered = topLevel.filter((r) => !isMuted(r));
     return [...filtered]
       .sort((a, b) => b.created_at - a.created_at)
       .map((reply) => {
@@ -126,7 +123,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
           firstSubReply: directReplies[0] as NostrEvent | undefined,
         };
       });
-  }, [commentsData, muteItems]);
+  }, [commentsData, isMuted]);
 
   if (!badge) return null;
 

@@ -2,7 +2,7 @@ import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { type QueryKey, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
-import { useEventStore } from '@/hooks/useEventStore';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 
 interface CacheFirstSeedOptions<T> {
   /**
@@ -38,7 +38,7 @@ interface CacheFirstSeedOptions<T> {
 export function useCacheFirstSeed<T>(opts: CacheFirstSeedOptions<T>): void {
   const { queryKey, filter, toData, getEvent } = opts;
   const queryClient = useQueryClient();
-  const eventStore = useEventStore();
+  const { store } = useNostrStorage();
 
   // Serialize the key so the effect re-runs when it changes by value.
   const queryKeyString = queryKey ? JSON.stringify(queryKey) : '';
@@ -51,7 +51,6 @@ export function useCacheFirstSeed<T>(opts: CacheFirstSeedOptions<T>): void {
     let cancelled = false;
 
     void (async () => {
-      const store = await eventStore;
       const [cached] = await store.query([filter]);
       if (cancelled || !cached) {
         return;
@@ -70,5 +69,5 @@ export function useCacheFirstSeed<T>(opts: CacheFirstSeedOptions<T>): void {
     // `filter`, `toData`, and `getEvent` are stable per render at call sites
     // (literal/imported); `queryKeyString` captures key changes by value.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryKeyString, eventStore, queryClient]);
+  }, [queryKeyString, store, queryClient]);
 }

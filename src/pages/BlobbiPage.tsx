@@ -1,26 +1,26 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSeoMeta } from '@unhead/react';
+import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { nip19 } from 'nostr-tools';
 import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, TowelRack, X, Activity, Users } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
-import { useProjectedBlobbiState } from '@/blobbi/core/hooks/useProjectedBlobbiState';
-import { useBlobbiInteractions } from '@/blobbi/core/hooks/useBlobbiInteractions';
-import { useBlobbiActivityHistory } from '@/blobbi/core/hooks/useBlobbiActivityHistory';
-import { useCanonicalSync } from '@/blobbi/core/hooks/useCanonicalSync';
+import { useProjectedBlobbiState } from '@blobbi-kit/react/hooks/useProjectedBlobbiState';
+import { useBlobbiInteractions } from '@blobbi-kit/react/hooks/useBlobbiInteractions';
+import { useBlobbiActivityHistory } from '@blobbi-kit/react/hooks/useBlobbiActivityHistory';
+import { useCanonicalSync } from '@blobbi-kit/react/hooks/useCanonicalSync';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { timeAgo } from '@/lib/timeAgo';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import { useBlobbonautProfileNormalization } from '@/hooks/useBlobbonautProfileNormalization';
-import { useBlobbisCollection } from '@/blobbi/core/hooks/useBlobbisCollection';
+import { useBlobbisCollection } from '@blobbi-kit/react/hooks/useBlobbisCollection';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostr } from '@nostrify/react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { useBlobbiMigration } from '@/blobbi/core/hooks/useBlobbiMigration';
+import { useFreshBlobbiBeforeAction } from '@blobbi-kit/react/hooks/useFreshBlobbiBeforeAction';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { toast } from '@/hooks/useToast';
 
@@ -51,16 +51,14 @@ import {
   updateBlobbiTags,
   updateBlobbonautTags,
   statsToTagUpdates,
-  filterMigratedLegacyCompanions,
+  getSelectedBlobbiKey,
   type BlobbiCompanion,
   type BlobbiStats,
   type BlobbonautProfile,
-  type StorageItem,
-} from '@/blobbi/core/lib/blobbi';
+} from '@blobbi-kit/core/blobbi';
 
-import { applyBlobbiDecay } from '@/blobbi/core/lib/blobbi-decay';
-import { getBlobbiStatDisplayState } from '@/blobbi/core/lib/blobbi-segments';
-import { useSeedIdentitySync } from '@/blobbi/core/hooks/useSeedIdentitySync';
+import { applyBlobbiDecay } from '@blobbi-kit/core/blobbi-decay';
+import { getBlobbiStatDisplayState } from '@blobbi-kit/core/blobbi-segments';
 
 import { getLiveShopItems } from '@/blobbi/shop/lib/blobbi-shop-items';
 
@@ -69,7 +67,6 @@ import {
   InlineMusicPlayer,
   InlineSingCard,
   useBlobbiUseInventoryItem,
-  useBlobbiHatch,
   useBlobbiEvolve,
   useBlobbiDirectAction,
   useStartIncubation,
@@ -131,8 +128,8 @@ import { type RoomLayout, type RoomLayoutsContent, parseRoomLayoutsContent, getE
 import { parseRoomFurnitureContent, type FurniturePlacement, type RoomFurnitureContent } from '@/blobbi/rooms/lib/room-furniture-schema';
 import { getEffectiveRoomFurniture } from '@/blobbi/rooms/lib/room-furniture-effective';
 import { RoomFurnitureEditor, RoomFurnitureEditorTrigger } from '@/blobbi/rooms/components/RoomFurnitureEditor';
-import { serializeProfileContent } from '@/blobbi/core/lib/missions';
-import { fetchFreshBlobbonautProfile } from '@/blobbi/core/lib/fetchFreshBlobbonautProfile';
+import { serializeProfileContent } from '@blobbi-kit/core/missions';
+import { fetchFreshBlobbonautProfile } from '@blobbi-kit/core/fetchFreshBlobbonautProfile';
 import { buildGuideTarget, getGuideRoomDirection, type GuideTarget } from '@/blobbi/rooms/lib/stat-guide-config';
 import { getActionEmotion, SEVERITY_THRESHOLDS } from '@/blobbi/ui/lib/status-reactions';
 import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
@@ -142,15 +139,15 @@ import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotions';
 
 
 /**
- * Get the localStorage key for the selected Blobbi.
- * User-scoped: blobbi:selected:d:<pubkey>
- */
-function getSelectedBlobbiKey(pubkey: string): string {
-  return `blobbi:selected:d:${pubkey}`;
-}
-
-/** Enable debug logging in development only */
+ * Enable debug logging in development only */
 const DEBUG_BLOBBI = import.meta.env.DEV;
+
+/**
+ * Stable care-item effect resolver backed by the shop catalog. Defined at module
+ * scope so it keeps a stable identity across renders (avoids recreating the
+ * useCanonicalSync callback/effect deps every render).
+ */
+const resolveBlobbiCareItemEffect = (itemId: string) => getShopItemById(itemId)?.effect;
 
 /** Stat keys checked for the companion selector care badge (excludes energy). */
 const CARE_BADGE_STATS = ['hunger', 'happiness', 'hygiene', 'health'] as const;
@@ -222,7 +219,7 @@ function BlobbiContent() {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
-  const { ensureCanonicalBlobbiBeforeAction } = useBlobbiMigration();
+  const { fetchFreshBlobbiBeforeAction } = useFreshBlobbiBeforeAction(user?.pubkey);
   
   const {
     profile,
@@ -246,18 +243,23 @@ function BlobbiContent() {
     companions,
     isLoading: collectionLoading,
     isFetching: collectionFetching,
-    isSuccess: collectionSettled,
+    error: collectionError,
     invalidate: invalidateCollection,
     updateCompanionEvent,
-  } = useBlobbisCollection();
+  } = useBlobbisCollection(undefined, user?.pubkey);
+
+  // "The collection query has completed at least one successful fetch."
+  // @blobbi-kit/react doesn't surface `isSuccess`, so derive it from what it does
+  // expose. The query is disabled until `pubkey` exists, and a disabled query also
+  // reports `isLoading: false` — so the pubkey check is load-bearing, not defensive:
+  // without it the logged-out window looks identical to a settled-empty collection
+  // and a returning user gets a duplicate Blobbi auto-created.
+  const collectionSettled = !!user?.pubkey && !collectionLoading && !collectionError;
   
-  // STEP 2: Filter out legacy companions that have been migrated to canonical format.
-  // A legacy Blobbi is hidden when a canonical Blobbi with the same name exists AND
-  // the legacy d-tag is no longer in profile.has (confirming migration occurred).
-  const filteredCompanions = useMemo(() => {
-    if (!profile) return companions;
-    return filterMigratedLegacyCompanions(companions, profile.has);
-  }, [companions, profile]);
+  // STEP 2: Companions list (deduplicated by d-tag, newest wins, inside
+  // useBlobbisCollection). The collection is already legacy-free — old-format
+  // events are dropped at the parse layer — so no migration/dedup is applied here.
+  const filteredCompanions = companions;
 
   const filteredCompanionsByD = useMemo(() => {
     const record: Record<string, BlobbiCompanion> = {};
@@ -267,25 +269,26 @@ function BlobbiContent() {
     return record;
   }, [filteredCompanions]);
 
-  // STEP 3: Sync visible companions whose mirror tags are stale.
-  // Republishes only companions with actual mismatches (needsSeedIdentitySync flag).
-  useSeedIdentitySync(filteredCompanions, updateCompanionEvent);
-
-  // STEP 4: localStorage for UI selection (user-scoped key)
+  // STEP 3: localStorage for UI selection (user-scoped key)
   const localStorageKey = user?.pubkey ? getSelectedBlobbiKey(user.pubkey) : 'blobbi:selected:d:none';
   const [storedSelectedD, setStoredSelectedD] = useLocalStorage<string | null>(localStorageKey, null);
   
   // State for showing the adoption flow (for "Adopt another Blobbi")
   const [showAdoptionFlow, setShowAdoptionFlow] = useState(false);
   
-  // STEP 5: Selection Priority
+  // STEP 4: Selection Priority
   // 1) localStorage selection (if valid and exists in collection) - USER SELECTION ALWAYS WINS
-  // 2) first item from profile.has that exists in companionsByD - preferred ordering
-  // 3) first companion in the collection (covers blobbis missing from profile.has)
-  // 4) undefined (show selector)
+  // 2) first companion in the collection (deterministically ordered by d-tag in
+  //    useBlobbisCollection, so this is stable across refreshes and care actions)
+  // 3) undefined (show selector)
   //
   // CRITICAL: Default selection must NEVER overwrite localStorage.
   // User selection persists only via handleSelectBlobbi, not via this computed value.
+  //
+  // NOTE: We no longer consult the profile `has` list for ordering. Ownership
+  // is derived from the authored kind 31124 events (the collection), which is
+  // the single source of truth; `has` was a redundant mirror that could drift
+  // and surface a stale/egg selection.
   const selectedD = useMemo(() => {
     // Priority 1: localStorage selection (if it exists in filtered collection)
     // USER SELECTION ALWAYS WINS - this is the authoritative source
@@ -295,23 +298,8 @@ function BlobbiContent() {
       }
       return storedSelectedD;
     }
-    
-    // Priority 2: First item from profile.has that exists in filtered collection
-    // This preserves the user's ordering preference from their profile
-    if (profile) {
-      for (const d of profile.has) {
-        if (filteredCompanionsByD[d]) {
-          if (DEBUG_BLOBBI) {
-            console.log('[BlobbiPage] selectedD: using default from profile.has:', d, 
-              '(storedSelectedD was:', storedSelectedD, 
-              storedSelectedD ? (filteredCompanionsByD[storedSelectedD] ? 'exists' : 'NOT in filteredCompanionsByD') : 'null', ')');
-          }
-          return d;
-        }
-      }
-    }
-    
-    // Priority 3: First companion in the filtered collection
+
+    // Priority 2: First companion in the deterministically-ordered collection
     if (filteredCompanions.length > 0) {
       const firstD = filteredCompanions[0].d;
       if (DEBUG_BLOBBI) {
@@ -319,13 +307,13 @@ function BlobbiContent() {
       }
       return firstD;
     }
-    
-    // Priority 4: No valid selection
+
+    // Priority 3: No valid selection
     if (DEBUG_BLOBBI) {
       console.log('[BlobbiPage] selectedD: no valid selection available');
     }
     return undefined;
-  }, [profile, storedSelectedD, filteredCompanionsByD, filteredCompanions]);
+  }, [storedSelectedD, filteredCompanionsByD, filteredCompanions]);
   
   // NOTE: We intentionally do NOT auto-save the computed selectedD to localStorage.
   // This prevents the default selection from overwriting user selections during:
@@ -346,7 +334,6 @@ function BlobbiContent() {
         name: companion.name,
         stage: companion.stage,
         state: companion.state,
-        isLegacy: companion.isLegacy,
       });
     }
   }, [selectedD, companion]);
@@ -366,21 +353,21 @@ function BlobbiContent() {
     setStoredSelectedD(d);
   }, [setStoredSelectedD, storedSelectedD]);
   
-  // ─── Helper: Ensure Canonical Before Action ───
-  // Centralized migration helper that auto-migrates legacy pets before any action
+  // ─── Helper: Fetch Fresh Before Action ───
+  // Read step of the read-modify-write pattern: fetch the freshest companion +
+  // profile from relays before any mutation so we never overwrite newer state.
   const ensureCanonicalBeforeAction = useCallback(async () => {
     if (!companion || !profile) return null;
     
-    return ensureCanonicalBlobbiBeforeAction({
+    return fetchFreshBlobbiBeforeAction({
       companion,
       profile,
       updateProfileEvent,
       updateCompanionEvent,
-      updateStoredSelectedD: setStoredSelectedD,
     });
-  }, [companion, profile, ensureCanonicalBlobbiBeforeAction, updateProfileEvent, updateCompanionEvent, setStoredSelectedD]);
+  }, [companion, profile, fetchFreshBlobbiBeforeAction, updateProfileEvent, updateCompanionEvent]);
   
-  // ─── Rest Action (with automatic legacy migration) ───
+  // ─── Rest Action ───
   // Operates on the page-selected `companion` (not profile.currentCompanion).
   // The companion floating button has its own independent sleep toggle.
   const handleRest = useCallback(async () => {
@@ -391,7 +378,7 @@ function BlobbiContent() {
 
     setActionInProgress('rest');
     try {
-      // Ensure canonical before action (auto-migrates legacy pets)
+      // Fetch fresh companion + profile before acting (read-modify-write)
       const canonical = await ensureCanonicalBeforeAction();
       if (!canonical) {
         setActionInProgress(null);
@@ -491,12 +478,9 @@ function BlobbiContent() {
   useBlobbiActionsRegistration(useItemForContext, isUsingItem);
   
   // ─── Stage Transition Hooks ───
-  const { isPending: isHatching } = useBlobbiHatch({
-    companion,
-    profile,
-    ensureCanonicalBeforeAction,
-    updateCompanionEvent,
-  });
+  // Hatching is published inline by BlobbiHatchingCeremony.executeHatch; there
+  // is no live hatch mutation on this page, so the spinner source is constant.
+  const isHatching = false;
   
   const { mutateAsync: executeEvolve, isPending: isEvolving } = useBlobbiEvolve({
     companion,
@@ -558,7 +542,6 @@ function BlobbiContent() {
       profileLoading,
       hasProfile: !!profile,
       profileName: profile?.name,
-      profileHas: profile?.has?.length ?? 0,
       collectionLoading,
       collectionFetching,
       companionsLoaded: companions.length,
@@ -912,10 +895,8 @@ interface BlobbiDashboardProps {
     companion: BlobbiCompanion;
     content: string;
     allTags: string[][];
-    wasMigrated: boolean;
     profileAllTags: string[][];
     profileEvent: import('@nostrify/nostrify').NostrEvent;
-    profileStorage: StorageItem[];
   } | null>;
   // DEV ONLY: State editor props
   showDevEditor: boolean;
@@ -996,6 +977,8 @@ function BlobbiDashboard({
     updateCompanionEvent,
     ensureCanonicalBeforeAction,
     onSocialConsolidated: handleSocialConsolidated,
+    publish: publishEvent,
+    resolveCareItemEffect: resolveBlobbiCareItemEffect,
   });
 
   // ─── Social Permission Toggle ───
@@ -1334,18 +1317,20 @@ function BlobbiDashboard({
   const canStartEvolution = isBaby && !isEvolvingState && !isIncubating;
   
   // Daily missions (per-user, kind 11125)
-  const dailyMissions = useDailyMissions({ availableStages, profileContent: profile?.content });
+  const dailyMissions = useDailyMissions({ pubkey: user?.pubkey, availableStages, profileContent: profile?.content });
   
   // Hatch tasks hook - only active when incubating (egg stage)
   // Evolution missions now come from companion (kind 31124), not dailyMissions
   const hatchTasks = useHatchTasks(
     isIncubating ? companion : null,
+    user?.pubkey,
   );
   
   // Evolve tasks hook - only active when evolving (baby stage)
   // Evolution missions now come from companion (kind 31124), not dailyMissions
   const evolveTasks = useEvolveTasks(
     isEvolvingState ? companion : null,
+    user?.pubkey,
   );
   
   // ─── Unified Task Process Abstraction ───
@@ -1563,10 +1548,19 @@ function BlobbiDashboard({
   };
   
   // Persist evolution mission progress (debounced) to kind 31124 so it survives page refresh
-  usePersistEvolutionProgress(companion.d, updateCompanionEvent);
+  usePersistEvolutionProgress({
+    pubkey: user?.pubkey,
+    companionD: companion.d,
+    publish: publishEvent,
+    updateCompanionEvent,
+  });
 
   // Persist daily mission progress (debounced) to kind 11125 so it survives page refresh
-  usePersistDailyProgress(updateProfileEvent);
+  usePersistDailyProgress({
+    pubkey: user?.pubkey,
+    publish: publishEvent,
+    updateProfileEvent,
+  });
 
   // Award XP when all daily missions are complete
   const { mutate: awardDailyXp } = useAwardDailyXp(updateProfileEvent);
@@ -1917,15 +1911,6 @@ function BlobbiDashboard({
   
   return (
     <DashboardShell>
-      {/* Legacy Migration Notice */}
-      {companion.isLegacy && (
-        <div className="mx-4 mt-2 sm:mx-6 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-          <p className="text-sm text-amber-600 dark:text-amber-400">
-            This pet uses an older format. It will be automatically upgraded on your next interaction.
-          </p>
-        </div>
-      )}
-      
       {/* Backdrop — tapping outside the drawer collapses it */}
       {activeDrawer !== 'none' && (
         <div

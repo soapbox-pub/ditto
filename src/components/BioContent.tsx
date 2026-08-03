@@ -1,8 +1,10 @@
 import { useMemo, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { nip19 } from 'nostr-tools';
 import { buildEmojiMap } from '@/lib/customEmoji';
 import { HASHTAG_PATTERN } from '@/lib/hashtag';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
+import { NostrMention } from '@/components/NostrMention';
 
 /** Regex matching `:shortcode:` patterns in text. */
 const SHORTCODE_REGEX = /:([a-zA-Z0-9_-]+):/g;
@@ -11,16 +13,22 @@ const SHORTCODE_REGEX = /:([a-zA-Z0-9_-]+):/g;
 type BioToken =
   | { type: 'text'; value: string }
   | { type: 'url'; url: string }
-  | { type: 'hashtag'; tag: string; raw: string };
+  | { type: 'hashtag'; tag: string; raw: string }
+  | { type: 'mention'; pubkey: string };
 
 /**
- * Tokenize bio text into plain text, URLs, and hashtags.
- * This is a lightweight version of the NoteContent tokenizer — it only handles
- * URLs and hashtags (no Nostr identifiers, embeds, images, etc.).
+ * Tokenize bio text into plain text, URLs, hashtags, and profile mentions.
+ * This is a lightweight version of the NoteContent tokenizer — it handles
+ * URLs, hashtags, and npub/nprofile mentions (no event embeds, images, etc.).
  */
 function tokenizeBio(text: string): BioToken[] {
-  // Match: URLs (http/https) | hashtags (#word)
-  const regex = new RegExp(`(https?:\\/\\/[^\\s]+)|(${HASHTAG_PATTERN})`, 'gu');
+  // Match: URLs (http/https) | npub/nprofile ids (with optional nostr:/@ prefix) | hashtags (#word)
+  const regex = new RegExp(
+    '(https?:\\/\\/[^\\s]+)'
+    + '|(?:nostr:|@)?((?:npub1|nprofile1)[023456789acdefghjklmnpqrstuvwxyz]+)'
+    + `|(${HASHTAG_PATTERN})`,
+    'giu',
+  );
 
   const result: BioToken[] = [];
   let lastIndex = 0;
@@ -28,7 +36,7 @@ function tokenizeBio(text: string): BioToken[] {
 
   while ((match = regex.exec(text)) !== null) {
     let [fullMatch] = match;
-    const [, url, hashtag] = match;
+    const [, url, nostrId, hashtag] = match;
     const index = match.index;
 
     // Add text before this match
@@ -48,6 +56,20 @@ function tokenizeBio(text: string): BioToken[] {
         }
       }
       result.push({ type: 'url', url: cleanUrl });
+    } else if (nostrId) {
+      try {
+        const decoded = nip19.decode(nostrId.toLowerCase());
+        if (decoded.type === 'npub') {
+          result.push({ type: 'mention', pubkey: decoded.data });
+        } else if (decoded.type === 'nprofile') {
+          result.push({ type: 'mention', pubkey: decoded.data.pubkey });
+        } else {
+          result.push({ type: 'text', value: fullMatch });
+        }
+      } catch {
+        // Malformed identifier → leave as plain text
+        result.push({ type: 'text', value: fullMatch });
+      }
     } else if (hashtag) {
       const tag = hashtag.slice(1);
       result.push({ type: 'hashtag', tag, raw: hashtag });
@@ -121,11 +143,13 @@ interface BioContentProps {
 }
 
 /**
- * Renders bio/about text with linkified URLs and hashtags, plus NIP-30 custom emoji support.
+ * Renders bio/about text with linkified URLs, hashtags, and profile mentions,
+ * plus NIP-30 custom emoji support.
  *
  * This is a lightweight alternative to NoteContent specifically for profile bios.
- * It handles URLs (as clickable links) and hashtags (as internal links to /t/<tag>)
- * without the heavier embed/image/mention logic of NoteContent.
+ * It handles URLs (as clickable links), hashtags (as internal links to /t/<tag>),
+ * and npub/nprofile identifiers (as clickable @mentions with hover cards)
+ * without the heavier embed/image logic of NoteContent.
  */
 export function BioContent({ children, tags, className }: BioContentProps) {
   const emojiMap = useMemo(() => (tags ? buildEmojiMap(tags) : new Map<string, string>()), [tags]);
@@ -161,6 +185,8 @@ export function BioContent({ children, tags, className }: BioContentProps) {
                 {token.raw}
               </Link>
             );
+          case 'mention':
+            return <NostrMention key={i} pubkey={token.pubkey} />;
         }
       })}
     </span>

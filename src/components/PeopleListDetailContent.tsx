@@ -5,21 +5,25 @@
  *   - Kind 3     (NIP-02 follow list)
  *   - Kind 30000 (NIP-51 follow set)
  *   - Kind 39089 (follow pack / starter pack)
+ *   - Kind 15683 (Love List — see NIP.md)
  *
  * Renders a hero image, author row, title + description, action row (Follow All,
- * Save, Share, Add-to-sidebar, etc.), and tabs for Feed and Members.
+ * Save, Share, Add-to-sidebar, etc.), and tabs for Feed and Members. Love lists
+ * swap the hero/title block for the love-letter card.
  *
- * Owner-mode features (remove members, add members) are enabled automatically
- * when the current user owns a kind 30000 list.
+ * Owner-mode features (edit details, add/remove members) are enabled
+ * automatically when the current user owns a kind 30000 follow set or a
+ * kind 39089 follow pack.
  */
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
+import { useInView } from '@/hooks/useInView';
 import {
   Users,
-  UserPlus,
   Loader2,
   Copy,
+  ChevronDown,
+  Pencil,
   X,
   MessageCircle,
 } from 'lucide-react';
@@ -29,18 +33,26 @@ import type { NostrEvent, NostrFilter, NostrMetadata } from '@nostrify/nostrify'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteCard } from '@/components/NoteCard';
 import { TabButton } from '@/components/TabButton';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
-import { AddMembersDialog } from '@/components/AddMembersDialog';
+import { EditMembersDialog } from '@/components/EditMembersDialog';
+import { EditPeopleListDialog } from '@/components/EditPeopleListDialog';
 import { ComposeBox } from '@/components/ComposeBox';
 import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { PostActionBar } from '@/components/PostActionBar';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { FollowAllSplitButton } from '@/components/FollowAllSplitButton';
+import { LoveListContent } from '@/components/LoveListContent';
 
 import { useToast } from '@/hooks/useToast';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -48,11 +60,12 @@ import { useAuthors } from '@/hooks/useAuthors';
 import { useComments } from '@/hooks/useComments';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
+import { LOVE_LIST_KIND, loveListPubkeys } from '@/hooks/useLoveList';
 import { useTabFeed } from '@/hooks/useProfileFeed';
-import { useMuteList } from '@/hooks/useMuteList';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useUserLists } from '@/hooks/useUserLists';
+import { useFollowPacks, useFollowPackActions } from '@/hooks/useFollowPacks';
 
-import { isEventMuted } from '@/lib/muteHelpers';
 import { feedItemKey, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
@@ -72,7 +85,7 @@ type Tab = 'feed' | 'members' | 'comments';
  * @param tabKey - A stable cache namespace, typically the list's naddr.
  */
 export function PeopleListFeedTab({ pubkeys, tabKey }: { pubkeys: string[]; tabKey: string }) {
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { ref: sentinelRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
 
   // Build the TabFeed filter. Scope to kind 1 posts + kind 6/16 reposts so the
@@ -110,7 +123,7 @@ export function PeopleListFeedTab({ pubkeys, tabKey }: { pubkeys: string[]; tabK
         if (seen.has(key)) return false;
         seen.add(key);
         if (shouldHideFeedEvent(item.event)) return false;
-        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
+        if (isMuted(item.event)) return false;
         // Hide replies — this tab should show top-level posts only (reposts of
         // replies are fine, so only check original kind 1 events, not reposts).
         if (item.event.kind === 1 && !item.repostedBy && isReplyEvent(item.event)) {
@@ -118,7 +131,7 @@ export function PeopleListFeedTab({ pubkeys, tabKey }: { pubkeys: string[]; tabK
         }
         return true;
       });
-  }, [data?.pages, muteItems]);
+  }, [data?.pages, isMuted]);
 
   if (pubkeys.length === 0) {
     return (
@@ -186,10 +199,12 @@ interface MembersTabProps {
   membersLoading: boolean;
   followedPubkeys: Set<string>;
   currentUserPubkey: string | undefined;
-  /** When true, show per-member "Remove" buttons. Enabled for owners of kind 30000 lists. */
+  /** When true, show per-member "Remove" buttons. Enabled for owners of kind 30000 sets and 39089 packs. */
   canRemove: boolean;
-  /** Kind 30000 d-tag — required when canRemove is true. */
+  /** The list's d-tag — required when canRemove is true. */
   listId?: string;
+  /** The list's kind (30000 or 39089) — determines which remove mutation is used. */
+  listKind?: number;
 }
 
 export function PeopleListMembersTab({
@@ -200,6 +215,7 @@ export function PeopleListMembersTab({
   currentUserPubkey,
   canRemove,
   listId,
+  listKind,
 }: MembersTabProps) {
   if (membersLoading) {
     return (
@@ -225,6 +241,7 @@ export function PeopleListMembersTab({
             isSelf={pk === currentUserPubkey}
             canRemove={canRemove}
             listId={listId}
+            listKind={listKind}
           />
         );
       })}
@@ -288,10 +305,13 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
   const { user } = useCurrentUser();
   const { data: followList } = useFollowList();
   const { lists: ownLists, createList } = useUserLists();
+  const { data: ownPacks = [] } = useFollowPacks();
 
   const isOwnList = user && event.pubkey === user.pubkey;
   const isFollowList = event.kind === 3;
   const isFollowSet = event.kind === 30000;
+  const isFollowPack = event.kind === 39089;
+  const isLoveList = event.kind === LOVE_LIST_KIND;
   const dTag = useMemo(
     () => event.tags.find(([n]) => n === 'd')?.[1] ?? '',
     [event.tags],
@@ -304,14 +324,22 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
   const authorName = authorMetadata?.name || authorMetadata?.display_name || 'Anonymous';
   const authorNpub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
-  // Parsed list (for kind 3 uses author metadata as fallback)
-  const { title, description, image, pubkeys } = useMemo(
-    () => parsePeopleList(event, {
+  // Parsed list (kind 3 uses author metadata as fallback; kind 15683 love
+  // lists carry no title/description/image, so synthesize from the author)
+  const { title, description, image, pubkeys } = useMemo(() => {
+    if (isLoveList) {
+      return {
+        title: authorName ? `${authorName}'s loved` : 'Love list',
+        description: '',
+        image: undefined,
+        pubkeys: loveListPubkeys(event),
+      };
+    }
+    return parsePeopleList(event, {
       authorMetadata,
       authorDisplayName: authorName,
-    }),
-    [event, authorMetadata, authorName],
-  );
+    });
+  }, [event, isLoveList, authorMetadata, authorName]);
   // Reversed for kind 3 follow lists so newest follows show first; identity
   // for curated kinds. Used only for display — mutations and filters continue
   // to use the original `pubkeys` array.
@@ -322,13 +350,11 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
   const { data: membersMap, isLoading: membersLoading } = useAuthors(pubkeys);
 
   // Comments (NIP-22 kind 1111, indexed by #A for replaceable / addressable roots)
-  const { muteItems } = useMuteList();
+  const { isMuted } = useMuteFilter();
   const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);
   const orderedReplies = useMemo(() => {
     const topLevel = commentsData?.topLevelComments ?? [];
-    const filtered = muteItems.length > 0
-      ? topLevel.filter((r) => !isEventMuted(r, muteItems))
-      : topLevel;
+    const filtered = topLevel.filter((r) => !isMuted(r));
     return [...filtered]
       .sort((a, b) => b.created_at - a.created_at)
       .map((reply) => {
@@ -338,7 +364,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
           firstSubReply: directReplies[0] as NostrEvent | undefined,
         };
       });
-  }, [commentsData, muteItems]);
+  }, [commentsData, isMuted]);
 
   // Follow state
   const followedPubkeys = useMemo(
@@ -352,24 +378,31 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
 
   const [activeTab, setActiveTab] = useState<Tab>('feed');
   const [cloning, setCloning] = useState(false);
-  const [addMembersOpen, setAddMembersOpen] = useState(false);
+  const [editMembersOpen, setEditMembersOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
-  // Owner-mode remove is only available for lists we manage locally (kind 30000)
-  const ownerCanRemove = !!(isOwnList && isFollowSet && ownLists.some((l) => l.id === dTag));
+  // Owner mode (edit details, add/remove members) is available for kind 30000
+  // follow sets and kind 39089 follow packs the current user owns. The
+  // own-lists/own-packs membership check filters out reserved d-tags and
+  // deletion husks that the owner hooks already exclude.
+  const ownerCanEdit = !!(isOwnList && (
+    (isFollowSet && ownLists.some((l) => l.id === dTag)) ||
+    (isFollowPack && ownPacks.some((p) => p.id === dTag))
+  ));
 
   // Stable cache-key for the feed tab — the naddr uniquely identifies this list.
   const shareNip19 = useMemo(() => {
-    if (isFollowList) {
-      // Kind 3 is replaceable, no d-tag
-      return nip19.naddrEncode({ kind: 3, pubkey: event.pubkey, identifier: '' });
+    if (isFollowList || isLoveList) {
+      // Kinds 3 and 15683 are replaceable, no d-tag
+      return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: '' });
     }
     return nip19.naddrEncode({
       kind: event.kind,
       pubkey: event.pubkey,
       identifier: dTag,
     });
-  }, [event, dTag, isFollowList]);
+  }, [event, dTag, isFollowList, isLoveList]);
 
   // ── Clone (save a copy of this list as my own kind 30000) ─────────────────
   const handleClone = useCallback(async () => {
@@ -389,11 +422,18 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
     }
   }, [user, cloning, createList, title, description, pubkeys, toast]);
 
-  // When the user is viewing their own kind 3, Follow All makes no sense.
-  const showFollowAllButton = !(isOwnList && isFollowList);
+  // When the user is viewing their own kind 3 / love list, Follow All makes no sense.
+  const showFollowAllButton = !(isOwnList && (isFollowList || isLoveList));
 
   return (
     <>
+      {/* Love lists lead with the love-letter card instead of a hero image */}
+      {isLoveList && (
+        <div className="px-4 pt-2">
+          <LoveListContent event={event} />
+        </div>
+      )}
+
       {/* Hero image */}
       {safeImage && (
         <div className="w-full overflow-hidden bg-muted border-b border-border">
@@ -438,8 +478,8 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
           </div>
         </div>
 
-        {/* Title */}
-        <h2 className="text-xl font-bold mt-4 leading-snug">{title}</h2>
+        {/* Title — love lists skip it (the card above carries the heading) */}
+        {!isLoveList && <h2 className="text-xl font-bold mt-4 leading-snug">{title}</h2>}
 
         {/* Description */}
         {description && (
@@ -461,14 +501,60 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
             <FollowAllSplitButton
               pubkeys={pubkeys}
               followedPubkeys={followedPubkeys}
-              listNoun={isFollowList ? "this person's follow list" : 'this list'}
+              listNoun={
+                isLoveList
+                  ? "this person's love list"
+                  : isFollowList
+                    ? "this person's follow list"
+                    : 'this list'
+              }
               includeAuthorPubkey={isFollowList ? event.pubkey : undefined}
               className="flex-1"
             />
           )}
 
-          {/* Save (clone) — available to logged-in viewers who don't own the list, not for kind 3 (that's your follow list, you don't clone it) */}
-          {user && !isOwnList && !isFollowList && (
+          {/* Edit — owners of follow sets and follow packs can edit details and members directly */}
+          {ownerCanEdit && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={showFollowAllButton ? undefined : 'flex-1'}
+                  title={isFollowPack ? 'Edit this pack' : 'Edit this list'}
+                >
+                  <Pencil className="size-4" />
+                  Edit
+                  <ChevronDown className="size-3.5 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {/*
+                  Defer opening the dialog until the dropdown has fully closed.
+                  Radix locks `pointer-events: none` on <body> while a menu is
+                  open and only restores it on close; opening a Dialog
+                  synchronously in onSelect races that cleanup and leaves the
+                  lock stuck, which disables all clicks on the page.
+                */}
+                <DropdownMenuItem
+                  className="gap-2"
+                  onSelect={() => setTimeout(() => setEditOpen(true), 0)}
+                >
+                  <Pencil className="size-4" />
+                  Edit details
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-2"
+                  onSelect={() => setTimeout(() => setEditMembersOpen(true), 0)}
+                >
+                  <Users className="size-4" />
+                  Edit members
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {/* Save (clone) — available to logged-in viewers who don't own the list, not for kind 3 / love lists (those are personal lists, you don't clone them) */}
+          {user && !isOwnList && !isFollowList && !isLoveList && (
             <Button
               variant="outline"
               className={showFollowAllButton ? undefined : 'flex-1'}
@@ -519,21 +605,6 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
       {/* Spacer below the pinned tabs (matches ProfilePage / BadgeDetailContent). */}
       <div style={{ height: ARC_OVERHANG_PX }} />
 
-      {/* Owner "Add members" row — above members tab content */}
-      {ownerCanRemove && activeTab === 'members' && (
-        <div className="px-4 py-3 border-b border-border">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setAddMembersOpen(true)}
-          >
-            <UserPlus className="size-4" />
-            Add Members
-          </Button>
-        </div>
-      )}
-
       {/* Tab content */}
       {activeTab === 'feed' ? (
         <PeopleListFeedTab pubkeys={pubkeys} tabKey={shareNip19} />
@@ -544,8 +615,9 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
           membersLoading={membersLoading}
           followedPubkeys={followedPubkeys}
           currentUserPubkey={user?.pubkey}
-          canRemove={ownerCanRemove}
+          canRemove={ownerCanEdit}
           listId={dTag}
+          listKind={event.kind}
         />
       ) : (
         <PeopleListCommentsTab
@@ -555,13 +627,21 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
         />
       )}
 
-      {ownerCanRemove && (
-        <AddMembersDialog
-          open={addMembersOpen}
-          onOpenChange={setAddMembersOpen}
-          listId={dTag}
-          listPubkeys={pubkeys}
-        />
+      {ownerCanEdit && (
+        <>
+          <EditMembersDialog
+            open={editMembersOpen}
+            onOpenChange={setEditMembersOpen}
+            listId={dTag}
+            listKind={event.kind}
+            listPubkeys={pubkeys}
+          />
+          <EditPeopleListDialog
+            event={event}
+            open={editOpen}
+            onOpenChange={setEditOpen}
+          />
+        </>
       )}
 
       <NoteMoreMenu
@@ -580,10 +660,12 @@ interface MemberCardProps {
   metadata?: NostrMetadata;
   isFollowed: boolean;
   isSelf: boolean;
-  /** When true, renders a "remove" button that calls useUserLists().removeFromList. */
+  /** When true, renders a "remove" button that removes the member from the list/pack. */
   canRemove?: boolean;
-  /** Kind 30000 d-tag — required when canRemove is true. */
+  /** The list's d-tag — required when canRemove is true. */
   listId?: string;
+  /** The list's kind (30000 or 39089) — determines which remove mutation is used. */
+  listKind?: number;
 }
 
 export function MemberCard({
@@ -593,6 +675,7 @@ export function MemberCard({
   isSelf,
   canRemove,
   listId,
+  listKind,
 }: MemberCardProps) {
   const navigate = useNavigate();
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
@@ -601,6 +684,7 @@ export function MemberCard({
   const avatarShape = getAvatarShape(metadata);
   const { follow, unfollow, isPending } = useFollowActions();
   const { removeFromList } = useUserLists();
+  const { removeFromPack } = useFollowPackActions();
   const { toast } = useToast();
   const [removing, setRemoving] = useState(false);
 
@@ -622,15 +706,20 @@ export function MemberCard({
       if (!listId) return;
       setRemoving(true);
       try {
-        await removeFromList.mutateAsync({ listId, pubkey });
-        toast({ title: 'Removed from list' });
+        if (listKind === 39089) {
+          await removeFromPack.mutateAsync({ packId: listId, pubkey });
+          toast({ title: 'Removed from pack' });
+        } else {
+          await removeFromList.mutateAsync({ listId, pubkey });
+          toast({ title: 'Removed from list' });
+        }
       } catch {
         toast({ title: 'Failed to remove', variant: 'destructive' });
       } finally {
         setRemoving(false);
       }
     },
-    [listId, pubkey, removeFromList, toast],
+    [listId, listKind, pubkey, removeFromList, removeFromPack, toast],
   );
 
   return (
