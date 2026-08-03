@@ -9,6 +9,7 @@ import { ChevronDown, Palette, Type } from 'lucide-react';
 import type { ToolCall } from '@/hooks/useChatSessions';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { chatMarkdownComponents } from '@/components/chatMarkdownComponents';
 import { parseAskQuestionsData, parseQuestionsAnswerText } from '@/lib/pendingInput';
 
 /** Markdown tool results above this length start collapsed. */
@@ -227,8 +228,8 @@ function MarkdownDetails({ toolCall }: { toolCall: ToolCall }) {
   return (
     <ToolCard>
       <DetailsCollapsible defaultOpen={result.length <= MARKDOWN_COLLAPSE_THRESHOLD}>
-        <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-muted prose-pre:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
-          <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>{result}</Markdown>
+        <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-muted prose-pre:overflow-x-auto prose-pre:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
+          <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={chatMarkdownComponents}>{result}</Markdown>
         </div>
       </DetailsCollapsible>
     </ToolCard>
