@@ -96,6 +96,7 @@ import {
   type StartIncubationMode,
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
+import { useAutoCeremonyGate } from '@/blobbi/onboarding/hooks/useAutoCeremonyGate';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
 import { getAllNeeds } from '@/blobbi/companion/interaction/needDetection';
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
@@ -247,15 +248,6 @@ function BlobbiContent() {
     invalidate: invalidateCollection,
     updateCompanionEvent,
   } = useBlobbisCollection(undefined, user?.pubkey);
-
-  // "The collection query has completed at least one successful fetch."
-  // @blobbi-kit/react doesn't surface `isSuccess`, so derive it from what it does
-  // expose. The query is disabled until `pubkey` exists, and a disabled query also
-  // reports `isLoading: false` — so the pubkey check is load-bearing, not defensive:
-  // without it the logged-out window looks identical to a settled-empty collection
-  // and a returning user gets a duplicate Blobbi auto-created.
-  const collectionSettled = !!user?.pubkey && !collectionLoading && !collectionError;
-  
   // STEP 2: Companions list (deduplicated by d-tag, newest wins, inside
   // useBlobbisCollection). The collection is already legacy-free — old-format
   // events are dropped at the parse layer — so no migration/dedup is applied here.
@@ -574,47 +566,42 @@ function BlobbiContent() {
   // Locks the egg chosen for the ceremony so a page refresh mid-animation
   // doesn't switch to a different egg or create a new one.
   const ceremonyEggRef = useRef<BlobbiCompanion | null>(null);
-  // One-shot latch: the AUTOMATIC ceremony may start at most once per page
-  // mount. Without this, the no-profile auto-start gate
-  // (`definitelyNeedsCeremony = !profile && profileSettled`) can re-fire after
-  // the ceremony's pre-publish guard aborts and calls onComplete() while
-  // `profile` is still null — causing a remount loop that re-queries relays on
-  // every iteration. This latch does NOT gate explicit user actions like
-  // "Adopt another Blobbi" (that path uses setShowAdoptionFlow, not this).
-  const autoCeremonyStartedRef = useRef(false);
-  
-  // Cases that definitely need ceremony (no need to wait for companions).
-  // CRITICAL: Only treat a null profile as "needs ceremony" once the profile
-  // query has actually settled successfully (confirmed-empty), not merely when
-  // it has stopped loading. A null profile during an in-flight fetch, an error,
-  // or a transient empty relay response must NOT trigger auto-creation —
-  // otherwise a returning user with no boot cache gets a duplicate Blobbi.
-  const definitelyNeedsCeremony = !profile && profileSettled;
-  // Whether we've finished loading enough data to make the decision.
-  // Require the collection query to have settled successfully before trusting
-  // an empty result, so a slow/missing relay isn't read as "new user".
-  const companionDataReady =
-    !collectionLoading &&
-    collectionSettled &&
-    (!collectionFetching || companions.length > 0);
+
+  // Decides when it is safe to silently auto-create a Blobbi, and latches that
+  // decision to one start per page mount. See useAutoCeremonyGate for why each
+  // condition is required — every one of them prevents a duplicate Blobbi.
+  const {
+    definitelyNeedsCeremony,
+    companionDataReady,
+    claimAutomaticStart,
+    hasClaimedAutomaticStart,
+  } = useAutoCeremonyGate({
+    pubkey: user?.pubkey,
+    profile,
+    profileSettled,
+    companions,
+    collectionLoading,
+    collectionFetching,
+    collectionError,
+  });
+
   // Cases where we must inspect actual companion stages before deciding.
   // This fires for ALL users with a profile — regardless of onboardingDone —
   // so that accounts with onboardingDone=true but only eggs still get
   // the ceremony.
   const pendingCeremonyCheck = !definitelyNeedsCeremony && !!profile && !ceremonyCheckDone;
-  
+
   // Auto-start ceremony for definite cases (settled empty profile = brand new user)
   useEffect(() => {
-    if (definitelyNeedsCeremony && !ceremonyInProgress && !autoCeremonyStartedRef.current) {
-      autoCeremonyStartedRef.current = true;
+    if (definitelyNeedsCeremony && !ceremonyInProgress && claimAutomaticStart()) {
       setCeremonyInProgress(true);
     }
-  }, [definitelyNeedsCeremony, ceremonyInProgress]);
-  
+  }, [definitelyNeedsCeremony, ceremonyInProgress, claimAutomaticStart]);
+
   // Resolve pending ceremony check once companions are loaded
   useEffect(() => {
     if (!pendingCeremonyCheck || !companionDataReady || ceremonyInProgress) return;
-    if (autoCeremonyStartedRef.current) return;
+    if (hasClaimedAutomaticStart()) return;
     
     const eggs = companions.filter(c => c.stage === 'egg');
     const hasHatchedBlobbi = companions.some(c => c.stage === 'baby' || c.stage === 'adult');
@@ -654,7 +641,7 @@ function BlobbiContent() {
       const egg = eggs.length === 1 ? eggs[0] : eggs[Math.floor(Math.random() * eggs.length)];
       ceremonyEggRef.current = egg;
       if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony with existing egg:', egg.d);
-      autoCeremonyStartedRef.current = true;
+      claimAutomaticStart();
       setCeremonyInProgress(true);
     } else {
       // Collection settled with zero companions — treat as new user.
@@ -662,7 +649,7 @@ function BlobbiContent() {
       // publishing (idempotency guard), so even if this empty result is wrong
       // (e.g. a relay that answered empty here recovers), no duplicate is created.
       if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony: no companions found');
-      autoCeremonyStartedRef.current = true;
+      claimAutomaticStart();
       setCeremonyInProgress(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -792,6 +779,7 @@ function BlobbiContent() {
               invalidateCompanion={invalidateCompanion}
               setStoredSelectedD={setStoredSelectedD}
               adoptionOnly={true}
+              userInitiated={true}
               onComplete={() => setShowAdoptionFlow(false)}
             />
           </DialogContent>
@@ -2308,6 +2296,7 @@ function BlobbiDashboard({
             invalidateCompanion={invalidateCompanion}
             setStoredSelectedD={setStoredSelectedD}
             adoptionOnly={true}
+            userInitiated={true}
             onComplete={() => setShowAdoptionFlow(false)}
           />
         </DialogContent>

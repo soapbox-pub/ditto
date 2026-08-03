@@ -98,6 +98,13 @@ interface BlobbiHatchingCeremonyProps {
   existingCompanion?: BlobbiCompanion | null;
   /** If true, only create the egg and skip the hatching ceremony. The egg stays an egg. */
   eggOnly?: boolean;
+  /**
+   * True when the user explicitly asked for this Blobbi (adoption), as opposed to
+   * the page silently auto-starting the ceremony. The duplicate guard below only
+   * applies to the silent path — a deliberate adoption is allowed to mint another
+   * Blobbi for a user who already owns one.
+   */
+  userInitiated?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -112,6 +119,7 @@ export function BlobbiHatchingCeremony({
   onComplete,
   existingCompanion,
   eggOnly = false,
+  userInitiated = false,
 }: BlobbiHatchingCeremonyProps) {
   const isExistingEgg = !!existingCompanion;
   const { user } = useCurrentUser();
@@ -233,29 +241,31 @@ export function BlobbiHatchingCeremony({
         // automatic creation and fall through to the existing-user/dashboard
         // state instead of minting a duplicate (random-d) Blobbi.
         //
-        // This does NOT block manual creation of additional Blobbis — that
-        // flow goes through adoption with explicit user action, not this
-        // silent auto-setup effect.
-        const existingEvents = await nostr.query(
-          [{
-            kinds: [KIND_BLOBBI_STATE],
-            authors: [user.pubkey],
-            '#b': [BLOBBI_ECOSYSTEM_NAMESPACE],
-          }],
-          { signal: AbortSignal.timeout(5000) },
-        );
-
-        if (existingEvents.some(isValidBlobbiEvent)) {
-          // User already has a Blobbi — do not auto-create. Route back to the
-          // normal page state, which will resolve to the dashboard / existing
-          // egg once fresh data is loaded.
-          console.warn(
-            '[HatchingCeremony] Existing Blobbi found pre-publish; aborting auto-create.',
+        // This does NOT block manual creation of additional Blobbis: adoption
+        // passes userInitiated, which skips the guard entirely. Only the silent
+        // auto-setup path is guarded.
+        if (!userInitiated) {
+          const existingEvents = await nostr.query(
+            [{
+              kinds: [KIND_BLOBBI_STATE],
+              authors: [user.pubkey],
+              '#b': [BLOBBI_ECOSYSTEM_NAMESPACE],
+            }],
+            { signal: AbortSignal.timeout(5000) },
           );
-          invalidateProfile();
-          invalidateCompanion();
-          onCompleteRef.current?.();
-          return;
+
+          if (existingEvents.some(isValidBlobbiEvent)) {
+            // User already has a Blobbi — do not auto-create. Route back to the
+            // normal page state, which will resolve to the dashboard / existing
+            // egg once fresh data is loaded.
+            console.warn(
+              '[HatchingCeremony] Existing Blobbi found pre-publish; aborting auto-create.',
+            );
+            invalidateProfile();
+            invalidateCompanion();
+            onCompleteRef.current?.();
+            return;
+          }
         }
 
         const currentProfile = profileRef.current;
