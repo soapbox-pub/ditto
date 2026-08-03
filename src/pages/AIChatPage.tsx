@@ -184,9 +184,20 @@ export function AIChatPage() {
 
   useLayoutOptions({ noOverscroll: true, pinTopBar: true });
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom on new messages. Scrolls the ScrollArea's own viewport
+  // directly instead of messagesEndRef.scrollIntoView(): scrollIntoView walks
+  // every scrollable ancestor to bring the target into view, and — most
+  // visibly right after a tab switch remounts this ScrollArea before its
+  // Radix-measured height has settled — that walk can escape past the
+  // viewport and scroll the actual window, which also has the side effect of
+  // yanking the pinned mobile header through its scroll-direction listener.
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const viewport = scrollRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]');
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight;
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, []);
 
   useEffect(() => {
