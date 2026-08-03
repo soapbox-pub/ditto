@@ -1,7 +1,54 @@
-# PLAN: Tiles → Widgets — nostr-canvas 0.12, frame redesign, feeds, marketplace, builtin ports, AI creation
+# STACK_PLAN: Ditto AI-chat + Tiles→Widgets stack — full tracker
 
 > Living plan. Delete when the effort ships. Supersedes `NOSTR_CANVAS_PLAN.md`
-> (0.11 integration, complete — summary in Phase 0).
+> (0.11 integration, complete — summary in Phase 0), this file's own former name
+> `TILES_PLAN.md`, and `AI_CHAT_TILES_PLAN.md` (deleted 2026-08-03 — its only content not
+> already folded into this file's Phase 8 was the Human Review Queue, merged in near the end).
+
+## Cross-branch state (as of 2026-08-03)
+
+This doc now tracks the whole stack across all four branches, not just this one.
+
+**Branch/MR stack** (each targets the previous link, not `main`):
+
+1. `fix/ghpages-asset-urls` — issue #317, MR !248 targets `main`. It is open and clean.
+2. `fix/portal-dropdown-flip-anchor` — issue #318, MR !249 targets tier 1a. It is open and clean.
+3. `ai-chat-tlc` — issue #319, MR !245 targets tier 1b. It is open. Dirk Rost's review labeled it
+   `On Hold`. A point-by-point response went up on 2026-08-03
+   (https://gitlab.com/soapbox-pub/ditto/-/merge_requests/245#note_3637938203). All four hard
+   blockers and every smaller item from that review are now resolved. Two gates remain: Chad
+   Curtis's formal review (requested), and Alex Gleason's answer on three questions — whether
+   AI-chat provider API keys belong in the NIP-78 encrypted blob, whether Ditto should take a hard
+   dependency on pre-1.0 `nostr-canvas`, and whether AI chat is where product attention belongs
+   right now. A broader Ditto modernization and bugfixing initiative was proposed to address the
+   third question.
+4. Tiles-authoring-bundle (tier 3, not yet created) will target `ai-chat-tlc`. It reconstructs the
+   9-tool Tiles ability that commit `2ef82d24` stripped from `ai-chat-tlc`. The blueprint is that
+   commit's diff, reversed. Scope decided 2026-08-03:
+   - Wire devkit's real `PreviewTileTool`. The pinned `@soapbox.pub/nostr-canvas@0.14.6` now ships
+     one; the old hand-rolled stub predates it. This branch does not build the interactive
+     preview-card UI — that is Phase 8/T8.1 below, which needs this branch's runtime and
+     marketplace infrastructure.
+   - Implement real tile-draft persistence into the serialized session blob. Dirk's review
+     flagged the module-scoped-Map version as lost on reload, with a stale comment promising a
+     future fix that never happened.
+   - Get its own new issue and MR, targeting `ai-chat-tlc`.
+   - Watch item, not a blocker yet: Lemon's `porygon` library may replace
+     `@soapbox.pub/nostr-canvas/devkit` as the AI-chat tool-calling substrate, removing the hard
+     `nostr-canvas` dependency from the AI-chat work while `nostr-canvas` itself matures. Building
+     tier 3 against devkit now is still the right call — its tool surface here is mostly thin
+     OpenAI-compatible glue, cheap to swap out later if `porygon` lands.
+5. `tiles-v3-widgetonly` (this branch, tier 4) has MR !246, still draft, targeting `ai-chat-tlc`.
+   It needs a retarget to tier 3 once tier 3 exists. Proposed 2026-08-03: split this branch's own
+   MR into three, landing in this order — (a) the built-in widgets port and widget settings, (b)
+   the marketplace, (c) the AI-chat widget-creation and remix work (Phase 8 below). This branch
+   still has its own duplicate copies of tier-2-derived commits, which need dropping before a
+   clean retarget.
+
+Squash-merge is on for every MR in this stack. The commit counts visible during review collapse
+to one commit each on `main`.
+
+See `SESSION_HANDOFF.md` in this same branch for the full session context behind this state.
 
 ## Vision
 
@@ -578,6 +625,60 @@ while discussing this phase's scope)*:
   that branch's UI ever wired it up — wait for the `luacheck` port and build lint support
   directly against it here, rather than resurrecting the sandbox approach. Not scoped further
   until the port exists.
+
+---
+
+## Tier 4 size and split findings (2026-08-03)
+
+Measured against `ai-chat-tlc`: 111 files changed, 11,222 insertions, 577 deletions, 119 commits
+ahead. Breakdown: 6,587 lines are production code, 3,650 are tests, 230 is the lockfile bump, and
+1,332 are the two plan `.md` files (deleted before merge, so not real review surface).
+
+Of the 6,587 production lines, about 3,554 (54%) are stale duplicates of files that already exist
+correctly in `ai-chat-tlc` — the whole AI-chat surface, plus the dead Lua-lint sandbox this branch
+never rebased away. This branch's `deploy.yml` also still has the exact unsafe branch-trigger
+repoint Dirk flagged on !245 (`branches: ["tiles-v3-widgetonly"]` instead of `main`). Fix that and
+rebase onto `ai-chat-tlc`'s real tip before anything else — this alone should roughly halve the
+diff, with no feature loss.
+
+The remaining ~2,962 lines are genuine Tiles/Widgets work, all Phase 0-7 — Phase 8 (AI-chat widget
+creation and remix, T8.1-T8.4 above) has not been written on this branch yet, so today's diff
+carries zero Phase 8 lines. Natural split, once rebased:
+
+- **MR A — core runtime + frame redesign** (Phases 0-3 remainder, already `done`/human-verified):
+  ~1,450 lines. `CanvasRuntimeProvider.tsx`, `installations.ts`, `adapter.ts`, `TileOutputView.tsx`,
+  `WidgetCard.tsx`, `WidgetSidebar.tsx`, `widgetAccent.ts`, and related small files.
+- **MR B — marketplace TLC + widget settings** (Phase 4): ~1,225 lines. `TilesPage.tsx`,
+  `TileDetailPage.tsx`, `TileInstallDialog.tsx`, `WidgetPickerDialog.tsx`, `MarketplaceNag.tsx`,
+  `marketplace.ts`, `TileSettingsPage.tsx`, `TilePublishCard.tsx`.
+- **MR C — feed integration** (Phase 5): ~160 lines. `feedKinds.ts` and small feed-hook touches.
+  Small enough to fold into MR B if a fourth MR feels like overkill.
+- **MR D — AI-chat widget creation + remix** (Phase 8, T8.1-T8.4): not written yet, size unknown.
+  This is the piece proposed to Dirk as landing last, once MR A-C exist and the marketplace/runtime
+  infrastructure T8.1-T8.4 depend on is in place.
+
+These file-count splits are approximate where a file is shared between the AI-chat and tile-4
+surface (`App.tsx`, `AppRouter.tsx`, `schemas.ts`, `AppContext.ts`, `SettingsPage.tsx`), and do not
+yet break test-line counts down per bucket.
+
+## Human review queue (carried over from `AI_CHAT_TILES_PLAN.md`, 2026-08-03)
+
+Most of the original queue duplicated `!245`'s own "How to Test" checklist for `ai-chat-tlc`'s
+Wave A work (provider settings, tool registry, tabs, NIP lookups, composer autocomplete). That
+MR's self-review checklist already confirms manual testing happened there, so those items are not
+repeated here.
+
+Two items are not covered anywhere else, because they live in a separate repo
+(`~/repos/tile-studio`) with no plan doc tracked in this session:
+
+- [ ] Phase 9 / T9.1 — Full manual AI-authoring session on tile-studio's deployed dev instance.
+      Ask the AI to write a trivial tile. Confirm tool calls run and the code editor updates.
+      Confirm an `ask_questions` call pauses correctly and resumes on answer. Confirm no new
+      console errors appear.
+- [ ] Phase 9 / T9.2 — Click-through confirmation of the interaction-dispatch fix (`a445ac5`).
+      Edit a tile with a `Button`/`publish_event` handler. Run the preview. Confirm the click
+      actually fires — the review dialog appears, or the tile's own state updates — instead of
+      doing nothing.
 
 ---
 
