@@ -23,14 +23,14 @@ export interface ToolCall {
 /** A message rendered in the chat UI. */
 export interface DisplayMessage {
   id: string;
-  role: 'user' | 'assistant' | 'system' | 'tool_result';
+  // Tool results are attached to their originating assistant message instead
+  // of rendering as separate bubbles, so only user/assistant roles are ever
+  // emitted (see snapshotToDisplayMessages in AIChatPage).
+  role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
   toolCalls?: ToolCall[];
 }
-
-/** An ability a chat session can be forked with. See `@/lib/abilities` for the canonical registry. */
-export type { Ability } from '@/lib/abilities';
 
 /** A single chat conversation. */
 export interface ChatSession {
@@ -40,7 +40,6 @@ export interface ChatSession {
   abilities: Ability[];
   providerId: string;
   modelId: string;
-  messages: DisplayMessage[];
   createdAt: Date;
 }
 
@@ -52,7 +51,7 @@ export interface CreateSessionInput {
 }
 
 /** Fields that can be patched on an existing session. */
-export type SessionPatch = Partial<Pick<ChatSession, 'providerId' | 'modelId' | 'messages' | 'title'>>;
+export type SessionPatch = Partial<Pick<ChatSession, 'providerId' | 'modelId' | 'title'>>;
 
 const EMPTY_AGENT: SerializedSession = { messages: [], pendingInput: null, pendingToolCalls: [] };
 
@@ -63,7 +62,6 @@ function createSessionObject(input: CreateSessionInput): ChatSession {
     abilities: input.abilities,
     providerId: input.providerId,
     modelId: input.modelId,
-    messages: [],
     createdAt: new Date(),
   };
 }
@@ -76,7 +74,6 @@ function tabToSession(tab: PersistedTab): ChatSession {
     abilities: tab.abilities,
     providerId: tab.providerId,
     modelId: tab.modelId,
-    messages: [],
     createdAt: new Date(tab.createdAt),
   };
 }
@@ -117,8 +114,24 @@ export function defaultProviderId(profiles: AIProviderProfile[] = []): string {
  * session is stored, the bootstrap uses the first configured AI provider
  * profile when at least one exists, falling back to the zero-config
  * 'shakespeare' provider.
+ *
+ * With no pubkey (logged out) nothing is written to storage: there is no UI
+ * that can reach an 'anon'-scoped tab, so persisting one would just orphan a
+ * storage record. A fresh in-memory session is still returned so callers can
+ * read `activeSession` while rendering the logged-out state.
+ *
+ * Safe to call more than once in a row, as React StrictMode dev does to lazy
+ * `useState` initializers and effects: for a pubkey'd scope the first call's
+ * bootstrap `saveTab` is read back by the second call via `getStoredTabs`
+ * (so only one tab is ever written), and `pruneStaleTabs` finds nothing left
+ * to remove on a repeat. The logged-out path performs no writes at all.
  */
 function loadOrBootstrap(pubkey?: string, profiles: AIProviderProfile[] = []): ChatState {
+  if (pubkey === undefined) {
+    const providerId = defaultProviderId(profiles);
+    const bootstrap = createSessionObject({ abilities: [], providerId, modelId: '' });
+    return { sessions: [bootstrap], activeSessionId: bootstrap.id };
+  }
   pruneStaleTabs(pubkey); // Silent housekeeping: drop tabs untouched for 30 days.
   const stored = getStoredTabs(pubkey);
   if (stored.length > 0) {
@@ -150,6 +163,10 @@ export function useChatSessions(pubkey?: string, profiles: AIProviderProfile[] =
   const [state, setState] = useState<ChatState>(() => loadOrBootstrap(pubkey, profiles));
 
   // Reload the tab list from the new account's scope on an account switch.
+  // The ref guard makes the reload run at most once per pubkey: StrictMode's
+  // simulated remount re-initializes the ref to the current pubkey, so the
+  // effect returns early instead of re-running loadOrBootstrap. Even if it
+  // did re-run, loadOrBootstrap is idempotent (see its docstring).
   const prevPubkeyRef = useRef(pubkey);
   useEffect(() => {
     if (prevPubkeyRef.current === pubkey) return;
@@ -160,7 +177,9 @@ export function useChatSessions(pubkey?: string, profiles: AIProviderProfile[] =
   /** Append a fresh session and make it active. Returns the created session. */
   function createSession(input: CreateSessionInput): ChatSession {
     const session = createSessionObject(input);
-    saveTab(tabFromSession(session), pubkey);
+    // Logged out there is nothing to persist to: no 'anon'-scoped tab may be
+    // written (see loadOrBootstrap), so the session stays in memory only.
+    if (pubkey !== undefined) saveTab(tabFromSession(session), pubkey);
     setState((prev) => ({
       sessions: [...prev.sessions, session],
       activeSessionId: session.id,
@@ -178,16 +197,24 @@ export function useChatSessions(pubkey?: string, profiles: AIProviderProfile[] =
 
   /** Remove a session. Closing the active session activates the previous one in array order. */
   function closeSession(id: string): void {
+    // Decide the side effect once, outside the updater: React may invoke an
+    // updater more than once (StrictMode dev double-invoke, concurrent
+    // replay), so the localStorage delete must not live inside it.
+    const willRemove = state.sessions.some((s) => s.id === id) && state.sessions.length > 1;
+    if (!willRemove) return;
+
+    // Hard delete: the tab's localStorage entry goes immediately. There is
+    // no "recently closed" recovery surface. Logged out there is nothing to
+    // delete — anon sessions are in memory only.
+    if (pubkey !== undefined) removeTab(id, pubkey);
+
     setState((prev) => {
       const index = prev.sessions.findIndex((s) => s.id === id);
       if (index === -1) return prev;
       const next = prev.sessions.filter((s) => s.id !== id);
-      // The last remaining session cannot be closed.
+      // The last remaining session cannot be closed (defensive: state may
+      // have changed since the guard above).
       if (next.length === 0) return prev;
-
-      // Hard delete: the tab's localStorage entry goes immediately. There is
-      // no "recently closed" recovery surface.
-      removeTab(id, pubkey);
 
       let activeSessionId = prev.activeSessionId;
       if (activeSessionId === id) {
@@ -198,19 +225,20 @@ export function useChatSessions(pubkey?: string, profiles: AIProviderProfile[] =
     });
   }
 
-  /** Patch provider/model/messages/title on a single session without touching the others. */
+  /** Patch provider/model/title on a single session without touching the others. */
   function updateSession(id: string, patch: SessionPatch): void {
     setState((prev) => ({
       ...prev,
       sessions: prev.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)),
     }));
     // Persist the metadata fields; the agent blob is preserved by the merge.
+    // Logged out the patch is in memory only (see loadOrBootstrap).
     const metadata = {
       ...(patch.title !== undefined && { title: patch.title }),
       ...(patch.providerId !== undefined && { providerId: patch.providerId }),
       ...(patch.modelId !== undefined && { modelId: patch.modelId }),
     };
-    patchTabMetadata(id, metadata, pubkey);
+    if (pubkey !== undefined) patchTabMetadata(id, metadata, pubkey);
   }
 
   const activeSession = state.sessions.find((s) => s.id === state.activeSessionId)!;

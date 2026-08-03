@@ -51,7 +51,6 @@ function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
     abilities: [],
     providerId: 'shakespeare',
     modelId: 'shakespeare/glm-4.5',
-    messages: [],
     createdAt: new Date(),
     ...overrides,
   };

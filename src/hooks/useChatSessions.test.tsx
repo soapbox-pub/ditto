@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 import { useChatSessions, defaultProviderId } from './useChatSessions';
-import type { ChatSession, DisplayMessage } from './useChatSessions';
+import type { ChatSession } from './useChatSessions';
 import type { AIProviderProfile } from '@/hooks/useAIProviders';
 import type { PersistedTab } from '@/lib/chatTabsStorage';
 
@@ -15,16 +15,6 @@ beforeEach(() => {
 });
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
-function makeMessage(overrides: Partial<DisplayMessage> = {}): DisplayMessage {
-  return {
-    id: crypto.randomUUID(),
-    role: 'user',
-    content: 'hello',
-    timestamp: new Date(),
-    ...overrides,
-  };
-}
-
 function makeProfile(overrides: Partial<AIProviderProfile> = {}): AIProviderProfile {
   return {
     id: crypto.randomUUID(),
@@ -52,8 +42,23 @@ describe('useChatSessions', () => {
     expect(sessions[0].abilities).toEqual([]);
     expect(sessions[0].providerId).toBe('shakespeare');
     expect(sessions[0].modelId).toBe('');
-    expect(sessions[0].messages).toEqual([]);
     expect(sessions[0].createdAt).toBeInstanceOf(Date);
+  });
+
+  it('does not persist anything when no pubkey (logged out) is provided', () => {
+    const { result } = renderHook(() => useChatSessions());
+
+    expect(result.current.sessions).toHaveLength(1);
+    // No 'anon'-scoped tab may be written: the logged-out page has no UI that
+    // could ever reach it, so a persisted record would just be orphaned.
+    expect(localStorage.length).toBe(0);
+
+    // createSession also stays in memory only while logged out.
+    act(() => {
+      result.current.createSession({ abilities: [], providerId: 'shakespeare', modelId: 'm' });
+    });
+    expect(result.current.sessions).toHaveLength(2);
+    expect(localStorage.length).toBe(0);
   });
 
   it('bootstraps to the first configured provider profile when one exists', () => {
@@ -101,7 +106,6 @@ describe('useChatSessions', () => {
     expect(created!.abilities).toEqual(['nostr-lookup']);
     expect(created!.providerId).toBe('shakespeare');
     expect(created!.modelId).toBe('x');
-    expect(created!.messages).toEqual([]);
     expect(created!.createdAt).toBeInstanceOf(Date);
 
     // The created session is appended and immediately becomes active.
@@ -111,32 +115,23 @@ describe('useChatSessions', () => {
     expect(result.current.activeSession).toBe(created);
   });
 
-  it('updateSession patches only the requested field and does not clear existing messages', () => {
+  it('updateSession patches only the requested fields and merges into the session', () => {
     const { result } = renderHook(() => useChatSessions());
     const id = result.current.activeSessionId;
 
-    const existing: DisplayMessage[] = [
-      makeMessage({ id: 'm1', role: 'user', content: 'first' }),
-      makeMessage({ id: 'm2', role: 'assistant', content: 'second' }),
-    ];
     act(() => {
-      result.current.updateSession(id, { messages: existing });
-    });
-
-    act(() => {
-      result.current.updateSession(id, { modelId: 'new-model' });
+      result.current.updateSession(id, { providerId: 'openrouter', modelId: 'model-x' });
     });
 
     const session = result.current.sessions.find((s) => s.id === id);
-    expect(session?.modelId).toBe('new-model');
-    // "Switching provider mid-session" must preserve the conversation history.
-    expect(session?.messages).toEqual(existing);
-    expect(session?.messages).toHaveLength(2);
+    expect(session?.providerId).toBe('openrouter');
+    expect(session?.modelId).toBe('model-x');
+    // Fields outside the patch are preserved by the merge.
     expect(session?.abilities).toEqual([]);
-    expect(session?.providerId).toBe('shakespeare');
+    expect(session?.title).toBe('');
   });
 
-  it('updateSession replaces messages for only the targeted session', () => {
+  it('updateSession patches only the targeted session, leaving others untouched', () => {
     const { result } = renderHook(() => useChatSessions());
     const firstId = result.current.activeSessionId;
 
@@ -149,22 +144,17 @@ describe('useChatSessions', () => {
       });
     });
 
-    const firstMessages = [makeMessage({ id: 'a1', content: 'for first' })];
-    const secondMessages = [makeMessage({ id: 'b1', content: 'for second' })];
     act(() => {
-      result.current.updateSession(firstId, { messages: firstMessages });
-    });
-    act(() => {
-      result.current.updateSession(second!.id, { messages: secondMessages });
+      result.current.updateSession(second!.id, { title: 'Renamed', modelId: 'new-model' });
     });
 
     const first = result.current.sessions.find((s) => s.id === firstId);
     const secondSession = result.current.sessions.find((s) => s.id === second!.id);
-    expect(first?.messages).toEqual(firstMessages);
-    expect(secondSession?.messages).toEqual(secondMessages);
-    // Updating the second session must not touch the first session's messages.
-    expect(first?.messages).not.toEqual([]);
-    expect(first?.messages).toEqual(firstMessages);
+    expect(secondSession?.title).toBe('Renamed');
+    expect(secondSession?.modelId).toBe('new-model');
+    // Updating the second session must not touch the first session at all.
+    expect(first?.title).toBe('');
+    expect(first?.modelId).toBe('');
   });
 
   it('closeSession on a non-active session removes it and leaves the active session alone', () => {
