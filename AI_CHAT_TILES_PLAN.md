@@ -10,8 +10,13 @@
 > `main` (per the plan skill's normal finishing step), not carried into the merged diff.
 >
 > **Phase 10 (this branch's own scope) is now fully done** — see its compacted summary below.
-> What remains open is the Human review queue's live-UI retests and the MR-split decision
-> (Dirk's review suggestion) the user is currently reviewing this branch for.
+> The Human review queue is now fully confirmed (2026-08-03 QA pass, including a fresh
+> `--mode ghpages` build check). What remains is the MR-split restructuring (Dirk's review
+> suggestion): bugfix issues cut onto their own branches off `main`, `ai-chat-tlc` cleaned down to
+> the AI-chat-modernization diff Dirk actually reviewed, the Tiles-authoring tool bundle extracted
+> onto its own stacked branch, and `tiles-v3-widgetonly` retargeted onto that stack with its own
+> internal Phase 4 → 6 → 7 sub-split. Tracked in detail in `tiles-v3-widgetonly`'s plan doc once
+> this file moves there (see Sequencing below).
 
 ## Vision
 
@@ -165,12 +170,20 @@ Thin frame, accent hue via `hashWidgetId`, single-`h1` detail page.
 
 Routes, strings/maps, picker flattening. Commit `7bb2da20` + `fc92763d`.
 
+## Pending work — remaining `tiles-v3-widgetonly` scope
+
+Everything below (Phase 4's remainder, Phase 6, Phase 7) is not yet started or not yet finished.
+Per the 2026-08-03 MR-split restructuring decision, each becomes its own stacked sub-MR/tracking
+issue within `tiles-v3-widgetonly`'s own sub-stack, in execution order **Phase 4 → Phase 6 →
+Phase 7** — this is what has to land before `tiles-v3-widgetonly` (tier 4 of the overall MR
+stack) is merge-ready. Phase 5 is **not** part of that sequence; it's shelved separately below.
+
 ## Phase 4 — Marketplace TLC — `in_progress` (on `tiles-v3-widgetonly`)
 
 Icon-first cards, accent colors, consent dialog, click-to-expand, sort + search, unified detail
 page, social signals (detail-page only), detail-page gallery/history, first-open nag. All
-human-verified through T4.6 (2026-07-28). Remaining (scoped here 2026-07-31; may already be
-further along on `tiles-v3-widgetonly` by the time this doc moves there):
+human-verified through T4.6 (2026-07-28). Remaining (scoped here 2026-07-31; confirmed still
+fully pending as of 2026-08-03 — no T4.7/T4.8/T4.9 code exists yet on `tiles-v3-widgetonly`):
 
 - [ ] **T4.7 Tile state sync bug + re-prompt on drift** (user, 2026-07-30; re-grilled
       2026-07-31). Two independent problems:
@@ -224,13 +237,6 @@ further along on `tiles-v3-widgetonly` by the time this doc moves there):
       builds or forks that don't understand tiles. Needs its own scoping pass when Phase 7 is
       reached; noted here so it isn't lost.
 
-## Phase 5 — Tile-claimed kinds in feeds (native generic cards) — `pending`
-
-- [x] **T5.1 Kind collection + settings.** Done in `6b79a50e`.
-- [ ] **T5.2 Generic widget-interaction card.** Native feed card: "@author used <Widget name>"
-      with icon/accent, best-effort summary, link to detail page. No Lua in feeds. *Eval:*
-      manual: publish a test event of a claimed kind, see the card in feed; `npm run test`.
-
 ## Phase 6 — `feed` and `nevent` output nodes — `deferred` (not urgent; after Phase 7's wikipedia demo)
 
 - [ ] **T6.1 `feed` node.** Native mini info cards (~12 events, paginated). *Eval:* renderer
@@ -264,6 +270,22 @@ Ordering: after Phases 1-6.
       widgets remain native. See the T4.7 addendum above for the auto-swap-on-port nuance.
       *Eval:* migration unit test (old config → new ids, no dupes); manual: existing sidebar
       survives upgrade; `npm run test`.
+
+---
+
+## Phase 5 — Tile-claimed kinds in feeds (native generic cards) — `shelved indefinitely (2026-08-03)`
+
+Not part of the Phase 4 → 6 → 7 pending sequence above and not a `tiles-v3-widgetonly`
+merge-readiness gate. User's call, 2026-08-03: out of scope, may not happen in Ditto at all for
+the foreseeable future. Kept here (not deleted) only because T5.1 already shipped and
+`getTileFeedKinds`/`useTileFeedKinds` (wired through the feed/stream hooks and
+`tileKindConflictMode`, `6b79a50e`) is live code, not a stub.
+
+- [x] **T5.1 Kind collection + settings.** Done in `6b79a50e`.
+- [ ] **T5.2 Generic widget-interaction card.** Native feed card: "@author used <Widget name>"
+      with icon/accent, best-effort summary, link to detail page. No Lua in feeds. Shelved, not
+      scheduled. *Eval (if ever picked back up):* manual: publish a test event of a claimed kind,
+      see the card in feed; `npm run test`.
 
 ## Phase 8 — nostr-canvas: `./devkit` subpath export — tracked in nostr-canvas's own `PLAN.md`
 
@@ -383,6 +405,32 @@ separately ticketed above):**
   text) split on blank lines, so a pasted multi-line or multi-paragraph answer broke the parse.
   Reworked to anchor on the `Q\d+:`/`A\d+:` markers themselves instead, folded into `26671b25`.
 
+**Second bug-fix round, found during the 2026-08-03 final QA pass:**
+
+- Markdown responses rendered GFM pipe-tables as literal `|`-delimited text instead of table
+  markup — `react-markdown` had no `remark-gfm` plugin wired in. Added the dependency and the
+  plugin to both the chat bubble and `ToolCallDetails`' markdown renderer. `07d021a0`.
+- Wide tables and long code blocks inside a response could overflow the chat bubble instead of
+  scrolling internally. Added `prose-pre:overflow-x-auto` and a `table` override component
+  wrapping tables in their own `overflow-x-auto` div. `bff3a268`.
+- The session-tab close button rendered as a second button bolted on next to the title pill
+  instead of living inside it. Restructured into one pill container holding both the title
+  button and the nested close button. `b0835458`.
+- Follow-up polish on that same pill: the close button now only appears on hover for *inactive*
+  tabs (previously always visible), the hover/active highlight covers the whole pill including
+  the close button rather than just the title, and the title button's padding was tightened to
+  match the close button's height so the pill reads as one consistent chip. `995e2672`.
+- Switching tabs sometimes scrolled the whole browser window instead of just the message list —
+  root cause of a lingering header-pin regression. `messagesEndRef.current.scrollIntoView()`
+  walks every scrollable ancestor to bring its target into view; right after a tab switch
+  remounts the message `ScrollArea` (its Radix-measured height hasn't settled on that first
+  render), that walk can escape past the viewport and scroll the actual window, which also yanks
+  the pinned mobile header through its scroll-direction listener. Fixed by scrolling the
+  `ScrollArea`'s own viewport directly via `scrollTop`, matching the pattern already used by the
+  sidebar `AIChatWidget`. `fa575ba6`.
+- Added desktop-only left/right scroll-arrow affordances to the session tab bar for when there
+  are more tabs than fit, matching the pattern already established by `SubHeaderBar`. `995e2672`.
+
 Filed upstream (not Ditto's to fix): `nostr-canvas#2` — devkit's `edit_code` tool has the
 identical `discriminatedUnion` schema bug T10.9's `nak` fix worked around.
 
@@ -403,18 +451,19 @@ ticket the swap on `tiles-v3-widgetonly` (where Tiles UI actually lives) rather 
 the sandbox approach here — logged in that branch's `TILES_PLAN.md`. Not scoped further until
 the port exists.
 
-**Not yet investigated — real, reported bug:** inline `` `code` `` spans (not fenced blocks)
-render the wrong text color on certain custom themes (`set_theme`-applied). Suspect:
-`@tailwindcss/typography`'s `prose-code:text-foreground` modifier vs. the plugin's own
-`--tw-prose-code`/`--tw-prose-invert-code` defaults — checked the compiled CSS and the override
-rule does win on specificity and source order, so the simple cascade story doesn't explain it;
-needs live-theme repro to pin down further (not yet root-caused).
+**Dropped, 2026-08-03:** inline `` `code` `` spans reportedly rendered the wrong text color on
+certain custom themes. Investigated as far as confirming (via compiled CSS) that
+`prose-code:text-foreground` wins on both specificity and source order over
+`@tailwindcss/typography`'s own defaults, so the cascade story doesn't explain it — root cause
+was never pinned down. User re-checked live after the second bug-fix round above and could no
+longer reproduce it; not pursuing further.
 
 ---
 
 ## Human review queue
 
-Confirmed via the manual QA walkthrough (all originally-listed items except where noted below):
+**Fully confirmed, 2026-08-03** — every item below has a live manual pass, including a
+`--mode ghpages` build served under the `/ditto/` subpath for the asset-path checks:
 
 - [x] T10.1 regression — ability toggle forks a new tab with the right system prompt/tools;
       provider switch mid-session preserves history and the next reply uses the new provider.
@@ -422,6 +471,8 @@ Confirmed via the manual QA walkthrough (all originally-listed items except wher
 - [x] T10.2 regression — plain message with no tool call streams a normal reply, no console
       errors.
 - [x] T10.3 — several tabs including reload; 20-tab cap close-picker dialog; auto-title resolves.
+- [x] T10.3 — pause a Tiles session mid-`ask_questions`, reload, confirm it resumes and answering
+      it works now that the read-only history UI + live answer UI both exist.
 - [x] T10.4 — pasting a real API key auto-populates models; manual "Detect models" still works.
 - [x] T10.5 — "@" dropdown shows people + "Tiles"; selecting a person inserts `nostr:npub1...`,
       selecting "Tiles" inserts plain text with no session fork.
@@ -431,29 +482,21 @@ Confirmed via the manual QA walkthrough (all originally-listed items except wher
 - [x] T10.7 — base session answers "what does NIP-57 define?" from a real fetched spec.
 - [x] T10.8 — `/settings/ai` intro hero + accent-underlined section header (no duplicate text);
       `/settings` menu shows the AI row's illustration.
-
-Still open — either never separately confirmed, or invalidated by a fix landed after the
-original walkthrough (needs a fresh retest):
-
-- [ ] T10.3 — specifically: pause a Tiles session mid-`ask_questions`, reload, confirm it
-      resumes and answering it works now that the read-only history UI + live answer UI both
-      exist (the empty-bubble bug meant this was effectively unusable at the time of the
-      original walkthrough).
-- [ ] T10.9 — nak profile/hashtag lookup (was 400ing on the schema bug at the time of the
-      original walkthrough; retest now that it's fixed).
-- [ ] New tool-call rendering (this session) — spot-check `set_theme`, `ask_questions`, `nak`,
-      `read_spec`, `write_code` (diff view), and `edit_code` each render their tailored summary
-      instead of a bare pill; unknown/fallback tools show collapsible pretty-JSON.
-- [ ] Loading indicator (this session) — stays visible through a full tool round-trip, caption
-      names the in-flight tool (e.g. "Looking up Nostr data...").
-- [ ] Header-pin fix (this session) — AI chat header no longer slides away scrolling to the
-      bottom of a long conversation.
-- [ ] Layout bugfix (`c5b77bb3`, predates this session) — at mobile (~390px) and desktop
+- [x] T10.9 — nak profile/hashtag lookup, confirmed working now that the schema bug is fixed.
+- [x] New tool-call rendering — `set_theme`, `ask_questions`, `nak`, `read_spec`, `write_code`
+      (diff view), and `edit_code` each render their tailored summary instead of a bare pill;
+      unknown/fallback tools show collapsible pretty-JSON.
+- [x] Loading indicator — stays visible through a full tool round-trip, caption names the
+      in-flight tool.
+- [x] Header-pin fix — AI chat header no longer slides away scrolling to the bottom of a long
+      conversation (a lingering regression here turned out to be the tab-switch scroll-leak bug,
+      not the pin logic itself — see Phase 10's second bug-fix round above).
+- [x] Layout bugfix (`c5b77bb3`, predates this session) — at mobile (~390px) and desktop
       (≥900px) width, the page itself never scrolls: header, tab bar, provider/model row, and
       textarea stay pinned while only the message list scrolls underneath.
-- [ ] Asset-path bugfix (`0283fe23`, predates this session) — build with `--mode ghpages` (or
-      the deployed GitHub Pages preview): `IntroImage`s, the letter-compose logo, and the webxdc
-      cartridge image all load, no 404s.
+- [x] Asset-path bugfix (`0283fe23`, predates this session) — `IntroImage`s (`/settings/ai`,
+      `/settings`), the letter-compose logo, and the webxdc cartridge image all load with no
+      404s under a `--mode ghpages` build served at the `/ditto/` subpath.
 
 Not this branch's scope (tile-studio, separate repo/deploy — carried over from Phase 9,
 unresolved):
