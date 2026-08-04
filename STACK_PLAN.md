@@ -833,3 +833,13 @@ Two items are not covered anywhere else, because they live in a separate repo
   `researcher` review pass. Every ticket: `npm run test` green + its listed
   manual check before close. Commit per completed ticket/phase per
   `git-workflow` conventions.
+- Confirm before any `git push` that force-pushes or touches a GitLab-visible
+  MR/issue.
+- STE-flavored writing in MR descriptions, issue text, and comments (short
+  sentences, active voice, no marketing language).
+- `backup/tiles-v3-widgetonly-pre-rebase-2026-08-03` (branch ref) is a full
+  backup of `tiles-v3-widgetonly` from before the 2026-08-03 rebase onto
+  `ai-chat-tlc`. Keep it; do not delete, even once `tiles-v3-widgetonly`
+  itself is closed in favor of the `widgets/*` split.
+- `SESSION_HANDOFF.md` was folded into this doc and deleted 2026-08-04; this
+  file is the sole tracker going forward.
