@@ -3,7 +3,7 @@ import { parseTileDefEvent, type Capability, type SettingsField } from '@soapbox
 import { isNostrId } from '@/lib/nostrId';
 
 /** Capabilities that always require a per-use prompt and are never persisted as grants. */
-export const ALWAYS_PROMPT_CAPABILITIES: ReadonlySet<Capability> = new Set(['bitcoin-sign-psbt']);
+export const ALWAYS_PROMPT_CAPABILITIES: ReadonlySet<Capability> = new Set(['bitcoin-sign-psbt', 'nip44-decrypt']);
 
 export interface InstalledCanvasTile {
   pubkey: string;
