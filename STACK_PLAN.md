@@ -5,45 +5,35 @@
 > `TILES_PLAN.md`, and `AI_CHAT_TILES_PLAN.md` (deleted 2026-08-03 — its only content not
 > already folded into this file's Phase 8 was the Human Review Queue, merged in near the end).
 
-## Cross-branch state (as of 2026-08-03)
+## Cross-branch state (as of 2026-08-04)
 
 This doc now tracks the whole stack across all four branches, not just this one.
 
 **Branch/MR stack** (each targets the previous link, not `main`):
 
-1. `fix/ghpages-asset-urls` — issue #317, MR !248 targets `main`. It is open and clean.
-2. `fix/portal-dropdown-flip-anchor` — issue #318, MR !249 targets tier 1a. It is open and clean.
-3. `ai-chat-tlc` — issue #319, MR !245 targets tier 1b. It is open. Dirk Rost's review labeled it
-   `On Hold`. A point-by-point response went up on 2026-08-03
-   (https://gitlab.com/soapbox-pub/ditto/-/merge_requests/245#note_3637938203). All four hard
-   blockers and every smaller item from that review are now resolved. Two gates remain: Chad
-   Curtis's formal review (requested), and Alex Gleason's answer on three questions — whether
-   AI-chat provider API keys belong in the NIP-78 encrypted blob, whether Ditto should take a hard
-   dependency on pre-1.0 `nostr-canvas`, and whether AI chat is where product attention belongs
-   right now. A broader Ditto modernization and bugfixing initiative was proposed to address the
-   third question.
-4. Tiles-authoring-bundle (tier 3, not yet created) will target `ai-chat-tlc`. It reconstructs the
-   9-tool Tiles ability that commit `2ef82d24` stripped from `ai-chat-tlc`. The blueprint is that
-   commit's diff, reversed. Scope decided 2026-08-03:
-   - Wire devkit's real `PreviewTileTool`. The pinned `@soapbox.pub/nostr-canvas@0.14.6` now ships
-     one; the old hand-rolled stub predates it. This branch does not build the interactive
-     preview-card UI — that is Phase 8/T8.1 below, which needs this branch's runtime and
-     marketplace infrastructure.
-   - Implement real tile-draft persistence into the serialized session blob. Dirk's review
-     flagged the module-scoped-Map version as lost on reload, with a stale comment promising a
-     future fix that never happened.
-   - Get its own new issue and MR, targeting `ai-chat-tlc`.
-   - Watch item, not a blocker yet: Lemon's `porygon` library may replace
-     `@soapbox.pub/nostr-canvas/devkit` as the AI-chat tool-calling substrate, removing the hard
-     `nostr-canvas` dependency from the AI-chat work while `nostr-canvas` itself matures. Building
-     tier 3 against devkit now is still the right call — its tool surface here is mostly thin
-     OpenAI-compatible glue, cheap to swap out later if `porygon` lands.
-5. `tiles-v3-widgetonly` (this branch, tier 4) has MR !246, still draft, targeting `ai-chat-tlc`.
-   It needs a retarget to tier 3 once tier 3 exists. Proposed 2026-08-03: split this branch's own
-   MR into three, landing in this order — (a) the built-in widgets port and widget settings, (b)
-   the marketplace, (c) the AI-chat widget-creation and remix work (Phase 8 below). This branch
-   still has its own duplicate copies of tier-2-derived commits, which need dropping before a
-   clean retarget.
+1. `fix/ghpages-asset-urls` — issue #317, MR !248. **Closed, not merged** (2026-08-03): Alex
+   Gleason ruled out GH-Pages subpath deploys entirely for security reasons (nsec-in-localStorage
+   origin isolation). See "GH Pages subpath deploys — abandoned" below.
+2. `fix/portal-dropdown-flip-anchor` — issue #318, MR !249 targets `main` directly (retargeted off
+   !248 once it was put on hold). **Marked ready for review 2026-08-04** — all of Dirk's blocking
+   items addressed and pushed; still waiting on his reply on the screenshot-repro question.
+3. `ai-chat-tlc` — issue #319, MR !245 targets !249's branch. **Marked ready for review 2026-08-04.**
+   All of Dirk's original blockers were resolved 2026-08-03. On 2026-08-04 a full code-quality
+   review pass (see "ai-chat-tlc code-quality review" below) closed all 35 flagged findings plus 4
+   more surfaced by independent re-review, most notably gating `search_nips` behind the opt-in
+   `nostr-lookup` ability alongside `nak` (it queries an unmoderated, no-`authors`-filter relay
+   feed — same prompt-injection risk class). `@soapbox.pub/nostr-canvas` bumped 0.14.6 → 0.14.7 in
+   the same pass. Still open: Chad Curtis's formal review (requested), and Alex Gleason's answer on
+   the three questions from Dirk's original review (NIP-78 key storage, the pre-1.0 `nostr-canvas`
+   dependency, and whether AI chat is where product attention belongs right now).
+4. Tiles-authoring-bundle (tier 3, not yet created) will target `ai-chat-tlc`. Unchanged from the
+   2026-08-03 scoping below — not started.
+5. `tiles-v3-widgetonly` (this branch, tier 4) has MR !246, targeting `ai-chat-tlc`. **Marked ready
+   for review 2026-08-04.** Rebased cleanly onto `ai-chat-tlc`'s 2026-08-04 tip (the leftover
+   `basename={import.meta.env.BASE_URL}` GH-Pages wiring flagged in `SESSION_HANDOFF.md` turned out
+   to already be resolved as a side effect of that rebase — `ai-chat-tlc`'s clean version won the
+   3-way merge for that line). The tier-4 split into three MRs (below) is still the next step, not
+   yet started.
 
 Squash-merge is on for every MR in this stack. The commit counts visible during review collapse
 to one commit each on `main`.
@@ -693,14 +683,46 @@ Consequences for this branch and the wider stack:
   other GitHub Pages content — plan is a container on the user's own VPS instead of GitHub Pages
   for branch previews. Not yet scoped or started.
 
-## ai-chat-tlc code-quality review — deferred (2026-08-03)
+## ai-chat-tlc code-quality review — done (2026-08-04)
 
-`/tmp/ai-chat-tlc-review.md` (local file, not in the repo) is a separate code-quality review of
+`/tmp/ai-chat-tlc-review.md` (local file, not in the repo) was a separate code-quality review of
 `ai-chat-tlc` — 6 blockers/majors (a real credential-handling bug in the sync-off toggle, an
 undeclared `openai` dep, uncaught localStorage quota writes, agents surviving logout, wrong message
-timestamps, a send-button a11y gap) plus 16 minors and 13 nits. None of it has been fixed. Deferred
-on purpose: land as its own review-cleanup commit once the tier-4 rebase/split is done, picked up by
-whichever session next works on `tiles-v3-widgetonly` — not folded into this split effort.
+timestamps, a send-button a11y gap) plus 16 minors and 13 nits. All 35 fixed 2026-08-04, verified
+present first against the then-current tip, then independently re-verified item by item (a
+dispatched review pass plus a direct trace of the credential-leak fix by hand) rather than trusted
+on the fixing pass's own say-so. Landed as 6 commits (`ai-chat-tlc` `9ef1cda7..1569d6cb`, squashes
+to one on `main`):
+
+- Credential leak + session lifecycle (the 6 blockers/majors).
+- Accessibility, i18n, and UX minors/nits.
+- Tool-registry cleanup, including a real finding the original review's item 20 only asked to be
+  *documented*: `search_nips` turned out not to be in the same risk class as the already-justified
+  `fetch_nip` (official, merge-gated repo) — it queries an unmoderated, no-`authors`-filter relay
+  feed, the same prompt-injection class as `nak`. Gated it behind the opt-in `nostr-lookup` ability
+  instead of just documenting the gap.
+- Dead `ChatSession` fields and tab-storage lifecycle nits.
+- The leftover GH-Pages `publicAssetUrl()` scope creep (module + all 4 call sites removed, each
+  file now byte-identical to `origin/main`).
+- `openai` declared as an explicit dependency (was transitive-only, the exact bug item 2 warned
+  about), and `@soapbox.pub/nostr-canvas` bumped 0.14.6 → 0.14.7 in the same commit (separate ask,
+  same package.json diff) — drops `fengari`/`fengari-web` for `@xyzshantaram/luacheck-ts`, which
+  needed a tracked `.npmrc` (`@jsr:registry`) to resolve on a from-scratch install.
+
+The independent review pass also caught 3 real gaps in the first fixing pass that got closed in the
+same session rather than left for later: a debounced-write flush gap on account switch/session
+close, `sendMessage`'s stale-agent guard not covering credential changes (only the keep-vs-rebuild
+check did), and one leftover unlocalized string (`duplicateProfile`'s `" (copy)"` suffix — refactored
+so the caller supplies the formatted name, since the hook itself has no `IntlProvider` in its test
+wrapper).
+
+`ai-chat-tlc` and `tiles-v3-widgetonly` were then rebased in stack order: `ai-chat-tlc` onto
+`fix/portal-dropdown-flip-anchor`'s actual tip (it had drifted — `ai-chat-tlc` still carried its own
+pre-squash duplicate of the dropdown-anchor fix commits from before Dirk's review round landed on
+!249; `git rebase` recognized and dropped the now-redundant patches), then `tiles-v3-widgetonly` onto
+the new `ai-chat-tlc` tip. Full suite green throughout (`ai-chat-tlc`: 574 tests; `tiles-v3-widgetonly`:
+672 tests, one pre-existing unrelated lint warning). !249/!245/!246 all marked ready for review
+(un-drafted) 2026-08-04.
 
 ## Human review queue (carried over from `AI_CHAT_TILES_PLAN.md`, 2026-08-03)
 
