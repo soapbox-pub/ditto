@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
-import type { NUser } from '@nostrify/react/login';
+import { createNIP98Token, SHAKESPEARE_API_URL } from '@/lib/shakespeareApi';
 
 /** Error subclass carrying rate-limit metadata. */
 export class RateLimitError extends Error {
@@ -104,48 +104,7 @@ export interface CreditsResponse {
   amount: number;
 }
 
-// ─── Provider Configuration ───
-
-const SHAKESPEARE_API_URL = 'https://ai.shakespeare.diy/v1';
-
 // ─── Helpers ───
-
-/** Create a NIP-98 auth token for Shakespeare AI requests. */
-async function createNIP98Token(
-  method: string,
-  url: string,
-  body?: unknown,
-  user?: NUser
-): Promise<string> {
-  if (!user?.signer) {
-    throw new Error('User signer is required for NIP-98 authentication');
-  }
-
-  const tags: string[][] = [
-    ['u', url],
-    ['method', method]
-  ];
-
-  if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-    const bodyString = JSON.stringify(body);
-    const encoder = new TextEncoder();
-    const data = encoder.encode(bodyString);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const payloadHash = Array.from(new Uint8Array(hashBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-    tags.push(['payload', payloadHash]);
-  }
-
-  const event = await user.signer.signEvent({
-    kind: 27235,
-    content: '',
-    tags,
-    created_at: Math.floor(Date.now() / 1000)
-  });
-
-  return btoa(JSON.stringify(event));
-}
 
 /** Parse the Retry-After header into a future Unix-ms timestamp. */
 function parseRetryAfter(response: Response): number {
