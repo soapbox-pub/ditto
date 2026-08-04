@@ -71,6 +71,7 @@ const RelayPage = lazy(() => import("./pages/RelayPage").then(m => ({ default: m
 const SearchPage = lazy(() => import("./pages/SearchPage").then(m => ({ default: m.SearchPage })));
 const SettingsAIPage = lazy(() => import("./pages/SettingsAIPage").then(m => ({ default: m.SettingsAIPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const TileSettingsPage = lazy(() => import("./pages/TileSettingsPage").then(m => ({ default: m.TileSettingsPage })));
 const SharePage = lazy(() => import("./pages/SharePage").then(m => ({ default: m.SharePage })));
 const ThemesPage = lazy(() => import("./pages/ThemesPage").then(m => ({ default: m.ThemesPage })));
 const TreasuresPage = lazy(() => import("./pages/TreasuresPage").then(m => ({ default: m.TreasuresPage })));
@@ -175,6 +176,7 @@ export function AppRouter() {
             />
             <Route path="/settings/magic" element={<MagicSettingsPage />} />
             <Route path="/settings/network" element={<NetworkSettingsPage />} />
+            <Route path="/settings/widgets" element={<TileSettingsPage />} />
             <Route path="/settings/ai" element={<SettingsAIPage />} />
             <Route path="/lists" element={<UserListsPage />} />
             <Route path="/events" element={<EventsFeedPage />} />
