@@ -336,6 +336,64 @@ export const ContentFilterSchema = z.object({
 
 // ─── SavedFeed Schema ────────────────────────────────────────────────
 
+// ─── PostOnboardingGuide Schema ──────────────────────────────────────
+
+/**
+ * Zod schema for the post-onboarding first-session mission state.
+ *
+ * Every object here is a `looseObject` on purpose: mission state is written by
+ * whichever app version the user happens to be running, and a newer client may
+ * have added tasks, substeps, or baselines this build knows nothing about.
+ * Stripping those on parse would silently destroy them on the next write (the
+ * hook persists `{ ...state, ...changes }`), so unknown keys ride through
+ * untouched. The same reason `EncryptedSettingsSchema` below is loose.
+ */
+export const PostOnboardingPathStatusSchema = z.enum([
+  'not_started',
+  'active',
+  'completed',
+]);
+
+export const PostOnboardingGuideStateSchema = z.looseObject({
+  version: z.literal(1),
+  status: z.enum(['active', 'completed', 'skipped']),
+  activePath: z.enum(['find-people', 'post-small', 'customize', 'explore']).optional(),
+  paths: z.looseObject({
+    'find-people': PostOnboardingPathStatusSchema,
+    'post-small': PostOnboardingPathStatusSchema,
+    customize: PostOnboardingPathStatusSchema,
+    explore: PostOnboardingPathStatusSchema,
+  }),
+  startedAt: z.number(),
+  updatedAt: z.number(),
+  completedAt: z.number().optional(),
+  skippedAt: z.number().optional(),
+  badgeClaim: z
+    .looseObject({
+      badge: z.literal('ditto-explorer'),
+      status: z.enum(['unclaimed', 'claiming', 'claimed', 'failed']),
+      claimEventId: z.string().optional(),
+      claimedAt: z.number().optional(),
+      claimingStartedAt: z.number().optional(),
+      failedAt: z.number().optional(),
+    })
+    .optional(),
+  /** Substep progress for the two-step `customize` task. */
+  customize: z
+    .looseObject({
+      profileCompleted: z.boolean().optional(),
+      themeCompleted: z.boolean().optional(),
+    })
+    .optional(),
+  /** Snapshots of real product state used for change-based completion. */
+  baselines: z
+    .looseObject({
+      follows: z.number().optional(),
+      theme: z.string().optional(),
+    })
+    .optional(),
+});
+
 // ─── EncryptedSettings Schema ────────────────────────────────────────
 
 /**
@@ -395,4 +453,5 @@ export const EncryptedSettingsSchema = z.looseObject({
       return result.success ? [result.data] : [];
     })
   ).optional(),
+  postOnboardingGuide: PostOnboardingGuideStateSchema.optional(),
 });

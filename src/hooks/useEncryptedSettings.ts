@@ -10,6 +10,7 @@ import type { Theme, FeedSettings, ContentWarningPolicy, SavedFeed, WidgetConfig
 import type { ThemeConfig } from '@/themes';
 import type { ContentFilter } from './useContentFilters';
 import type { LetterPreferences } from '@/lib/letterTypes';
+import type { PostOnboardingGuideState } from '@/lib/postOnboardingGuide';
 import { EncryptedSettingsSchema } from '@/lib/schemas';
 
 /**
@@ -116,6 +117,8 @@ export interface EncryptedSettings {
   savedFeeds?: SavedFeed[];
   /** Letter preferences (stationery, font, frame, closing, signature, inbox filters) */
   letterPreferences?: LetterPreferences;
+  /** Post-onboarding first-session mission progress (private, cross-device). */
+  postOnboardingGuide?: PostOnboardingGuideState;
 }
 
 /**
