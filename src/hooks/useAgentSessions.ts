@@ -106,12 +106,22 @@ export function useAgentSessions(options: AgentSessionsOptions) {
     lastBlobJsonRef.current.delete(sessionId);
   }, []);
 
-  /** Flush pending writes and stop every live agent. Runs on logout and unmount. */
+  /**
+   * Flush pending writes and stop every live agent. Runs on logout and
+   * unmount, and — because the surrounding effect's deps include several
+   * values that are not guaranteed to be referentially stable across
+   * renders (e.g. profile/tool-building chains rooted in a useMutation
+   * result) — potentially on every render while logged out. Both setState
+   * calls must be true no-ops once already empty/null, or an unstable dep
+   * turns into an infinite render loop: setState forces this component to
+   * re-render, which recomputes the unstable dep, which reruns the effect,
+   * which calls teardownAll again.
+   */
   const teardownAll = useCallback((): void => {
     for (const sessionId of [...saveTimersRef.current.keys()]) flushPendingSave(sessionId);
     for (const sessionId of [...agentsRef.current.keys()]) stopAgent(sessionId);
-    setSnapshots({});
-    setBuildError(null);
+    setSnapshots((prev) => (Object.keys(prev).length === 0 ? prev : {}));
+    setBuildError((prev) => (prev === null ? prev : null));
   }, [flushPendingSave, stopAgent]);
 
   // Unmount: tear down every live agent so no stream keeps running (or
