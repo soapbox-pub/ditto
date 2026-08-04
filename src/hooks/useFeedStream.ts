@@ -7,6 +7,7 @@ import { useFeedSettings } from './useFeedSettings';
 import { useContentFilters } from './useContentFilters';
 import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { useTileFeedKinds } from '@/tiles/feedKinds';
 import { isReactionKind, isRepostKind, isZapKind, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { APP_RELAYS, getEffectiveRelays } from '@/lib/appRelays';
@@ -65,6 +66,7 @@ export function useFeedStream(options: UseFeedStreamOptions): {
   const { feedSettings } = useFeedSettings();
   const { mutedPubkeys } = useMutedAuthorFilter();
   const { shouldFilterEvent } = useContentFilters();
+  const tileFeedKinds = useTileFeedKinds();
 
   const [newPostCount, setNewPostCount] = useState(0);
 
@@ -94,7 +96,7 @@ export function useFeedStream(options: UseFeedStreamOptions): {
 
   // Reposts / reactions / zaps are wrapper events; the global feed excludes them
   // and they shouldn't drive the "new posts" count anywhere — count the targets.
-  const baseKinds = kinds ?? getEnabledFeedKinds(feedSettings);
+  const baseKinds = kinds ?? getEnabledFeedKinds(feedSettings, tileFeedKinds);
   const streamKinds = baseKinds.filter(
     (k) => !isRepostKind(k) && !isReactionKind(k) && !isZapKind(k),
   );
