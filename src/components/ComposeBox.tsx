@@ -117,13 +117,27 @@ async function getImageMeta(file: File): Promise<{ dim?: string; blurhash?: stri
 /** Root target for a compose action that isn't a Nostr event — a URL or a NIP-73 hashtag-style identifier (e.g. `bitcoin:tx:...`, `isbn:...`, `iso3166:...`). */
 export type ExternalReplyRoot = URL | `#${string}`;
 
+/**
+ * localStorage key for the new-post ("What's happening?") composer draft.
+ * Exported so other surfaces (e.g. the home feed's mission composer) can detect
+ * an in-progress draft before deciding whether to prefill starter text.
+ */
+export const NEW_POST_DRAFT_KEY = 'compose-draft:new';
+
 /** True if `replyTo` is an external (non-Nostr-event) root. */
 function isExternalRoot(replyTo: NostrEvent | ExternalReplyRoot | undefined): replyTo is ExternalReplyRoot {
   return replyTo instanceof URL || typeof replyTo === 'string';
 }
 
 interface ComposeBoxProps {
-  onSuccess?: () => void;
+  /**
+   * Called after a successful publish, with the event that was published.
+   * The event lets callers react to *what* was posted rather than merely that
+   * something was — the post-onboarding mission uses it to check the note
+   * qualifies before counting it. Absent for publishes that don't produce a
+   * single root event (voice replies).
+   */
+  onSuccess?: (event?: NostrEvent) => void;
   placeholder?: string;
   compact?: boolean;
   /** Event being replied to – adds NIP-10 reply tags when set. A URL or NIP-73 identifier triggers NIP-22 comment mode. */
@@ -227,7 +241,7 @@ export function ComposeBox({
     if (typeof replyTo === 'string') return `compose-draft:ext:${replyTo}`;
     if (replyTo) return `compose-draft:reply:${replyTo.id}`;
     if (quotedEvent) return `compose-draft:quote:${quotedEvent.id}`;
-    return 'compose-draft:new';
+    return NEW_POST_DRAFT_KEY;
   }, [replyTo, quotedEvent]);
 
   const [content, setContent] = useState(() => {
@@ -1172,7 +1186,7 @@ export function ComposeBox({
           </ToastAction>
         ) : undefined,
       });
-      onSuccess?.();
+      onSuccess?.(published);
     } catch {
       toast({ title: 'Error', description: 'Failed to publish note.', variant: 'destructive' });
     }
@@ -1224,7 +1238,7 @@ export function ComposeBox({
       prependEventToFeeds(queryClient, published);
       notificationSuccess();
       toast({ title: 'Poll published!' });
-      onSuccess?.();
+      onSuccess?.(published);
     } catch {
       toast({ title: 'Error', description: 'Failed to publish poll.', variant: 'destructive' });
     }

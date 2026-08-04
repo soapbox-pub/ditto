@@ -20,8 +20,8 @@ interface ReplyComposeModalProps {
   quotedEvent?: NostrEvent | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called after a post is successfully published. */
-  onSuccess?: () => void;
+  /** Called after a post is successfully published, with the published event. */
+  onSuccess?: (event?: NostrEvent) => void;
   /** Pre-filled content for the compose box. */
   initialContent?: string;
   /** Open directly in poll mode. */
@@ -152,7 +152,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
             <ComposeBox
               replyTo={isQuote ? undefined : (event ?? undefined)}
               quotedEvent={quotedEvent ?? undefined}
-              onSuccess={() => { onOpenChange(false); onSuccess?.(); }}
+              onSuccess={(published) => { onOpenChange(false); onSuccess?.(published); }}
               placeholder={placeholder}
               forceExpanded
               hideAvatar

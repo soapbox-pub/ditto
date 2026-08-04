@@ -7,6 +7,7 @@ import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 import { CursorFireEffect } from '@/components/CursorFireEffect';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { MissionEngine } from '@/components/MissionEngine';
 import { CenterColumnContext, DrawerContext, LayoutStore, LayoutStoreContext, NavHiddenContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { NsitePlayerContext, type NsitePlayerState } from '@/contexts/NsitePlayerContext';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -49,6 +50,11 @@ function MainLayoutInner() {
     <CenterColumnContext.Provider value={centerColumnEl}>
     <DrawerContext.Provider value={openDrawer}>
     <NavHiddenContext.Provider value={navHidden}>
+      {/* Post-onboarding mission engine — headless, mounted exactly once so
+          mission initialization and completion detection happen in one place
+          no matter which page (or how many mission surfaces) are on screen. */}
+      <MissionEngine />
+
       {/* Magic Mouse fire particle overlay */}
       {config.magicMouse && <CursorFireEffect />}
 
