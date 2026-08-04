@@ -908,3 +908,33 @@ Two items are not covered anywhere else, because they live in a separate repo
   itself is closed in favor of the `widgets/*` split.
 - `SESSION_HANDOFF.md` was folded into this doc and deleted 2026-08-04; this
   file is the sole tracker going forward.
+- **Screenshot gate (2026-08-04):** a tier's manual QA pass is not complete without screenshots in
+  its `screenshots/` draft folder. Filing the real MR on GitLab is gated on those screenshots
+  existing — do not push a draft MR to GitLab until its `screenshots/` folder is populated and the
+  `mr.md` Screenshots section references them.
+
+## Review infrastructure (2026-08-04)
+
+- **Live preview:** `https://ditto-preview.containers.shantaram.xyz` — Dokku app on
+  `containers.shantaram.xyz`, HTTPS via Let's Encrypt. Built from a throwaway local `deploy/preview`
+  branch (Dockerfile + nginx SPA config, never pushed to `origin`/`github`) off
+  `widgets/ai-widget-creation` (the full stack's tip). Redeploy after any tip change with
+  `git push dokku-preview deploy/preview:main` from the worktree that branch lives in.
+- **Reported broken (2026-08-04, not yet fixed):** signing in on the live preview throws a
+  "Maximum update depth exceeded" React error. Under investigation — see "Live-preview sign-in bug"
+  below once diagnosed.
+- **Two-worktree split, adopted after a self-inflicted bug:** checking out `deploy/preview` in
+  `/tmp/opencode/split-exec-wt` while that same worktree's Vite dev server was still running (from
+  the tier-by-tier manual QA pass) broke the dev server's module graph — `git checkout` mid-session
+  under a live Vite process is not safe, always stop the dev server first or use a separate
+  worktree. Going forward: `/tmp/opencode/split-exec-wt` is dedicated to the full-stack tip
+  (`deploy/preview` / `widgets/ai-widget-creation`) for live-preview bug investigation and dokku
+  deploys; a separate worktree is used for the tier-by-tier branch QA pass so the two never collide
+  again.
+- **Draft issue/MR content:** `/tmp/opencode/review-drafts/issues/<tier-slug>/` — `issue.md` +
+  `mr.md` per tier (12 total: 5 ai-chat + 7 widgets), plus a `screenshots/` folder each. Checklists
+  in `mr.md` are left as the untouched literal `CONTRIBUTING.md` template (all boxes `[ ]`) —
+  actual status (test counts, manual-QA state, design sign-off) goes in a "Draft tracking note"
+  paragraph at the bottom of each file, marked to strip before the MR is filed. The internal
+  `researcher` review pass is never mentioned in MR text — it's an internal process step, not part
+  of the public MR description.
