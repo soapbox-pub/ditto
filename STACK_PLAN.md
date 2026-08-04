@@ -7,7 +7,8 @@
 
 ## Cross-branch state (as of 2026-08-04)
 
-This doc now tracks the whole stack across all four branches, not just this one.
+This doc now tracks the whole stack across all four branches, not just this one. It stays out of
+`main` — deleted just before the whole effort's final merge, per the header note above.
 
 **Branch/MR stack** (each targets the previous link, not `main`):
 
@@ -15,30 +16,111 @@ This doc now tracks the whole stack across all four branches, not just this one.
    Gleason ruled out GH-Pages subpath deploys entirely for security reasons (nsec-in-localStorage
    origin isolation). See "GH Pages subpath deploys — abandoned" below.
 2. `fix/portal-dropdown-flip-anchor` — issue #318, MR !249 targets `main` directly (retargeted off
-   !248 once it was put on hold). **Marked ready for review 2026-08-04** — all of Dirk's blocking
-   items addressed and pushed; still waiting on his reply on the screenshot-repro question.
-3. `ai-chat-tlc` — issue #319, MR !245 targets !249's branch. **Marked ready for review 2026-08-04.**
-   All of Dirk's original blockers were resolved 2026-08-03. On 2026-08-04 a full code-quality
-   review pass (see "ai-chat-tlc code-quality review" below) closed all 35 flagged findings plus 4
-   more surfaced by independent re-review, most notably gating `search_nips` behind the opt-in
+   !248 once it was put on hold). Un-drafted 2026-08-04 to trigger review — all of Dirk's blocking
+   items addressed and pushed; still waiting on his reply on the screenshot-repro question. Not
+   expected to merge until the team's UI-cleanup round is done; will carry the `On Hold` label
+   again between active review passes.
+3. `ai-chat-tlc` — issue #319, MR !245 targets !249's branch. Un-drafted 2026-08-04 to trigger
+   review; carries `On Hold` (same status caveat as !249 above — not a merge signal). All of
+   Dirk's original blockers were resolved 2026-08-03. On 2026-08-04 a full code-quality review
+   pass (see "ai-chat-tlc code-quality review" below) closed all 35 flagged findings plus 4 more
+   surfaced by independent re-review, most notably gating `search_nips` behind the opt-in
    `nostr-lookup` ability alongside `nak` (it queries an unmoderated, no-`authors`-filter relay
    feed — same prompt-injection risk class). `@soapbox.pub/nostr-canvas` bumped 0.14.6 → 0.14.7 in
-   the same pass. Still open: Chad Curtis's formal review (requested), and Alex Gleason's answer on
-   the three questions from Dirk's original review (NIP-78 key storage, the pre-1.0 `nostr-canvas`
-   dependency, and whether AI chat is where product attention belongs right now).
+   the same pass. Still open: Chad Curtis's formal review (asked to hold until the split below
+   lands), and Alex Gleason's answer on the three questions from Dirk's original review (NIP-78 key
+   storage, the pre-1.0 `nostr-canvas` dependency, and whether AI chat is where product attention
+   belongs right now). **Slated for its own 6-way split — see "ai-chat-tlc split" below, not yet
+   started.**
 4. Tiles-authoring-bundle (tier 3, not yet created) will target `ai-chat-tlc`. Unchanged from the
    2026-08-03 scoping below — not started.
-5. `tiles-v3-widgetonly` (this branch, tier 4) has MR !246, targeting `ai-chat-tlc`. **Marked ready
-   for review 2026-08-04.** Rebased cleanly onto `ai-chat-tlc`'s 2026-08-04 tip (the leftover
-   `basename={import.meta.env.BASE_URL}` GH-Pages wiring flagged in `SESSION_HANDOFF.md` turned out
-   to already be resolved as a side effect of that rebase — `ai-chat-tlc`'s clean version won the
-   3-way merge for that line). The tier-4 split into three MRs (below) is still the next step, not
-   yet started.
+5. `tiles-v3-widgetonly` (this branch, tier 4) has MR !246, targeting `ai-chat-tlc`. Un-drafted
+   2026-08-04 to trigger review. **Dirk reviewed in full 2026-08-04** (see "Dirk's !246 review" below)
+   — requesting changes, marked `On Hold`. Two blocking defects (`MarketplaceNag`'s stuck debug
+   flag, `CanvasRuntimeProvider`'s missing platform gate) fixed same day (`fe08ef88`), plus
+   `nip44-decrypt` hardened to always-prompt (`4f86bc41`) in response to the capability-chaining
+   finding (tracked separately as issue #321, P1). **Slated for its own 4-way split per Dirk's
+   request — see "tiles-v3-widgetonly split" below, not yet started.**
 
 Squash-merge is on for every MR in this stack. The commit counts visible during review collapse
 to one commit each on `main`.
 
 See `SESSION_HANDOFF.md` in this same branch for the full session context behind this state.
+
+## Dirk's !246 review (2026-08-04)
+
+Full review at
+[note_3639283915](https://gitlab.com/soapbox-pub/ditto/-/merge_requests/246#note_3639283915), reply
+at [note_3640617411](https://gitlab.com/soapbox-pub/ditto/-/merge_requests/246#note_3640617411).
+Praised the security engineering (PSBT non-persistence, `createSafeFetch`'s HTTPS-only/no-credential
+posture, `handleNavigate`'s scheme rejection, per-account grant isolation, author-bound definitions,
+parse-time image sanitization, no `dangerouslySetInnerHTML`/`eval`/`any`) as the best in the Ditto
+tree, but requested changes and marked `On Hold`:
+
+- **Two blocking defects, both fixed same day**: `MarketplaceNag.tsx`'s `ALWAYS_SHOW_NAG` debug flag
+  left enabled (dismiss was a no-op); `CanvasRuntimeProvider.tsx`'s activation gate skipping
+  `canUseCanvasTiles()`, which could boot the wasm Canvas runtime on Capacitor.
+- **Capability chaining** (filed separately as issue #321, P1, blocks marketplace rollout
+  regardless of split): `adapter.subscribe` has no capability gate; `nip44-decrypt` was a normal
+  persistable grant. Chained with `fetch`, a once-granted tile could read and exfiltrate NIP-44
+  material (DMs, Ditto's own encrypted-settings blob). `nip44-decrypt` now always-prompts
+  (`4f86bc41`); the `subscribe` gate and the rest of the threat model are still open, tracked in
+  #321, with Alex looped in as a second reviewer on the capability boundary.
+- **Scope**: wants this MR split 4 ways (rename+redirects; Canvas runtime + install/permissions +
+  marketplace behind a flag; feed-kind integration; AI widget creation later), each with its own
+  issue and a written Philosophy-alignment case. Also wants `STACK_PLAN.md` out of the diff — see
+  above, already the plan.
+- **Also required before merge**: NIP.md's kind-30207 link needs a stable canonical URL (not the
+  version-pinned unpkg link that already caused two drift-fix commits), plus adding the kind to the
+  public Ditto Nostr Reference docs site.
+- **Smaller findings, to fold into the split rather than patch into this combined diff**: a few
+  incomplete rename strings, zero i18n coverage on the new tile/widget pages (and a real regression
+  — deleted translated `WIDGET_CATEGORIES` strings, not disclosed in the description), `TilesPage`
+  polling relays every 15s at `staleTime: 0` (same complaint class as #313), assorted code smells
+  (write-only re-render state hacks, unused `runtimeVersion`, misleading `_props` prefix), and a
+  description pointing at `TILES_PLAN.md`, which no longer exists post-consolidation.
+- **Two questions, both answered in the reply**: confirmed nothing landed on `main` outside review
+  (what Dirk saw was GitLab's own "added N commits from branch X" system notes after each rebase,
+  not a real `git merge`); confirmed no design sign-off yet from MK or lemon on the
+  `WidgetCard`/`WidgetPickerDialog` rework — will loop both in explicitly before it lands.
+- **Sequencing recommendation** (agreed): land the Canvas runtime + permission model behind a flag
+  first, reviewed independently, before opening the marketplace — today's realistic catalog is
+  entirely tiles authored by the one person who also built the marketplace and its library.
+
+## ai-chat-tlc split — scoped, not yet started (2026-08-04)
+
+Verified against the actual import graph (not just directory-name grouping — an earlier pass at
+this got the layering wrong; `aiClient.ts` and `useChatSessions.ts` both cut across the naive
+per-feature split). Six tiers, each a new branch off the previous, `ai-chat-tlc` itself becoming
+the last:
+
+1. `ai-chat/core-data-model` (~2,475 net LoC) — `abilities`, `pendingInput`, `agentActivity`,
+   `lib/autoTitle`, `shakespeareApi`, `useAIProviders`, `useChatSessions`, `chatTabsStorage`,
+   `aiClient` (+ tests, `package.json`/`.npmrc`). No dependency on anything else in the stack.
+2. `ai-chat/tool-system` (~1,266) — `toolRegistry`, `nakTool`, `setThemeTool` (+ tests). Depends on
+   tier 1 (`abilities`).
+3. `ai-chat/provider-settings-ui` (~1,141) — `SettingsAIPage`, `useAutoDetectModels` (+ tests).
+   Depends on tier 1 (`useAIProviders`).
+4. `ai-chat/session-hooks` (~632) — `useAgentSessions`, `useAutoTitle` (hook), `useToolRegistry` (+
+   tests). Depends on tiers 1–2.
+5. `ai-chat/chat-subcomponents` (~1,134) — `ToolCallDetails`, `PendingQuestionsCard`,
+   `MentionAutocomplete` (+ tests). Depends on tier 1.
+6. `ai-chat-tlc` (kept — issue #319, MR !245 stays, `Closes #319` stays) — `AIChatPage`,
+   `AppRouter.tsx`, `LayoutContext` wiring (+ test). Depends on tiers 1–5. Retargets from
+   `fix/portal-dropdown-flip-anchor` to tier 5. Remains the tracking MR/issue for the whole
+   AI-chat-modernization effort — merging it is what closes #319.
+
+`tiles-v3-widgetonly`/!246 keeps targeting `ai-chat-tlc` by branch name in GitLab (no retarget
+needed there) but needs a mechanical rebase once `ai-chat-tlc`'s tip content changes shape.
+Each of tiers 1–5 gets its own new issue and a written Philosophy case, per Dirk's !246 review.
+
+## tiles-v3-widgetonly split — not yet scoped (2026-08-04)
+
+Dirk's proposed 4-way split (rename+redirects; Canvas runtime + install/permissions +
+marketplace-behind-a-flag; feed-kind integration; AI widget creation later) is agreed on in
+principle but not yet broken down by file/import graph the way the `ai-chat-tlc` split above was.
+Needs the same treatment before cutting branches: verify the real dependency order (not just
+Dirk's category names), size each tier, confirm naming/issue plan with the user.
 
 ## Vision
 
