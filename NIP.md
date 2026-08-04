@@ -11,6 +11,7 @@
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
+| 30637 | Badge Claim          | Public request to be awarded a NIP-58 badge (per user+badge) |
 | 37849 | Quiz                 | Shareable quiz with weighted-scoring questions        |
 | 7849  | Quiz Result          | A user's computed result for a quiz                   |
 | 38192 | PS Memory Card       | One 8 KB block of a PlayStation 1 memory card         |
@@ -527,6 +528,70 @@ After resolution (assuming `$follows` = `["pk1", "pk2"]`):
 - To **clear** all tabs: publish a kind 16769 event with no `tab` tags (only `alt`).
 - Clients MUST filter by `authors: [pubkey]` when querying to prevent spoofing.
 - `var` tags are shared across all `tab` tags in the same event.
+
+---
+
+## Kind 30637: Badge Claim
+
+### Summary
+
+Addressable event by which a user **publicly requests to be awarded a NIP-58 badge** ([NIP-58](https://github.com/nostr-protocol/nips/blob/master/58.md) — badge definitions are kind 30009, awards kind 8). It is the public bridge for badges whose award criteria are computed from **private** data the issuer cannot see.
+
+Ditto's first use is the **Ditto Explorer** badge, granted for completing the post-onboarding "first steps" guide. That guide's progress lives in the user's private, NIP-44-encrypted NIP-78 settings (kind 30078), so the badge-award server has no way to observe completion. Instead, when the user finishes the guide and explicitly clicks **Claim Badge**, the client publishes a kind 30637 claim. A server operated by the badge issuer listens for these claims, validates them, and (if no award already exists) issues the NIP-58 kind 8 award from the issuer key.
+
+The kind is **addressable** (`30000–39999`), keyed by `(pubkey, kind, d)` where `d` is the badge's d-tag. A claim is therefore **idempotent per user+badge**: re-claiming (or claiming from another device) replaces the prior claim rather than creating duplicates.
+
+A claim is a **request, not proof.** It is self-asserted and trivially forgeable. Issuers MUST treat it only as a signal to evaluate their own award criteria; the claim's `path` tags are informational and MUST NOT be trusted as evidence on their own.
+
+### Event Structure
+
+```json
+{
+  "kind": 30637,
+  "pubkey": "<claimant-pubkey>",
+  "content": "",
+  "tags": [
+    ["d", "ditto-explorer"],
+    ["a", "30009:7793d3bf8a1d40d5d0c2097d5b3b8179674fce080f9a9ab2f04fd331e2b95afe:ditto-explorer"],
+    ["p", "7793d3bf8a1d40d5d0c2097d5b3b8179674fce080f9a9ab2f04fd331e2b95afe"],
+    ["path", "find-people"],
+    ["path", "post-small"],
+    ["path", "customize"],
+    ["path", "explore"],
+    ["alt", "Claim for the Ditto Explorer badge"]
+  ]
+}
+```
+
+### Content
+
+Empty string (`""`) by convention — this is a tag-only event.
+
+### Tags
+
+| Tag    | Required | Description                                                                                                   |
+|--------|----------|---------------------------------------------------------------------------------------------------------------|
+| `d`    | Yes      | The claimed badge's d-tag (e.g. `ditto-explorer`). Forms the addressable coordinate `30637:<claimant>:<d>` and MUST equal the d-tag of the referenced kind 30009 definition. |
+| `a`    | Yes      | NIP-58 badge definition coordinate `30009:<issuer-pubkey>:<d>` being claimed. The server filters on this.    |
+| `p`    | Yes      | The badge **issuer** pubkey (the kind 30009 author). Lets the server filter claims by `#p` as well as `#a`.   |
+| `path` | No (≥0)  | An accomplishment identifier the claim is based on. For the Ditto Explorer badge, one per completed guide path: `find-people`, `post-small`, `customize`, `explore`. Informational only. |
+| `alt`  | Yes      | NIP-31 human-readable fallback.                                                                               |
+
+### Client Behavior
+
+- A claim MUST only be published on an **explicit user action** (clicking "Claim Badge"), never automatically when criteria are met.
+- The client SHOULD record the published claim's event id and timestamp in its own (private) state so the claimed/pending-award UI survives reloads and device switches, and so it does not republish on every render.
+- Clients MUST NOT publish a claim on behalf of a user who skipped/declined the underlying flow.
+- A client that persists an in-flight ("claiming") state SHOULD also record when it started, and treat a stale in-flight state (e.g. older than ~60s — the app closed or crashed mid-publish) as retryable, so a single interrupted attempt can never lock the user out of claiming forever.
+
+### Server Behavior (informational — out of scope for the client)
+
+The issuer's award server is expected to:
+
+1. Subscribe with `{ "kinds": [30637], "#a": ["30009:<issuer>:<d>"] }`.
+2. Validate the claim's tag shape and (optionally) freshness.
+3. Check that no NIP-58 kind 8 award for that `(badge, recipient)` already exists.
+4. Publish the kind 8 award from the issuer key. **This client does not implement the award; that is server-only.**
 
 ---
 

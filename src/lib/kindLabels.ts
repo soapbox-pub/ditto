@@ -338,6 +338,7 @@ export const KIND_LABELS: Record<number, string> = {
   30618: 'Repository state',
   // Ditto custom kinds
   30621: 'Constellation',
+  30637: 'Badge claim',
   // NIP-54 Wiki
   30818: 'Wiki article',
   30819: 'Wiki redirect',
