@@ -10,6 +10,7 @@ import type { Theme, FeedSettings, ContentWarningPolicy, SavedFeed, WidgetConfig
 import type { ThemeConfig } from '@/themes';
 import type { ContentFilter } from './useContentFilters';
 import type { LetterPreferences } from '@/lib/letterTypes';
+import type { AIProviderProfile } from './useAIProviders';
 import { EncryptedSettingsSchema } from '@/lib/schemas';
 
 /**
@@ -116,6 +117,8 @@ export interface EncryptedSettings {
   savedFeeds?: SavedFeed[];
   /** Letter preferences (stationery, font, frame, closing, signature, inbox filters) */
   letterPreferences?: LetterPreferences;
+  /** AI provider profiles with syncEnabled: true (cross-device sync via NIP-78) */
+  aiProviderProfiles?: AIProviderProfile[];
 }
 
 /**

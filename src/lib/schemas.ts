@@ -395,4 +395,17 @@ export const EncryptedSettingsSchema = z.looseObject({
       return result.success ? [result.data] : [];
     })
   ).optional(),
+  aiProviderProfiles: z.array(z.object({
+    id: z.string(),
+    kind: z.enum(['openrouter', 'openai-compatible', 'deepseek']),
+    name: z.string(),
+    baseURL: z.string(),
+    apiKey: z.string(),
+    models: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      contextWindow: z.number().optional(),
+    })),
+    syncEnabled: z.boolean(),
+  })).optional(),
 });
