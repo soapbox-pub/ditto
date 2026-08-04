@@ -39,6 +39,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeReactions: false,
       feedIncludeZaps: false,
       feedIncludeArticles: false,
+      feedIncludeTiles: false,
       showArticles: false,
       showHighlights: false,
       feedIncludeHighlights: false,
@@ -150,7 +151,11 @@ export function TestApp({ children }: TestAppProps) {
     sandboxDomain: 'iframe.diy',
     esploraApis: ['https://mempool.space/api'],
     currencyDisplay: 'usd',
+    tileKindConflictMode: 'native-only',
     sidebarWidgets: [],
+    installedCanvasTiles: [],
+    canvasTileSettings: [],
+    widgetMarketplaceEnabled: false,
     maxCachedEventAge: 604800,
   };
 

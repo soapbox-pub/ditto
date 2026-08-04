@@ -29,6 +29,14 @@ export type NsfwPolicy = "blur" | "hide" | "show";
  */
 export type CurrencyDisplay = "usd" | "sats";
 
+/**
+ * How tile-claimed feed kinds interact with kinds Ditto already renders
+ * natively. `native-only` (default) drops any kind Ditto handles itself;
+ * `show-both` shows the native card + generic widget card; `generic-overrides`
+ * replaces the native renderer with the generic widget-interaction card.
+ */
+export type TileKindConflictMode = "native-only" | "show-both" | "generic-overrides";
+
 export interface RelayMetadata {
   /** List of relays with read/write permissions */
   relays: { url: string; read: boolean; write: boolean }[];
@@ -60,6 +68,8 @@ export interface FeedSettings {
   feedIncludeZaps: boolean;
   /** Include long-form articles (kind 30023) in the feed */
   feedIncludeArticles: boolean;
+  /** Include Nostr Canvas tile definitions (kind 30207) in the feed */
+  feedIncludeTiles: boolean;
   /** Show Articles (kind 30023) link in sidebar */
   showArticles: boolean;
   /** Show Highlights (kind 9802) link in sidebar */
@@ -383,6 +393,23 @@ export interface AppConfig {
   /** Ordered list of right sidebar widget configs. Each entry is a widget type ID with optional display settings. */
   sidebarWidgets: WidgetConfig[];
   /**
+   * How tile-claimed feed kinds interact with kinds Ditto already renders
+   * natively. `native-only` (default) drops any kind Ditto handles itself;
+   * `show-both` shows the native card + generic widget card; `generic-overrides`
+   * replaces the native renderer with the generic widget-interaction card.
+   */
+  tileKindConflictMode: TileKindConflictMode;
+  /** Installed Canvas tiles, synchronized as author-bound coordinates through encrypted settings. */
+  installedCanvasTiles: InstalledCanvasTile[];
+  /** Values for declared Canvas tile settings, synchronized through encrypted settings. */
+  canvasTileSettings: CanvasTileSettings[];
+  /**
+   * Shows the widget marketplace (browse/install community tiles) in nav and
+   * routes. Off by default until there's a real catalog and the capability
+   * model has an independent security review -- see issue #321.
+   */
+  widgetMarketplaceEnabled: boolean;
+  /**
    * Maximum age, in seconds, of events kept in the local IndexedDB event
    * cache. After each write flush, events older than this are pruned based on
    * their author: a logged-in account's own events are never evicted (any
@@ -401,6 +428,17 @@ export interface WidgetConfig {
   id: string;
   /** User-configured height in pixels. Overrides the widget's default height. */
   height?: number;
+}
+
+/** An installed Canvas tile, identified by its author-bound addressable coordinate. */
+export interface InstalledCanvasTile {
+  pubkey: string;
+  identifier: string;
+}
+
+/** Persisted values for settings declared by an installed Canvas tile. */
+export interface CanvasTileSettings extends InstalledCanvasTile {
+  values: Record<string, string>;
 }
 
 export interface AppContextType {

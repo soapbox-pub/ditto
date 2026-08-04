@@ -163,6 +163,16 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'feed',
     blurb: 'Blog posts, essays, and guides. Write and publish long-form articles.',
   },
+  {
+    kind: 30207,
+    id: 'tiles',
+    feedKey: 'feedIncludeTiles',
+    label: 'Widgets',
+    description: 'Nostr Canvas programmable widgets',
+    addressable: true,
+    section: 'feed',
+    feedOnly: true,
+  },
   // Media
   {
     kind: 20,
@@ -840,7 +850,7 @@ export function getExtraKindDef(id: string): ExtraKindDef | undefined {
 export const FEED_KINDS: ExtraKindDef[] = EXTRA_KINDS.filter((def) => def.section === 'feed');
 
 /** Return the kind numbers the user has opted to include in mixed feeds. */
-export function getEnabledFeedKinds(feedSettings: FeedSettings): number[] {
+export function getEnabledFeedKinds(feedSettings: FeedSettings, extraKinds?: number[]): number[] {
   const kinds: number[] = [];
 
   for (const def of EXTRA_KINDS) {
@@ -859,6 +869,11 @@ export function getEnabledFeedKinds(feedSettings: FeedSettings): number[] {
         kinds.push(...def.extraFeedKinds);
       }
     }
+  }
+
+  // Merge in tile-claimed feed kinds (behind the feedIncludeTiles toggle in T5.1).
+  if (feedSettings.feedIncludeTiles && extraKinds?.length) {
+    kinds.push(...extraKinds);
   }
 
   return kinds;
@@ -930,6 +945,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   31990: 'app',
   30063: 'Zapstore release',
   3063: 'Zapstore asset',
+  30207: 'widget',
 };
 
 /**

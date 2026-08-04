@@ -4,6 +4,7 @@ import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
 import { BackButtonHandler } from "@/components/BackButtonHandler";
 import { DeepLinkHandler } from "@/components/DeepLinkHandler";
 import { HighlightSelectionButton } from "@/components/HighlightSelectionButton";
+import { CanvasNavigateBridge } from "@/components/CanvasNavigateBridge";
 import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import { BlobbiActionsProvider } from "@/blobbi/companion/interaction/BlobbiActionsProvider";
@@ -139,6 +140,7 @@ export function AppRouter() {
         <DeepLinkHandler />
         <BackButtonHandler />
         <ScrollToTop />
+        <CanvasNavigateBridge />
         <HighlightSelectionButton />
         <BlobbiActionsProvider>
           <BlobbiCompanionGate />

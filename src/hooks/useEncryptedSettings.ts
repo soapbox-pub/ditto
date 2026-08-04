@@ -6,7 +6,7 @@ import type { NostrFilter } from '@nostrify/nostrify';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from './useCurrentUser';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
-import type { Theme, FeedSettings, ContentWarningPolicy, SavedFeed, WidgetConfig } from '@/contexts/AppContext';
+import type { Theme, FeedSettings, ContentWarningPolicy, SavedFeed, WidgetConfig, InstalledCanvasTile, CanvasTileSettings } from '@/contexts/AppContext';
 import type { ThemeConfig } from '@/themes';
 import type { ContentFilter } from './useContentFilters';
 import type { LetterPreferences } from '@/lib/letterTypes';
@@ -88,6 +88,10 @@ export interface EncryptedSettings {
   sidebarOrder?: string[];
   /** Ordered list of right sidebar widget configs. */
   sidebarWidgets?: WidgetConfig[];
+  /** Installed Canvas tiles, synchronized as author-bound coordinates. */
+  installedCanvasTiles?: InstalledCanvasTile[];
+  /** Declared Canvas tile settings, synchronized separately from local grants. */
+  canvasTileSettings?: CanvasTileSettings[];
   /** Sidebar item ID to display on the homepage ("/") */
   homePage?: string;
   /** Whether the Global feed tab is shown */

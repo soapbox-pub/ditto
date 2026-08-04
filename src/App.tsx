@@ -23,6 +23,7 @@ import { secureStorage } from "@/lib/secureStorage";
 import { DEFAULT_ESPLORA_APIS } from "@/lib/esplora";
 import { DEFAULT_SIDEBAR_WIDGETS } from "@/lib/sidebarWidgets";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
+import { CanvasRuntimeProvider } from "@/components/CanvasRuntimeProvider";
 import AppRouter from "./AppRouter";
 
 const queryClient = new QueryClient({
@@ -59,6 +60,7 @@ const hardcodedConfig: AppConfig = {
     feedIncludeReactions: true,
     feedIncludeZaps: true,
     feedIncludeArticles: true,
+    feedIncludeTiles: true,
     showArticles: true,
     showHighlights: true,
     feedIncludeHighlights: true,
@@ -183,7 +185,11 @@ const hardcodedConfig: AppConfig = {
   sandboxDomain: 'iframe.diy',
   esploraApis: [...DEFAULT_ESPLORA_APIS],
   currencyDisplay: 'usd',
+  tileKindConflictMode: 'native-only',
   sidebarWidgets: DEFAULT_SIDEBAR_WIDGETS,
+  installedCanvasTiles: [],
+  canvasTileSettings: [],
+  widgetMarketplaceEnabled: false,
   maxCachedEventAge: 604800,
 };
 
@@ -225,19 +231,20 @@ export function App() {
             <QueryClientProvider client={queryClient}>
               <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
                 <NostrProvider>
-                  <NostrSync />
-                  <NativeNotifications />
-                  <NotificationStream />
-
-                  <NWCProvider>
-                    <EmotionDevProvider>
-                      <TooltipProvider>
-                        <InitialSyncGate>
-                          <AppRouter />
-                        </InitialSyncGate>
-                      </TooltipProvider>
-                    </EmotionDevProvider>
-                  </NWCProvider>
+                  <CanvasRuntimeProvider>
+                    <NostrSync />
+                    <NativeNotifications />
+                    <NotificationStream />
+                    <NWCProvider>
+                      <EmotionDevProvider>
+                        <TooltipProvider>
+                          <InitialSyncGate>
+                            <AppRouter />
+                          </InitialSyncGate>
+                        </TooltipProvider>
+                      </EmotionDevProvider>
+                    </NWCProvider>
+                  </CanvasRuntimeProvider>
                 </NostrProvider>
               </NostrLoginProvider>
             </QueryClientProvider>
