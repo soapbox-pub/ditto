@@ -58,6 +58,14 @@ export interface LayoutOptions {
    * Use for full-screen media pages like vines/reels.
    */
   hideBottomNav?: boolean;
+  /**
+   * If true, keeps the mobile top bar pinned in place instead of letting it
+   * slide away via the scroll-direction hide behavior. Use for pages with a
+   * fixed-height layout and their own internal scroll container (e.g. chat),
+   * where residual window-scroll from unrelated causes (like the on-screen
+   * keyboard opening) can otherwise misfire the hide transition.
+   */
+  pinTopBar?: boolean;
 }
 
 /** All own-property keys of LayoutOptions used for shallow comparison. */
@@ -65,7 +73,7 @@ const LAYOUT_KEYS: (keyof LayoutOptions)[] = [
   'showFAB', 'fabKind', 'fabHref', 'onFabClick', 'fabIcon',
   'wrapperClassName', 'rightSidebar', 'scrollContainer',
   'noOverscroll', 'noMaxWidth', 'hasSubHeader', 'noArcs',
-  'hideTopBar', 'hideBottomNav',
+  'hideTopBar', 'hideBottomNav', 'pinTopBar',
 ];
 
 /** Shallow-compare two LayoutOptions objects. */

@@ -1,228 +1,274 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { FormattedMessage, useIntl, defineMessage, type MessageDescriptor } from 'react-intl';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { Bot, Send, Trash2, Palette, Type } from 'lucide-react';
+import remarkGfm from 'remark-gfm';
+import { Bot, Send, Trash2, Sparkles, Plus, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+
+import { isCompactionMarker } from '@soapbox.pub/nostr-canvas/devkit';
+import type { SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
 
 import { PageHeader } from '@/components/PageHeader';
-import { useShakespeare, useShakespeareCredits, type ChatMessage, type Model, type ChatCompletionTool } from '@/hooks/useShakespeare';
+import { PendingQuestionsCard } from '@/components/PendingQuestionsCard';
+import { ToolCallDetails, CHAT_PROSE_CLASSES } from '@/components/ToolCallDetails';
+import { chatMarkdownComponents } from '@/components/chatMarkdownComponents';
+import { getInFlightToolCall } from '@/lib/agentActivity';
+import { useShakespeare, useShakespeareCredits, type Model } from '@/hooks/useShakespeare';
+import { useChatSessions, defaultProviderId, type DisplayMessage, type ToolCall, type CreateSessionInput } from '@/hooks/useChatSessions';
+import { useAIProviders } from '@/hooks/useAIProviders';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useTheme } from '@/hooks/useTheme';
-import { bundledFonts } from '@/lib/fonts';
+import { useToolRegistry } from '@/hooks/useToolRegistry';
+import { useAgentSessions } from '@/hooks/useAgentSessions';
+import { useAutoTitle } from '@/hooks/useAutoTitle';
+import { useInsertText } from '@/hooks/useInsertText';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { MentionAutocomplete } from '@/components/MentionAutocomplete';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+
 import { cn } from '@/lib/utils';
+import { isAtTabCap, MAX_OPEN_TABS } from '@/lib/chatTabsStorage';
+import { ABILITIES } from '@/lib/abilities';
+import type { Ability } from '@/lib/abilities';
+import { buildSystemPrompt } from '@/lib/chatSystemPrompt';
 import { DorkThinking } from '@/components/DorkThinking';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
-import type { ThemeConfig } from '@/themes';
+// ─── Message Conversion ───
 
-// ─── Tool Definitions ───
-
-/** Build the list of available bundled font names for the tool description. */
-const AVAILABLE_FONTS = bundledFonts.map((f) => f.family).join(', ');
-
-const TOOLS: ChatCompletionTool[] = [
-  {
-    type: 'function',
-    function: {
-      name: 'set_theme',
-      description: `Set a custom theme for the application. You can set colors, a font, and a background image — all in one call. Colors are required; font and background are optional.
-
-Color values must be HSL strings WITHOUT the "hsl()" wrapper — just raw values like "228 20% 10%". Choose colors that work well together and ensure good contrast between background and text.
-
-For fonts, choose from the available bundled fonts: ${AVAILABLE_FONTS}. Pick a font that matches the mood of the theme.
-
-For backgrounds, provide a URL to a publicly accessible image. Choose images that complement the color scheme. Use mode "cover" for full-bleed backgrounds or "tile" for repeating patterns.`,
-      parameters: {
-        type: 'object' as const,
-        properties: {
-          background: {
-            type: 'string',
-            description: 'Background color as an HSL string (e.g. "228 20% 10%" for dark blue, "0 0% 100%" for white). This is the main page background.',
-          },
-          text: {
-            type: 'string',
-            description: 'Text/foreground color as an HSL string (e.g. "210 40% 98%" for near-white, "0 0% 10%" for near-black). Must contrast well with the background.',
-          },
-          primary: {
-            type: 'string',
-            description: 'Primary accent color as an HSL string (e.g. "258 70% 60%" for purple, "142 70% 45%" for green). Used for buttons, links, and interactive elements.',
-          },
-          font: {
-            type: 'string',
-            description: `Optional font family name. Must be one of the available bundled fonts: ${AVAILABLE_FONTS}. Choose a font that matches the theme's mood and aesthetic.`,
-          },
-          background_url: {
-            type: 'string',
-            description: 'Optional URL to a background image. Should be a direct link to a publicly accessible image file (JPEG, PNG, WebP, etc.).',
-          },
-          background_mode: {
-            type: 'string',
-            description: 'How to display the background image. "cover" fills the viewport (good for photos/landscapes). "tile" repeats the image (good for patterns/textures). Defaults to "cover".',
-            enum: ['cover', 'tile'],
-          },
-        },
-        required: ['background', 'text', 'primary'],
-      },
-    },
-  },
-];
-
-// ─── Message Types ───
-
-interface DisplayMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system' | 'tool_result';
-  content: string;
-  timestamp: Date;
-  toolCalls?: ToolCall[];
+function parseToolArgs(raw: string): Record<string, unknown> {
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
-interface ToolCall {
-  id: string;
-  name: string;
-  arguments: Record<string, unknown>;
-  result?: string;
-}
+/**
+ * Convert an AgentSession snapshot's messages into renderable chat messages.
+ * Tool results are attached to their originating assistant message instead
+ * of rendering as separate bubbles.
+ *
+ * Message ids are index-based (`msg-${index}`) because SessionMessage carries
+ * no stable identifier of its own — the agent SDK's message type is just the
+ * OpenAI chat-completion parameter shape, with no id and no timestamp.
+ * Timestamps therefore come from a cache keyed by those ids: the conversion
+ * reruns on every streamed chunk, so assigning `new Date()` at conversion
+ * time would make every bubble show the last render's time. The caller owns
+ * the cache and resets it whenever the id space restarts (session switch,
+ * clear, compaction), so ids never collide across threads.
+ */
+function snapshotToDisplayMessages(msgs: SessionMessage[], timestamps: Map<string, Date>): DisplayMessage[] {
+  const messages: DisplayMessage[] = [];
+  let pendingToolCalls: ToolCall[] = [];
 
-// ─── Tool Executor Hook ───
+  /** First-seen time for a message id; a fresh `now` on first observation. */
+  const timestampFor = (index: number): Date => {
+    const id = `msg-${index}`;
+    const existing = timestamps.get(id);
+    if (existing) return existing;
+    const created = new Date();
+    timestamps.set(id, created);
+    return created;
+  };
 
-/** Simple HSL format check: "H S% L%" where H is 0-360, S and L are 0-100%. */
-function isValidHsl(value: unknown): value is string {
-  if (typeof value !== 'string') return false;
-  return /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}%$/.test(value.trim());
-}
+  msgs.forEach((msg, index) => {
+    if (isCompactionMarker(msg)) return;
 
-function useToolExecutor() {
-  const { applyCustomTheme } = useTheme();
-
-  const executeToolCall = useCallback((name: string, args: Record<string, unknown>): string => {
-    switch (name) {
-      case 'set_theme': {
-        const { background, text, primary, font, background_url, background_mode } = args;
-
-        // Validate required color values
-        if (!isValidHsl(background) || !isValidHsl(text) || !isValidHsl(primary)) {
-          return JSON.stringify({
-            error: 'Invalid HSL color values. Each must be a string like "228 20% 10%".',
-            received: { background, text, primary },
-          });
-        }
-
-        // Build theme config
-        const themeConfig: ThemeConfig = {
-          colors: {
-            background: background as string,
-            text: text as string,
-            primary: primary as string,
-          },
-        };
-
-        // Add font if provided
-        if (typeof font === 'string' && font.trim()) {
-          const bundled = bundledFonts.find((f) => f.family.toLowerCase() === font.trim().toLowerCase());
-          if (bundled) {
-            themeConfig.font = { family: bundled.family };
-          } else {
-            return JSON.stringify({
-              error: `Unknown font "${font}". Available fonts: ${AVAILABLE_FONTS}`,
-            });
-          }
-        }
-
-        // Add background if provided (sanitize to prevent CSS injection via url())
-        if (typeof background_url === 'string' && background_url.trim()) {
-          const safeUrl = sanitizeUrl(background_url.trim());
-          if (safeUrl) {
-            themeConfig.background = {
-              url: safeUrl,
-              mode: background_mode === 'tile' ? 'tile' : 'cover',
-            };
-          }
-        }
-
-        applyCustomTheme(themeConfig);
-
-        // Build result summary
-        const result: Record<string, unknown> = {
-          success: true,
-          colors: { background, text, primary },
-        };
-        if (themeConfig.font) result.font = themeConfig.font.family;
-        if (themeConfig.background) result.background = { url: themeConfig.background.url, mode: themeConfig.background.mode };
-
-        return JSON.stringify(result);
+    if (msg.role === 'tool') {
+      const call = pendingToolCalls.find((tc) => tc.id === msg.tool_call_id);
+      if (call) {
+        call.result = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
       }
-      default:
-        return JSON.stringify({ error: `Unknown tool: ${name}` });
+      return;
     }
-  }, [applyCustomTheme]);
 
-  return { executeToolCall };
+    if (msg.role === 'user') {
+      const content = typeof msg.content === 'string' ? msg.content : '';
+      pendingToolCalls = [];
+      if (!content) return;
+      messages.push({ id: `msg-${index}`, role: 'user', content, timestamp: timestampFor(index) });
+      return;
+    }
+
+    if (msg.role !== 'assistant') return;
+
+    const content = typeof msg.content === 'string' ? msg.content : '';
+    const toolCalls = (msg.tool_calls ?? []).flatMap((tc) => {
+      if (tc.type !== 'function') return [];
+      return [{
+        id: tc.id,
+        name: tc.function.name,
+        arguments: parseToolArgs(tc.function.arguments),
+      }];
+    });
+    pendingToolCalls = toolCalls;
+
+    if (!content && toolCalls.length === 0) return;
+    messages.push({
+      id: `msg-${index}`,
+      role: 'assistant',
+      content,
+      timestamp: timestampFor(index),
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+    });
+  });
+
+  return messages;
 }
 
 // ─── System Prompt ───
-
-/** Build the system prompt with the configured app name woven in. */
-function buildSystemPrompt(appName: string): ChatMessage {
-  return {
-    role: 'system',
-    content: `You are Dork, extraordinaire. You are an AI assistant integrated into ${appName}, a Nostr social client. You can help users with questions, conversations, and tasks.
-
-You have a set_theme tool that applies a full custom theme. It supports:
-
-**Colors** (required): Three HSL values without the "hsl()" wrapper (e.g. "228 20% 10%"):
-- background: page background color
-- text: main text/foreground color (must contrast well with background)
-- primary: accent color for buttons, links, and highlights
-
-**Font** (optional): Choose from bundled fonts to match the theme's mood. Available: ${AVAILABLE_FONTS}
-
-**Background image** (optional): A URL to a publicly accessible image. Set mode to "cover" for full-bleed or "tile" for repeating patterns.
-
-When the user asks to change the theme, be creative — combine colors, fonts, and backgrounds to create a cohesive aesthetic. Always set colors. Add a font when it enhances the mood. Add a background image only when you have a suitable URL or the user requests one.
-
-Be concise and friendly. When you use a tool, briefly describe the theme you created.`,
-  };
-}
+//
+// The base system prompt (buildSystemPrompt) lives in `@/lib/chatSystemPrompt`
+// so the page file exports only components. It embeds the ability manifest
+// from `@/lib/abilities`.
 
 // ─── Page Component ───
 
 export function AIChatPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const { sendChatMessage, getAvailableModels, isLoading: apiLoading, error: apiError, retryAfter, clearError } = useShakespeare();
+  const { getAvailableModels } = useShakespeare();
   const hasCredits = useShakespeareCredits();
-  const { executeToolCall } = useToolExecutor();
+  const { profiles } = useAIProviders();
+  const { activeSession, activeSessionId, sessions, createSession, setActiveSessionId, closeSession, updateSession } = useChatSessions(user?.pubkey, profiles);
+  // The shakespeare credit balance only gates sessions that actually run on
+  // the shakespeare provider; other providers are unaffected by it.
+  const isShakespeareSession = activeSession.providerId === 'shakespeare';
+  const { buildSessionTools } = useToolRegistry();
 
-  const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState('');
-  const [isStreaming, setIsStreaming] = useState(false);
   const [models, setModels] = useState<Model[]>([]);
-  const [selectedModel, setSelectedModel] = useState('');
   const [modelsLoading, setModelsLoading] = useState(false);
+  const [capDialogOpen, setCapDialogOpen] = useState(false);
+  const [pendingCreation, setPendingCreation] = useState<CreateSessionInput | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useSeoMeta({
-    title: `AI Chat | ${config.appName}`,
-    description: 'Chat with AI assistant',
+  // Desktop-only overflow scroll arrows for the session tab bar (mirrors SubHeaderBar's pattern).
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollTabsLeft, setCanScrollTabsLeft] = useState(false);
+  const [canScrollTabsRight, setCanScrollTabsRight] = useState(false);
+
+  const checkTabsOverflow = useCallback(() => {
+    const el = tabsScrollRef.current;
+    if (!el) return;
+    const tolerance = 2; // sub-pixel rounding tolerance
+    setCanScrollTabsLeft(el.scrollLeft > tolerance);
+    setCanScrollTabsRight(el.scrollLeft + el.clientWidth < el.scrollWidth - tolerance);
+  }, []);
+
+  useEffect(() => {
+    const el = tabsScrollRef.current;
+    if (!el) return;
+    checkTabsOverflow();
+    el.addEventListener('scroll', checkTabsOverflow, { passive: true });
+    const ro = new ResizeObserver(checkTabsOverflow);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', checkTabsOverflow);
+      ro.disconnect();
+    };
+  }, [checkTabsOverflow]);
+
+  // Re-check overflow when tabs are opened/closed.
+  useEffect(() => {
+    checkTabsOverflow();
+  }, [sessions.length, checkTabsOverflow]);
+
+  const scrollTabsBy = useCallback((direction: 'left' | 'right') => {
+    const el = tabsScrollRef.current;
+    if (!el) return;
+    const amount = el.clientWidth * 0.6;
+    el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
+  }, []);
+
+  // @-mention insertion for the message textarea (people + abilities).
+  const { insertAtCursor: insertMention } = useInsertText(textareaRef, setInput);
+
+  const systemPromptFor = useCallback(() => {
+    return buildSystemPrompt(config.appName);
+  }, [config.appName]);
+
+  const { snapshots, buildError, sendMessage, clearActiveSession } = useAgentSessions({
+    sessions,
+    activeSessionId,
+    profiles,
+    user: user ?? null,
+    models,
+    buildSessionTools,
+    systemPromptFor,
   });
 
-  useLayoutOptions({ noOverscroll: true });
+  useAutoTitle({ sessions, snapshots, profiles, updateSession });
 
-  // Scroll to bottom on new messages
+  const agentSnapshot = snapshots[activeSessionId] ?? null;
+
+  // The snapshot's messages array is a fresh reference on every streamed
+  // chunk, so the conversion above reruns constantly; without a cache every
+  // bubble would show the last render's time instead of the moment the
+  // message first appeared. The map is keyed by the index-based message ids
+  // and reset whenever the id space restarts — switching sessions, clearing,
+  // or compacting the thread — so a new thread never inherits old
+  // timestamps.
+  const messageTimestampsRef = useRef<Map<string, Date>>(new Map());
+  const lastMessageCountRef = useRef(0);
+  const lastSessionIdRef = useRef<string | null>(null);
+  const snapshotMessages = agentSnapshot?.messages;
+
+  const messages = useMemo(() => {
+    const msgs = snapshotMessages ?? [];
+    if (lastSessionIdRef.current !== activeSessionId || msgs.length < lastMessageCountRef.current) {
+      messageTimestampsRef.current.clear();
+    }
+    lastSessionIdRef.current = activeSessionId;
+    lastMessageCountRef.current = msgs.length;
+    return snapshotToDisplayMessages(msgs, messageTimestampsRef.current);
+  }, [snapshotMessages, activeSessionId]);
+  const isLoading = agentSnapshot?.isLoading ?? false;
+  const sessionError = buildError ?? agentSnapshot?.error ?? null;
+
+  useSeoMeta({
+    title: `${intl.formatMessage({ id: 'ai-chat.title', defaultMessage: 'AI Chat' })} | ${config.appName}`,
+    description: intl.formatMessage({ id: 'ai-chat.metaDescription', defaultMessage: 'Chat with AI assistant' }),
+  });
+
+  useLayoutOptions({ noOverscroll: true, pinTopBar: true });
+
+  // Scroll to bottom on new messages. Scrolls the ScrollArea's own viewport
+  // directly instead of messagesEndRef.scrollIntoView(): scrollIntoView walks
+  // every scrollable ancestor to bring the target into view, and — most
+  // visibly right after a tab switch remounts this ScrollArea before its
+  // Radix-measured height has settled — that walk can escape past the
+  // viewport and scroll the actual window, which also has the side effect of
+  // yanking the pinned mobile header through its scroll-direction listener.
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const viewport = scrollRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]');
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight;
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, []);
 
   useEffect(() => {
@@ -248,9 +294,12 @@ export function AIChatPage() {
 
         setModels(sorted);
 
-        // Default to the cheapest model
-        if (sorted.length > 0 && !selectedModel) {
-          setSelectedModel(sorted[0].fullId);
+        // Default to the cheapest Shakespeare model for the active session,
+        // but only when the session is actually on the Shakespeare provider.
+        // A custom-provider session must never receive a Shakespeare model id
+        // — the provider's API would not recognize it.
+        if (activeSession.providerId === 'shakespeare' && sorted.length > 0 && !activeSession.modelId) {
+          updateSession(activeSessionId, { modelId: sorted[0].fullId });
         }
       })
       .catch((err) => {
@@ -263,127 +312,57 @@ export function AIChatPage() {
     return () => { cancelled = true; };
   }, [user, getAvailableModels]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Build the chat messages array for the API (includes system prompt + conversation history)
-  const buildApiMessages = useCallback((displayMsgs: DisplayMessage[]): ChatMessage[] => {
-    const apiMessages: ChatMessage[] = [buildSystemPrompt(config.appName)];
+  // Correct a first-tab bootstrap session still on the zero-config
+  // 'shakespeare' fallback once a real provider becomes available. The
+  // bootstrap's default is computed synchronously from whatever `profiles`
+  // looked like on mount (see `loadOrBootstrap`), but this device's synced AI
+  // provider profiles can arrive shortly after over NIP-78 (an async
+  // encrypted-settings fetch) — the bootstrap session was already created
+  // and persisted with 'shakespeare' by then (its modelId already auto-fills
+  // to a Shakespeare model within moments via the mount-time fetch below, so
+  // that alone can't signal "untouched"). Only touch the single bootstrap
+  // session while it has no title and no exchanged messages, so a user who
+  // deliberately keeps Shakespeare, or is already mid-conversation, is never
+  // silently switched. Reset modelId too — the corrected provider does not
+  // recognize the Shakespeare model id that may already be sitting there;
+  // the provider-aware auto-select effect below fills in the right one.
+  useEffect(() => {
+    if (sessions.length !== 1) return;
+    const [only] = sessions;
+    if (only.providerId !== 'shakespeare' || only.title !== '') return;
+    if (profiles.length === 0) return;
+    if ((snapshots[only.id]?.messages.length ?? 0) > 0) return;
+    updateSession(only.id, { providerId: defaultProviderId(profiles), modelId: '' });
+  }, [sessions, profiles, snapshots, updateSession]);
 
-    for (const msg of displayMsgs) {
-      if (msg.role === 'tool_result') continue; // Tool results are internal
-      apiMessages.push({ role: msg.role as 'user' | 'assistant' | 'system', content: msg.content });
+  // Auto-select the first model whenever the active session has none. Sessions
+  // arrive with an empty modelId from the first-tab bootstrap, "New Chat"
+  // (providerId: defaultProviderId(profiles), modelId: ''), and restored
+  // tabs. A session is unusable until modelId resolves to a model its
+  // provider actually serves, so fill the gap from the provider's own model
+  // list — never from the Shakespeare list for a non-Shakespeare session.
+  useEffect(() => {
+    if (activeSession.modelId) return;
+
+    if (activeSession.providerId === 'shakespeare') {
+      if (models.length === 0) return; // model list still loading
+      updateSession(activeSessionId, { modelId: models[0].fullId });
+    } else {
+      const profile = profiles.find((p) => p.id === activeSession.providerId);
+      const firstModel = profile?.models[0]?.id;
+      if (firstModel) {
+        updateSession(activeSessionId, { modelId: firstModel });
+      }
     }
-
-    return apiMessages;
-  }, [config.appName]);
+  }, [activeSession.modelId, activeSession.providerId, activeSessionId, models, profiles, updateSession]);
 
   // Handle sending a message
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();
-    if (!trimmed || !selectedModel || isStreaming) return;
-
-    clearError();
+    if (!trimmed || !agentSnapshot || agentSnapshot.isLoading) return;
     setInput('');
-
-    const userMessage: DisplayMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: trimmed,
-      timestamp: new Date(),
-    };
-
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    setIsStreaming(true);
-
-    try {
-      // Build API messages
-      const apiMessages = buildApiMessages(newMessages);
-
-      // Send with tools
-      const response = await sendChatMessage(apiMessages, selectedModel, {
-        tools: TOOLS,
-      });
-
-      const choice = response.choices[0];
-      const assistantMsg = choice.message;
-
-      if (assistantMsg.tool_calls && assistantMsg.tool_calls.length > 0) {
-        // Execute tool calls
-        const toolCalls: ToolCall[] = assistantMsg.tool_calls.map((tc) => {
-          let args: Record<string, unknown> = {};
-          try {
-            args = JSON.parse(tc.function.arguments);
-          } catch {
-            // If parsing fails, pass empty args
-          }
-
-          const result = executeToolCall(tc.function.name, args);
-
-          return {
-            id: tc.id,
-            name: tc.function.name,
-            arguments: args,
-            result,
-          };
-        });
-
-        // Add assistant message with tool calls noted
-        const toolMsg: DisplayMessage = {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-           content: assistantMsg.content || '',
-          timestamp: new Date(),
-          toolCalls,
-        };
-        const messagesWithTool = [...newMessages, toolMsg];
-        setMessages(messagesWithTool);
-
-        // Build follow-up messages including tool results
-        const followUpMessages: ChatMessage[] = buildApiMessages(newMessages);
-
-        // Add the assistant message with tool_calls
-        followUpMessages.push({
-          role: 'assistant',
-          content: assistantMsg.content || '',
-        });
-
-        // Add tool results
-        for (const tc of toolCalls) {
-          followUpMessages.push({
-            role: 'user' as const,
-            content: `[Tool "${tc.name}" returned: ${tc.result}]`,
-          });
-        }
-
-        // Get follow-up response from AI
-        const followUp = await sendChatMessage(followUpMessages, selectedModel);
-        const followUpContent = followUp.choices[0]?.message?.content;
-
-        if (followUpContent) {
-          const followUpMsg: DisplayMessage = {
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            content: typeof followUpContent === 'string' ? followUpContent : '',
-            timestamp: new Date(),
-          };
-          setMessages((prev) => [...prev, followUpMsg]);
-        }
-      } else {
-        // Normal response without tool calls
-        const content = typeof assistantMsg.content === 'string' ? assistantMsg.content : '';
-        const assistantMessage: DisplayMessage = {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-      }
-    } catch (err) {
-      console.error('Chat error:', err);
-    } finally {
-      setIsStreaming(false);
-    }
-  }, [input, selectedModel, isStreaming, messages, buildApiMessages, sendChatMessage, executeToolCall, clearError]);
+    await sendMessage(trimmed);
+  }, [input, agentSnapshot, sendMessage]);
 
   // Handle keyboard shortcuts
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -395,9 +374,73 @@ export function AIChatPage() {
 
   // Clear conversation
   const handleClear = useCallback(() => {
-    setMessages([]);
-    clearError();
-  }, [clearError]);
+    clearActiveSession();
+  }, [clearActiveSession]);
+
+  // ─── Session Controls ───
+
+  // Provider / model selection writes into the active session. The session's
+  // AgentSession rebuilds on the next effect pass, carrying the history over.
+  const handleProviderChange = useCallback((value: string) => {
+    let modelId = '';
+    if (value === 'shakespeare') {
+      // Zero-config: default to the cheapest fetched Shakespeare model.
+      modelId = models.length > 0 ? models[0].fullId : '';
+    } else {
+      const profile = profiles.find((p) => p.id === value);
+      modelId = profile?.models[0]?.id ?? '';
+    }
+    updateSession(activeSessionId, { providerId: value, modelId });
+  }, [activeSessionId, models, profiles, updateSession]);
+
+  const handleModelChange = useCallback((value: string) => {
+    updateSession(activeSessionId, { modelId: value });
+  }, [activeSessionId, updateSession]);
+
+  // Opening a 21st tab at the cap prompts which existing tab(s) to close
+  // instead of silently closing anything. The dialog finishes the creation
+  // once room has been made.
+  const createSessionGuarded = useCallback((input: CreateSessionInput) => {
+    if (isAtTabCap(sessions.length)) {
+      setPendingCreation(input);
+      setCapDialogOpen(true);
+      return;
+    }
+    createSession(input);
+  }, [sessions.length, createSession]);
+
+  // Toggling an ability forks a new session carrying over the current
+  // provider/model. The new session becomes active automatically.
+  const handleAbilityToggle = useCallback((ability: Ability, checked: boolean | 'indeterminate') => {
+    createSessionGuarded({
+      abilities: checked === true
+        ? [...activeSession.abilities, ability]
+        : activeSession.abilities.filter((a) => a !== ability),
+      providerId: activeSession.providerId,
+      modelId: activeSession.modelId,
+    });
+  }, [activeSession.providerId, activeSession.modelId, activeSession.abilities, createSessionGuarded]);
+
+  // "New Chat" always starts from a fresh, sensible default: the first
+  // configured provider profile (or shakespeare when none is configured),
+  // with no model selected. It must never clone the active session's
+  // provider/model — the active tab may be stranded on a provider that no
+  // longer works (e.g. shakespeare out of credits).
+  const handleNewChat = useCallback(() => {
+    createSessionGuarded({
+      abilities: [],
+      providerId: defaultProviderId(profiles),
+      modelId: '',
+    });
+  }, [profiles, createSessionGuarded]);
+
+  const modelOptions = useMemo(() => {
+    if (activeSession.providerId === 'shakespeare') {
+      return models.map((m) => ({ value: m.fullId, label: m.name }));
+    }
+    const profile = profiles.find((p) => p.id === activeSession.providerId);
+    return (profile?.models ?? []).map((m) => ({ value: m.id, label: m.name }));
+  }, [activeSession.providerId, models, profiles]);
 
   // ─── Render ───
 
@@ -407,8 +450,15 @@ export function AIChatPage() {
         <div className="flex flex-col items-center gap-4 text-center max-w-sm">
           <pre className="text-4xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold">Dork AI</h1>
-            <p className="text-muted-foreground">Log in with your Nostr account to start chatting with Dork.</p>
+            <h1 className="text-2xl font-bold">
+              <FormattedMessage id="ai-chat.dorkAi" defaultMessage="Dork AI" />
+            </h1>
+            <p className="text-muted-foreground">
+              <FormattedMessage
+                id="ai-chat.loggedOutPrompt"
+                defaultMessage="Log in with your Nostr account to start chatting with Dork."
+              />
+            </p>
           </div>
           <LoginArea className="mt-2" />
         </div>
@@ -422,32 +472,20 @@ export function AIChatPage() {
       <PageHeader titleContent={
         <div className="hidden sidebar:flex items-center gap-2 flex-1 min-w-0">
           <Bot className="size-5" />
-          <h1 className="text-xl font-bold truncate">AI Chat</h1>
+          <h1 className="text-xl font-bold truncate">
+            <FormattedMessage id="ai-chat.title" defaultMessage="AI Chat" />
+          </h1>
         </div>
       }>
-        {hasCredits && (
+        {(!isShakespeareSession || hasCredits) && (
           <div className="flex items-center gap-2 ml-auto">
-            {/* Model selector */}
-            <Select value={selectedModel} onValueChange={setSelectedModel} disabled={modelsLoading}>
-              <SelectTrigger className="w-48 h-8 text-xs">
-                <SelectValue placeholder={modelsLoading ? 'Loading...' : 'Select model'} />
-              </SelectTrigger>
-              <SelectContent>
-                {models.map((model) => (
-                  <SelectItem key={model.fullId} value={model.fullId}>
-                    {model.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             <Button
               variant="ghost"
               size="icon"
               className="size-8"
               onClick={handleClear}
               disabled={messages.length === 0}
-              title="Clear conversation"
+              title={intl.formatMessage({ id: 'ai-chat.clearConversation', defaultMessage: 'Clear conversation' })}
             >
               <Trash2 className="size-4" />
             </Button>
@@ -455,40 +493,191 @@ export function AIChatPage() {
         )}
       </PageHeader>
 
+      {/* Session tabs */}
+      <div className="relative">
+        {/* Left scroll arrow — desktop only, shown when overflowing */}
+        {canScrollTabsLeft && (
+          <button
+            type="button"
+            aria-label={intl.formatMessage({ id: 'ai-chat.scrollTabsLeft', defaultMessage: 'Scroll tabs left' })}
+            onClick={() => scrollTabsBy('left')}
+            className="hidden sidebar:flex absolute left-0 top-0 bottom-0 z-10 items-center pl-2 pr-1.5 bg-gradient-to-r from-background via-background to-transparent cursor-pointer"
+          >
+            <ChevronLeft className="size-4 text-foreground/60 drop-shadow-md" strokeWidth={4} />
+          </button>
+        )}
+        <div ref={tabsScrollRef} className="flex items-center gap-1 px-4 pt-2 overflow-x-auto scrollbar-none">
+          {sessions.map((session) => {
+            const isActive = session.id === activeSessionId;
+            return (
+              <div key={session.id} className="shrink-0">
+                <div
+                  className={cn(
+                    'group flex items-center rounded-full',
+                    isActive ? 'bg-secondary text-secondary-foreground' : 'hover:bg-secondary/60',
+                  )}
+                >
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setActiveSessionId(session.id)}
+                    className="rounded-full text-xs max-w-36 h-7 pl-3 pr-1.5 hover:bg-transparent"
+                  >
+                    {session.title ? (
+                      <span className="truncate">{session.title}</span>
+                    ) : (
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+                        <FormattedMessage id="ai-chat.untitledSessionTitle" defaultMessage="Untitled chat" />
+                      </span>
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      'size-7 rounded-full shrink-0 hover:bg-transparent',
+                      !isActive && 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      closeSession(session.id);
+                    }}
+                    disabled={sessions.length === 1}
+                    title={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
+                    aria-label={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
+                  >
+                    <X className="size-3" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleNewChat}
+            className="shrink-0 rounded-full text-xs gap-1"
+          >
+            <Plus className="size-3.5" />
+            <FormattedMessage id="ai-chat.newChat" defaultMessage="New chat" />
+          </Button>
+        </div>
+        {/* Right scroll arrow — desktop only, shown when overflowing */}
+        {canScrollTabsRight && (
+          <button
+            type="button"
+            aria-label={intl.formatMessage({ id: 'ai-chat.scrollTabsRight', defaultMessage: 'Scroll tabs right' })}
+            onClick={() => scrollTabsBy('right')}
+            className="hidden sidebar:flex absolute right-0 top-0 bottom-0 z-10 items-center pr-2 pl-1.5 bg-gradient-to-l from-background via-background to-transparent cursor-pointer"
+          >
+            <ChevronRight className="size-4 text-foreground/60 drop-shadow-md" strokeWidth={4} />
+          </button>
+        )}
+      </div>
+
+      {/* Cap-hit dialog: choose which tab(s) to close to make room */}
+      <Dialog open={capDialogOpen} onOpenChange={setCapDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              <FormattedMessage id="ai-chat.capDialogTitle" defaultMessage="Too many open chats" />
+            </DialogTitle>
+            <DialogDescription>
+              <FormattedMessage
+                id="ai-chat.capDialogDescription"
+                defaultMessage="You have {count} open chats, the maximum is {max}. Close one or more to make room for a new one."
+                values={{ count: sessions.length, max: MAX_OPEN_TABS }}
+              />
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-64">
+            <div className="space-y-1 pr-3">
+              {sessions.map((session) => (
+                <div
+                  key={session.id}
+                  className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-secondary/60"
+                >
+                  <span className="text-sm truncate min-w-0">
+                    {session.title || <FormattedMessage id="ai-chat.untitledSessionTitle" defaultMessage="Untitled chat" />}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 shrink-0"
+                    onClick={() => closeSession(session.id)}
+                    title={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
+                    aria-label={intl.formatMessage({ id: 'ai-chat.closeChat', defaultMessage: 'Close chat' })}
+                  >
+                    <X className="size-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCapDialogOpen(false)}>
+              <FormattedMessage id="ai-chat.cancel" defaultMessage="Cancel" />
+            </Button>
+            <Button
+              disabled={isAtTabCap(sessions.length)}
+              onClick={() => {
+                if (pendingCreation) createSession(pendingCreation);
+                setCapDialogOpen(false);
+                setPendingCreation(null);
+              }}
+            >
+              <FormattedMessage id="ai-chat.openNewChat" defaultMessage="Open new chat" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Messages Area */}
       {messages.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center px-4">
-          <EmptyState hasCredits={hasCredits} />
+        <div className="flex-1 min-h-0 flex items-center justify-center px-4">
+          <EmptyState showCreditsGate={isShakespeareSession && hasCredits === false} />
         </div>
       ) : (
-        <ScrollArea className="flex-1" ref={scrollRef}>
+        <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
           <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+              />
             ))}
 
+            {/* Pending user input surfaced by a tool (e.g. ask_questions).
+                Keyed by requestId so a second ask_questions call remounts the
+                card fresh instead of reusing the first request's local state. */}
+            {agentSnapshot?.pendingInput && (
+              <PendingQuestionsCard
+                key={agentSnapshot.pendingInput.requestId}
+                pendingInput={agentSnapshot.pendingInput}
+                onAnswer={sendMessage}
+              />
+            )}
+
             {/* Loading indicator */}
-            {(isStreaming || apiLoading) && messages[messages.length - 1]?.role === 'user' && (
-              <DorkThinking className="text-sm" />
+            {isLoading && (
+              <div className="flex items-center gap-2">
+                <DorkThinking className="text-sm" />
+                <span className="text-sm text-muted-foreground">
+                  <ToolActivityCaption messages={agentSnapshot?.messages ?? []} />
+                </span>
+              </div>
             )}
 
             {/* Error display */}
-            {apiError && (
-              retryAfter ? (
-                <DorkErrorBanner
-                  face=">[~_~]<"
-                  heading="Whoa, slow down! Dork needs a breather."
-                  body="You're sending messages a bit too fast. Want more brainpower? Grab some credits on"
-                />
-              ) : apiError.includes('run out of credits') ? (
-                <DorkErrorBanner
-                  face=">[o_o]<"
-                  heading="You've run out of credits!"
-                  body="Grab some more on"
-                />
+            {sessionError && (
+              sessionError.includes('Rate limited') ? (
+                <DorkErrorBanner {...RATE_LIMIT_BANNER} />
+              ) : sessionError.includes('run out of credits') ? (
+                <DorkErrorBanner {...OUT_OF_CREDITS_BANNER} />
               ) : (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm px-4 py-3">
-                  {apiError}
+                  {sessionError}
                 </div>
               )
             )}
@@ -498,28 +687,118 @@ export function AIChatPage() {
         </ScrollArea>
       )}
 
-      {/* Input Area — hidden when user has no credits */}
-      {(hasCredits || hasCredits === null) && (
+      {/* Input Area — hidden when a shakespeare session has no credits */}
+      {(!isShakespeareSession || hasCredits || hasCredits === null) && (
         <div className="shrink-0 px-4 pt-2 pb-4 sidebar:pb-3">
-          <div className="max-w-2xl mx-auto flex items-end gap-2">
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={!selectedModel ? 'Select a model first...' : 'Send a message...'}
-              disabled={!selectedModel || isStreaming}
-              className="min-h-[44px] max-h-40 resize-none bg-secondary/50 border-border focus-visible:ring-1"
-              rows={1}
-            />
-            <Button
-              onClick={handleSend}
-              disabled={!input.trim() || !selectedModel || isStreaming}
-              size="icon"
-              className="size-11 shrink-0 rounded-xl"
-            >
-              <Send className="size-4" />
-            </Button>
+          <div className="max-w-2xl mx-auto">
+            {/* Provider / model selector row */}
+            <div className="flex items-center gap-2 pb-2">
+              <Select value={activeSession.providerId} onValueChange={handleProviderChange}>
+                <SelectTrigger
+                  className="h-8 w-40 text-xs"
+                  aria-label={intl.formatMessage({ id: 'ai-chat.providerLabel', defaultMessage: 'Provider' })}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="shakespeare">Shakespeare</SelectItem>
+                  {profiles.map((profile) => (
+                    <SelectItem key={profile.id} value={profile.id}>
+                      {profile.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={activeSession.modelId} onValueChange={handleModelChange} disabled={modelOptions.length === 0}>
+                <SelectTrigger
+                  className="h-8 w-48 text-xs"
+                  aria-label={intl.formatMessage({ id: 'ai-chat.modelLabel', defaultMessage: 'Model' })}
+                >
+                  <SelectValue
+                    placeholder={modelsLoading
+                      ? intl.formatMessage({ id: 'ai-chat.loading', defaultMessage: 'Loading...' })
+                      : intl.formatMessage({ id: 'ai-chat.selectModel', defaultMessage: 'Select model' })}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {modelOptions.map((model) => (
+                    <SelectItem key={model.value} value={model.value}>
+                      {model.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-end gap-2">
+              <Textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={!activeSession.modelId
+                  ? intl.formatMessage({ id: 'ai-chat.selectModelFirst', defaultMessage: 'Select a model first...' })
+                  : intl.formatMessage({ id: 'ai-chat.sendMessagePlaceholder', defaultMessage: 'Send a message...' })}
+                disabled={!activeSession.modelId || isLoading}
+                className="min-h-[44px] max-h-40 resize-none bg-secondary/50 border-border focus-visible:ring-1"
+                rows={1}
+              />
+              <MentionAutocomplete
+                textareaRef={textareaRef}
+                content={input}
+                onInsertMention={insertMention}
+                abilities={ABILITIES}
+              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      'size-11 shrink-0 rounded-xl',
+                      activeSession.abilities.length > 0 && 'text-primary',
+                    )}
+                    title={intl.formatMessage({ id: 'ai-chat.abilities', defaultMessage: 'Abilities' })}
+                  >
+                    <Sparkles className="size-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-64">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                    <FormattedMessage id="ai-chat.abilities" defaultMessage="Abilities" />
+                  </p>
+                  <div className="space-y-3">
+                    {ABILITIES.map((ability) => (
+                      <div key={ability.key} className="flex items-start gap-2">
+                        <Checkbox
+                          id={`ability-${ability.key}`}
+                          checked={activeSession.abilities.includes(ability.key)}
+                          onCheckedChange={(checked) => handleAbilityToggle(ability.key, checked)}
+                        />
+                        <div className="space-y-0.5">
+                          <Label htmlFor={`ability-${ability.key}`} className="font-normal cursor-pointer">
+                            <FormattedMessage {...ability.label} />
+                          </Label>
+                          <p className="text-xs text-muted-foreground leading-tight">
+                            <FormattedMessage {...ability.description} />
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Button
+                onClick={handleSend}
+                disabled={!input.trim() || !activeSession.modelId || isLoading || !agentSnapshot}
+                size="icon"
+                className="size-11 shrink-0 rounded-xl"
+                aria-label={intl.formatMessage({ id: 'ai-chat.sendMessage', defaultMessage: 'Send message' })}
+              >
+                <Send className="size-4" />
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -529,9 +808,33 @@ export function AIChatPage() {
 
 // ─── Sub-Components ───
 
-// DorkThinking is imported from the shared component
+// Error banners pair a fixed ASCII face with localized heading/body text. The
+// descriptors render via FormattedMessage inside DorkErrorBanner.
+const RATE_LIMIT_BANNER = {
+  face: '>[~_~]<',
+  heading: defineMessage({
+    id: 'ai-chat.error.rateLimitHeading',
+    defaultMessage: 'Whoa, slow down! Dork needs a breather.',
+  }),
+  body: defineMessage({
+    id: 'ai-chat.error.rateLimitBody',
+    defaultMessage: "You're sending messages a bit too fast. Want more brainpower? Grab some credits on",
+  }),
+} as const;
 
-function DorkErrorBanner({ face, heading, body }: { face: string; heading: string; body: string }) {
+const OUT_OF_CREDITS_BANNER = {
+  face: '>[o_o]<',
+  heading: defineMessage({
+    id: 'ai-chat.error.outOfCreditsHeading',
+    defaultMessage: "You've run out of credits!",
+  }),
+  body: defineMessage({
+    id: 'ai-chat.error.outOfCreditsBody',
+    defaultMessage: 'Grab some more on',
+  }),
+} as const;
+
+function DorkErrorBanner({ face, heading, body }: { face: string; heading: MessageDescriptor; body: MessageDescriptor }) {
   const shakespeareLink = (
     <a
       href="https://shakespeare.diy"
@@ -548,35 +851,43 @@ function DorkErrorBanner({ face, heading, body }: { face: string; heading: strin
     <div className="rounded-2xl bg-secondary/60 border border-border px-4 py-4 text-sm space-y-2">
       <p className="font-medium text-foreground">
         <code className="text-base font-mono text-primary leading-none whitespace-pre">{face}</code>
-        {' '}{heading}
+        {' '}<FormattedMessage {...heading} />
       </p>
       <p className="text-muted-foreground">
-        {body} {shakespeareLink} to keep chatting with Dork.
+        <FormattedMessage {...body} /> {shakespeareLink}{' '}
+        <FormattedMessage id="ai-chat.error.keepChatting" defaultMessage="to keep chatting with Dork." />
       </p>
     </div>
   );
 }
 
 const DORK_GREETINGS = [
-  "Hi, I'm Dork! What would you like me to do?",
-  "Dork here! What do you need?",
-  "Hey, it's Dork! What do you want to do?",
+  defineMessage({ id: 'ai-chat.greeting.one', defaultMessage: "Hi, I'm Dork! What would you like me to do?" }),
+  defineMessage({ id: 'ai-chat.greeting.two', defaultMessage: 'Dork here! What do you need?' }),
+  defineMessage({ id: 'ai-chat.greeting.three', defaultMessage: "Hey, it's Dork! What do you want to do?" }),
 ];
 
-function EmptyState({ hasCredits }: { hasCredits: boolean | null }) {
+function EmptyState({ showCreditsGate }: { showCreditsGate: boolean }) {
   const greeting = useMemo(() => DORK_GREETINGS[Math.floor(Math.random() * DORK_GREETINGS.length)], []);
 
   return (
     <div className="flex flex-col items-center justify-center gap-8 text-center select-none animate-in fade-in duration-500">
       <pre className="text-4xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
       <div className="space-y-2">
-        <h2 className="text-base font-semibold tracking-tight text-foreground">Dork AI</h2>
-        <p className="text-sm text-muted-foreground">{greeting}</p>
+        <h2 className="text-base font-semibold tracking-tight text-foreground">
+          <FormattedMessage id="ai-chat.dorkAi" defaultMessage="Dork AI" />
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          <FormattedMessage {...greeting} />
+        </p>
       </div>
-      {hasCredits === false && (
+      {showCreditsGate && (
         <div className="flex flex-col items-center gap-4 max-w-xs">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            You need credits to chat with Dork. Grab some on Shakespeare to get started.
+            <FormattedMessage
+              id="ai-chat.needCredits"
+              defaultMessage="You need credits to chat with Dork. Grab some on Shakespeare to get started."
+            />
           </p>
           <a
             href="https://shakespeare.diy"
@@ -585,7 +896,7 @@ function EmptyState({ hasCredits }: { hasCredits: boolean | null }) {
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             <span>&#x1F3AD;</span>
-            Get Credits
+            <FormattedMessage id="ai-chat.getCredits" defaultMessage="Get Credits" />
           </a>
         </div>
       )}
@@ -595,41 +906,47 @@ function EmptyState({ hasCredits }: { hasCredits: boolean | null }) {
 
 
 
-function MessageBubble({ message }: { message: DisplayMessage }) {
+function MessageBubble({
+  message,
+}: {
+  message: DisplayMessage;
+}) {
   const isUser = message.role === 'user';
 
   return (
     <div className={cn('flex items-start', isUser && 'justify-end')}>
       <div className={cn('flex flex-col gap-1 max-w-[85%] min-w-0', isUser && 'items-end')}>
-        <div
-          className={cn(
-            'rounded-2xl px-4 py-2.5 text-sm',
-            isUser
-              ? 'bg-primary text-primary-foreground rounded-tr-md'
-              : 'bg-secondary/60 border border-border rounded-tl-md',
-          )}
-        >
-          {isUser ? (
+        {isUser ? (
+          <div className="rounded-2xl px-4 py-2.5 text-sm bg-primary text-primary-foreground rounded-tr-md">
             <p className="whitespace-pre-wrap break-words">{message.content}</p>
-          ) : (
-            <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary">
-              <Markdown rehypePlugins={[rehypeSanitize]}>
-                {message.content}
-              </Markdown>
+          </div>
+        ) : (
+          // Tool-call-only assistant messages have an empty content string;
+          // skip the bubble for those so no empty pill renders above the badges.
+          message.content && (
+            <div className="rounded-2xl px-4 py-2.5 text-sm bg-secondary/60 border border-border rounded-tl-md">
+              <div className={CHAT_PROSE_CLASSES}>
+                <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={chatMarkdownComponents}>
+                  {message.content}
+                </Markdown>
+              </div>
             </div>
-          )}
-        </div>
+          )
+        )}
 
         {/* Tool call indicators */}
         {message.toolCalls && message.toolCalls.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-1">
             {message.toolCalls.map((tc) => (
-              <ToolCallBadge key={tc.id} toolCall={tc} />
+              <ToolCallDetails
+                key={tc.id}
+                toolCall={tc}
+              />
             ))}
           </div>
         )}
 
-        <span className="text-[10px] text-muted-foreground/60 px-1">
+        <span className="text-[10px] text-muted-foreground px-1">
           {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
       </div>
@@ -637,54 +954,33 @@ function MessageBubble({ message }: { message: DisplayMessage }) {
   );
 }
 
-function ToolCallBadge({ toolCall }: { toolCall: ToolCall }) {
-  let resultParsed: {
-    success?: boolean;
-    error?: string;
-    colors?: { background?: string; text?: string; primary?: string };
-    font?: string;
-    background?: { url?: string; mode?: string };
-  } = {};
-  try {
-    resultParsed = JSON.parse(toolCall.result || '{}');
-  } catch {
-    // ignore
+// ─── Loading indicator caption ──────────────────────────────────────────────
+
+// Present-continuous label per tool, shown under DorkThinking while the agent
+// waits on that tool's result. Unlisted tool names fall back to the generic
+// "Running {name}..." message.
+const TOOL_ACTIVITY_LABELS: Record<string, MessageDescriptor> = {
+  search_nips: defineMessage({ id: 'ai-chat.activity.searchNips', defaultMessage: 'Searching NIPs...' }),
+  fetch_nip: defineMessage({ id: 'ai-chat.activity.fetchNip', defaultMessage: 'Fetching NIP...' }),
+  ask_questions: defineMessage({ id: 'ai-chat.activity.askQuestions', defaultMessage: 'Asking questions...' }),
+  set_theme: defineMessage({ id: 'ai-chat.activity.setTheme', defaultMessage: 'Applying theme...' }),
+  nak: defineMessage({ id: 'ai-chat.activity.nak', defaultMessage: 'Looking up nostr data...' }),
+};
+
+function ToolActivityCaption({ messages }: { messages: SessionMessage[] }) {
+  const inFlight = getInFlightToolCall(messages);
+  if (!inFlight) {
+    return <FormattedMessage id="ai-chat.activity.thinking" defaultMessage="Thinking..." />;
   }
-
-  const isSuccess = resultParsed.success === true;
-  const colors = resultParsed.colors;
-
-  if (toolCall.name !== 'set_theme' || !isSuccess) {
-    return (
-      <span className={cn(
-        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium',
-        isSuccess
-          ? 'bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20'
-          : 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-500/20',
-      )}>
-        <Palette className="size-3" />
-        {resultParsed.error || toolCall.name}
-      </span>
-    );
+  const label = TOOL_ACTIVITY_LABELS[inFlight.name];
+  if (label) {
+    return <FormattedMessage {...label} />;
   }
-
   return (
-    <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-[11px] font-medium bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20">
-      {/* Color swatches */}
-      {colors && (
-        <span className="flex items-center gap-0.5">
-          <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.background})` }} />
-          <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.text})` }} />
-          <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.primary})` }} />
-        </span>
-      )}
-      Theme applied
-      {resultParsed.font && (
-        <span className="inline-flex items-center gap-0.5 opacity-80">
-          <Type className="size-2.5" />
-          {resultParsed.font}
-        </span>
-      )}
-    </span>
+    <FormattedMessage
+      id="ai-chat.activity.running"
+      defaultMessage="Running {name}..."
+      values={{ name: inFlight.name }}
+    />
   );
 }
