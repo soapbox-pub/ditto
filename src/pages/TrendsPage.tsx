@@ -5,6 +5,7 @@ import { useInView } from "@/hooks/useInView";
 import { ClientUsersChart } from "@/components/ClientUsersChart";
 import { NoteCard } from "@/components/NoteCard";
 import { PageHeader } from "@/components/PageHeader";
+import { MobileMissionTeaser } from "@/components/MobileMissionTeaser";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppContext } from "@/hooks/useAppContext";
@@ -68,6 +69,12 @@ export function TrendsPage() {
   return (
     <main className="">
       <PageHeader title="Trends" icon={<TrendingUp className="size-5" />} />
+
+      {/* Mobile mission teaser — in-flow below the page header, above content.
+          Mobile only; desktop uses the sidebar widget. Reaching this page is
+          what completes the "Explore Ditto" task, so the teaser is often where
+          the user sees that land. */}
+      <MobileMissionTeaser />
 
       <PullToRefresh onRefresh={handleRefresh}>
         {/* Unique Users by Client */}

@@ -1017,6 +1017,161 @@
   50% { transform: translateX(3px); }
 }
 
+/* ── Post-onboarding mission surfaces ──────────────────────────────────────── */
+
+/* Every animation below is a SINGLE FINITE RUN — there is no `infinite` in this
+   block, by design. The mission is meant to be noticeable, not to pulse at the
+   user for the lifetime of the page. Scheduling (how many cues, how far apart,
+   whether the element is even on screen) lives in `useBoundedAttention`; CSS
+   only describes one cue.
+   All of them animate transform / box-shadow / opacity / colour only, so no
+   mission surface can ever shift layout, and all are disabled under
+   prefers-reduced-motion — the progress bar, count, and check states still
+   convey everything the animation was decorating. */
+
+/* Attention cue — a gentle primary halo that breathes up once and settles.
+   Box-shadow only; lives on the card so it can never fight the nudge transform
+   on the wrapper. */
+@keyframes mission-attention-glow {
+  0%, 100% { box-shadow: 0 0 0 1px hsl(var(--primary) / 0.10), 0 0 8px 0 hsl(var(--primary) / 0.12); }
+  50% { box-shadow: 0 0 0 3px hsl(var(--primary) / 0.20), 0 0 18px 2px hsl(var(--primary) / 0.30); }
+}
+
+.mission-attention-glow {
+  animation: mission-attention-glow 1.6s ease-in-out 1;
+}
+
+/* Attention cue — a brief rotational wiggle. A small rotation (rather than a
+   horizontal slide) reads as "look at me" without pushing the card into the
+   sidebar/feed edges, so nothing clips. Transform only, on an outer wrapper. */
+@keyframes mission-attention-nudge {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  20% { transform: rotate(-0.8deg) translateY(-1px); }
+  40% { transform: rotate(0.8deg) translateY(0); }
+  60% { transform: rotate(-0.5deg) translateY(0); }
+  80% { transform: rotate(0.3deg) translateY(0); }
+}
+
+.mission-attention-nudge {
+  transform-origin: center center;
+  animation: mission-attention-nudge 0.5s ease-in-out 2;
+}
+
+/* Completed-but-unclaimed reward state: a warmer, calmer halo that says "reward
+   ready" rather than "do more". Three runs, then rest — the claim button is
+   right there, so it doesn't need to keep asking. */
+@keyframes mission-reward-glow {
+  0%, 100% { box-shadow: 0 1px 2px 0 hsl(var(--foreground) / 0.06), 0 0 6px 0 hsl(var(--primary) / 0.16), 0 0 0 1px hsl(var(--primary) / 0.16); }
+  50% { box-shadow: 0 1px 2px 0 hsl(var(--foreground) / 0.06), 0 0 16px 2px hsl(var(--primary) / 0.34), 0 0 0 1px hsl(var(--primary) / 0.30); }
+}
+
+.mission-reward-glow {
+  animation: mission-reward-glow 3.2s ease-in-out 3;
+}
+
+/* Task-completed celebration — the one moment the mission is allowed to be
+   loud. A soft primary ring + halo breathing up once and fading to nothing,
+   plus a barely-there scale settle that overshoots and eases back to exactly
+   1. Both end at the card's resting appearance, so nothing lingers. */
+@keyframes mission-celebrate-ring {
+  0%   { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
+  30%  { box-shadow: 0 0 0 3px hsl(var(--primary) / 0.55), 0 0 22px 3px hsl(var(--primary) / 0.40); }
+  70%  { box-shadow: 0 0 0 2px hsl(var(--primary) / 0.30), 0 0 14px 2px hsl(var(--primary) / 0.22); }
+  100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
+}
+
+@keyframes mission-celebrate-settle {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.mission-celebrate {
+  animation:
+    mission-celebrate-ring 2s ease-out 1,
+    mission-celebrate-settle 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+  transform-origin: center center;
+}
+
+/* Companion emphasis: the progress count (e.g. "2/4") pops once and briefly
+   fills with the primary colour, so the number that changed is impossible to
+   miss, then settles back to its resting look. */
+@keyframes mission-count-pop {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+    background-color: hsl(var(--primary) / 0.10);
+    color: hsl(var(--primary));
+  }
+  35% {
+    transform: scale(1.28);
+    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.35), 0 0 14px 2px hsl(var(--primary) / 0.30);
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+  60% {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+    background-color: hsl(var(--primary) / 0.10);
+    color: hsl(var(--primary));
+  }
+}
+
+.mission-count-pop {
+  animation: mission-count-pop 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+}
+
+/* One-shot sparkle burst next to the count. Each spark flies out along its own
+   direction (set inline via --sx / --sy, staggered by --sd), twinkles, and
+   vanishes — a small local flourish, never full-screen confetti. The container
+   is absolutely positioned and pointer-events:none, so it is layout-neutral. */
+@keyframes mission-sparkle {
+  0% {
+    transform: translate(0, 0) scale(0.2) rotate(0deg);
+    opacity: 0;
+  }
+  25% { opacity: 1; }
+  60% {
+    transform: translate(var(--sx), var(--sy)) scale(1) rotate(35deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(var(--sx) * 1.25), calc(var(--sy) * 1.25)) scale(0.35) rotate(60deg);
+    opacity: 0;
+  }
+}
+
+.mission-sparkle {
+  animation: mission-sparkle 0.9s ease-out var(--sd, 0ms) 1 both;
+}
+
+/* Progress bar halo while it fills on completion. */
+@keyframes mission-progress-glow {
+  0%   { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
+  30%  { box-shadow: 0 0 8px 1px hsl(var(--primary) / 0.45); }
+  100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
+}
+
+.mission-progress-glow {
+  animation: mission-progress-glow 1.6s ease-out 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mission-attention-glow,
+  .mission-attention-nudge,
+  .mission-reward-glow,
+  .mission-celebrate,
+  .mission-count-pop,
+  .mission-sparkle,
+  .mission-progress-glow {
+    animation: none;
+  }
+}
+
 /* ── Overstimulation block overlay ─────────────────────────────────────────── */
 
 @keyframes overstim-vignette-in {

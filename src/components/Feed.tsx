@@ -4,6 +4,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
+import { FirstSessionGuide } from '@/components/FirstSessionGuide';
 import { LandingHero } from '@/components/LandingHero';
 import { LazyFeedItem } from '@/components/LazyFeedItem';
 import { NoteCard } from '@/components/NoteCard';
@@ -450,6 +451,14 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
           {/* New posts pill — live auto-refresh. Never re-sorts the feed:
               tapping it refreshes and scrolls to top. */}
           <NewPostsPill count={newPostCount} onClick={handleShowNewPosts} />
+          {/* Post-onboarding mission card — pinned as the first feed item on the
+              logged-in home feed so it scrolls naturally with the timeline
+              instead of floating over the sticky tab bar. Sits outside the
+              populated/skeleton/empty branches below so it stays visible even
+              while a new user's Follows feed is still empty — which is exactly
+              when they most need somewhere to go. Self-hides once hidden or
+              claimed. */}
+          {user && !kinds && <FirstSessionGuide />}
           {feedItems.length > 0 ? (
             <div>
               {feedItems.map((item: FeedItem, index: number) => (

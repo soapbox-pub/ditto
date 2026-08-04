@@ -56,6 +56,7 @@ import { cn, parseKindFilter } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { PageHeader } from '@/components/PageHeader';
+import { MobileMissionTeaser } from '@/components/MobileMissionTeaser';
 import { DittoLogo } from '@/components/DittoLogo';
 import { buildFeedItems, dedupeFeedItems, feedItemKey, type FeedItem } from '@/lib/feedUtils';
 import { nip19 } from 'nostr-tools';
@@ -459,6 +460,11 @@ export function SearchPage() {
         <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
       </SubHeaderBar>
       <div style={{ height: ARC_OVERHANG_PX }} />
+
+      {/* Mobile mission teaser — in-flow below the tabs, above content, so it
+          can never overlap navigation or feed controls. Mobile only; desktop
+          uses the sidebar widget. Self-hides when the mission is inactive. */}
+      <MobileMissionTeaser />
 
       {/* Search input bar — always rendered right after tabs, like ComposeBox on Feed */}
       <div className="px-4 py-3">

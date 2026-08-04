@@ -4,6 +4,7 @@ import { Loader2, Pencil, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
 import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
+import { MissionHelperCard } from "@/components/MissionHelperCard";
 import { NoteCard } from "@/components/NoteCard";
 import { PageHeader } from "@/components/PageHeader";
 import { PullToRefresh } from "@/components/PullToRefresh";
@@ -16,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { useLayoutOptions } from "@/contexts/LayoutContext";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useCustomizeMissionFlow } from "@/hooks/useCustomizeMissionFlow";
 import { useFeedTab } from "@/hooks/useFeedTab";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useTheme } from "@/hooks/useTheme";
@@ -29,6 +31,16 @@ export function ThemesPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { autoShareTheme, setAutoShareTheme } = useTheme();
+
+  // Guided "Make it feel like me" mission — step 2 of 2. Presentational only:
+  // the theme substep completes when `MissionEngine` sees the active theme
+  // differ from the baseline it recorded at mission start, so any real theme
+  // change counts — a built-in switch, a preset, or an edited palette — and
+  // merely landing on this page does not.
+  const {
+    flowActive: customizeFlowActive,
+    themeDone: customizeThemeDone,
+  } = useCustomizeMissionFlow();
 
   const [activeTab, setActiveTab] = useFeedTab<ThemesTab>("themes", [
     "my-themes",
@@ -110,6 +122,20 @@ export function ThemesPage() {
 
       {/* Arc overhang spacer (matches Feed.tsx) */}
       <div style={{ height: ARC_OVERHANG_PX }} />
+
+      {/* Guided customize mission helper (step 2 of 2). Disappears once a theme
+          change is detected, which also completes the customize task when step
+          1 is already done. */}
+      {customizeFlowActive && !customizeThemeDone && (
+        <div className="px-4 pb-2">
+          <MissionHelperCard
+            title="Make it feel like me"
+            stepLabel="Step 2 of 2 — Choose your theme"
+            body="Pick a theme that makes Ditto feel more like yours."
+            hint="Choose a theme to complete this step."
+          />
+        </div>
+      )}
 
       {/* Tab content */}
       {activeTab === "my-themes" ? (

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, lazy, Suspense, memo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import {
   DndContext,
@@ -16,6 +17,7 @@ import {
 } from '@/lib/sortable';
 import { Plus } from 'lucide-react';
 
+import { MissionsWidget } from '@/components/MissionsWidget';
 import { WidgetCard } from '@/components/WidgetCard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LinkFooter } from '@/components/LinkFooter';
@@ -151,6 +153,32 @@ const SortableWidget = memo(function SortableWidget({ config, definition, onRemo
   );
 });
 
+// ── Missions teaser (sidebar) ────────────────────────────────────────────────
+
+/**
+ * Routes whose center column already renders the full mission card as the first
+ * feed item. There, the sidebar teaser is suppressed so the mission isn't
+ * surfaced twice on one page — one mission prompt at a time is the rule.
+ */
+const MISSION_FEED_ROUTES = new Set(['/', '/feed']);
+
+/**
+ * Pins the compact {@link MissionsWidget} at the top of the widget sidebar so
+ * mission progress follows the user across non-home pages (desktop only — the
+ * sidebar is `hidden lg:flex`). It self-hides unless the mission is active or
+ * completed-but-unclaimed, so it's a no-op for dismissed/claimed/never-started
+ * users.
+ *
+ * Intentionally not a configurable/removable widget: it's a temporary shortcut
+ * to `/missions` that disappears on its own, not something worth a slot in the
+ * widget picker.
+ */
+function SidebarMissions() {
+  const { pathname } = useLocation();
+  if (MISSION_FEED_ROUTES.has(pathname)) return null;
+  return <MissionsWidget />;
+}
+
 // ── Main sidebar ─────────────────────────────────────────────────────────────
 
 const EMPTY_WIDGETS: WidgetConfig[] = [];
@@ -219,6 +247,10 @@ export function WidgetSidebar() {
   // at all, so phones don't pay for widget chunks and queries.
   return (
     <aside className="w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-2">
+      {/* Missions teaser — pinned above the configurable widgets so mission
+          progress follows the user across pages. Self-hides when the mission is
+          inactive, and on the home feed where the inline card already shows. */}
+      <SidebarMissions />
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
           <div className="space-y-2 flex-1">

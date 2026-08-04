@@ -13,6 +13,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { NoteCard } from '@/components/NoteCard';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
+import { MobileMissionTeaser } from '@/components/MobileMissionTeaser';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEvent } from '@/hooks/useEvent';
@@ -259,6 +260,11 @@ export function NotificationsPage() {
         ))}
       </SubHeaderBar>
       <div style={{ height: ARC_OVERHANG_PX }} />
+
+      {/* Mobile mission teaser — in-flow below the tabs, above content, so it
+          can never overlap navigation or feed controls. Mobile only; desktop
+          uses the sidebar widget. Self-hides when the mission is inactive. */}
+      <MobileMissionTeaser />
 
       {/* Content */}
       <PullToRefresh onRefresh={handleRefresh}>

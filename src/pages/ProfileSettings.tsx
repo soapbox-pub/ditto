@@ -14,7 +14,7 @@ import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { parseBirthdayFromContent, daysInMonth, type Birthday } from '@/lib/birthday';
 import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
 import { cn } from '@/lib/utils';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -26,6 +26,7 @@ import { ProfileCard } from '@/components/ProfileCard';
 import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { PageHeader } from '@/components/PageHeader';
 import { IntroImage } from '@/components/IntroImage';
+import { MissionHelperCard } from '@/components/MissionHelperCard';
 import { HelpTip } from '@/components/HelpTip';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { SortableList, SortableItem } from '@/components/SortableList';
@@ -36,6 +37,7 @@ import { parseAuthorEvent } from '@/hooks/useAuthor';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { useUploadFile } from '@/hooks/useUploadFile';
+import { useCustomizeMissionFlow } from '@/hooks/useCustomizeMissionFlow';
 
 import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
@@ -446,6 +448,16 @@ export function ProfileSettings() {
   const { mutateAsync: publishEvent, isPending } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Guided "Make it feel like me" mission — step 1 of 2. Presentational only:
+  // the profile substep is completed by `MissionEngine` when it observes the
+  // republished kind-0, not by anything on this page. So closing the tab right
+  // after saving still counts, and clicking around without saving doesn't.
+  const {
+    flowActive: customizeFlowActive,
+    profileDone: customizeProfileDone,
+  } = useCustomizeMissionFlow();
 
   const [cropState, setCropState] = useState<CropState | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -763,6 +775,26 @@ export function ProfileSettings() {
 
       <Form {...form}>
         <form id="profile-settings-form" onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl mx-auto px-4 pb-10 space-y-6">
+
+          {/* Guided customize mission helper (step 1 of 2). Shows only while the
+              flow is active on this page; once the saved profile is detected it
+              flips to the completed state and offers "Continue to Themes". */}
+          {customizeFlowActive && (
+            <MissionHelperCard
+              className="pt-2"
+              title="Make it feel like me"
+              stepLabel="Step 1 of 2 — Customize your profile"
+              body={
+                customizeProfileDone
+                  ? 'Profile saved ✓  Next: choose your theme.'
+                  : 'Add a name, picture, or bio so people know who you are.'
+              }
+              hint={customizeProfileDone ? undefined : 'Save your profile to continue.'}
+              completed={customizeProfileDone}
+              ctaLabel={customizeProfileDone ? 'Continue to Themes' : undefined}
+              onCta={customizeProfileDone ? () => navigate('/themes') : undefined}
+            />
+          )}
 
           {/* Intro */}
           <div className="flex items-center gap-4 px-3 pt-2 pb-2">

@@ -57,6 +57,7 @@ const LetterPreferencesPage = lazy(() => import("./pages/LetterPreferencesPage")
 const LettersPage = lazy(() => import("./pages/LettersPage").then(m => ({ default: m.LettersPage })));
 const MagicSettingsPage = lazy(() => import("./pages/MagicSettingsPage").then(m => ({ default: m.MagicSettingsPage })));
 const MemoryCardsPage = lazy(() => import("./pages/MemoryCardsPage").then(m => ({ default: m.MemoryCardsPage })));
+const MissionsPage = lazy(() => import("./pages/MissionsPage").then(m => ({ default: m.MissionsPage })));
 const MusicPage = lazy(() => import("./pages/MusicPage").then(m => ({ default: m.MusicPage })));
 const NetworkSettingsPage = lazy(() => import("./pages/NetworkSettingsPage").then(m => ({ default: m.NetworkSettingsPage })));
 const NIP19Page = lazy(() => import("./pages/NIP19Page").then(m => ({ default: m.NIP19Page })));
@@ -262,6 +263,7 @@ export function AppRouter() {
             <Route path="/blobbi" element={<BlobbiPage />} />
             <Route path="/world" element={<WorldPage />} />
             <Route path="/badges" element={<BadgesPage />} />
+            <Route path="/missions" element={<MissionsPage />} />
             <Route path="/books" element={<BooksPage />} />
             <Route path="/archive" element={<ArchivePage />} />
             <Route path="/bluesky" element={<BlueskyPage />} />
