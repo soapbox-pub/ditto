@@ -68,6 +68,13 @@ const settingsSections: SettingsSection[] = [
     path: '/settings/advanced',
   },
   {
+    id: 'ai',
+    label: defineMessage({ id: 'settings.sections.ai.label', defaultMessage: 'AI' }),
+    description: defineMessage({ id: 'settings.sections.ai.description', defaultMessage: 'AI providers for chat and other AI features' }),
+    illustration: '/ai-intro.png',
+    path: '/settings/ai',
+  },
+  {
     id: 'magic',
     label: defineMessage({ id: 'settings.sections.magic.label', defaultMessage: 'Magic' }),
     description: defineMessage({ id: 'settings.sections.magic.description', defaultMessage: 'Enchanted cursor effects and mystical interface powers' }),
