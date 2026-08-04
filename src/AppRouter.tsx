@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useState, type ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
 import { BackButtonHandler } from "@/components/BackButtonHandler";
@@ -14,6 +14,7 @@ import { MainLayout } from "./components/MainLayout";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { VersionCheck } from "./components/VersionCheck";
 import { useCurrentUser } from "./hooks/useCurrentUser";
+import { useAppContext } from "./hooks/useAppContext";
 import { useProfileUrl } from "./hooks/useProfileUrl";
 import { getExtraKindDef, getSectionKinds } from "./lib/extraKinds";
 
@@ -72,6 +73,8 @@ const SearchPage = lazy(() => import("./pages/SearchPage").then(m => ({ default:
 const SettingsAIPage = lazy(() => import("./pages/SettingsAIPage").then(m => ({ default: m.SettingsAIPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const TileSettingsPage = lazy(() => import("./pages/TileSettingsPage").then(m => ({ default: m.TileSettingsPage })));
+const TilesPage = lazy(() => import("./pages/TilesPage").then(m => ({ default: m.TilesPage })));
+const TileDetailPage = lazy(() => import("./pages/TileDetailPage").then(m => ({ default: m.TileDetailPage })));
 const SharePage = lazy(() => import("./pages/SharePage").then(m => ({ default: m.SharePage })));
 const ThemesPage = lazy(() => import("./pages/ThemesPage").then(m => ({ default: m.ThemesPage })));
 const TreasuresPage = lazy(() => import("./pages/TreasuresPage").then(m => ({ default: m.TreasuresPage })));
@@ -128,6 +131,16 @@ function ProfileRedirect() {
 function TilesRedirect() {
   const { naddr } = useParams<{ naddr: string }>();
   return <Navigate to={`/widgets/${naddr ?? ''}`} replace />;
+}
+
+/**
+ * Gates the widget marketplace routes behind widgetMarketplaceEnabled.
+ * Off by default -- see issue #321 (capability-chaining threat model).
+ */
+function RequireMarketplace({ children }: { children: ReactNode }) {
+  const { config } = useAppContext();
+  if (!config.widgetMarketplaceEnabled) return <Navigate to="/" replace />;
+  return <>{children}</>;
 }
 
 export function AppRouter() {
@@ -272,6 +285,8 @@ export function AppRouter() {
               }
             />
             <Route path="/themes" element={<ThemesPage />} />
+            <Route path="/widgets" element={<RequireMarketplace><TilesPage /></RequireMarketplace>} />
+            <Route path="/widgets/:naddr" element={<RequireMarketplace><TileDetailPage /></RequireMarketplace>} />
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/bookmarks" element={<BookmarksPage />} />
             <Route path="/ai-chat" element={<AIChatPage />} />

@@ -22,6 +22,7 @@ import {
   HandHeart,
   Heart,
   HelpCircle,
+  LayoutGrid,
 
   MessageSquare,
   MessageSquareMore,
@@ -203,6 +204,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
     section: "yours",
   },
   { id: "changelog", label: "Changelog", path: "/changelog", icon: ScrollText, section: "app" },
+  { id: "tiles", label: "Widgets", path: "/widgets", icon: LayoutGrid, section: "tools" },
   {
     id: "letters",
     label: "Letters",
