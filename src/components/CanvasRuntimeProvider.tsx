@@ -5,6 +5,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Capability, GrantBackend, TileRuntime } from '@soapbox.pub/nostr-canvas';
 import { createCanvasAdapter, type CanvasAdapter, type CanvasAdapterServices } from '@/tiles/adapter';
+import { canUseCanvasTiles } from '@/lib/canvasPlatform';
 import { canvasNavigateTo } from '@/lib/canvasNavigateRef';
 import { CanvasTileInstallationsProvider } from '@/components/CanvasTileInstallationsProvider';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -169,7 +170,7 @@ export function CanvasRuntimeProvider({ children }: { children: ReactNode }) {
 
   // ── Activation gate ──────────────────────────────────────────────────────
   const [demanded, setDemanded] = useState(false);
-  const active = demanded || config.installedCanvasTiles.length > 0;
+  const active = canUseCanvasTiles() && (demanded || config.installedCanvasTiles.length > 0);
   const activate = useCallback(() => setDemanded(true), []);
   const activation: Activation = useMemo(() => ({ active, activate }), [active, activate]);
 

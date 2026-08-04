@@ -1,29 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Sparkles, X, ChevronDown } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const STORAGE_KEY = 'ditto:marketplace-nag-dismissed';
 
-/**
- * Temporary flag: when true the nag always shows on mount regardless of stored dismissal.
- * Flip to false to restore first-open-only behaviour.
- */
-const ALWAYS_SHOW_NAG = true;
-
 export function MarketplaceNag() {
+  const intl = useIntl();
   const [hidden, setHidden] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
-    if (ALWAYS_SHOW_NAG) return;
     const dismissed = localStorage.getItem(STORAGE_KEY);
     if (dismissed === '1') setHidden(true);
   }, []);
 
   const dismiss = () => {
     setHidden(true);
-    if (!ALWAYS_SHOW_NAG) localStorage.setItem(STORAGE_KEY, '1');
+    localStorage.setItem(STORAGE_KEY, '1');
   };
 
   if (hidden) return null;
@@ -38,16 +33,24 @@ export function MarketplaceNag() {
         <div className="flex items-start gap-3 px-4 py-3">
           <Sparkles className="mt-0.5 size-5 shrink-0 text-primary" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">New: Widget marketplace</p>
+            <p className="text-sm font-semibold">
+              <FormattedMessage id="widgets.nag.title" defaultMessage="New: Widget marketplace" />
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Browse and install community widgets to customise your feed.
+              <FormattedMessage
+                id="widgets.nag.body"
+                defaultMessage="Browse and install community widgets to customise your feed."
+              />
             </p>
           </div>
           <Button
             variant="ghost"
             size="icon"
             className="size-7 shrink-0"
-            aria-label="Dismiss widget marketplace notice"
+            aria-label={intl.formatMessage({
+              id: 'widgets.nag.dismiss',
+              defaultMessage: 'Dismiss widget marketplace notice',
+            })}
             onClick={dismiss}
           >
             <X className="size-4" />
@@ -61,7 +64,7 @@ export function MarketplaceNag() {
             onClick={() => setExpanded((v) => !v)}
             className="flex w-full items-center justify-between py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
-            Learn more
+            <FormattedMessage id="widgets.nag.learnMore" defaultMessage="Learn more" />
             <ChevronDown
               className={cn(
                 'size-3.5 shrink-0 transition-transform motion-safe:duration-200',
@@ -77,9 +80,10 @@ export function MarketplaceNag() {
           >
             <div className="overflow-hidden">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Widgets are user-contributed content — they are not part of Ditto
-                and not made by Soapbox. Exercise caution when installing and
-                granting permissions.
+                <FormattedMessage
+                  id="widgets.nag.disclaimer"
+                  defaultMessage="Widgets are user-contributed content — they are not part of Ditto and not made by Soapbox. Exercise caution when installing and granting permissions."
+                />
               </p>
             </div>
           </div>
