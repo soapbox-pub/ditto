@@ -61,6 +61,14 @@ const settingsSections: SettingsSection[] = [
     requiresAuth: true,
   },
   {
+    id: 'tiles',
+    label: defineMessage({ id: 'settings.sections.tiles.label', defaultMessage: 'Widgets' }),
+    description: defineMessage({ id: 'settings.sections.tiles.description', defaultMessage: 'Configure installed widgets and manage their permissions' }),
+    illustration: '/tiles-palette-intro.png',
+    path: '/settings/widgets',
+    requiresAuth: true,
+  },
+  {
     id: 'advanced',
     label: defineMessage({ id: 'settings.sections.advanced.label', defaultMessage: 'Advanced' }),
     description: defineMessage({ id: 'settings.sections.advanced.description', defaultMessage: 'Wallet, system, and power user settings' }),
