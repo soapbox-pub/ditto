@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState, lazy, Suspense, memo } from 'react';
+import { useCallback, useEffect, useMemo, useState, lazy, Suspense, memo } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
+import { useOptionalCanvasRuntime } from '@/components/CanvasRuntimeProvider';
 import {
   DndContext,
   closestCenter,
@@ -23,9 +24,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
-import { getWidgetDefinition, useWidgetLabel } from '@/lib/sidebarWidgets';
+import { getWidgetDefinition, useWidgetLabel, WIDGET_DEFINITIONS } from '@/lib/sidebarWidgets';
 import type { WidgetConfig } from '@/contexts/AppContext';
 import type { WidgetDefinition } from '@/lib/sidebarWidgets';
+import { useOptionalCanvasTileInstallations } from '@/components/CanvasTileInstallationsProvider';
+import { CanvasTileWidget } from '@/components/CanvasTileWidget';
+import { CanvasWidgetRecovery } from '@/components/CanvasWidgetRecovery';
+import { parseTileDefinition } from '@/tiles/definition';
+import { canvasWidgetDefinition, canvasWidgetIdentifier } from '@/tiles/sidebarWidgets';
 
 // ── Lazy-loaded widget components ────────────────────────────────────────────
 
@@ -47,6 +53,8 @@ const WidgetPickerDialog = lazy(() => import('@/components/WidgetPickerDialog').
 
 function WidgetContent({ id }: { id: string }) {
   const intl = useIntl();
+  const identifier = canvasWidgetIdentifier(id);
+  if (identifier) return <CanvasTileWidget identifier={identifier} />;
 
   switch (id) {
     case 'trends':
@@ -77,6 +85,29 @@ function WidgetContent({ id }: { id: string }) {
     default:
       return <p className="text-xs text-muted-foreground p-1"><FormattedMessage id="widgets.common.unknownWidget" defaultMessage={"Unknown widget."} /></p>;
   }
+}
+
+function useCanvasWidgetCatalog() {
+  const { config } = useAppContext();
+  const installations = useOptionalCanvasTileInstallations();
+  const runtime = useOptionalCanvasRuntime();
+  const [runtimeVersion, setRuntimeVersion] = useState(0);
+
+  useEffect(() => {
+    if (!runtime) return;
+    return runtime.on('settings-fields-changed', () => setRuntimeVersion((version) => version + 1));
+  }, [runtime]);
+
+  const eligible = new Set(runtime?.getWidgetEligibleIdentifiers() ?? []);
+  const installedIdentifiers = new Set(config.installedCanvasTiles.map((coordinate) => coordinate.identifier));
+  const definitions = (!installations || !runtime)
+    ? []
+    : config.installedCanvasTiles.flatMap((coordinate) => {
+      const event = installations.getCachedDefinition(coordinate);
+      const tile = event && parseTileDefinition(event);
+      return tile && eligible.has(tile.identifier) ? [canvasWidgetDefinition(tile)].filter((definition): definition is WidgetDefinition => !!definition) : [];
+    });
+  return { definitions, installedIdentifiers, runtimeVersion };
 }
 
 /** Fallback while a widget component is loading. */
@@ -110,11 +141,12 @@ function WidgetErrorFallback({ name }: { name: string }) {
 interface SortableWidgetProps {
   config: WidgetConfig;
   definition: WidgetDefinition;
+  unavailableCanvasWidget?: boolean;
   onRemove: (id: string) => void;
   onHeightChange: (id: string, height: number) => void;
 }
 
-const SortableWidget = memo(function SortableWidget({ config, definition, onRemove, onHeightChange }: SortableWidgetProps) {
+const SortableWidget = memo(function SortableWidget({ config, definition, unavailableCanvasWidget, onRemove, onHeightChange }: SortableWidgetProps) {
   const label = useWidgetLabel(definition.id);
   const {
     attributes,
@@ -131,6 +163,8 @@ const SortableWidget = memo(function SortableWidget({ config, definition, onRemo
     zIndex: isDragging ? 10 : undefined,
   };
 
+  const isCanvas = !!canvasWidgetIdentifier(config.id);
+
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
       <WidgetCard
@@ -140,12 +174,15 @@ const SortableWidget = memo(function SortableWidget({ config, definition, onRemo
         onHeightChange={(h) => onHeightChange(config.id, h)}
         isDragging={isDragging}
         dragHandleProps={listeners}
+        hideTitle={isCanvas}
       >
-        <ErrorBoundary fallback={<WidgetErrorFallback name={label} />} reportToSentry>
-          <Suspense fallback={<WidgetSkeleton />}>
-            <WidgetContent id={config.id} />
-          </Suspense>
-        </ErrorBoundary>
+        {unavailableCanvasWidget ? <CanvasWidgetRecovery /> : (
+          <ErrorBoundary fallback={<WidgetErrorFallback name={label} />} reportToSentry>
+            <Suspense fallback={<WidgetSkeleton />}>
+              <WidgetContent id={config.id} />
+            </Suspense>
+          </ErrorBoundary>
+        )}
       </WidgetCard>
     </div>
   );
@@ -160,12 +197,19 @@ export function WidgetSidebar() {
   const { user } = useCurrentUser();
   const { updateSettings } = useEncryptedSettings();
   const widgets = config.sidebarWidgets ?? EMPTY_WIDGETS;
+  const { definitions: canvasDefinitions, installedIdentifiers } = useCanvasWidgetCatalog();
+  const definitions = useMemo(() => [...WIDGET_DEFINITIONS, ...canvasDefinitions], [canvasDefinitions]);
+  const definitionsById = useMemo(() => new Map(definitions.map((definition) => [definition.id, definition])), [definitions]);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  // Filter out widgets with unknown definitions
+  // Retain installed Canvas widgets without a local definition so users can repair them.
   const validWidgets = useMemo(
-    () => widgets.filter((w) => getWidgetDefinition(w.id)),
-    [widgets],
+    () => widgets.filter((widget) => {
+      if (definitionsById.has(widget.id) || getWidgetDefinition(widget.id)) return true;
+      const identifier = canvasWidgetIdentifier(widget.id);
+      return !!identifier && installedIdentifiers.has(identifier);
+    }),
+    [definitionsById, installedIdentifiers, widgets],
   );
 
   const updateWidgets = useCallback((updater: (current: WidgetConfig[]) => WidgetConfig[]) => {
@@ -223,13 +267,15 @@ export function WidgetSidebar() {
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
           <div className="space-y-2 flex-1">
             {validWidgets.map((w) => {
-              const def = getWidgetDefinition(w.id);
-              if (!def) return null;
+              const def = definitionsById.get(w.id) ?? getWidgetDefinition(w.id);
+              const canvasIdentifier = canvasWidgetIdentifier(w.id);
+              if (!def && !canvasIdentifier) return null;
               return (
                 <SortableWidget
                   key={w.id}
                   config={w}
-                  definition={def}
+                  definition={def ?? unavailableCanvasWidgetDefinition(canvasIdentifier!)}
+                  unavailableCanvasWidget={!def && !!canvasIdentifier}
                   onRemove={removeWidget}
                   onHeightChange={changeHeight}
                 />
@@ -238,8 +284,9 @@ export function WidgetSidebar() {
 
             {/* Add widget button */}
             <button
+              type="button"
               onClick={() => setPickerOpen(true)}
-              className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-background/85 text-muted-foreground hover:text-foreground hover:bg-background transition-colors text-xs"
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-background/85 py-2.5 text-xs text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Plus className="size-3.5" />
               <FormattedMessage id="widgets.common.addWidget" defaultMessage={"Add widget"} />
@@ -261,9 +308,23 @@ export function WidgetSidebar() {
             currentWidgets={widgets}
             onAdd={addWidget}
             onRemove={removeWidget}
+            definitions={definitions}
           />
         )}
       </Suspense>
     </aside>
   );
+}
+
+function unavailableCanvasWidgetDefinition(identifier: string): WidgetDefinition {
+  return {
+    id: `canvas:${identifier}`,
+    label: 'Unavailable tile',
+    description: 'Restore this tile from the marketplace.',
+    icon: Plus,
+    defaultHeight: 160,
+    minHeight: 120,
+    maxHeight: 240,
+    category: 'discovery',
+  };
 }
