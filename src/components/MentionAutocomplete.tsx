@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, useId } from 'react';
 import { nip19 } from 'nostr-tools';
-import { UserRoundCheck } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
+import { Sparkles, UserRoundCheck } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { EmojifiedText } from '@/components/CustomEmoji';
@@ -8,11 +9,18 @@ import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { cn } from '@/lib/utils';
 import { usePortalDropdown, dropdownPositionStyle, type DropdownPosition } from '@/hooks/usePortalDropdown';
+import type { AbilityInfo } from '@/lib/abilities';
 
 interface MentionAutocompleteProps {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   content: string;
   onInsertMention: (params: { start: number; end: number; replacement: string }) => void;
+  /**
+   * Optional chat abilities merged into the same "@" dropdown, below the
+   * person results. Selecting one inserts its label as plain text — a
+   * reference, not an action. Omit to keep the people-only behavior.
+   */
+  abilities?: readonly AbilityInfo[];
 }
 
 /** CSS properties that affect text layout and must be copied to the mirror element. */
@@ -75,11 +83,16 @@ function getCaretCoordinates(textarea: HTMLTextAreaElement, position: number): {
  * Detects `@query` at the cursor position in a textarea and shows
  * a profile autocomplete dropdown. On selection, replaces `@query`
  * with `nostr:npub1...` in the content.
+ *
+ * When the `abilities` prop is passed, matching abilities are merged
+ * into the same dropdown below the people; selecting one replaces
+ * `@query` with `@Label` as plain text.
  */
 export function MentionAutocomplete({
   textareaRef,
   content,
   onInsertMention,
+  abilities,
 }: MentionAutocompleteProps) {
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionStart, setMentionStart] = useState(-1);
@@ -88,6 +101,7 @@ export function MentionAutocomplete({
   const [dropdownPos, setDropdownPos] = useState<DropdownPosition | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const listboxId = useId();
 
   const handleClose = useCallback(() => setIsOpen(false), []);
   const { computePosition, renderPortal } = usePortalDropdown({
@@ -100,6 +114,22 @@ export function MentionAutocomplete({
   const { data: profiles, followedPubkeys } = useSearchProfiles(
     isOpen ? mentionQuery : '',
   );
+
+  // Abilities are matched locally against the same mention query (people are
+  // matched by useSearchProfiles). The two lists merge in one dropdown.
+  // Match against the localized label/description (what the user sees in the
+  // UI), not the raw English defaultMessage, so a non-English user can find
+  // abilities by the text they are reading.
+  const intl = useIntl();
+  const filteredAbilities = useMemo(() => {
+    if (!abilities || abilities.length === 0) return [];
+    const q = mentionQuery.toLowerCase();
+    return abilities.filter(
+      (ability) =>
+        intl.formatMessage(ability.label).toLowerCase().includes(q) ||
+        intl.formatMessage(ability.description).toLowerCase().includes(q),
+    );
+  }, [abilities, mentionQuery, intl]);
 
   // Detect @mention query at cursor.
   // Accepts explicit text/cursor values so callers don't have to rely on
@@ -154,6 +184,10 @@ export function MentionAutocomplete({
     setDropdownPos(computePosition(coords));
   }, [textareaRef, computePosition]);
 
+  // Set by the native-input handler below so the content-change effect can
+  // skip re-running detection for a change it already handled (see there).
+  const handledNatively = useRef(false);
+
   // Listen for input/cursor changes on the textarea element.
   // Re-attaches whenever the underlying DOM element changes (e.g. after
   // preview mode toggles remount the textarea).
@@ -164,6 +198,7 @@ export function MentionAutocomplete({
     const handleInput = () => {
       // Read directly from the DOM — the browser has already updated
       // value and selectionStart before firing the input event.
+      handledNatively.current = true;
       detectMention(textarea.value, textarea.selectionStart);
     };
     const handleClick = () => detectMention();
@@ -187,63 +222,26 @@ export function MentionAutocomplete({
   }, [textareaRef, detectMention, content]);
 
   // Re-detect when content changes (covers external mutations like emoji
-  // insertion that don't fire native input events). Pass the content prop
-  // directly so we don't depend on the DOM textarea value being in sync.
+  // insertion that don't fire native input events, e.g. useInsertText's
+  // setContent). Pass the content prop directly so we don't depend on the
+  // DOM textarea value being in sync. Skip when the native input listener
+  // above already handled this exact change: by the time this effect runs,
+  // React may have just reset the DOM value (resetting the browser's
+  // selection to the string's end as a side effect), so re-reading
+  // textarea.selectionStart here would race the correct, already-applied
+  // detection with a stale cursor position.
   useEffect(() => {
+    if (handledNatively.current) {
+      handledNatively.current = false;
+      return;
+    }
     const textarea = textareaRef.current;
     if (!textarea) return;
     detectMention(content, textarea.selectionStart);
   }, [content, detectMention, textareaRef]);
 
-  // Handle keyboard navigation within the dropdown
-  useEffect(() => {
-    if (!isOpen || !profiles || profiles.length === 0) return;
-
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case 'ArrowDown':
-          e.preventDefault();
-          setSelectedIndex((prev) => (prev < (profiles?.length ?? 1) - 1 ? prev + 1 : 0));
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : (profiles?.length ?? 1) - 1));
-          break;
-        case 'Enter':
-        case 'Tab':
-          if (profiles && profiles.length > 0) {
-            e.preventDefault();
-            // Make sure no other keydown listener (e.g. a submit-on-Enter
-            // handler) also reacts to this keypress.
-            e.stopImmediatePropagation();
-            selectProfile(profiles[selectedIndex]);
-          }
-          break;
-        case 'Escape':
-          e.preventDefault();
-          setIsOpen(false);
-          break;
-      }
-    };
-
-    textarea.addEventListener('keydown', handleKeyDown);
-    return () => textarea.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, profiles, selectedIndex, textareaRef]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Scroll selected item into view
-  useEffect(() => {
-    if (selectedIndex >= 0 && listRef.current) {
-      const items = listRef.current.querySelectorAll('[data-mention-item]');
-      items[selectedIndex]?.scrollIntoView({ block: 'nearest' });
-    }
-  }, [selectedIndex]);
-
-  const selectProfile = useCallback((profile: SearchProfile) => {
-    const npub = nip19.npubEncode(profile.pubkey);
-    const replacement = `nostr:${npub} `;
+  /** Insert a replacement over the mention range and close the dropdown. */
+  const insertMentionText = useCallback((replacement: string) => {
     const cursor = textareaRef.current?.selectionStart ?? mentionStart + mentionQuery.length + 1;
 
     onInsertMention({
@@ -257,7 +255,99 @@ export function MentionAutocomplete({
     setMentionStart(-1);
   }, [mentionStart, mentionQuery, textareaRef, onInsertMention]);
 
-  if (!isOpen || !dropdownPos || !profiles || profiles.length === 0) {
+  const selectProfile = useCallback((profile: SearchProfile) => {
+    const npub = nip19.npubEncode(profile.pubkey);
+    insertMentionText(`nostr:${npub} `);
+  }, [insertMentionText]);
+
+  const selectAbility = useCallback((ability: AbilityInfo) => {
+    // Plain-text reference only — mentioning an ability never enables it.
+    // Resolves the English defaultMessage directly: the inserted text becomes
+    // part of the chat message the model reads, so it stays untranslated.
+    insertMentionText(`@${ability.label.defaultMessage} `);
+  }, [insertMentionText]);
+
+  // Handle keyboard navigation within the dropdown
+  useEffect(() => {
+    if (!isOpen) return;
+    const profilesLen = profiles?.length ?? 0;
+    const totalItems = profilesLen + filteredAbilities.length;
+    if (totalItems === 0) return;
+
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setSelectedIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0));
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));
+          break;
+        case 'Enter':
+        case 'Tab': {
+          e.preventDefault();
+          // Make sure no other keydown listener (e.g. a submit-on-Enter
+          // handler) also reacts to this keypress.
+          e.stopImmediatePropagation();
+          // Clamp in case the list shrank while the dropdown was open.
+          const index = Math.min(selectedIndex, totalItems - 1);
+          if (index < profilesLen) {
+            const profile = profiles?.[index];
+            if (profile) selectProfile(profile);
+          } else {
+            const ability = filteredAbilities[index - profilesLen];
+            if (ability) selectAbility(ability);
+          }
+          break;
+        }
+        case 'Escape':
+          e.preventDefault();
+          setIsOpen(false);
+          break;
+      }
+    };
+
+    textarea.addEventListener('keydown', handleKeyDown);
+    return () => textarea.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, profiles, selectedIndex, textareaRef, filteredAbilities, selectProfile, selectAbility]);
+
+  // Scroll selected item into view
+  useEffect(() => {
+    if (selectedIndex >= 0 && listRef.current) {
+      const items = listRef.current.querySelectorAll('[data-mention-item]');
+      items[selectedIndex]?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [selectedIndex]);
+
+  const profilesLen = profiles?.length ?? 0;
+  const hasPeople = profilesLen > 0;
+  const hasAbilities = filteredAbilities.length > 0;
+
+  // The dropdown (and its listbox) only exists while this is true.
+  const isListboxRendered = isOpen && !!dropdownPos && (hasPeople || hasAbilities);
+
+  // The textarea is owned by the caller (ComposeBox / AIChatPage), so the
+  // combobox input-side ARIA attributes cannot be declared in JSX here.
+  // Apply them to the element directly so assistive tech treats the textarea
+  // as the combobox that controls the rendered listbox.
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.setAttribute('role', 'combobox');
+    textarea.setAttribute('aria-controls', listboxId);
+    textarea.setAttribute('aria-expanded', String(isListboxRendered));
+    if (isListboxRendered && selectedIndex >= 0) {
+      textarea.setAttribute('aria-activedescendant', `${listboxId}-option-${selectedIndex}`);
+    } else {
+      textarea.removeAttribute('aria-activedescendant');
+    }
+  }, [textareaRef, listboxId, isListboxRendered, selectedIndex]);
+
+  if (!isListboxRendered) {
     return null;
   }
 
@@ -268,14 +358,25 @@ export function MentionAutocomplete({
       className="fixed z-[300] w-[280px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150 pointer-events-auto"
       style={dropdownPositionStyle(dropdownPos)}
     >
-      <div ref={listRef} className="max-h-[240px] overflow-y-auto py-1">
-        {profiles.map((profile, index) => (
+      <div ref={listRef} id={listboxId} role="listbox" className="max-h-[240px] overflow-y-auto py-1">
+        {profiles?.map((profile, index) => (
           <MentionItem
             key={profile.pubkey}
             profile={profile}
+            optionId={`${listboxId}-option-${index}`}
             isSelected={index === selectedIndex}
             isFollowed={followedPubkeys.has(profile.pubkey)}
             onSelect={() => selectProfile(profile)}
+          />
+        ))}
+        {hasPeople && hasAbilities && <div aria-hidden="true" className="my-1 border-t border-border" />}
+        {filteredAbilities.map((ability, index) => (
+          <AbilityItem
+            key={ability.key}
+            ability={ability}
+            optionId={`${listboxId}-option-${profilesLen + index}`}
+            isSelected={profilesLen + index === selectedIndex}
+            onSelect={() => selectAbility(ability)}
           />
         ))}
       </div>
@@ -289,17 +390,20 @@ export function MentionAutocomplete({
 
 function MentionItem({
   profile,
+  optionId,
   isSelected,
   isFollowed,
   onSelect,
 }: {
   profile: SearchProfile;
+  optionId: string;
   isSelected: boolean;
   isFollowed: boolean;
   onSelect: () => void;
 }) {
+  const intl = useIntl();
   const { metadata, pubkey } = profile;
-  const displayName = metadata.name || metadata.display_name || 'Anonymous';
+  const displayName = metadata.name || metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const nip05 = metadata.nip05;
   const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
   const nip05Display = nip05Verified && nip05 ? (nip05.startsWith('_@') ? nip05.slice(2) : nip05) : undefined;
@@ -308,6 +412,9 @@ function MentionItem({
   return (
     <button
       data-mention-item
+      id={optionId}
+      role="option"
+      aria-selected={isSelected}
       className={cn(
         'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors cursor-pointer',
         isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
@@ -330,7 +437,7 @@ function MentionItem({
         {isFollowed && (
           <span
             className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full bg-primary flex items-center justify-center ring-2 ring-popover"
-            title="Following"
+            title={intl.formatMessage({ id: 'mentionAutocomplete.following', defaultMessage: 'Following' })}
           >
             <UserRoundCheck className="size-2 text-primary-foreground" strokeWidth={3} />
           </span>
@@ -349,6 +456,53 @@ function MentionItem({
           ) : (
             <span className="truncate font-mono text-[11px]">{identifier}</span>
           )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function AbilityItem({
+  ability,
+  optionId,
+  isSelected,
+  onSelect,
+}: {
+  ability: AbilityInfo;
+  optionId: string;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      data-mention-item
+      id={optionId}
+      role="option"
+      aria-selected={isSelected}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors cursor-pointer',
+        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+      )}
+      // Same pointer-down selection contract as MentionItem.
+      onPointerDown={(e) => {
+        e.preventDefault();
+        onSelect();
+      }}
+    >
+      <div className="relative shrink-0">
+        <div className="size-8 rounded-lg bg-primary/15 flex items-center justify-center">
+          <Sparkles className="size-4 text-primary" />
+        </div>
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="font-semibold text-sm truncate">
+            <FormattedMessage {...ability.label} />
+          </span>
+        </div>
+        <div className="text-xs text-muted-foreground truncate">
+          <FormattedMessage {...ability.description} />
         </div>
       </div>
     </button>
