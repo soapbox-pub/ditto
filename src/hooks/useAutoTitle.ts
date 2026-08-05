@@ -38,6 +38,13 @@ export function useAutoTitle({ sessions, snapshots, profiles, updateSession }: U
   useEffect(() => {
     if (!user) return;
 
+    // Drop in-flight entries for sessions that no longer exist (closed tabs),
+    // so the ref does not keep a dead session's entry forever.
+    const liveSessionIds = new Set(sessions.map((s) => s.id));
+    for (const id of [...inFlightRef.current]) {
+      if (!liveSessionIds.has(id)) inFlightRef.current.delete(id);
+    }
+
     for (const session of sessions) {
       if (session.title) {
         // A titled tab needs no further attempts; forget its tracking entry.
