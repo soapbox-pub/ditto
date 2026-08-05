@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, onTestFinished } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { AgentSession, SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
 
@@ -148,7 +148,10 @@ describe('useAutoTitle', () => {
     const create = vi.fn().mockRejectedValue(new Error('quota exceeded'));
     createSessionOpenAIClientMock.mockResolvedValue({ chat: { completions: { create } } });
     useCurrentUserMock.mockReturnValue({ user: { pubkey: PUBKEY } });
+    // Registered for teardown, so a failed assertion below cannot leave the
+    // console.error mock installed for the tests that follow.
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    onTestFinished(() => errorSpy.mockRestore());
 
     const updateSession = vi.fn();
     const { rerender } = renderHook(
@@ -177,7 +180,5 @@ describe('useAutoTitle', () => {
     const followUp: SessionMessage[] = [...exchange, { role: 'user', content: 'follow-up' }];
     rerender({ messages: followUp });
     await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
-
-    errorSpy.mockRestore();
   });
 });
