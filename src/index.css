@@ -1017,6 +1017,94 @@
   50% { transform: translateX(3px); }
 }
 
+/* ── First-arrival transition ──────────────────────────────────────────────── */
+
+/* The one-time welcome shown immediately after signup. Every animation here is
+   a single finite run on an element that is unmounted moments later, so there
+   is nothing to leak and nothing to loop. All are opacity/transform only, and
+   all are suppressed under prefers-reduced-motion — the component then renders
+   a static welcome and the same state machine reaches the same end. */
+
+/* Act 1 — points of light fade up and settle. No flashing: opacity rises once
+   and holds, it never strobes. */
+@keyframes arrival-signal {
+  0%   { opacity: 0; transform: scale(0.4); }
+  60%  { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0.55; transform: scale(1); }
+}
+
+.arrival-signal {
+  opacity: 0;
+  animation: arrival-signal 1.1s ease-out forwards;
+}
+
+/* The mark eases in from slightly small — a gather, not a zoom. */
+@keyframes arrival-mark {
+  0%   { opacity: 0; transform: scale(0.88); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.arrival-mark {
+  animation: arrival-mark 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* A single soft halo breathing out from behind the mark. */
+@keyframes arrival-halo {
+  0%   { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.35); opacity: 0; }
+  40%  { opacity: 1; }
+  100% { box-shadow: 0 0 0 46px hsl(var(--primary) / 0); opacity: 0; }
+}
+
+.arrival-halo {
+  animation: arrival-halo 1.8s ease-out 0.35s forwards;
+}
+
+/* Act 2 — the welcome rises a few pixels as it fades in. */
+@keyframes arrival-welcome {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.arrival-welcome {
+  opacity: 0;
+  animation: arrival-welcome 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.75s forwards;
+}
+
+/* Act 3 — the overlay dissolves. The app beneath is already laid out, so
+   nothing shifts when this element leaves. */
+@keyframes arrival-overlay-out {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.arrival-overlay-out {
+  animation: arrival-overlay-out 0.5s ease-out forwards;
+  pointer-events: none;
+}
+
+/* The interface itself enters with a whisper — opacity only, no translate, so
+   the reveal can never cause a layout shift or reflow the feed. */
+@keyframes arrival-app-in {
+  0%   { opacity: 0.55; }
+  100% { opacity: 1; }
+}
+
+.arrival-app-in {
+  animation: arrival-app-in 0.45s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arrival-signal,
+  .arrival-mark,
+  .arrival-halo,
+  .arrival-welcome,
+  .arrival-overlay-out,
+  .arrival-app-in {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 /* ── Post-onboarding mission surfaces ──────────────────────────────────────── */
 
 /* Every animation below is a SINGLE FINITE RUN — there is no `infinite` in this

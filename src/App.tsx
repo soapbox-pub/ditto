@@ -5,6 +5,7 @@ import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppProvider } from "@/components/AppProvider";
 import { I18nProvider } from "@/components/I18nProvider";
+import { FirstArrivalExperience } from "@/components/FirstArrivalExperience";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
 import { NativeNotifications } from "@/components/NativeNotifications";
 import NostrProvider from "@/components/NostrProvider";
@@ -235,6 +236,12 @@ export function App() {
                         <InitialSyncGate>
                           <AppRouter />
                         </InitialSyncGate>
+                        {/* One-time post-signup arrival transition. Mounted at
+                            app level so it covers every gate branch and every
+                            route, and exactly once. It renders nothing unless
+                            the active account has an unconsumed arrival intent,
+                            so it is inert for every ordinary session. */}
+                        <FirstArrivalExperience />
                       </TooltipProvider>
                     </EmotionDevProvider>
                   </NWCProvider>

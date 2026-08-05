@@ -40,6 +40,7 @@ import { type SyncPhase, useInitialSync } from "@/hooks/useInitialSync";
 import { useLoginActions } from "@/hooks/useLoginActions";
 import { useNostrPublish } from "@/hooks/useNostrPublish";
 import { OnboardingContext } from "@/hooks/useOnboarding";
+import { markFirstArrival } from "@/lib/firstArrival";
 import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
@@ -74,6 +75,7 @@ interface InitialSyncGateProps {
  */
 export function InitialSyncGate({ children }: InitialSyncGateProps) {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { phase, markComplete } = useInitialSync();
   const { isLoading: settingsLoading } = useEncryptedSettings();
   const [preloadApp, setPreloadApp] = useState(false);
@@ -84,10 +86,29 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
 
   const startSignup = useCallback(() => setSignupActive(true), []);
 
-  const handleSignupComplete = useCallback(() => {
+  /**
+   * The signup completion boundary — the single place that knows a brand-new
+   * account just finished signing up, and therefore the only place allowed to
+   * arm the one-time arrival transition.
+   *
+   * `pubkey` is derived from the key generated during signup and passed up from
+   * the questionnaire, rather than read from `useCurrentUser()` here. Login
+   * happens two steps earlier so the context value has almost certainly settled
+   * by now, but "almost certainly" is not a guarantee worth taking when the
+   * fallback is arming the wrong account (or none). The explicit value removes
+   * the race entirely.
+   *
+   * This writes a local marker only. No Nostr event is published, and nothing
+   * about the durable Ditto Explorer mission is touched — mission eligibility
+   * is decided independently by `MissionEngine`, so an existing user can be
+   * eligible for the mission without ever seeing this transition.
+   */
+  const handleSignupComplete = useCallback((pubkey?: string) => {
+    const resolved = pubkey ?? user?.pubkey;
+    if (resolved) markFirstArrival(config.appId, resolved);
     setSignupActive(false);
     markComplete();
-  }, [markComplete]);
+  }, [markComplete, config.appId, user?.pubkey]);
 
   const contextValue = useMemo(() => ({ startSignup }), [startSignup]);
 
@@ -266,7 +287,8 @@ function SetupQuestionnaire({
   onPreload,
   isSignup = false,
 }: {
-  onComplete: () => void;
+  /** Receives the signup pubkey when this run created a new account. */
+  onComplete: (pubkey?: string) => void;
   onPreload: () => void;
   isSignup?: boolean;
 }) {
@@ -466,7 +488,9 @@ function SetupQuestionnaire({
             />
           )}
 
-          {step === "outro" && <OutroStep onComplete={onComplete} />}
+          {step === "outro" && (
+            <OutroStep onComplete={() => onComplete(isSignup ? expectedPubkey : undefined)} />
+          )}
         </div>
       </div>
     </div>
