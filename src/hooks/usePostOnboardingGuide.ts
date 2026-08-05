@@ -7,6 +7,13 @@ import {
 } from '@/dev/missionHarness';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import {
+  type AutoWriteName,
+  claimAutoWrite,
+  releaseAutoWrite,
+  resetAutoWrites,
+  settleAutoWrite,
+} from '@/lib/missionAutoWrites';
+import {
   type MissionBaselines,
   type PostOnboardingGuideState,
   type PostOnboardingPathId,
@@ -45,7 +52,21 @@ import {
  * every pass, a lost completion simply gets re-detected and re-written.
  */
 export function usePostOnboardingGuide() {
-  const { settings, updateSettings, isLoading } = useEncryptedSettings();
+  const { settings, updateSettings, isLoading, pubkey } = useEncryptedSettings();
+
+  // `useMutation` returns a **new object on every render**. Reading it through a
+  // ref keeps it out of the callback dependency lists below, which is what makes
+  // every setter identity-stable for the lifetime of the hook.
+  //
+  // This is not a micro-optimisation. While these setters changed identity each
+  // render, any `useEffect` keyed on one re-ran on every render — and a failing
+  // write re-rendered by itself, because the mutation's own pending -> error
+  // transition is a state change. That closed a loop that reached ~4,650 write
+  // attempts per second.
+  const mutateRef = useRef(updateSettings.mutateAsync);
+  mutateRef.current = updateSettings.mutateAsync;
+  const pubkeyRef = useRef(pubkey);
+  pubkeyRef.current = pubkey;
 
   // Localhost-only inspection state. `readMissionDevState()` returns undefined
   // in every production build and on every non-localhost host, so this collapses
@@ -63,6 +84,8 @@ export function usePostOnboardingGuide() {
   // transitions in the same tab compose instead of clobbering each other (the
   // settings cache update lands a tick later than a synchronous second call).
   const latestRef = useRef<PostOnboardingGuideState | undefined>(undefined);
+  /** Whether the write that just ran rejected. Read by `updateOnce`. */
+  const failedRef = useRef(false);
   if (state && latestRef.current?.updatedAt !== state.updatedAt) {
     latestRef.current = state;
   }
@@ -88,17 +111,70 @@ export function usePostOnboardingGuide() {
       const next = reduce(current);
       if (!next) return Promise.resolve();
       latestRef.current = next;
-      return updateSettings
-        .mutateAsync({ postOnboardingGuide: next })
+      return mutateRef
+        .current({ postOnboardingGuide: next })
         .then(() => undefined)
         .catch((error) => {
           // Roll the local snapshot back so a failed write doesn't make later
           // transitions build on state that was never persisted.
           latestRef.current = current;
+          failedRef.current = true;
           console.error('Failed to persist mission state:', error);
         });
     },
-    [updateSettings],
+    [],
+  );
+
+  /**
+   * Run an **automatic** write — one no user asked for — at most once per
+   * account per session.
+   *
+   * See `missionAutoWrites`: the guard is module-level because several surfaces
+   * mount this hook simultaneously, so a per-hook flag cannot answer "has this
+   * already been attempted anywhere". A failure is recorded and never retried;
+   * the loop this replaces is not worth an informational field.
+   *
+   * The timestamp is minted **inside the claim**, so even if a retry were ever
+   * added it would reproduce the identical state rather than a state that only
+   * differs by `Date.now()` — which is precisely what defeated every equality
+   * check during the incident.
+   */
+  const updateOnce = useCallback(
+    (
+      name: AutoWriteName,
+      reduce: (current: PostOnboardingGuideState) => PostOnboardingGuideState | null,
+    ): Promise<void> => {
+      // The harness owns its own state and never persists, so it is exempt.
+      if (devStateRef.current) return update(reduce);
+
+      const key = pubkeyRef.current;
+      if (!claimAutoWrite(key, name)) return Promise.resolve();
+
+      // Read only for *this* write; a user action that failed earlier must not
+      // be mistaken for this one failing.
+      failedRef.current = false;
+      let attempted = false;
+      const result = update((current) => {
+        const next = reduce(current);
+        attempted = next !== null;
+        return next;
+      });
+
+      // The reducer decided there was nothing to do, so nothing was written and
+      // nothing should be consumed: a genuinely new situation may try later.
+      if (!attempted) {
+        releaseAutoWrite(key, name);
+        return result;
+      }
+
+      // `update` swallows its own rejection, so success is read from the local
+      // snapshot having survived rather than from a thrown error.
+      return result.then(() => {
+        settleAutoWrite(key, name, latestRef.current !== undefined && !failedRef.current);
+        failedRef.current = false;
+      });
+    },
+    [update],
   );
 
   /**
@@ -113,16 +189,29 @@ export function usePostOnboardingGuide() {
   const initializeGuide = useCallback((): Promise<void> => {
     if (devStateRef.current) return Promise.resolve(); // harness owns the state
     if (latestRef.current) return Promise.resolve();
+
+    // Guarded exactly like `markIntroPresented`, and for the same reason: the
+    // engine's initialization effect also depends on this callback, and while a
+    // failing write left `latestRef` empty, "no mission yet" stayed true
+    // forever — so the effect kept firing. One attempt per account per session;
+    // a failure is picked up on the next load rather than hammered.
+    const key = pubkeyRef.current;
+    if (!claimAutoWrite(key, 'initializeGuide')) return Promise.resolve();
+
     const fresh = createInitialGuideState();
     latestRef.current = fresh;
-    return updateSettings
-      .mutateAsync({ postOnboardingGuide: fresh })
-      .then(() => undefined)
+    return mutateRef
+      .current({ postOnboardingGuide: fresh })
+      .then(() => {
+        settleAutoWrite(key, 'initializeGuide', true);
+        return undefined;
+      })
       .catch((error) => {
         latestRef.current = undefined;
+        settleAutoWrite(key, 'initializeGuide', false);
         console.error('Failed to initialize mission state:', error);
       });
-  }, [updateSettings]);
+  }, []);
 
   /** Record which task the user most recently launched (informational only). */
   const startPath = useCallback(
@@ -234,18 +323,19 @@ export function usePostOnboardingGuide() {
    * Record that the introduction has been shown. Purely informational — it does
    * not change what the user is offered — so it never advances the intro state.
    */
-  const markIntroPresented = useCallback(
-    () =>
-      update((current) => {
+  const markIntroPresented = useCallback(() => {
+    // One timestamp for the whole attempt. Minting it per render is what made
+    // every attempt look like a brand-new state during the incident.
+    const now = Date.now();
+    return updateOnce('markIntroPresented', (current) => {
         if (!current.intro || current.intro.presentedAt) return null;
-        return {
-          ...current,
-          intro: { ...current.intro, presentedAt: Date.now() },
-          updatedAt: Date.now(),
-        };
-      }),
-    [update],
-  );
+      return {
+        ...current,
+        intro: { ...current.intro, presentedAt: now },
+        updatedAt: now,
+      };
+    });
+  }, [updateOnce]);
 
   /**
    * "Start exploring" — the user accepted the introduction. Terminal for the
@@ -404,13 +494,16 @@ export function usePostOnboardingGuide() {
     }
     const fresh = createInitialGuideState();
     latestRef.current = fresh;
-    return updateSettings
-      .mutateAsync({ postOnboardingGuide: fresh })
+    // A deliberate developer action: clear the session guards so the automatic
+    // writes can run again against the fresh state.
+    resetAutoWrites();
+    return mutateRef
+      .current({ postOnboardingGuide: fresh })
       .then(() => undefined)
       .catch((error) => {
         console.error('Failed to reset mission state:', error);
       });
-  }, [updateSettings]);
+  }, []);
 
   const completedCount = useMemo(
     () => (state ? countCompletedPaths(state) : 0),

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useMissionEngine } from './useMissionEngine';
+import { resetAutoWrites } from '@/lib/missionAutoWrites';
 import {
   createInitialGuideState,
   type PostOnboardingGuideState,
@@ -76,6 +77,7 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 function reset() {
+  resetAutoWrites();
   settings = undefined;
   settingsLoading = false;
   hasNip44Support = true;

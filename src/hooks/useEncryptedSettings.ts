@@ -306,6 +306,8 @@ export function useEncryptedSettings() {
     updateSettings,
     initializeSettings,
     hasNip44Support: !!user?.signer.nip44,
+    /** Whose settings these are. Used to scope per-account write policies. */
+    pubkey: user?.pubkey,
     lastSync: settings.data?.lastSync,
     /** True if a local write happened recently. NostrSync should skip applying. */
     recentlyWritten: () => Date.now() - lastWriteTs < 10_000,

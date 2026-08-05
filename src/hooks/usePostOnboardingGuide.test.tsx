@@ -3,6 +3,7 @@ import { useSyncExternalStore } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { usePostOnboardingGuide } from './usePostOnboardingGuide';
+import { resetAutoWrites } from '@/lib/missionAutoWrites';
 import {
   createInitialGuideState,
   type PostOnboardingGuideState,
@@ -42,6 +43,24 @@ const mutateAsync = vi.fn(async (patch: Partial<EncryptedSettings>) => {
   return { updatedSettings: settings };
 });
 
+/**
+ * The localhost harness, controllable from tests. When it owns the state the
+ * hook must never touch the real persistence path at all.
+ */
+let devState: PostOnboardingGuideState | undefined;
+const devListeners = new Set<() => void>();
+vi.mock('@/dev/missionHarness', () => ({
+  readMissionDevState: () => devState,
+  subscribeMissionDev: (listener: () => void) => {
+    devListeners.add(listener);
+    return () => devListeners.delete(listener);
+  },
+  writeMissionDevState: (next: PostOnboardingGuideState) => {
+    devState = next;
+    for (const l of devListeners) l();
+  },
+}));
+
 vi.mock('./useEncryptedSettings', () => ({
   useEncryptedSettings: () => ({
     settings: useSyncExternalStore(subscribe, () => settings),
@@ -52,6 +71,9 @@ vi.mock('./useEncryptedSettings', () => ({
 }));
 
 function reset() {
+  resetAutoWrites();
+  devState = undefined;
+  devListeners.clear();
   settings = undefined;
   isLoading = false;
   writeCount = 0;
@@ -140,16 +162,39 @@ describe('usePostOnboardingGuide — initialization', () => {
     expect(stored()?.status).toBe('active');
   });
 
-  it('rolls back its local snapshot when the write fails, so a retry works', async () => {
+  it('does not re-initialize on its own after the write fails', async () => {
+    // Initialization is automatic, so "retry until it works" means "retry on
+    // every render". That is the loop this guards against: one attempt per
+    // account per session, picked up again on the next load.
     failNextWrite = true;
     const { result } = renderHook(() => usePostOnboardingGuide());
 
     await act(async () => {
       await result.current.initializeGuide();
     });
+    // No corrupt local state left behind, and nothing persisted.
+    expect(stored()).toBeUndefined();
+    expect(result.current.state).toBeUndefined();
+    expect(writeCount).toBe(1);
+
+    await act(async () => {
+      await result.current.initializeGuide();
+      await result.current.initializeGuide();
+    });
+    expect(writeCount).toBe(1);
+  });
+
+  it('initializes again once the session guard is cleared', async () => {
+    // The failure is not permanent, just not automatic: a reload (or the
+    // developer reset) starts a new session and tries once more.
+    failNextWrite = true;
+    const { result } = renderHook(() => usePostOnboardingGuide());
+    await act(async () => {
+      await result.current.initializeGuide();
+    });
     expect(stored()).toBeUndefined();
 
-    // The failed attempt must not have latched anything that blocks a retry.
+    resetAutoWrites();
     await act(async () => {
       await result.current.initializeGuide();
     });
@@ -732,5 +777,204 @@ describe('usePostOnboardingGuide — hide and resume', () => {
 
     expect(stored()?.status).toBe('skipped');
     expect(stored()?.paths['find-people']).toBe('not_started');
+  });
+});
+
+/**
+ * Regression suite for the mission-persistence loop.
+ *
+ * `markIntroPresented` was called from an effect keyed on the callback itself.
+ * The callback's identity changed on every render (it closed over react-query's
+ * `updateSettings`, a fresh object each render), and a failing write re-rendered
+ * by itself, because the mutation's own pending -> error transition is a state
+ * change. Every attempt also minted a new `Date.now()`, so nothing could
+ * recognise it as the same write. Measured in the browser at ~4,650 attempts per
+ * second and 116,664 in thirty seconds.
+ *
+ * These tests assert **bounded call counts**, not "fewer errors".
+ */
+describe('usePostOnboardingGuide — automatic writes are bounded', () => {
+  beforeEach(reset);
+
+  it('attempts an informational write once, however many times it is called', async () => {
+    seed();
+    const { result, rerender } = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(result.current.state).toBeDefined());
+
+    await act(async () => {
+      await result.current.markIntroPresented();
+    });
+    expect(writeCount).toBe(1);
+
+    // The shape of the original bug: re-render and call again, many times.
+    for (let i = 0; i < 50; i++) {
+      rerender();
+      await act(async () => {
+        await result.current.markIntroPresented();
+      });
+    }
+    expect(writeCount).toBe(1);
+  });
+
+  it('keeps the setter identity stable across renders', async () => {
+    // This is what let an effect keyed on the setter re-run every render. It is
+    // the actual driver: with identity stable the loop does not start even with
+    // the session guard removed.
+    seed();
+    const { result, rerender } = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(result.current.state).toBeDefined());
+
+    const first = result.current.markIntroPresented;
+    const firstInit = result.current.initializeGuide;
+    for (let i = 0; i < 20; i++) rerender();
+    expect(result.current.markIntroPresented).toBe(first);
+    expect(result.current.initializeGuide).toBe(firstInit);
+  });
+
+  it('does not retry a failed informational write on later renders', async () => {
+    seed();
+    failNextWrite = true;
+    const { result, rerender } = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(result.current.state).toBeDefined());
+
+    await act(async () => {
+      await result.current.markIntroPresented();
+    });
+    expect(writeCount).toBe(1);
+    expect(stored()?.intro?.presentedAt).toBeUndefined();
+
+    for (let i = 0; i < 50; i++) {
+      rerender();
+      await act(async () => {
+        await result.current.markIntroPresented();
+      });
+    }
+    // Still exactly the one failed attempt. Never blocks the experience:
+    // the introduction is unaffected by whether this landed.
+    expect(writeCount).toBe(1);
+    expect(result.current.introState).toBe('pending');
+  });
+
+  it('does not mint a fresh timestamp per attempt', async () => {
+    // A new `Date.now()` on every attempt made each write look like a brand-new
+    // state, defeating every equality check.
+    seed();
+    failNextWrite = true;
+    const { result, rerender } = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(result.current.state).toBeDefined());
+
+    for (let i = 0; i < 20; i++) {
+      rerender();
+      await act(async () => {
+        await result.current.markIntroPresented();
+      });
+    }
+    const presented = mutateAsync.mock.calls
+      .map((c) => (c[0] as { postOnboardingGuide?: PostOnboardingGuideState })
+        .postOnboardingGuide?.intro?.presentedAt);
+    expect(presented.length).toBe(1);
+    expect(new Set(presented).size).toBe(1);
+  });
+
+  it('lets two mounted surfaces write the transition only once between them', async () => {
+    // Sidebar widget, mobile teaser, /missions and the arrival destination can
+    // all be mounted at once. A component-local flag cannot see the others.
+    seed();
+    const a = renderHook(() => usePostOnboardingGuide());
+    const b = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(a.result.current.state).toBeDefined());
+    await waitFor(() => expect(b.result.current.state).toBeDefined());
+
+    await act(async () => {
+      await Promise.all([
+        a.result.current.markIntroPresented(),
+        b.result.current.markIntroPresented(),
+      ]);
+    });
+    expect(writeCount).toBe(1);
+  });
+
+  it('does not write again when the same surface remounts', async () => {
+    seed();
+    const first = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(first.result.current.state).toBeDefined());
+    await act(async () => {
+      await first.result.current.markIntroPresented();
+    });
+    expect(writeCount).toBe(1);
+    first.unmount();
+
+    for (let i = 0; i < 5; i++) {
+      const again = renderHook(() => usePostOnboardingGuide());
+      await waitFor(() => expect(again.result.current.state).toBeDefined());
+      await act(async () => {
+        await again.result.current.markIntroPresented();
+      });
+      again.unmount();
+    }
+    expect(writeCount).toBe(1);
+  });
+
+  it('does not restart a failed write when sync re-delivers the old state', async () => {
+    // The relay legitimately still holds the pre-write state, so the reducer
+    // would happily produce the same transition again, forever.
+    seed();
+    failNextWrite = true;
+    const { result } = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(result.current.state).toBeDefined());
+    await act(async () => {
+      await result.current.markIntroPresented();
+    });
+    expect(writeCount).toBe(1);
+
+    for (let i = 0; i < 10; i++) {
+      // A fresh delivery of the same mission state, as NostrSync would do.
+      await act(async () => {
+        seed();
+        emit();
+      });
+      await act(async () => {
+        await result.current.markIntroPresented();
+      });
+    }
+    expect(writeCount).toBe(1);
+  });
+
+  it('leaves deliberate user actions fully retryable', async () => {
+    // Only automatic writes are one-shot. A user who taps again gets a real
+    // second attempt — the guard must not strand a real decision.
+    seed();
+    failNextWrite = true;
+    const { result } = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(result.current.state).toBeDefined());
+
+    await act(async () => {
+      await result.current.acknowledgeIntro();
+    });
+    expect(stored()?.intro?.acknowledgedAt).toBeUndefined();
+    expect(writeCount).toBe(1);
+
+    await act(async () => {
+      await result.current.acknowledgeIntro();
+    });
+    expect(writeCount).toBe(2);
+    expect(stored()?.intro?.acknowledgedAt).toBeGreaterThan(0);
+  });
+
+  it('performs zero real writes while the harness owns the state', async () => {
+    devState = createInitialGuideState(5_000);
+    const { result, rerender } = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(result.current.state).toBeDefined());
+
+    for (let i = 0; i < 20; i++) {
+      rerender();
+      await act(async () => {
+        await result.current.markIntroPresented();
+        await result.current.initializeGuide();
+      });
+    }
+    expect(writeCount).toBe(0);
+    expect(mutateAsync).not.toHaveBeenCalled();
+    devState = undefined;
   });
 });
