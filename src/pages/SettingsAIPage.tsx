@@ -318,7 +318,9 @@ function ProviderFormDialog({ open, editing, onOpenChange, onSave, hasNip44Suppo
   const canSave = form.name.trim().length > 0 && form.baseURL.trim().length > 0;
 
   function handleKindChange(kind: AIProviderKind) {
-    setForm((f) => ({ ...f, kind, baseURL: KIND_BASE_URLS[kind] }));
+    // A new kind means a new endpoint: drop the previous kind's key and
+    // detected models so nothing from the old provider leaks through.
+    setForm((f) => ({ ...f, kind, baseURL: KIND_BASE_URLS[kind], apiKey: '', models: [] }));
   }
 
   /** Detects models for the current form values; shared by auto-detect and the button. */
