@@ -544,11 +544,16 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   // Preload a few images either side of the current one so swipes land on an
   // already-fetched picture instead of a cold load. Kept small — image URLs are
   // arbitrary Blossom hosts, so we can't assume a fast origin. Retained Image
-  // refs (cleared on close) keep their in-flight requests from being GC'd.
+  // refs keep their in-flight requests from being GC'd; we cap how many we hold
+  // (see MAX_RETAINED_PRELOADS) so opening the lightbox over a long paginated
+  // media feed can't accumulate hundreds of decoded bitmaps on the device — the
+  // retention only needs to outlive the in-flight fetch, after which the HTTP
+  // cache serves the swipe.
   const preloadedUrlsRef = useRef<Set<string>>(new Set());
   const preloadImagesRef = useRef<HTMLImageElement[]>([]);
   useEffect(() => {
     const PRELOAD_RADIUS = 3;
+    const MAX_RETAINED_PRELOADS = 12;
     for (let offset = -PRELOAD_RADIUS; offset <= PRELOAD_RADIUS; offset++) {
       if (Math.abs(offset) <= 1) continue; // already covered by mounted slots
       const i = currentIndex + offset;
@@ -558,10 +563,20 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
       if (!url || url === LOADING_SENTINEL || preloadedUrlsRef.current.has(url)) continue;
       preloadedUrlsRef.current.add(url);
       const img = new Image();
+      // Background fetches must not starve the image the user is looking at,
+      // especially on the slow-host case this preloading exists to smooth over.
+      img.fetchPriority = 'low';
+      // Arriving at a prefetched slot mounts with isLoaded=false and flashes the
+      // spinner until the mounted <img> fires onLoad from cache. Marking it loaded
+      // as the preload resolves makes the swipe land instantly instead.
+      img.onload = () => markLoaded(url);
       img.src = url;
       preloadImagesRef.current.push(img);
+      while (preloadImagesRef.current.length > MAX_RETAINED_PRELOADS) {
+        preloadImagesRef.current.shift();
+      }
     }
-  }, [currentIndex, images, mediaTypes]);
+  }, [currentIndex, images, mediaTypes, markLoaded]);
 
   // Release retained preload references when the lightbox closes.
   useEffect(() => {
