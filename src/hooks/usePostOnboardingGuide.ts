@@ -1,5 +1,10 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 
+import {
+  readMissionDevState,
+  subscribeMissionDev,
+  writeMissionDevState,
+} from '@/dev/missionHarness';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import {
   type MissionBaselines,
@@ -7,9 +12,13 @@ import {
   type PostOnboardingPathId,
   areAllPathsCompleted,
   badgeRewardView,
+  canShowMissionDetail,
   countCompletedPaths,
   createInitialGuideState,
+  introState,
   isClaimInFlight,
+  isIntroOutstanding,
+  nextRecommendedPath,
   POST_ONBOARDING_PATH_IDS,
 } from '@/lib/postOnboardingGuide';
 
@@ -38,7 +47,17 @@ import {
 export function usePostOnboardingGuide() {
   const { settings, updateSettings, isLoading } = useEncryptedSettings();
 
-  const state = settings?.postOnboardingGuide;
+  // Localhost-only inspection state. `readMissionDevState()` returns undefined
+  // in every production build and on every non-localhost host, so this collapses
+  // to the real state path. When active it substitutes the state for reading and
+  // absorbs writes into a shared store — nothing is published, and no policy is
+  // bypassed. Shared (rather than per-hook) so every mission surface sees a
+  // transition at once, exactly as they would through the real query cache.
+  const devState = useSyncExternalStore(subscribeMissionDev, readMissionDevState);
+  const devStateRef = useRef(devState);
+  devStateRef.current = devState;
+
+  const state = devState ?? settings?.postOnboardingGuide;
 
   // Tracks the freshest state we've written this session so rapid successive
   // transitions in the same tab compose instead of clobbering each other (the
@@ -57,6 +76,13 @@ export function usePostOnboardingGuide() {
     (
       reduce: (current: PostOnboardingGuideState) => PostOnboardingGuideState | null,
     ): Promise<void> => {
+      // Harness: apply locally so the surfaces are genuinely interactive to
+      // inspect, without a relay write.
+      if (devStateRef.current) {
+        const devNext = reduce(devStateRef.current);
+        if (devNext) writeMissionDevState(devNext);
+        return Promise.resolve();
+      }
       const current = latestRef.current;
       if (!current) return Promise.resolve();
       const next = reduce(current);
@@ -85,6 +111,7 @@ export function usePostOnboardingGuide() {
    * encrypt).
    */
   const initializeGuide = useCallback((): Promise<void> => {
+    if (devStateRef.current) return Promise.resolve(); // harness owns the state
     if (latestRef.current) return Promise.resolve();
     const fresh = createInitialGuideState();
     latestRef.current = fresh;
@@ -204,11 +231,67 @@ export function usePostOnboardingGuide() {
   );
 
   /**
-   * Dismiss the mission. Before completion this is the explicit "I'll explore
-   * on my own"; after completion it dismisses the celebratory/claimed card.
-   * Either way it preserves prior progress, `completedAt`, and any `badgeClaim`
-   * — dismissing must never undo a published claim. The `/missions` page stays
-   * reachable, so this is "hide the prompts", not "delete the mission".
+   * Record that the introduction has been shown. Purely informational — it does
+   * not change what the user is offered — so it never advances the intro state.
+   */
+  const markIntroPresented = useCallback(
+    () =>
+      update((current) => {
+        if (!current.intro || current.intro.presentedAt) return null;
+        return {
+          ...current,
+          intro: { ...current.intro, presentedAt: Date.now() },
+          updatedAt: Date.now(),
+        };
+      }),
+    [update],
+  );
+
+  /**
+   * "Start exploring" — the user accepted the introduction. Terminal for the
+   * intro; the full mission detail becomes available from here on.
+   */
+  const acknowledgeIntro = useCallback(
+    () =>
+      update((current) => {
+        if (current.intro?.acknowledgedAt) return null;
+        const now = Date.now();
+        return {
+          ...current,
+          intro: { ...current.intro, acknowledgedAt: now, postponedAt: undefined },
+          updatedAt: now,
+        };
+      }),
+    [update],
+  );
+
+  /**
+   * "Maybe later" — postpones the *introduction only*.
+   *
+   * Emphatically not a skip: the mission stays `active`, all progress and
+   * detection keep running, `/missions` still offers the introduction, and the
+   * compact surface stays available (just quiet). Conflating this with
+   * dismissing the mission is precisely the mistake this replaces.
+   */
+  const postponeIntro = useCallback(
+    () =>
+      update((current) => {
+        if (!current.intro || current.intro.acknowledgedAt) return null;
+        if (current.intro.postponedAt) return null;
+        const now = Date.now();
+        return {
+          ...current,
+          intro: { ...current.intro, postponedAt: now },
+          updatedAt: now,
+        };
+      }),
+    [update],
+  );
+
+  /**
+   * Hide the mission's promotional surfaces. Preserves prior progress,
+   * `completedAt`, and any `badgeClaim` — hiding must never undo a published
+   * claim. Reversible via {@link resumeGuide}.
    */
   const dismissGuide = useCallback(
     () =>
@@ -216,6 +299,30 @@ export function usePostOnboardingGuide() {
         if (current.status === 'skipped') return null;
         const now = Date.now();
         return { ...current, status: 'skipped', skippedAt: now, updatedAt: now };
+      }),
+    [update],
+  );
+
+  /**
+   * Un-hide a hidden mission and put it back in play.
+   *
+   * Previously hiding was terminal in production while the UI promised the
+   * mission could be picked back up from `/missions` — a promise the code
+   * broke. This is that promise, implemented. A mission whose tasks were all
+   * finished before it was hidden returns to `completed` (so the reward is
+   * reachable again) rather than to `active`.
+   */
+  const resumeGuide = useCallback(
+    () =>
+      update((current) => {
+        if (current.status !== 'skipped') return null;
+        const now = Date.now();
+        return {
+          ...current,
+          status: areAllPathsCompleted(current) ? 'completed' : 'active',
+          skippedAt: undefined,
+          updatedAt: now,
+        };
       }),
     [update],
   );
@@ -291,6 +398,10 @@ export function usePostOnboardingGuide() {
    */
   const resetGuideDev = useCallback((): Promise<void> => {
     if (!import.meta.env.DEV) return Promise.resolve();
+    if (devStateRef.current) {
+      writeMissionDevState(createInitialGuideState());
+      return Promise.resolve();
+    }
     const fresh = createInitialGuideState();
     latestRef.current = fresh;
     return updateSettings
@@ -323,12 +434,24 @@ export function usePostOnboardingGuide() {
     rewardView: badgeRewardView(state),
     /** Raw badge claim record from encrypted settings. */
     badgeClaim: state?.badgeClaim,
+    /** How the introduction should be treated: none/pending/postponed/acknowledged. */
+    introState: introState(state),
+    /** Whether the introduction is still owed a presentation. */
+    introOutstanding: isIntroOutstanding(state),
+    /** Whether task rows / reward detail may be shown yet. */
+    canShowDetail: canShowMissionDetail(state),
+    /** The task compact surfaces should recommend next. */
+    nextPath: nextRecommendedPath(state),
     initializeGuide,
     startPath,
     completePath,
     completeCustomizeStep,
     recordBaseline,
+    markIntroPresented,
+    acknowledgeIntro,
+    postponeIntro,
     dismissGuide,
+    resumeGuide,
     beginBadgeClaim,
     completeBadgeClaim,
     failBadgeClaim,

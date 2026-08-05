@@ -28,9 +28,9 @@ import { MISSION_TASK_ROUTES } from '@/lib/missionTasks';
  *  2. **Completion detection** — decides when a task is genuinely done by
  *     observing real product state, then latches that into persistence.
  *
- * View components (`FirstSessionGuide`, `MissionsWidget`, `MobileMissionTeaser`,
- * `/missions`) are pure readers. They never initialize and never decide
- * completion, which is why several of them can render at once without racing.
+ * View components (`MissionsWidget`, `MobileMissionTeaser`, `/missions`) are
+ * pure readers. They never initialize and never decide completion, which is why
+ * several of them can render at once without racing.
  *
  * ### Why state detection rather than click tracking
  *

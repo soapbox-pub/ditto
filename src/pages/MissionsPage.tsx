@@ -1,5 +1,8 @@
-import { RotateCcw, Sparkles, Target } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
+import { Play, RotateCcw, Sparkles, Target } from 'lucide-react';
 
+import { DittoExplorerIntroduction } from '@/components/DittoExplorerIntroduction';
+import { missionDevActive } from '@/dev/missionHarness';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { MissionCelebrationSparkle } from '@/components/MissionCelebrationSparkle';
 import { MissionReward } from '@/components/MissionReward';
@@ -49,6 +52,9 @@ export function MissionsPage() {
     isDismissed,
     completedCount,
     totalCount,
+    introOutstanding,
+    canShowDetail,
+    resumeGuide,
     resetGuideDev,
   } = usePostOnboardingGuide();
 
@@ -77,7 +83,7 @@ export function MissionsPage() {
     <main>
       <PageHeader title="Missions" icon={<Target className="size-5" />} />
 
-      {!user ? (
+      {!user && !missionDevActive() ? (
         <div className="flex flex-col items-center gap-6 px-8 py-20 text-center">
           <div className="rounded-full bg-primary/10 p-4">
             <Target className="size-8 text-primary" aria-hidden />
@@ -146,19 +152,55 @@ export function MissionsPage() {
             </CardHeader>
 
             <CardContent className="space-y-4 p-4 pt-0">
-              {/* Reward first: locked preview, claim UI, claimed state, retry
-                  after a failure, or the dismissed note — all six states. */}
-              <MissionReward />
-
-              {isDismissed && completedCount > 0 && (
-                <p className="text-center text-xs text-muted-foreground">
-                  You completed {completedCount} of {totalCount} steps before hiding it.
-                </p>
+              {/* Hidden mission: the resume path. Hiding used to be terminal in
+                  production while the UI promised it could be picked back up
+                  here — this is that promise, kept. */}
+              {isDismissed && (
+                <div className="space-y-3 rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">
+                      <FormattedMessage
+                        id="mission.hidden.title"
+                        defaultMessage="This mission is hidden."
+                      />
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {completedCount > 0 ? (
+                        <FormattedMessage
+                          id="mission.hidden.progress"
+                          defaultMessage="You completed {done} of {total} steps. Nothing was lost."
+                          values={{ done: completedCount, total: totalCount }}
+                        />
+                      ) : (
+                        <FormattedMessage
+                          id="mission.hidden.empty"
+                          defaultMessage="You can pick it back up whenever you like."
+                        />
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="gap-1.5 rounded-full font-semibold"
+                    onClick={() => void resumeGuide()}
+                  >
+                    <Play className="size-4" aria-hidden />
+                    <FormattedMessage id="mission.hidden.resume" defaultMessage="Resume mission" />
+                  </Button>
+                </div>
               )}
 
-              {/* The task list stays visible even when dismissed, so this page
-                  always shows what was (and wasn't) done. */}
-              {state && (
+              {/* Introduction, while it is still owed. Task rows stay hidden
+                  until it is acknowledged, so a first encounter is an
+                  invitation rather than a checklist. */}
+              {!isDismissed && introOutstanding && <DittoExplorerIntroduction variant="page" />}
+
+              {/* Reward: locked preview, claim UI, claimed, retry after a
+                  failure — all of it, once the introduction is behind us. */}
+              {!isDismissed && canShowDetail && <MissionReward />}
+
+              {state && (canShowDetail || isDismissed) && (
                 <MissionTaskList state={state} interactive={isActive} showHints />
               )}
 

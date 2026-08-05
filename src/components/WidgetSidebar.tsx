@@ -156,26 +156,31 @@ const SortableWidget = memo(function SortableWidget({ config, definition, onRemo
 // ── Missions teaser (sidebar) ────────────────────────────────────────────────
 
 /**
- * Routes whose center column already renders the full mission card as the first
- * feed item. There, the sidebar teaser is suppressed so the mission isn't
- * surfaced twice on one page — one mission prompt at a time is the rule.
+ * The only route that suppresses the sidebar widget: `/missions` renders the
+ * mission in full in the centre column, so showing the widget beside it would
+ * put two mission surfaces on one screen.
+ *
+ * Note what is *not* here. The previous rule also suppressed `/` and `/feed` on
+ * the assumption that `/` always renders the feed — but `/` renders whatever
+ * the user picked as their homepage, so anyone whose homepage wasn't the feed
+ * got no mission surface at all on desktop. Route is the wrong thing to key
+ * this on; only the genuinely-duplicating route is listed.
  */
-const MISSION_FEED_ROUTES = new Set(['/', '/feed']);
+const MISSION_SUPPRESSED_ROUTES = new Set(['/missions']);
 
 /**
- * Pins the compact {@link MissionsWidget} at the top of the widget sidebar so
- * mission progress follows the user across non-home pages (desktop only — the
+ * Pins the {@link MissionsWidget} at the top of the widget sidebar. This is the
+ * mission's primary desktop surface on **every** page including Home, so it
+ * belongs to the user's Ditto rather than to one route (desktop only — the
  * sidebar is `hidden lg:flex`). It self-hides unless the mission is active or
- * completed-but-unclaimed, so it's a no-op for dismissed/claimed/never-started
- * users.
+ * completed-but-unclaimed.
  *
- * Intentionally not a configurable/removable widget: it's a temporary shortcut
- * to `/missions` that disappears on its own, not something worth a slot in the
- * widget picker.
+ * Intentionally not a configurable/removable widget: it's a temporary surface
+ * with its own hide control, not something worth a slot in the widget picker.
  */
 function SidebarMissions() {
   const { pathname } = useLocation();
-  if (MISSION_FEED_ROUTES.has(pathname)) return null;
+  if (MISSION_SUPPRESSED_ROUTES.has(pathname)) return null;
   return <MissionsWidget />;
 }
 
@@ -247,9 +252,9 @@ export function WidgetSidebar() {
   // at all, so phones don't pay for widget chunks and queries.
   return (
     <aside className="w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-2">
-      {/* Missions teaser — pinned above the configurable widgets so mission
-          progress follows the user across pages. Self-hides when the mission is
-          inactive, and on the home feed where the inline card already shows. */}
+      {/* Mission — pinned above the configurable widgets as the primary desktop
+          surface. Self-hides when the mission is inactive or hidden, and on
+          /missions where the page itself renders it. */}
       <SidebarMissions />
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>

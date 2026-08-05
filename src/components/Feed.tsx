@@ -4,7 +4,8 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
-import { FirstSessionGuide } from '@/components/FirstSessionGuide';
+import { MobileMissionTeaser } from '@/components/MobileMissionTeaser';
+import { missionDevActive } from '@/dev/missionHarness';
 import { LandingHero } from '@/components/LandingHero';
 import { LazyFeedItem } from '@/components/LazyFeedItem';
 import { NoteCard } from '@/components/NoteCard';
@@ -451,14 +452,13 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
           {/* New posts pill — live auto-refresh. Never re-sorts the feed:
               tapping it refreshes and scrolls to top. */}
           <NewPostsPill count={newPostCount} onClick={handleShowNewPosts} />
-          {/* Post-onboarding mission card — pinned as the first feed item on the
-              logged-in home feed so it scrolls naturally with the timeline
-              instead of floating over the sticky tab bar. Sits outside the
-              populated/skeleton/empty branches below so it stays visible even
-              while a new user's Follows feed is still empty — which is exactly
-              when they most need somewhere to go. Self-hides once hidden or
-              claimed. */}
-          {user && !kinds && <FirstSessionGuide />}
+          {/* Post-onboarding mission — a compact in-flow teaser, mobile only.
+              The large four-task card that used to sit here consumed nearly a
+              whole small-phone viewport and pushed the actual product below the
+              fold; on desktop the sidebar widget now carries the mission on
+              every page, including this one. Tapping opens /missions, which is
+              where the introduction and full detail live. */}
+          {(user || missionDevActive()) && !kinds && <MobileMissionTeaser />}
           {feedItems.length > 0 ? (
             <div>
               {feedItems.map((item: FeedItem, index: number) => (

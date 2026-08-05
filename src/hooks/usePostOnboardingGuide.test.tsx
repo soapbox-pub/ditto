@@ -536,3 +536,201 @@ describe('usePostOnboardingGuide — badge claim lifecycle', () => {
     await waitFor(() => expect(result.current.rewardView).toBe('claimed'));
   });
 });
+
+describe('usePostOnboardingGuide — introduction lifecycle', () => {
+  beforeEach(reset);
+
+  it('a freshly initialized mission has the introduction pending', async () => {
+    const { result } = renderHook(() => usePostOnboardingGuide());
+    await act(async () => {
+      await result.current.initializeGuide();
+    });
+
+    expect(stored()?.intro).toEqual({});
+    await waitFor(() => expect(result.current.introState).toBe('pending'));
+    expect(result.current.canShowDetail).toBe(false);
+  });
+
+  it('acknowledging reveals the mission detail', async () => {
+    seed();
+    const { result } = renderHook(() => usePostOnboardingGuide());
+
+    await act(async () => {
+      await result.current.acknowledgeIntro();
+    });
+
+    expect(stored()?.intro?.acknowledgedAt).toBeTypeOf('number');
+    await waitFor(() => expect(result.current.canShowDetail).toBe(true));
+    expect(result.current.introOutstanding).toBe(false);
+  });
+
+  it('"Maybe later" postpones the introduction and never skips the mission', async () => {
+    seed();
+    const { result } = renderHook(() => usePostOnboardingGuide());
+
+    await act(async () => {
+      await result.current.postponeIntro();
+    });
+
+    expect(stored()?.intro?.postponedAt).toBeTypeOf('number');
+    // The mission stays active: progress keeps being detected, /missions keeps
+    // offering the introduction, and nothing was permanently skipped.
+    expect(stored()?.status).toBe('active');
+    expect(stored()?.skippedAt).toBeUndefined();
+    await waitFor(() => expect(result.current.introState).toBe('postponed'));
+    expect(result.current.introOutstanding).toBe(true);
+  });
+
+  it('acknowledging after postponing clears the postponement', async () => {
+    seed({ intro: { postponedAt: 500 } });
+    const { result } = renderHook(() => usePostOnboardingGuide());
+
+    await act(async () => {
+      await result.current.acknowledgeIntro();
+    });
+
+    expect(stored()?.intro?.postponedAt).toBeUndefined();
+    expect(stored()?.intro?.acknowledgedAt).toBeTypeOf('number');
+  });
+
+  it('is idempotent — re-acknowledging writes nothing', async () => {
+    seed();
+    const { result } = renderHook(() => usePostOnboardingGuide());
+    await act(async () => {
+      await result.current.acknowledgeIntro();
+    });
+    const afterFirst = writeCount;
+
+    await act(async () => {
+      await result.current.acknowledgeIntro();
+      await result.current.postponeIntro();
+    });
+
+    expect(writeCount).toBe(afterFirst);
+  });
+
+  it('records that the introduction was presented, without advancing it', async () => {
+    seed();
+    const { result } = renderHook(() => usePostOnboardingGuide());
+
+    await act(async () => {
+      await result.current.markIntroPresented();
+    });
+
+    expect(stored()?.intro?.presentedAt).toBeTypeOf('number');
+    await waitFor(() => expect(result.current.introState).toBe('pending'));
+  });
+
+  it('legacy states never resurface the introduction', async () => {
+    // A state written before the feature existed has no `intro` key.
+    const legacy = createInitialGuideState(1_000);
+    delete (legacy as { intro?: unknown }).intro;
+    settings = { postOnboardingGuide: legacy } as EncryptedSettings;
+
+    const { result } = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(result.current.introState).toBe('none'));
+    expect(result.current.introOutstanding).toBe(false);
+    expect(result.current.canShowDetail).toBe(true);
+  });
+});
+
+describe('usePostOnboardingGuide — hide and resume', () => {
+  beforeEach(reset);
+
+  it('resumes a hidden mission back to active', async () => {
+    seed({ status: 'skipped', skippedAt: 2_000 });
+    const { result } = renderHook(() => usePostOnboardingGuide());
+
+    await act(async () => {
+      await result.current.resumeGuide();
+    });
+
+    expect(stored()?.status).toBe('active');
+    expect(stored()?.skippedAt).toBeUndefined();
+    await waitFor(() => expect(result.current.isActive).toBe(true));
+  });
+
+  it('resuming preserves progress', async () => {
+    seed({
+      status: 'skipped',
+      skippedAt: 2_000,
+      paths: {
+        'find-people': 'completed',
+        'post-small': 'completed',
+        customize: 'not_started',
+        explore: 'not_started',
+      },
+    });
+    const { result } = renderHook(() => usePostOnboardingGuide());
+
+    await act(async () => {
+      await result.current.resumeGuide();
+    });
+
+    expect(stored()?.paths['find-people']).toBe('completed');
+    expect(stored()?.paths['post-small']).toBe('completed');
+  });
+
+  it('resuming a finished-then-hidden mission returns it to completed', async () => {
+    // So the reward is reachable again rather than the mission looking unfinished.
+    seed({
+      status: 'skipped',
+      skippedAt: 2_000,
+      completedAt: 1_500,
+      paths: {
+        'find-people': 'completed',
+        'post-small': 'completed',
+        customize: 'completed',
+        explore: 'completed',
+      },
+    });
+    const { result } = renderHook(() => usePostOnboardingGuide());
+
+    await act(async () => {
+      await result.current.resumeGuide();
+    });
+
+    expect(stored()?.status).toBe('completed');
+    expect(stored()?.completedAt).toBe(1_500);
+  });
+
+  it('resuming preserves a published badge claim', async () => {
+    seed({
+      status: 'skipped',
+      skippedAt: 2_000,
+      badgeClaim: { badge: 'ditto-explorer', status: 'claimed', claimEventId: 'f'.repeat(64) },
+    });
+    const { result } = renderHook(() => usePostOnboardingGuide());
+
+    await act(async () => {
+      await result.current.resumeGuide();
+    });
+
+    expect(stored()?.badgeClaim?.status).toBe('claimed');
+  });
+
+  it('resuming a mission that is not hidden is a no-op', async () => {
+    seed();
+    const { result } = renderHook(() => usePostOnboardingGuide());
+
+    await act(async () => {
+      await result.current.resumeGuide();
+    });
+
+    expect(writeCount).toBe(0);
+  });
+
+  it('hide then resume then hide is stable', async () => {
+    seed();
+    const { result } = renderHook(() => usePostOnboardingGuide());
+
+    await act(async () => {
+      await result.current.dismissGuide();
+      await result.current.resumeGuide();
+      await result.current.dismissGuide();
+    });
+
+    expect(stored()?.status).toBe('skipped');
+    expect(stored()?.paths['find-people']).toBe('not_started');
+  });
+});

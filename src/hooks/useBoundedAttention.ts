@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { prefersReducedMotion } from '@/lib/reducedMotion';
+
 export interface BoundedAttentionOptions {
   /** Whether attention is wanted at all (mission active, step pending, …). */
   enabled: boolean;
@@ -9,14 +11,39 @@ export interface BoundedAttentionOptions {
   intervalMs?: number;
   /** How long a single cue animates (ms). */
   durationMs?: number;
-  /** Hard cap on cues per mount. */
+  /** Hard cap on cues. Per mount, or per budget when `budgetKey` is set. */
   maxCues?: number;
+  /**
+   * localStorage key under which the cue count persists.
+   *
+   * Without it the cap is per *mount*, which a surface that lives in a
+   * persistent sidebar quietly defeats: every route change remounts it and
+   * re-arms the budget, so "at most two cues" becomes "two cues forever, on
+   * every page". Supplying a key makes the cap mean what it says — at most
+   * `maxCues` for this user, full stop.
+   */
+  budgetKey?: string;
 }
 
-/** Whether the user has asked for reduced motion. */
-function prefersReducedMotion(): boolean {
-  if (typeof window === 'undefined' || !window.matchMedia) return false;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+/** Cues already spent under a persisted budget. Unreadable storage → 0. */
+function readSpent(budgetKey: string | undefined): number {
+  if (!budgetKey) return 0;
+  try {
+    const raw = localStorage.getItem(budgetKey);
+    const value = raw === null ? 0 : Number.parseInt(raw, 10);
+    return Number.isFinite(value) && value >= 0 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeSpent(budgetKey: string | undefined, spent: number): void {
+  if (!budgetKey) return;
+  try {
+    localStorage.setItem(budgetKey, String(spent));
+  } catch {
+    // Storage unavailable — degrade to a per-mount budget rather than throwing.
+  }
 }
 
 /**
@@ -42,8 +69,10 @@ function prefersReducedMotion(): boolean {
  *    shift layout.
  *
  * Route changes don't restart anything: the schedule is keyed to the mount and
- * to `enabled`, not to renders, so navigating back and forth doesn't re-arm a
- * surface that already had its say.
+ * to `enabled`, not to renders. Supply a `budgetKey` and the cap survives
+ * remounts as well — which is what a persistent sidebar surface needs, since
+ * every navigation would otherwise re-arm it and turn "two cues" into "two
+ * cues on every page, forever".
  *
  * @returns `ref` to attach to the animated element, and `cueing` — true only
  *   during a bounded cue window.
@@ -54,6 +83,7 @@ export function useBoundedAttention({
   intervalMs = 20_000,
   durationMs = 1_600,
   maxCues = 2,
+  budgetKey,
 }: BoundedAttentionOptions): {
   ref: (node: HTMLElement | null) => void;
   cueing: boolean;
@@ -64,7 +94,9 @@ export function useBoundedAttention({
   const [stopped, setStopped] = useState(false);
   const [node, setNode] = useState<HTMLElement | null>(null);
   const [onScreen, setOnScreen] = useState(false);
-  const firedRef = useRef(0);
+  // Seeded from the persisted budget when one is supplied, so a remount picks
+  // up where the previous mount left off instead of starting over.
+  const firedRef = useRef(readSpent(budgetKey));
 
   const ref = useCallback((next: HTMLElement | null) => setNode(next), []);
   const stop = useCallback(() => {
@@ -108,6 +140,7 @@ export function useBoundedAttention({
       }
       if (firedRef.current >= maxCues) return;
       firedRef.current += 1;
+      writeSpent(budgetKey, firedRef.current);
       setCueing(true);
       cueEnd = setTimeout(() => {
         setCueing(false);
@@ -122,7 +155,7 @@ export function useBoundedAttention({
       if (cueEnd) clearTimeout(cueEnd);
       setCueing(false);
     };
-  }, [active, firstDelayMs, intervalMs, durationMs, maxCues]);
+  }, [active, firstDelayMs, intervalMs, durationMs, maxCues, budgetKey]);
 
   return { ref, cueing, stop };
 }

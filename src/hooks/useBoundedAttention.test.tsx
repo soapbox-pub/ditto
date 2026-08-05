@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
-import { useBoundedAttention } from './useBoundedAttention';
+import { useBoundedAttention, type BoundedAttentionOptions } from './useBoundedAttention';
 
 /**
  * Captured IntersectionObserver callbacks, so a test can decide when the
@@ -44,7 +44,7 @@ function setReducedMotion(reduce: boolean) {
   }));
 }
 
-const OPTIONS = {
+const OPTIONS: BoundedAttentionOptions = {
   enabled: true,
   firstDelayMs: 1_000,
   intervalMs: 5_000,
@@ -53,8 +53,8 @@ const OPTIONS = {
 };
 
 /** Render, attach the ref to a node, and mark it on screen. */
-function renderAttention(options = OPTIONS) {
-  const view = renderHook((props: typeof OPTIONS) => useBoundedAttention(props), {
+function renderAttention(options: BoundedAttentionOptions = OPTIONS) {
+  const view = renderHook((props: BoundedAttentionOptions) => useBoundedAttention(props), {
     initialProps: options,
   });
   act(() => view.result.current.ref(document.createElement('div')));
@@ -104,7 +104,7 @@ describe('useBoundedAttention', () => {
       }
     }
 
-    expect(cues).toBeLessThanOrEqual(OPTIONS.maxCues);
+    expect(cues).toBeLessThanOrEqual(OPTIONS.maxCues ?? 0);
     expect(cues).toBeGreaterThan(0);
     // And it is silent for good afterwards.
     act(() => void vi.advanceTimersByTime(120_000));
@@ -186,5 +186,77 @@ describe('useBoundedAttention', () => {
     act(() => void vi.advanceTimersByTime(500));
 
     expect(view.result.current.cueing).toBe(true);
+  });
+});
+
+describe('useBoundedAttention — persisted budget', () => {
+  const BUDGET = 'ditto:mission-attention:abc';
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mockIntersectionObserver();
+    setReducedMotion(false);
+    localStorage.clear();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  /** Mount, go on screen, and burn one cue. */
+  function spendOneCue() {
+    const view = renderAttention({ ...OPTIONS, budgetKey: BUDGET });
+    act(() => void vi.advanceTimersByTime(1_000));
+    const cued = view.result.current.cueing;
+    act(() => void vi.advanceTimersByTime(500));
+    view.unmount();
+    return cued;
+  }
+
+  it('does not re-arm on remount once the budget is spent', () => {
+    // A sidebar surface remounts on every navigation. Without a persisted
+    // budget, "at most two cues" silently becomes "two cues on every page".
+    expect(spendOneCue()).toBe(true);
+    expect(spendOneCue()).toBe(true);
+
+    // Budget exhausted — every later mount is silent.
+    for (let i = 0; i < 5; i++) {
+      const view = renderAttention({ ...OPTIONS, budgetKey: BUDGET });
+      act(() => void vi.advanceTimersByTime(60_000));
+      expect(view.result.current.cueing).toBe(false);
+      view.unmount();
+    }
+  });
+
+  it('records each spent cue', () => {
+    spendOneCue();
+    expect(localStorage.getItem(BUDGET)).toBe('1');
+    spendOneCue();
+    expect(localStorage.getItem(BUDGET)).toBe('2');
+  });
+
+  it('keeps separate budgets for separate keys', () => {
+    spendOneCue();
+    spendOneCue();
+
+    const other = renderAttention({ ...OPTIONS, budgetKey: 'ditto:mission-attention:xyz' });
+    act(() => void vi.advanceTimersByTime(1_000));
+    expect(other.result.current.cueing).toBe(true);
+  });
+
+  it('treats a corrupt budget as unspent rather than throwing', () => {
+    localStorage.setItem(BUDGET, 'not-a-number');
+    const view = renderAttention({ ...OPTIONS, budgetKey: BUDGET });
+    act(() => void vi.advanceTimersByTime(1_000));
+    expect(view.result.current.cueing).toBe(true);
+  });
+
+  it('still re-arms per mount when no budget key is given', () => {
+    // Unchanged behaviour for callers that genuinely want a per-mount cue.
+    const first = renderAttention();
+    act(() => void vi.advanceTimersByTime(1_000));
+    expect(first.result.current.cueing).toBe(true);
+    first.unmount();
+
+    const second = renderAttention();
+    act(() => void vi.advanceTimersByTime(1_000));
+    expect(second.result.current.cueing).toBe(true);
   });
 });

@@ -3,10 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { Award, ChevronRight, Sparkles } from 'lucide-react';
 
 import { MissionCelebrationSparkle } from '@/components/MissionCelebrationSparkle';
+import { useAppContext } from '@/hooks/useAppContext';
+import { useArrivalSettled } from '@/hooks/useArrivalSettled';
 import { useBoundedAttention } from '@/hooks/useBoundedAttention';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMissionCelebration } from '@/hooks/useMissionCelebration';
 import { usePostOnboardingGuide } from '@/hooks/usePostOnboardingGuide';
 import { DITTO_EXPLORER_BADGE_IMAGE, DITTO_EXPLORER_BADGE_NAME } from '@/lib/badgeClaim';
+import { getStorageKey } from '@/lib/storageKey';
 import { cn } from '@/lib/utils';
 
 /**
@@ -32,16 +36,23 @@ import { cn } from '@/lib/utils';
  */
 export function MobileMissionTeaser({ className }: { className?: string } = {}) {
   const navigate = useNavigate();
-  const { state, isActive, isCompleted, completedCount, totalCount, badgeClaim } =
+  const { config } = useAppContext();
+  const { user } = useCurrentUser();
+  const { state, isActive, isCompleted, completedCount, totalCount, badgeClaim, introState } =
     usePostOnboardingGuide();
   const { celebrating } = useMissionCelebration();
+  const arrivalSettled = useArrivalSettled();
   const [tapped, setTapped] = useState(false);
 
   const rewardUnlocked = isCompleted && badgeClaim?.status !== 'claimed';
-  const visible = !!state && (isActive || rewardUnlocked);
+  const introPending = introState === 'pending' && isActive;
+  const visible = !!state && (isActive || rewardUnlocked) && arrivalSettled;
 
+  // Per-user budget rather than per-mount: this teaser mounts on several pages,
+  // so a mount-scoped cap would nudge again on each of them.
   const { ref: attentionRef, cueing, stop } = useBoundedAttention({
     enabled: visible && !rewardUnlocked && completedCount === 0 && !tapped,
+    budgetKey: user ? getStorageKey(config.appId, `mission-attention:${user.pubkey}`) : undefined,
   });
 
   if (!visible) return null;
@@ -93,7 +104,7 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
             <span className="truncate text-sm font-semibold text-foreground">
               {DITTO_EXPLORER_BADGE_NAME}
             </span>
-            {!rewardUnlocked && (
+            {!rewardUnlocked && !introPending && (
               <div className="relative ml-auto shrink-0">
                 <span
                   className={cn(
@@ -113,6 +124,13 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
           {rewardUnlocked ? (
             <p className="mt-0.5 truncate text-xs font-medium text-primary">
               Reward unlocked · Claim reward
+            </p>
+          ) : introPending ? (
+            /* Before acknowledgement the teaser is an invitation, not a
+               progress bar — a 0/4 meter is a poor first impression, and the
+               introduction itself lives on /missions where there is room. */
+            <p className="mt-0.5 truncate text-xs font-medium text-primary">
+              Your first journey through Ditto is ready
             </p>
           ) : (
             <div
