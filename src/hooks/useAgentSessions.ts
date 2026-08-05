@@ -169,6 +169,14 @@ export function useAgentSessions(options: AgentSessionsOptions) {
       if (!liveIds.has(id)) {
         flushPendingSave(id);
         stopAgent(id);
+        // Drop the snapshot too: stopAgent forgets the agent but the snapshot
+        // would otherwise keep a closed tab's (or the previous account's)
+        // whole conversation alive in memory.
+        setSnapshots((prev) => {
+          if (!(id in prev)) return prev;
+          const { [id]: _dropped, ...rest } = prev;
+          return rest;
+        });
       }
     }
 
