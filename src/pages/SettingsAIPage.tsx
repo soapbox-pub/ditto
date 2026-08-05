@@ -331,8 +331,11 @@ function ProviderFormDialog({ open, editing, onOpenChange, onSave, hasNip44Suppo
     try {
       const models = await fetchProviderModels(form, config.appName);
       // Drop stale results if the kind, base URL, or key changed while the
-      // fetch was in flight — the newer values' own debounced detect will
-      // populate the models.
+      // fetch was in flight, so models from the old endpoint never land on
+      // the new one. Only a user edit to the API key schedules a fresh
+      // debounced detect (see useAutoDetectModels), so after a kind or base
+      // URL change the list stays as it was until the user presses "Detect
+      // models".
       setForm((f) =>
         f.kind === detectAtCall.kind && f.baseURL === detectAtCall.baseURL && f.apiKey === detectAtCall.apiKey
           ? { ...f, models }
@@ -697,18 +700,23 @@ export function SettingsAIPage() {
     });
   }
 
+  /** Warn the user when a profile write reached this device but not the relays. */
+  function reportSync(synced: Promise<boolean>) {
+    void synced.then((ok) => {
+      if (!ok) toastSyncFailure();
+    });
+  }
+
   function handleSave(form: FormState) {
     if (editing) {
-      void updateProfile(editing.id, {
+      reportSync(updateProfile(editing.id, {
         kind: form.kind,
         name: form.name.trim(),
         baseURL: form.baseURL.trim(),
         apiKey: form.apiKey,
         models: form.models,
         syncEnabled: form.syncEnabled,
-      }).then((synced) => {
-        if (synced === false) toastSyncFailure();
-      });
+      }));
       toast({
         title: intl.formatMessage({ id: 'settings.ai.savedTitle', defaultMessage: 'Provider updated' }),
       });
@@ -720,6 +728,8 @@ export function SettingsAIPage() {
         apiKey: form.apiKey,
         models: form.models,
         syncEnabled: form.syncEnabled,
+      }, (synced) => {
+        if (!synced) toastSyncFailure();
       });
       toast({
         title: intl.formatMessage({ id: 'settings.ai.addedTitle', defaultMessage: 'Provider added' }),
@@ -732,16 +742,14 @@ export function SettingsAIPage() {
     if (!deleteTarget) return;
     const target = deleteTarget;
     setDeleteTarget(null);
-    void deleteProfile(target.id).then((synced) => {
-      if (synced === false) toastSyncFailure();
-    });
+    reportSync(deleteProfile(target.id));
   }
 
   async function detectModels(profile: AIProviderProfile) {
     setDetecting((m) => ({ ...m, [profile.id]: true }));
     try {
       const models = await fetchProviderModels(profile, config.appName);
-      updateProfile(profile.id, { models });
+      reportSync(updateProfile(profile.id, { models }));
       toast({
         title: intl.formatMessage(
           { id: 'settings.ai.detectedTitle', defaultMessage: '{count, plural, one {# model detected} other {# models detected}}' },
@@ -902,7 +910,7 @@ export function SettingsAIPage() {
                   </div>
                   <ModelListEditor
                     models={profile.models}
-                    onModelsChange={(models) => updateProfile(profile.id, { models })}
+                    onModelsChange={(models) => reportSync(updateProfile(profile.id, { models }))}
                   />
                 </CardContent>
               </Card>

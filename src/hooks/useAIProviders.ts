@@ -118,12 +118,24 @@ export function useAIProviders() {
       .catch(() => false);
   }
 
-  function addProfile(input: Omit<AIProviderProfile, 'id'>): AIProviderProfile {
+  /**
+   * Add a profile and return it. The profile is returned synchronously
+   * (callers need its generated id right away), so a failed blob write cannot
+   * come back as a resolved boolean the way it does for updateProfile and
+   * deleteProfile. `onSynced` reports that outcome instead. Without it a
+   * failed write is silent, and the next merge drops the new profile again:
+   * the merge treats the blob as the source of truth for sync-enabled
+   * profiles, so one whose id never reached the blob is filtered out.
+   */
+  function addProfile(
+    input: Omit<AIProviderProfile, 'id'>,
+    onSynced?: (synced: boolean) => void,
+  ): AIProviderProfile {
     const profile: AIProviderProfile = { ...input, id: crypto.randomUUID() };
     const next = [...profilesRef.current, profile];
     setProfiles(next);
     persistProfiles(storageKeyRef.current, next);
-    if (profile.syncEnabled) void syncToBlob(next);
+    if (profile.syncEnabled) void syncToBlob(next).then((synced) => onSynced?.(synced));
     return profile;
   }
 

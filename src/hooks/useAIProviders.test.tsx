@@ -266,6 +266,36 @@ describe('useAIProviders', () => {
     await waitFor(() => expect(syncSettingsSpy).toHaveBeenCalled());
     const patch = syncSettingsSpy.mock.calls[0][0] as { aiProviderProfiles?: AIProviderProfile[] };
     expect(patch.aiProviderProfiles).toEqual([created]);
+    // The blob write must go through syncSettings alone. updateSettings is the
+    // shared mutation every other settings consumer uses, and awaiting it here
+    // would change their behavior too.
+    expect(updateSettingsSpy).not.toHaveBeenCalled();
+  });
+
+  it('addProfile reports a failed blob write through onSynced', async () => {
+    syncSettingsSpy.mockRejectedValueOnce(new Error('no relay accepted the event'));
+    const { result } = renderHook(() => useAIProviders(), { wrapper });
+
+    const onSynced = vi.fn<(synced: boolean) => void>();
+    act(() => {
+      result.current.addProfile(makeInput({ name: 'Synced', syncEnabled: true }), onSynced);
+    });
+
+    // Without this report the UI claims the profile is synced, and the next
+    // blob merge drops it again: the merge treats the blob as the source of
+    // truth for sync-enabled profiles.
+    await waitFor(() => expect(onSynced).toHaveBeenCalledWith(false));
+  });
+
+  it('addProfile reports a successful blob write through onSynced', async () => {
+    const { result } = renderHook(() => useAIProviders(), { wrapper });
+
+    const onSynced = vi.fn<(synced: boolean) => void>();
+    act(() => {
+      result.current.addProfile(makeInput({ name: 'Synced', syncEnabled: true }), onSynced);
+    });
+
+    await waitFor(() => expect(onSynced).toHaveBeenCalledWith(true));
   });
 
   it('never sends a non-syncEnabled profile to the encrypted blob', async () => {
