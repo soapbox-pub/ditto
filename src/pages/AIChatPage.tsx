@@ -73,9 +73,10 @@ function parseToolArgs(raw: string): Record<string, unknown> {
  * OpenAI chat-completion parameter shape, with no id and no timestamp.
  * Timestamps therefore come from a cache keyed by those ids: the conversion
  * reruns on every streamed chunk, so assigning `new Date()` at conversion
- * time would make every bubble show the last render's time. The caller owns
- * the cache and resets it whenever the id space restarts (session switch,
- * clear, compaction), so ids never collide across threads.
+ * time would make every bubble show the last render's time. The caller keeps
+ * one cache per session and resets a session's cache only when that
+ * session's id space restarts (clear, compaction), so ids never collide
+ * across threads and a restored session keeps its original timestamps.
  */
 function snapshotToDisplayMessages(msgs: SessionMessage[], timestamps: Map<string, Date>): DisplayMessage[] {
   const messages: DisplayMessage[] = [];
@@ -228,23 +229,24 @@ export function AIChatPage() {
   // The snapshot's messages array is a fresh reference on every streamed
   // chunk, so the conversion above reruns constantly; without a cache every
   // bubble would show the last render's time instead of the moment the
-  // message first appeared. The map is keyed by the index-based message ids
-  // and reset whenever the id space restarts — switching sessions, clearing,
-  // or compacting the thread — so a new thread never inherits old
-  // timestamps.
-  const messageTimestampsRef = useRef<Map<string, Date>>(new Map());
-  const lastMessageCountRef = useRef(0);
-  const lastSessionIdRef = useRef<string | null>(null);
+  // message first appeared. Caches are keyed by session id: switching tabs
+  // must not re-seed a restored thread with the switch time, so only a
+  // session's own id-space restart — clearing or compacting that thread — is
+  // allowed to drop its entries.
+  const messageTimestampsRef = useRef<Map<string, Map<string, Date>>>(new Map());
+  const lastMessageCountsRef = useRef<Map<string, number>>(new Map());
   const snapshotMessages = agentSnapshot?.messages;
 
   const messages = useMemo(() => {
     const msgs = snapshotMessages ?? [];
-    if (lastSessionIdRef.current !== activeSessionId || msgs.length < lastMessageCountRef.current) {
-      messageTimestampsRef.current.clear();
+    let sessionTimestamps = messageTimestampsRef.current.get(activeSessionId);
+    const lastCount = lastMessageCountsRef.current.get(activeSessionId);
+    if (!sessionTimestamps || (lastCount !== undefined && msgs.length < lastCount)) {
+      sessionTimestamps = new Map<string, Date>();
+      messageTimestampsRef.current.set(activeSessionId, sessionTimestamps);
     }
-    lastSessionIdRef.current = activeSessionId;
-    lastMessageCountRef.current = msgs.length;
-    return snapshotToDisplayMessages(msgs, messageTimestampsRef.current);
+    lastMessageCountsRef.current.set(activeSessionId, msgs.length);
+    return snapshotToDisplayMessages(msgs, sessionTimestamps);
   }, [snapshotMessages, activeSessionId]);
   const isLoading = agentSnapshot?.isLoading ?? false;
   const sessionError = buildError ?? agentSnapshot?.error ?? null;
