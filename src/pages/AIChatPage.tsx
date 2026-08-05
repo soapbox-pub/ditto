@@ -250,6 +250,9 @@ export function AIChatPage() {
   }, [snapshotMessages, activeSessionId]);
   const isLoading = agentSnapshot?.isLoading ?? false;
   const sessionError = buildError ?? agentSnapshot?.error ?? null;
+  // Rate-limit and out-of-credits failures get a friendly banner; anything
+  // else falls through to the plain red box in the render below.
+  const errorKind = sessionError ? classifyAgentError(sessionError) : null;
 
   useSeoMeta({
     title: `${intl.formatMessage({ id: 'ai-chat.title', defaultMessage: 'AI Chat' })} | ${config.appName}`,
@@ -682,9 +685,9 @@ export function AIChatPage() {
       {sessionError && (
         <div className="shrink-0 px-4 pb-2">
           <div className="max-w-2xl mx-auto">
-            {sessionError.includes('Rate limited') ? (
+            {errorKind === 'rate-limit' ? (
               <DorkErrorBanner {...RATE_LIMIT_BANNER} />
-            ) : sessionError.includes('run out of credits') ? (
+            ) : errorKind === 'out-of-credits' ? (
               <DorkErrorBanner {...OUT_OF_CREDITS_BANNER} />
             ) : (
               <div className="rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm px-4 py-3">
@@ -841,6 +844,24 @@ const OUT_OF_CREDITS_BANNER = {
     defaultMessage: 'Grab some more on',
   }),
 } as const;
+
+/**
+ * Classify an agent error string for banner selection. Errors surfaced by
+ * the OpenAI SDK carry their HTTP status code as a message prefix ("429 ...",
+ * "402 ...") regardless of provider — Shakespeare, OpenRouter, DeepSeek, or
+ * a custom base URL — so match on that first. Errors with no status (network
+ * failures, client-side throws) fall back to the wording Ditto itself
+ * generates. Never key off a provider name: custom providers word their
+ * errors however they like.
+ */
+function classifyAgentError(error: string): 'rate-limit' | 'out-of-credits' | null {
+  const status = /^(\d{3})\s/.exec(error)?.[1];
+  if (status === '429') return 'rate-limit';
+  if (status === '402') return 'out-of-credits';
+  if (error.includes('Rate limited')) return 'rate-limit';
+  if (error.includes('run out of credits')) return 'out-of-credits';
+  return null;
+}
 
 function DorkErrorBanner({ face, heading, body }: { face: string; heading: MessageDescriptor; body: MessageDescriptor }) {
   const shakespeareLink = (
