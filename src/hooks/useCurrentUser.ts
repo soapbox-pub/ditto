@@ -2,9 +2,11 @@ import { useNostr } from '@nostrify/react';
 import { type NLoginType, NUser, useNostrLogin } from '@nostrify/react/login';
 import { NRelay1, NSecSigner } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useSyncExternalStore } from 'react';
 
 import { useAuthor } from './useAuthor.ts';
+import { devSignupPubkey, subscribeDevSignup } from '@/dev/devSignupArrival';
+import { createDevSignupUser } from '@/dev/devSignupUser';
 import { signerWithNudge } from '@/lib/signerWithNudge';
 import { NSecSignerBtc, NBrowserSignerBtc, NConnectSignerBtc } from '@/lib/bitcoin-signers';
 import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
@@ -12,6 +14,14 @@ import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
 export function useCurrentUser() {
   const { nostr } = useNostr();
   const { logins } = useNostrLogin();
+
+  // Localhost-only: the signup→arrival simulation shadows the current account
+  // so the arrival lifecycle sees a pubkey resolve *before* signup completes,
+  // which is the ordering that broke the real integration. It never touches
+  // `logins`, so the real account list is untouched and is restored the moment
+  // the simulation ends. `devSignupPubkey()` returns undefined in production
+  // builds and off localhost, so this collapses to the real path.
+  const devPubkey = useSyncExternalStore(subscribeDevSignup, devSignupPubkey);
 
   const loginToUser = useCallback((login: NLoginType): NUser  => {
     let user: NUser;
@@ -78,12 +88,16 @@ export function useCurrentUser() {
     return users;
   }, [logins, loginToUser]);
 
-  const user = users[0] as NUser | undefined;
+  const user = (devPubkey
+    ? (createDevSignupUser() as unknown as NUser)
+    : users[0]) as NUser | undefined;
 
   // The current user's kind 0 profile is served from useAuthor, which
   // may resolve instantly if pre-cached by useFeed. Otherwise it fetches
   // from relays in the background.
-  const author = useAuthor(user?.pubkey);
+  // The simulated account has no profile to fetch, and asking would be a relay
+  // query the tool promises not to make.
+  const author = useAuthor(devPubkey ? undefined : user?.pubkey);
 
   return {
     user,

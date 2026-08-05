@@ -10,8 +10,7 @@ import {
   Heart,
   Loader2,
 } from "lucide-react";
-import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
-import { saveNsec } from "@/lib/credentialManager";
+import { getPublicKey, nip19 } from "nostr-tools";
 import { openUrl } from "@/lib/downloadFile";
 import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
 import {
@@ -37,10 +36,11 @@ import { useAuthors } from "@/hooks/useAuthors";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEncryptedSettings, getLocalSettingsSync } from "@/hooks/useEncryptedSettings";
 import { type SyncPhase, useInitialSync } from "@/hooks/useInitialSync";
-import { useLoginActions } from "@/hooks/useLoginActions";
 import { useNostrPublish } from "@/hooks/useNostrPublish";
 import { OnboardingContext } from "@/hooks/useOnboarding";
 import { markFirstArrival } from "@/lib/firstArrival";
+import { devSignupActive } from "@/dev/devSignupArrival";
+import { type SignupAccount, useSignupServices } from "@/lib/signupServices";
 import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
@@ -122,6 +122,25 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
           onPreload={() => setPreloadApp(true)}
           isSignup
         />
+      </OnboardingContext.Provider>
+    );
+  }
+
+  // Localhost-only, and checked *after* `signupActive` on purpose: during an
+  // interactive simulated signup the account becomes available at the key step,
+  // and taking this branch then would unmount the questionnaire mid-flow.
+  //
+  // The simulation shadows the account with a
+  // fake pubkey that has no signer and no settings event. Without this the gate
+  // would treat it as a brand-new login, sit on "Syncing your settings...", and
+  // then launch the real settings questionnaire on top of the tool. There is
+  // nothing to sync for an account that does not exist, so pass straight
+  // through. `devSignupActive()` is false in production builds and off
+  // localhost, so production behaviour is untouched.
+  if (devSignupActive()) {
+    return (
+      <OnboardingContext.Provider value={contextValue}>
+        {children}
       </OnboardingContext.Provider>
     );
   }
@@ -295,7 +314,10 @@ function SetupQuestionnaire({
   const { nostr } = useNostr();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const login = useLoginActions();
+  // Key generation, login and publishing go through this seam so the localhost
+  // dev tool can run these exact screens with no network behind them. In
+  // production it is the real implementation.
+  const signupServices = useSignupServices();
 
   const steps = isSignup ? SIGNUP_STEPS : SETTINGS_STEPS;
 
@@ -303,8 +325,10 @@ function SetupQuestionnaire({
   const [isSaving, setIsSaving] = useState(false);
   const [hasFollows, setHasFollows] = useState<boolean | null>(null);
 
-  // Signup-specific state
+  // Signup-specific state. `account` is produced by the signup services, so the
+  // dev tool can supply a fake identity without a real key ever existing.
   const [nsec, setNsec] = useState("");
+  const [account, setAccount] = useState<SignupAccount | undefined>(undefined);
 
   // Derived pubkey for the just-generated nsec. Used as a defensive guard at
   // every signup publish site to ensure we sign with the *new* account, not a
@@ -312,6 +336,9 @@ function SetupQuestionnaire({
   // auto-switch (or any future re-ordering of logins) could overwrite the
   // previous user's kind 0 metadata / kind 3 follow list during onboarding.
   const expectedPubkey = useMemo(() => {
+    // The services already know the pubkey, and the dev identity has no
+    // decodable nsec, so prefer the authoritative value.
+    if (account) return account.pubkey;
     if (!nsec) return undefined;
     try {
       const decoded = nip19.decode(nsec);
@@ -320,7 +347,7 @@ function SetupQuestionnaire({
     } catch {
       return undefined;
     }
-  }, [nsec]);
+  }, [account, nsec]);
 
   const stepIndex = steps.indexOf(step);
   const progress = (stepIndex / (steps.length - 1)) * 100;
@@ -344,11 +371,11 @@ function SetupQuestionnaire({
   // Keygen handler — generates the key and advances to the save step.
   // The credential manager prompt is deferred until the user clicks "Continue".
   const handleGenerate = useCallback(() => {
-    const sk = generateSecretKey();
-    const encoded = nip19.nsecEncode(sk);
-    setNsec(encoded);
+    const created = signupServices.generateAccount();
+    setAccount(created);
+    setNsec(created.secretDisplay);
     next();
-  }, [next]);
+  }, [next, signupServices]);
 
   // Continue handler for the download step — saves the key via the best
   // available method (native credential manager on iOS/Android, file download
@@ -367,13 +394,13 @@ function SetupQuestionnaire({
   // surface as a destructive toast.
   const handleDownloadContinue = useCallback(async () => {
     try {
-      const decoded = nip19.decode(nsec);
-      if (decoded.type !== "nsec") throw new Error("Invalid nsec");
+      if (!account) throw new Error("No account generated");
 
-      const pubkey = getPublicKey(decoded.data);
-      const npub = nip19.npubEncode(pubkey);
-
-      const result = await saveNsec(npub, nsec, config.appName);
+      // Saves the key and makes the account active. This is where production
+      // logs in — three screens before signup finishes — which is exactly the
+      // ordering the arrival handoff depends on. The dev implementation
+      // preserves it without creating a key or an account.
+      const result = await signupServices.persistAccount(account, config.appName);
 
       if (result === "saved-to-file") {
         toast({
@@ -383,7 +410,6 @@ function SetupQuestionnaire({
         });
       }
 
-      login.nsec(nsec);
       next();
     } catch {
       toast({
@@ -393,7 +419,7 @@ function SetupQuestionnaire({
         variant: "destructive",
       });
     }
-  }, [nsec, login, next, config.appName]);
+  }, [account, signupServices, next, config.appName]);
 
   // Check for existing follows and transition to the follows step (or outro if they have follows).
   //
@@ -643,7 +669,8 @@ function ProfileStep({
 }) {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
-  const { mutateAsync: publishEvent, isPending: isPublishing } =
+  const signupServices = useSignupServices();
+  const { isPending: isPublishing } =
     useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const pickInputRef = useRef<HTMLInputElement>(null);
@@ -739,7 +766,7 @@ function ProfileStep({
         for (const key in data) {
           if (data[key] === "") delete data[key];
         }
-        await publishEvent({ kind: 0, content: JSON.stringify(data), tags: [] });
+        await signupServices.publishProfile(data);
         queryClient.invalidateQueries({ queryKey: ["logins"] });
         queryClient.invalidateQueries({ queryKey: ["author", user.pubkey] });
       } catch {
@@ -752,7 +779,7 @@ function ProfileStep({
       }
     }
     onNext();
-  }, [user, profileData, publishEvent, queryClient, onNext, expectedPubkey]);
+  }, [user, profileData, signupServices, queryClient, onNext, expectedPubkey]);
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
@@ -964,7 +991,8 @@ function FollowsStep({
 }) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const { mutateAsync: publishEvent } = useNostrPublish();
+  const signupServices = useSignupServices();
+  useNostrPublish();
 
   const [packs, setPacks] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1093,8 +1121,7 @@ function FollowsStep({
         .map((pk) => ["p", pk]);
 
       // 4. Publish once with prev for published_at preservation
-      await publishEvent({
-        kind: 3,
+      await signupServices.publishFollows({
         content: prev?.content ?? "",
         tags: [...nonPTags, ...existingPTags, ...newPTags],
         prev: prev ?? undefined,
@@ -1112,7 +1139,7 @@ function FollowsStep({
     } finally {
       setSubmitting(false);
     }
-  }, [user, nostr, publishEvent, expectedPubkey, packs, selectedPacks, onNext]);
+  }, [user, nostr, signupServices, expectedPubkey, packs, selectedPacks, onNext]);
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">

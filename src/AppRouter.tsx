@@ -10,6 +10,17 @@ import { BlobbiActionsProvider } from "@/blobbi/companion/interaction/BlobbiActi
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 import { Toaster } from "./components/ui/toaster";
 import { MainLayout } from "./components/MainLayout";
+import { DevSignupArrivalReturn } from "@/components/DevSignupArrivalReturn";
+import { isLocalhostDev } from "@/dev/isLocalhostDev";
+
+/**
+ * Localhost-only developer tool, in its own chunk so a production build never
+ * downloads it. The route below is not registered when `isLocalhostDev()` is
+ * false, so the chunk is unreachable outside localhost development.
+ */
+const DevSignupArrivalPage = lazy(() =>
+  import("@/pages/DevSignupArrivalPage").then((m) => ({ default: m.DevSignupArrivalPage })),
+);
 import { ScrollToTop } from "./components/ScrollToTop";
 import { VersionCheck } from "./components/VersionCheck";
 import { useCurrentUser } from "./hooks/useCurrentUser";
@@ -136,9 +147,26 @@ export function AppRouter() {
         <HighlightSelectionButton />
         <BlobbiActionsProvider>
           <BlobbiCompanionGate />
+          {/* Localhost-only: floating way back to the dev tool once a simulated
+              arrival has navigated to `/`. Renders nothing in production. */}
+          <DevSignupArrivalReturn />
           <Routes>
           {/* Auto-follow deep link: fullscreen immersive (no sidebars/nav) */}
           <Route path="/follow/:npub" element={<FollowPage />} />
+
+          {/* Localhost-only developer tool for the signup -> arrival handoff.
+              `isLocalhostDev()` is false in production builds, so the route is
+              not registered at all there and the component tree-shakes out. */}
+          {isLocalhostDev() && (
+            <Route
+              path="/dev/signup-arrival"
+              element={
+                <Suspense fallback={null}>
+                  <DevSignupArrivalPage />
+                </Suspense>
+              }
+            />
+          )}
 
           {/* All routes share the persistent MainLayout (sidebar + nav) */}
           <Route element={<MainLayout />}>
