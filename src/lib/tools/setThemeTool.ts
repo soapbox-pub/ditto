@@ -61,12 +61,31 @@ For backgrounds, provide a URL to a publicly accessible image. Choose images tha
 When the user asks to change the theme, be creative — combine colors, fonts, and backgrounds to create a cohesive aesthetic. Always set colors. Add a font when it enhances the mood. Add a background image only when you have a suitable URL or the user requests one.`,
     inputSchema,
     async execute(args) {
+      // devkit calls execute() without parsing args through inputSchema first,
+      // so validate here: model-supplied garbage (null, a string, an array, ...)
+      // must not crash on property access.
+      const parsed = inputSchema.safeParse(args);
+      if (!parsed.success) {
+        const details = parsed.error.issues
+          .map((issue) => {
+            const path = issue.path.join('.');
+            return path.length > 0 ? `${path}: ${issue.message}` : issue.message;
+          })
+          .join('; ');
+        return {
+          content: JSON.stringify({
+            error: `Invalid arguments for the set_theme tool: ${details}.`,
+          }),
+        };
+      }
+      const validated = parsed.data;
+
       // Validate required color values
-      if (!isValidHsl(args.background) || !isValidHsl(args.text) || !isValidHsl(args.primary)) {
+      if (!isValidHsl(validated.background) || !isValidHsl(validated.text) || !isValidHsl(validated.primary)) {
         return {
           content: JSON.stringify({
             error: 'Invalid HSL color values. Each must be a string like "228 20% 10%".',
-            received: { background: args.background, text: args.text, primary: args.primary },
+            received: { background: validated.background, text: validated.text, primary: validated.primary },
           }),
         };
       }
@@ -74,34 +93,34 @@ When the user asks to change the theme, be creative — combine colors, fonts, a
       // Build theme config
       const themeConfig: ThemeConfig = {
         colors: {
-          background: args.background,
-          text: args.text,
-          primary: args.primary,
+          background: validated.background,
+          text: validated.text,
+          primary: validated.primary,
         },
       };
 
       // Add font if provided
-      if (typeof args.font === 'string' && args.font.trim()) {
-        const fontName = args.font.trim();
+      if (validated.font?.trim()) {
+        const fontName = validated.font.trim();
         const bundled = bundledFonts.find((f) => f.family.toLowerCase() === fontName.toLowerCase());
         if (bundled) {
           themeConfig.font = { family: bundled.family };
         } else {
           return {
             content: JSON.stringify({
-              error: `Unknown font "${args.font}". Available fonts: ${AVAILABLE_FONTS}`,
+              error: `Unknown font "${validated.font}". Available fonts: ${AVAILABLE_FONTS}`,
             }),
           };
         }
       }
 
       // Add background if provided (sanitize to prevent CSS injection via url())
-      if (typeof args.background_url === 'string' && args.background_url.trim()) {
-        const safeUrl = sanitizeUrl(args.background_url.trim());
+      if (validated.background_url?.trim()) {
+        const safeUrl = sanitizeUrl(validated.background_url.trim());
         if (safeUrl) {
           themeConfig.background = {
             url: safeUrl,
-            mode: args.background_mode === 'tile' ? 'tile' : 'cover',
+            mode: validated.background_mode === 'tile' ? 'tile' : 'cover',
           };
         }
       }
@@ -111,7 +130,7 @@ When the user asks to change the theme, be creative — combine colors, fonts, a
       // Build result summary
       const result: Record<string, unknown> = {
         success: true,
-        colors: { background: args.background, text: args.text, primary: args.primary },
+        colors: { background: validated.background, text: validated.text, primary: validated.primary },
       };
       if (themeConfig.font) result.font = themeConfig.font.family;
       if (themeConfig.background) result.background = { url: themeConfig.background.url, mode: themeConfig.background.mode };

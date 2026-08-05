@@ -61,6 +61,35 @@ describe('useChatSessions', () => {
     expect(localStorage.length).toBe(0);
   });
 
+  it('persists exactly one bootstrap tab under the pubkey scope on mount, matching the active session', () => {
+    const pubkey = 'cc'.repeat(32);
+    const { result } = renderHook(() => useChatSessions(pubkey));
+
+    expect(result.current.sessions).toHaveLength(1);
+    const key = `ditto.ai-chat.tab.v1.${pubkey}.${result.current.activeSessionId}`;
+    const stored = JSON.parse(localStorage.getItem(key)!) as { id: string; createdAt: number };
+    // The persisted record is the very session the UI holds: metadata patches
+    // must land under the same id.
+    expect(stored.id).toBe(result.current.activeSessionId);
+    expect(stored.createdAt).toBe(result.current.sessions[0].createdAt.getTime());
+    // The bootstrap write must run exactly once: no other record in scope.
+    expect(localStorage.length).toBe(1);
+    expect(localStorage.key(0)).toBe(key);
+  });
+
+  it('metadata patches to the bootstrapped session land in storage under the same id', () => {
+    const pubkey = 'dd'.repeat(32);
+    const { result } = renderHook(() => useChatSessions(pubkey));
+    const id = result.current.activeSessionId;
+
+    act(() => {
+      result.current.updateSession(id, { title: 'Renamed' });
+    });
+
+    const stored = JSON.parse(localStorage.getItem(`ditto.ai-chat.tab.v1.${pubkey}.${id}`)!) as { title: string };
+    expect(stored.title).toBe('Renamed');
+  });
+
   it('bootstraps to the first configured provider profile when one exists', () => {
     const profiles = [
       makeProfile({ id: 'provider-a', name: 'My OpenRouter' }),
@@ -245,6 +274,42 @@ describe('useChatSessions', () => {
     expect(result.current.sessions).toHaveLength(1);
     expect(result.current.sessions[0].id).toBe(onlyId);
     expect(result.current.activeSessionId).toBe(onlyId);
+  });
+
+  it('deletes storage only for sessions the state updater actually removes (two closes in one tick)', () => {
+    const pubkey = 'ee'.repeat(32);
+    const { result } = renderHook(() => useChatSessions(pubkey));
+    const firstId = result.current.activeSessionId;
+
+    let second: ChatSession | undefined;
+    act(() => {
+      second = result.current.createSession({ abilities: [], providerId: 'shakespeare', modelId: 'm' });
+    });
+
+    // Two closes land in one tick. The updater refuses to remove the last
+    // remaining session, so the second tab must survive both memory and
+    // storage — a reload would otherwise lose it.
+    act(() => {
+      result.current.closeSession(firstId);
+      result.current.closeSession(second!.id);
+    });
+
+    expect(result.current.sessions.map((s) => s.id)).toEqual([second!.id]);
+    expect(localStorage.getItem(`ditto.ai-chat.tab.v1.${pubkey}.${firstId}`)).toBeNull();
+    expect(localStorage.getItem(`ditto.ai-chat.tab.v1.${pubkey}.${second!.id}`)).not.toBeNull();
+  });
+
+  it('keeps the storage record when closing the last remaining session', () => {
+    const pubkey = 'ff'.repeat(32);
+    const { result } = renderHook(() => useChatSessions(pubkey));
+    const onlyId = result.current.activeSessionId;
+
+    act(() => {
+      result.current.closeSession(onlyId);
+    });
+
+    expect(result.current.sessions.map((s) => s.id)).toEqual([onlyId]);
+    expect(localStorage.getItem(`ditto.ai-chat.tab.v1.${pubkey}.${onlyId}`)).not.toBeNull();
   });
 
   it('repeated createSession calls produce distinct ids that all coexist', () => {

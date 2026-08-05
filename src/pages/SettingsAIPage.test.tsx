@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { IntlProvider } from 'react-intl';
 import { MemoryRouter } from 'react-router-dom';
@@ -81,28 +81,43 @@ function makeProfile(overrides: Partial<AIProviderProfile> = {}): AIProviderProf
   };
 }
 
-/** Renders the page with a mocked provider store; returns the delete spy. */
-function renderPage(profiles: AIProviderProfile[]) {
-  const deleteProfile = vi.fn();
+/**
+ * Renders the page with a mocked provider store; returns the delete spy.
+ * Logged out by default: the Shakespeare card then skips both of its
+ * queries, so the custom-provider tests stay focused on the profile list.
+ * Card-state tests opt in with `loggedIn` and drive the two queries through
+ * `credits` and `models`.
+ */
+function renderPage(
+  profiles: AIProviderProfile[],
+  options: {
+    loggedIn?: boolean;
+    credits?: () => Promise<unknown>;
+    models?: () => Promise<unknown>;
+  } = {},
+) {
+  const deleteProfile = vi.fn().mockResolvedValue(true);
   useAppContextMock.mockReturnValue({ config: { appName: 'Ditto' } });
   useAIProvidersMock.mockReturnValue({
     profiles,
     addProfile: vi.fn(),
-    updateProfile: vi.fn(),
+    updateProfile: vi.fn().mockResolvedValue(true),
     deleteProfile,
     duplicateProfile: vi.fn(),
     isLoading: false,
     hasNip44Support: true,
   });
-  // Logged out by default: the Shakespeare card then skips both of its
-  // queries, so these tests stay focused on the custom-provider list.
-  useCurrentUserMock.mockReturnValue({ user: undefined });
+  useCurrentUserMock.mockReturnValue(
+    options.loggedIn ? { user: { pubkey: 'aa'.repeat(32) } } : { user: undefined },
+  );
   useShakespeareMock.mockReturnValue({
-    getCreditsBalance: vi.fn(),
-    getAvailableModels: vi.fn(),
+    getCreditsBalance: options.credits ?? vi.fn(),
+    getAvailableModels: options.models ?? vi.fn(),
   });
   render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    // retryDelay 1ms keeps the card's per-query `retry: 2` from stalling
+    // the error-state tests on real-time backoff.
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, retryDelay: () => 1 } } })}>
       <IntlProvider locale="en" onError={() => {}}>
         <MemoryRouter>
           <SettingsAIPage />
@@ -214,5 +229,93 @@ describe('SettingsAIPage delete confirmation', () => {
 
     expect(deleteProfile).toHaveBeenCalledWith('profile-2');
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('SettingsAIPage Shakespeare card states', () => {
+  beforeEach(() => {
+    useAIProvidersMock.mockReset();
+    useAppContextMock.mockReset();
+    useCurrentUserMock.mockReset();
+    useShakespeareMock.mockReset();
+  });
+
+  it('shows skeleton placeholders while both card queries are in flight', () => {
+    // A never-settling promise keeps each query pending, so the card shows
+    // loading skeletons instead of values or error text.
+    renderPage([], {
+      loggedIn: true,
+      credits: () => new Promise(() => {}),
+      models: () => new Promise(() => {}),
+    });
+
+    expect(screen.getByText('Balance')).toBeInTheDocument();
+    expect(screen.getByText('Models')).toBeInTheDocument();
+    expect(document.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+    expect(screen.queryByText('Unavailable')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+  });
+
+  it('shows Unavailable for the balance and a Retry button when the credits query fails', async () => {
+    renderPage([], {
+      loggedIn: true,
+      credits: () => Promise.reject(new Error('relay down')),
+      models: () => Promise.resolve({ data: [{ fullId: 'shakespeare/gpt', name: 'GPT' }] }),
+    });
+
+    expect(await screen.findByText('Unavailable')).toBeInTheDocument();
+    expect(screen.getAllByText('Unavailable')).toHaveLength(1);
+    // The model readout still succeeds.
+    expect(screen.getByText('GPT')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+
+  it('shows Unavailable for the models and a Retry button when the models query fails', async () => {
+    renderPage([], {
+      loggedIn: true,
+      credits: () => Promise.resolve({ amount: 5 }),
+      models: () => Promise.reject(new Error('relay down')),
+    });
+
+    expect(await screen.findByText('Unavailable')).toBeInTheDocument();
+    expect(screen.getAllByText('Unavailable')).toHaveLength(1);
+    // The balance readout still succeeds.
+    expect(screen.getByText('$5.00')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+
+  it('Retry recovers both readouts after both queries fail', async () => {
+    // Each query fails its first attempt plus its two retries, then a
+    // manual refetch succeeds.
+    let creditsCalls = 0;
+    let modelsCalls = 0;
+    renderPage([], {
+      loggedIn: true,
+      credits: () => {
+        creditsCalls += 1;
+        return creditsCalls > 3
+          ? Promise.resolve({ amount: 5 })
+          : Promise.reject(new Error('relay down'));
+      },
+      models: () => {
+        modelsCalls += 1;
+        return modelsCalls > 3
+          ? Promise.resolve({ data: [{ fullId: 'shakespeare/gpt', name: 'GPT' }] })
+          : Promise.reject(new Error('relay down'));
+      },
+    });
+
+    await waitFor(() => expect(screen.getAllByText('Unavailable')).toHaveLength(2));
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Unavailable')).not.toBeInTheDocument();
+      expect(screen.getByText('$5.00')).toBeInTheDocument();
+      expect(screen.getByText('GPT')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+    });
   });
 });
