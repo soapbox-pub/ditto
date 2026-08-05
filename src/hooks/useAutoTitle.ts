@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { AgentSession } from '@soapbox.pub/nostr-canvas/devkit';
+import type { AgentSession, SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
 
 import { createSessionOpenAIClient, sessionModelId } from '@/lib/aiClient';
 import { useCurrentUser } from './useCurrentUser';
@@ -32,19 +32,32 @@ interface UseAutoTitleOptions {
 export function useAutoTitle({ sessions, snapshots, profiles, updateSession }: UseAutoTitleOptions): void {
   const { user } = useCurrentUser();
   const inFlightRef = useRef(new Set<string>());
+  /** Per-session messages array the last attempt was made against, so a failed attempt is not retried until the conversation changes. */
+  const lastAttemptRef = useRef(new Map<string, SessionMessage[]>());
 
   useEffect(() => {
     if (!user) return;
 
     for (const session of sessions) {
-      if (session.title) continue;
+      if (session.title) {
+        // A titled tab needs no further attempts; forget its tracking entry.
+        lastAttemptRef.current.delete(session.id);
+        continue;
+      }
       if (inFlightRef.current.has(session.id)) continue;
 
       const snapshot = snapshots[session.id];
       if (!snapshot) continue;
       if (!isFirstExchangeComplete(snapshot.messages)) continue;
 
+      // Skip a failed attempt until the exchange it summarized changes.
+      // snapshots/profiles/updateSession are new references on many renders
+      // (e.g. every keystroke), so without this guard a failed request would
+      // refire on each of those re-renders once .finally cleared inFlight.
+      if (lastAttemptRef.current.get(session.id) === snapshot.messages) continue;
+
       inFlightRef.current.add(session.id);
+      lastAttemptRef.current.set(session.id, snapshot.messages);
       createSessionOpenAIClient(session, profiles, user)
         .then((client) =>
           client.chat.completions.create({
