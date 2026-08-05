@@ -248,6 +248,15 @@ export function AIChatPage() {
     lastMessageCountsRef.current.set(activeSessionId, msgs.length);
     return snapshotToDisplayMessages(msgs, sessionTimestamps);
   }, [snapshotMessages, activeSessionId]);
+
+  // Drop per-session timestamp caches for sessions that no longer exist
+  // (closed tabs), so the ref does not keep a dead session's entries forever.
+  useEffect(() => {
+    const liveSessionIds = new Set(sessions.map((s) => s.id));
+    for (const id of [...messageTimestampsRef.current.keys()]) {
+      if (!liveSessionIds.has(id)) messageTimestampsRef.current.delete(id);
+    }
+  }, [sessions]);
   const isLoading = agentSnapshot?.isLoading ?? false;
   const sessionError = buildError ?? agentSnapshot?.error ?? null;
   // Rate-limit and out-of-credits failures get a friendly banner; anything
