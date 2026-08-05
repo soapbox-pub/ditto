@@ -856,6 +856,9 @@ const OUT_OF_CREDITS_BANNER = {
  */
 function classifyAgentError(error: string): 'rate-limit' | 'out-of-credits' | null {
   const status = /^(\d{3})\s/.exec(error)?.[1];
+  // The OpenAI API reports an exhausted quota as 429 with an
+  // insufficient_quota code, not the 402 out-of-credits clients assume.
+  if (status === '429' && error.includes('insufficient_quota')) return 'out-of-credits';
   if (status === '429') return 'rate-limit';
   if (status === '402') return 'out-of-credits';
   if (error.includes('Rate limited')) return 'rate-limit';
