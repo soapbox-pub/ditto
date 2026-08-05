@@ -47,6 +47,7 @@ interface MockEncryptedSettings {
   isError: boolean;
   error: Error | null;
   updateSettings: MockUpdateSettings;
+  syncSettings: MockUpdateSettings;
   initializeSettings: typeof initializeSettingsSpy;
   hasNip44Support: boolean;
   lastSync: number | undefined;
@@ -62,6 +63,7 @@ function defaultEncryptedSettings(
     isError: false,
     error: null,
     updateSettings: { mutate: updateSettingsSpy, mutateAsync: updateSettingsSpy, isPending: false },
+    syncSettings: { mutate: updateSettingsSpy, mutateAsync: updateSettingsSpy, isPending: false },
     initializeSettings: initializeSettingsSpy,
     hasNip44Support: true,
     lastSync: undefined,

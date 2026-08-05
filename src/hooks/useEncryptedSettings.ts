@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { NostrFilter } from '@nostrify/nostrify';
+import type { NostrFilter, NostrEvent } from '@nostrify/nostrify';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from './useCurrentUser';
@@ -198,91 +198,120 @@ export function useEncryptedSettings() {
   // don't overwrite each other by reading stale cache data.
   const pendingSettings = useRef<EncryptedSettings | null>(null);
 
-  // Update settings
-  const updateSettings = useMutation({
-    mutationFn: async (patch: Partial<EncryptedSettings>) => {
-      if (!user) throw new Error('User not logged in');
-      if (!user.signer.nip44) throw new Error('NIP-44 encryption not supported by signer');
+  /** Build, sign, and publish the encrypted settings event.
+   *  `awaitPublish` controls whether the relay write is awaited: fire-and-
+   *  forget for background sync (updateSettings), awaited so a dropped
+   *  publish rejects the mutation (syncSettings) for callers that must
+   *  report the write outcome. */
+  const buildSettings = async (patch: Partial<EncryptedSettings>, awaitPublish: boolean) => {
+    if (!user) throw new Error('User not logged in');
+    if (!user.signer.nip44) throw new Error('NIP-44 encryption not supported by signer');
 
-      // Use the latest pending settings if available (rapid successive mutations).
-      // Otherwise, fetch fresh from relays to avoid cross-device stale reads.
-      let currentSettings: EncryptedSettings;
-      if (pendingSettings.current) {
-        currentSettings = pendingSettings.current;
-      } else {
-        const freshEvent = await fetchFreshEvent(nostr, {
-          kinds: [30078],
-          authors: [user.pubkey],
-          '#d': [`${config.appId}/metadata`],
-        });
-        if (freshEvent?.content) {
-          try {
-            const decrypted = await user.signer.nip44.decrypt(user.pubkey, freshEvent.content);
-            const json = JSON.parse(decrypted);
-            const result = EncryptedSettingsSchema.safeParse(json);
-            currentSettings = result.success ? (result.data as EncryptedSettings) : (json ?? {}) as EncryptedSettings;
-          } catch {
-            currentSettings = settings.data ?? {};
-          }
-        } else {
+    // Use the latest pending settings if available (rapid successive mutations).
+    // Otherwise, fetch fresh from relays to avoid cross-device stale reads.
+    let currentSettings: EncryptedSettings;
+    if (pendingSettings.current) {
+      currentSettings = pendingSettings.current;
+    } else {
+      const freshEvent = await fetchFreshEvent(nostr, {
+        kinds: [30078],
+        authors: [user.pubkey],
+        '#d': [`${config.appId}/metadata`],
+      });
+      if (freshEvent?.content) {
+        try {
+          const decrypted = await user.signer.nip44.decrypt(user.pubkey, freshEvent.content);
+          const json = JSON.parse(decrypted);
+          const result = EncryptedSettingsSchema.safeParse(json);
+          currentSettings = result.success ? (result.data as EncryptedSettings) : (json ?? {}) as EncryptedSettings;
+        } catch {
           currentSettings = settings.data ?? {};
         }
+      } else {
+        currentSettings = settings.data ?? {};
       }
-      const updatedSettings: EncryptedSettings = {
-        ...currentSettings,
-        ...patch,
-        lastSync: Date.now(),
-      };
+    }
+    const updatedSettings: EncryptedSettings = {
+      ...currentSettings,
+      ...patch,
+      lastSync: Date.now(),
+    };
 
-      // Optimistically track so the next rapid mutation sees this state immediately
-      pendingSettings.current = updatedSettings;
+    // Optimistically track so the next rapid mutation sees this state immediately
+    pendingSettings.current = updatedSettings;
 
-      // Encrypt the settings
-      const plaintext = JSON.stringify(updatedSettings);
-      const encrypted = await user.signer.nip44.encrypt(user.pubkey, plaintext);
+    // Encrypt the settings
+    const plaintext = JSON.stringify(updatedSettings);
+    const encrypted = await user.signer.nip44.encrypt(user.pubkey, plaintext);
 
-      // Sign the event
-      const unsignedEvent = {
-        kind: 30078,
-        content: encrypted,
-        tags: [
-          ['d', `${config.appId}/metadata`],
-          ['title', `${config.appName} Metadata`],
-          ['client', config.appName, ...(config.client ? [config.client] : [])],
-        ],
-        created_at: Math.floor(Date.now() / 1000),
-      };
+    // Sign the event
+    const unsignedEvent = {
+      kind: 30078,
+      content: encrypted,
+      tags: [
+        ['d', `${config.appId}/metadata`],
+        ['title', `${config.appName} Metadata`],
+        ['client', config.appName, ...(config.client ? [config.client] : [])],
+      ],
+      created_at: Math.floor(Date.now() / 1000),
+    };
 
-      const signedEvent = await user.signer.signEvent(unsignedEvent);
+    const signedEvent = await user.signer.signEvent(unsignedEvent);
 
-      // Mark that we just wrote, so NostrSync doesn't fight us.
-      lastWriteTs = Date.now();
+    // Mark that we just wrote, so NostrSync doesn't fight us.
+    lastWriteTs = Date.now();
 
-      // Publish. Await the relay write so a dropped publish fails the
-      // mutation instead of only reaching console.error; callers can then
-      // stop claiming a synced state the write never reached.
+    if (awaitPublish) {
+      // Await the relay write so a dropped publish fails the mutation
+      // instead of only reaching console.error; callers can then stop
+      // claiming a synced state the write never reached.
       await nostr.event(signedEvent, { signal: AbortSignal.timeout(5000) });
+    } else {
+      // Publish in background
+      nostr.event(signedEvent, { signal: AbortSignal.timeout(5000) }).catch((error) => {
+        console.error('Failed to publish encrypted settings:', error);
+      });
+    }
 
-      return { updatedSettings, signedEvent };
-    },
-    // Update cache in-place instead of refetching, which avoids
-    // NostrSync re-running and causing a re-render loop.
-    // Do NOT invalidate the encryptedSettings query here — doing so triggers a
-    // relay refetch that can return the old event before the new one propagates,
-    // which causes NostrSync to overwrite the theme the user just selected.
-    //
-    // Use the signed event's ID (not the old query event ID) so the parsed
-    // settings cache entry is keyed correctly and NostrSync picks it up.
-    onSuccess: ({ updatedSettings, signedEvent }) => {
-      queryClient.setQueryData(['encryptedSettings', user?.pubkey], signedEvent);
-      queryClient.setQueryData(['parsedSettings', signedEvent.id], updatedSettings);
-      // Cache is now up to date — pending ref no longer needed
-      pendingSettings.current = null;
-      // Persist the sync timestamp so the next page load can skip the spinner
-      if (user && updatedSettings.lastSync) {
-        setLocalSettingsSync(user.pubkey, updatedSettings.lastSync);
-      }
-    },
+    return { updatedSettings, signedEvent };
+  };
+
+  // Update cache in-place instead of refetching, which avoids
+  // NostrSync re-running and causing a re-render loop.
+  // Do NOT invalidate the encryptedSettings query here — doing so triggers a
+  // relay refetch that can return the old event before the new one propagates,
+  // which causes NostrSync to overwrite the theme the user just selected.
+  //
+  // Use the signed event's ID (not the old query event ID) so the parsed
+  // settings cache entry is keyed correctly and NostrSync picks it up.
+  const onSettingsUpdated = ({
+    updatedSettings,
+    signedEvent,
+  }: {
+    updatedSettings: EncryptedSettings;
+    signedEvent: NostrEvent;
+  }) => {
+    queryClient.setQueryData(['encryptedSettings', user?.pubkey], signedEvent);
+    queryClient.setQueryData(['parsedSettings', signedEvent.id], updatedSettings);
+    // Cache is now up to date — pending ref no longer needed
+    pendingSettings.current = null;
+    // Persist the sync timestamp so the next page load can skip the spinner
+    if (user && updatedSettings.lastSync) {
+      setLocalSettingsSync(user.pubkey, updatedSettings.lastSync);
+    }
+  };
+
+  // Update settings, publishing in the background
+  const updateSettings = useMutation({
+    mutationFn: (patch: Partial<EncryptedSettings>) => buildSettings(patch, false),
+    onSuccess: onSettingsUpdated,
+  });
+
+  // Update settings and await the relay write, so a dropped publish rejects
+  // the mutation. Use where the caller must report the sync outcome.
+  const syncSettings = useMutation({
+    mutationFn: (patch: Partial<EncryptedSettings>) => buildSettings(patch, true),
+    onSuccess: onSettingsUpdated,
   });
 
   // Initialize settings if they don't exist
@@ -304,6 +333,9 @@ export function useEncryptedSettings() {
     isError: query.isError || settings.isError,
     error: query.error || settings.error,
     updateSettings,
+    /** Awaits the relay write: rejects when the publish fails, so callers
+     *  can surface the sync outcome instead of claiming a synced state. */
+    syncSettings,
     initializeSettings,
     hasNip44Support: !!user?.signer.nip44,
     lastSync: settings.data?.lastSync,

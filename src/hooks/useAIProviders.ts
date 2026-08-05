@@ -112,7 +112,7 @@ export function useAIProviders() {
   function syncToBlob(nextProfiles: AIProviderProfile[]): Promise<boolean> {
     if (!encryptedSettings.hasNip44Support) return Promise.resolve(true);
     const synced = nextProfiles.filter((p) => p.syncEnabled);
-    return encryptedSettings.updateSettings
+    return encryptedSettings.syncSettings
       .mutateAsync({ aiProviderProfiles: synced })
       .then(() => true)
       .catch(() => false);
