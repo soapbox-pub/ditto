@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
-import { useFirstArrivalExperience } from './useFirstArrivalExperience';
+import { ARRIVAL_TIMINGS, useFirstArrivalExperience } from './useFirstArrivalExperience';
 import {
   isFirstArrivalPending,
   markFirstArrival,
@@ -37,9 +37,9 @@ vi.mock('@/lib/reducedMotion', () => ({
  * the safety timeout instead — which is exactly the behaviour worth pinning.
  */
 function playThrough() {
-  act(() => void vi.advanceTimersByTime(3_000)); // playing → revealing
-  act(() => void vi.advanceTimersByTime(1_000)); // revealing → travelling
-  act(() => void vi.advanceTimersByTime(3_000)); // travelling → done (safety net)
+  act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.play + 100));
+  act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.reveal + 100));
+  act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.travelTimeout + 100));
 }
 
 describe('useFirstArrivalExperience', () => {
@@ -226,8 +226,8 @@ describe('useFirstArrivalExperience — the theatrical handoff', () => {
     markFirstArrival(APP, ALICE);
     const { result } = renderHook(() => useFirstArrivalExperience());
 
-    act(() => void vi.advanceTimersByTime(3_000)); // playing → revealing
-    act(() => void vi.advanceTimersByTime(1_000)); // revealing → travelling
+    act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.play + 100));
+    act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.reveal + 100));
     expect(result.current.phase).toBe('travelling');
     expect(result.current.travelling).toBe(true);
   });
@@ -247,9 +247,9 @@ describe('useFirstArrivalExperience — the theatrical handoff', () => {
     markFirstArrival(APP, ALICE);
     const { result } = renderHook(() => useFirstArrivalExperience());
 
-    act(() => void vi.advanceTimersByTime(1_500));
+    act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.reducedPlay + 100));
     expect(result.current.phase).toBe('revealing');
-    act(() => void vi.advanceTimersByTime(300));
+    act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.reducedReveal + 100));
     // Straight to the end — the card never crosses the screen.
     expect(result.current.phase).toBe('done');
     expect(result.current.travelling).toBe(false);
@@ -259,7 +259,7 @@ describe('useFirstArrivalExperience — the theatrical handoff', () => {
     markFirstArrival(APP, ALICE);
     const { result } = renderHook(() => useFirstArrivalExperience());
 
-    act(() => void vi.advanceTimersByTime(1_800));
+    act(() => void vi.advanceTimersByTime(1_800)); // mid-presentation
     act(() => result.current.skip());
     act(() => void vi.advanceTimersByTime(2_000));
 
@@ -272,8 +272,8 @@ describe('useFirstArrivalExperience — the theatrical handoff', () => {
     markFirstArrival(APP, ALICE);
     const { result } = renderHook(() => useFirstArrivalExperience());
 
-    act(() => void vi.advanceTimersByTime(3_000));
-    act(() => void vi.advanceTimersByTime(1_000));
+    act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.play + 100));
+    act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.reveal + 100));
     expect(result.current.phase).toBe('travelling');
 
     act(() => result.current.completeTravel());
@@ -286,11 +286,11 @@ describe('useFirstArrivalExperience — the theatrical handoff', () => {
     markFirstArrival(APP, ALICE);
     const { result } = renderHook(() => useFirstArrivalExperience());
 
-    act(() => void vi.advanceTimersByTime(3_000));
-    act(() => void vi.advanceTimersByTime(1_000));
+    act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.play + 100));
+    act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.reveal + 100));
     expect(result.current.phase).toBe('travelling');
 
-    act(() => void vi.advanceTimersByTime(3_000));
+    act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.travelTimeout + 100));
     expect(result.current.phase).toBe('done');
   });
 
@@ -309,7 +309,7 @@ describe('useFirstArrivalExperience — the theatrical handoff', () => {
     markFirstArrival(APP, ALICE);
     const { result } = renderHook(() => useFirstArrivalExperience());
 
-    act(() => void vi.advanceTimersByTime(3_000));
+    act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.play + 100));
     expect(result.current.phase).toBe('revealing');
     expect(readFirstArrival(APP, ALICE)?.consumedAt).toBeTypeOf('number');
   });

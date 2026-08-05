@@ -22,8 +22,11 @@ import { cn } from '@/lib/utils';
  */
 export const ExplorerArrivalCard = forwardRef<
   HTMLDivElement,
-  { simplified?: boolean; travelling?: boolean; className?: string }
->(function ExplorerArrivalCard({ simplified = false, travelling = false, className }, ref) {
+  { simplified?: boolean; travelling?: boolean; ambient?: boolean; className?: string }
+>(function ExplorerArrivalCard(
+  { simplified = false, travelling = false, ambient = false, className },
+  ref,
+) {
   return (
     <div
       ref={ref}
@@ -32,17 +35,34 @@ export const ExplorerArrivalCard = forwardRef<
       data-explorer-arrival-card=""
       aria-hidden={travelling || undefined}
       className={cn(
-        'w-[min(22rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl p-5',
-        '[@media(max-height:720px)]:p-4',
-        'border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card',
-        'shadow-xl shadow-primary/10 ring-1 ring-primary/5',
+        'relative w-[min(22rem,calc(100vw-2.5rem))] overflow-hidden rounded-3xl p-6',
+        '[@media(max-height:720px)]:rounded-2xl [@media(max-height:720px)]:p-4',
+        // Deliberately richer than the compact widget it becomes: a deeper
+        // shadow, a warmer gradient and a brighter edge, so it reads as a
+        // presentation piece rather than a settings card dropped into a
+        // cinematic. All three step down during the handoff, which is part of
+        // how the transformation reads.
+        'border border-primary/40 bg-gradient-to-br from-primary/[0.14] via-card to-card',
+        'shadow-2xl shadow-primary/20 ring-1 ring-primary/10',
         // Transform origin is set imperatively by the FLIP runner; keeping the
         // card's own transitions off transform avoids fighting that animation.
-        'transition-[box-shadow,border-radius] duration-500',
-        travelling && 'rounded-xl shadow-md',
+        'transition-[box-shadow,border-radius,border-color] duration-500',
+        simplified && 'border-primary/30 shadow-lg shadow-primary/10',
+        travelling && 'rounded-xl shadow-md ring-primary/5',
         className,
       )}
     >
+      {/* Ambient spotlight — a soft light behind the composition so the reading
+          beat does not look frozen. Opacity only, two finite drifts, and it
+          never moves or scales the card: the card must stay still enough to
+          read. Gone the moment the handoff starts. */}
+      {ambient && (
+        <span
+          aria-hidden
+          className="arrival-card-spotlight pointer-events-none absolute inset-0 -z-10"
+        />
+      )}
+
       <div
         className={cn(
           'mb-3 flex justify-center transition-opacity duration-300',
@@ -56,7 +76,39 @@ export const ExplorerArrivalCard = forwardRef<
         </span>
       </div>
 
-      <DittoExplorerVisual size="lg" layout="column" detailsHidden={simplified} />
+      {/* No body copy here: the framing microcopy above the card already says
+          "Find people, make Ditto yours, …", and the card's own line repeated
+          almost the same words directly beneath it. One statement per idea.
+
+          During handoff preparation this adopts the destination's own
+          arrangement — small badge on the left, text beside it. Without that,
+          the aligned crossfade showed two different compositions on top of each
+          other: the badge in two places and the headline wrapping differently.
+          Changing mode *before* the card moves is also what makes the travel
+          read as one object relocating rather than two things swapping. */}
+      {/* The reserved height is held through the mode change on purpose. The
+          arrangement swaps while the card's box stays exactly where it is —
+          otherwise the shorter content re-centres the whole composition and the
+          card drifts ~75px downward while standing still, only to travel back
+          up a moment later. All the shrinking belongs to the travel, where the
+          FLIP drives it. */}
+      <div
+        className={cn(
+          'flex w-full min-h-[9.5rem] justify-center',
+          '[@media(max-height:720px)]:min-h-[7rem]',
+          // Top-aligned once compacted, matching the destination's own
+          // `items-start`; centred it sat ~40px lower and the crossfade showed
+          // the badge and headline doubled at an offset.
+          simplified ? 'items-start' : 'items-center',
+        )}
+      >
+        <DittoExplorerVisual
+          size={simplified ? 'sm' : 'lg'}
+          layout={simplified ? 'row' : 'column'}
+          showBody={false}
+          className="w-full"
+        />
+      </div>
 
       {/* Locked reward preview — there is something to earn, and it is not
           shown yet. No astronaut, no badge art beyond the sealed frame. */}

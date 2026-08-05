@@ -50,7 +50,7 @@ export function ExplorerArrivalIntro({
       <h2 className="mt-1.5 text-xl font-bold leading-tight tracking-tight text-foreground sm:text-2xl [@media(max-height:720px)]:text-lg">
         <FormattedMessage id="arrival.intro.title" defaultMessage="Let’s get you started" />
       </h2>
-      <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground [@media(max-height:720px)]:mt-1.5 [@media(max-height:720px)]:text-xs">
+      <p className="mx-auto mt-2 max-w-sm text-balance text-sm leading-relaxed text-muted-foreground [@media(max-height:720px)]:mt-1.5 [@media(max-height:720px)]:text-xs">
         <FormattedMessage
           id="arrival.intro.body"
           defaultMessage="Find people, make Ditto yours, and take your first steps through the network."

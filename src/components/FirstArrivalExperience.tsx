@@ -11,6 +11,7 @@ import {
   isCardSimplified,
   isIntroCopyVisible,
   isPresentationStage,
+  isReadingBeat,
   isWelcomeStage,
   useArrivalStage,
 } from '@/hooks/useArrivalStage';
@@ -129,6 +130,7 @@ export function FirstArrivalExperience() {
   const showPresentation = isPresentationStage(stage);
   const introVisible = isIntroCopyVisible(stage);
   const simplified = isCardSimplified(stage);
+  const ambient = isReadingBeat(stage) && !reducedMotion;
 
   return (
     <div
@@ -222,6 +224,7 @@ export function FirstArrivalExperience() {
             ref={cardRef}
             simplified={simplified}
             travelling={travelling}
+            ambient={ambient}
             className={cn(
               'pointer-events-auto',
               !reducedMotion && !simplified && 'arrival-card-in',

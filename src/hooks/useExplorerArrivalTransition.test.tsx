@@ -2,7 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { useRef, type ReactNode } from 'react';
 
-import { useExplorerArrivalTransition } from './useExplorerArrivalTransition';
+import {
+  CROSSFADE_MS,
+  travelDurationFor,
+  useExplorerArrivalTransition,
+} from './useExplorerArrivalTransition';
 import { ExplorerArrivalProvider } from '@/components/ExplorerArrivalProvider';
 import { ExplorerArrivalContext } from '@/contexts/ExplorerArrivalContext';
 
@@ -239,3 +243,64 @@ import { useExplorerArrival } from '@/contexts/ExplorerArrivalContext';
 function ExplorerArrivalContextValue() {
   return useExplorerArrival();
 }
+
+describe('useExplorerArrivalTransition — aligned handoff', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    document.body.innerHTML = '';
+  });
+
+  it('reveals the destination only once the card has actually arrived', () => {
+    // Previously the crossfade began at a fixed 78% of the travel, while the
+    // card was still ~11px short — so the two were visibly offset at the moment
+    // they were meant to be indistinguishable.
+    const card = makeCard({ width: 350, height: 400, top: 200, left: 500 });
+    const { release } = renderTransition({ card, measureTarget: () => TARGET });
+
+    // Part-way through: not yet arrived, so nothing has been handed over.
+    act(() => void vi.advanceTimersByTime(200));
+    const dx = TARGET.left - 500;
+    const translated = Number(
+      /translate\((-?[\d.]+)px/.exec(card.style.transform)?.[1] ?? '0',
+    );
+    expect(Math.abs(translated)).toBeLessThan(Math.abs(dx));
+    expect(release).not.toHaveBeenCalled();
+
+    act(() => void vi.advanceTimersByTime(2_000));
+    expect(release).toHaveBeenCalled();
+  });
+
+  it('holds the card on the destination while it crossfades', () => {
+    const card = makeCard({ width: 350, height: 400, top: 200, left: 500 });
+    const { onComplete } = renderTransition({ card, measureTarget: () => TARGET });
+
+    act(() => void vi.advanceTimersByTime(2_000));
+
+    // Landed exactly, and finished only after the crossfade.
+    expect(card.style.transform).toContain(
+      `translate(${TARGET.left - 500}px, ${TARGET.top - 200}px)`,
+    );
+    expect(onComplete).toHaveBeenCalled();
+  });
+
+  it('crossfades for a brief, deliberate window rather than a snap', () => {
+    expect(CROSSFADE_MS).toBeGreaterThanOrEqual(120);
+    expect(CROSSFADE_MS).toBeLessThanOrEqual(180);
+  });
+
+  it('paces the travel by distance, so a short hop is not a long journey', () => {
+    // Mobile drops ~220px into the Home teaser; desktop crosses ~570px into the
+    // sidebar. A single duration made one of them wrong.
+    const shortHop = travelDurationFor(220);
+    const longHop = travelDurationFor(570);
+    expect(shortHop).toBeLessThan(longHop);
+    expect(shortHop).toBeGreaterThanOrEqual(600);
+    expect(longHop).toBeLessThanOrEqual(900);
+  });
+
+  it('clamps the pace at both ends', () => {
+    expect(travelDurationFor(0)).toBeGreaterThanOrEqual(600);
+    expect(travelDurationFor(10_000)).toBeLessThanOrEqual(900);
+  });
+});

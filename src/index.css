@@ -1106,6 +1106,28 @@
   animation: arrival-backdrop-out 0.95s linear forwards;
 }
 
+/* Ambient spotlight behind the settled presentation. Opacity only — the card
+   must stay still enough to read, so nothing here moves, scales, or bounces.
+   Two finite drifts across the reading beat, then it rests: enough that the
+   frame is not visibly frozen, far short of an attention animation. */
+@keyframes arrival-card-spotlight {
+  0%   { opacity: 0; }
+  25%  { opacity: 0.85; }
+  50%  { opacity: 0.6; }
+  75%  { opacity: 0.9; }
+  100% { opacity: 0.72; }
+}
+
+.arrival-card-spotlight {
+  background: radial-gradient(
+    120% 90% at 50% 42%,
+    hsl(var(--primary) / 0.22) 0%,
+    hsl(var(--primary) / 0.08) 45%,
+    transparent 72%
+  );
+  animation: arrival-card-spotlight 2.2s ease-in-out forwards;
+}
+
 /* The framing copy above the card rises a few pixels as it fades in, a beat
    before the card settles, so the two read as one composition arriving. */
 @keyframes arrival-intro-in {
@@ -1124,6 +1146,7 @@
   .arrival-welcome,
   .arrival-card-in,
   .arrival-intro-in,
+  .arrival-card-spotlight,
   .arrival-backdrop-out {
     animation: none;
     opacity: 1;

@@ -50,20 +50,12 @@ export function DittoExplorerVisual({
   layout = 'row',
   showBody = true,
   showName = true,
-  /**
-   * Fades the explanatory copy without unmounting it. Used while the arrival
-   * card travels to its destination: the card visibly simplifies to what the
-   * compact surface shows, and because nothing unmounts, the height change is
-   * smooth rather than a jump.
-   */
-  detailsHidden = false,
   className,
 }: {
   size?: ExplorerVisualSize;
   layout?: 'row' | 'column';
   showBody?: boolean;
   showName?: boolean;
-  detailsHidden?: boolean;
   className?: string;
 }) {
   const column = layout === 'column';
@@ -94,7 +86,7 @@ export function DittoExplorerVisual({
         )}
         <p
           className={cn(
-            'font-semibold leading-snug text-foreground',
+            'text-balance font-semibold leading-snug text-foreground',
             HEADLINE_SIZE[size],
           )}
         >
@@ -104,12 +96,7 @@ export function DittoExplorerVisual({
           />
         </p>
         {showBody && (
-          <p
-            className={cn(
-              'text-sm leading-relaxed text-muted-foreground transition-opacity duration-300',
-              detailsHidden && 'opacity-0',
-            )}
-          >
+          <p className="text-sm leading-relaxed text-muted-foreground">
             <FormattedMessage
               id="explorer.intro.body"
               defaultMessage="Discover people, make Ditto yours, and join the conversation."

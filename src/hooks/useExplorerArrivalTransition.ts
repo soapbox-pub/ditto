@@ -2,8 +2,38 @@ import { useEffect, useRef, type RefObject } from 'react';
 
 import { useExplorerArrival } from '@/contexts/ExplorerArrivalContext';
 
-/** How long the card takes to fly to its destination. */
-export const TRAVEL_MS = 950;
+/**
+ * How long the card takes to fly, derived from how far it actually has to go.
+ *
+ * A fixed duration made the short mobile hop (~220px into the Home teaser) feel
+ * sluggish at the same speed that suited the long desktop diagonal (~570px into
+ * the sidebar). Derived from the measured distance rather than the viewport
+ * width, so it is right for whatever geometry the page happens to have.
+ */
+const TRAVEL_MIN_MS = 620;
+const TRAVEL_MAX_MS = 900;
+const TRAVEL_MS_PER_PX = 0.35;
+
+export function travelDurationFor(distance: number): number {
+  return Math.round(
+    Math.min(TRAVEL_MAX_MS, Math.max(TRAVEL_MIN_MS, 520 + distance * TRAVEL_MS_PER_PX)),
+  );
+}
+
+/**
+ * How long the source and the destination overlap, aligned, before the source
+ * is gone.
+ *
+ * The crossfade used to begin at a fixed 78% of the travel, while the card was
+ * still ~11px short of its destination — so the two were visibly offset at the
+ * moment they were meant to be indistinguishable. It now begins only once the
+ * card has actually arrived (see `ALIGNMENT_EPSILON`), and runs on its own
+ * clock from there.
+ */
+export const CROSSFADE_MS = 150;
+
+/** How close counts as arrived, in CSS pixels. */
+const ALIGNMENT_EPSILON = 1.5;
 
 /**
  * The travel curve, as a CSS-style cubic bezier.
@@ -73,17 +103,6 @@ function cubicBezier(x1: number, y1: number, x2: number, y2: number, t: number):
 export function easeTravel(t: number): number {
   return cubicBezier(TRAVEL_CURVE[0], TRAVEL_CURVE[1], TRAVEL_CURVE[2], TRAVEL_CURVE[3], t);
 }
-
-/**
- * Fraction of the travel after which the real destination is revealed beneath
- * the travelling copy, which then fades out over it.
- *
- * The card is visually aligned with its destination by this point, so the two
- * are momentarily the same shape in the same place — which is what sells them
- * as one object. Handing over any earlier shows a jump; any later and the
- * destination pops in after the card has already gone.
- */
-const HANDOFF_AT = 0.78;
 
 /**
  * Scale the card shrinks to when there is no measurable destination. Roughly
@@ -174,7 +193,20 @@ export function useExplorerArrivalTransition({
     let raf = 0;
     let released = false;
     let lastTarget: DOMRect | null = null;
+    // Set once the card has actually arrived; the crossfade then runs on its
+    // own clock rather than on a fraction of the travel.
+    let alignedAt: number | null = null;
     const started = performance.now();
+
+    // Distance decides the pace, so a short hop isn't given a long journey's
+    // duration. Measured once at the start — good enough for pacing, while the
+    // position itself is still re-measured every frame.
+    const initialTarget = measureRef.current();
+    const duration = initialTarget
+      ? travelDurationFor(
+          Math.hypot(initialTarget.left - from.left, initialTarget.top - from.top),
+        )
+      : TRAVEL_MIN_MS;
 
     const releaseOnce = () => {
       if (released) return;
@@ -183,7 +215,7 @@ export function useExplorerArrivalTransition({
     };
 
     const step = (now: number) => {
-      const t = Math.min(1, (now - started) / TRAVEL_MS);
+      const t = Math.min(1, (now - started) / duration);
       const eased = easeTravel(t);
 
       // Re-measured every frame rather than once at the start. The application
@@ -193,6 +225,8 @@ export function useExplorerArrivalTransition({
       // it destroys the whole illusion.
       const measured = measureRef.current();
       if (measured) lastTarget = measured;
+
+      let arrived = false;
 
       if (lastTarget) {
         const scale = lastTarget.width / from.width;
@@ -210,33 +244,40 @@ export function useExplorerArrivalTransition({
         // simplifies into the destination's shape instead of merely shrinking.
         const targetHeight = lastTarget.height / (s || 1);
         card.style.height = `${from.height + (targetHeight - from.height) * eased}px`;
+
+        // Arrived when what is left of the journey is smaller than a pixel or
+        // so — not at some fraction of the elapsed time. This is what
+        // guarantees the two are the same shape in the same place before either
+        // starts to fade.
+        const remaining = Math.hypot(dx * (1 - eased), dy * (1 - eased));
+        arrived = remaining <= ALIGNMENT_EPSILON;
       } else {
         // Safe fallback: shrink in place. Never fly toward a destination the
         // user cannot see, or one that isn't there at all.
         const s = 1 + (FALLBACK_SCALE - 1) * eased;
         card.style.transform = `scale(${s})`;
+        arrived = t >= 1;
       }
 
-      // Reveal the destination underneath while the copy is still aligned with
-      // it, so the last stretch is a crossfade between two identical shapes.
-      if (t >= HANDOFF_AT) {
+      if (arrived && alignedAt === null) {
+        alignedAt = now;
+        // Reveal the destination underneath while the copy is exactly on top of
+        // it, so the last stretch is a crossfade between matching shapes.
         releaseOnce();
-        const fade = (t - HANDOFF_AT) / (1 - HANDOFF_AT);
-        card.style.opacity = String(1 - fade);
       }
 
-      if (t < 1) {
-        raf = requestAnimationFrame(step);
-      } else {
-        finish();
+      if (alignedAt !== null) {
+        const fade = Math.min(1, (now - alignedAt) / CROSSFADE_MS);
+        card.style.opacity = String(1 - fade);
+        if (fade >= 1) {
+          finish();
+          return;
+        }
       }
+
+      raf = requestAnimationFrame(step);
     };
 
-    // Pin the card to exactly where it already is, out of the centring flex
-    // layout it was born in. Without this, collapsing its height makes the flex
-    // container re-centre it — so the card drifts downward as it shrinks and
-    // lands well below its destination, using a `dy` measured from a layout
-    // position that no longer exists.
     card.style.position = 'fixed';
     card.style.margin = '0';
     card.style.left = `${from.left}px`;

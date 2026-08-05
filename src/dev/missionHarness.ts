@@ -23,7 +23,10 @@ import {
  * from there:
  *  - `arrival`              — the whole sequence from the first beat.
  *  - `arrival-welcome`      — the welcome, held.
- *  - `arrival-presentation` — the Explorer heading and card, held.
+ *  - `arrival-presentation` — the Explorer composition entering.
+ *  - `arrival-reading`      — the settled composition, **held indefinitely**, for
+ *                             reviewing spacing, hierarchy and glow without a
+ *                             timer taking it away mid-inspection.
  *  - `arrival-reveal`       — the backdrop dissolving over the application.
  *  - `arrival-handoff`      — the travel, the part hardest to catch by hand.
  *
@@ -46,6 +49,7 @@ export type MissionDevState =
   | 'arrival'
   | 'arrival-welcome'
   | 'arrival-presentation'
+  | 'arrival-reading'
   | 'arrival-reveal'
   | 'arrival-handoff'
   | 'intro'
@@ -91,6 +95,7 @@ const ARRIVAL_ENTRY: Partial<Record<MissionDevState, ArrivalStageEntry | 'sequen
   arrival: 'sequence',
   'arrival-welcome': 'welcome',
   'arrival-presentation': 'presenting',
+  'arrival-reading': 'reading',
   'arrival-reveal': 'revealing',
   'arrival-handoff': 'handoff',
 };
@@ -107,6 +112,15 @@ export function missionDevArrivalEntry(): ArrivalStageEntry | undefined {
   const scenario = missionDevState();
   const entry = scenario ? ARRIVAL_ENTRY[scenario] : undefined;
   return entry && entry !== 'sequence' ? entry : undefined;
+}
+
+/**
+ * Whether the harness should hold the sequence on its entry act instead of
+ * letting the lifecycle advance. Only `arrival-reading` does — it exists so the
+ * settled frame can be inspected for as long as it takes.
+ */
+export function missionDevHoldsArrival(): boolean {
+  return missionDevState() === 'arrival-reading';
 }
 
 /**
@@ -176,6 +190,7 @@ function buildMissionDevState(): PostOnboardingGuideState | undefined {
     case 'arrival':
     case 'arrival-welcome':
     case 'arrival-presentation':
+    case 'arrival-reading':
     case 'arrival-reveal':
     case 'arrival-handoff':
     case 'intro':

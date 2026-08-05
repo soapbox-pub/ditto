@@ -17,7 +17,9 @@ import type { ArrivalPhase } from '@/hooks/useFirstArrivalExperience';
  * - `signal`      — background and points of light; no copy yet.
  * - `welcome`     — "Welcome to Ditto" reads, alone.
  * - `welcome-out` — the welcome leaves; nothing else has entered.
- * - `presenting`  — the Explorer introduction (heading, microcopy, card).
+ * - `presenting`  — the Explorer introduction enters (heading, microcopy, card).
+ * - `reading`     — the composition is settled and still; the beat where the
+ *                   user actually reads it.
  * - `revealing`   — the backdrop dissolves; the application appears behind.
  * - `preparing`   — surrounding copy and card body fade; the card compacts.
  * - `travelling`  — the card flies to its destination.
@@ -28,6 +30,7 @@ export type ArrivalStage =
   | 'welcome'
   | 'welcome-out'
   | 'presenting'
+  | 'reading'
   | 'revealing'
   | 'preparing'
   | 'travelling'
@@ -50,6 +53,21 @@ export const STAGE_TIMINGS = {
   /** The welcome fades; nothing else is entering yet. */
   welcomeOut: 1_750,
   /**
+   * When the Explorer composition has finished entering and is completely
+   * still. Framing copy takes ~450ms and the card ~620ms (it is staggered
+   * behind), so the whole entrance is done by then.
+   */
+  presentationSettled: 2_400,
+  /**
+   * The reading beat: how long the settled composition holds before anything
+   * else happens.
+   *
+   * Measured at ~440ms before this pass — enough to notice the card, nowhere
+   * near enough to read a heading, a line of microcopy and a card. Nothing
+   * moves during this window; the backdrop stays opaque and the card stays put.
+   */
+  readingHold: 1_000,
+  /**
    * How long after `revealing` begins the handoff preparation starts. The
    * surrounding copy and the card's body fade here, so by the time the card
    * moves it is already the compact object it is about to become.
@@ -57,16 +75,31 @@ export const STAGE_TIMINGS = {
   prepareAfterReveal: 400,
 } as const;
 
+/**
+ * The shortest reading beat worth calling one. Asserted in tests against the
+ * lifecycle's own `PLAY_MS`, so shortening one without the other fails loudly.
+ */
+export const MIN_READING_HOLD_MS = 900;
+
 /** Reduced motion keeps the same acts, just shorter — no travel, no movement. */
 export const REDUCED_STAGE_TIMINGS = {
   signal: 0,
   welcome: 700,
   welcomeOut: 850,
+  // Reduced motion means no travel and no movement — not "skip the
+  // explanation". The reading beat is kept in full.
+  presentationSettled: 1_000,
+  readingHold: 1_000,
   prepareAfterReveal: 0,
 } as const;
 
 /** Development harness entry points, mapped to the act they start on. */
-export type ArrivalStageEntry = 'welcome' | 'presenting' | 'revealing' | 'handoff';
+export type ArrivalStageEntry =
+  | 'welcome'
+  | 'presenting'
+  | 'reading'
+  | 'revealing'
+  | 'handoff';
 
 function entryStage(entry: ArrivalStageEntry | undefined): ArrivalStage | undefined {
   switch (entry) {
@@ -74,6 +107,8 @@ function entryStage(entry: ArrivalStageEntry | undefined): ArrivalStage | undefi
       return 'welcome';
     case 'presenting':
       return 'presenting';
+    case 'reading':
+      return 'reading';
     case 'revealing':
       return 'revealing';
     case 'handoff':
@@ -118,6 +153,7 @@ export function useArrivalStage({
       setTimeout(() => setPlayStage('welcome'), timings.signal),
       setTimeout(() => setPlayStage('welcome-out'), timings.welcome),
       setTimeout(() => setPlayStage('presenting'), timings.welcomeOut),
+      setTimeout(() => setPlayStage('reading'), timings.presentationSettled),
     ];
     return () => timers.forEach(clearTimeout);
   }, [phase, forced, timings]);
@@ -153,6 +189,7 @@ export function isWelcomeStage(stage: ArrivalStage): boolean {
 export function isPresentationStage(stage: ArrivalStage): boolean {
   return (
     stage === 'presenting' ||
+    stage === 'reading' ||
     stage === 'revealing' ||
     stage === 'preparing' ||
     stage === 'travelling'
@@ -167,7 +204,19 @@ export function isPresentationStage(stage: ArrivalStage): boolean {
  * gone before the card starts moving.
  */
 export function isIntroCopyVisible(stage: ArrivalStage): boolean {
-  return stage === 'presenting' || stage === 'revealing';
+  return stage === 'presenting' || stage === 'reading' || stage === 'revealing';
+}
+
+/**
+ * Whether the composition is settled and still — the reading beat, and the only
+ * window where the ambient treatment runs.
+ *
+ * The ambient glow is deliberately confined here: during the entrance it would
+ * compete with the elements arriving, and from the reveal onwards the card is
+ * on its way out.
+ */
+export function isReadingBeat(stage: ArrivalStage): boolean {
+  return stage === 'reading';
 }
 
 /** Whether the card should be showing its compact, travel-ready form. */

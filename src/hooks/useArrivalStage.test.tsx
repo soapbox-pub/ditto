@@ -2,16 +2,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 import {
+  MIN_READING_HOLD_MS,
   REDUCED_STAGE_TIMINGS,
   STAGE_TIMINGS,
   isCardSimplified,
   isIntroCopyVisible,
+  isReadingBeat,
   isPresentationStage,
   isWelcomeStage,
   useArrivalStage,
   type ArrivalStage,
 } from './useArrivalStage';
-import type { ArrivalPhase } from './useFirstArrivalExperience';
+import { ARRIVAL_TIMINGS, type ArrivalPhase } from './useFirstArrivalExperience';
 
 function renderStage(phase: ArrivalPhase, reducedMotion = false) {
   return renderHook(
@@ -169,5 +171,70 @@ describe('useArrivalStage — development harness entries', () => {
       useArrivalStage({ phase: 'travelling', reducedMotion: false, entry: 'handoff' }),
     );
     expect(result.current).toBe('travelling');
+  });
+});
+
+describe('useArrivalStage — the reading beat', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('settles into a reading beat once the entrance is done', () => {
+    const { result } = renderStage('playing');
+    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.welcomeOut));
+    expect(result.current).toBe('presenting');
+
+    act(() =>
+      void vi.advanceTimersByTime(
+        STAGE_TIMINGS.presentationSettled - STAGE_TIMINGS.welcomeOut,
+      ),
+    );
+    expect(result.current).toBe('reading');
+    expect(isReadingBeat(result.current)).toBe(true);
+  });
+
+  it('holds the composition long enough to actually read it', () => {
+    // The whole point of this pass. It measured ~440ms of stillness before —
+    // enough to notice the card, not to read a heading, a line of microcopy
+    // and the card itself.
+    const hold = ARRIVAL_TIMINGS.play - STAGE_TIMINGS.presentationSettled;
+    expect(hold).toBeGreaterThanOrEqual(MIN_READING_HOLD_MS);
+  });
+
+  it('cannot begin revealing the application before the hold is over', () => {
+    // The reveal is driven by `PLAY_MS`, so this is the same guarantee stated
+    // from the other side: the backdrop cannot start moving during the beat.
+    expect(ARRIVAL_TIMINGS.play).toBeGreaterThan(STAGE_TIMINGS.presentationSettled);
+  });
+
+  it('keeps the framing copy fully visible throughout the beat', () => {
+    expect(isIntroCopyVisible('reading')).toBe(true);
+    expect(isCardSimplified('reading')).toBe(false);
+  });
+
+  it('staggers the card behind the framing copy, but not by much', () => {
+    // One coordinated entrance, not two disconnected animations.
+    const stagger = STAGE_TIMINGS.presentationSettled - STAGE_TIMINGS.welcomeOut;
+    expect(stagger).toBeGreaterThanOrEqual(400);
+    expect(stagger).toBeLessThanOrEqual(900);
+  });
+
+  it('runs the ambient treatment only while the composition is still', () => {
+    // During the entrance it would compete with what is arriving; from the
+    // reveal onwards the card is on its way out.
+    for (const stage of [
+      'signal', 'welcome', 'welcome-out', 'presenting',
+      'revealing', 'preparing', 'travelling', 'done',
+    ] as const) {
+      expect(isReadingBeat(stage)).toBe(false);
+    }
+    expect(isReadingBeat('reading')).toBe(true);
+  });
+
+  it('keeps the reading beat under reduced motion', () => {
+    // Reduced motion means no travel — not "skip the explanation".
+    const { result } = renderStage('playing', true);
+    act(() => void vi.advanceTimersByTime(REDUCED_STAGE_TIMINGS.presentationSettled));
+    expect(result.current).toBe('reading');
+    expect(REDUCED_STAGE_TIMINGS.readingHold).toBeGreaterThanOrEqual(MIN_READING_HOLD_MS);
   });
 });

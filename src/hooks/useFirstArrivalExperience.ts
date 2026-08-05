@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { missionDevArrivalEntry, missionDevForcesArrival } from '@/dev/missionHarness';
+import {
+  missionDevArrivalEntry,
+  missionDevForcesArrival,
+  missionDevHoldsArrival,
+} from '@/dev/missionHarness';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
@@ -35,12 +39,16 @@ export type ArrivalPhase =
 const ACCOUNT_WAIT_MS = 5_000;
 
 /**
- * Signal, welcome, welcome exit, then the Explorer presentation — see
- * `STAGE_TIMINGS` for the act boundaries inside this window. Lengthened from
- * 2600ms because the welcome previously held for only ~215ms before the card
- * arrived on top of it.
+ * Signal, welcome, welcome exit, the Explorer presentation's entrance, and the
+ * reading beat that follows it — see `STAGE_TIMINGS` for the act boundaries.
+ *
+ * Must be at least `presentationSettled + MIN_READING_HOLD_MS`: the composition
+ * finishes entering at ~2400ms and then has to hold, completely still, long
+ * enough to actually be read. It measured ~440ms of stillness before this pass,
+ * which is enough to notice the card but not to read a heading, a line of
+ * microcopy and the card itself.
  */
-const PLAY_MS = 2_700;
+const PLAY_MS = 3_400;
 /**
  * The backdrop dissolves and the application appears behind the presentation.
  *
@@ -49,7 +57,7 @@ const PLAY_MS = 2_700;
  * still clearing. Previously the app finished revealing and the card then sat
  * motionless for ~825ms — measured, and very visible.
  */
-const REVEAL_MS = 700;
+const REVEAL_MS = 650;
 /**
  * Safety net for the travel stage. The FLIP runner normally ends it by calling
  * `completeTravel()`, but an animation that never resolves (a cancelled
@@ -60,6 +68,19 @@ const TRAVEL_TIMEOUT_MS = 2_500;
 /** Reduced motion: a static welcome, held briefly, then an immediate hand-off. */
 const REDUCED_PLAY_MS = 1_500;
 const REDUCED_REVEAL_MS = 150;
+
+/**
+ * The lifecycle's own durations, exported so tests advance by the real values.
+ * Retiming the sequence previously broke a handful of tests that had the old
+ * numbers written into them by hand.
+ */
+export const ARRIVAL_TIMINGS = {
+  play: PLAY_MS,
+  reveal: REVEAL_MS,
+  travelTimeout: TRAVEL_TIMEOUT_MS,
+  reducedPlay: REDUCED_PLAY_MS,
+  reducedReveal: REDUCED_REVEAL_MS,
+} as const;
 
 export interface FirstArrivalExperience {
   phase: ArrivalPhase;
@@ -106,6 +127,8 @@ export function useFirstArrivalExperience(): FirstArrivalExperience {
   // cannot affect a real account.
   const devEntry = missionDevArrivalEntry();
   const forced = missionDevForcesArrival();
+  // The harness can freeze the sequence on its entry act for review.
+  const held = missionDevHoldsArrival();
 
   const [phase, setPhase] = useState<ArrivalPhase>(
     devEntry === 'handoff' || devEntry === 'revealing'
@@ -167,12 +190,13 @@ export function useFirstArrivalExperience(): FirstArrivalExperience {
   // Act 1 + 2 → Act 3.
   useEffect(() => {
     if (phase !== 'playing') return;
+    if (held) return;
     const timer = setTimeout(
       () => finish('played'),
       reducedMotion ? REDUCED_PLAY_MS : PLAY_MS,
     );
     return () => clearTimeout(timer);
-  }, [phase, reducedMotion, finish]);
+  }, [phase, reducedMotion, finish, held]);
 
   // Backdrop dissolved → travel, unless motion is unwanted or unhelpful.
   //
