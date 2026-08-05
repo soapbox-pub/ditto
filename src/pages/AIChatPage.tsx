@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { FormattedMessage, useIntl, defineMessage, type MessageDescriptor } from 'react-intl';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import Markdown from 'react-markdown';
@@ -12,7 +12,8 @@ import type { SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
 import { PageHeader } from '@/components/PageHeader';
 import { PendingQuestionsCard } from '@/components/PendingQuestionsCard';
 import { ToolCallDetails, CHAT_PROSE_CLASSES } from '@/components/ToolCallDetails';
-import { chatMarkdownComponents } from '@/components/chatMarkdownComponents';
+import { chatMarkdownComponents, renderNostrIdentifier } from '@/components/chatMarkdownComponents';
+import { remarkNostrMentions, splitNostrIdentifiers } from '@/lib/remarkNostrMentions';
 import { getInFlightToolCall } from '@/lib/agentActivity';
 import { useShakespeare, useShakespeareCredits, type Model } from '@/hooks/useShakespeare';
 import { useChatSessions, defaultProviderId, type DisplayMessage, type ToolCall, type CreateSessionInput } from '@/hooks/useChatSessions';
@@ -906,6 +907,30 @@ function EmptyState({ showCreditsGate }: { showCreditsGate: boolean }) {
 
 
 
+/**
+ * Renders a user message as plain text, never as markdown. NIP-19
+ * identifiers are the one exception: they become mentions or short internal
+ * links. Everything else, including newlines and whitespace, renders as
+ * typed.
+ */
+function UserMessageContent({ content }: { content: string }) {
+  const parts = useMemo(() => splitNostrIdentifiers(content), [content]);
+
+  return (
+    <>
+      {parts.map((part, index) =>
+        part.type === 'text' ? (
+          part.value
+        ) : (
+          <Fragment key={index}>
+            {renderNostrIdentifier(part.identifier) ?? part.label}
+          </Fragment>
+        ),
+      )}
+    </>
+  );
+}
+
 function MessageBubble({
   message,
 }: {
@@ -917,16 +942,22 @@ function MessageBubble({
     <div className={cn('flex items-start', isUser && 'justify-end')}>
       <div className={cn('flex flex-col gap-1 max-w-[85%] min-w-0', isUser && 'items-end')}>
         {isUser ? (
-          <div className="rounded-2xl px-4 py-2.5 text-sm bg-primary text-primary-foreground rounded-tr-md">
-            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          <div className="rounded-2xl px-4 py-2.5 text-sm bg-primary text-primary-foreground rounded-tr-md max-w-full">
+            {/* Mentions inside this bubble must not use NostrMention's own
+                `text-primary`: the bubble is filled with that exact colour, so
+                the link would be invisible against it. Force the bubble's own
+                foreground and mark links with an underline instead of a hue. */}
+            <p className="whitespace-pre-wrap [overflow-wrap:anywhere] [&_a]:text-primary-foreground [&_a:hover]:text-primary-foreground [&_a]:underline [&_a]:underline-offset-2">
+              <UserMessageContent content={message.content} />
+            </p>
           </div>
         ) : (
           // Tool-call-only assistant messages have an empty content string;
           // skip the bubble for those so no empty pill renders above the badges.
           message.content && (
-            <div className="rounded-2xl px-4 py-2.5 text-sm bg-secondary/60 border border-border rounded-tl-md">
+            <div className="rounded-2xl px-4 py-2.5 text-sm bg-secondary/60 border border-border rounded-tl-md max-w-full">
               <div className={CHAT_PROSE_CLASSES}>
-                <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={chatMarkdownComponents}>
+                <Markdown remarkPlugins={[remarkGfm, remarkNostrMentions]} rehypePlugins={[rehypeSanitize]} components={chatMarkdownComponents}>
                   {message.content}
                 </Markdown>
               </div>

@@ -8,6 +8,7 @@ import { ChevronDown, Palette, Type } from 'lucide-react';
 import type { ToolCall } from '@/hooks/useChatSessions';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { chatMarkdownComponents } from '@/components/chatMarkdownComponents';
+import { remarkNostrMentions } from '@/lib/remarkNostrMentions';
 import { parseAskQuestionsData, parseQuestionsAnswerText } from '@/lib/pendingInput';
 
 /** Markdown tool results above this length start collapsed. */
@@ -19,7 +20,7 @@ const MARKDOWN_COLLAPSE_THRESHOLD = 1200;
  * identically.
  */
 export const CHAT_PROSE_CLASSES =
-  'prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-muted prose-pre:overflow-x-auto prose-pre:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary';
+  'prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-muted prose-pre:overflow-x-auto prose-pre:text-foreground prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-a:text-primary [overflow-wrap:anywhere] prose-a:[overflow-wrap:anywhere] px-1';
 
 /**
  * Render one tool call's outcome inside a chat message. Each known tool gets
@@ -65,7 +66,7 @@ function DetailsCollapsible({ defaultOpen = false, children }: { defaultOpen?: b
 /** Monospace block for raw tool output inside an expander. */
 function CodeBlock({ children }: { children: ReactNode }) {
   return (
-    <pre className="max-h-64 overflow-auto text-xs font-mono whitespace-pre-wrap break-words bg-muted/60 rounded-lg p-2">
+    <pre className="max-h-64 overflow-auto text-xs font-mono whitespace-pre-wrap [overflow-wrap:anywhere] bg-muted/60 rounded-lg p-2">
       {children}
     </pre>
   );
@@ -97,7 +98,7 @@ function SetThemeDetails({ toolCall }: { toolCall: ToolCall }) {
 
   if (parsed.success !== true) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-500/20">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-500/20 max-w-full [overflow-wrap:anywhere]">
         <Palette className="size-3" />
         {parsed.error || toolCall.name}
       </span>
@@ -270,7 +271,7 @@ function MarkdownDetails({ toolCall }: { toolCall: ToolCall }) {
       <p className="text-xs text-foreground">{summary}</p>
       <DetailsCollapsible defaultOpen={result.length <= MARKDOWN_COLLAPSE_THRESHOLD}>
         <div className={CHAT_PROSE_CLASSES}>
-          <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={chatMarkdownComponents}>{result}</Markdown>
+          <Markdown remarkPlugins={[remarkGfm, remarkNostrMentions]} rehypePlugins={[rehypeSanitize]} components={chatMarkdownComponents}>{result}</Markdown>
         </div>
       </DetailsCollapsible>
     </ToolCard>

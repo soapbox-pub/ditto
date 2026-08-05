@@ -4,6 +4,7 @@ import { IntlProvider } from 'react-intl';
 import { MemoryRouter } from 'react-router-dom';
 
 import type { AgentSession, SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
+import { nip19 } from 'nostr-tools';
 
 import { AIChatPage } from './AIChatPage';
 import type { AIProviderProfile } from '@/hooks/useAIProviders';
@@ -69,6 +70,17 @@ vi.mock('@/hooks/useAIProviders', () => ({
 
 vi.mock('@/hooks/useCurrentUser', () => ({
   useCurrentUser: () => useCurrentUserMock(),
+}));
+
+// NostrMention (used by the user-message and markdown identifier paths) needs
+// author data and a profile route. The page's own hooks are already mocked;
+// these two make a mention render without a NostrProvider.
+vi.mock('@/hooks/useAuthor', () => ({
+  useAuthor: () => ({ data: undefined }),
+}));
+
+vi.mock('@/hooks/useProfileUrl', () => ({
+  useProfileUrl: () => '/profile/placeholder',
 }));
 
 vi.mock('@/hooks/useAppContext', () => ({
@@ -608,5 +620,31 @@ describe('AIChatPage', () => {
     expect(screen.getByText('hi')).toBeInTheDocument();
     expect(screen.queryByText(/thinking/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/looking up nostr data/i)).not.toBeInTheDocument();
+  });
+
+  it("renders an npub in a user message as a mention and keeps an nsec plain", async () => {
+    const NPUB = nip19.npubEncode(PUBKEY);
+    const NSEC = nip19.nsecEncode(new Uint8Array(32).fill(7));
+    const messages: SessionMessage[] = [
+      { role: 'user', content: `ping ${NPUB}\nkeep ${NSEC}` },
+      { role: 'assistant', content: 'ok' },
+    ];
+    stubActiveSession('mention-tab', completedExchangeSnapshot(messages));
+    useCurrentUserMock.mockReturnValue({ user: { pubkey: PUBKEY } });
+    useAIProvidersMock.mockReturnValue({ profiles: [] });
+
+    renderPage();
+
+    // Let the mount-time model fetch settle so its state updates land inside act.
+    await waitFor(() => expect(getAvailableModelsMock).toHaveBeenCalled());
+
+    // The npub becomes a mention link to the (mocked) profile route.
+    const mention = screen.getByRole('link', { name: '@Anonymous' });
+    expect(mention).toHaveAttribute('href', '/profile/placeholder');
+
+    // The paragraph keeps the typed newline; the nsec stays plain text and
+    // never becomes a link.
+    expect(mention.closest('p')?.textContent).toBe(`ping @Anonymous\nkeep ${NSEC}`);
+    expect(screen.queryByRole('link', { name: new RegExp(`^${NSEC}`) })).not.toBeInTheDocument();
   });
 });
