@@ -60,6 +60,16 @@ function isEntryCurrent(entry: AgentEntry, session: ChatSession, profiles: AIPro
 }
 
 /**
+ * Remove one session's snapshot entry. Returns the map unchanged when the key
+ * is absent, so a no-op does not hand consumers a fresh object every run.
+ */
+function dropSnapshot(prev: Record<string, AgentSnapshot>, id: string): Record<string, AgentSnapshot> {
+  if (!(id in prev)) return prev;
+  const { [id]: _dropped, ...rest } = prev;
+  return rest;
+}
+
+/**
  * Manage one live AgentSession per chat session.
  *
  * Every open tab keeps its AgentSession alive in memory; switching tabs is a
@@ -184,11 +194,7 @@ export function useAgentSessions(options: AgentSessionsOptions) {
         // Drop the snapshot too: stopAgent forgets the agent but the snapshot
         // would otherwise keep a closed tab's (or the previous account's)
         // whole conversation alive in memory.
-        setSnapshots((prev) => {
-          if (!(id in prev)) return prev;
-          const { [id]: _dropped, ...rest } = prev;
-          return rest;
-        });
+        setSnapshots((prev) => dropSnapshot(prev, id));
       }
     }
 
@@ -244,13 +250,7 @@ export function useAgentSessions(options: AgentSessionsOptions) {
       } catch (err) {
         if (!cancelled && session.id === activeSessionIdRef.current) {
           setBuildError(err instanceof Error ? err.message : String(err));
-          setSnapshots((prev) => {
-            // No-op when the key is already gone, or a fresh object is
-            // returned on every failure and churns consumers needlessly.
-            if (!(session.id in prev)) return prev;
-            const { [session.id]: _dropped, ...rest } = prev;
-            return rest;
-          });
+          setSnapshots((prev) => dropSnapshot(prev, session.id));
         }
       }
     };
