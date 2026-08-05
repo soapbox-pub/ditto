@@ -217,27 +217,22 @@ export function useChatSessions(pubkey?: string, profiles: AIProviderProfile[] =
     setState(loadOrBootstrap(pubkey, profiles));
   }, [pubkey, profiles]);
 
-  // Mirror session removals to storage. The delete must follow the state
-  // updater's own decision: it refuses to remove the last remaining session,
-  // and render-time state can be stale when two closes land in one tick (the
-  // second would delete storage while memory keeps the tab). Deleting only
-  // the ids the committed sessions no longer contain makes storage a
-  // consequence of the updater's decision, so the two can never diverge. On a
-  // mount or an account switch the previous scope's ids are not removals, so
-  // the baseline resets without deleting.
-  const lastScopeRef = useRef<{ pubkey?: string; ids: string[] } | null>(null);
+  // Mirror session removals to storage. closeSession queues the id from
+  // inside its state updater, so a delete can only fire for a removal that
+  // updater committed: it refuses to remove the last remaining session, and a
+  // delete decided from render-time state could disagree with that refusal
+  // when two closes land in one tick (the second would delete storage while
+  // memory keeps the tab). Nothing else queues, so a mount prune and an
+  // account switch drop no storage. React may invoke an updater more than
+  // once and queue the same id twice; removeTab is an idempotent
+  // localStorage delete, so a repeat is harmless.
+  const pendingDeletesRef = useRef<string[]>([]);
   useEffect(() => {
-    const nextIds = state.sessions.map((s) => s.id);
-    const last = lastScopeRef.current;
-    if (!last || last.pubkey !== pubkey) {
-      lastScopeRef.current = { pubkey, ids: [] };
-      return;
-    }
-    lastScopeRef.current = { pubkey, ids: nextIds };
-    if (pubkey === undefined) return;
-    for (const id of last.ids) {
-      if (!nextIds.includes(id)) removeTab(id, pubkey);
-    }
+    const pending = pendingDeletesRef.current;
+    if (pending.length === 0) return;
+    pendingDeletesRef.current = [];
+    if (pubkey === undefined) return; // Logged out nothing was ever persisted.
+    for (const id of pending) removeTab(id, pubkey);
   }, [state.sessions, pubkey]);
 
   /** Append a fresh session and make it active. Returns the created session. */
@@ -263,17 +258,19 @@ export function useChatSessions(pubkey?: string, profiles: AIProviderProfile[] =
 
   /** Remove a session. Closing the active session activates the previous one in array order. */
   function closeSession(id: string): void {
-    // The storage delete is not decided here: the updater refuses to remove
-    // the last remaining session, and a delete decided against render-time
-    // state can disagree with that refusal when two closes land in one tick.
-    // The storage-sync effect above performs the delete for whatever the
-    // committed sessions actually dropped, so the two can never diverge.
+    // The storage delete is queued from inside the updater, not decided here:
+    // the updater refuses to remove the last remaining session, and a delete
+    // decided against render-time state can disagree with that refusal when
+    // two closes land in one tick. The effect above flushes the queue.
     setState((prev) => {
       const index = prev.sessions.findIndex((s) => s.id === id);
       if (index === -1) return prev;
       const next = prev.sessions.filter((s) => s.id !== id);
       // The last remaining session cannot be closed.
       if (next.length === 0) return prev;
+
+      // This branch commits the removal, so the storage delete is now owed.
+      pendingDeletesRef.current.push(id);
 
       let activeSessionId = prev.activeSessionId;
       if (activeSessionId === id) {
