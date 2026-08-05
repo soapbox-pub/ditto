@@ -672,22 +672,27 @@ export function AIChatPage() {
               </div>
             )}
 
-            {/* Error display */}
-            {sessionError && (
-              sessionError.includes('Rate limited') ? (
-                <DorkErrorBanner {...RATE_LIMIT_BANNER} />
-              ) : sessionError.includes('run out of credits') ? (
-                <DorkErrorBanner {...OUT_OF_CREDITS_BANNER} />
-              ) : (
-                <div className="rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm px-4 py-3">
-                  {sessionError}
-                </div>
-              )
-            )}
-
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
+      )}
+
+      {/* Error display — rendered outside the empty/messages split so a
+          failed build is visible even before the thread has any messages. */}
+      {sessionError && (
+        <div className="shrink-0 px-4 pb-2">
+          <div className="max-w-2xl mx-auto">
+            {sessionError.includes('Rate limited') ? (
+              <DorkErrorBanner {...RATE_LIMIT_BANNER} />
+            ) : sessionError.includes('run out of credits') ? (
+              <DorkErrorBanner {...OUT_OF_CREDITS_BANNER} />
+            ) : (
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm px-4 py-3">
+                {sessionError}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Input Area — hidden when a shakespeare session has no credits */}
