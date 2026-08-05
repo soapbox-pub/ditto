@@ -683,15 +683,31 @@ export function SettingsAIPage() {
     setDialogOpen(true);
   }
 
+  /** The NIP-78 mirror write failed: the local state is saved, the network
+   *  state is not. Told to the user so the UI does not claim a synced state
+   *  the publish never reached (a deleted profile could reappear later). */
+  function toastSyncFailure() {
+    toast({
+      title: intl.formatMessage({ id: 'settings.ai.syncFailedTitle', defaultMessage: 'Sync failed' }),
+      description: intl.formatMessage({
+        id: 'settings.ai.syncFailedDescription',
+        defaultMessage: 'Saved on this device, but the change could not be published to your relays. Another device may still have the old version.',
+      }),
+      variant: 'destructive',
+    });
+  }
+
   function handleSave(form: FormState) {
     if (editing) {
-      updateProfile(editing.id, {
+      void updateProfile(editing.id, {
         kind: form.kind,
         name: form.name.trim(),
         baseURL: form.baseURL.trim(),
         apiKey: form.apiKey,
         models: form.models,
         syncEnabled: form.syncEnabled,
+      }).then((synced) => {
+        if (synced === false) toastSyncFailure();
       });
       toast({
         title: intl.formatMessage({ id: 'settings.ai.savedTitle', defaultMessage: 'Provider updated' }),
@@ -714,8 +730,11 @@ export function SettingsAIPage() {
 
   function handleDeleteConfirm() {
     if (!deleteTarget) return;
-    deleteProfile(deleteTarget.id);
+    const target = deleteTarget;
     setDeleteTarget(null);
+    void deleteProfile(target.id).then((synced) => {
+      if (synced === false) toastSyncFailure();
+    });
   }
 
   async function detectModels(profile: AIProviderProfile) {

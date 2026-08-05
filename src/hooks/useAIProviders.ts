@@ -103,11 +103,19 @@ export function useAIProviders() {
     persistProfiles(storageKey, merged);
   }, [storageKey, blobProfiles]);
 
-  /** Mirror the current sync-enabled profiles into the encrypted blob. */
-  function syncToBlob(nextProfiles: AIProviderProfile[]): void {
-    if (!encryptedSettings.hasNip44Support) return;
+  /**
+   * Mirror the current sync-enabled profiles into the encrypted blob.
+   * Resolves true when no write was needed or the write succeeded, false
+   * when the write failed — callers can then stop claiming a synced state
+   * the publish never reached.
+   */
+  function syncToBlob(nextProfiles: AIProviderProfile[]): Promise<boolean> {
+    if (!encryptedSettings.hasNip44Support) return Promise.resolve(true);
     const synced = nextProfiles.filter((p) => p.syncEnabled);
-    encryptedSettings.updateSettings.mutate({ aiProviderProfiles: synced });
+    return encryptedSettings.updateSettings
+      .mutateAsync({ aiProviderProfiles: synced })
+      .then(() => true)
+      .catch(() => false);
   }
 
   function addProfile(input: Omit<AIProviderProfile, 'id'>): AIProviderProfile {
@@ -115,11 +123,11 @@ export function useAIProviders() {
     const next = [...profilesRef.current, profile];
     setProfiles(next);
     persistProfiles(storageKeyRef.current, next);
-    if (profile.syncEnabled) syncToBlob(next);
+    if (profile.syncEnabled) void syncToBlob(next);
     return profile;
   }
 
-  function updateProfile(id: string, patch: Partial<Omit<AIProviderProfile, 'id'>>): void {
+  function updateProfile(id: string, patch: Partial<Omit<AIProviderProfile, 'id'>>): Promise<boolean> {
     const previous = profilesRef.current.find((p) => p.id === id);
     const next = profilesRef.current.map((p) => (p.id === id ? { ...p, ...patch } : p));
     setProfiles(next);
@@ -130,17 +138,19 @@ export function useAIProviders() {
     // stale blob entry (old API key, syncEnabled: true) is merged back over
     // the local profile on the next load, silently reverting the off-toggle.
     const syncToggled = previous?.syncEnabled !== updated?.syncEnabled;
-    if (updated?.syncEnabled || syncToggled) syncToBlob(next);
+    if (!(updated?.syncEnabled || syncToggled)) return Promise.resolve(true);
+    return syncToBlob(next);
   }
 
-  function deleteProfile(id: string): void {
+  function deleteProfile(id: string): Promise<boolean> {
     const removed = profilesRef.current.find((p) => p.id === id);
     const next = profilesRef.current.filter((p) => p.id !== id);
     setProfiles(next);
     persistProfiles(storageKeyRef.current, next);
     // Tell the blob about the removal so the merge effect doesn't re-add the
     // deleted profile from encrypted settings on the next reload/refetch.
-    if (removed?.syncEnabled) syncToBlob(next);
+    if (!removed?.syncEnabled) return Promise.resolve(true);
+    return syncToBlob(next);
   }
 
   /**

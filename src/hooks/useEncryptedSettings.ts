@@ -258,10 +258,10 @@ export function useEncryptedSettings() {
       // Mark that we just wrote, so NostrSync doesn't fight us.
       lastWriteTs = Date.now();
 
-      // Publish in background
-      nostr.event(signedEvent, { signal: AbortSignal.timeout(5000) }).catch((error) => {
-        console.error('Failed to publish encrypted settings:', error);
-      });
+      // Publish. Await the relay write so a dropped publish fails the
+      // mutation instead of only reaching console.error; callers can then
+      // stop claiming a synced state the write never reached.
+      await nostr.event(signedEvent, { signal: AbortSignal.timeout(5000) });
 
       return { updatedSettings, signedEvent };
     },
