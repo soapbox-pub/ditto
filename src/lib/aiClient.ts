@@ -45,7 +45,7 @@ export async function createShakespeareOpenAIClient(user: NUser): Promise<OpenAI
  * Turn Shakespeare's quota/rate responses into an error body the OpenAI SDK
  * surfaces to AgentSession as a message the chat UI recognizes.
  */
-async function mapShakespeareErrors(response: Response): Promise<Response> {
+export async function mapShakespeareErrors(response: Response): Promise<Response> {
   if (response.status !== 402 && response.status !== 429) return response;
 
   let message = 'Rate limited. Please wait a moment and try again.';
@@ -62,9 +62,14 @@ async function mapShakespeareErrors(response: Response): Promise<Response> {
     }
   }
 
+  // Carry the original headers over (e.g. Retry-After on a 429) so the SDK's
+  // backoff logic still sees them; only the Content-Type is replaced, since
+  // the body is now our JSON error.
+  const headers = new Headers(response.headers);
+  headers.set('Content-Type', 'application/json');
   return new Response(JSON.stringify({ error: { message, type: 'invalid_request_error', code: 'rate_limit' } }), {
     status: response.status,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
   });
 }
 

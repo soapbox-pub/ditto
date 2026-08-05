@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { sessionContextWindow } from './aiClient';
+import { sessionContextWindow, mapShakespeareErrors } from './aiClient';
 import type { AIProviderProfile } from '@/hooks/useAIProviders';
 import type { ChatSession } from '@/hooks/useChatSessions';
 import type { Model } from '@/hooks/useShakespeare';
@@ -82,5 +82,38 @@ describe('sessionContextWindow', () => {
     const session = makeSession({ providerId: 'nobody', modelId: 'model-x' });
     const fallback = sessionContextWindow(session, [], [makeProfile()]);
     expect(fallback).toBeGreaterThan(0);
+  });
+});
+
+describe('mapShakespeareErrors', () => {
+  it('passes non-error responses through untouched', async () => {
+    const response = new Response('ok', { status: 200, headers: { 'Content-Type': 'text/plain' } });
+    expect(await mapShakespeareErrors(response)).toBe(response);
+  });
+
+  it('carries the original headers onto a rate-limit response', async () => {
+    const response = new Response(JSON.stringify({ error: { message: 'slow down' } }), {
+      status: 429,
+      headers: { 'Retry-After': '30', 'X-Request-Id': 'req-1' },
+    });
+    const mapped = await mapShakespeareErrors(response);
+    expect(mapped.status).toBe(429);
+    // The SDK's backoff logic reads Retry-After off the response headers.
+    expect(mapped.headers.get('Retry-After')).toBe('30');
+    expect(mapped.headers.get('X-Request-Id')).toBe('req-1');
+    // The replacement body is JSON, so Content-Type is set to match it.
+    expect(mapped.headers.get('Content-Type')).toBe('application/json');
+  });
+
+  it('maps a quota-exhaustion body to the credits message and keeps the status', async () => {
+    const response = new Response(JSON.stringify({ code: 'insufficient_quota' }), {
+      status: 402,
+      headers: { 'Retry-After': '3600' },
+    });
+    const mapped = await mapShakespeareErrors(response);
+    const body = (await mapped.json()) as { error: { message: string } };
+    expect(mapped.status).toBe(402);
+    expect(mapped.headers.get('Retry-After')).toBe('3600');
+    expect(body.error.message).toContain('credits');
   });
 });

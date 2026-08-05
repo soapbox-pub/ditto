@@ -191,15 +191,31 @@ describe('createNakTool profile action', () => {
     expect(contentOf(result)).toContain('not json');
   });
 
-  it('caps an oversized profile at the output limit', async () => {
+  it('caps an oversized profile while keeping the output valid JSON', async () => {
     const { nostr } = mockNostr([
       makeEvent({ kind: 0, content: JSON.stringify({ name: 'Alice', about: 'x'.repeat(10_000) }) }),
     ]);
     const result = await createNakTool(nostr).execute({ action: 'profile', pubkey: PUBKEY });
 
-    expect(contentOf(result)).toHaveLength(6_001); // 6000 chars plus the ellipsis marker.
-    expect(contentOf(result)).toMatch(/…$/);
     expect(contentOf(result)).not.toContain('x'.repeat(10_000));
+    const parsed = JSON.parse(contentOf(result)) as { name: string; about: string; pubkey: string };
+    expect(parsed.name).toBe('Alice');
+    expect(parsed.pubkey).toBe(PUBKEY);
+    expect(parsed.about.length).toBeLessThan(10_000);
+    expect(parsed.about.endsWith('…')).toBe(true);
+  });
+
+  it('stays valid JSON and under the limit even with many profile fields', async () => {
+    const fields: Record<string, string> = {};
+    for (let i = 0; i < 200; i++) fields[`field_${i}`] = 'v'.repeat(100);
+    const { nostr } = mockNostr([
+      makeEvent({ kind: 0, content: JSON.stringify(fields) }),
+    ]);
+    const result = await createNakTool(nostr).execute({ action: 'profile', pubkey: PUBKEY });
+
+    expect(contentOf(result).length).toBeLessThanOrEqual(6_000);
+    const parsed = JSON.parse(contentOf(result)) as Record<string, unknown>;
+    expect(Object.keys(parsed).length).toBeLessThan(200);
   });
 });
 

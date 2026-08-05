@@ -130,13 +130,30 @@ function formatEvents(events: NostrEvent[]): string {
 }
 
 /**
- * Cap a single formatted result at the output limit. `formatEvents` caps
- * batches event-by-event; single blobs like profile JSON need the same cap
- * so an oversized attacker-controlled profile cannot flood the model context.
+ * Cap a single oversized profile string field before it is serialized.
  */
-function truncateToLimit(text: string): string {
-  if (text.length <= OUTPUT_LIMIT) return text;
-  return `${text.slice(0, OUTPUT_LIMIT)}…`;
+const PROFILE_FIELD_LIMIT = 1_000;
+
+/**
+ * Serialize a profile as valid JSON, capped at the output limit. Oversized
+ * string fields are shortened before stringifying — never after — so the
+ * result always parses. If the capped profile is still too large (many
+ * fields), tail fields are dropped until it fits.
+ */
+function serializeProfile(profile: Record<string, unknown>): string {
+  const capped: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(profile)) {
+    capped[key] = typeof value === 'string' && value.length > PROFILE_FIELD_LIMIT
+      ? `${value.slice(0, PROFILE_FIELD_LIMIT)}…`
+      : value;
+  }
+  let entries = Object.entries(capped);
+  let serialized = JSON.stringify(Object.fromEntries(entries));
+  while (serialized.length > OUTPUT_LIMIT && entries.length > 1) {
+    entries = entries.slice(0, -1);
+    serialized = JSON.stringify(Object.fromEntries(entries));
+  }
+  return serialized;
 }
 
 // ─── Identifier resolution ──────────────────────────────────────────────────
@@ -289,10 +306,14 @@ Actions (the "action" field selects one):
             return { content: `No profile found for ${resolved.hex}.` };
           }
           try {
-            const metadata = JSON.parse(event.content) as Record<string, unknown>;
-            return { content: truncateToLimit(JSON.stringify({ ...metadata, pubkey: resolved.hex })) };
+            // Drop any `pubkey` the profile itself claims, then put the
+            // resolved one first: serializeProfile drops tail fields when the
+            // result is still oversized, and a profile padded with junk fields
+            // must not be able to evict the field that says whose profile it is.
+            const { pubkey: _claimed, ...metadata } = JSON.parse(event.content) as Record<string, unknown>;
+            return { content: serializeProfile({ pubkey: resolved.hex, ...metadata }) };
           } catch {
-            return { content: truncateToLimit(JSON.stringify({ pubkey: resolved.hex, content: event.content })) };
+            return { content: serializeProfile({ pubkey: resolved.hex, content: event.content }) };
           }
         }
 
