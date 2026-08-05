@@ -9,11 +9,13 @@ interface MobileTopBarProps {
   onAvatarClick: () => void;
   /** When true, a SubHeaderBar with an arc follows immediately below — skip the arc here to avoid doubling up. */
   hasSubHeader?: boolean;
+  /** When true, keeps the bar visible and ignores the scroll-direction hide behavior (see LayoutOptions.pinTopBar). */
+  pinned?: boolean;
 }
 
-export function MobileTopBar({ onAvatarClick, hasSubHeader }: MobileTopBarProps) {
+export function MobileTopBar({ onAvatarClick, hasSubHeader, pinned }: MobileTopBarProps) {
   const location = useLocation();
-  const navHidden = useNavHidden();
+  const navHidden = useNavHidden() && !pinned;
 
   const handleLogoClick = useCallback((e: React.MouseEvent) => {
     if (location.pathname === '/') {
