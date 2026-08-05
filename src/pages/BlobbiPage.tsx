@@ -266,7 +266,7 @@ function BlobbiContent() {
     () => (strictCompanions.length > 0 ? strictCompanions : recoveredCompanions),
     [strictCompanions, recoveredCompanions],
   );
-  
+
   // STEP 2: Companions list (deduplicated by d-tag, newest wins, inside
   // useBlobbisCollection). The collection is already legacy-free — old-format
   // events are dropped at the parse layer — so no migration/dedup is applied here.
@@ -585,7 +585,7 @@ function BlobbiContent() {
   // Locks the egg chosen for the ceremony so a page refresh mid-animation
   // doesn't switch to a different egg or create a new one.
   const ceremonyEggRef = useRef<BlobbiCompanion | null>(null);
-  
+
   // Whether we've finished loading enough data to make the decision.
   // The ceremony decision is ALWAYS gated on the kind 31124 collection (the
   // authoritative source of Blobbi ownership) — never on the profile alone.
@@ -602,7 +602,7 @@ function BlobbiContent() {
   // regardless of onboardingDone — so an Island-created Blobbi (which may have
   // no matching Ditto profile yet) still suppresses the first-hatch flow.
   const pendingCeremonyCheck = !ceremonyCheckDone;
-  
+
   // Resolve the ceremony decision once the companion collection has loaded.
   useEffect(() => {
     if (!pendingCeremonyCheck || !companionDataReady || ceremonyInProgress) return;
@@ -810,6 +810,7 @@ function BlobbiContent() {
               invalidateCompanion={invalidateCompanion}
               setStoredSelectedD={setStoredSelectedD}
               adoptionOnly={true}
+              userInitiated={true}
               onComplete={() => setShowAdoptionFlow(false)}
             />
           </DialogContent>
@@ -2326,6 +2327,7 @@ function BlobbiDashboard({
             invalidateCompanion={invalidateCompanion}
             setStoredSelectedD={setStoredSelectedD}
             adoptionOnly={true}
+            userInitiated={true}
             onComplete={() => setShowAdoptionFlow(false)}
           />
         </DialogContent>

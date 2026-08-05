@@ -101,6 +101,13 @@ interface BlobbiHatchingCeremonyProps {
   /** If true, only create the egg and skip the hatching ceremony. The egg stays an egg. */
   eggOnly?: boolean;
   /**
+   * True when the user explicitly asked for this Blobbi (adoption), as opposed to
+   * the page silently auto-starting the ceremony. The duplicate guard below only
+   * applies to the silent path — a deliberate adoption is allowed to mint another
+   * Blobbi for a user who already owns one.
+   */
+  userInitiated?: boolean;
+  /**
    * Called when the hard preflight guard discovers the user already owns a
    * Blobbi (e.g. one created by Blobbi Island) right before a new egg would be
    * created. The parent should select/store the existing Blobbi and dismiss the
@@ -121,6 +128,7 @@ export function BlobbiHatchingCeremony({
   onComplete,
   existingCompanion,
   eggOnly = false,
+  userInitiated = false,
   onExistingBlobbiFound,
 }: BlobbiHatchingCeremonyProps) {
   const isExistingEgg = !!existingCompanion;
@@ -244,38 +252,44 @@ export function BlobbiHatchingCeremony({
         // authored kind 31124 Blobbi the user already owns. This catches
         // Island-created babies (stage=baby, empty content, no Ditto-specific
         // tags, no prior egg) that a stale/strict UI query may have missed.
-        const ownership = await preflightBlobbiOwnership(nostr, user.pubkey);
-        if (DEBUG_BLOBBI) {
-          console.info('[HatchingCeremony] Preflight ownership check:', {
-            hasProfile: !!profileRef.current,
-            rawCount: ownership.rawCount,
-            ownedCount: ownership.ownedCount,
-            hasBlobbi: ownership.hasBlobbi,
-            existing: ownership.existing
-              ? { stage: ownership.existing.stage }
-              : undefined,
-          });
-        }
+        //
+        // Skipped for a deliberate adoption (userInitiated): the guard only
+        // exists to stop *silent* auto-creation, so it must never veto a user
+        // who explicitly asked to adopt another Blobbi.
+        if (!userInitiated) {
+          const ownership = await preflightBlobbiOwnership(nostr, user.pubkey);
+          if (DEBUG_BLOBBI) {
+            console.info('[HatchingCeremony] Preflight ownership check:', {
+              hasProfile: !!profileRef.current,
+              rawCount: ownership.rawCount,
+              ownedCount: ownership.ownedCount,
+              hasBlobbi: ownership.hasBlobbi,
+              existing: ownership.existing
+                ? { stage: ownership.existing.stage }
+                : undefined,
+            });
+          }
 
-        if (ownership.hasBlobbi) {
-          // Abort the new hatch — the user already owns a Blobbi. Select/reuse
-          // it and hand control back to the parent to dismiss the ceremony.
-          if (DEBUG_BLOBBI) console.info('[HatchingCeremony] Aborting new hatch: user already owns a Blobbi');
-          invalidateProfile();
-          invalidateCompanion();
-          if (ownership.existing) {
-            setStoredSelectedD(ownership.existing.d);
-            if (onExistingBlobbiFoundRef.current) {
-              onExistingBlobbiFoundRef.current(ownership.existing);
+          if (ownership.hasBlobbi) {
+            // Abort the new hatch — the user already owns a Blobbi. Select/reuse
+            // it and hand control back to the parent to dismiss the ceremony.
+            if (DEBUG_BLOBBI) console.info('[HatchingCeremony] Aborting new hatch: user already owns a Blobbi');
+            invalidateProfile();
+            invalidateCompanion();
+            if (ownership.existing) {
+              setStoredSelectedD(ownership.existing.d);
+              if (onExistingBlobbiFoundRef.current) {
+                onExistingBlobbiFoundRef.current(ownership.existing);
+              } else {
+                onCompleteRef.current?.();
+              }
             } else {
+              // Ownership confirmed but the event couldn't be parsed for reuse.
+              // Still never mint a duplicate — just leave the creation flow.
               onCompleteRef.current?.();
             }
-          } else {
-            // Ownership confirmed but the event couldn't be parsed for reuse.
-            // Still never mint a duplicate — just leave the creation flow.
-            onCompleteRef.current?.();
+            return;
           }
-          return;
         }
 
         const currentProfile = profileRef.current;

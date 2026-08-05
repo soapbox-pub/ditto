@@ -43,6 +43,11 @@ interface BlobbiOnboardingFlowProps {
    * @deprecated No longer changes the flow.
    */
   adoptionOnly?: boolean;
+  /**
+   * True when the user explicitly chose to get this Blobbi. Exempts the flow from
+   * the duplicate guard that protects the silent auto-start path.
+   */
+  userInitiated?: boolean;
 }
 
 export function BlobbiOnboardingFlow({
@@ -56,6 +61,7 @@ export function BlobbiOnboardingFlow({
   existingCompanion,
   onExistingBlobbiFound,
   adoptionOnly,
+  userInitiated,
 }: BlobbiOnboardingFlowProps) {
   return (
     <BlobbiHatchingCeremony
@@ -69,6 +75,7 @@ export function BlobbiOnboardingFlow({
       existingCompanion={existingCompanion}
       onExistingBlobbiFound={onExistingBlobbiFound}
       eggOnly={adoptionOnly}
+      userInitiated={userInitiated}
     />
   );
 }
