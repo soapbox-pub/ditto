@@ -225,6 +225,9 @@ export function useAgentSessions(options: AgentSessionsOptions) {
         if (!cancelled && session.id === activeSessionIdRef.current) {
           setBuildError(err instanceof Error ? err.message : String(err));
           setSnapshots((prev) => {
+            // No-op when the key is already gone, or a fresh object is
+            // returned on every failure and churns consumers needlessly.
+            if (!(session.id in prev)) return prev;
             const { [session.id]: _dropped, ...rest } = prev;
             return rest;
           });
