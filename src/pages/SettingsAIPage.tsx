@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bot, Copy, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Bot, Copy, ExternalLink, Loader2, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { FormattedMessage, useIntl, defineMessage, type MessageDescriptor } from 'react-intl';
 import { fetchModels, type AIProvider } from '@soapbox.pub/nostr-canvas/devkit';
 
@@ -33,8 +34,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAIProviders, type AIProviderKind, type AIProviderProfile } from '@/hooks/useAIProviders';
 import { useAutoDetectModels } from '@/hooks/useAutoDetectModels';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useShakespeare } from '@/hooks/useShakespeare';
 import { useToast } from '@/hooks/useToast';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
+import { openUrl } from '@/lib/downloadFile';
+
+/** Where users top up their Shakespeare credit balance. Ditto has no in-app top-up. */
+const SHAKESPEARE_CREDITS_URL = 'https://shakespeare.diy';
 
 /** Default base URL applied when a provider kind is picked in the form. */
 const KIND_BASE_URLS: Record<AIProviderKind, string> = {
@@ -481,6 +488,157 @@ function ProviderFormDialog({ open, editing, onOpenChange, onSave, hasNip44Suppo
   );
 }
 
+/**
+ * The built-in, zero-config Shakespeare provider, shown first and always.
+ *
+ * Unlike the user's own profiles this one has nothing to configure: it is
+ * keyed to the signed-in Nostr account over NIP-98, so there is no API key
+ * and no base URL to edit, and it cannot be renamed or deleted. What it does
+ * have is a credit balance and a model list, both fetched live.
+ *
+ * Ditto has no in-app top-up, so the "Add credits" action opens shakespeare.diy
+ * through `openUrl` (Capacitor-safe; a bare target="_blank" is dropped inside
+ * the native WebView).
+ */
+function ShakespeareProviderCard() {
+  const intl = useIntl();
+  const { user } = useCurrentUser();
+  const { getCreditsBalance, getAvailableModels } = useShakespeare();
+
+  const credits = useQuery({
+    queryKey: ['shakespeare-credits', user?.pubkey],
+    queryFn: () => getCreditsBalance(),
+    enabled: !!user,
+    staleTime: 60_000,
+    retry: 2,
+  });
+
+  const models = useQuery({
+    queryKey: ['shakespeare-models', user?.pubkey],
+    queryFn: () => getAvailableModels(),
+    enabled: !!user,
+    staleTime: 5 * 60_000,
+    retry: 2,
+  });
+
+  const modelCount = models.data?.data.length ?? 0;
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center justify-center size-9 rounded-full bg-primary/10 shrink-0">
+              <Sparkles className="size-4 text-primary" />
+            </div>
+            <CardTitle className="text-base truncate">
+              <FormattedMessage id="settings.ai.shakespeareName" defaultMessage={'Shakespeare'} />
+            </CardTitle>
+            <Badge variant="secondary" className="shrink-0">
+              <FormattedMessage id="settings.ai.builtInBadge" defaultMessage={'Built-in'} />
+            </Badge>
+          </div>
+        </div>
+
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          <FormattedMessage
+            id="settings.ai.shakespeareDescription"
+            defaultMessage={'Ready to use with no setup. Signed in with your Nostr account and paid for with credits.'}
+          />
+        </p>
+
+        {!user ? (
+          <p className="text-sm text-muted-foreground">
+            <FormattedMessage
+              id="settings.ai.shakespeareLoggedOut"
+              defaultMessage={'Log in to see your balance and available models.'}
+            />
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            {/* Balance */}
+            <div className="min-w-0">
+              <div className="text-xs text-muted-foreground">
+                <FormattedMessage id="settings.ai.balanceLabel" defaultMessage={'Balance'} />
+              </div>
+              {credits.isLoading ? (
+                <Skeleton className="h-6 w-20 mt-1" />
+              ) : credits.isError ? (
+                <div className="text-sm text-muted-foreground mt-1">
+                  <FormattedMessage id="settings.ai.balanceUnavailable" defaultMessage={'Unavailable'} />
+                </div>
+              ) : (
+                <div className="text-lg font-semibold tabular-nums mt-0.5">
+                  {intl.formatNumber(credits.data?.amount ?? 0, { style: 'currency', currency: 'USD' })}
+                </div>
+              )}
+            </div>
+
+            {/* Model count */}
+            <div className="min-w-0">
+              <div className="text-xs text-muted-foreground">
+                <FormattedMessage id="settings.ai.modelsLabel" defaultMessage={'Models'} />
+              </div>
+              {models.isLoading ? (
+                <Skeleton className="h-6 w-16 mt-1" />
+              ) : models.isError ? (
+                <div className="text-sm text-muted-foreground mt-1">
+                  <FormattedMessage id="settings.ai.modelsUnavailable" defaultMessage={'Unavailable'} />
+                </div>
+              ) : (
+                <div className="text-lg font-semibold tabular-nums mt-0.5">{modelCount}</div>
+              )}
+            </div>
+            {(credits.isError || models.isError) && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  credits.refetch();
+                  models.refetch();
+                }}
+              >
+                <FormattedMessage id="settings.ai.retryFetch" defaultMessage={'Retry'} />
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Available models, collapsed into a scrollable list so a long
+            catalog does not push the rest of the page away. */}
+        {user && modelCount > 0 && (
+          <div className="rounded-lg border border-border bg-muted/30 max-h-40 overflow-y-auto">
+            <ul className="divide-y divide-border/60">
+              {models.data?.data.map((model) => (
+                <li key={model.fullId} className="px-3 py-2 text-xs">
+                  <div className="truncate font-medium">{model.name}</div>
+                  <div className="truncate text-muted-foreground">{model.fullId}</div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-full"
+          onClick={() => openUrl(SHAKESPEARE_CREDITS_URL)}
+        >
+          <ExternalLink className="size-4" />
+          <FormattedMessage id="settings.ai.addCredits" defaultMessage={'Add credits'} />
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          <FormattedMessage
+            id="settings.ai.addCreditsHint"
+            defaultMessage={'Credits are topped up on shakespeare.diy, which opens outside Ditto.'}
+          />
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function SettingsAIPage() {
   const intl = useIntl();
   const { config } = useAppContext();
@@ -609,6 +767,12 @@ export function SettingsAIPage() {
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
         </div>
 
+        {/* The built-in provider always comes first, above the user's own
+            profiles, so the zero-config path is the first thing on the page. */}
+        <div className="px-3">
+          <ShakespeareProviderCard />
+        </div>
+
         {isLoading ? (
           <div className="space-y-3 px-3">
             <Skeleton className="h-28 w-full rounded-xl" />
@@ -620,7 +784,7 @@ export function SettingsAIPage() {
               <CardContent className="py-12 px-8 text-center">
                 <Bot className="size-8 mx-auto mb-3 text-muted-foreground/50" />
                 <p className="text-muted-foreground max-w-sm mx-auto text-sm">
-                  <FormattedMessage id="settings.ai.empty" defaultMessage={'No AI providers yet. Add one to start using custom chat models.'} />
+                  <FormattedMessage id="settings.ai.emptyCustom" defaultMessage={'No custom providers yet. Add one to use your own OpenAI-compatible endpoint alongside Shakespeare.'} />
                 </p>
               </CardContent>
             </Card>
