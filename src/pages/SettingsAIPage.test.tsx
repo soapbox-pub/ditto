@@ -3,6 +3,7 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import { useState } from 'react';
 import { IntlProvider } from 'react-intl';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ModelListEditor, SettingsAIPage } from './SettingsAIPage';
 import type { AIProviderProfile } from '@/hooks/useAIProviders';
@@ -13,6 +14,8 @@ import type { AIProviderProfile } from '@/hooks/useAIProviders';
 // unnecessary here.
 const useAIProvidersMock = vi.hoisted(() => vi.fn());
 const useAppContextMock = vi.hoisted(() => vi.fn());
+const useCurrentUserMock = vi.hoisted(() => vi.fn());
+const useShakespeareMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/useAIProviders', () => ({
   useAIProviders: () => useAIProvidersMock(),
@@ -20,6 +23,17 @@ vi.mock('@/hooks/useAIProviders', () => ({
 
 vi.mock('@/hooks/useAppContext', () => ({
   useAppContext: () => useAppContextMock(),
+}));
+
+// The built-in Shakespeare card reads the signed-in user and the Shakespeare
+// client. Both are mocked here for the same reason the two hooks above are:
+// this file deliberately avoids standing up the full TestApp/Nostr stack.
+vi.mock('@/hooks/useCurrentUser', () => ({
+  useCurrentUser: () => useCurrentUserMock(),
+}));
+
+vi.mock('@/hooks/useShakespeare', () => ({
+  useShakespeare: () => useShakespeareMock(),
 }));
 
 // @floating-ui/dom's `autoUpdate` instantiates `ResizeObserver` and
@@ -80,12 +94,21 @@ function renderPage(profiles: AIProviderProfile[]) {
     isLoading: false,
     hasNip44Support: true,
   });
+  // Logged out by default: the Shakespeare card then skips both of its
+  // queries, so these tests stay focused on the custom-provider list.
+  useCurrentUserMock.mockReturnValue({ user: undefined });
+  useShakespeareMock.mockReturnValue({
+    getCreditsBalance: vi.fn(),
+    getAvailableModels: vi.fn(),
+  });
   render(
-    <IntlProvider locale="en" onError={() => {}}>
-      <MemoryRouter>
-        <SettingsAIPage />
-      </MemoryRouter>
-    </IntlProvider>,
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <IntlProvider locale="en" onError={() => {}}>
+        <MemoryRouter>
+          <SettingsAIPage />
+        </MemoryRouter>
+      </IntlProvider>
+    </QueryClientProvider>,
   );
   return deleteProfile;
 }
