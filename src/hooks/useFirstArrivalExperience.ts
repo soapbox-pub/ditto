@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import {
   missionDevArrivalEntry,
@@ -9,8 +9,10 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   consumeFirstArrival,
+  firstArrivalVersion,
   isFirstArrivalPending,
   readFirstArrival,
+  subscribeFirstArrival,
 } from '@/lib/firstArrival';
 import { prefersReducedMotion } from '@/lib/reducedMotion';
 
@@ -151,10 +153,26 @@ export function useFirstArrivalExperience(): FirstArrivalExperience {
   // A skip jumps straight to the hand-off: the user asked for the application,
   // so flying a card across it would be ignoring them.
   const skippedRef = useRef(false);
-  // Latches the account this run belongs to, so switching accounts mid-session
-  // can never let one account's arrival play for another.
+  // Latches the account whose arrival has actually *started*, so a completed or
+  // skipped run never replays, and switching accounts mid-session can never let
+  // one account's arrival play for another.
+  //
+  // Deliberately set only when a run begins — not when eligibility is merely
+  // evaluated. Latching on evaluation is what broke the real signup flow: login
+  // happens several steps before signup completes, so the first evaluation ran
+  // against an account that did not yet have an intent, decided "not owed", and
+  // latched that answer permanently. Five seconds later signup armed the intent
+  // and nothing was left willing to look at it.
   const playingForRef = useRef<string | undefined>(undefined);
+  // The account the last evaluation was about, so switching accounts can be
+  // told apart from re-evaluating the same one.
+  const evaluatedForRef = useRef<string | undefined>(undefined);
   const reducedMotion = prefersReducedMotion();
+
+  // Re-read the intent whenever it changes in this tab. `localStorage` does not
+  // notify the tab that wrote it, so signup's own write would otherwise be
+  // invisible to this hook.
+  const intentVersion = useSyncExternalStore(subscribeFirstArrival, firstArrivalVersion);
 
   // Give up waiting for an account after a bounded interval. A logged-out
   // visitor would otherwise sit in `waiting` forever (harmless, but it would
@@ -166,17 +184,32 @@ export function useFirstArrivalExperience(): FirstArrivalExperience {
     return () => clearTimeout(timer);
   }, [phase, forced]);
 
-  // Decide, once we know the account, whether an arrival is owed.
+  // Decide whether an arrival is owed. Re-runs when the account changes *or*
+  // when the intent itself changes, which is what lets signup arm the marker
+  // after the account has already resolved.
   useEffect(() => {
     if (forced) return;
     if (!pubkey) return;
-    // Already running (or finished) for this account — never restart.
+    // A run for this account has already started — never restart it.
     if (playingForRef.current === pubkey) return;
 
+    if (!isFirstArrivalPending(readFirstArrival(config.appId, pubkey))) {
+      // Not owed *yet*. That is not the same as ineligible: mid-signup this is
+      // exactly the expected state, and the marker may be armed moments later.
+      // Nothing is latched and nothing is consumed, so this stays reconsiderable.
+      const switched =
+        evaluatedForRef.current !== undefined && evaluatedForRef.current !== pubkey;
+      evaluatedForRef.current = pubkey;
+      // A different account gets a clean slate. The same account only settles
+      // out of `waiting`, so a run that already finished is not resurrected.
+      setPhase((current) => (switched || current === 'waiting' ? 'idle' : current));
+      return;
+    }
+
+    evaluatedForRef.current = pubkey;
     playingForRef.current = pubkey;
-    const intent = readFirstArrival(config.appId, pubkey);
-    setPhase(isFirstArrivalPending(intent) ? 'playing' : 'idle');
-  }, [pubkey, config.appId, forced]);
+    setPhase('playing');
+  }, [pubkey, config.appId, forced, intentVersion]);
 
   // A different account became active: reset so the new account is evaluated
   // on its own terms rather than inheriting the previous one's phase.

@@ -329,3 +329,151 @@ describe('useFirstArrivalExperience — the theatrical handoff', () => {
     expect(written).toEqual([`ditto:first-arrival:${ALICE}`]);
   });
 });
+
+/**
+ * Regression suite for the signup → arrival handoff.
+ *
+ * A real new account reached `/` and nothing happened. Traced in the browser:
+ * signup logs the user in at the "save your key" step, several steps before it
+ * finishes, so this hook saw the new pubkey at 8.0s, read "no intent", decided
+ * "not owed", and latched that answer. Signup armed the intent at 13.0s and
+ * nothing was left willing to look at it.
+ *
+ * The intent was never missing and never consumed early — the *decision* was
+ * made too early and made permanent.
+ */
+describe('useFirstArrivalExperience — the signup handoff', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    localStorage.clear();
+    pubkey = ALICE;
+    reduced = false;
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('plays when the intent is armed after the account has already resolved', () => {
+    // The real signup order: logged in first, marker armed several steps later.
+    const { result } = renderHook(() => useFirstArrivalExperience());
+    expect(result.current.phase).not.toBe('playing');
+
+    // Let the account-wait timeout expire too, exactly as it does during a
+    // signup that takes longer than it.
+    act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.play));
+    expect(result.current.visible).toBe(false);
+
+    act(() => markFirstArrival(APP, ALICE));
+    expect(result.current.phase).toBe('playing');
+    expect(result.current.visible).toBe(true);
+  });
+
+  it('does not treat "not owed yet" as "ineligible"', () => {
+    // Mid-signup there is a resolved account and no marker. That state must
+    // stay reconsiderable: nothing latched, nothing consumed.
+    const { result } = renderHook(() => useFirstArrivalExperience());
+    act(() => void vi.advanceTimersByTime(10_000));
+    expect(readFirstArrival(APP, ALICE)).toBeUndefined();
+
+    act(() => markFirstArrival(APP, ALICE));
+    expect(result.current.phase).toBe('playing');
+  });
+
+  it('does not consume the intent while eligibility is unresolved', () => {
+    pubkey = undefined; // account still resolving
+    markFirstArrival(APP, ALICE);
+    const { result, rerender } = renderHook(() => useFirstArrivalExperience());
+
+    act(() => void vi.advanceTimersByTime(30_000));
+    expect(readFirstArrival(APP, ALICE)?.consumedAt).toBeUndefined();
+    expect(isFirstArrivalPending(readFirstArrival(APP, ALICE))).toBe(true);
+
+    // The account finally resolves — the arrival is still owed.
+    pubkey = ALICE;
+    rerender();
+    expect(result.current.phase).toBe('playing');
+  });
+
+  it('starts exactly once however many times the marker is re-written', () => {
+    const { result } = renderHook(() => useFirstArrivalExperience());
+    act(() => markFirstArrival(APP, ALICE));
+    expect(result.current.phase).toBe('playing');
+
+    // `markFirstArrival` is idempotent, but the notification still fires.
+    for (let i = 0; i < 10; i++) act(() => markFirstArrival(APP, ALICE));
+    expect(result.current.phase).toBe('playing');
+
+    playThrough();
+    expect(result.current.phase).toBe('done');
+
+    // And nothing brings it back.
+    for (let i = 0; i < 10; i++) act(() => markFirstArrival(APP, ALICE));
+    expect(result.current.phase).toBe('done');
+    expect(result.current.visible).toBe(false);
+  });
+
+  it('cannot be triggered by another account’s intent', () => {
+    renderHook(() => useFirstArrivalExperience());
+    act(() => markFirstArrival(APP, BOB));
+    // Alice is the active account; Bob's marker is not hers.
+    const { result } = renderHook(() => useFirstArrivalExperience());
+    expect(result.current.phase).not.toBe('playing');
+    expect(readFirstArrival(APP, BOB)?.consumedAt).toBeUndefined();
+  });
+
+  it('consumes the intent when the arrival actually begins, not before', () => {
+    const { result } = renderHook(() => useFirstArrivalExperience());
+    act(() => void vi.advanceTimersByTime(10_000));
+    // Nothing has played, so nothing may be consumed.
+    act(() => markFirstArrival(APP, ALICE));
+    expect(readFirstArrival(APP, ALICE)?.consumedAt).toBeUndefined();
+
+    act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.play + 100));
+    expect(readFirstArrival(APP, ALICE)?.consumedAt).toBeGreaterThan(0);
+    void result;
+  });
+
+  it('does not replay after a reload once it has been consumed', () => {
+    markFirstArrival(APP, ALICE);
+    const first = renderHook(() => useFirstArrivalExperience());
+    playThrough();
+    expect(first.result.current.phase).toBe('done');
+    first.unmount();
+
+    // A reload is a fresh hook against the same storage.
+    for (let i = 0; i < 3; i++) {
+      const again = renderHook(() => useFirstArrivalExperience());
+      act(() => void vi.advanceTimersByTime(30_000));
+      expect(again.result.current.phase).not.toBe('playing');
+      expect(again.result.current.visible).toBe(false);
+      again.unmount();
+    }
+  });
+
+  it('skip consumes the intent and never replays', () => {
+    markFirstArrival(APP, ALICE);
+    const { result, unmount } = renderHook(() => useFirstArrivalExperience());
+    expect(result.current.phase).toBe('playing');
+
+    act(() => result.current.skip());
+    expect(readFirstArrival(APP, ALICE)?.consumedAt).toBeGreaterThan(0);
+    unmount();
+
+    const again = renderHook(() => useFirstArrivalExperience());
+    act(() => void vi.advanceTimersByTime(30_000));
+    expect(again.result.current.phase).not.toBe('playing');
+  });
+
+  it('an existing login with no marker never starts an arrival', () => {
+    const { result } = renderHook(() => useFirstArrivalExperience());
+    act(() => void vi.advanceTimersByTime(60_000));
+    expect(result.current.phase).toBe('idle');
+    expect(result.current.visible).toBe(false);
+    expect(readFirstArrival(APP, ALICE)).toBeUndefined();
+  });
+
+  it('ignores a stale marker rather than replaying a day later', () => {
+    markFirstArrival(APP, ALICE, Date.now() - 60 * 60_000);
+    const { result } = renderHook(() => useFirstArrivalExperience());
+    act(() => void vi.advanceTimersByTime(30_000));
+    expect(result.current.phase).not.toBe('playing');
+  });
+});

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 import {
   ARRIVAL_SETTLE_MS,
@@ -6,10 +6,12 @@ import {
   clearFirstArrival,
   consumeFirstArrival,
   firstArrivalKey,
+  firstArrivalVersion,
   isArrivalSettling,
   isFirstArrivalPending,
   markFirstArrival,
   readFirstArrival,
+  subscribeFirstArrival,
 } from './firstArrival';
 
 const APP = 'ditto';
@@ -125,5 +127,49 @@ describe('arrival settle window', () => {
     const intent = { createdAt: 1_000, consumedAt: 2_000 };
     expect(isArrivalSettling(intent, 2_100)).toBe(true);
     expect(isArrivalSettling(intent, 2_000 + ARRIVAL_SETTLE_MS)).toBe(false);
+  });
+});
+
+describe('firstArrival — same-tab notification', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('notifies subscribers when an intent is armed', () => {
+    // `localStorage` fires `storage` only in *other* tabs, so without this the
+    // tab that armed the intent has no way to learn it happened. That is what
+    // left the real signup flow with a marker nobody re-read.
+    const seen: number[] = [];
+    const unsubscribe = subscribeFirstArrival(() => seen.push(firstArrivalVersion()));
+
+    markFirstArrival('ditto', 'a'.repeat(64));
+    expect(seen.length).toBe(1);
+
+    consumeFirstArrival('ditto', 'a'.repeat(64));
+    expect(seen.length).toBe(2);
+
+    unsubscribe();
+    markFirstArrival('ditto', 'b'.repeat(64));
+    expect(seen.length).toBe(2);
+  });
+
+  it('advances the version monotonically', () => {
+    const before = firstArrivalVersion();
+    markFirstArrival('ditto', 'c'.repeat(64));
+    const after = firstArrivalVersion();
+    expect(after).toBeGreaterThan(before);
+  });
+
+  it('still notifies when storage is unavailable', () => {
+    // The subscriber re-reads from storage and finds nothing, which is the
+    // correct outcome. Silently not notifying would be worse: it would look
+    // like a pending arrival that never starts.
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota');
+    });
+    let notified = 0;
+    const unsubscribe = subscribeFirstArrival(() => notified++);
+    markFirstArrival('ditto', 'd'.repeat(64));
+    expect(notified).toBe(1);
+    unsubscribe();
+    spy.mockRestore();
   });
 });

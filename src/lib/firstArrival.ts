@@ -20,6 +20,36 @@
 import { getStorageKey } from '@/lib/storageKey';
 
 /**
+ * Same-tab change notification.
+ *
+ * `localStorage` fires `storage` events in *other* tabs only, so the tab that
+ * arms the intent gets no notification of its own write. That mattered: signup
+ * logs the user in several steps before it finishes, so the arrival lifecycle
+ * saw the new pubkey — and read "no intent" — a full five seconds before signup
+ * armed one. Without a notification there is nothing to make it look again.
+ */
+let version = 0;
+const listeners = new Set<() => void>();
+
+/** Subscribe to intent changes in this tab. */
+export function subscribeFirstArrival(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** Monotonic counter, for `useSyncExternalStore`. */
+export function firstArrivalVersion(): number {
+  return version;
+}
+
+function notify(): void {
+  version += 1;
+  for (const listener of listeners) listener();
+}
+
+/**
  * The marker itself.
  *
  * `consumedAt` is what makes the experience one-shot. The record is kept (not
@@ -112,6 +142,7 @@ export function clearFirstArrival(appId: string, pubkey: string): void {
   } catch {
     // storage unavailable — nothing to clear
   }
+  notify();
 }
 
 function writeFirstArrival(appId: string, pubkey: string, intent: FirstArrivalIntent): void {
@@ -121,6 +152,9 @@ function writeFirstArrival(appId: string, pubkey: string, intent: FirstArrivalIn
     // Storage full or unavailable. The arrival is a nicety; failing to record
     // it must never break signup.
   }
+  // Always notify, even if the write threw: the lifecycle re-reads from storage
+  // and will simply find nothing, which is the correct outcome either way.
+  notify();
 }
 
 /**
