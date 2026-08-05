@@ -510,7 +510,7 @@ function ShakespeareProviderCard() {
     queryFn: () => getCreditsBalance(),
     enabled: !!user,
     staleTime: 60_000,
-    retry: false,
+    retry: 2,
   });
 
   const models = useQuery({
@@ -518,7 +518,7 @@ function ShakespeareProviderCard() {
     queryFn: () => getAvailableModels(),
     enabled: !!user,
     staleTime: 5 * 60_000,
-    retry: false,
+    retry: 2,
   });
 
   const modelCount = models.data?.data.length ?? 0;
@@ -589,6 +589,18 @@ function ShakespeareProviderCard() {
                 <div className="text-lg font-semibold tabular-nums mt-0.5">{modelCount}</div>
               )}
             </div>
+            {(credits.isError || models.isError) && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  credits.refetch();
+                  models.refetch();
+                }}
+              >
+                <FormattedMessage id="settings.ai.retryFetch" defaultMessage={'Retry'} />
+              </Button>
+            )}
           </div>
         )}
 
