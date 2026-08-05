@@ -18,6 +18,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // `vi.mock('@nostrify/react')` pattern from useAuthor.test.tsx — the mock
 // factory is evaluated lazily, so referencing the spies declared above is safe.
 const updateSettingsSpy = vi.fn<(patch: unknown) => Promise<unknown>>(async () => ({}));
+const syncSettingsSpy = vi.fn<(patch: unknown) => Promise<unknown>>(async () => ({}));
 const initializeSettingsSpy = vi.fn<() => Promise<unknown>>(async () => {});
 const mockUseEncryptedSettings = vi.fn<() => MockEncryptedSettings>();
 
@@ -63,7 +64,7 @@ function defaultEncryptedSettings(
     isError: false,
     error: null,
     updateSettings: { mutate: updateSettingsSpy, mutateAsync: updateSettingsSpy, isPending: false },
-    syncSettings: { mutate: updateSettingsSpy, mutateAsync: updateSettingsSpy, isPending: false },
+    syncSettings: { mutate: syncSettingsSpy, mutateAsync: syncSettingsSpy, isPending: false },
     initializeSettings: initializeSettingsSpy,
     hasNip44Support: true,
     lastSync: undefined,
@@ -112,6 +113,8 @@ describe('useAIProviders', () => {
     localStorage.clear();
     updateSettingsSpy.mockReset();
     updateSettingsSpy.mockResolvedValue({});
+    syncSettingsSpy.mockReset();
+    syncSettingsSpy.mockResolvedValue({});
     initializeSettingsSpy.mockReset();
     initializeSettingsSpy.mockResolvedValue(undefined);
     mockUseEncryptedSettings.mockReset();
@@ -195,14 +198,14 @@ describe('useAIProviders', () => {
 
     const { result } = renderHook(() => useAIProviders(), { wrapper });
     await waitFor(() => expect(result.current.profiles).toHaveLength(2));
-    updateSettingsSpy.mockClear();
+    syncSettingsSpy.mockClear();
 
     act(() => {
       result.current.deleteProfile(synced.id);
     });
 
-    await waitFor(() => expect(updateSettingsSpy).toHaveBeenCalled());
-    const calls = updateSettingsSpy.mock.calls.map(
+    await waitFor(() => expect(syncSettingsSpy).toHaveBeenCalled());
+    const calls = syncSettingsSpy.mock.calls.map(
       (call) => call[0] as { aiProviderProfiles?: AIProviderProfile[] },
     );
     expect(
@@ -260,8 +263,8 @@ describe('useAIProviders', () => {
       created = result.current.addProfile(makeInput({ name: 'Synced', syncEnabled: true }));
     });
 
-    await waitFor(() => expect(updateSettingsSpy).toHaveBeenCalled());
-    const patch = updateSettingsSpy.mock.calls[0][0] as { aiProviderProfiles?: AIProviderProfile[] };
+    await waitFor(() => expect(syncSettingsSpy).toHaveBeenCalled());
+    const patch = syncSettingsSpy.mock.calls[0][0] as { aiProviderProfiles?: AIProviderProfile[] };
     expect(patch.aiProviderProfiles).toEqual([created]);
   });
 
@@ -274,7 +277,7 @@ describe('useAIProviders', () => {
     });
     await waitFor(() => expect(result.current.profiles).toHaveLength(1));
 
-    const calls = updateSettingsSpy.mock.calls.map(
+    const calls = syncSettingsSpy.mock.calls.map(
       (call) => call[0] as { aiProviderProfiles?: AIProviderProfile[] },
     );
     expect(
@@ -288,14 +291,14 @@ describe('useAIProviders', () => {
 
     const { result } = renderHook(() => useAIProviders(), { wrapper });
     await waitFor(() => expect(result.current.profiles).toHaveLength(1));
-    updateSettingsSpy.mockClear();
+    syncSettingsSpy.mockClear();
 
     act(() => {
       result.current.updateProfile(local.id, { syncEnabled: true });
     });
 
-    await waitFor(() => expect(updateSettingsSpy).toHaveBeenCalled());
-    const patch = updateSettingsSpy.mock.calls[0][0] as { aiProviderProfiles?: AIProviderProfile[] };
+    await waitFor(() => expect(syncSettingsSpy).toHaveBeenCalled());
+    const patch = syncSettingsSpy.mock.calls[0][0] as { aiProviderProfiles?: AIProviderProfile[] };
     expect(patch.aiProviderProfiles).toHaveLength(1);
     expect(patch.aiProviderProfiles?.[0]).toEqual(
       expect.objectContaining({ id: local.id, syncEnabled: true }),
@@ -308,7 +311,7 @@ describe('useAIProviders', () => {
 
     const { result } = renderHook(() => useAIProviders(), { wrapper });
     await waitFor(() => expect(result.current.profiles).toHaveLength(1));
-    updateSettingsSpy.mockClear();
+    syncSettingsSpy.mockClear();
 
     act(() => {
       result.current.updateProfile(synced.id, { syncEnabled: false });
@@ -317,8 +320,8 @@ describe('useAIProviders', () => {
 
     // Flipping sync off must push the profile out of the encrypted blob, or
     // the merge-on-load effect would resurrect it (with its old API key).
-    await waitFor(() => expect(updateSettingsSpy).toHaveBeenCalled());
-    const calls = updateSettingsSpy.mock.calls.map(
+    await waitFor(() => expect(syncSettingsSpy).toHaveBeenCalled());
+    const calls = syncSettingsSpy.mock.calls.map(
       (call) => call[0] as { aiProviderProfiles?: AIProviderProfile[] },
     );
     const finalPatch = calls[calls.length - 1];
@@ -334,20 +337,20 @@ describe('useAIProviders', () => {
 
     const { result } = renderHook(() => useAIProviders(), { wrapper });
     await waitFor(() => expect(result.current.profiles).toHaveLength(1));
-    updateSettingsSpy.mockClear();
+    syncSettingsSpy.mockClear();
 
     act(() => {
       result.current.updateProfile(local.id, { syncEnabled: true });
     });
-    await waitFor(() => expect(updateSettingsSpy).toHaveBeenCalled());
-    updateSettingsSpy.mockClear();
+    await waitFor(() => expect(syncSettingsSpy).toHaveBeenCalled());
+    syncSettingsSpy.mockClear();
 
     act(() => {
       result.current.updateProfile(local.id, { syncEnabled: false });
     });
-    await waitFor(() => expect(updateSettingsSpy).toHaveBeenCalled());
+    await waitFor(() => expect(syncSettingsSpy).toHaveBeenCalled());
 
-    const calls = updateSettingsSpy.mock.calls.map(
+    const calls = syncSettingsSpy.mock.calls.map(
       (call) => call[0] as { aiProviderProfiles?: AIProviderProfile[] },
     );
     const finalPatch = calls[calls.length - 1];
