@@ -30,13 +30,11 @@ import { fetchFreshBlobbonautProfile } from '@blobbi-kit/core/fetchFreshBlobbona
 import {
   KIND_BLOBBI_STATE,
   KIND_BLOBBONAUT_PROFILE,
-  BLOBBI_ECOSYSTEM_NAMESPACE,
   INITIAL_BLOBBONAUT_COINS,
   STAT_MAX,
   buildBlobbonautTags,
   updateBlobbonautTags,
   updateBlobbiTags,
-  isValidBlobbiEvent,
   type BlobbonautProfile,
   type BlobbiCompanion,
 } from '@blobbi-kit/core/blobbi';
@@ -52,6 +50,7 @@ import {
   previewToBlobbiCompanion,
   type BlobbiEggPreview,
 } from '../lib/blobbi-preview';
+import { preflightBlobbiOwnership } from '../lib/preflight-ownership';
 
 import { useTypewriter } from '../hooks/useTypewriter';
 import { buildRevealGradient } from '../lib/ceremony-colors';
@@ -84,6 +83,9 @@ type CeremonyPhase =
 // Tracks pubkeys that have already started setup in this browser session.
 const setupInFlightFor = new Set<string>();
 
+/** Enable debug logging in development only. */
+const DEBUG_BLOBBI = import.meta.env.DEV;
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface BlobbiHatchingCeremonyProps {
@@ -105,6 +107,13 @@ interface BlobbiHatchingCeremonyProps {
    * Blobbi for a user who already owns one.
    */
   userInitiated?: boolean;
+  /**
+   * Called when the hard preflight guard discovers the user already owns a
+   * Blobbi (e.g. one created by Blobbi Island) right before a new egg would be
+   * created. The parent should select/store the existing Blobbi and dismiss the
+   * ceremony instead of minting a duplicate.
+   */
+  onExistingBlobbiFound?: (companion: BlobbiCompanion) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -120,6 +129,7 @@ export function BlobbiHatchingCeremony({
   existingCompanion,
   eggOnly = false,
   userInitiated = false,
+  onExistingBlobbiFound,
 }: BlobbiHatchingCeremonyProps) {
   const isExistingEgg = !!existingCompanion;
   const { user } = useCurrentUser();
@@ -158,6 +168,8 @@ export function BlobbiHatchingCeremony({
   const eggTagsRef = useRef<string[][] | null>(null);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+  const onExistingBlobbiFoundRef = useRef(onExistingBlobbiFound);
+  onExistingBlobbiFoundRef.current = onExistingBlobbiFound;
 
   // ── Companion visuals ──
   const eggCompanion = useMemo(
@@ -233,37 +245,49 @@ export function BlobbiHatchingCeremony({
       setupStarted.current = true;
 
       try {
-        // ── Idempotency guard (authoritative pre-publish existence check) ──
-        // The decision to auto-create can fire on a transient empty/loading
-        // state (slow relay, missing boot cache, query settled before a slower
-        // relay answers). Before publishing anything, re-query the relays for
-        // ANY valid Blobbi owned by this user. If one already exists, abort the
-        // automatic creation and fall through to the existing-user/dashboard
-        // state instead of minting a duplicate (random-d) Blobbi.
+        // ── HARD PREFLIGHT GUARD ──────────────────────────────────────────
+        // The UI-level ceremony decision reads from cached/racy query state and
+        // uses a strict `#b` display filter. Before we mint a brand-new first
+        // Blobbi, do a FRESH relay query (no `#b`, lenient validation) for any
+        // authored kind 31124 Blobbi the user already owns. This catches
+        // Island-created babies (stage=baby, empty content, no Ditto-specific
+        // tags, no prior egg) that a stale/strict UI query may have missed.
         //
-        // This does NOT block manual creation of additional Blobbis: adoption
-        // passes userInitiated, which skips the guard entirely. Only the silent
-        // auto-setup path is guarded.
+        // Skipped for a deliberate adoption (userInitiated): the guard only
+        // exists to stop *silent* auto-creation, so it must never veto a user
+        // who explicitly asked to adopt another Blobbi.
         if (!userInitiated) {
-          const existingEvents = await nostr.query(
-            [{
-              kinds: [KIND_BLOBBI_STATE],
-              authors: [user.pubkey],
-              '#b': [BLOBBI_ECOSYSTEM_NAMESPACE],
-            }],
-            { signal: AbortSignal.timeout(5000) },
-          );
+          const ownership = await preflightBlobbiOwnership(nostr, user.pubkey);
+          if (DEBUG_BLOBBI) {
+            console.info('[HatchingCeremony] Preflight ownership check:', {
+              hasProfile: !!profileRef.current,
+              rawCount: ownership.rawCount,
+              ownedCount: ownership.ownedCount,
+              hasBlobbi: ownership.hasBlobbi,
+              existing: ownership.existing
+                ? { stage: ownership.existing.stage }
+                : undefined,
+            });
+          }
 
-          if (existingEvents.some(isValidBlobbiEvent)) {
-            // User already has a Blobbi — do not auto-create. Route back to the
-            // normal page state, which will resolve to the dashboard / existing
-            // egg once fresh data is loaded.
-            console.warn(
-              '[HatchingCeremony] Existing Blobbi found pre-publish; aborting auto-create.',
-            );
+          if (ownership.hasBlobbi) {
+            // Abort the new hatch — the user already owns a Blobbi. Select/reuse
+            // it and hand control back to the parent to dismiss the ceremony.
+            if (DEBUG_BLOBBI) console.info('[HatchingCeremony] Aborting new hatch: user already owns a Blobbi');
             invalidateProfile();
             invalidateCompanion();
-            onCompleteRef.current?.();
+            if (ownership.existing) {
+              setStoredSelectedD(ownership.existing.d);
+              if (onExistingBlobbiFoundRef.current) {
+                onExistingBlobbiFoundRef.current(ownership.existing);
+              } else {
+                onCompleteRef.current?.();
+              }
+            } else {
+              // Ownership confirmed but the event couldn't be parsed for reuse.
+              // Still never mint a duplicate — just leave the creation flow.
+              onCompleteRef.current?.();
+            }
             return;
           }
         }

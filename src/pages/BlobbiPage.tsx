@@ -35,6 +35,8 @@ import { TabButton } from '@/components/TabButton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiHatchingCeremony } from '@/blobbi/onboarding/components/BlobbiHatchingCeremony';
+import { decideFirstHatch } from '@/blobbi/onboarding/lib/first-hatch-decision';
+import { useRecoveredBlobbis } from '@/blobbi/onboarding/hooks/useRecoveredBlobbis';
 import { BlobbiEvolveCeremony } from '@/blobbi/onboarding/components/BlobbiEvolveCeremony';
 import { BlobbiPhotoModal } from '@/blobbi/ui/BlobbiPhotoModal';
 
@@ -96,7 +98,6 @@ import {
   type StartIncubationMode,
 } from '@/blobbi/actions';
 import { BlobbiOnboardingFlow } from '@/blobbi/onboarding';
-import { useAutoCeremonyGate } from '@/blobbi/onboarding/hooks/useAutoCeremonyGate';
 import { useBlobbiActionsRegistration, type UseItemFunction } from '@/blobbi/companion/interaction';
 import { getAllNeeds } from '@/blobbi/companion/interaction/needDetection';
 import { BlobbiDevEditor, useBlobbiDevUpdate, type BlobbiDevUpdates, BlobbiEmotionPanel, useEffectiveEmotion, isLocalhostDev } from '@/blobbi/dev';
@@ -225,7 +226,6 @@ function BlobbiContent() {
   const {
     profile,
     isLoading: profileLoading,
-    isSuccess: profileSettled,
     invalidate: invalidateProfile,
     updateProfileEvent,
   } = useBlobbonautProfile();
@@ -241,13 +241,32 @@ function BlobbiContent() {
   // No dList needed — useBlobbisCollection() without args queries by author + ecosystem tag.
   // This ensures blobbis are never invisible due to a stale profile.has[] list.
   const {
-    companions,
+    companions: strictCompanions,
     isLoading: collectionLoading,
     isFetching: collectionFetching,
-    error: collectionError,
     invalidate: invalidateCollection,
     updateCompanionEvent,
   } = useBlobbisCollection(undefined, user?.pubkey);
+
+  // INTEROP RECOVERY: the strict collection drops externally-created Blobbis
+  // (e.g. Blobbi Island) that trip blobbi-kit's `client`/`t == "blobbi"` legacy
+  // heuristic, even though they are well-formed and owned — the user would
+  // otherwise see "Pet Data Not Found". When the strict collection has loaded
+  // and is empty, recover displayable interop Blobbis so they can be shown and
+  // selected. This never resurrects genuine old-app events (see
+  // `isDisplayableInteropBlobbi`) and adds no round-trip on the common path.
+  const recoveryEnabled = !collectionLoading && !collectionFetching && strictCompanions.length === 0;
+  const {
+    companions: recoveredCompanions,
+    isFetching: recoveryFetching,
+  } = useRecoveredBlobbis(user?.pubkey, recoveryEnabled);
+
+  // Effective collection: strict results when present, otherwise recovered ones.
+  const companions = useMemo(
+    () => (strictCompanions.length > 0 ? strictCompanions : recoveredCompanions),
+    [strictCompanions, recoveredCompanions],
+  );
+
   // STEP 2: Companions list (deduplicated by d-tag, newest wins, inside
   // useBlobbisCollection). The collection is already legacy-free — old-format
   // events are dropped at the parse layer — so no migration/dedup is applied here.
@@ -567,52 +586,60 @@ function BlobbiContent() {
   // doesn't switch to a different egg or create a new one.
   const ceremonyEggRef = useRef<BlobbiCompanion | null>(null);
 
-  // Decides when it is safe to silently auto-create a Blobbi, and latches that
-  // decision to one start per page mount. See useAutoCeremonyGate for why each
-  // condition is required — every one of them prevents a duplicate Blobbi.
-  const {
-    definitelyNeedsCeremony,
-    companionDataReady,
-    claimAutomaticStart,
-    hasClaimedAutomaticStart,
-  } = useAutoCeremonyGate({
-    pubkey: user?.pubkey,
-    profile,
-    profileSettled,
-    companions,
-    collectionLoading,
-    collectionFetching,
-    collectionError,
-  });
+  // Whether we've finished loading enough data to make the decision.
+  // The ceremony decision is ALWAYS gated on the kind 31124 collection (the
+  // authoritative source of Blobbi ownership) — never on the profile alone.
+  // Otherwise a missing/stale kind 11125 profile would trigger a duplicate
+  // first hatch even when the user already owns a valid Blobbi (e.g. one
+  // created directly by Blobbi Island). We also wait for the interop recovery
+  // fetch to settle so a recoverable Island Blobbi is considered before we
+  // decide the user has none.
+  const strictReady = !collectionLoading && (!collectionFetching || strictCompanions.length > 0);
+  const recoveryReady = !recoveryEnabled || !recoveryFetching || recoveredCompanions.length > 0;
+  const companionDataReady = strictReady && recoveryReady;
+  // We must inspect the actual companion collection before deciding whether to
+  // run the ceremony. This fires for ALL users — with or without a profile,
+  // regardless of onboardingDone — so an Island-created Blobbi (which may have
+  // no matching Ditto profile yet) still suppresses the first-hatch flow.
+  const pendingCeremonyCheck = !ceremonyCheckDone;
 
-  // Cases where we must inspect actual companion stages before deciding.
-  // This fires for ALL users with a profile — regardless of onboardingDone —
-  // so that accounts with onboardingDone=true but only eggs still get
-  // the ceremony.
-  const pendingCeremonyCheck = !definitelyNeedsCeremony && !!profile && !ceremonyCheckDone;
-
-  // Auto-start ceremony for definite cases (settled empty profile = brand new user)
-  useEffect(() => {
-    if (definitelyNeedsCeremony && !ceremonyInProgress && claimAutomaticStart()) {
-      setCeremonyInProgress(true);
-    }
-  }, [definitelyNeedsCeremony, ceremonyInProgress, claimAutomaticStart]);
-
-  // Resolve pending ceremony check once companions are loaded
+  // Resolve the ceremony decision once the companion collection has loaded.
   useEffect(() => {
     if (!pendingCeremonyCheck || !companionDataReady || ceremonyInProgress) return;
-    if (hasClaimedAutomaticStart()) return;
-    
-    const eggs = companions.filter(c => c.stage === 'egg');
-    const hasHatchedBlobbi = companions.some(c => c.stage === 'baby' || c.stage === 'adult');
     
     // Mark check as done so this effect doesn't re-fire.
     setCeremonyCheckDone(true);
     
-    if (hasHatchedBlobbi) {
-      // User already has a hatched blobbi — skip ceremony entirely.
-      // Auto-fix the onboardingDone flag if it was missing.
-      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Skipping ceremony: user has hatched blobbi');
+    // Ownership is derived purely from the parsed, validated 31124 collection.
+    // An Island-created baby (stage=baby, empty content, no Ditto-specific
+    // tags) is already a valid entry here and counts as an existing Blobbi.
+    const decision = decideFirstHatch({
+      companions,
+      currentCompanionD: profile?.currentCompanion,
+    });
+    
+    if (DEBUG_BLOBBI) {
+      console.log('[BlobbiPage] First-hatch decision:', {
+        pubkey: user?.pubkey,
+        hasProfile: !!profile,
+        currentCompanion: profile?.currentCompanion,
+        onboardingDone: profile?.onboardingDone,
+        collectionLoading,
+        collectionFetching,
+        companionsLength: companions.length,
+        companions: companions.map(c => ({ d: c.d, stage: c.stage, name: c.name })),
+        decision: decision.kind,
+      });
+    }
+    
+    if (decision.kind === 'has-blobbi') {
+      // User already owns a hatched Blobbi — never create/hatch another.
+      // Prefer the profile's current_companion selection when possible.
+      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Skipping ceremony: user has a Blobbi', decision.selected.d);
+      if (profile?.currentCompanion) {
+        setStoredSelectedD(decision.selected.d);
+      }
+      // Auto-fix the onboardingDone flag if a profile exists and it was missing.
       if (profile && !profile.onboardingDone && user?.pubkey) {
         fetchFreshEvent(nostr, {
           kinds: [KIND_BLOBBONAUT_PROFILE],
@@ -635,21 +662,14 @@ function BlobbiContent() {
           }
         }).catch(err => console.error('[BlobbiPage] Failed to auto-fix onboardingDone:', err));
       }
-    } else if (eggs.length > 0) {
+    } else if (decision.kind === 'reuse-egg') {
       // User has only eggs — reuse one for the ceremony (don't create a new one).
-      // Pick a random egg if multiple exist.
-      const egg = eggs.length === 1 ? eggs[0] : eggs[Math.floor(Math.random() * eggs.length)];
-      ceremonyEggRef.current = egg;
-      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony with existing egg:', egg.d);
-      claimAutomaticStart();
+      ceremonyEggRef.current = decision.egg;
+      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony with existing egg:', decision.egg.d);
       setCeremonyInProgress(true);
     } else {
-      // Collection settled with zero companions — treat as new user.
-      // Backstop: the ceremony itself re-queries relays immediately before
-      // publishing (idempotency guard), so even if this empty result is wrong
-      // (e.g. a relay that answered empty here recovers), no duplicate is created.
-      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony: no companions found');
-      claimAutomaticStart();
+      // No valid Blobbi found on relays — treat as new user and allow hatch.
+      if (DEBUG_BLOBBI) console.log('[BlobbiPage] Starting ceremony: no existing Blobbi found');
       setCeremonyInProgress(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -684,6 +704,15 @@ function BlobbiContent() {
           invalidateCompanion={invalidateCompanion}
           setStoredSelectedD={setStoredSelectedD}
           existingCompanion={ceremonyEggRef.current}
+          onExistingBlobbiFound={(companion) => {
+            // Hard preflight guard found an existing Blobbi (e.g. Island-created)
+            // right before a duplicate would have been minted. Select it and
+            // leave the ceremony without creating anything.
+            if (DEBUG_BLOBBI) console.log('[BlobbiPage] Preflight found existing Blobbi, aborting hatch:', companion.d);
+            setStoredSelectedD(companion.d);
+            invalidateCollection();
+            setCeremonyInProgress(false);
+          }}
           onComplete={() => setCeremonyInProgress(false)}
         />
       </div>,
@@ -703,7 +732,9 @@ function BlobbiContent() {
   }
   
   // ─── CASE E: Companions not yet resolved (fetching) ───
-  if (collectionFetching && companions.length === 0) {
+  // Also wait while the interop recovery fetch is still in flight, so we don't
+  // flash "Pet Data Not Found" before a recoverable Island Blobbi arrives.
+  if ((collectionFetching || (recoveryEnabled && recoveryFetching)) && companions.length === 0) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: syncing pets from relays');
     return (
       <DashboardShell>
