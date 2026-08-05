@@ -249,12 +249,17 @@ export function AIChatPage() {
     return snapshotToDisplayMessages(msgs, sessionTimestamps);
   }, [snapshotMessages, activeSessionId]);
 
-  // Drop per-session timestamp caches for sessions that no longer exist
-  // (closed tabs), so the ref does not keep a dead session's entries forever.
+  // Drop the per-session caches for sessions that no longer exist (closed
+  // tabs), so neither ref keeps a dead session's entries forever. Both are
+  // keyed the same way and must be dropped together: a stale count left
+  // behind would make a later session reusing that id look like it shrank.
   useEffect(() => {
     const liveSessionIds = new Set(sessions.map((s) => s.id));
     for (const id of [...messageTimestampsRef.current.keys()]) {
       if (!liveSessionIds.has(id)) messageTimestampsRef.current.delete(id);
+    }
+    for (const id of [...lastMessageCountsRef.current.keys()]) {
+      if (!liveSessionIds.has(id)) lastMessageCountsRef.current.delete(id);
     }
   }, [sessions]);
   const isLoading = agentSnapshot?.isLoading ?? false;
