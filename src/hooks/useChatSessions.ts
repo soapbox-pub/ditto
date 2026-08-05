@@ -227,10 +227,13 @@ export function useChatSessions(pubkey?: string, profiles: AIProviderProfile[] =
 
   /** Patch provider/model/title on a single session without touching the others. */
   function updateSession(id: string, patch: SessionPatch): void {
-    setState((prev) => ({
-      ...prev,
-      sessions: prev.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)),
-    }));
+    setState((prev) => {
+      if (!prev.sessions.some((s) => s.id === id)) return prev;
+      return {
+        ...prev,
+        sessions: prev.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+      };
+    });
     // Persist the metadata fields; the agent blob is preserved by the merge.
     // Logged out the patch is in memory only (see loadOrBootstrap).
     const metadata = {
