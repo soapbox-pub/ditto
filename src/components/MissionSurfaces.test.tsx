@@ -23,7 +23,6 @@ import {
  */
 
 let state: PostOnboardingGuideState | undefined;
-let arrivalSettled = true;
 
 vi.mock('@/hooks/usePostOnboardingGuide', () => ({
   usePostOnboardingGuide: () => ({
@@ -47,9 +46,6 @@ vi.mock('@/hooks/usePostOnboardingGuide', () => ({
 }));
 vi.mock('@/hooks/useMissionCelebration', () => ({
   useMissionCelebration: () => ({ celebrating: false }),
-}));
-vi.mock('@/hooks/useArrivalSettled', () => ({
-  useArrivalSettled: () => arrivalSettled,
 }));
 vi.mock('@/hooks/useStartMissionTask', () => ({
   useStartMissionTask: () => vi.fn(),
@@ -83,7 +79,6 @@ function seed(overrides: Partial<PostOnboardingGuideState> = {}) {
 describe('desktop sidebar widget', () => {
   beforeEach(() => {
     state = undefined;
-    arrivalSettled = true;
   });
 
   it('renders nothing before the mission exists', () => {
@@ -129,14 +124,6 @@ describe('desktop sidebar widget', () => {
     expect(screen.getByRole('button', { name: /maybe later/i })).toBeInTheDocument();
   });
 
-  it('holds the introduction back until the arrival has settled', () => {
-    // Otherwise the Explorer intro collides with the app reveal and neither
-    // reads as intentional.
-    seed({ intro: {} });
-    arrivalSettled = false;
-    expect(render(<MissionsWidget />).container).toBeEmptyDOMElement();
-  });
-
   it('falls through to the compact summary once the intro is postponed', () => {
     seed({ intro: { postponedAt: 3_000 } });
     render(<MissionsWidget />);
@@ -168,7 +155,6 @@ describe('desktop sidebar widget', () => {
 describe('mobile teaser', () => {
   beforeEach(() => {
     state = undefined;
-    arrivalSettled = true;
   });
 
   it('renders nothing before the mission exists', () => {
@@ -200,12 +186,6 @@ describe('mobile teaser', () => {
     seed({ paths: { ...createInitialGuideState(1).paths, 'find-people': 'completed' } });
     render(<MobileMissionTeaser />);
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1');
-  });
-
-  it('waits for the arrival to settle before appearing', () => {
-    seed();
-    arrivalSettled = false;
-    expect(render(<MobileMissionTeaser />).container).toBeEmptyDOMElement();
   });
 
   it('disappears when the mission is hidden', () => {

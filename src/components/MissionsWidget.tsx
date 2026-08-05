@@ -5,10 +5,10 @@ import { Award, ChevronRight, EyeOff, Sparkles } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DittoExplorerIntroduction } from '@/components/DittoExplorerIntroduction';
+import { ExplorerTransitionTarget } from '@/components/ExplorerTransitionTarget';
 import { MissionCelebrationSparkle } from '@/components/MissionCelebrationSparkle';
 import { Progress } from '@/components/ui/progress';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useArrivalSettled } from '@/hooks/useArrivalSettled';
 import { useBoundedAttention } from '@/hooks/useBoundedAttention';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMissionCelebration } from '@/hooks/useMissionCelebration';
@@ -60,10 +60,6 @@ export function MissionsWidget() {
   const { celebrating } = useMissionCelebration();
   const startMissionTask = useStartMissionTask();
 
-  // Hold the introduction back for a beat after the arrival transition so the
-  // user gets to recognise the interface before anything asks for attention.
-  const arrivalSettled = useArrivalSettled();
-
   const rewardUnlocked = isCompleted && badgeClaim?.status !== 'claimed';
   const showIntro = introState === 'pending' && isActive;
 
@@ -76,11 +72,16 @@ export function MissionsWidget() {
 
   if (!state || (!isActive && !rewardUnlocked)) return null;
 
-  // Introduction: only once the arrival has settled, and only while pending.
-  // Postponed introductions fall through to the compact summary below.
+  // Introduction, while pending. Wrapped as the arrival transition's target so
+  // the travelling card knows exactly where to land — and so this stays laid
+  // out (but unpainted) until it does, which is what keeps the handoff free of
+  // any layout shift. Postponed introductions fall through to the summary.
   if (showIntro) {
-    if (!arrivalSettled) return null;
-    return <DittoExplorerIntroduction variant="sidebar" className="mb-2 w-full shrink-0" />;
+    return (
+      <ExplorerTransitionTarget className="mb-2 w-full shrink-0">
+        <DittoExplorerIntroduction variant="sidebar" />
+      </ExplorerTransitionTarget>
+    );
   }
 
   const progressValue = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;

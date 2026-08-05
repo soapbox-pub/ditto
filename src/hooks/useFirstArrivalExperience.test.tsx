@@ -28,13 +28,18 @@ vi.mock('@/lib/reducedMotion', () => ({
 /**
  * Run the whole sequence to completion.
  *
- * Two steps on purpose: the `revealing → done` timer is only scheduled once
- * React has re-rendered with `phase === 'revealing'`, so a single bulk advance
- * would fire the first timer and never register the second.
+ * Stepped on purpose: each stage's timer is only scheduled once React has
+ * re-rendered into that stage, so a single bulk advance would fire the first
+ * timer and never register the ones after it.
+ *
+ * The travel stage is normally ended by the FLIP runner calling
+ * `completeTravel()`; this hook is tested in isolation, so it falls through to
+ * the safety timeout instead — which is exactly the behaviour worth pinning.
  */
 function playThrough() {
   act(() => void vi.advanceTimersByTime(3_000)); // playing → revealing
-  act(() => void vi.advanceTimersByTime(1_000)); // revealing → done
+  act(() => void vi.advanceTimersByTime(1_000)); // revealing → travelling
+  act(() => void vi.advanceTimersByTime(3_000)); // travelling → done (safety net)
 }
 
 describe('useFirstArrivalExperience', () => {
@@ -81,6 +86,7 @@ describe('useFirstArrivalExperience', () => {
     act(() => first.result.current.skip());
     expect(first.result.current.phase).toBe('revealing');
     act(() => void vi.advanceTimersByTime(1_000));
+    // A skip goes straight to the application — no travel stage.
     expect(first.result.current.phase).toBe('done');
     first.unmount();
 
@@ -204,5 +210,122 @@ describe('useFirstArrivalExperience', () => {
     playThrough();
     act(() => result.current.skip());
     expect(result.current.phase).toBe('done');
+  });
+});
+
+describe('useFirstArrivalExperience — the theatrical handoff', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    localStorage.clear();
+    pubkey = ALICE;
+    reduced = false;
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('travels only for a genuine first arrival', () => {
+    markFirstArrival(APP, ALICE);
+    const { result } = renderHook(() => useFirstArrivalExperience());
+
+    act(() => void vi.advanceTimersByTime(3_000)); // playing → revealing
+    act(() => void vi.advanceTimersByTime(1_000)); // revealing → travelling
+    expect(result.current.phase).toBe('travelling');
+    expect(result.current.travelling).toBe(true);
+  });
+
+  it('never runs for an ordinary existing-user session', () => {
+    // No marker: the introduction still appears in its normal place, but the
+    // theatrical transition is exclusive to arrival.
+    const { result } = renderHook(() => useFirstArrivalExperience());
+    act(() => void vi.advanceTimersByTime(6_000));
+    expect(result.current.phase).toBe('idle');
+    expect(result.current.travelling).toBe(false);
+    expect(result.current.visible).toBe(false);
+  });
+
+  it('crossfades instead of travelling under reduced motion', () => {
+    reduced = true;
+    markFirstArrival(APP, ALICE);
+    const { result } = renderHook(() => useFirstArrivalExperience());
+
+    act(() => void vi.advanceTimersByTime(1_500));
+    expect(result.current.phase).toBe('revealing');
+    act(() => void vi.advanceTimersByTime(300));
+    // Straight to the end — the card never crosses the screen.
+    expect(result.current.phase).toBe('done');
+    expect(result.current.travelling).toBe(false);
+  });
+
+  it('skipping goes straight to the application, with no travel', () => {
+    markFirstArrival(APP, ALICE);
+    const { result } = renderHook(() => useFirstArrivalExperience());
+
+    act(() => void vi.advanceTimersByTime(1_800));
+    act(() => result.current.skip());
+    act(() => void vi.advanceTimersByTime(2_000));
+
+    expect(result.current.phase).toBe('done');
+    expect(result.current.travelling).toBe(false);
+    expect(result.current.visible).toBe(false);
+  });
+
+  it('completes the travel when the runner reports back', () => {
+    markFirstArrival(APP, ALICE);
+    const { result } = renderHook(() => useFirstArrivalExperience());
+
+    act(() => void vi.advanceTimersByTime(3_000));
+    act(() => void vi.advanceTimersByTime(1_000));
+    expect(result.current.phase).toBe('travelling');
+
+    act(() => result.current.completeTravel());
+    expect(result.current.phase).toBe('done');
+    expect(result.current.visible).toBe(false);
+  });
+
+  it('never strands the overlay if the runner never reports back', () => {
+    // A cancelled animation or a browser quirk must not leave the app covered.
+    markFirstArrival(APP, ALICE);
+    const { result } = renderHook(() => useFirstArrivalExperience());
+
+    act(() => void vi.advanceTimersByTime(3_000));
+    act(() => void vi.advanceTimersByTime(1_000));
+    expect(result.current.phase).toBe('travelling');
+
+    act(() => void vi.advanceTimersByTime(3_000));
+    expect(result.current.phase).toBe('done');
+  });
+
+  it('completeTravel is inert outside the travel stage', () => {
+    markFirstArrival(APP, ALICE);
+    const { result } = renderHook(() => useFirstArrivalExperience());
+    expect(result.current.phase).toBe('playing');
+
+    act(() => result.current.completeTravel());
+    expect(result.current.phase).toBe('playing');
+  });
+
+  it('consumes the intent at the reveal, before the card has landed', () => {
+    // The arrival has genuinely been presented by then; the travel is the
+    // hand-off, not the experience.
+    markFirstArrival(APP, ALICE);
+    const { result } = renderHook(() => useFirstArrivalExperience());
+
+    act(() => void vi.advanceTimersByTime(3_000));
+    expect(result.current.phase).toBe('revealing');
+    expect(readFirstArrival(APP, ALICE)?.consumedAt).toBeTypeOf('number');
+  });
+
+  it('writes nothing but the local marker across the whole sequence', () => {
+    // The visual transition must not touch mission state or publish anything.
+    markFirstArrival(APP, ALICE);
+    const { result } = renderHook(() => useFirstArrivalExperience());
+    playThrough();
+    expect(result.current.phase).toBe('done');
+
+    const written: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key) written.push(key);
+    }
+    expect(written).toEqual([`ditto:first-arrival:${ALICE}`]);
   });
 });

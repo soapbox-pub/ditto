@@ -17,6 +17,16 @@ import {
  * `/?missionDev=intro` or `/missions?missionDev=ready`. Reduced-motion variants
  * come from the OS/browser setting; desktop vs. mobile from the viewport.
  *
+ * Arrival scenarios, all replayable by reloading:
+ *  - `arrival`          — the whole sequence from the first beat.
+ *  - `arrival-card`     — starts at the Explorer card, skipping the welcome, for
+ *                         iterating on the card itself without waiting.
+ *  - `arrival-handoff`  — starts at the travel, for iterating on the part that
+ *                         is hardest to catch: whether the card genuinely lands
+ *                         on its destination.
+ *
+ * This is a permanent development tool for this experience, not a demo.
+ *
  * ### Isolation
  *
  * Three layers keep this away from production. `import.meta.env.DEV` is
@@ -32,6 +42,8 @@ import {
 
 export type MissionDevState =
   | 'arrival'
+  | 'arrival-card'
+  | 'arrival-handoff'
   | 'intro'
   | 'intro-postponed'
   | 'active0'
@@ -70,9 +82,28 @@ export function missionDevActive(): boolean {
   return missionDevState() !== undefined;
 }
 
+/** Arrival scenarios, and the beat each one starts on. */
+const ARRIVAL_ENTRY: Partial<Record<MissionDevState, 'sequence' | 'card' | 'handoff'>> = {
+  arrival: 'sequence',
+  'arrival-card': 'card',
+  'arrival-handoff': 'handoff',
+};
+
+/**
+ * Which beat the harness should force the arrival to start on, or `undefined`
+ * when it should not run at all.
+ *
+ * Starting mid-sequence exists because the handoff is the part worth iterating
+ * on and the part you otherwise have to sit through three seconds to see.
+ */
+export function missionDevArrivalEntry(): 'sequence' | 'card' | 'handoff' | undefined {
+  const scenario = missionDevState();
+  return scenario ? ARRIVAL_ENTRY[scenario] : undefined;
+}
+
 /** Whether the harness should force the arrival transition to play. */
 export function missionDevForcesArrival(): boolean {
-  return missionDevState() === 'arrival';
+  return missionDevArrivalEntry() !== undefined;
 }
 
 // ── Shared harness store ────────────────────────────────────────────────────
@@ -131,6 +162,8 @@ function buildMissionDevState(): PostOnboardingGuideState | undefined {
 
   switch (scenario) {
     case 'arrival':
+    case 'arrival-card':
+    case 'arrival-handoff':
     case 'intro':
       return state; // freshly created: intro pending
     case 'intro-postponed':

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { missionDevForcesArrival } from '@/dev/missionHarness';
+import { missionDevArrivalEntry } from '@/dev/missionHarness';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
@@ -13,22 +13,37 @@ import { prefersReducedMotion } from '@/lib/reducedMotion';
 /**
  * Phases of the one-time arrival transition.
  *
- * - `waiting`   — we have not yet resolved which account (if any) is active, so
- *                 we cannot know whether an arrival is owed. Bounded.
- * - `idle`      — nothing to play. The overlay renders nothing.
- * - `playing`   — the sequence is on screen (Act 1 signal → Act 2 welcome).
- * - `revealing` — the overlay is fading out over the real interface (Act 3).
- * - `done`      — finished or skipped; the intent has been consumed.
+ * - `waiting`     — we have not yet resolved which account (if any) is active,
+ *                   so we cannot know whether an arrival is owed. Bounded.
+ * - `idle`        — nothing to play. The overlay renders nothing.
+ * - `playing`     — the sequence is on screen (signal → welcome → Explorer card).
+ * - `revealing`   — the backdrop dissolves and the real interface appears behind
+ *                   the still-centred card.
+ * - `travelling`  — the card flies to the persistent Explorer surface and hands
+ *                   over. Skipped entirely under reduced motion or on skip.
+ * - `done`        — finished or skipped; the intent has been consumed.
  */
-export type ArrivalPhase = 'waiting' | 'idle' | 'playing' | 'revealing' | 'done';
+export type ArrivalPhase =
+  | 'waiting'
+  | 'idle'
+  | 'playing'
+  | 'revealing'
+  | 'travelling'
+  | 'done';
 
 /** How long we will wait for an account to resolve before giving up. */
 const ACCOUNT_WAIT_MS = 5_000;
 
-/** Act 1 + Act 2: the signal forms, then the welcome reads. */
+/** Signal build, welcome, then the Explorer card appears and becomes readable. */
 const PLAY_MS = 2_600;
-/** Act 3: the overlay fades and the interface takes over. */
-const REVEAL_MS = 500;
+/** The backdrop dissolves; the app is visible behind the still-centred card. */
+const REVEAL_MS = 800;
+/**
+ * Safety net for the travel stage. The FLIP runner normally ends it by calling
+ * `completeTravel()`, but an animation that never resolves (a cancelled
+ * `WebAnimation`, a browser quirk) must not strand the overlay on screen.
+ */
+const TRAVEL_TIMEOUT_MS = 2_500;
 
 /** Reduced motion: a static welcome, held briefly, then an immediate hand-off. */
 const REDUCED_PLAY_MS = 1_500;
@@ -38,12 +53,16 @@ export interface FirstArrivalExperience {
   phase: ArrivalPhase;
   /** True while the overlay should be mounted. */
   visible: boolean;
-  /** True once the overlay has started fading out. */
+  /** True once the backdrop has started dissolving. */
   revealing: boolean;
+  /** True while the card is flying to the persistent Explorer surface. */
+  travelling: boolean;
   /** Whether the simplified, motion-free presentation is in use. */
   reducedMotion: boolean;
   /** Dismiss immediately; consumes the intent so it never replays. */
   skip: () => void;
+  /** Called by the FLIP runner once the card has landed (or failed to). */
+  completeTravel: () => void;
 }
 
 /**
@@ -70,11 +89,18 @@ export function useFirstArrivalExperience(): FirstArrivalExperience {
   const pubkey = user?.pubkey;
 
   // Localhost-only: force the sequence so it can be inspected without a real
-  // signup. False in every production build. It drives presentation only — no
-  // marker is written or consumed, so it cannot affect a real account.
-  const forced = missionDevForcesArrival();
+  // signup, optionally starting at a later beat. Undefined in every production
+  // build. It drives presentation only — no marker is written or consumed, so it
+  // cannot affect a real account.
+  const devEntry = missionDevArrivalEntry();
+  const forced = devEntry !== undefined;
 
-  const [phase, setPhase] = useState<ArrivalPhase>(forced ? 'playing' : 'waiting');
+  const [phase, setPhase] = useState<ArrivalPhase>(
+    devEntry === 'handoff' ? 'revealing' : forced ? 'playing' : 'waiting',
+  );
+  // A skip jumps straight to the hand-off: the user asked for the application,
+  // so flying a card across it would be ignoring them.
+  const skippedRef = useRef(false);
   // Latches the account this run belongs to, so switching accounts mid-session
   // can never let one account's arrival play for another.
   const playingForRef = useRef<string | undefined>(undefined);
@@ -132,26 +158,45 @@ export function useFirstArrivalExperience(): FirstArrivalExperience {
     return () => clearTimeout(timer);
   }, [phase, reducedMotion, finish]);
 
-  // Act 3 → done.
+  // Backdrop dissolved → travel, unless motion is unwanted or unhelpful.
+  //
+  // Reduced motion crossfades instead of travelling, and a skip goes straight
+  // to the application. Both still reach exactly the same end state.
   useEffect(() => {
     if (phase !== 'revealing') return;
     const timer = setTimeout(
-      () => setPhase('done'),
+      () => setPhase(reducedMotion || skippedRef.current ? 'done' : 'travelling'),
       reducedMotion ? REDUCED_REVEAL_MS : REVEAL_MS,
     );
     return () => clearTimeout(timer);
   }, [phase, reducedMotion]);
 
+  // Travel is ended by the FLIP runner; this only catches an animation that
+  // never reports back.
+  useEffect(() => {
+    if (phase !== 'travelling') return;
+    const timer = setTimeout(() => setPhase('done'), TRAVEL_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [phase]);
+
+  const completeTravel = useCallback(() => {
+    setPhase((current) => (current === 'travelling' ? 'done' : current));
+  }, []);
+
   const skip = useCallback(() => {
-    if (phase !== 'playing') return;
-    finish('skipped');
+    if (phase !== 'playing' && phase !== 'revealing') return;
+    skippedRef.current = true;
+    if (phase === 'playing') finish('skipped');
+    else setPhase('done');
   }, [phase, finish]);
 
   return {
     phase,
-    visible: phase === 'playing' || phase === 'revealing',
-    revealing: phase === 'revealing',
+    visible: phase === 'playing' || phase === 'revealing' || phase === 'travelling',
+    revealing: phase === 'revealing' || phase === 'travelling',
+    travelling: phase === 'travelling',
     reducedMotion,
     skip,
+    completeTravel,
   };
 }

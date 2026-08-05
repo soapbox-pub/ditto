@@ -1070,27 +1070,28 @@
   animation: arrival-welcome 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.75s forwards;
 }
 
-/* Act 3 — the overlay dissolves. The app beneath is already laid out, so
-   nothing shifts when this element leaves. */
-@keyframes arrival-overlay-out {
+/* The Explorer card rises into the centre — a short lift and settle, not a
+   zoom. Only the card animates; the mark and welcome fade back with a plain
+   Tailwind transition so nothing competes for the same properties. */
+@keyframes arrival-card-in {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.arrival-card-in {
+  animation: arrival-card-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* The backdrop dissolves so the real application shows through, while the card
+   stays put and then travels to its destination. Only the backdrop fades — the
+   card is animated imperatively by the FLIP runner, which owns its transform. */
+@keyframes arrival-backdrop-out {
   0%   { opacity: 1; }
   100% { opacity: 0; }
 }
 
-.arrival-overlay-out {
-  animation: arrival-overlay-out 0.5s ease-out forwards;
-  pointer-events: none;
-}
-
-/* The interface itself enters with a whisper — opacity only, no translate, so
-   the reveal can never cause a layout shift or reflow the feed. */
-@keyframes arrival-app-in {
-  0%   { opacity: 0.55; }
-  100% { opacity: 1; }
-}
-
-.arrival-app-in {
-  animation: arrival-app-in 0.45s ease-out forwards;
+.arrival-backdrop-out {
+  animation: arrival-backdrop-out 0.7s ease-out forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1098,8 +1099,8 @@
   .arrival-mark,
   .arrival-halo,
   .arrival-welcome,
-  .arrival-overlay-out,
-  .arrival-app-in {
+  .arrival-card-in,
+  .arrival-backdrop-out {
     animation: none;
     opacity: 1;
   }

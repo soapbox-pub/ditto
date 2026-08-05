@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Award, ChevronRight, Sparkles } from 'lucide-react';
 
+import { ExplorerTransitionTarget } from '@/components/ExplorerTransitionTarget';
 import { MissionCelebrationSparkle } from '@/components/MissionCelebrationSparkle';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useArrivalSettled } from '@/hooks/useArrivalSettled';
 import { useBoundedAttention } from '@/hooks/useBoundedAttention';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMissionCelebration } from '@/hooks/useMissionCelebration';
@@ -41,12 +41,11 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
   const { state, isActive, isCompleted, completedCount, totalCount, badgeClaim, introState } =
     usePostOnboardingGuide();
   const { celebrating } = useMissionCelebration();
-  const arrivalSettled = useArrivalSettled();
   const [tapped, setTapped] = useState(false);
 
   const rewardUnlocked = isCompleted && badgeClaim?.status !== 'claimed';
   const introPending = introState === 'pending' && isActive;
-  const visible = !!state && (isActive || rewardUnlocked) && arrivalSettled;
+  const visible = !!state && (isActive || rewardUnlocked);
 
   // Per-user budget rather than per-mount: this teaser mounts on several pages,
   // so a mount-scoped cap would nudge again on each of them.
@@ -60,7 +59,8 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
   const progressValue = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   return (
-    <div ref={attentionRef} className={cn('lg:hidden mx-4 my-2', className)}>
+    <ExplorerTransitionTarget className={cn('lg:hidden mx-4 my-2', className)}>
+      <div ref={attentionRef}>
       <button
         type="button"
         onClick={() => {
@@ -156,6 +156,7 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
           aria-hidden
         />
       </button>
-    </div>
+      </div>
+    </ExplorerTransitionTarget>
   );
 }

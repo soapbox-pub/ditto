@@ -5,6 +5,7 @@ import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppProvider } from "@/components/AppProvider";
 import { I18nProvider } from "@/components/I18nProvider";
+import { ExplorerArrivalProvider } from "@/components/ExplorerArrivalProvider";
 import { FirstArrivalExperience } from "@/components/FirstArrivalExperience";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
 import { NativeNotifications } from "@/components/NativeNotifications";
@@ -233,15 +234,21 @@ export function App() {
                   <NWCProvider>
                     <EmotionDevProvider>
                       <TooltipProvider>
-                        <InitialSyncGate>
-                          <AppRouter />
-                        </InitialSyncGate>
-                        {/* One-time post-signup arrival transition. Mounted at
-                            app level so it covers every gate branch and every
-                            route, and exactly once. It renders nothing unless
-                            the active account has an unconsumed arrival intent,
-                            so it is inert for every ordinary session. */}
-                        <FirstArrivalExperience />
+                        {/* Coordinates the shared-element handoff between the
+                            arrival card and the persistent Explorer surface, so
+                            it must wrap both the router (where the destination
+                            lives) and the overlay (which measures it). */}
+                        <ExplorerArrivalProvider>
+                          <InitialSyncGate>
+                            <AppRouter />
+                          </InitialSyncGate>
+                          {/* One-time post-signup arrival transition. Mounted at
+                              app level so it covers every gate branch and every
+                              route, and exactly once. It renders nothing unless
+                              the active account has an unconsumed arrival
+                              intent, so it is inert for every ordinary session. */}
+                          <FirstArrivalExperience />
+                        </ExplorerArrivalProvider>
                       </TooltipProvider>
                     </EmotionDevProvider>
                   </NWCProvider>
