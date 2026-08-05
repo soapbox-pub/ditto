@@ -6,6 +6,7 @@ import { useCurrentUser } from './useCurrentUser';
 import type { AIProviderProfile } from './useAIProviders';
 import type { ChatSession, SessionPatch } from './useChatSessions';
 import { AUTO_TITLE_MAX_TOKENS, buildTitlePrompt, cleanTitle, isFirstExchangeComplete } from '@/lib/autoTitle';
+import { pruneToLiveIds } from '@/lib/pruneToLiveIds';
 
 type AgentSnapshot = ReturnType<AgentSession['getSnapshot']>;
 
@@ -38,12 +39,13 @@ export function useAutoTitle({ sessions, snapshots, profiles, updateSession }: U
   useEffect(() => {
     if (!user) return;
 
-    // Drop in-flight entries for sessions that no longer exist (closed tabs),
-    // so the ref does not keep a dead session's entry forever.
+    // Drop tracking entries for sessions that no longer exist (closed tabs),
+    // so neither ref keeps a dead session's entry forever. lastAttemptRef is
+    // the more costly of the two, because each entry pins the whole messages
+    // array the attempt ran against.
     const liveSessionIds = new Set(sessions.map((s) => s.id));
-    for (const id of [...inFlightRef.current]) {
-      if (!liveSessionIds.has(id)) inFlightRef.current.delete(id);
-    }
+    pruneToLiveIds(inFlightRef.current, liveSessionIds);
+    pruneToLiveIds(lastAttemptRef.current, liveSessionIds);
 
     for (const session of sessions) {
       if (session.title) {
