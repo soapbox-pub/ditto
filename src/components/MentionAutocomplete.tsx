@@ -338,14 +338,27 @@ export function MentionAutocomplete({
     const textarea = textareaRef.current;
     if (!textarea) return;
     textarea.setAttribute('role', 'combobox');
-    textarea.setAttribute('aria-controls', listboxId);
     textarea.setAttribute('aria-expanded', String(isListboxRendered));
-    if (isListboxRendered && selectedIndex >= 0) {
-      textarea.setAttribute('aria-activedescendant', `${listboxId}-option-${selectedIndex}`);
+    if (isListboxRendered) {
+      textarea.setAttribute('aria-controls', listboxId);
+      // Clamp so aria-activedescendant never names an option that vanished
+      // while the dropdown was open (the list can shrink between renders).
+      const totalItems = profilesLen + filteredAbilities.length;
+      const clampedIndex = Math.min(selectedIndex, totalItems - 1);
+      textarea.setAttribute('aria-activedescendant', `${listboxId}-option-${clampedIndex}`);
     } else {
+      textarea.removeAttribute('aria-controls');
       textarea.removeAttribute('aria-activedescendant');
     }
-  }, [textareaRef, listboxId, isListboxRendered, selectedIndex]);
+    return () => {
+      // Remove only the attributes this component added; the textarea is
+      // owned by the caller.
+      textarea.removeAttribute('role');
+      textarea.removeAttribute('aria-controls');
+      textarea.removeAttribute('aria-expanded');
+      textarea.removeAttribute('aria-activedescendant');
+    };
+  }, [textareaRef, listboxId, isListboxRendered, selectedIndex, profilesLen, filteredAbilities.length]);
 
   if (!isListboxRendered) {
     return null;

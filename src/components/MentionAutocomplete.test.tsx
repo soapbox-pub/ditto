@@ -174,4 +174,46 @@ describe('MentionAutocomplete', () => {
     expect(await screen.findByText('John Doe')).toBeInTheDocument();
     expect(screen.getByText('Nostr Lookup')).toBeInTheDocument();
   });
+
+  it('removes combobox ARIA attributes from the textarea after unmount', async () => {
+    const { unmount } = render(
+      <TestApp>
+        <Harness abilities={ABILITIES} />
+      </TestApp>,
+    );
+
+    const textarea = (await screen.findByTestId('message-input')) as HTMLTextAreaElement;
+    await settle();
+    setValue(textarea, '@no');
+    await screen.findByText('Nostr Lookup');
+
+    // Dropdown open: all four attributes are on the textarea.
+    expect(textarea).toHaveAttribute('role', 'combobox');
+    expect(textarea).toHaveAttribute('aria-controls');
+    expect(textarea).toHaveAttribute('aria-expanded', 'true');
+    expect(textarea).toHaveAttribute('aria-activedescendant');
+
+    unmount();
+
+    expect(textarea).not.toHaveAttribute('role');
+    expect(textarea).not.toHaveAttribute('aria-controls');
+    expect(textarea).not.toHaveAttribute('aria-expanded');
+    expect(textarea).not.toHaveAttribute('aria-activedescendant');
+  });
+
+  it('keeps aria-controls off the textarea while the dropdown is closed', async () => {
+    render(
+      <TestApp>
+        <Harness abilities={ABILITIES} />
+      </TestApp>,
+    );
+
+    const textarea = (await screen.findByTestId('message-input')) as HTMLTextAreaElement;
+    await settle();
+
+    expect(textarea).toHaveAttribute('role', 'combobox');
+    expect(textarea).toHaveAttribute('aria-expanded', 'false');
+    expect(textarea).not.toHaveAttribute('aria-controls');
+    expect(textarea).not.toHaveAttribute('aria-activedescendant');
+  });
 });
