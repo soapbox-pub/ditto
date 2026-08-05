@@ -392,6 +392,19 @@ export const PostOnboardingGuideStateSchema = z.looseObject({
       theme: z.string().optional(),
     })
     .optional(),
+  /**
+   * Introduction presentation state. Optional and additive on purpose: adding a
+   * `status` value or bumping `version` would fail validation on older clients
+   * and drop them into the raw-JSON fallback for the *whole* settings object.
+   * Its presence also doubles as the rollout marker — see `introState`.
+   */
+  intro: z
+    .looseObject({
+      presentedAt: z.number().optional(),
+      acknowledgedAt: z.number().optional(),
+      postponedAt: z.number().optional(),
+    })
+    .optional(),
 });
 
 // ─── EncryptedSettings Schema ────────────────────────────────────────

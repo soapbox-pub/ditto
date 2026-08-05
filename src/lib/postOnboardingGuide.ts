@@ -112,6 +112,26 @@ export interface MissionBaselines {
   theme?: string;
 }
 
+/**
+ * Presentation state of the Ditto Explorer *introduction* — the short "here's
+ * what this is" panel shown before the task list.
+ *
+ * This is an **optional, additive** field rather than a new `status` value or a
+ * `version` bump, and that is a deliberate compatibility decision. Both of
+ * those alternatives make an older client fail `EncryptedSettingsSchema`
+ * validation, which drops it into the raw-JSON fallback path for *every*
+ * setting the user has — not just the mission. An extra optional field costs
+ * nothing and is preserved verbatim by the `looseObject` strategy.
+ */
+export interface MissionIntro {
+  /** Epoch ms the introduction was first shown. */
+  presentedAt?: number;
+  /** Epoch ms the user chose "Start exploring". Terminal. */
+  acknowledgedAt?: number;
+  /** Epoch ms the user chose "Maybe later". Not terminal — see below. */
+  postponedAt?: number;
+}
+
 export interface PostOnboardingGuideState {
   /** Schema version, so the shape can evolve without colliding with old data. */
   version: 1;
@@ -133,6 +153,11 @@ export interface PostOnboardingGuideState {
   customize?: CustomizeSubsteps;
   /** Real-product-state snapshots used for change-based completion. */
   baselines?: MissionBaselines;
+  /**
+   * Introduction presentation state. **Its presence is the rollout marker** —
+   * see {@link introState} for the compatibility rule.
+   */
+  intro?: MissionIntro;
 }
 
 /** The four actionable tasks, in display order. */
@@ -190,8 +215,65 @@ export function createInitialGuideState(now = Date.now()): PostOnboardingGuideSt
       explore: 'not_started',
     },
     startedAt: now,
+    // Written explicitly (empty, not absent) so this state is identifiable as
+    // post-rollout and begins with the introduction pending. See `introState`.
+    intro: {},
     updatedAt: now,
   };
+}
+
+/**
+ * How the introduction should be treated for a given mission state.
+ *
+ * - `none`         — legacy state, created before the introduction existed.
+ *                    Treated as already past it: these users have been using
+ *                    the checklist for weeks and must not be shown a "welcome,
+ *                    here's what this is" panel now.
+ * - `pending`      — never acknowledged or postponed. Show the introduction.
+ * - `postponed`    — the user chose "Maybe later". Promotional surfaces go
+ *                    quiet, but `/missions` still offers the introduction, and
+ *                    the mission itself is untouched.
+ * - `acknowledged` — the user chose "Start exploring". Show the real mission.
+ *
+ * ### The compatibility rule
+ *
+ * **Presence of the `intro` object is the rollout marker.** States created
+ * before this feature have no `intro` key at all and resolve to `none`; every
+ * state created afterwards is born with `intro: {}` and resolves to `pending`.
+ *
+ * This is preferred over a date cutoff because it needs no clock agreement
+ * between devices, cannot be wrong for a user whose local clock is skewed, and
+ * requires no migration write — the distinction is structural and permanent.
+ */
+export type MissionIntroState = 'none' | 'pending' | 'postponed' | 'acknowledged';
+
+export function introState(
+  state: PostOnboardingGuideState | undefined,
+): MissionIntroState {
+  if (!state?.intro) return 'none';
+  if (state.intro.acknowledgedAt) return 'acknowledged';
+  if (state.intro.postponedAt) return 'postponed';
+  return 'pending';
+}
+
+/**
+ * Whether the introduction still owes the user a presentation — i.e. it should
+ * be offered on `/missions` and anchored from the compact surfaces.
+ */
+export function isIntroOutstanding(state: PostOnboardingGuideState | undefined): boolean {
+  const intro = introState(state);
+  return intro === 'pending' || intro === 'postponed';
+}
+
+/**
+ * Whether the *full* mission detail (task rows, reward panel) may be shown.
+ * Task rows are deliberately withheld until the user has acknowledged the
+ * introduction, so their first encounter is an invitation rather than a
+ * checklist.
+ */
+export function canShowMissionDetail(state: PostOnboardingGuideState | undefined): boolean {
+  const intro = introState(state);
+  return intro === 'none' || intro === 'acknowledged';
 }
 
 /** Number of completed tasks. */
@@ -205,6 +287,23 @@ export function countCompletedPaths(state: PostOnboardingGuideState): number {
 /** True when every task has been completed. */
 export function areAllPathsCompleted(state: PostOnboardingGuideState): boolean {
   return POST_ONBOARDING_PATH_IDS.every((id) => state.paths[id] === 'completed');
+}
+
+/**
+ * The task the compact surfaces should recommend next.
+ *
+ * Prefers the task the user most recently *started* (`activePath`) when it is
+ * still unfinished, so a surface can't tell someone "up next: post something"
+ * while they are standing in the middle of the customize flow. Falls back to
+ * the first unfinished task in canonical order.
+ */
+export function nextRecommendedPath(
+  state: PostOnboardingGuideState | undefined,
+): PostOnboardingPathId | undefined {
+  if (!state) return undefined;
+  const { activePath } = state;
+  if (activePath && state.paths[activePath] !== 'completed') return activePath;
+  return POST_ONBOARDING_PATH_IDS.find((id) => state.paths[id] !== 'completed');
 }
 
 /** Whether the customize profile substep has been completed. */
