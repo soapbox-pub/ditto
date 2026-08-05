@@ -33,6 +33,7 @@ export const ExplorerArrivalCard = forwardRef<
       aria-hidden={travelling || undefined}
       className={cn(
         'w-[min(22rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl p-5',
+        '[@media(max-height:720px)]:p-4',
         'border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card',
         'shadow-xl shadow-primary/10 ring-1 ring-primary/5',
         // Transform origin is set imperatively by the FLIP runner; keeping the
@@ -45,6 +46,7 @@ export const ExplorerArrivalCard = forwardRef<
       <div
         className={cn(
           'mb-3 flex justify-center transition-opacity duration-300',
+          '[@media(max-height:720px)]:mb-2',
           simplified && 'opacity-0',
         )}
       >
@@ -61,6 +63,7 @@ export const ExplorerArrivalCard = forwardRef<
       <div
         className={cn(
           'mt-4 flex items-center gap-2.5 rounded-xl border border-dashed border-primary/30 bg-primary/5 p-3',
+          '[@media(max-height:720px)]:mt-3 [@media(max-height:720px)]:p-2.5',
           'transition-opacity duration-300',
           simplified && 'opacity-0',
         )}

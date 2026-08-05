@@ -5,22 +5,32 @@ import { cn } from '@/lib/utils';
 
 export type ExplorerVisualSize = 'sm' | 'md' | 'lg';
 
+/**
+ * `lg` shrinks on short viewports. The arrival presentation stacks a heading,
+ * microcopy and this card in one centred column; at 390x560 the full-size
+ * version clipped off the bottom of the screen.
+ */
 const BADGE_SIZE: Record<ExplorerVisualSize, string> = {
   sm: 'size-12',
   md: 'size-16',
-  lg: 'size-24',
+  lg: 'size-24 [@media(max-height:720px)]:size-16',
 };
 
 const NAME_SIZE: Record<ExplorerVisualSize, string> = {
   sm: 'text-sm',
   md: 'text-base',
-  lg: 'text-xl',
+  lg: 'text-base',
 };
 
+/**
+ * The `lg` headline is deliberately smaller than the presentation title above
+ * it. At `text-2xl` the two were the same weight and size, so the card competed
+ * with the heading that was supposed to be introducing it.
+ */
 const HEADLINE_SIZE: Record<ExplorerVisualSize, string> = {
   sm: 'text-xs',
   md: 'text-lg',
-  lg: 'text-2xl',
+  lg: 'text-lg [@media(max-height:720px)]:text-base',
 };
 
 /**

@@ -1074,24 +1074,47 @@
    zoom. Only the card animates; the mark and welcome fade back with a plain
    Tailwind transition so nothing competes for the same properties. */
 @keyframes arrival-card-in {
-  0%   { opacity: 0; transform: translateY(14px) scale(0.96); }
+  0%   { opacity: 0; transform: translateY(12px) scale(0.96); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* Slightly delayed behind the framing copy, so the heading reads first and the
+   card settles under it — a coordinated entrance rather than both popping. */
 .arrival-card-in {
-  animation: arrival-card-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: arrival-card-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.12s backwards;
 }
 
 /* The backdrop dissolves so the real application shows through, while the card
    stays put and then travels to its destination. Only the backdrop fades — the
-   card is animated imperatively by the FLIP runner, which owns its transform. */
+   card is animated imperatively by the FLIP runner, which owns its transform.
+
+   Stepped rather than a plain ease-out fade. The previous curve dropped from
+   fully opaque to roughly half in its first 200ms, which read as the whole
+   application snapping into existence at once. These stops keep the app
+   arriving through clearly perceptible degrees of translucency, with the
+   backdrop's blur easing off alongside so the interface resolves rather than
+   simply appearing. `linear` timing keeps the stops evenly spaced. */
 @keyframes arrival-backdrop-out {
-  0%   { opacity: 1; }
-  100% { opacity: 0; }
+  0%   { opacity: 1;    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  25%  { opacity: 0.88; backdrop-filter: blur(9px);  -webkit-backdrop-filter: blur(9px); }
+  50%  { opacity: 0.62; backdrop-filter: blur(6px);  -webkit-backdrop-filter: blur(6px); }
+  75%  { opacity: 0.32; backdrop-filter: blur(3px);  -webkit-backdrop-filter: blur(3px); }
+  100% { opacity: 0;    backdrop-filter: blur(0px);  -webkit-backdrop-filter: blur(0px); }
 }
 
 .arrival-backdrop-out {
-  animation: arrival-backdrop-out 0.7s ease-out forwards;
+  animation: arrival-backdrop-out 0.95s linear forwards;
+}
+
+/* The framing copy above the card rises a few pixels as it fades in, a beat
+   before the card settles, so the two read as one composition arriving. */
+@keyframes arrival-intro-in {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.arrival-intro-in {
+  animation: arrival-intro-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1100,6 +1123,7 @@
   .arrival-halo,
   .arrival-welcome,
   .arrival-card-in,
+  .arrival-intro-in,
   .arrival-backdrop-out {
     animation: none;
     opacity: 1;

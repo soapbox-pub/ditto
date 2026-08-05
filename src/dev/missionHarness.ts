@@ -1,4 +1,5 @@
 import { isLocalhostDev } from '@/dev/isLocalhostDev';
+import type { ArrivalStageEntry } from '@/hooks/useArrivalStage';
 import {
   createInitialGuideState,
   type PostOnboardingGuideState,
@@ -17,13 +18,14 @@ import {
  * `/?missionDev=intro` or `/missions?missionDev=ready`. Reduced-motion variants
  * come from the OS/browser setting; desktop vs. mobile from the viewport.
  *
- * Arrival scenarios, all replayable by reloading:
- *  - `arrival`          — the whole sequence from the first beat.
- *  - `arrival-card`     — starts at the Explorer card, skipping the welcome, for
- *                         iterating on the card itself without waiting.
- *  - `arrival-handoff`  — starts at the travel, for iterating on the part that
- *                         is hardest to catch: whether the card genuinely lands
- *                         on its destination.
+ * Arrival scenarios, all replayable by reloading. Each starts *directly* on the
+ * named act rather than approximating it with a delayed timer, then continues
+ * from there:
+ *  - `arrival`              — the whole sequence from the first beat.
+ *  - `arrival-welcome`      — the welcome, held.
+ *  - `arrival-presentation` — the Explorer heading and card, held.
+ *  - `arrival-reveal`       — the backdrop dissolving over the application.
+ *  - `arrival-handoff`      — the travel, the part hardest to catch by hand.
  *
  * This is a permanent development tool for this experience, not a demo.
  *
@@ -42,7 +44,9 @@ import {
 
 export type MissionDevState =
   | 'arrival'
-  | 'arrival-card'
+  | 'arrival-welcome'
+  | 'arrival-presentation'
+  | 'arrival-reveal'
   | 'arrival-handoff'
   | 'intro'
   | 'intro-postponed'
@@ -82,28 +86,36 @@ export function missionDevActive(): boolean {
   return missionDevState() !== undefined;
 }
 
-/** Arrival scenarios, and the beat each one starts on. */
-const ARRIVAL_ENTRY: Partial<Record<MissionDevState, 'sequence' | 'card' | 'handoff'>> = {
+/** Arrival scenarios, and the act each one starts on. */
+const ARRIVAL_ENTRY: Partial<Record<MissionDevState, ArrivalStageEntry | 'sequence'>> = {
   arrival: 'sequence',
-  'arrival-card': 'card',
+  'arrival-welcome': 'welcome',
+  'arrival-presentation': 'presenting',
+  'arrival-reveal': 'revealing',
   'arrival-handoff': 'handoff',
 };
 
 /**
- * Which beat the harness should force the arrival to start on, or `undefined`
- * when it should not run at all.
+ * Which act the harness should start the arrival on, or `undefined` for the
+ * full sequence (and for every non-arrival scenario).
  *
- * Starting mid-sequence exists because the handoff is the part worth iterating
- * on and the part you otherwise have to sit through three seconds to see.
+ * Entering mid-sequence exists because the interesting frames — the handoff,
+ * the backdrop mid-fade — are a few hundred milliseconds long and otherwise
+ * cost several seconds of waiting per attempt to reach.
  */
-export function missionDevArrivalEntry(): 'sequence' | 'card' | 'handoff' | undefined {
+export function missionDevArrivalEntry(): ArrivalStageEntry | undefined {
   const scenario = missionDevState();
-  return scenario ? ARRIVAL_ENTRY[scenario] : undefined;
+  const entry = scenario ? ARRIVAL_ENTRY[scenario] : undefined;
+  return entry && entry !== 'sequence' ? entry : undefined;
 }
 
-/** Whether the harness should force the arrival transition to play. */
+/**
+ * Whether the harness should force the arrival to play at all — true for every
+ * `arrival*` scenario, including the full sequence, which has no entry act.
+ */
 export function missionDevForcesArrival(): boolean {
-  return missionDevArrivalEntry() !== undefined;
+  const scenario = missionDevState();
+  return scenario !== undefined && ARRIVAL_ENTRY[scenario] !== undefined;
 }
 
 // ── Shared harness store ────────────────────────────────────────────────────
@@ -162,7 +174,9 @@ function buildMissionDevState(): PostOnboardingGuideState | undefined {
 
   switch (scenario) {
     case 'arrival':
-    case 'arrival-card':
+    case 'arrival-welcome':
+    case 'arrival-presentation':
+    case 'arrival-reveal':
     case 'arrival-handoff':
     case 'intro':
       return state; // freshly created: intro pending

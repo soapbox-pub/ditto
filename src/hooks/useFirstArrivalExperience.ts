@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { missionDevArrivalEntry } from '@/dev/missionHarness';
+import { missionDevArrivalEntry, missionDevForcesArrival } from '@/dev/missionHarness';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
@@ -34,10 +34,22 @@ export type ArrivalPhase =
 /** How long we will wait for an account to resolve before giving up. */
 const ACCOUNT_WAIT_MS = 5_000;
 
-/** Signal build, welcome, then the Explorer card appears and becomes readable. */
-const PLAY_MS = 2_600;
-/** The backdrop dissolves; the app is visible behind the still-centred card. */
-const REVEAL_MS = 800;
+/**
+ * Signal, welcome, welcome exit, then the Explorer presentation — see
+ * `STAGE_TIMINGS` for the act boundaries inside this window. Lengthened from
+ * 2600ms because the welcome previously held for only ~215ms before the card
+ * arrived on top of it.
+ */
+const PLAY_MS = 2_700;
+/**
+ * The backdrop dissolves and the application appears behind the presentation.
+ *
+ * Shortened from 800ms, and the backdrop's own fade deliberately runs slightly
+ * longer than this, so the travel begins while the last of the backdrop is
+ * still clearing. Previously the app finished revealing and the card then sat
+ * motionless for ~825ms — measured, and very visible.
+ */
+const REVEAL_MS = 700;
 /**
  * Safety net for the travel stage. The FLIP runner normally ends it by calling
  * `completeTravel()`, but an animation that never resolves (a cancelled
@@ -93,10 +105,14 @@ export function useFirstArrivalExperience(): FirstArrivalExperience {
   // build. It drives presentation only — no marker is written or consumed, so it
   // cannot affect a real account.
   const devEntry = missionDevArrivalEntry();
-  const forced = devEntry !== undefined;
+  const forced = missionDevForcesArrival();
 
   const [phase, setPhase] = useState<ArrivalPhase>(
-    devEntry === 'handoff' ? 'revealing' : forced ? 'playing' : 'waiting',
+    devEntry === 'handoff' || devEntry === 'revealing'
+      ? 'revealing'
+      : forced
+        ? 'playing'
+        : 'waiting',
   );
   // A skip jumps straight to the hand-off: the user asked for the application,
   // so flying a card across it would be ignoring them.

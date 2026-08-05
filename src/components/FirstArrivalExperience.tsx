@@ -1,11 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 
 import { missionDevArrivalEntry } from '@/dev/missionHarness';
 import { DittoLogo } from '@/components/DittoLogo';
 import { ExplorerArrivalCard } from '@/components/ExplorerArrivalCard';
+import { ExplorerArrivalIntro } from '@/components/ExplorerArrivalIntro';
 import { Button } from '@/components/ui/button';
 import { useExplorerArrival } from '@/contexts/ExplorerArrivalContext';
+import {
+  isCardSimplified,
+  isIntroCopyVisible,
+  isPresentationStage,
+  isWelcomeStage,
+  useArrivalStage,
+} from '@/hooks/useArrivalStage';
 import { useExplorerArrivalTransition } from '@/hooks/useExplorerArrivalTransition';
 import { useFirstArrivalExperience } from '@/hooks/useFirstArrivalExperience';
 import { cn } from '@/lib/utils';
@@ -15,17 +23,6 @@ import { cn } from '@/lib/utils';
  * rather than randomised: the composition is stable across renders and reloads,
  * and nothing recalculates during the sequence.
  */
-/**
- * When the Explorer card takes over the centre, measured from the start of the
- * sequence. The mark and welcome get the first beat to themselves; the card
- * then has a readable moment before the application appears behind it.
- */
-const CARD_AT_MS = 1_500;
-/** Reduced motion holds a single composed frame, so the card arrives at once. */
-const REDUCED_CARD_AT_MS = 0;
-/** How long the welcome takes to fade out once the card takes the centre. */
-const WELCOME_FADE_MS = 500;
-
 const SIGNALS: ReadonlyArray<{ x: string; y: string; size: number; d: string }> = [
   { x: '18%', y: '24%', size: 3, d: '0ms' },
   { x: '76%', y: '18%', size: 2, d: '120ms' },
@@ -41,37 +38,40 @@ const SIGNALS: ReadonlyArray<{ x: string; y: string; size: number; d: string }> 
  * The one-time arrival transition, shown immediately after a user completes
  * signup — and only then.
  *
- * Four beats over roughly four seconds:
+ * Seven acts (see `useArrivalStage`), each with exactly **one text owner**:
+ * points of light gather; "Welcome to Ditto" reads alone; the welcome leaves;
+ * the Ditto Explorer introduction and its card take the centre; the backdrop
+ * dissolves so the real application appears behind them; the framing copy and
+ * the card's body fade as it compacts; and the card travels to wherever the
+ * persistent Explorer surface lives and becomes it.
  *
- *  1. **Signal** — points of light gather and the Ditto mark forms.
- *  2. **Welcome** — a short line reads.
- *  3. **Explorer** — the full Ditto Explorer presentation rises into the
- *     centre: what it is, and that a locked reward waits at the end. Not the
- *     task list.
- *  4. **Handoff** — the backdrop dissolves so the real application appears
- *     behind the card, then the card *travels* to wherever the persistent
- *     Explorer surface lives and becomes it.
+ * That last act is the point. A fade between two unrelated components teaches
+ * nothing; a card that visibly moves and simplifies into the sidebar widget
+ * teaches the user where their mission now lives.
  *
- * That last beat is the point of the whole thing. A fade between two unrelated
- * components teaches nothing; a card that visibly moves and simplifies into the
- * sidebar widget teaches the user where their mission now lives, so they can
- * find it again tomorrow.
+ * ### Layering
+ *
+ * Explicit stacking, one concern per layer, rather than one container whose
+ * children crossfade against each other:
+ *
+ * | z  | layer                                  |
+ * |----|----------------------------------------|
+ * | 0  | backdrop (dissolves to reveal the app) |
+ * | 10 | signal points                          |
+ * | 20 | welcome                                |
+ * | 30 | Explorer presentation (heading + card) |
+ * | 40 | Skip                                   |
+ *
+ * The welcome and the presentation are never mounted at the same time — the
+ * acts guarantee it — so no two pieces of copy can be readable at once.
  *
  * **It is a transition, not a loader.** No spinner, no percentage, no
- * "Loading…", and it never waits on relay data — the app boots normally
- * underneath and is revealed on a fixed schedule, so a slow network shows
- * through honestly as skeletons rather than hiding behind a cinematic that
- * refuses to end. It also never waits on a click: the card hands itself over.
+ * "Loading…", and it never waits on relay data. It also never waits on a click:
+ * the card hands itself over, and the user makes their choice afterwards on the
+ * destination.
  *
  * Deliberately not an egg, a hatching, or a birth — this is an arrival into a
- * place that already exists, which is a different feeling from something being
- * born. The astronaut behind the lock stays unrevealed.
- *
- * Accessibility: a real focusable Skip button (auto-focused, so Enter/Space work
- * immediately, with Escape wired to the same action), `role="dialog"` with a
- * label, no flashing, and nothing conveyed by motion alone. Under
- * `prefers-reduced-motion` the card does not travel — it crossfades to the
- * destination in place — and the same lifecycle reaches the same end state.
+ * place that already exists. The astronaut behind the lock stays unrevealed.
  */
 export function FirstArrivalExperience() {
   const {
@@ -87,33 +87,12 @@ export function FirstArrivalExperience() {
   const intl = useIntl();
   const skipRef = useRef<HTMLButtonElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
-  // Sub-beat inside `playing`: the welcome reads first, then the Explorer card
-  // rises. Kept local because it is pure staging — the lifecycle machine has no
-  // reason to know about it.
-  // The harness can start at a later beat so the handoff — the part worth
-  // iterating on — doesn't cost three seconds of waiting each time.
-  const [showExplorer, setShowExplorer] = useState(
-    () => missionDevArrivalEntry() === 'card' || missionDevArrivalEntry() === 'handoff',
-  );
-  // The welcome is unmounted once it has finished fading, rather than left
-  // behind at zero opacity — a transparent element still stacks, and leaving it
-  // in place let the mark show through the card.
-  const [welcomeGone, setWelcomeGone] = useState(showExplorer);
 
-  useEffect(() => {
-    if (phase !== 'playing') return;
-    const timer = setTimeout(
-      () => setShowExplorer(true),
-      reducedMotion ? REDUCED_CARD_AT_MS : CARD_AT_MS,
-    );
-    return () => clearTimeout(timer);
-  }, [phase, reducedMotion]);
-
-  useEffect(() => {
-    if (!showExplorer || welcomeGone) return;
-    const timer = setTimeout(() => setWelcomeGone(true), WELCOME_FADE_MS);
-    return () => clearTimeout(timer);
-  }, [showExplorer, welcomeGone]);
+  const stage = useArrivalStage({
+    phase,
+    reducedMotion,
+    entry: missionDevArrivalEntry(),
+  });
 
   // Take ownership of the Explorer surface for as long as the overlay is up, so
   // the destination stays laid out (measurable, no shift at handoff) but
@@ -146,6 +125,11 @@ export function FirstArrivalExperience() {
 
   if (!visible) return null;
 
+  const showWelcome = isWelcomeStage(stage);
+  const showPresentation = isPresentationStage(stage);
+  const introVisible = isIntroCopyVisible(stage);
+  const simplified = isCardSimplified(stage);
+
   return (
     <div
       role="dialog"
@@ -155,25 +139,30 @@ export function FirstArrivalExperience() {
         defaultMessage: 'Welcome to Ditto',
       })}
       className={cn(
-        'fixed inset-0 z-[100] flex flex-col items-center justify-center',
-        // Once the backdrop has dissolved the overlay must not swallow clicks:
+        'fixed inset-0 z-[100] flex flex-col items-center justify-center gap-6 px-5 py-8',
+        // Once the backdrop is dissolving the overlay must not swallow clicks:
         // the application behind it is live from that moment on.
         revealing && 'pointer-events-none',
       )}
     >
-      {/* Backdrop. Dissolves at the reveal so the real interface shows through,
-          while the card stays put and then travels. */}
+      {/* Layer 0 — backdrop. Fades through clearly perceptible intermediate
+          steps, with the blur easing off at the same time, so the application
+          is revealed gradually rather than appearing all at once. */}
       <div
         aria-hidden
+        data-arrival-backdrop=""
         className={cn(
-          'absolute inset-0 bg-background',
-          revealing && (reducedMotion ? 'opacity-0' : 'arrival-backdrop-out'),
+          'absolute inset-0 z-0 bg-background',
+          revealing &&
+            (reducedMotion
+              ? 'opacity-0 transition-opacity duration-200'
+              : 'arrival-backdrop-out'),
         )}
       />
 
-      {/* Signal — points of light settling into place. */}
+      {/* Layer 10 — signal. */}
       {!reducedMotion && !revealing && (
-        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div aria-hidden className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
           {SIGNALS.map((s, i) => (
             <span
               key={i}
@@ -190,17 +179,16 @@ export function FirstArrivalExperience() {
         </div>
       )}
 
-      {/* A single-cell grid so the welcome and the card occupy exactly the same
-          centred spot and cross over in place, with the card stacked above. */}
-      <div className="relative grid place-items-center px-5">
-        {/* Mark + welcome — the first beat, which steps aside for the card. */}
-        {!welcomeGone && (
+      {/* Layer 20 — welcome. Unmounted before the presentation mounts, so the
+          two can never be readable at the same time. */}
+      {showWelcome && (
         <div
+          data-arrival-welcome=""
           className={cn(
-            'col-start-1 row-start-1 z-0 flex flex-col items-center gap-4 text-center',
-            'transition-all duration-500',
-            !reducedMotion && 'arrival-mark',
-            showExplorer && 'pointer-events-none scale-90 opacity-0',
+            'relative z-20 flex flex-col items-center gap-4 text-center',
+            'transition-all duration-300 ease-out',
+            !reducedMotion && stage !== 'welcome-out' && 'arrival-mark',
+            stage === 'welcome-out' && 'pointer-events-none -translate-y-2 opacity-0',
           )}
         >
           <div className="relative">
@@ -221,24 +209,29 @@ export function FirstArrivalExperience() {
             </p>
           </div>
         </div>
-        )}
+      )}
 
-        {/* The Explorer presentation — and the object that travels. */}
-        {showExplorer && (
+      {/* Layer 30 — the Explorer presentation. The heading is a sibling of the
+          card, never a child: only the card travels, and the framing copy is
+          gone before it does. It stays in flow while faded so the card beneath
+          it never shifts. */}
+      {showPresentation && (
+        <div className="relative z-30 flex flex-col items-center gap-5 [@media(max-height:720px)]:gap-3">
+          <ExplorerArrivalIntro visible={introVisible} reducedMotion={reducedMotion} />
           <ExplorerArrivalCard
             ref={cardRef}
-            simplified={travelling}
+            simplified={simplified}
             travelling={travelling}
             className={cn(
-              'col-start-1 row-start-1 z-10 pointer-events-auto',
-              !reducedMotion && !travelling && 'arrival-card-in',
+              'pointer-events-auto',
+              !reducedMotion && !simplified && 'arrival-card-in',
               // Reduced motion: no travel, just a crossfade in place while the
               // real destination fades up underneath.
               reducedMotion && revealing && 'opacity-0 transition-opacity duration-200',
             )}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       <Button
         ref={skipRef}
@@ -247,8 +240,14 @@ export function FirstArrivalExperience() {
         size="sm"
         onClick={skip}
         className={cn(
-          'pointer-events-auto absolute bottom-10 rounded-full px-5 text-muted-foreground hover:text-foreground',
-          revealing && 'pointer-events-none opacity-0 transition-opacity duration-300',
+          'pointer-events-auto z-40 shrink-0 rounded-full px-5 text-muted-foreground hover:text-foreground',
+          'transition-opacity duration-300',
+          // In normal flow by default, so it can never land on top of the
+          // presentation on a short viewport — it previously overlapped the
+          // card's reward row at 390x560. Pinned to the bottom only where
+          // there is demonstrably room for it.
+          '[@media(min-height:760px)]:absolute [@media(min-height:760px)]:bottom-8',
+          revealing && 'pointer-events-none opacity-0',
         )}
       >
         <FormattedMessage id="arrival.skip" defaultMessage="Skip" />
