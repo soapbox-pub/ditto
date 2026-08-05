@@ -50,6 +50,7 @@ import { isAtTabCap, MAX_OPEN_TABS } from '@/lib/chatTabsStorage';
 import { ABILITIES } from '@/lib/abilities';
 import type { Ability } from '@/lib/abilities';
 import { buildSystemPrompt } from '@/lib/chatSystemPrompt';
+import { pruneToLiveIds } from '@/lib/pruneToLiveIds';
 import { DorkThinking } from '@/components/DorkThinking';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 
@@ -255,12 +256,8 @@ export function AIChatPage() {
   // behind would make a later session reusing that id look like it shrank.
   useEffect(() => {
     const liveSessionIds = new Set(sessions.map((s) => s.id));
-    for (const id of [...messageTimestampsRef.current.keys()]) {
-      if (!liveSessionIds.has(id)) messageTimestampsRef.current.delete(id);
-    }
-    for (const id of [...lastMessageCountsRef.current.keys()]) {
-      if (!liveSessionIds.has(id)) lastMessageCountsRef.current.delete(id);
-    }
+    pruneToLiveIds(messageTimestampsRef.current, liveSessionIds);
+    pruneToLiveIds(lastMessageCountsRef.current, liveSessionIds);
   }, [sessions]);
   const isLoading = agentSnapshot?.isLoading ?? false;
   const sessionError = buildError ?? agentSnapshot?.error ?? null;
