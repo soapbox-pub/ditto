@@ -47,6 +47,18 @@ function providerCredentialFields(
   return { apiKey: profile?.apiKey ?? null, baseURL: profile?.baseURL ?? null };
 }
 
+/** True when a live agent entry still matches its session's provider/model/credentials, i.e. a rebuild is not replacing it. */
+function isEntryCurrent(entry: AgentEntry, session: ChatSession, profiles: AIProviderProfile[]): boolean {
+  const modelId = sessionModelId(session);
+  const { apiKey, baseURL } = providerCredentialFields(session, profiles);
+  return (
+    entry.providerId === session.providerId &&
+    entry.modelId === modelId &&
+    entry.providerApiKey === apiKey &&
+    entry.providerBaseURL === baseURL
+  );
+}
+
 /**
  * Manage one live AgentSession per chat session.
  *
@@ -246,15 +258,7 @@ export function useAgentSessions(options: AgentSessionsOptions) {
     const builds: Promise<void>[] = [];
     for (const session of sessions) {
       const existing = agentsRef.current.get(session.id);
-      const modelId = sessionModelId(session);
-      const { apiKey, baseURL } = providerCredentialFields(session, profiles);
-      if (
-        existing &&
-        existing.providerId === session.providerId &&
-        existing.modelId === modelId &&
-        existing.providerApiKey === apiKey &&
-        existing.providerBaseURL === baseURL
-      ) {
+      if (existing && isEntryCurrent(existing, session, profiles)) {
         // Same provider/model/credentials — keep the live session, refresh the prompt.
         existing.agent.updateSystemPrompt(systemPromptFor(session));
         attach(existing, session.id);
@@ -291,38 +295,43 @@ export function useAgentSessions(options: AgentSessionsOptions) {
   /**
    * Send a user message through the active session's AgentSession.
    * While the agent is paused on ask_questions, the message is the answer.
+   * Returns false when nothing was sent: no live agent, or the agent is stale
+   * mid-rebuild (a provider/model/credential switch in progress). Callers can
+   * surface that instead of a message silently vanishing.
    */
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string): Promise<boolean> => {
       const entry = agentsRef.current.get(activeSessionId);
       const session = sessions.find((s) => s.id === activeSessionId);
-      if (!entry || !session) return;
+      if (!entry || !session) return false;
       // Refuse to drive a stale agent that a rebuild is replacing (provider,
       // model, or credential change — matches the keep-vs-rebuild check above).
-      const { apiKey, baseURL } = providerCredentialFields(session, profiles);
-      if (
-        entry.providerId !== session.providerId ||
-        entry.modelId !== sessionModelId(session) ||
-        entry.providerApiKey !== apiKey ||
-        entry.providerBaseURL !== baseURL
-      ) {
-        return;
-      }
+      if (!isEntryCurrent(entry, session, profiles)) return false;
 
       const pending = entry.agent.getSnapshot().pendingInput;
       if (pending) {
         await entry.agent.resolvePendingInput(pending.toolCallId, content);
-        return;
+        return true;
       }
       await entry.agent.send(content);
+      return true;
     },
     [activeSessionId, sessions, profiles],
   );
 
-  /** Clear the active session's conversation. */
-  const clearActiveSession = useCallback(() => {
-    agentsRef.current.get(activeSessionId)?.agent.clearMessages();
-  }, [activeSessionId]);
+  /**
+   * Clear the active session's conversation. Returns false when nothing was
+   * cleared: no live agent, or a rebuild window is replacing the agent (the
+   * clear would hit a stale agent and be lost against the reloaded messages).
+   */
+  const clearActiveSession = useCallback((): boolean => {
+    const entry = agentsRef.current.get(activeSessionId);
+    const session = sessions.find((s) => s.id === activeSessionId);
+    if (!entry || !session) return false;
+    if (!isEntryCurrent(entry, session, profiles)) return false;
+    entry.agent.clearMessages();
+    return true;
+  }, [activeSessionId, sessions, profiles]);
 
   return { snapshots, buildError, sendMessage, clearActiveSession };
 }
