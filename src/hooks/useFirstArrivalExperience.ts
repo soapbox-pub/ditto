@@ -43,21 +43,25 @@ const ACCOUNT_WAIT_MS = 5_000;
  * reading beat that follows it — see `STAGE_TIMINGS` for the act boundaries.
  *
  * Must be at least `presentationSettled + MIN_READING_HOLD_MS`: the composition
- * finishes entering at ~2400ms and then has to hold, completely still, long
- * enough to actually be read. It measured ~440ms of stillness before this pass,
- * which is enough to notice the card but not to read a heading, a line of
- * microcopy and the card itself.
+ * finishes entering at ~3900ms and then has to hold, completely still, long
+ * enough to actually be read. Both reading holds are deliberately generous —
+ * this runs once per account, during account creation, and Skip is always
+ * there. It is not optimised for brevity.
  */
-const PLAY_MS = 3_400;
+const PLAY_MS = 5_700;
 /**
- * The backdrop dissolves and the application appears behind the presentation.
+ * The backdrop dissolves and the application appears behind the presentation,
+ * while the card changes its contents from the full presentation layout to the
+ * compact destination one.
  *
- * Shortened from 800ms, and the backdrop's own fade deliberately runs slightly
- * longer than this, so the travel begins while the last of the backdrop is
- * still clearing. Previously the app finished revealing and the card then sat
- * motionless for ~825ms — measured, and very visible.
+ * Sized against recordings to contain that whole transformation and no more:
+ * the wipe starts 80ms in and finishes at ~450ms, the compact content is fully
+ * settled by ~610ms, and only then does travel begin — so the card that flies
+ * already looks like its destination and has nothing left to reconcile on
+ * arrival. The backdrop's own fade runs slightly longer, so the travel starts
+ * while the last of it is still clearing rather than after a pause.
  */
-const REVEAL_MS = 650;
+const REVEAL_MS = 620;
 /**
  * Safety net for the travel stage. The FLIP runner normally ends it by calling
  * `completeTravel()`, but an animation that never resolves (a cancelled
@@ -66,8 +70,8 @@ const REVEAL_MS = 650;
 const TRAVEL_TIMEOUT_MS = 2_500;
 
 /** Reduced motion: a static welcome, held briefly, then an immediate hand-off. */
-const REDUCED_PLAY_MS = 1_500;
-const REDUCED_REVEAL_MS = 150;
+const REDUCED_PLAY_MS = 4_450;
+const REDUCED_REVEAL_MS = 450;
 
 /**
  * The lifecycle's own durations, exported so tests advance by the real values.
@@ -130,13 +134,13 @@ export function useFirstArrivalExperience(): FirstArrivalExperience {
   // The harness can freeze the sequence on its entry act for review.
   const held = missionDevHoldsArrival();
 
-  const [phase, setPhase] = useState<ArrivalPhase>(
-    devEntry === 'handoff' || devEntry === 'revealing'
-      ? 'revealing'
-      : forced
-        ? 'playing'
-        : 'waiting',
-  );
+  const [phase, setPhase] = useState<ArrivalPhase>(() => {
+    if (devEntry === 'handoff') return 'travelling';
+    if (devEntry === 'revealing' || devEntry === 'content-out' || devEntry === 'content-in') {
+      return 'revealing';
+    }
+    return forced ? 'playing' : 'waiting';
+  });
   // A skip jumps straight to the hand-off: the user asked for the application,
   // so flying a card across it would be ignoring them.
   const skippedRef = useRef(false);
@@ -204,12 +208,15 @@ export function useFirstArrivalExperience(): FirstArrivalExperience {
   // to the application. Both still reach exactly the same end state.
   useEffect(() => {
     if (phase !== 'revealing') return;
+    // A hold freezes the sequence for review, but it must never freeze a skip:
+    // the user asked for the application, and no development flag outranks that.
+    if (held && !skippedRef.current) return;
     const timer = setTimeout(
       () => setPhase(reducedMotion || skippedRef.current ? 'done' : 'travelling'),
       reducedMotion ? REDUCED_REVEAL_MS : REVEAL_MS,
     );
     return () => clearTimeout(timer);
-  }, [phase, reducedMotion]);
+  }, [phase, reducedMotion, held]);
 
   // Travel is ended by the FLIP runner; this only catches an animation that
   // never reports back.

@@ -22,11 +22,15 @@ import {
  * named act rather than approximating it with a delayed timer, then continues
  * from there:
  *  - `arrival`              — the whole sequence from the first beat.
- *  - `arrival-welcome`      — the welcome, held.
+ *  - `arrival-welcome`      — the welcome entering.
+ *  - `arrival-welcome-reading` — the welcome's stable hold, **held**.
  *  - `arrival-presentation` — the Explorer composition entering.
  *  - `arrival-reading`      — the settled composition, **held indefinitely**, for
  *                             reviewing spacing, hierarchy and glow without a
  *                             timer taking it away mid-inspection.
+ *  - `arrival-content-transform` — the card mid-wipe, **held**.
+ *  - `arrival-compact-ready` — the card in its destination-shaped form, **held**,
+ *                             for checking it against the real widget.
  *  - `arrival-reveal`       — the backdrop dissolving over the application.
  *  - `arrival-handoff`      — the travel, the part hardest to catch by hand.
  *
@@ -48,9 +52,12 @@ import {
 export type MissionDevState =
   | 'arrival'
   | 'arrival-welcome'
+  | 'arrival-welcome-reading'
   | 'arrival-presentation'
   | 'arrival-reading'
   | 'arrival-reveal'
+  | 'arrival-content-transform'
+  | 'arrival-compact-ready'
   | 'arrival-handoff'
   | 'intro'
   | 'intro-postponed'
@@ -94,9 +101,12 @@ export function missionDevActive(): boolean {
 const ARRIVAL_ENTRY: Partial<Record<MissionDevState, ArrivalStageEntry | 'sequence'>> = {
   arrival: 'sequence',
   'arrival-welcome': 'welcome',
+  'arrival-welcome-reading': 'welcome-reading',
   'arrival-presentation': 'presenting',
   'arrival-reading': 'reading',
   'arrival-reveal': 'revealing',
+  'arrival-content-transform': 'content-out',
+  'arrival-compact-ready': 'content-in',
   'arrival-handoff': 'handoff',
 };
 
@@ -119,8 +129,16 @@ export function missionDevArrivalEntry(): ArrivalStageEntry | undefined {
  * letting the lifecycle advance. Only `arrival-reading` does — it exists so the
  * settled frame can be inspected for as long as it takes.
  */
+const HELD_ARRIVAL_STATES = new Set<MissionDevState>([
+  'arrival-welcome-reading',
+  'arrival-reading',
+  'arrival-content-transform',
+  'arrival-compact-ready',
+]);
+
 export function missionDevHoldsArrival(): boolean {
-  return missionDevState() === 'arrival-reading';
+  const scenario = missionDevState();
+  return scenario !== undefined && HELD_ARRIVAL_STATES.has(scenario);
 }
 
 /**
@@ -189,9 +207,12 @@ function buildMissionDevState(): PostOnboardingGuideState | undefined {
   switch (scenario) {
     case 'arrival':
     case 'arrival-welcome':
+    case 'arrival-welcome-reading':
     case 'arrival-presentation':
     case 'arrival-reading':
     case 'arrival-reveal':
+    case 'arrival-content-transform':
+    case 'arrival-compact-ready':
     case 'arrival-handoff':
     case 'intro':
       return state; // freshly created: intro pending

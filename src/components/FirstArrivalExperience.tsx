@@ -8,7 +8,8 @@ import { ExplorerArrivalIntro } from '@/components/ExplorerArrivalIntro';
 import { Button } from '@/components/ui/button';
 import { useExplorerArrival } from '@/contexts/ExplorerArrivalContext';
 import {
-  isCardSimplified,
+  isCompactCardContentVisible,
+  isFullCardContentVisible,
   isIntroCopyVisible,
   isPresentationStage,
   isReadingBeat,
@@ -129,7 +130,8 @@ export function FirstArrivalExperience() {
   const showWelcome = isWelcomeStage(stage);
   const showPresentation = isPresentationStage(stage);
   const introVisible = isIntroCopyVisible(stage);
-  const simplified = isCardSimplified(stage);
+  const fullContent = isFullCardContentVisible(stage);
+  const compactContent = isCompactCardContentVisible(stage);
   const ambient = isReadingBeat(stage) && !reducedMotion;
 
   return (
@@ -187,28 +189,41 @@ export function FirstArrivalExperience() {
         <div
           data-arrival-welcome=""
           className={cn(
-            'relative z-20 flex flex-col items-center gap-4 text-center',
-            'transition-all duration-300 ease-out',
-            !reducedMotion && stage !== 'welcome-out' && 'arrival-mark',
+            'relative z-20',
+            // The exit lives on this wrapper and *only* this wrapper. It used to
+            // share an element with the `arrival-mark` entrance, and because that
+            // animation fills forwards, removing it in the same frame as
+            // `opacity-0` made Chrome skip the transition entirely: the welcome
+            // snapped from 1 to 0 in a single frame. Measured, not theorised.
+            // Separating the animated element from the transitioned one is what
+            // makes the exit an act rather than a cut.
+            'transition-all duration-500 ease-out',
             stage === 'welcome-out' && 'pointer-events-none -translate-y-2 opacity-0',
           )}
         >
-          <div className="relative">
-            {!reducedMotion && (
-              <span aria-hidden className="arrival-halo absolute inset-0 rounded-full" />
+          <div
+            className={cn(
+              'flex flex-col items-center gap-4 text-center',
+              !reducedMotion && 'arrival-mark',
             )}
-            <DittoLogo size={72} />
-          </div>
-          <div className={cn('space-y-2', !reducedMotion && 'arrival-welcome')}>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              <FormattedMessage id="arrival.title" defaultMessage="Welcome to Ditto" />
-            </h1>
-            <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-              <FormattedMessage
-                id="arrival.subtitle"
-                defaultMessage="Your corner of the network is ready."
-              />
-            </p>
+          >
+            <div className="relative">
+              {!reducedMotion && (
+                <span aria-hidden className="arrival-halo absolute inset-0 rounded-full" />
+              )}
+              <DittoLogo size={72} />
+            </div>
+            <div className={cn('space-y-2', !reducedMotion && 'arrival-welcome')}>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                <FormattedMessage id="arrival.title" defaultMessage="Welcome to Ditto" />
+              </h1>
+              <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
+                <FormattedMessage
+                  id="arrival.subtitle"
+                  defaultMessage="Your corner of the network is ready."
+                />
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -222,15 +237,18 @@ export function FirstArrivalExperience() {
           <ExplorerArrivalIntro visible={introVisible} reducedMotion={reducedMotion} />
           <ExplorerArrivalCard
             ref={cardRef}
-            simplified={simplified}
+            showFullContent={fullContent}
+            showCompactContent={compactContent}
             travelling={travelling}
             ambient={ambient}
+            reducedMotion={reducedMotion}
             className={cn(
               'pointer-events-auto',
-              !reducedMotion && !simplified && 'arrival-card-in',
-              // Reduced motion: no travel, just a crossfade in place while the
-              // real destination fades up underneath.
-              reducedMotion && revealing && 'opacity-0 transition-opacity duration-200',
+              !reducedMotion && fullContent && 'arrival-card-in',
+              // Reduced motion: no travel. The card crossfades out in place
+              // once its contents have finished changing mode, while the real
+              // destination fades up underneath.
+              reducedMotion && compactContent && 'opacity-0 transition-opacity duration-300',
             )}
           />
         </div>

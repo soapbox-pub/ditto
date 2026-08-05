@@ -3,7 +3,7 @@ import { act, render, screen } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 
 import { FirstArrivalExperience } from './FirstArrivalExperience';
-import { STAGE_TIMINGS } from '@/hooks/useArrivalStage';
+import { REDUCED_STAGE_TIMINGS, STAGE_TIMINGS } from '@/hooks/useArrivalStage';
 import type { ArrivalPhase } from '@/hooks/useFirstArrivalExperience';
 
 let phase: ArrivalPhase = 'playing';
@@ -53,6 +53,10 @@ function renderArrival() {
 const welcome = () => document.querySelector('[data-arrival-welcome]');
 const intro = () => document.querySelector('[data-arrival-intro]');
 const card = () => document.querySelector('[data-explorer-arrival-card]');
+const fullContent = () => document.querySelector('[data-arrival-card-full]');
+const compactContent = () => document.querySelector('[data-arrival-card-compact]');
+/** Advance to the act where the Explorer presentation is on screen. */
+const toPresentation = () => act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.gap + 10));
 const backdrop = () => document.querySelector('[data-arrival-backdrop]');
 
 /** Opacity as authored — Tailwind classes, not computed styles (jsdom has none). */
@@ -88,7 +92,11 @@ describe('FirstArrivalExperience — layer ownership', () => {
     expect(intro()).not.toBeInTheDocument();
 
     act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.welcomeOut - STAGE_TIMINGS.welcome));
+    // The gap: neither chapter is mounted.
     expect(welcome()).not.toBeInTheDocument();
+    expect(intro()).not.toBeInTheDocument();
+
+    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.gap - STAGE_TIMINGS.welcomeOut));
     expect(intro()).toBeInTheDocument();
   });
 
@@ -101,7 +109,7 @@ describe('FirstArrivalExperience — layer ownership', () => {
 
   it('introduces the card with framing copy rather than on its own', () => {
     renderArrival();
-    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.welcomeOut));
+    toPresentation();
 
     expect(screen.getByText('Let’s get you started')).toBeInTheDocument();
     expect(
@@ -114,15 +122,19 @@ describe('FirstArrivalExperience — layer ownership', () => {
     // Only the card travels. If the heading were a child it would be dragged
     // into the sidebar with it.
     renderArrival();
-    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.welcomeOut));
+    toPresentation();
     expect(card()!.contains(intro())).toBe(false);
   });
 
-  it('does not stack two copies of the mission name or its headline', () => {
+  it('shows only the full content while the presentation is being read', () => {
+    // Both groups are mounted so the card's box never resizes when they swap,
+    // but only one is ever visible.
     renderArrival();
-    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.welcomeOut));
-    expect(screen.getAllByText('Ditto Explorer')).toHaveLength(1);
-    expect(screen.getAllByText(/Your first journey through Ditto is ready/)).toHaveLength(1);
+    toPresentation();
+    expect(fullContent()).toBeInTheDocument();
+    expect(fullContent()).not.toHaveAttribute('aria-hidden');
+    expect(compactContent()).toHaveAttribute('aria-hidden', 'true');
+    expect(compactContent()!.className).toContain('opacity-0');
   });
 });
 
@@ -151,9 +163,9 @@ describe('FirstArrivalExperience — reveal and handoff', () => {
     expect(backdrop()!.className).not.toContain('opacity-0');
   });
 
-  it('removes the framing copy before the card starts moving', () => {
+  it('transforms the card contents before the travel, leaving the shell', () => {
     const { rerender } = renderArrival();
-    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.welcomeOut));
+    toPresentation();
 
     phase = 'revealing';
     rerender(
@@ -161,9 +173,22 @@ describe('FirstArrivalExperience — reveal and handoff', () => {
         <FirstArrivalExperience />
       </IntlProvider>,
     );
-    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.prepareAfterReveal));
 
+    // Full content leaves first, and the compact group is not yet in.
+    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.contentOutAfterReveal + 10));
     expect(isFaded(intro())).toBe(true);
+    expect(fullContent()).toHaveAttribute('aria-hidden', 'true');
+    expect(compactContent()).toHaveAttribute('aria-hidden', 'true');
+    // The shell is continuous throughout.
+    expect(card()).toBeInTheDocument();
+
+    act(() =>
+      void vi.advanceTimersByTime(
+        STAGE_TIMINGS.contentInAfterReveal - STAGE_TIMINGS.contentOutAfterReveal + 10,
+      ),
+    );
+    expect(compactContent()).not.toHaveAttribute('aria-hidden');
+    expect(fullContent()).toHaveAttribute('aria-hidden', 'true');
     expect(card()).toBeInTheDocument();
   });
 
@@ -194,7 +219,7 @@ describe('FirstArrivalExperience — skip and reduced motion', () => {
     // Skip drives the lifecycle to `done`; nothing may be left behind — no
     // half-faded backdrop, no orphaned copy.
     const { rerender } = renderArrival();
-    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.welcomeOut));
+    toPresentation();
     expect(card()).toBeInTheDocument();
 
     phase = 'done';
@@ -211,6 +236,28 @@ describe('FirstArrivalExperience — skip and reduced motion', () => {
     expect(card()).not.toBeInTheDocument();
   });
 
+  it('leaves no mask or clip behind when skipped mid-transformation', () => {
+    // The riskiest moment to skip: the wipe is running, so a `clip-path` is
+    // live on the outgoing content. Nothing may survive into the application —
+    // an orphaned mask would clip a real surface.
+    phase = 'revealing';
+    const { rerender } = renderArrival();
+    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.contentOutAfterReveal + 10));
+    expect(fullContent()!.className).toContain('arrival-content-out');
+
+    phase = 'done';
+    rerender(
+      <IntlProvider locale="en">
+        <FirstArrivalExperience />
+      </IntlProvider>,
+    );
+
+    expect(document.querySelector('.arrival-content-out')).toBeNull();
+    expect(document.querySelector('.arrival-content-in')).toBeNull();
+    expect(document.querySelector('[data-arrival-card-full]')).toBeNull();
+    expect(document.querySelector('[data-arrival-card-compact]')).toBeNull();
+  });
+
   it('offers Skip from the very first act', () => {
     renderArrival();
     screen.getByRole('button', { name: 'Skip' }).click();
@@ -223,11 +270,23 @@ describe('FirstArrivalExperience — skip and reduced motion', () => {
     expect(welcome()).toBeInTheDocument();
     expect(intro()).not.toBeInTheDocument();
 
-    act(() => void vi.advanceTimersByTime(1_000));
+    act(() => void vi.advanceTimersByTime(REDUCED_STAGE_TIMINGS.gap + 10));
     expect(welcome()).not.toBeInTheDocument();
     expect(intro()).toBeInTheDocument();
     // Crossfade, not motion.
     expect(card()!.className).not.toContain('arrival-card-in');
+  });
+
+  it('crossfades the card contents under reduced motion, with no wipe', () => {
+    reducedMotion = true;
+    phase = 'revealing';
+    renderArrival();
+    act(() => void vi.advanceTimersByTime(500));
+
+    // Minimal-shell crossfade: opacity transitions, never the clip animations.
+    expect(fullContent()!.className).not.toContain('arrival-content-out');
+    expect(compactContent()!.className).not.toContain('arrival-content-in');
+    expect(compactContent()!.className).toContain('transition-opacity');
   });
 
   it('crossfades the backdrop under reduced motion instead of stepping it', () => {

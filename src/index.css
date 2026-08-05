@@ -1065,9 +1065,12 @@
   100% { opacity: 1; transform: translateY(0); }
 }
 
+/* Delayed to `STAGE_TIMINGS.signal` and finishing at ~1150ms, which is where
+   `WELCOME_ENTERED_AT_MS` says the stable reading hold begins. The entrance is
+   deliberately not counted as reading time. */
 .arrival-welcome {
   opacity: 0;
-  animation: arrival-welcome 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.75s forwards;
+  animation: arrival-welcome 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards;
 }
 
 /* The Explorer card rises into the centre — a short lift and settle, not a
@@ -1081,7 +1084,7 @@
 /* Slightly delayed behind the framing copy, so the heading reads first and the
    card settles under it — a coordinated entrance rather than both popping. */
 .arrival-card-in {
-  animation: arrival-card-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.12s backwards;
+  animation: arrival-card-in 0.52s cubic-bezier(0.22, 1, 0.36, 1) 0.16s backwards;
 }
 
 /* The backdrop dissolves so the real application shows through, while the card
@@ -1104,6 +1107,59 @@
 
 .arrival-backdrop-out {
   animation: arrival-backdrop-out 0.95s linear forwards;
+}
+
+/* ── Card content transformation ───────────────────────────────────────────
+   The card changes mode before it moves: the full presentation content leaves
+   bottom-to-top, then the compact destination content rises in.
+
+   Two mechanisms working together, which is the point. A `clip-path` closing
+   from the bottom does the erasing, so it reads as authored rather than as a
+   container shrinking. Each *block* inside also slides down and fades on its
+   own stagger, so it is already invisible by the time the mask edge reaches it
+   — that is what stops glyphs being sliced in half, which is exactly what the
+   naive "just collapse the height" version looked like. */
+
+@keyframes arrival-content-out-clip {
+  0%   { clip-path: inset(0 0 0 0); }
+  100% { clip-path: inset(0 0 100% 0); }
+}
+
+.arrival-content-out {
+  animation: arrival-content-out-clip 380ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Blocks leave as whole units — never letter by letter. Delays are set inline
+   per block so the order runs upward: reward row, then badge/name, then the
+   eyebrow last. */
+@keyframes arrival-block-out {
+  0%   { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(10px); }
+}
+
+.arrival-content-out .arrival-block {
+  animation: arrival-block-out 220ms cubic-bezier(0.4, 0, 1, 1) var(--block-delay, 0ms) forwards;
+}
+
+/* The compact content is revealed top-down and settles upward a few pixels —
+   the mirror of the exit, so the two read as one transformation rather than
+   two unrelated fades. */
+@keyframes arrival-content-in-clip {
+  0%   { clip-path: inset(0 0 100% 0); opacity: 0; transform: translateY(5px); }
+  40%  { opacity: 1; }
+  100% { clip-path: inset(0 0 0 0); opacity: 1; transform: translateY(0); }
+}
+
+.arrival-content-in {
+  animation: arrival-content-in-clip 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arrival-content-out,
+  .arrival-content-out .arrival-block,
+  .arrival-content-in {
+    animation: none;
+  }
 }
 
 /* Ambient spotlight behind the settled presentation. Opacity only — the card
@@ -1136,7 +1192,7 @@
 }
 
 .arrival-intro-in {
-  animation: arrival-intro-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: arrival-intro-in 0.46s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

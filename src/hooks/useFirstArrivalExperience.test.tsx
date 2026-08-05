@@ -180,9 +180,9 @@ describe('useFirstArrivalExperience', () => {
     expect(result.current.phase).toBe('playing');
     expect(result.current.reducedMotion).toBe(true);
 
-    act(() => void vi.advanceTimersByTime(1_500));
+    act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.reducedPlay + 100));
     expect(result.current.phase).toBe('revealing');
-    act(() => void vi.advanceTimersByTime(200));
+    act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.reducedReveal + 100));
     expect(result.current.phase).toBe('done');
     // Same end state, same consumption — only the pacing differs.
     expect(readFirstArrival(APP, ALICE)?.consumedAt).toBeTypeOf('number');
