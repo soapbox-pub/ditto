@@ -90,12 +90,19 @@ function formFromProfile(profile: AIProviderProfile): FormState {
   };
 }
 
-/** Parses a comma-separated model id string into AIModel-shaped entries. */
+/** Parses a comma-separated model id string into AIModel-shaped entries,
+ *  dropping empty segments and duplicate ids. */
 function parseModelIds(raw: string): AIProviderProfile['models'] {
+  const seen = new Set<string>();
   return raw
     .split(',')
     .map((id) => id.trim())
     .filter(Boolean)
+    .filter((id) => {
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    })
     .map((id) => ({ id, name: id }));
 }
 
@@ -189,19 +196,23 @@ export function ModelListEditor({ models, onModelsChange }: ModelListEditorProps
       });
       return;
     }
+    // Count only ids that are not already active: parseModelIds drops
+    // duplicates inside the input, and an id already in the active list is
+    // not newly saved.
+    const activeIds = new Set(models.map((m) => m.id));
+    const added = parsed.filter((m) => !activeIds.has(m.id));
     // Custom ids join the pool too, so they behave like detected ones:
     // removable from the active list and re-addable from the dropdown.
     setPool((prev) => {
       const known = new Set(prev.map((m) => m.id));
-      return [...prev, ...parsed.filter((m) => !known.has(m.id))];
+      return [...prev, ...added.filter((m) => !known.has(m.id))];
     });
-    const activeIds = new Set(models.map((m) => m.id));
-    emit([...models, ...parsed.filter((m) => !activeIds.has(m.id))]);
+    emit([...models, ...added]);
     setCustomInput('');
     toast({
       title: intl.formatMessage(
         { id: 'settings.ai.appliedTitle', defaultMessage: '{count, plural, one {# model saved} other {# models saved}}' },
-        { count: parsed.length },
+        { count: added.length },
       ),
     });
   }
