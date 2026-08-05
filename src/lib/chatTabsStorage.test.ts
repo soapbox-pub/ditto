@@ -131,6 +131,39 @@ describe('chatTabsStorage', () => {
     expect(tabs.map((t) => t.id)).toEqual(['tab-1', 'tab-2']);
   });
 
+  it('getStoredTabs drops parseable records that are missing required fields', () => {
+    saveTab(makePausedTab({ id: 'valid-1' }));
+    // Parseable JSON, but each record lacks a field tabToSession depends on.
+    localStorage.setItem(
+      'ditto.ai-chat.tab.v1.anon.no-created-at',
+      JSON.stringify({ id: 'no-created-at', title: '', abilities: [], providerId: 'shakespeare', modelId: 'm', updatedAt: 1, agent: makePausedTab().agent }),
+    );
+    localStorage.setItem(
+      'ditto.ai-chat.tab.v1.anon.no-abilities',
+      JSON.stringify({ id: 'no-abilities', title: '', abilities: 'not-an-array', providerId: 'shakespeare', modelId: 'm', createdAt: 1, updatedAt: 1, agent: makePausedTab().agent }),
+    );
+    localStorage.setItem(
+      'ditto.ai-chat.tab.v1.anon.no-provider',
+      JSON.stringify({ id: 'no-provider', title: '', abilities: [], modelId: 'm', createdAt: 1, updatedAt: 1, agent: makePausedTab().agent }),
+    );
+    localStorage.setItem(
+      'ditto.ai-chat.tab.v1.anon.no-model',
+      JSON.stringify({ id: 'no-model', title: '', abilities: [], providerId: 'shakespeare', createdAt: 1, updatedAt: 1, agent: makePausedTab().agent }),
+    );
+
+    const tabs = getStoredTabs();
+    expect(tabs.map((t) => t.id)).toEqual(['valid-1']);
+  });
+
+  it('getStoredTab returns null for a parseable but malformed record', () => {
+    localStorage.setItem(
+      'ditto.ai-chat.tab.v1.anon.bad',
+      JSON.stringify({ id: 'bad', title: '', abilities: [], providerId: 'shakespeare', modelId: 'm', createdAt: 'not-a-number', updatedAt: 1, agent: makePausedTab().agent }),
+    );
+    expect(getStoredTab('bad')).toBeNull();
+    expect(getStoredTab('missing')).toBeNull();
+  });
+
   it('patchTabMetadata updates metadata and preserves the agent blob', () => {
     saveTab(makePausedTab());
 

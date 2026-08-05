@@ -41,6 +41,30 @@ function keyFor(pubkey: string | undefined, id: string): string {
   return `${TAB_STORAGE_PREFIX}${pubkey ?? 'anon'}.${id}`;
 }
 
+/**
+ * True when a parsed record has every field a session restore depends on.
+ * Corrupt records (e.g. a non-array `abilities` or a missing `createdAt`)
+ * would otherwise crash `tabToSession` or produce an Invalid Date, so the
+ * readers drop them instead of trusting the shape.
+ */
+function isValidStoredTab(value: unknown): value is PersistedTab {
+  if (typeof value !== 'object' || value === null) return false;
+  const tab = value as Record<string, unknown>;
+  return (
+    typeof tab.id === 'string' &&
+    typeof tab.title === 'string' &&
+    Array.isArray(tab.abilities) &&
+    typeof tab.providerId === 'string' &&
+    typeof tab.modelId === 'string' &&
+    typeof tab.createdAt === 'number' &&
+    Number.isFinite(tab.createdAt) &&
+    typeof tab.updatedAt === 'number' &&
+    Number.isFinite(tab.updatedAt) &&
+    typeof tab.agent === 'object' &&
+    tab.agent !== null
+  );
+}
+
 /** All stored tabs for a pubkey scope, oldest first. Malformed entries are skipped. */
 export function getStoredTabs(pubkey?: string, storage: Storage = localStorage): PersistedTab[] {
   // Only enumerate this pubkey's segment so other accounts' tabs stay hidden.
@@ -52,8 +76,8 @@ export function getStoredTabs(pubkey?: string, storage: Storage = localStorage):
     const raw = storage.getItem(key);
     if (!raw) continue;
     try {
-      const tab = JSON.parse(raw) as PersistedTab;
-      if (tab && typeof tab.id === 'string') tabs.push(tab);
+      const parsed: unknown = JSON.parse(raw);
+      if (isValidStoredTab(parsed)) tabs.push(parsed);
     } catch {
       // Skip malformed entries rather than crashing the whole tab restore.
     }
@@ -62,12 +86,13 @@ export function getStoredTabs(pubkey?: string, storage: Storage = localStorage):
   return tabs;
 }
 
-/** A single stored tab, or null when none exists under this id. */
+/** A single stored tab, or null when none exists under this id or the stored record is malformed. */
 export function getStoredTab(id: string, pubkey?: string, storage: Storage = localStorage): PersistedTab | null {
   const raw = storage.getItem(keyFor(pubkey, id));
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as PersistedTab;
+    const parsed: unknown = JSON.parse(raw);
+    return isValidStoredTab(parsed) ? parsed : null;
   } catch {
     return null;
   }

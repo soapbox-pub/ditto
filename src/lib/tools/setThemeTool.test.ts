@@ -145,6 +145,27 @@ describe('createSetThemeTool', () => {
     expect(parseResult(result).background).toBeUndefined();
   });
 
+  it('rejects non-object arguments with a structured error instead of throwing', async () => {
+    const apply = vi.fn();
+    const tool = createSetThemeTool(apply);
+
+    for (const garbage of [null, 'oops', [1, 2, 3]]) {
+      const result = await tool.execute(garbage as unknown as typeof VALID_ARGS);
+      expect(parseResult(result).error).toContain('Invalid arguments');
+    }
+    expect(apply).not.toHaveBeenCalled();
+  });
+
+  it('rejects wrong-typed optional fields with a structured error', async () => {
+    const apply = vi.fn();
+    const tool = createSetThemeTool(apply);
+
+    const result = await tool.execute({ ...VALID_ARGS, font: 123 } as unknown as typeof VALID_ARGS);
+
+    expect(parseResult(result).error).toContain('font');
+    expect(apply).not.toHaveBeenCalled();
+  });
+
   it('exposes a schema that toolToOpenAI converts into set_theme parameters', () => {
     const tool = createSetThemeTool(() => {});
     const openai = toolToOpenAI('set_theme', tool);

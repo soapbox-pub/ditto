@@ -90,12 +90,19 @@ function formFromProfile(profile: AIProviderProfile): FormState {
   };
 }
 
-/** Parses a comma-separated model id string into AIModel-shaped entries. */
+/** Parses a comma-separated model id string into AIModel-shaped entries,
+ *  dropping empty segments and duplicate ids. */
 function parseModelIds(raw: string): AIProviderProfile['models'] {
+  const seen = new Set<string>();
   return raw
     .split(',')
     .map((id) => id.trim())
     .filter(Boolean)
+    .filter((id) => {
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    })
     .map((id) => ({ id, name: id }));
 }
 
@@ -189,19 +196,23 @@ export function ModelListEditor({ models, onModelsChange }: ModelListEditorProps
       });
       return;
     }
+    // Count only ids that are not already active: parseModelIds drops
+    // duplicates inside the input, and an id already in the active list is
+    // not newly saved.
+    const activeIds = new Set(models.map((m) => m.id));
+    const added = parsed.filter((m) => !activeIds.has(m.id));
     // Custom ids join the pool too, so they behave like detected ones:
     // removable from the active list and re-addable from the dropdown.
     setPool((prev) => {
       const known = new Set(prev.map((m) => m.id));
-      return [...prev, ...parsed.filter((m) => !known.has(m.id))];
+      return [...prev, ...added.filter((m) => !known.has(m.id))];
     });
-    const activeIds = new Set(models.map((m) => m.id));
-    emit([...models, ...parsed.filter((m) => !activeIds.has(m.id))]);
+    emit([...models, ...added]);
     setCustomInput('');
     toast({
       title: intl.formatMessage(
         { id: 'settings.ai.appliedTitle', defaultMessage: '{count, plural, one {# model saved} other {# models saved}}' },
-        { count: parsed.length },
+        { count: added.length },
       ),
     });
   }
@@ -307,19 +318,29 @@ function ProviderFormDialog({ open, editing, onOpenChange, onSave, hasNip44Suppo
   const canSave = form.name.trim().length > 0 && form.baseURL.trim().length > 0;
 
   function handleKindChange(kind: AIProviderKind) {
-    setForm((f) => ({ ...f, kind, baseURL: KIND_BASE_URLS[kind] }));
+    // A new kind means a new endpoint: drop the previous kind's key and
+    // detected models so nothing from the old provider leaks through.
+    setForm((f) => ({ ...f, kind, baseURL: KIND_BASE_URLS[kind], apiKey: '', models: [] }));
   }
 
   /** Detects models for the current form values; shared by auto-detect and the button. */
   async function runDetect() {
-    const apiKeyAtCall = form.apiKey;
+    const detectAtCall = { kind: form.kind, baseURL: form.baseURL, apiKey: form.apiKey };
     setDetecting(true);
     setDetectError(false);
     try {
       const models = await fetchProviderModels(form, config.appName);
-      // Drop stale results if the key changed while the fetch was in flight —
-      // the newer key's own debounced detect will populate the models.
-      setForm((f) => (f.apiKey === apiKeyAtCall ? { ...f, models } : f));
+      // Drop stale results if the kind, base URL, or key changed while the
+      // fetch was in flight, so models from the old endpoint never land on
+      // the new one. Only a user edit to the API key schedules a fresh
+      // debounced detect (see useAutoDetectModels), so after a kind or base
+      // URL change the list stays as it was until the user presses "Detect
+      // models".
+      setForm((f) =>
+        f.kind === detectAtCall.kind && f.baseURL === detectAtCall.baseURL && f.apiKey === detectAtCall.apiKey
+          ? { ...f, models }
+          : f,
+      );
     } catch {
       setDetectError(true);
     } finally {
@@ -665,16 +686,37 @@ export function SettingsAIPage() {
     setDialogOpen(true);
   }
 
+  /** The NIP-78 mirror write failed: the local state is saved, the network
+   *  state is not. Told to the user so the UI does not claim a synced state
+   *  the publish never reached (a deleted profile could reappear later). */
+  function toastSyncFailure() {
+    toast({
+      title: intl.formatMessage({ id: 'settings.ai.syncFailedTitle', defaultMessage: 'Sync failed' }),
+      description: intl.formatMessage({
+        id: 'settings.ai.syncFailedDescription',
+        defaultMessage: 'Saved on this device, but the change could not be published to your relays. Another device may still have the old version.',
+      }),
+      variant: 'destructive',
+    });
+  }
+
+  /** Warn the user when a profile write reached this device but not the relays. */
+  function reportSync(synced: Promise<boolean>) {
+    void synced.then((ok) => {
+      if (!ok) toastSyncFailure();
+    });
+  }
+
   function handleSave(form: FormState) {
     if (editing) {
-      updateProfile(editing.id, {
+      reportSync(updateProfile(editing.id, {
         kind: form.kind,
         name: form.name.trim(),
         baseURL: form.baseURL.trim(),
         apiKey: form.apiKey,
         models: form.models,
         syncEnabled: form.syncEnabled,
-      });
+      }));
       toast({
         title: intl.formatMessage({ id: 'settings.ai.savedTitle', defaultMessage: 'Provider updated' }),
       });
@@ -686,6 +728,8 @@ export function SettingsAIPage() {
         apiKey: form.apiKey,
         models: form.models,
         syncEnabled: form.syncEnabled,
+      }, (synced) => {
+        if (!synced) toastSyncFailure();
       });
       toast({
         title: intl.formatMessage({ id: 'settings.ai.addedTitle', defaultMessage: 'Provider added' }),
@@ -696,15 +740,16 @@ export function SettingsAIPage() {
 
   function handleDeleteConfirm() {
     if (!deleteTarget) return;
-    deleteProfile(deleteTarget.id);
+    const target = deleteTarget;
     setDeleteTarget(null);
+    reportSync(deleteProfile(target.id));
   }
 
   async function detectModels(profile: AIProviderProfile) {
     setDetecting((m) => ({ ...m, [profile.id]: true }));
     try {
       const models = await fetchProviderModels(profile, config.appName);
-      updateProfile(profile.id, { models });
+      reportSync(updateProfile(profile.id, { models }));
       toast({
         title: intl.formatMessage(
           { id: 'settings.ai.detectedTitle', defaultMessage: '{count, plural, one {# model detected} other {# models detected}}' },
@@ -865,7 +910,7 @@ export function SettingsAIPage() {
                   </div>
                   <ModelListEditor
                     models={profile.models}
-                    onModelsChange={(models) => updateProfile(profile.id, { models })}
+                    onModelsChange={(models) => reportSync(updateProfile(profile.id, { models }))}
                   />
                 </CardContent>
               </Card>

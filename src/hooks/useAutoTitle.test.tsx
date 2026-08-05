@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, onTestFinished } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { AgentSession, SessionMessage } from '@soapbox.pub/nostr-canvas/devkit';
 
@@ -137,5 +137,48 @@ describe('useAutoTitle', () => {
       expect.objectContaining({ model: 'glm-4.5', max_tokens: AUTO_TITLE_MAX_TOKENS, temperature: 0 }),
     );
     expect(updateSession).toHaveBeenCalledWith('s1', { title: 'Shakespeare Title' });
+  });
+
+  it('does not refire a failed title attempt until the messages array reference changes', async () => {
+    const session = makeSession();
+    const exchange: SessionMessage[] = [
+      { role: 'user', content: 'hi' },
+      { role: 'assistant', content: 'hello' },
+    ];
+    const create = vi.fn().mockRejectedValue(new Error('quota exceeded'));
+    createSessionOpenAIClientMock.mockResolvedValue({ chat: { completions: { create } } });
+    useCurrentUserMock.mockReturnValue({ user: { pubkey: PUBKEY } });
+    // Registered for teardown, so a failed assertion below cannot leave the
+    // console.error mock installed for the tests that follow.
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    onTestFinished(() => errorSpy.mockRestore());
+
+    const updateSession = vi.fn();
+    const { rerender } = renderHook(
+      (props: { messages: SessionMessage[] }) =>
+        useAutoTitle({
+          sessions: [session],
+          snapshots: { s1: completedExchangeSnapshot(props.messages) },
+          profiles: [],
+          updateSession,
+        }),
+      { initialProps: { messages: exchange } },
+    );
+
+    // The first attempt fires and fails.
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    // Let the rejection settle so inFlight clears before the re-render.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Same messages array reference: the guard must skip a new attempt.
+    rerender({ messages: exchange });
+    // Give a spurious retry time to reach the client before asserting it did not.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(create).toHaveBeenCalledTimes(1);
+
+    // A new messages array reference does allow a new attempt.
+    const followUp: SessionMessage[] = [...exchange, { role: 'user', content: 'follow-up' }];
+    rerender({ messages: followUp });
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
   });
 });
