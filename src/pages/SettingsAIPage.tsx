@@ -325,14 +325,19 @@ function ProviderFormDialog({ open, editing, onOpenChange, onSave, hasNip44Suppo
 
   /** Detects models for the current form values; shared by auto-detect and the button. */
   async function runDetect() {
-    const apiKeyAtCall = form.apiKey;
+    const detectAtCall = { kind: form.kind, baseURL: form.baseURL, apiKey: form.apiKey };
     setDetecting(true);
     setDetectError(false);
     try {
       const models = await fetchProviderModels(form, config.appName);
-      // Drop stale results if the key changed while the fetch was in flight —
-      // the newer key's own debounced detect will populate the models.
-      setForm((f) => (f.apiKey === apiKeyAtCall ? { ...f, models } : f));
+      // Drop stale results if the kind, base URL, or key changed while the
+      // fetch was in flight — the newer values' own debounced detect will
+      // populate the models.
+      setForm((f) =>
+        f.kind === detectAtCall.kind && f.baseURL === detectAtCall.baseURL && f.apiKey === detectAtCall.apiKey
+          ? { ...f, models }
+          : f,
+      );
     } catch {
       setDetectError(true);
     } finally {
