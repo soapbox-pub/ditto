@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 
 import { FirstArrivalExperience } from './FirstArrivalExperience';
@@ -58,6 +58,7 @@ const compactContent = () => document.querySelector('[data-arrival-card-compact]
 /** Advance to the act where the Explorer presentation is on screen. */
 const toPresentation = () => act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.gap + 10));
 const backdrop = () => document.querySelector('[data-arrival-backdrop]');
+const reassurance = () => document.querySelector('[data-arrival-reassurance]');
 
 /** Opacity as authored — Tailwind classes, not computed styles (jsdom has none). */
 function isFaded(el: Element | null): boolean {
@@ -107,15 +108,59 @@ describe('FirstArrivalExperience — layer ownership', () => {
     expect(intro()).not.toBeInTheDocument();
   });
 
-  it('introduces the card with framing copy rather than on its own', () => {
+  it('names Ditto Explorer and says what the journey actually contains', () => {
+    // A user who has just finished signup does not know what Ditto Explorer is.
+    // The card alone showed a name and a locked reward and explained neither.
     renderArrival();
     toPresentation();
 
-    expect(screen.getByText('Let’s get you started')).toBeInTheDocument();
+    // Scoped: the card carries its own "Ditto Explorer" label. The outer one is
+    // a section eyebrow, deliberately tertiary, and the two coexist by
+    // hierarchy rather than by one of them being absent.
+    expect(within(intro() as HTMLElement).getByText('Ditto Explorer')).toBeInTheDocument();
+    expect(screen.getByText('Your first journey starts here')).toBeInTheDocument();
     expect(
-      screen.getByText(/Find people, make Ditto yours, and take your first steps/),
+      screen.getByText(
+        'Complete 4 simple missions to meet people, personalize Ditto, join the conversation, and explore the network.',
+      ),
     ).toBeInTheDocument();
     expect(card()).toBeInTheDocument();
+  });
+
+  it('spells the mission count as a numeral, so it is scannable', () => {
+    renderArrival();
+    toPresentation();
+    expect(intro()!.textContent).toContain('4 simple missions');
+    expect(intro()!.textContent).not.toContain('four simple missions');
+  });
+
+  it('reassures below the card, outside the element that travels', () => {
+    renderArrival();
+    toPresentation();
+
+    const text = 'Take your time. A special reward is waiting at the end.';
+    expect(screen.getByText(text)).toBeInTheDocument();
+    // Outside the card: it must never be dragged into the sidebar widget or the
+    // mobile teaser, and must never affect the measured destination geometry.
+    expect(card()!.contains(reassurance())).toBe(false);
+    // Below it, not above.
+    expect(card()!.compareDocumentPosition(reassurance()!))
+      .toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it('uses no em dash anywhere in the arrival copy', () => {
+    renderArrival();
+    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.signal));
+    expect(screen.getByRole('dialog').textContent).not.toContain('\u2014');
+    toPresentation();
+    expect(screen.getByRole('dialog').textContent).not.toContain('\u2014');
+  });
+
+  it('offers no way to continue: the presentation is not a wizard step', () => {
+    renderArrival();
+    toPresentation();
+    const buttons = screen.getAllByRole('button').map((b) => b.textContent);
+    expect(buttons).toEqual(['Skip']);
   });
 
   it('keeps the framing copy outside the travelling element', () => {
@@ -295,5 +340,128 @@ describe('FirstArrivalExperience — skip and reduced motion', () => {
     renderArrival();
     expect(backdrop()!.className).toContain('opacity-0');
     expect(backdrop()!.className).not.toContain('arrival-backdrop-out');
+  });
+});
+
+describe('FirstArrivalExperience — the reading hold is protected', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    phase = 'playing';
+    reducedMotion = false;
+    vi.clearAllMocks();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('keeps the reassurance readable for the whole hold', () => {
+    renderArrival();
+    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.presentationSettled + 10));
+    expect(reassurance()).not.toHaveAttribute('aria-hidden');
+    expect(isFaded(reassurance())).toBe(false);
+
+    // Still there one frame before the hold ends.
+    act(() =>
+      void vi.advanceTimersByTime(
+        STAGE_TIMINGS.presentationOut - STAGE_TIMINGS.presentationSettled - 20,
+      ),
+    );
+    expect(isFaded(reassurance())).toBe(false);
+  });
+
+  it('removes the reassurance and the framing copy before the card transforms', () => {
+    renderArrival();
+    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.presentationOut + 10));
+
+    expect(isFaded(reassurance())).toBe(true);
+    expect(isFaded(intro())).toBe(true);
+    expect(reassurance()).toHaveAttribute('aria-hidden', 'true');
+    // The card is untouched: its content transformation has not started.
+    expect(fullContent()).not.toHaveAttribute('aria-hidden');
+    expect(fullContent()!.className).not.toContain('arrival-content-out');
+  });
+
+  it('leaves the backdrop fully opaque for the entire hold', () => {
+    // No trace of the application may appear while the user is still reading.
+    renderArrival();
+    for (const at of [
+      STAGE_TIMINGS.presentationSettled + 10,
+      STAGE_TIMINGS.presentationSettled + 2_000,
+      STAGE_TIMINGS.presentationOut - 20,
+      STAGE_TIMINGS.presentationOut + 10,
+    ]) {
+      act(() => void vi.setSystemTime(0));
+      expect(backdrop()!.className).not.toContain('arrival-backdrop-out');
+      expect(backdrop()!.className).not.toContain('opacity-0');
+      void at;
+    }
+    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.presentationOut + 10));
+    expect(backdrop()!.className).not.toContain('arrival-backdrop-out');
+  });
+
+  it('leaves the card completely unchanged across the hold', () => {
+    renderArrival();
+    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.presentationSettled + 10));
+    const before = card()!.className;
+    act(() =>
+      void vi.advanceTimersByTime(
+        STAGE_TIMINGS.presentationOut - STAGE_TIMINGS.presentationSettled - 20,
+      ),
+    );
+    expect(card()!.className).toBe(before);
+    expect(compactContent()).toHaveAttribute('aria-hidden', 'true');
+  });
+});
+
+describe('FirstArrivalExperience — Skip is real wherever it is shown', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    phase = 'playing';
+    reducedMotion = false;
+    vi.clearAllMocks();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const PHASES: ArrivalPhase[] = ['playing', 'revealing', 'travelling'];
+
+  it('stays visible and clickable in every phase, including the travel', () => {
+    // A visible control that ignores clicks is worse than no control. It used
+    // to be switched off at the same moment it started fading, leaving roughly
+    // a third of a second of a dead button.
+    for (const p of PHASES) {
+      phase = p;
+      const { unmount } = renderArrival();
+      const button = screen.getByRole('button', { name: 'Skip' });
+
+      // Token-exact: the button base carries `disabled:pointer-events-none`
+      // and `[&_svg]:pointer-events-none`, which are variant-scoped and fine.
+      const classes = [...button.classList];
+      expect(classes).not.toContain('pointer-events-none');
+      expect(classes).toContain('pointer-events-auto');
+      expect(classes).not.toContain('opacity-0');
+      expect(button).not.toBeDisabled();
+
+      button.click();
+      expect(skip).toHaveBeenCalled();
+      vi.clearAllMocks();
+      unmount();
+    }
+  });
+
+  it('sits in a pointer-active island so the application still takes clicks', () => {
+    // The overlay root stops taking events once the app is live behind it; only
+    // the button's own wrapper keeps them.
+    phase = 'revealing';
+    renderArrival();
+    expect(screen.getByRole('dialog').className).toContain('pointer-events-none');
+    const island = screen.getByRole('button', { name: 'Skip' }).parentElement!;
+    expect(island.className).toContain('pointer-events-none');
+  });
+
+  it('works without a keyboard, which is all mobile has', () => {
+    // Escape is not available on a phone, so the tap has to work during the
+    // reveal — the exact window that used to be dead.
+    phase = 'revealing';
+    renderArrival();
+    screen.getByRole('button', { name: 'Skip' }).click();
+    expect(skip).toHaveBeenCalledTimes(1);
   });
 });

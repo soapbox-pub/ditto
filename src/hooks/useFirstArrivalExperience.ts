@@ -39,16 +39,20 @@ export type ArrivalPhase =
 const ACCOUNT_WAIT_MS = 5_000;
 
 /**
- * Signal, welcome, welcome exit, the Explorer presentation's entrance, and the
- * reading beat that follows it — see `STAGE_TIMINGS` for the act boundaries.
+ * Signal, welcome, welcome exit, the Explorer presentation's entrance, its
+ * reading hold, and its exit — see `STAGE_TIMINGS` for the act boundaries.
  *
- * Must be at least `presentationSettled + MIN_READING_HOLD_MS`: the composition
- * finishes entering at ~3900ms and then has to hold, completely still, long
- * enough to actually be read. Both reading holds are deliberately generous —
- * this runs once per account, during account creation, and Skip is always
- * there. It is not optimised for brevity.
+ * The Explorer presentation owns roughly 8 seconds of this: 1.1s assembling,
+ * 6.0s completely still, 0.9s leaving. It is the only part of the arrival that
+ * has to teach something, and it now says what Ditto Explorer is and that it
+ * holds 4 short missions — copy the user cannot skim in two seconds.
+ *
+ * Must be at least `presentationOut` plus the copy's exit: the presentation
+ * finishes as a presentation before the handoff begins. This runs once per
+ * account, during account creation, with Skip always available. It is not
+ * optimised for brevity.
  */
-const PLAY_MS = 5_700;
+const PLAY_MS = 11_220;
 /**
  * The backdrop dissolves and the application appears behind the presentation,
  * while the card changes its contents from the full presentation layout to the
@@ -69,8 +73,11 @@ const REVEAL_MS = 620;
  */
 const TRAVEL_TIMEOUT_MS = 2_500;
 
-/** Reduced motion: a static welcome, held briefly, then an immediate hand-off. */
-const REDUCED_PLAY_MS = 4_450;
+/**
+ * Reduced motion: static entrances, no travel — but the same reading time. The
+ * preference is about movement, not about how fast someone reads.
+ */
+const REDUCED_PLAY_MS = 8_950;
 const REDUCED_REVEAL_MS = 450;
 
 /**
@@ -230,8 +237,19 @@ export function useFirstArrivalExperience(): FirstArrivalExperience {
     setPhase((current) => (current === 'travelling' ? 'done' : current));
   }, []);
 
+  /**
+   * Leave immediately, from wherever the sequence has got to.
+   *
+   * Accepts every phase in which the control is on screen, including
+   * `travelling`. A visible button that silently does nothing is worse than no
+   * button, and on mobile there is no Escape to fall back on.
+   *
+   * It only ends the *presentation*. The Explorer introduction is left pending
+   * on the destination — skipping the cinematic is not a decision about the
+   * mission, so nothing is acknowledged or postponed here.
+   */
   const skip = useCallback(() => {
-    if (phase !== 'playing' && phase !== 'revealing') return;
+    if (phase !== 'playing' && phase !== 'revealing' && phase !== 'travelling') return;
     skippedRef.current = true;
     if (phase === 'playing') finish('skipped');
     else setPhase('done');

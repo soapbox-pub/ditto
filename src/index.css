@@ -1084,7 +1084,19 @@
 /* Slightly delayed behind the framing copy, so the heading reads first and the
    card settles under it — a coordinated entrance rather than both popping. */
 .arrival-card-in {
-  animation: arrival-card-in 0.52s cubic-bezier(0.22, 1, 0.36, 1) 0.16s backwards;
+  animation: arrival-card-in 0.62s cubic-bezier(0.22, 1, 0.36, 1) 0.16s backwards;
+}
+
+/* The reassurance below the card is the last thing to arrive, once the card it
+   refers to has settled — so the composition assembles top-down rather than all
+   at once. */
+@keyframes arrival-reassurance-in {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.arrival-reassurance-in {
+  animation: arrival-reassurance-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.65s backwards;
 }
 
 /* The backdrop dissolves so the real application shows through, while the card
@@ -1168,10 +1180,8 @@
    frame is not visibly frozen, far short of an attention animation. */
 @keyframes arrival-card-spotlight {
   0%   { opacity: 0; }
-  25%  { opacity: 0.85; }
-  50%  { opacity: 0.6; }
-  75%  { opacity: 0.9; }
-  100% { opacity: 0.72; }
+  40%  { opacity: 0.82; }
+  100% { opacity: 0.7; }
 }
 
 .arrival-card-spotlight {
@@ -1181,7 +1191,7 @@
     hsl(var(--primary) / 0.08) 45%,
     transparent 72%
   );
-  animation: arrival-card-spotlight 2.2s ease-in-out forwards;
+  animation: arrival-card-spotlight 1.6s ease-out forwards;
 }
 
 /* The framing copy above the card rises a few pixels as it fades in, a beat
@@ -1192,7 +1202,13 @@
 }
 
 .arrival-intro-in {
-  animation: arrival-intro-in 0.46s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  /* `backwards`, not `forwards`. A forwards-filling animation on the same
+     element that later transitions its opacity makes Chrome skip the
+     transition entirely — the framing copy vanished in a single frame instead
+     of fading over 300ms. `backwards` holds the from-state before the animation
+     starts and then hands the element back to its own classes, which is all
+     this needs. The card and the reassurance already do it this way. */
+  animation: arrival-intro-in 0.46s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1202,6 +1218,7 @@
   .arrival-welcome,
   .arrival-card-in,
   .arrival-intro-in,
+  .arrival-reassurance-in,
   .arrival-card-spotlight,
   .arrival-backdrop-out {
     animation: none;

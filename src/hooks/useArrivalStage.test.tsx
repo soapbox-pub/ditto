@@ -14,7 +14,9 @@ import {
   isGap,
   isIntroCopyVisible,
   isPresentationStage,
+  isCopyExiting,
   isReadingBeat,
+  isReassuranceVisible,
   isWelcomeHold,
   isWelcomeStage,
   useArrivalStage,
@@ -24,7 +26,7 @@ import { ARRIVAL_TIMINGS, type ArrivalPhase } from './useFirstArrivalExperience'
 
 const ALL_STAGES: ArrivalStage[] = [
   'signal', 'welcome', 'welcome-out', 'gap', 'presenting', 'reading',
-  'revealing', 'content-out', 'content-in', 'travelling', 'done',
+  'copy-out', 'revealing', 'content-out', 'content-in', 'travelling', 'done',
 ];
 
 function renderStage(phase: ArrivalPhase, reducedMotion = false) {
@@ -279,11 +281,12 @@ describe('useArrivalStage — the reading beat', () => {
     expect(isWelcomeHold('welcome')).toBe(true);
   });
 
-  it('gives the presentation an unhurried entrance', () => {
-    // One coordinated entrance, not two disconnected animations.
+  it('gives the presentation an unhurried, staged entrance', () => {
+    // One coordinated entrance, assembling top-down: framing copy, then the
+    // card 160ms behind it, then the reassurance once the card has settled.
     const entrance = STAGE_TIMINGS.presentationSettled - STAGE_TIMINGS.gap;
-    expect(entrance).toBeGreaterThanOrEqual(600);
-    expect(entrance).toBeLessThanOrEqual(900);
+    expect(entrance).toBeGreaterThanOrEqual(1_000);
+    expect(entrance).toBeLessThanOrEqual(1_300);
   });
 
   it('runs the ambient treatment only while the composition is still', () => {
@@ -300,5 +303,89 @@ describe('useArrivalStage — the reading beat', () => {
     const { result } = renderStage('playing', true);
     act(() => void vi.advanceTimersByTime(REDUCED_STAGE_TIMINGS.presentationSettled));
     expect(result.current).toBe('reading');
+  });
+});
+
+describe('useArrivalStage — the Explorer presentation gets time to be read', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('holds the whole composition still for about six seconds', () => {
+    // The one moment in the arrival carrying real information: what Ditto
+    // Explorer is, that it holds 4 short missions, and that finishing leads
+    // somewhere. Two seconds was not enough to take that in.
+    const hold = STAGE_TIMINGS.presentationOut - STAGE_TIMINGS.presentationSettled;
+    expect(hold).toBeGreaterThanOrEqual(MIN_READING_HOLD_MS);
+    expect(hold).toBeGreaterThanOrEqual(5_800);
+    expect(hold).toBeCloseTo(6_000, -2);
+  });
+
+  it('counts no entrance or exit animation as reading time', () => {
+    // The hold starts only once the last element (the reassurance) has landed,
+    // and ends the moment the first one starts leaving.
+    const { result } = renderStage('playing');
+    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.presentationSettled));
+    expect(result.current).toBe('reading');
+    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.presentationOut - STAGE_TIMINGS.presentationSettled - 10));
+    expect(result.current).toBe('reading');
+    act(() => void vi.advanceTimersByTime(20));
+    expect(result.current).toBe('copy-out');
+  });
+
+  it('shows the reassurance throughout the hold and nowhere else', () => {
+    for (const stage of ALL_STAGES.filter((s) => s !== 'presenting' && s !== 'reading')) {
+      expect(isReassuranceVisible(stage)).toBe(false);
+    }
+    expect(isReassuranceVisible('reading')).toBe(true);
+  });
+
+  it('removes the framing copy and the reassurance before the card transforms', () => {
+    // The presentation finishes as a presentation. Nothing about the handoff
+    // starts while there is still copy on screen leaving.
+    for (const stage of ['copy-out', 'revealing', 'content-out', 'content-in', 'travelling'] as ArrivalStage[]) {
+      expect(isIntroCopyVisible(stage)).toBe(false);
+      expect(isReassuranceVisible(stage)).toBe(false);
+    }
+    expect(isCardTransforming('copy-out')).toBe(false);
+  });
+
+  it('names the copy exit as its own act, distinct from the reveal', () => {
+    for (const stage of ALL_STAGES.filter((s) => s !== 'copy-out')) {
+      expect(isCopyExiting(stage)).toBe(false);
+    }
+    expect(isCopyExiting('copy-out')).toBe(true);
+  });
+
+  it('leaves the card alone on an opaque backdrop while the copy exits', () => {
+    // `copy-out` is inside `playing`, so the backdrop has not begun dissolving.
+    const { result } = renderStage('playing');
+    act(() => void vi.advanceTimersByTime(STAGE_TIMINGS.presentationOut + 10));
+    expect(result.current).toBe('copy-out');
+    expect(isFullCardContentVisible('copy-out')).toBe(true);
+    expect(isPresentationStage('copy-out')).toBe(true);
+  });
+
+  it('cannot reveal the application at any point during the hold', () => {
+    // The lifecycle's play window has to outlast the whole presentation,
+    // otherwise the backdrop would start dissolving mid-sentence.
+    expect(ARRIVAL_TIMINGS.play).toBeGreaterThan(STAGE_TIMINGS.presentationOut);
+    expect(ARRIVAL_TIMINGS.reducedPlay).toBeGreaterThan(REDUCED_STAGE_TIMINGS.presentationOut);
+  });
+
+  it('continues on its own, with no input, once the hold is over', () => {
+    const { result } = renderStage('playing');
+    act(() => void vi.advanceTimersByTime(ARRIVAL_TIMINGS.play));
+    expect(result.current).toBe('copy-out');
+  });
+
+  it('gives reduced motion the same reading time, only shorter entrances', () => {
+    const full = STAGE_TIMINGS.presentationOut - STAGE_TIMINGS.presentationSettled;
+    const reduced =
+      REDUCED_STAGE_TIMINGS.presentationOut - REDUCED_STAGE_TIMINGS.presentationSettled;
+    expect(reduced).toBe(full);
+    expect(reduced).toBeGreaterThanOrEqual(5_800);
+    // The entrance, by contrast, is allowed to be brisk.
+    expect(REDUCED_STAGE_TIMINGS.presentationSettled - REDUCED_STAGE_TIMINGS.gap)
+      .toBeLessThan(STAGE_TIMINGS.presentationSettled - STAGE_TIMINGS.gap);
   });
 });

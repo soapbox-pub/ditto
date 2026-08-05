@@ -24,6 +24,10 @@ import type { ArrivalPhase } from '@/hooks/useFirstArrivalExperience';
  * - `presenting`  — the Explorer introduction enters (heading, microcopy, card).
  * - `reading`     — the composition is settled and still; the beat where the
  *                   user actually reads it.
+ * - `copy-out`    — the framing copy and the reassurance leave, and the card is
+ *                   left alone on the still-opaque backdrop for a moment. The
+ *                   application is not revealed yet: the presentation finishes
+ *                   before the handoff starts.
  * - `revealing`   — the backdrop dissolves; the application appears behind.
  * - `content-out` — framing copy leaves and the card's full presentation content
  *                   wipes away, bottom to top.
@@ -38,6 +42,7 @@ export type ArrivalStage =
   | 'gap'
   | 'presenting'
   | 'reading'
+  | 'copy-out'
   | 'revealing'
   | 'content-out'
   | 'content-in'
@@ -80,10 +85,22 @@ export const STAGE_TIMINGS = {
   gap: 3_220,
   /**
    * The Explorer composition has finished entering and is completely still.
-   * Framing copy takes ~460ms and the card ~680ms (it is staggered 160ms
-   * behind), so the whole entrance is done by then.
+   *
+   * The entrance is staged rather than simultaneous, and the hold starts only
+   * once the last of it has landed: framing copy over 0–600ms, the card 160ms
+   * behind it and settled by ~780ms, the reassurance below the card last of all
+   * at 650–1100ms. Nothing is still arriving after this point.
    */
-  presentationSettled: 3_900,
+  presentationSettled: 4_320,
+  /**
+   * The framing copy and the reassurance begin leaving, ending the reading hold.
+   *
+   * Six full seconds after the composition settles. The Explorer presentation is
+   * the one moment carrying real information — what Ditto Explorer is, that it
+   * holds 4 short missions, and that finishing them leads somewhere — and it
+   * previously gave the user about two seconds to take all of that in.
+   */
+  presentationOut: 10_320,
   /** How long after `revealing` begins the full card content starts wiping. */
   contentOutAfterReveal: 80,
   /** How long after `revealing` begins the compact content starts entering. */
@@ -92,7 +109,7 @@ export const STAGE_TIMINGS = {
 
 /** The shortest hold worth calling a reading moment, for each act. */
 export const MIN_WELCOME_HOLD_MS = 1_500;
-export const MIN_READING_HOLD_MS = 1_800;
+export const MIN_READING_HOLD_MS = 5_800;
 
 /** When the welcome has finished entering and is stable. */
 export const WELCOME_ENTERED_AT_MS = 950;
@@ -108,6 +125,9 @@ export const REDUCED_STAGE_TIMINGS = {
   welcomeOut: 1_950,
   gap: 2_150,
   presentationSettled: 2_450,
+  // The same six seconds. Reduced motion shortens entrances and removes
+  // movement; it does not decide the user reads faster.
+  presentationOut: 8_450,
   contentOutAfterReveal: 0,
   contentInAfterReveal: 220,
 } as const;
@@ -121,6 +141,7 @@ export type ArrivalStageEntry =
   | 'welcome-reading'
   | 'presenting'
   | 'reading'
+  | 'copy-out'
   | 'revealing'
   | 'content-out'
   | 'content-in'
@@ -135,6 +156,8 @@ function entryStage(entry: ArrivalStageEntry | undefined): ArrivalStage | undefi
       return 'presenting';
     case 'reading':
       return 'reading';
+    case 'copy-out':
+      return 'copy-out';
     case 'revealing':
       return 'revealing';
     case 'content-out':
@@ -185,6 +208,7 @@ export function useArrivalStage({
       setTimeout(() => setPlayStage('gap'), timings.welcomeOut),
       setTimeout(() => setPlayStage('presenting'), timings.gap),
       setTimeout(() => setPlayStage('reading'), timings.presentationSettled),
+      setTimeout(() => setPlayStage('copy-out'), timings.presentationOut),
     ];
     return () => timers.forEach(clearTimeout);
   }, [phase, forced, timings]);
@@ -243,6 +267,7 @@ export function isPresentationStage(stage: ArrivalStage): boolean {
   return (
     stage === 'presenting' ||
     stage === 'reading' ||
+    stage === 'copy-out' ||
     stage === 'revealing' ||
     stage === 'content-out' ||
     stage === 'content-in' ||
@@ -251,14 +276,38 @@ export function isPresentationStage(stage: ArrivalStage): boolean {
 }
 
 /**
- * Whether the transient framing copy — the heading and microcopy above the card
- * — should still be readable.
+ * Whether the transient framing copy — eyebrow, heading, and the line explaining
+ * the four missions — should still be readable.
  *
- * It belongs to the central presentation only. It never travels, and it starts
- * leaving as soon as the content transformation does.
+ * It belongs to the central presentation only. It never travels, and it is gone
+ * before the card starts transforming: the presentation ends, *then* the handoff
+ * begins. It used to fade during `revealing`, which put the framing copy's exit
+ * on top of the card's content wipe and the application appearing behind both.
  */
 export function isIntroCopyVisible(stage: ArrivalStage): boolean {
-  return stage === 'presenting' || stage === 'reading' || stage === 'revealing';
+  return stage === 'presenting' || stage === 'reading';
+}
+
+/**
+ * Whether the reassurance below the card is readable.
+ *
+ * Same lifetime as the framing copy, and for the same reason — it is stage
+ * dressing, not part of the object that travels. It enters last, once the card
+ * it refers to has settled, so the composition assembles top-down.
+ */
+export function isReassuranceVisible(stage: ArrivalStage): boolean {
+  return stage === 'presenting' || stage === 'reading';
+}
+
+/**
+ * The beat after the reading hold where the framing copy and the reassurance
+ * are leaving and the card is alone on a still-opaque backdrop.
+ *
+ * Its whole purpose is separation: the presentation finishes as a presentation
+ * before anything about the handoff starts. Nothing is revealed here.
+ */
+export function isCopyExiting(stage: ArrivalStage): boolean {
+  return stage === 'copy-out';
 }
 
 /**
@@ -278,7 +327,12 @@ export function isReadingBeat(stage: ArrivalStage): boolean {
  * is reading cannot start dismantling itself under them.
  */
 export function isFullCardContentVisible(stage: ArrivalStage): boolean {
-  return stage === 'presenting' || stage === 'reading' || stage === 'revealing';
+  return (
+    stage === 'presenting' ||
+    stage === 'reading' ||
+    stage === 'copy-out' ||
+    stage === 'revealing'
+  );
 }
 
 /**

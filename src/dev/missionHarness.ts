@@ -25,9 +25,13 @@ import {
  *  - `arrival-welcome`      — the welcome entering.
  *  - `arrival-welcome-reading` — the welcome's stable hold, **held**.
  *  - `arrival-presentation` — the Explorer composition entering.
- *  - `arrival-reading`      — the settled composition, **held indefinitely**, for
- *                             reviewing spacing, hierarchy and glow without a
- *                             timer taking it away mid-inspection.
+ *  - `arrival-reading`      — the complete settled composition, **held
+ *                             indefinitely**: eyebrow, title, the line about the
+ *                             4 missions, the full card, and the reassurance
+ *                             beneath it. For reviewing spacing, hierarchy and
+ *                             glow without a timer taking it away mid-inspection.
+ *  - `arrival-copy-out`     — the framing copy and the reassurance leaving, with
+ *                            the card alone on a still-opaque backdrop, **held**.
  *  - `arrival-content-transform` — the card mid-wipe, **held**.
  *  - `arrival-compact-ready` — the card in its destination-shaped form, **held**,
  *                             for checking it against the real widget.
@@ -55,6 +59,7 @@ export type MissionDevState =
   | 'arrival-welcome-reading'
   | 'arrival-presentation'
   | 'arrival-reading'
+  | 'arrival-copy-out'
   | 'arrival-reveal'
   | 'arrival-content-transform'
   | 'arrival-compact-ready'
@@ -104,6 +109,7 @@ const ARRIVAL_ENTRY: Partial<Record<MissionDevState, ArrivalStageEntry | 'sequen
   'arrival-welcome-reading': 'welcome-reading',
   'arrival-presentation': 'presenting',
   'arrival-reading': 'reading',
+  'arrival-copy-out': 'copy-out',
   'arrival-reveal': 'revealing',
   'arrival-content-transform': 'content-out',
   'arrival-compact-ready': 'content-in',
@@ -132,6 +138,7 @@ export function missionDevArrivalEntry(): ArrivalStageEntry | undefined {
 const HELD_ARRIVAL_STATES = new Set<MissionDevState>([
   'arrival-welcome-reading',
   'arrival-reading',
+  'arrival-copy-out',
   'arrival-content-transform',
   'arrival-compact-ready',
 ]);
@@ -207,6 +214,7 @@ function buildMissionDevState(): PostOnboardingGuideState | undefined {
   switch (scenario) {
     case 'arrival':
     case 'arrival-welcome':
+    case 'arrival-copy-out':
     case 'arrival-welcome-reading':
     case 'arrival-presentation':
     case 'arrival-reading':

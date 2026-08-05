@@ -5,6 +5,7 @@ import { missionDevArrivalEntry } from '@/dev/missionHarness';
 import { DittoLogo } from '@/components/DittoLogo';
 import { ExplorerArrivalCard } from '@/components/ExplorerArrivalCard';
 import { ExplorerArrivalIntro } from '@/components/ExplorerArrivalIntro';
+import { ExplorerArrivalReassurance } from '@/components/ExplorerArrivalReassurance';
 import { Button } from '@/components/ui/button';
 import { useExplorerArrival } from '@/contexts/ExplorerArrivalContext';
 import {
@@ -13,6 +14,7 @@ import {
   isIntroCopyVisible,
   isPresentationStage,
   isReadingBeat,
+  isReassuranceVisible,
   isWelcomeStage,
   useArrivalStage,
 } from '@/hooks/useArrivalStage';
@@ -40,11 +42,12 @@ const SIGNALS: ReadonlyArray<{ x: string; y: string; size: number; d: string }> 
  * The one-time arrival transition, shown immediately after a user completes
  * signup — and only then.
  *
- * Seven acts (see `useArrivalStage`), each with exactly **one text owner**:
- * points of light gather; "Welcome to Ditto" reads alone; the welcome leaves;
- * the Ditto Explorer introduction and its card take the centre; the backdrop
- * dissolves so the real application appears behind them; the framing copy and
- * the card's body fade as it compacts; and the card travels to wherever the
+ * A sequence of acts (see `useArrivalStage`), each with exactly **one text
+ * owner**: points of light gather; "Welcome to Ditto" reads alone; the welcome
+ * leaves; the Ditto Explorer introduction assembles around its card and holds
+ * still long enough to be read; the framing copy and the reassurance leave; the
+ * backdrop dissolves so the real application appears behind the card; the card's
+ * body changes to its destination form; and the card travels to wherever the
  * persistent Explorer surface lives and becomes it.
  *
  * That last act is the point. A fade between two unrelated components teaches
@@ -61,8 +64,8 @@ const SIGNALS: ReadonlyArray<{ x: string; y: string; size: number; d: string }> 
  * | 0  | backdrop (dissolves to reveal the app) |
  * | 10 | signal points                          |
  * | 20 | welcome                                |
- * | 30 | Explorer presentation (heading + card) |
- * | 40 | Skip                                   |
+ * | 30 | Explorer presentation (copy + card + reassurance) |
+ * | 40 | Skip (its own pointer-active island)   |
  *
  * The welcome and the presentation are never mounted at the same time — the
  * acts guarantee it — so no two pieces of copy can be readable at once.
@@ -116,8 +119,8 @@ export function FirstArrivalExperience() {
   // Escape to the same action. Dropped once the card starts travelling — by
   // then the application behind it is the thing to interact with.
   useEffect(() => {
-    if (!visible || travelling) return;
-    skipRef.current?.focus();
+    if (!visible) return;
+    if (!travelling) skipRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') skip();
     };
@@ -130,6 +133,7 @@ export function FirstArrivalExperience() {
   const showWelcome = isWelcomeStage(stage);
   const showPresentation = isPresentationStage(stage);
   const introVisible = isIntroCopyVisible(stage);
+  const reassuranceVisible = isReassuranceVisible(stage);
   const fullContent = isFullCardContentVisible(stage);
   const compactContent = isCompactCardContentVisible(stage);
   const ambient = isReadingBeat(stage) && !reducedMotion;
@@ -251,28 +255,33 @@ export function FirstArrivalExperience() {
               reducedMotion && compactContent && 'opacity-0 transition-opacity duration-300',
             )}
           />
+          {/* Below the card, and a sibling of it — see the component. */}
+          <ExplorerArrivalReassurance
+            visible={reassuranceVisible}
+            reducedMotion={reducedMotion}
+            className="-mt-1 [@media(max-height:720px)]:-mt-0.5"
+          />
         </div>
       )}
 
-      <Button
-        ref={skipRef}
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={skip}
-        className={cn(
-          'pointer-events-auto z-40 shrink-0 rounded-full px-5 text-muted-foreground hover:text-foreground',
-          'transition-opacity duration-300',
-          // In normal flow by default, so it can never land on top of the
-          // presentation on a short viewport — it previously overlapped the
-          // card's reward row at 390x560. Pinned to the bottom only where
-          // there is demonstrably room for it.
-          '[@media(min-height:760px)]:absolute [@media(min-height:760px)]:bottom-8',
-          revealing && 'pointer-events-none opacity-0',
-        )}
-      >
-        <FormattedMessage id="arrival.skip" defaultMessage="Skip" />
-      </Button>
+      {/* Layer 40 — Skip. Its own pointer-active island: the overlay root stops
+          taking events once the application is live behind it, but this control
+          keeps taking them for as long as it is on screen. It used to be
+          switched off at the same moment it began fading, which left roughly a
+          third of a second of a visible button that ignored clicks — and on
+          mobile there is no Escape to fall back on. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center pb-8 [@media(max-height:759px)]:static [@media(max-height:759px)]:pb-0">
+        <Button
+          ref={skipRef}
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={skip}
+          className="pointer-events-auto shrink-0 rounded-full px-5 text-muted-foreground hover:text-foreground"
+        >
+          <FormattedMessage id="arrival.skip" defaultMessage="Skip" />
+        </Button>
+      </div>
     </div>
   );
 }
