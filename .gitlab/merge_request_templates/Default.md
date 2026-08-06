@@ -52,7 +52,7 @@ Closes #
 - [ ] I read `AGENTS.md` before starting
 - [ ] I read the [Ditto Philosophy](https://about.ditto.pub/philosophy)
 - [ ] I used plan/research mode before writing code
-- [ ] I used Claude Opus 4.6 (or equivalent frontier model)
+- [ ] I used a frontier-class coding model (Claude Opus 4.6 or Sonnet 5)
 
 ### Self-review
 

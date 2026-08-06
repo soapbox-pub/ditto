@@ -144,7 +144,7 @@ We welcome contributions but have high standards. Please read the full [Contribu
 - **Bug fixes**: One bug, one MR. Keep it small and focused.
 - **New features**: Must link to an existing issue and align with the [Ditto Philosophy](https://about.ditto.pub/philosophy).
 - **Required**: Live preview URL, before/after screenshots, completed self-review checklist.
-- **Required tools**: Claude Opus 4.6 (or latest frontier model), an AI coding agent with plan mode.
+- **Required tools**: a frontier-class coding model (Claude Opus 4.6 or Sonnet 5), an AI coding agent with plan mode.
 
 Read the [Ditto Philosophy](https://about.ditto.pub/philosophy) to understand what Ditto is and isn't.
 

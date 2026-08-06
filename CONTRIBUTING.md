@@ -60,7 +60,7 @@ If you have an idea for a feature that doesn't have an issue yet:
 
 ## Required tools
 
-- **Claude Opus 4.6** (or the latest frontier model) -- not Sonnet, not GPT-4o, not local models. Quality depends on model quality.
+- **A frontier-class coding model** -- currently Claude Opus 4.6 or Claude Sonnet 5. Not older-generation models, not local models. If you aren't sure whether your model qualifies, it probably doesn't -- ask in an issue. Quality depends on model quality.
 - **An AI coding agent with plan/research mode** -- [OpenCode](https://opencode.ai), [Shakespeare](https://shakespeare.diy), Cursor, or similar.
 - **Node.js 22+** and npm 10.9.4+.
 
@@ -96,7 +96,7 @@ Do not write code until you have a plan. The most expensive mistake is implement
 
 ### 6. Implement
 
-Switch to code mode and implement your plan. Use Opus 4.6 or equivalent.
+Switch to code mode and implement your plan. Use a frontier-class model per "Required tools" above.
 
 ### 7. Run the test suite
 
