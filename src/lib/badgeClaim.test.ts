@@ -51,7 +51,7 @@ describe('buildExplorerClaimTemplate', () => {
         ['path', 'find-people'],
         ['path', 'post-small'],
         ['path', 'customize'],
-        ['path', 'explore'],
+        ['path', 'interact'],
         ['alt', DITTO_EXPLORER_CLAIM_ALT],
       ],
     });
@@ -68,9 +68,9 @@ describe('buildExplorerClaimTemplate', () => {
   });
 
   it('emits one path tag per completed path, in the given order', () => {
-    const template = buildExplorerClaimTemplate(['explore', 'customize']);
+    const template = buildExplorerClaimTemplate(['interact', 'customize']);
     const paths = template.tags.filter(([n]) => n === 'path').map(([, v]) => v);
-    expect(paths).toEqual(['explore', 'customize']);
+    expect(paths).toEqual(['interact', 'customize']);
   });
 
   it('omits path tags when none are completed', () => {

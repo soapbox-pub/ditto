@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useEffect, useSyncExternalStore } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 
+import { armMissionDevInteraction } from '@/dev/missionHarness';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -10,12 +10,15 @@ import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { usePostOnboardingGuide } from '@/hooks/usePostOnboardingGuide';
 import {
+  readPostInteractions,
+  subscribePostInteractions,
+} from '@/lib/postInteraction';
+import {
   isProfileTaskSatisfied,
   isQualifyingStarterPost,
   PUBLISH_CLOCK_SKEW_MS,
   themeSignature,
 } from '@/lib/postOnboardingGuide';
-import { MISSION_TASK_ROUTES } from '@/lib/missionTasks';
 
 /**
  * The mission engine: the single owner of mission *policy*.
@@ -45,23 +48,23 @@ import { MISSION_TASK_ROUTES } from '@/lib/missionTasks';
  * | `find-people`  | the kind-3 follow list grew past its baseline                    |
  * | `post-small`   | a qualifying root kind-1 note exists, authored since mission start |
  * | `customize`    | profile republished with real fields **and** theme changed       |
- * | `explore`      | the user actually reached `/trends`                              |
+ * | `interact`     | a reaction/reply/repost/bookmark on someone else's post landed   |
  *
- * `explore` is the one task with nothing durable to observe — "I looked at
- * Trends" leaves no product state behind — so it is completed on genuine
- * arrival at the route, not on clicking the card. That is deliberate and is the
- * only visit-based rule in the system.
+ * Every rule is about something the user *did*, and none of them is "the user
+ * arrived at a URL". The retired fourth task was the exception — it completed
+ * on reaching `/trends` — and replacing it removed the only visit-based rule
+ * in the system.
  */
 export function useMissionEngine(): void {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
-  const { pathname } = useLocation();
   const { isLoading: settingsLoading, hasNip44Support } = useEncryptedSettings();
   const {
     state,
     isActive,
     initializeGuide,
     completePath,
+    completeInteractPath,
     completeCustomizeStep,
     recordBaseline,
   } = usePostOnboardingGuide();
@@ -182,13 +185,58 @@ export function useMissionEngine(): void {
     completeCustomizeStep,
   ]);
 
-  // ── 2e. explore — the user actually reached Trends ────────────────────────
-  const exploreDone = state?.paths.explore === 'completed';
+  // ── 2e. interact — a real interaction with someone else's post landed ──────
+  //
+  // Read from the shared `postInteraction` signal, which each action's domain
+  // layer reports to on success. The engine therefore knows nothing about feed
+  // cards, buttons, routes, DOM events, or toast text: the same reaction counts
+  // whether it came from Home, a thread, a profile feed, or search, and a
+  // button that was merely *clicked* produces nothing to react to.
+  //
+  // Three rules turn a signal into a completion, and all three are here rather
+  // than in the signal, because they are mission policy:
+  //
+  //  1. **It was this user.** A signal from another account (a fast account
+  //     switch mid-publish) is not this mission's progress.
+  //  2. **It was someone else's post.** Reacting to, replying to, reposting or
+  //     bookmarking your own post is not engaging with another person, so the
+  //     target author is compared against the active pubkey. For replies and
+  //     reposts that comparison is against the *target's* author, resolved from
+  //     the reply/repost tags — never against the author of the event the
+  //     action just published, which is always the user.
+  //  3. **It happened during the mission.** Signals only exist for interactions
+  //     performed live in this session, but the timestamp is checked anyway so
+  //     the rule doesn't quietly depend on that.
+  //
+  // Completion is idempotent at the persistence layer, so a duplicated signal,
+  // a second engine instance, or Strict Mode's double-invoke all converge on
+  // exactly one completion and one celebration.
+  const interactions = useSyncExternalStore(
+    subscribePostInteractions,
+    readPostInteractions,
+    readPostInteractions,
+  );
+  const interactDone = state?.paths.interact === 'completed';
 
   useEffect(() => {
-    if (!detectionEnabled || exploreDone) return;
-    if (pathname === MISSION_TASK_ROUTES.explore) {
-      void completePath('explore');
-    }
-  }, [detectionEnabled, exploreDone, pathname, completePath]);
+    if (!detectionEnabled || interactDone || !pubkey) return;
+    const qualifying = interactions.find(
+      (signal) =>
+        signal.actorPubkey === pubkey &&
+        signal.targetAuthorPubkey !== pubkey &&
+        signal.at >= startedAt - PUBLISH_CLOCK_SKEW_MS,
+    );
+    if (!qualifying) return;
+    void completeInteractPath(qualifying.type, qualifying.targetEventId);
+  }, [detectionEnabled, interactDone, pubkey, interactions, startedAt, completeInteractPath]);
+
+  // DEV-only: let the localhost harness stand in for a real interaction, so the
+  // guidance → completion → celebration sequence can be inspected without
+  // publishing anything. `import.meta.env.DEV` is statically false in
+  // production, so the bundler drops this; `armMissionDevInteraction` is
+  // additionally a no-op off localhost and without a `?missionDev=` scenario.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    return armMissionDevInteraction(pubkey);
+  }, [pubkey]);
 }

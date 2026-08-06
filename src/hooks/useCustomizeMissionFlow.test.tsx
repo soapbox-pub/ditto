@@ -86,7 +86,7 @@ describe('useCustomizeMissionFlow', () => {
         'find-people': 'not_started',
         'post-small': 'not_started',
         customize: 'completed',
-        explore: 'not_started',
+        interact: 'not_started',
       },
     });
     const { result } = renderHook(() => useCustomizeMissionFlow());

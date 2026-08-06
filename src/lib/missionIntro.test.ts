@@ -133,7 +133,7 @@ describe('nextRecommendedPath', () => {
 
   it('is undefined when everything is done', () => {
     const state = createInitialGuideState(1_000);
-    for (const id of ['find-people', 'post-small', 'customize', 'explore'] as const) {
+    for (const id of ['find-people', 'post-small', 'customize', 'interact'] as const) {
       state.paths[id] = 'completed';
     }
     expect(nextRecommendedPath(state)).toBeUndefined();

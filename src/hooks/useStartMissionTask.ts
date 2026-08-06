@@ -6,6 +6,7 @@ import {
   MISSION_TASK_ROUTES,
   type MissionComposeState,
   type MissionCustomizeState,
+  type MissionInteractState,
 } from '@/lib/missionTasks';
 import type { PostOnboardingPathId } from '@/lib/postOnboardingGuide';
 
@@ -46,6 +47,14 @@ export function useStartMissionTask(onStart?: () => void) {
           // product state (a saved profile, a changed theme).
           const state: MissionCustomizeState = { missionTask: 'customize' };
           navigate(MISSION_TASK_ROUTES.customize, { state });
+          break;
+        }
+        case 'interact': {
+          // Take the user to a feed and show the guidance tip. No post is
+          // chosen for them: the mission is "find something *you* like", so it
+          // ends where their own attention lands.
+          const state: MissionInteractState = { missionTask: 'interact' };
+          navigate(MISSION_TASK_ROUTES.interact, { state });
           break;
         }
         default:

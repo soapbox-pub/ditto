@@ -23,6 +23,7 @@ import {
  */
 
 let state: PostOnboardingGuideState | undefined;
+let celebration: { celebrating: boolean; completedPath?: string } = { celebrating: false };
 
 vi.mock('@/hooks/usePostOnboardingGuide', () => ({
   usePostOnboardingGuide: () => ({
@@ -38,6 +39,7 @@ vi.mock('@/hooks/usePostOnboardingGuide', () => ({
     introState: deriveIntroState(state),
     introOutstanding: isIntroOutstanding(state),
     nextPath: nextRecommendedPath(state),
+    interaction: state?.interact,
     dismissGuide: vi.fn(),
     acknowledgeIntro: vi.fn(),
     postponeIntro: vi.fn(),
@@ -45,7 +47,7 @@ vi.mock('@/hooks/usePostOnboardingGuide', () => ({
   }),
 }));
 vi.mock('@/hooks/useMissionCelebration', () => ({
-  useMissionCelebration: () => ({ celebrating: false }),
+  useMissionCelebration: () => celebration,
 }));
 vi.mock('@/hooks/useStartMissionTask', () => ({
   useStartMissionTask: () => vi.fn(),
@@ -67,7 +69,7 @@ const ALL_DONE = {
   'find-people': 'completed',
   'post-small': 'completed',
   customize: 'completed',
-  explore: 'completed',
+  interact: 'completed',
 } as const;
 
 /** Acknowledged intro by default — most scenarios are about the active mission. */
@@ -79,6 +81,7 @@ function seed(overrides: Partial<PostOnboardingGuideState> = {}) {
 describe('desktop sidebar widget', () => {
   beforeEach(() => {
     state = undefined;
+    celebration = { celebrating: false };
   });
 
   it('renders nothing before the mission exists', () => {
@@ -113,7 +116,53 @@ describe('desktop sidebar widget', () => {
     render(<MissionsWidget />);
     // Only the recommended step is named; the other tasks stay on /missions.
     expect(screen.queryByText('Post something small')).not.toBeInTheDocument();
-    expect(screen.queryByText('Explore Ditto')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Find something you like/)).not.toBeInTheDocument();
+  });
+
+  it('recommends the interaction task, and never the retired Explore Ditto one', () => {
+    seed({
+      paths: {
+        'find-people': 'completed',
+        'post-small': 'completed',
+        customize: 'completed',
+        interact: 'not_started',
+      },
+    });
+    render(<MissionsWidget />);
+    expect(screen.getByText(/Find something you like/)).toBeInTheDocument();
+    expect(screen.queryByText(/Explore Ditto/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/See what’s happening across Ditto/)).not.toBeInTheDocument();
+  });
+
+  it('acknowledges the exact action that completed the interaction task', () => {
+    // Not a generic "task complete": the card says back what the user did.
+    celebration = { celebrating: true, completedPath: 'interact' };
+    seed({
+      paths: {
+        'find-people': 'completed',
+        'post-small': 'completed',
+        customize: 'completed',
+        interact: 'completed',
+      },
+      interact: { action: 'repost', completedAt: 4_000 },
+    });
+    render(<MissionsWidget />);
+    expect(screen.getByText('You shared a post.')).toBeInTheDocument();
+  });
+
+  it('does not replay the interaction acknowledgement for a different task', () => {
+    celebration = { celebrating: true, completedPath: 'find-people' };
+    seed({
+      paths: {
+        'find-people': 'completed',
+        'post-small': 'not_started',
+        customize: 'not_started',
+        interact: 'completed',
+      },
+      interact: { action: 'repost', completedAt: 4_000 },
+    });
+    render(<MissionsWidget />);
+    expect(screen.queryByText('You shared a post.')).not.toBeInTheDocument();
   });
 
   it('shows the introduction while it is pending', () => {
@@ -155,6 +204,7 @@ describe('desktop sidebar widget', () => {
 describe('mobile teaser', () => {
   beforeEach(() => {
     state = undefined;
+    celebration = { celebrating: false };
   });
 
   it('renders nothing before the mission exists', () => {

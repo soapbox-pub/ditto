@@ -4,6 +4,20 @@ import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { optimisticPatchEventTags, rollbackEvent, toggleTag } from '@/lib/optimisticEvent';
+import { emitPostInteraction } from '@/lib/postInteraction';
+
+/** Argument to {@link useBookmarks}'s `toggleBookmark`. */
+export interface ToggleBookmarkParams {
+  /** The event to bookmark or un-bookmark. */
+  eventId: string;
+  /**
+   * Pubkey that authored the bookmarked post. Optional because not every
+   * surface has it, but without it the bookmark cannot be reported to the
+   * shared post-interaction signal — a kind 10003 `e` tag carries no author, so
+   * the call site is the only place that knows whose post this is.
+   */
+  authorPubkey?: string;
+}
 
 /** Hook to manage the user's NIP-51 bookmark list (kind 10003). */
 export function useBookmarks() {
@@ -59,7 +73,7 @@ export function useBookmarks() {
 
   /** Toggle bookmark for a given event. */
   const toggleBookmark = useMutation({
-    mutationFn: async (eventId: string) => {
+    mutationFn: async ({ eventId, authorPubkey }: ToggleBookmarkParams) => {
       if (!user) throw new Error('User is not logged in');
 
       // Fetch the freshest kind 10003 from relays before mutating
@@ -92,10 +106,30 @@ export function useBookmarks() {
         created_at: Math.floor(Date.now() / 1000),
         prev: prev ?? undefined,
       });
+
+      // Report the save to the shared post-interaction signal — only after the
+      // list has actually been published, and only when this was an *addition*.
+      //
+      // Removing a bookmark republishes the same kind 10003 with one fewer `e`
+      // tag, so add and remove are indistinguishable downstream; the difference
+      // is only knowable here, from the list we just diffed. Un-saving is not
+      // saving, so it reports nothing.
+      //
+      // Bookmarks are not local-only: this is a NIP-51 kind 10003 replaceable
+      // event published to relays, so "stored" means the same thing it does for
+      // every other action. A failed publish throws above and reports nothing.
+      if (!currentlyBookmarked && authorPubkey) {
+        emitPostInteraction({
+          type: 'bookmark',
+          actorPubkey: user.pubkey,
+          targetEventId: eventId,
+          targetAuthorPubkey: authorPubkey,
+        });
+      }
     },
     // Optimistically flip the bookmark icon before the relay round-trip by
     // patching the cached kind 10003 event's `e` tags. Snapshot for rollback.
-    onMutate: (eventId: string) => {
+    onMutate: ({ eventId }: ToggleBookmarkParams) => {
       const key = ['bookmarks', user?.pubkey];
       const snapshot = optimisticPatchEventTags(queryClient, key, {
         kind: 10003,
@@ -104,7 +138,7 @@ export function useBookmarks() {
       });
       return { snapshot, key };
     },
-    onError: (_err, _eventId, ctx) => {
+    onError: (_err, _params, ctx) => {
       if (ctx) rollbackEvent(queryClient, ctx.key, ctx.snapshot);
     },
     onSuccess: () => {

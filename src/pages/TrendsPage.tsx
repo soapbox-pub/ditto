@@ -71,9 +71,8 @@ export function TrendsPage() {
       <PageHeader title="Trends" icon={<TrendingUp className="size-5" />} />
 
       {/* Mobile mission teaser — in-flow below the page header, above content.
-          Mobile only; desktop uses the sidebar widget. Reaching this page is
-          what completes the "Explore Ditto" task, so the teaser is often where
-          the user sees that land. */}
+          Mobile only; desktop uses the sidebar widget. Trends is a good place
+          to find a post worth reacting to, so the mission stays visible here. */}
       <MobileMissionTeaser />
 
       <PullToRefresh onRefresh={handleRefresh}>

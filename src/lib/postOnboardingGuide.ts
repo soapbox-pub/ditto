@@ -18,6 +18,8 @@
 
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 
+import type { PostInteractionKind } from '@/lib/postInteraction';
+
 export type PostOnboardingGuideStatus = 'active' | 'completed' | 'skipped';
 
 /**
@@ -28,7 +30,23 @@ export type PostOnboardingPathId =
   | 'find-people'
   | 'post-small'
   | 'customize'
-  | 'explore';
+  | 'interact';
+
+/**
+ * The retired fourth task, `explore` ("Explore Ditto"), which completed on
+ * reaching `/trends`.
+ *
+ * It was replaced by `interact` because it was the one task that told the user
+ * nothing: not which action mattered, not what they were learning, not what the
+ * action was worth. Visiting a page is not a first-session skill. `interact`
+ * closes the loop the other three open — find people, publish something, make
+ * it yours, *engage with someone*.
+ *
+ * The id survives here only as a **read-side compatibility concern**: it is
+ * never written again, and {@link normalizeGuideState} is the single place that
+ * knows about it. See that function for the migration rule.
+ */
+export const LEGACY_EXPLORE_PATH_ID = 'explore';
 
 export type PostOnboardingPathStatus = 'not_started' | 'active' | 'completed';
 
@@ -132,6 +150,25 @@ export interface MissionIntro {
   postponedAt?: number;
 }
 
+/**
+ * What actually completed the `interact` ("Find something you like") task.
+ *
+ * Recorded because the completion feedback is action-specific — "You shared a
+ * post." reads as recognition, "Task complete." reads as a form submission —
+ * and because persisting it means the right message survives a reload and is
+ * identical on every surface, rather than living in one component's local state.
+ *
+ * Optional and additive, for the same compatibility reason as {@link MissionIntro}.
+ */
+export interface MissionInteraction {
+  /** Which of the four valid actions landed first. */
+  action: PostInteractionKind;
+  /** The post that was interacted with, for debugging and idempotence. */
+  targetEventId?: string;
+  /** Epoch ms the interaction completed the task. */
+  completedAt: number;
+}
+
 export interface PostOnboardingGuideState {
   /** Schema version, so the shape can evolve without colliding with old data. */
   version: 1;
@@ -158,6 +195,8 @@ export interface PostOnboardingGuideState {
    * see {@link introState} for the compatibility rule.
    */
   intro?: MissionIntro;
+  /** What completed the `interact` task. Absent until it completes. */
+  interact?: MissionInteraction;
 }
 
 /** The four actionable tasks, in display order. */
@@ -165,7 +204,7 @@ export const POST_ONBOARDING_PATH_IDS: readonly PostOnboardingPathId[] = [
   'find-people',
   'post-small',
   'customize',
-  'explore',
+  'interact',
 ] as const;
 
 export interface PostOnboardingPathMeta {
@@ -195,13 +234,47 @@ export const POST_ONBOARDING_PATHS: Record<PostOnboardingPathId, PostOnboardingP
     description: 'Add your profile and pick a theme.',
     completionHint: 'Save your profile, then choose a theme.',
   },
-  explore: {
-    id: 'explore',
-    label: 'Explore Ditto',
-    description: 'See what’s happening across Ditto.',
-    completionHint: 'Visit Trends to complete this.',
+  interact: {
+    id: 'interact',
+    label: 'Find something you like',
+    description: 'React, reply, repost, or save a post from someone else.',
+    completionHint: 'Any one of those on someone else’s post completes this.',
   },
 };
+
+/**
+ * The guided instruction shown on the feed while this task is in progress.
+ * Names all four options without demanding any of them — the task is meant to
+ * feel like browsing, not like homework.
+ */
+export const INTERACT_TASK_GUIDANCE =
+  'Choose any post that catches your attention, then react, reply, repost, or save it.';
+
+/**
+ * Fallback guidance when the user's feed has nothing of anybody else's to
+ * interact with. Leaving them staring at an empty column with an unfinishable
+ * task is the one outcome this mission must not produce.
+ */
+export const INTERACT_TASK_EMPTY_FEED_GUIDANCE =
+  'Your feed is quiet right now. Follow a few people, or switch to the Global tab, and you’ll have plenty to choose from.';
+
+/**
+ * Recognition copy for the action that completed the task. The mission says
+ * back what the user *did* — a generic "task complete" would throw away the one
+ * thing that makes the moment feel like it was about them.
+ */
+export function interactionSuccessMessage(action: PostInteractionKind): string {
+  switch (action) {
+    case 'reaction':
+      return 'You reacted to a post.';
+    case 'reply':
+      return 'You joined the conversation.';
+    case 'repost':
+      return 'You shared a post.';
+    case 'bookmark':
+      return 'You saved something for later.';
+  }
+}
 
 /** Build a fresh, freshly-armed mission state. */
 export function createInitialGuideState(now = Date.now()): PostOnboardingGuideState {
@@ -212,7 +285,7 @@ export function createInitialGuideState(now = Date.now()): PostOnboardingGuideSt
       'find-people': 'not_started',
       'post-small': 'not_started',
       customize: 'not_started',
-      explore: 'not_started',
+      interact: 'not_started',
     },
     startedAt: now,
     // Written explicitly (empty, not absent) so this state is identifiable as
@@ -276,6 +349,58 @@ export function canShowMissionDetail(state: PostOnboardingGuideState | undefined
   return intro === 'none' || intro === 'acknowledged';
 }
 
+/**
+ * Bring a persisted state written before `explore` became `interact` up to the
+ * current shape, without writing anything.
+ *
+ * ### The rule
+ *
+ * A finished `explore` stays finished: `explore: 'completed'` maps to
+ * `interact: 'completed'`. Anyone who did the old fourth task keeps their
+ * progress, their `4/4`, and their badge — silently resetting somebody to `3/4`
+ * because we changed our minds about the task is not an acceptable outcome of a
+ * copy decision.
+ *
+ * An *unfinished* `explore` maps to `not_started`, not `active`: it was never
+ * completed, the task it referred to no longer exists, and "you're partway
+ * through Explore Ditto" would be a claim about a task the user can no longer
+ * see. `activePath` is remapped for the same reason — left alone it would name
+ * a task with no metadata and crash every surface that looks up its label.
+ *
+ * The legacy `paths.explore` key itself is deliberately left in place. Mission
+ * state is a `looseObject` precisely so unknown keys ride through untouched;
+ * deleting it would buy nothing and would destroy the only evidence of what the
+ * user actually did if this ever needs re-examining.
+ *
+ * This runs on **read**, so it is idempotent, needs no migration write, and
+ * cannot half-apply. The corrected shape is persisted naturally by whatever the
+ * user's next real transition happens to be.
+ */
+export function normalizeGuideState(
+  state: PostOnboardingGuideState | undefined,
+): PostOnboardingGuideState | undefined {
+  if (!state) return state;
+
+  const paths = state.paths as Partial<Record<string, PostOnboardingPathStatus>>;
+  const needsPaths = paths?.interact === undefined;
+  const needsActivePath = (state.activePath as string | undefined) === LEGACY_EXPLORE_PATH_ID;
+  if (!needsPaths && !needsActivePath) return state;
+
+  return {
+    ...state,
+    ...(needsActivePath ? { activePath: 'interact' as const } : {}),
+    ...(needsPaths
+      ? {
+          paths: {
+            ...state.paths,
+            interact:
+              paths?.[LEGACY_EXPLORE_PATH_ID] === 'completed' ? 'completed' : 'not_started',
+          },
+        }
+      : {}),
+  };
+}
+
 /** Number of completed tasks. */
 export function countCompletedPaths(state: PostOnboardingGuideState): number {
   return POST_ONBOARDING_PATH_IDS.reduce(
@@ -302,7 +427,16 @@ export function nextRecommendedPath(
 ): PostOnboardingPathId | undefined {
   if (!state) return undefined;
   const { activePath } = state;
-  if (activePath && state.paths[activePath] !== 'completed') return activePath;
+  // Guarded against an id this build doesn't know (a retired task in old state,
+  // a task from a newer client): an unknown id has no metadata, and every
+  // surface that renders `nextPath` looks its label up.
+  if (
+    activePath &&
+    POST_ONBOARDING_PATH_IDS.includes(activePath) &&
+    state.paths[activePath] !== 'completed'
+  ) {
+    return activePath;
+  }
   return POST_ONBOARDING_PATH_IDS.find((id) => state.paths[id] !== 'completed');
 }
 

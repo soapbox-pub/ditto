@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage } from 'react-intl';
-import { Award, ChevronRight, EyeOff, Sparkles } from 'lucide-react';
+import { Award, Check, ChevronRight, EyeOff, Sparkles } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,10 @@ import {
   DITTO_EXPLORER_BADGE_IMAGE,
   DITTO_EXPLORER_BADGE_NAME,
 } from '@/lib/badgeClaim';
-import { POST_ONBOARDING_PATHS } from '@/lib/postOnboardingGuide';
+import {
+  interactionSuccessMessage,
+  POST_ONBOARDING_PATHS,
+} from '@/lib/postOnboardingGuide';
 import { getStorageKey } from '@/lib/storageKey';
 import { cn } from '@/lib/utils';
 
@@ -55,9 +58,10 @@ export function MissionsWidget() {
     badgeClaim,
     introState,
     nextPath,
+    interaction,
     dismissGuide,
   } = usePostOnboardingGuide();
-  const { celebrating } = useMissionCelebration();
+  const { celebrating, completedPath } = useMissionCelebration();
   const startMissionTask = useStartMissionTask();
 
   const rewardUnlocked = isCompleted && badgeClaim?.status !== 'claimed';
@@ -87,6 +91,27 @@ export function MissionsWidget() {
   const progressValue = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const nextLabel = nextPath ? POST_ONBOARDING_PATHS[nextPath].label : undefined;
 
+  // While the celebration is playing for the interaction task, the guidance line
+  // is replaced by what the user actually did ("You shared a post."). Named by
+  // `completedPath`, so a *different* task completing later can never
+  // mistakenly replay this acknowledgement, and it lasts exactly as long as the
+  // celebration — then the card settles back into its ordinary next-step state.
+  const interactionSuccess =
+    celebrating && completedPath === 'interact' && interaction
+      ? interactionSuccessMessage(interaction.action)
+      : undefined;
+
+  // Hold the progress presentation through the celebration, even when this
+  // completion also unlocked the reward.
+  //
+  // The fourth task is always the last one, so without this the card swapped
+  // straight to "Reward unlocked" the instant it landed — throwing away the
+  // count pop, the sparkles and the progress bar reaching 4/4 at the one moment
+  // they mean the most, and skipping the acknowledgement of what the user just
+  // did. The order the user should read is: *you did this* → *that's 4 of 4* →
+  // *here's your reward*, and the reward is still one settle away.
+  const showProgress = !rewardUnlocked || celebrating;
+
   return (
     <div ref={attentionRef} className="mb-2 w-full shrink-0" onPointerDown={stop}>
       <Card
@@ -100,13 +125,13 @@ export function MissionsWidget() {
         <div className="flex items-center justify-between gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
             <Sparkles className="size-3 shrink-0" aria-hidden />
-            {rewardUnlocked ? (
+            {rewardUnlocked && !celebrating ? (
               <FormattedMessage id="mission.widget.reward" defaultMessage="Reward unlocked" />
             ) : (
               <FormattedMessage id="mission.widget.eyebrow" defaultMessage="Mission" />
             )}
           </span>
-          {!rewardUnlocked && (
+          {showProgress && (
             <div className="relative shrink-0">
               <span
                 className={cn(
@@ -147,7 +172,12 @@ export function MissionsWidget() {
               {DITTO_EXPLORER_BADGE_NAME}
             </p>
             <p className="truncate text-[11px] leading-snug text-muted-foreground">
-              {rewardUnlocked ? (
+              {interactionSuccess ? (
+                <span className="inline-flex items-center gap-1 font-medium text-primary">
+                  <Check className="size-3 shrink-0" aria-hidden />
+                  {interactionSuccess}
+                </span>
+              ) : rewardUnlocked ? (
                 <span className="inline-flex items-center gap-1 text-primary">
                   <Award className="size-3 shrink-0" aria-hidden />
                   <FormattedMessage id="mission.widget.claim" defaultMessage="Claim your badge" />
@@ -166,7 +196,7 @@ export function MissionsWidget() {
           <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         </button>
 
-        {!rewardUnlocked && (
+        {showProgress && (
           <Progress
             value={progressValue}
             className={cn('mt-2.5 h-1.5', celebrating && 'mission-progress-glow')}

@@ -1,6 +1,10 @@
 import { isLocalhostDev } from '@/dev/isLocalhostDev';
 import type { ArrivalStageEntry } from '@/hooks/useArrivalStage';
 import {
+  emitPostInteraction,
+  type PostInteractionKind,
+} from '@/lib/postInteraction';
+import {
   createInitialGuideState,
   type PostOnboardingGuideState,
   type PostOnboardingPathId,
@@ -17,6 +21,24 @@ import {
  * Drive a state by appending `?missionDev=<state>` on localhost, e.g.
  * `/?missionDev=intro` or `/missions?missionDev=ready`. Reduced-motion variants
  * come from the OS/browser setting; desktop vs. mobile from the viewport.
+ *
+ * Interaction-task scenarios, all on `/feed?missionDev=<state>` with the first
+ * three tasks already done, so the fourth is the one in play:
+ *  - `interact`            — the task active, with its feed guidance showing.
+ *  - `interact-empty-feed` — the same, in its "your feed is quiet" fallback.
+ *  - `interact-reaction` / `-reply` / `-repost` / `-bookmark` — a successful
+ *    interaction of that kind is **injected as a signal** a moment after load,
+ *    driving the real completion path end to end: engine → persistence →
+ *    action-specific acknowledgement → completion animation → settled state.
+ *  - `interact-own-post`   — an injected interaction with the user's *own*
+ *    post, which must complete nothing.
+ *  - `interact-write-fails` — the same injection while every mission write is
+ *    rejected, for confirming a persistence failure produces no write loop.
+ *  - `interact-done`       — the task already completed (settled state).
+ *
+ * Nothing here publishes. The injected signals are ordinary in-process values
+ * of the same shape the real action paths report, and every mission write is
+ * absorbed by the harness store below — no signer, no relay, no network.
  *
  * Arrival scenarios, all replayable by reloading. Each starts *directly* on the
  * named act rather than approximating it with a delayed timer, then continues
@@ -70,6 +92,15 @@ export type MissionDevState =
   | 'active1'
   | 'active2'
   | 'active3'
+  | 'interact'
+  | 'interact-empty-feed'
+  | 'interact-reaction'
+  | 'interact-reply'
+  | 'interact-repost'
+  | 'interact-bookmark'
+  | 'interact-own-post'
+  | 'interact-write-fails'
+  | 'interact-done'
   | 'hidden'
   | 'ready'
   | 'claiming'
@@ -80,7 +111,7 @@ const ALL_TASKS: PostOnboardingPathId[] = [
   'find-people',
   'post-small',
   'customize',
-  'explore',
+  'interact',
 ];
 
 /** The requested harness state, or `undefined` when the harness is inactive. */
@@ -155,6 +186,129 @@ export function missionDevHoldsArrival(): boolean {
 export function missionDevForcesArrival(): boolean {
   const scenario = missionDevState();
   return scenario !== undefined && ARRIVAL_ENTRY[scenario] !== undefined;
+}
+
+// ── Interaction-task scenarios ──────────────────────────────────────────────
+
+/** Which interaction each injecting scenario stands in for. */
+const INJECTED_INTERACTION: Partial<Record<MissionDevState, PostInteractionKind>> = {
+  'interact-reaction': 'reaction',
+  'interact-reply': 'reply',
+  'interact-repost': 'repost',
+  'interact-bookmark': 'bookmark',
+  'interact-own-post': 'reaction',
+  'interact-write-fails': 'reaction',
+};
+
+/** A stable stand-in for "some other person's post". */
+const HARNESS_TARGET_EVENT_ID = 'e'.repeat(64);
+const HARNESS_OTHER_AUTHOR = 'd'.repeat(64);
+
+/**
+ * Delay before the injected interaction lands. Long enough to see the guided
+ * state first, short enough not to make each attempt a wait.
+ *
+ * Overridable with `&missionDevDelay=<ms>`, for the same reason the arrival
+ * scenarios can be entered mid-sequence: the celebration is a ~2.4s window that
+ * is otherwise easy to miss, and pushing the injection out is cheaper than
+ * reloading until the timing happens to line up.
+ */
+const INJECTION_DELAY_MS = 2_500;
+
+function injectionDelay(): number {
+  if (typeof window === 'undefined') return INJECTION_DELAY_MS;
+  const raw = new URLSearchParams(window.location.search).get('missionDevDelay');
+  const parsed = raw ? Number(raw) : NaN;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : INJECTION_DELAY_MS;
+}
+
+/**
+ * Whether the guidance tip should present its empty-feed fallback regardless of
+ * who the user follows. Feed emptiness depends on relays, which the harness
+ * cannot fake — this makes the fallback inspectable anyway.
+ */
+export function missionDevForcesEmptyFeed(): boolean {
+  return missionDevState() === 'interact-empty-feed';
+}
+
+/**
+ * Whether the harness should reject every mission write, standing in for a
+ * persistence failure. The completion is then detected but never persists,
+ * which is the situation a write loop would be born from.
+ */
+export function missionDevRejectsWrites(): boolean {
+  return missionDevState() === 'interact-write-fails';
+}
+
+/** Stand-in actor for the signed-out harness. Never signs or publishes. */
+const HARNESS_ACTOR = 'a'.repeat(64);
+
+/**
+ * Arm the scenario's injected interaction, returning a cleanup.
+ *
+ * A no-op unless a `?missionDev=interact-*` scenario asked for one. The signal
+ * is emitted exactly as the real action paths emit theirs, so the engine's
+ * ownership rule, idempotence and completion all run for real — the only thing
+ * missing is the network.
+ *
+ * Signed out, the engine's detection is (correctly) off, since real completion
+ * must never happen without a resolved identity. Rather than make the harness
+ * useless in the case it exists for — inspecting mission visuals *without*
+ * signing up, which publishes real events — it then applies the completion to
+ * its own store directly. That is a substituted outcome, not a bypassed rule:
+ * the harness carries no policy either way.
+ *
+ * `interact-own-post` names the actor as the target author, which must complete
+ * nothing, so it is never substituted.
+ */
+export function armMissionDevInteraction(pubkey: string | undefined): (() => void) | undefined {
+  const scenario = missionDevState();
+  if (!scenario) return undefined;
+  const action = INJECTED_INTERACTION[scenario];
+  if (!action) return undefined;
+
+  const actor = pubkey ?? HARNESS_ACTOR;
+  const ownPost = scenario === 'interact-own-post';
+
+  const timer = setTimeout(() => {
+    emitPostInteraction({
+      type: action,
+      actorPubkey: actor,
+      targetEventId: HARNESS_TARGET_EVENT_ID,
+      targetAuthorPubkey: ownPost ? actor : HARNESS_OTHER_AUTHOR,
+    });
+
+    // Signed out: no engine detection to pick the signal up, so stand in for
+    // the transition it would have made. Never for the own-post scenario, which
+    // must complete nothing.
+    if (pubkey || ownPost) return;
+
+    // Persistence-failure scenario: the completion is detected and the write is
+    // attempted exactly once, then rejected. Nothing retries it, which is the
+    // property worth being able to watch.
+    if (missionDevRejectsWrites()) {
+      console.error('Mission harness: simulated persistence failure');
+      return;
+    }
+
+    const current = readMissionDevState();
+    if (!current || current.status !== 'active') return;
+    if (current.paths.interact === 'completed') return;
+
+    const now = Date.now();
+    const paths = { ...current.paths, interact: 'completed' as const };
+    const allDone = ALL_TASKS.every((id) => paths[id] === 'completed');
+    writeMissionDevState({
+      ...current,
+      paths,
+      interact: { action, targetEventId: HARNESS_TARGET_EVENT_ID, completedAt: now },
+      status: allDone ? 'completed' : 'active',
+      completedAt: allDone ? now : current.completedAt,
+      updatedAt: now,
+    });
+  }, injectionDelay());
+
+  return () => clearTimeout(timer);
 }
 
 // ── Shared harness store ────────────────────────────────────────────────────
@@ -235,8 +389,25 @@ function buildMissionDevState(): PostOnboardingGuideState | undefined {
       complete(2);
       return { ...state, intro: acknowledged, activePath: 'customize' };
     case 'active3':
+    case 'interact':
+    case 'interact-empty-feed':
+    case 'interact-reaction':
+    case 'interact-reply':
+    case 'interact-repost':
+    case 'interact-bookmark':
+    case 'interact-own-post':
+    case 'interact-write-fails':
       complete(3);
-      return { ...state, intro: acknowledged };
+      return { ...state, intro: acknowledged, activePath: 'interact' };
+    case 'interact-done':
+      complete(4);
+      return {
+        ...state,
+        intro: acknowledged,
+        status: 'completed',
+        completedAt: now - 5_000,
+        interact: { action: 'bookmark', targetEventId: 'b'.repeat(64), completedAt: now - 5_000 },
+      };
     case 'hidden':
       complete(2);
       return { ...state, intro: acknowledged, status: 'skipped', skippedAt: now - 5_000 };

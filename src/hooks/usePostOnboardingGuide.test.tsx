@@ -59,6 +59,7 @@ vi.mock('@/dev/missionHarness', () => ({
     devState = next;
     for (const l of devListeners) l();
   },
+  missionDevRejectsWrites: () => false,
 }));
 
 vi.mock('./useEncryptedSettings', () => ({
@@ -96,7 +97,7 @@ function seed(state: Partial<PostOnboardingGuideState> = {}) {
   } as EncryptedSettings;
 }
 
-const ALL_TASKS = ['find-people', 'post-small', 'customize', 'explore'] as const;
+const ALL_TASKS = ['find-people', 'post-small', 'customize', 'interact'] as const;
 
 describe('usePostOnboardingGuide — initialization', () => {
   beforeEach(reset);
@@ -125,7 +126,7 @@ describe('usePostOnboardingGuide — initialization', () => {
   });
 
   it('is idempotent — a second initialize never overwrites progress', async () => {
-    seed({ paths: { 'find-people': 'completed', 'post-small': 'not_started', customize: 'not_started', explore: 'not_started' } });
+    seed({ paths: { 'find-people': 'completed', 'post-small': 'not_started', customize: 'not_started', interact: 'not_started' } });
     const { result } = renderHook(() => usePostOnboardingGuide());
 
     await act(async () => {
@@ -240,11 +241,11 @@ describe('usePostOnboardingGuide — task progression', () => {
 
     await act(async () => {
       await result.current.completePath('find-people');
-      await result.current.completePath('explore');
+      await result.current.completePath('interact');
     });
 
     expect(stored()?.paths['find-people']).toBe('completed');
-    expect(stored()?.paths.explore).toBe('completed');
+    expect(stored()?.paths.interact).toBe('completed');
   });
 
   it('completes the whole mission in the same write as the final task', async () => {
@@ -389,7 +390,7 @@ describe('usePostOnboardingGuide — dismissal vs. completion', () => {
     seed({
       status: 'completed',
       completedAt: 5_000,
-      paths: { 'find-people': 'completed', 'post-small': 'completed', customize: 'completed', explore: 'completed' },
+      paths: { 'find-people': 'completed', 'post-small': 'completed', customize: 'completed', interact: 'completed' },
       badgeClaim: { badge: 'ditto-explorer', status: 'claimed', claimEventId: 'f'.repeat(64), claimedAt: 6_000 },
     });
     const { result } = renderHook(() => usePostOnboardingGuide());
@@ -425,10 +426,10 @@ describe('usePostOnboardingGuide — dismissal vs. completion', () => {
     const { result } = renderHook(() => usePostOnboardingGuide());
 
     await act(async () => {
-      await result.current.completePath('explore');
+      await result.current.completePath('interact');
     });
 
-    expect(stored()?.paths.explore).toBe('not_started');
+    expect(stored()?.paths.interact).toBe('not_started');
     expect(writeCount).toBe(0);
   });
 });
@@ -443,7 +444,7 @@ describe('usePostOnboardingGuide — badge claim lifecycle', () => {
       'find-people': 'completed' as const,
       'post-small': 'completed' as const,
       customize: 'completed' as const,
-      explore: 'completed' as const,
+      interact: 'completed' as const,
     },
   };
 
@@ -703,7 +704,7 @@ describe('usePostOnboardingGuide — hide and resume', () => {
         'find-people': 'completed',
         'post-small': 'completed',
         customize: 'not_started',
-        explore: 'not_started',
+        interact: 'not_started',
       },
     });
     const { result } = renderHook(() => usePostOnboardingGuide());
@@ -726,7 +727,7 @@ describe('usePostOnboardingGuide — hide and resume', () => {
         'find-people': 'completed',
         'post-small': 'completed',
         customize: 'completed',
-        explore: 'completed',
+        interact: 'completed',
       },
     });
     const { result } = renderHook(() => usePostOnboardingGuide());

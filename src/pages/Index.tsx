@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Feed } from '@/components/Feed';
+import { InteractMissionTip } from '@/components/InteractMissionTip';
 import { NEW_POST_DRAFT_KEY } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -66,6 +67,10 @@ const Index = () => {
 
   return (
     <>
+      {/* Guidance for the "Find something you like" task, when it's in progress.
+          Renders nothing otherwise, and never blocks or reorders the feed. */}
+      <InteractMissionTip />
+
       <Feed />
 
       {missionCompose && (

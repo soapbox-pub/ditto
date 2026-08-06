@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import {
+  POST_ONBOARDING_PATHS,
+  POST_ONBOARDING_PATH_IDS,
   PUBLISH_CLOCK_SKEW_MS,
   STALE_CLAIMING_TIMEOUT_MS,
   areAllPathsCompleted,
@@ -9,9 +11,12 @@ import {
   countCompletedPaths,
   createInitialGuideState,
   hasMeaningfulProfile,
+  interactionSuccessMessage,
   isClaimInFlight,
   isProfileTaskSatisfied,
   isQualifyingStarterPost,
+  nextRecommendedPath,
+  normalizeGuideState,
   themeSignature,
   type PostOnboardingBadgeClaim,
   type PostOnboardingGuideState,
@@ -23,7 +28,7 @@ const STARTED_AT = 1_700_000_000_000;
 
 /** Mission state with an arbitrary set of tasks marked complete. */
 function stateWith(
-  completed: Array<'find-people' | 'post-small' | 'customize' | 'explore'>,
+  completed: Array<'find-people' | 'post-small' | 'customize' | 'interact'>,
   overrides: Partial<PostOnboardingGuideState> = {},
 ): PostOnboardingGuideState {
   const base = createInitialGuideState(STARTED_AT);
@@ -69,13 +74,13 @@ describe('createInitialGuideState', () => {
 describe('progress counting', () => {
   it('counts completed tasks', () => {
     expect(countCompletedPaths(stateWith([]))).toBe(0);
-    expect(countCompletedPaths(stateWith(['find-people', 'explore']))).toBe(2);
+    expect(countCompletedPaths(stateWith(['find-people', 'interact']))).toBe(2);
   });
 
   it('reports all-complete only when every task is done', () => {
     expect(areAllPathsCompleted(stateWith(['find-people', 'post-small', 'customize']))).toBe(false);
     expect(
-      areAllPathsCompleted(stateWith(['find-people', 'post-small', 'customize', 'explore'])),
+      areAllPathsCompleted(stateWith(['find-people', 'post-small', 'customize', 'interact'])),
     ).toBe(true);
   });
 });
@@ -129,7 +134,7 @@ describe('isClaimInFlight (stuck-claiming recovery)', () => {
 
 describe('badgeRewardView', () => {
   const now = STARTED_AT + 1_000_000;
-  const allDone = ['find-people', 'post-small', 'customize', 'explore'] as const;
+  const allDone = ['find-people', 'post-small', 'customize', 'interact'] as const;
 
   it('is locked with no state or an unfinished mission', () => {
     expect(badgeRewardView(undefined, now)).toBe('locked');
@@ -315,5 +320,139 @@ describe('themeSignature', () => {
     circular.self = circular;
     expect(() => themeSignature('custom', circular)).not.toThrow();
     expect(themeSignature('custom', circular)).toBe('custom:unserializable');
+  });
+});
+
+// ── The fourth task ─────────────────────────────────────────────────────────
+
+describe('the mission’s four tasks', () => {
+  it('ends on interaction rather than on navigating around the product', () => {
+    // The journey the four tasks describe: find people → publish something →
+    // make it yours → engage with someone. The retired fourth task ("Explore
+    // Ditto", completed by visiting Trends) named none of those things.
+    expect(POST_ONBOARDING_PATH_IDS).toEqual([
+      'find-people',
+      'post-small',
+      'customize',
+      'interact',
+    ]);
+    expect(POST_ONBOARDING_PATH_IDS).not.toContain('explore');
+  });
+
+  it('uses the new title and copy, and none of the retired task’s', () => {
+    const meta = POST_ONBOARDING_PATHS.interact;
+    expect(meta.label).toBe('Find something you like');
+    expect(meta.description).toBe('React, reply, repost, or save a post from someone else.');
+
+    const copy = Object.values(POST_ONBOARDING_PATHS)
+      .flatMap((m) => [m.label, m.description, m.completionHint])
+      .join(' ');
+    expect(copy).not.toMatch(/Explore Ditto/);
+    expect(copy).not.toMatch(/Trends/);
+  });
+
+  it('does not call itself "join a conversation" — it supports more than replies', () => {
+    expect(POST_ONBOARDING_PATHS.interact.label.toLowerCase()).not.toContain('conversation');
+  });
+
+  it('leaves the first three tasks exactly as they were', () => {
+    expect(POST_ONBOARDING_PATHS['find-people']).toMatchObject({
+      label: 'Find your people',
+      description: 'Follow voices that make your feed feel alive.',
+      completionHint: 'Follow someone new to complete this.',
+    });
+    expect(POST_ONBOARDING_PATHS['post-small']).toMatchObject({
+      label: 'Post something small',
+      description: 'Say hi, ask a question, or share a thought.',
+      completionHint: 'Publish a post to complete this.',
+    });
+    expect(POST_ONBOARDING_PATHS.customize).toMatchObject({
+      label: 'Make it feel like me',
+      description: 'Add your profile and pick a theme.',
+      completionHint: 'Save your profile, then choose a theme.',
+    });
+  });
+
+  it('is binary — one interaction, not four boxes to tick', () => {
+    const state = createInitialGuideState(STARTED_AT);
+    expect(state.paths.interact).toBe('not_started');
+    state.paths.interact = 'completed';
+    expect(countCompletedPaths(state)).toBe(1);
+  });
+});
+
+describe('interactionSuccessMessage', () => {
+  it('names the action the user actually took', () => {
+    expect(interactionSuccessMessage('reaction')).toBe('You reacted to a post.');
+    expect(interactionSuccessMessage('reply')).toBe('You joined the conversation.');
+    expect(interactionSuccessMessage('repost')).toBe('You shared a post.');
+    expect(interactionSuccessMessage('bookmark')).toBe('You saved something for later.');
+  });
+});
+
+// ── Compatibility with state written before the fourth task changed ─────────
+
+describe('normalizeGuideState', () => {
+  /** A state as persisted by a build that still had the `explore` task. */
+  function legacy(exploreStatus: string, overrides: Record<string, unknown> = {}) {
+    const base = createInitialGuideState(STARTED_AT) as unknown as Record<string, unknown>;
+    return {
+      ...base,
+      paths: {
+        'find-people': 'completed',
+        'post-small': 'completed',
+        customize: 'completed',
+        explore: exploreStatus,
+      },
+      ...overrides,
+    } as unknown as PostOnboardingGuideState;
+  }
+
+  it('leaves a current state untouched, identity included', () => {
+    const state = createInitialGuideState(STARTED_AT);
+    expect(normalizeGuideState(state)).toBe(state);
+  });
+
+  it('keeps a completed `explore` completed, so nobody is reset to 3/4', () => {
+    const normalized = normalizeGuideState(legacy('completed'))!;
+    expect(normalized.paths.interact).toBe('completed');
+    expect(areAllPathsCompleted(normalized)).toBe(true);
+    expect(countCompletedPaths(normalized)).toBe(4);
+  });
+
+  it('treats an unfinished `explore` as not started, never as half-done', () => {
+    const normalized = normalizeGuideState(legacy('active'))!;
+    expect(normalized.paths.interact).toBe('not_started');
+    expect(countCompletedPaths(normalized)).toBe(3);
+  });
+
+  it('remaps a legacy activePath so no surface looks up a task that is gone', () => {
+    const normalized = normalizeGuideState(legacy('active', { activePath: 'explore' }))!;
+    expect(normalized.activePath).toBe('interact');
+    expect(POST_ONBOARDING_PATHS[normalized.activePath!]).toBeDefined();
+    expect(nextRecommendedPath(normalized)).toBe('interact');
+  });
+
+  it('preserves the legacy key rather than destroying the record', () => {
+    const normalized = normalizeGuideState(legacy('completed'))!;
+    expect((normalized.paths as Record<string, string>).explore).toBe('completed');
+  });
+
+  it('is idempotent', () => {
+    const once = normalizeGuideState(legacy('completed'))!;
+    expect(normalizeGuideState(once)).toBe(once);
+  });
+
+  it('survives an unknown activePath from a newer client', () => {
+    const state = {
+      ...createInitialGuideState(STARTED_AT),
+      activePath: 'something-new',
+    } as unknown as PostOnboardingGuideState;
+    expect(() => nextRecommendedPath(state)).not.toThrow();
+    expect(nextRecommendedPath(state)).toBe('find-people');
+  });
+
+  it('passes undefined through', () => {
+    expect(normalizeGuideState(undefined)).toBeUndefined();
   });
 });

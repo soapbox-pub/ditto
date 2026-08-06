@@ -357,12 +357,21 @@ export const PostOnboardingPathStatusSchema = z.enum([
 export const PostOnboardingGuideStateSchema = z.looseObject({
   version: z.literal(1),
   status: z.enum(['active', 'completed', 'skipped']),
-  activePath: z.enum(['find-people', 'post-small', 'customize', 'explore']).optional(),
+  // `explore` is the retired fourth task. It is still accepted (never written)
+  // so a state persisted before the change parses instead of failing validation
+  // and dropping the user's *entire* settings object into the raw-JSON fallback.
+  // `normalizeGuideState` maps it onto `interact` on read.
+  activePath: z
+    .enum(['find-people', 'post-small', 'customize', 'interact', 'explore'])
+    .optional(),
   paths: z.looseObject({
     'find-people': PostOnboardingPathStatusSchema,
     'post-small': PostOnboardingPathStatusSchema,
     customize: PostOnboardingPathStatusSchema,
-    explore: PostOnboardingPathStatusSchema,
+    // Both fourth-task keys are optional: old states have only `explore`, new
+    // ones only `interact`, and requiring either would reject the other.
+    interact: PostOnboardingPathStatusSchema.optional(),
+    explore: PostOnboardingPathStatusSchema.optional(),
   }),
   startedAt: z.number(),
   updatedAt: z.number(),
@@ -403,6 +412,14 @@ export const PostOnboardingGuideStateSchema = z.looseObject({
       presentedAt: z.number().optional(),
       acknowledgedAt: z.number().optional(),
       postponedAt: z.number().optional(),
+    })
+    .optional(),
+  /** What completed the `interact` task, for its action-specific success copy. */
+  interact: z
+    .looseObject({
+      action: z.enum(['reaction', 'reply', 'repost', 'bookmark']),
+      targetEventId: z.string().optional(),
+      completedAt: z.number(),
     })
     .optional(),
 });

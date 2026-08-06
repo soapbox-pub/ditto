@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 
 import {
+  missionDevRejectsWrites,
   readMissionDevState,
   subscribeMissionDev,
   writeMissionDevState,
@@ -13,6 +14,7 @@ import {
   resetAutoWrites,
   settleAutoWrite,
 } from '@/lib/missionAutoWrites';
+import type { PostInteractionKind } from '@/lib/postInteraction';
 import {
   type MissionBaselines,
   type PostOnboardingGuideState,
@@ -26,6 +28,7 @@ import {
   isClaimInFlight,
   isIntroOutstanding,
   nextRecommendedPath,
+  normalizeGuideState,
   POST_ONBOARDING_PATH_IDS,
 } from '@/lib/postOnboardingGuide';
 
@@ -78,7 +81,13 @@ export function usePostOnboardingGuide() {
   const devStateRef = useRef(devState);
   devStateRef.current = devState;
 
-  const state = devState ?? settings?.postOnboardingGuide;
+  // Normalized on read so a state persisted before the fourth task changed
+  // presents in the current shape everywhere at once (see `normalizeGuideState`).
+  // Memoized because a fresh object identity on every render is exactly what
+  // re-armed the effects behind the mission write loop; the normalization is
+  // pure, so memoizing on the raw state is sound.
+  const rawState = devState ?? settings?.postOnboardingGuide;
+  const state = useMemo(() => normalizeGuideState(rawState), [rawState]);
 
   // Tracks the freshest state we've written this session so rapid successive
   // transitions in the same tab compose instead of clobbering each other (the
@@ -102,6 +111,13 @@ export function usePostOnboardingGuide() {
       // Harness: apply locally so the surfaces are genuinely interactive to
       // inspect, without a relay write.
       if (devStateRef.current) {
+        // Persistence-failure scenario: compute the transition, then throw it
+        // away exactly as a rejected relay write would. Detection stays true,
+        // so this is precisely the shape a write loop would emerge from.
+        if (missionDevRejectsWrites()) {
+          console.error('Mission harness: simulated persistence failure');
+          return Promise.resolve();
+        }
         const devNext = reduce(devStateRef.current);
         if (devNext) writeMissionDevState(devNext);
         return Promise.resolve();
@@ -250,6 +266,42 @@ export function usePostOnboardingGuide() {
         return {
           ...current,
           paths,
+          status: allDone ? 'completed' : 'active',
+          completedAt: allDone ? now : current.completedAt,
+          updatedAt: now,
+        };
+      }),
+    [update],
+  );
+
+  /**
+   * Complete the `interact` task and record *which* action did it, in one
+   * write.
+   *
+   * One write rather than "complete the path, then record the action" because
+   * the surfaces derive their success copy from the recorded action the instant
+   * the count changes — a two-step write would flash a generic celebration
+   * before the message arrived, and a failure between the two would leave a
+   * completed task whose feedback could never be reconstructed.
+   *
+   * Idempotent in the strong sense the mission needs: once the task is
+   * completed, a later interaction returns `null` and writes nothing, so the
+   * recorded action stays the one that actually earned it and the completion
+   * animation cannot replay.
+   */
+  const completeInteractPath = useCallback(
+    (action: PostInteractionKind, targetEventId?: string) =>
+      update((current) => {
+        if (current.status !== 'active') return null;
+        if (current.paths.interact === 'completed') return null;
+
+        const now = Date.now();
+        const paths = { ...current.paths, interact: 'completed' as const };
+        const allDone = POST_ONBOARDING_PATH_IDS.every((id) => paths[id] === 'completed');
+        return {
+          ...current,
+          paths,
+          interact: { action, targetEventId, completedAt: now },
           status: allDone ? 'completed' : 'active',
           completedAt: allDone ? now : current.completedAt,
           updatedAt: now,
@@ -535,9 +587,12 @@ export function usePostOnboardingGuide() {
     canShowDetail: canShowMissionDetail(state),
     /** The task compact surfaces should recommend next. */
     nextPath: nextRecommendedPath(state),
+    /** What completed the `interact` task, once it has. */
+    interaction: state?.interact,
     initializeGuide,
     startPath,
     completePath,
+    completeInteractPath,
     completeCustomizeStep,
     recordBaseline,
     markIntroPresented,

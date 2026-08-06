@@ -227,7 +227,9 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
 
   const handleBookmark = () => {
     impactLight();
-    toggleBookmark.mutate(event.id, {
+    // The author travels with the id: a kind 10003 `e` tag records only the
+    // event, so this is the only place that knows whose post is being saved.
+    toggleBookmark.mutate({ eventId: event.id, authorPubkey: event.pubkey }, {
       onSuccess: () => {
         toast({ title: bookmarked ? 'Removed from bookmarks' : 'Added to bookmarks' });
       },

@@ -67,7 +67,7 @@ const COMPLETED: Partial<PostOnboardingGuideState> = {
     'find-people': 'completed',
     'post-small': 'completed',
     customize: 'completed',
-    explore: 'completed',
+    interact: 'completed',
   },
 };
 

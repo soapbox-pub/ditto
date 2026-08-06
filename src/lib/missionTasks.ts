@@ -60,6 +60,28 @@ export function isMissionCustomizeState(
 }
 
 /**
+ * Route state set on `navigate('/feed', { state })` when the user starts the
+ * `interact` ("Find something you like") task. It only asks the feed to show
+ * the guidance tip — no post is chosen for the user, nothing is injected, and
+ * the task completes from a real interaction wherever they end up making it.
+ */
+export interface MissionInteractState {
+  /** The mission task that started this flow. */
+  missionTask: Extract<PostOnboardingPathId, 'interact'>;
+}
+
+/** Type guard for the interact mission route state. */
+export function isMissionInteractState(
+  state: unknown,
+): state is MissionInteractState {
+  return (
+    typeof state === 'object' &&
+    state !== null &&
+    (state as { missionTask?: unknown }).missionTask === 'interact'
+  );
+}
+
+/**
  * Editable starter note prefilled into the composer when the user arrives from
  * the "Post something small" task. It is only a suggestion — the user can edit
  * or delete every character before posting, and the task completes on whatever
@@ -77,10 +99,16 @@ I’m exploring Ditto and saying hello.
 
 #Ditto`;
 
-/** Where each task sends the user when they start it. */
+/**
+ * Where each task sends the user when they start it.
+ *
+ * `interact` goes to `/feed` rather than `/` because `/` renders whichever page
+ * the user chose as their homepage — a mission that needs a feed must land on
+ * one, not on Trends or Settings because of an unrelated preference.
+ */
 export const MISSION_TASK_ROUTES: Record<PostOnboardingPathId, string> = {
   'find-people': '/search',
   'post-small': '/',
   customize: '/settings/profile',
-  explore: '/trends',
+  interact: '/feed',
 };

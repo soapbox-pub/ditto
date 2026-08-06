@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useSyncExternalStore, type ReactNode } from 'react';
+import { StrictMode, useSyncExternalStore, type ReactNode } from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -7,12 +7,20 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useMissionEngine } from './useMissionEngine';
 import { resetAutoWrites } from '@/lib/missionAutoWrites';
 import {
+  emitPostInteraction,
+  resetPostInteractions,
+  type PostInteraction,
+} from '@/lib/postInteraction';
+import {
   createInitialGuideState,
+  normalizeGuideState,
   type PostOnboardingGuideState,
 } from '@/lib/postOnboardingGuide';
 import type { EncryptedSettings } from './useEncryptedSettings';
 
 const PUBKEY = 'a'.repeat(64);
+/** Somebody else — every qualifying interaction is with their content. */
+const OTHER = 'b'.repeat(64);
 const STARTED_AT = 1_700_000_000_000;
 
 // ── Test doubles ────────────────────────────────────────────────────────────
@@ -45,7 +53,6 @@ let followPubkeys: string[] | undefined;
 let authorData: { event?: NostrEvent; metadata?: Record<string, unknown> } | undefined;
 let theme = 'dark';
 let customTheme: unknown;
-let pathname = '/';
 let relayEvents: NostrEvent[] = [];
 
 vi.mock('./useEncryptedSettings', () => ({
@@ -69,15 +76,25 @@ vi.mock('./useAppContext', () => ({
 vi.mock('@nostrify/react', () => ({
   useNostr: () => ({ nostr: { query: async () => relayEvents } }),
 }));
-vi.mock('react-router-dom', () => ({ useLocation: () => ({ pathname }) }));
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
+/** The same, under Strict Mode, which double-invokes effects in development. */
+function strictWrapper({ children }: { children: ReactNode }) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return (
+    <StrictMode>
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    </StrictMode>
+  );
+}
+
 function reset() {
   resetAutoWrites();
+  resetPostInteractions();
   settings = undefined;
   settingsLoading = false;
   hasNip44Support = true;
@@ -89,8 +106,13 @@ function reset() {
   authorData = undefined;
   theme = 'dark';
   customTheme = undefined;
-  pathname = '/';
   relayEvents = [];
+  mutateAsync.mockImplementation(async (patch: Partial<EncryptedSettings>) => {
+    writeCount += 1;
+    settings = { ...settings, ...patch };
+    for (const listener of listeners) listener();
+    return { updatedSettings: settings };
+  });
   vi.spyOn(console, 'error').mockImplementation(() => {});
 }
 
@@ -371,24 +393,162 @@ describe('useMissionEngine — customize detection', () => {
   });
 });
 
-describe('useMissionEngine — explore detection', () => {
+// ── interact: the fourth task ───────────────────────────────────────────────
+//
+// The rule under test is "one confirmed interaction with somebody *else's*
+// post, from anywhere in Ditto". Nothing here names a button, a component or a
+// route, because the engine deliberately cannot see any of those — it reads the
+// shared signal each action's domain layer reports success to.
+
+/** A successful interaction signal, exactly as the real action paths report. */
+function interact(overrides: Partial<PostInteraction> = {}, at = STARTED_AT + 1_000) {
+  emitPostInteraction(
+    {
+      type: 'reaction',
+      actorPubkey: PUBKEY,
+      targetEventId: 'e'.repeat(64),
+      targetAuthorPubkey: OTHER,
+      ...overrides,
+    },
+    at,
+  );
+}
+
+describe('useMissionEngine — interact detection', () => {
   beforeEach(reset);
 
   it('does not complete merely because the mission is active', async () => {
     seed();
-    pathname = '/';
     renderHook(() => useMissionEngine(), { wrapper });
 
     await new Promise((resolve) => setTimeout(resolve, 30));
-    expect(stored()?.paths.explore).toBe('not_started');
+    expect(stored()?.paths.interact).toBe('not_started');
   });
 
-  it('completes on genuine arrival at Trends', async () => {
-    seed();
-    pathname = '/trends';
-    renderHook(() => useMissionEngine(), { wrapper });
+  it.each(['reaction', 'reply', 'repost', 'bookmark'] as const)(
+    'completes on a %s of another person’s post',
+    async (type) => {
+      seed();
+      renderHook(() => useMissionEngine(), { wrapper });
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
-    await waitFor(() => expect(stored()?.paths.explore).toBe('completed'));
+      interact({ type });
+
+      await waitFor(() => expect(stored()?.paths.interact).toBe('completed'));
+      // The action is recorded, so the celebration can name what was done.
+      expect(stored()?.interact?.action).toBe(type);
+    },
+  );
+
+  it('does not complete on an interaction with the user’s own post', async () => {
+    seed();
+    renderHook(() => useMissionEngine(), { wrapper });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    interact({ targetAuthorPubkey: PUBKEY });
+
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(stored()?.paths.interact).toBe('not_started');
+  });
+
+  it('ignores an interaction performed by a different account', async () => {
+    seed();
+    renderHook(() => useMissionEngine(), { wrapper });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    interact({ actorPubkey: OTHER, targetAuthorPubkey: 'c'.repeat(64) });
+
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(stored()?.paths.interact).toBe('not_started');
+  });
+
+  it('ignores an interaction that predates the mission', async () => {
+    seed();
+    renderHook(() => useMissionEngine(), { wrapper });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    interact({}, STARTED_AT - 86_400_000);
+
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(stored()?.paths.interact).toBe('not_started');
+  });
+
+  it('records the first qualifying action; a later one cannot change or replay it', async () => {
+    seed();
+    renderHook(() => useMissionEngine(), { wrapper });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    interact({ type: 'reaction' });
+    await waitFor(() => expect(stored()?.interact?.action).toBe('reaction'));
+
+    const after = writeCount;
+    interact({ type: 'repost', targetEventId: 'f'.repeat(64) });
+    await new Promise((resolve) => setTimeout(resolve, 40));
+
+    expect(stored()?.interact?.action).toBe('reaction');
+    expect(writeCount).toBe(after);
+  });
+
+  it('completes once for a duplicated signal', async () => {
+    seed();
+    renderHook(() => useMissionEngine(), { wrapper });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    // An optimistic path and a confirmed one, or a relay echo: the store
+    // deduplicates by logical interaction, so the engine sees it once.
+    interact();
+    interact();
+    await waitFor(() => expect(stored()?.paths.interact).toBe('completed'));
+
+    const after = writeCount;
+    interact();
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(writeCount).toBe(after);
+  });
+
+  it('cannot be replayed by Strict Mode’s double-invoked effects', async () => {
+    seed();
+    renderHook(() => useMissionEngine(), { wrapper: strictWrapper });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    interact();
+    await waitFor(() => expect(stored()?.paths.interact).toBe('completed'));
+
+    const after = writeCount;
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(writeCount).toBe(after);
+    expect(stored()?.interact?.action).toBe('reaction');
+  });
+
+  it('cannot be completed twice by two mounted engine instances', async () => {
+    seed();
+    renderHook(() => useMissionEngine(), { wrapper });
+    renderHook(() => useMissionEngine(), { wrapper });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    interact();
+    await waitFor(() => expect(stored()?.paths.interact).toBe('completed'));
+
+    const after = writeCount;
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(writeCount).toBe(after);
+  });
+
+  it('does not loop when the completion write keeps failing', async () => {
+    // A persistence failure must cost a bounded number of attempts, not a retry
+    // storm — this is the shape of the loop that once reached ~4,650 writes/s.
+    seed();
+    mutateAsync.mockRejectedValue(new Error('relay down'));
+    renderHook(() => useMissionEngine(), { wrapper });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    interact();
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const attempts = mutateAsync.mock.calls.length;
+
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(mutateAsync.mock.calls.length).toBe(attempts);
+    expect(attempts).toBeLessThan(5);
   });
 });
 
@@ -399,12 +559,12 @@ describe('useMissionEngine — detection is gated on an active mission', () => {
     seed({ status: 'skipped' });
     relayEvents = [note()];
     followPubkeys = ['b'.repeat(64)];
-    pathname = '/trends';
     renderHook(() => useMissionEngine(), { wrapper });
+    interact();
 
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await new Promise((resolve) => setTimeout(resolve, 40));
     expect(writeCount).toBe(0);
-    expect(stored()?.paths.explore).toBe('not_started');
+    expect(stored()?.paths.interact).toBe('not_started');
   });
 
   it('completes the whole mission when the last task is detected', async () => {
@@ -413,13 +573,59 @@ describe('useMissionEngine — detection is gated on an active mission', () => {
         'find-people': 'completed',
         'post-small': 'completed',
         customize: 'completed',
-        explore: 'not_started',
+        interact: 'not_started',
       },
     });
-    pathname = '/trends';
     renderHook(() => useMissionEngine(), { wrapper });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    interact();
 
     await waitFor(() => expect(stored()?.status).toBe('completed'));
     expect(typeof stored()?.completedAt).toBe('number');
+  });
+});
+
+// ── Compatibility with mission state written before this task changed ───────
+
+describe('useMissionEngine — retired `explore` state', () => {
+  beforeEach(reset);
+
+  it('keeps a completed `explore` completed as `interact`', async () => {
+    // Nobody who finished the old fourth task may be quietly reset to 3/4
+    // because the task was redesigned.
+    seed({
+      paths: {
+        'find-people': 'completed',
+        'post-small': 'completed',
+        customize: 'completed',
+        explore: 'completed',
+      } as unknown as PostOnboardingGuideState['paths'],
+    });
+    renderHook(() => useMissionEngine(), { wrapper });
+
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(normalizeGuideState(stored())?.paths.interact).toBe('completed');
+    // Migrated, not re-earned: no interaction record is invented for something
+    // the user did under the old rule.
+    expect(stored()?.interact).toBeUndefined();
+  });
+
+  it('leaves an unfinished `explore` to be earned by a real interaction', async () => {
+    seed({
+      paths: {
+        'find-people': 'completed',
+        'post-small': 'completed',
+        customize: 'completed',
+        explore: 'active',
+      } as unknown as PostOnboardingGuideState['paths'],
+      activePath: 'explore' as unknown as PostOnboardingGuideState['activePath'],
+    });
+    renderHook(() => useMissionEngine(), { wrapper });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(normalizeGuideState(stored())?.paths.interact).toBe('not_started');
+
+    interact();
+    await waitFor(() => expect(stored()?.paths.interact).toBe('completed'));
   });
 });

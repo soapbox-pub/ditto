@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, ChevronRight, Sparkles } from 'lucide-react';
+import { Award, Check, ChevronRight, Sparkles } from 'lucide-react';
 
 import { ExplorerTransitionTarget } from '@/components/ExplorerTransitionTarget';
 import { MissionCelebrationSparkle } from '@/components/MissionCelebrationSparkle';
@@ -10,6 +10,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMissionCelebration } from '@/hooks/useMissionCelebration';
 import { usePostOnboardingGuide } from '@/hooks/usePostOnboardingGuide';
 import { DITTO_EXPLORER_BADGE_IMAGE, DITTO_EXPLORER_BADGE_NAME } from '@/lib/badgeClaim';
+import { interactionSuccessMessage } from '@/lib/postOnboardingGuide';
 import { getStorageKey } from '@/lib/storageKey';
 import { cn } from '@/lib/utils';
 
@@ -38,9 +39,17 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
   const navigate = useNavigate();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const { state, isActive, isCompleted, completedCount, totalCount, badgeClaim, introState } =
-    usePostOnboardingGuide();
-  const { celebrating } = useMissionCelebration();
+  const {
+    state,
+    isActive,
+    isCompleted,
+    completedCount,
+    totalCount,
+    badgeClaim,
+    introState,
+    interaction,
+  } = usePostOnboardingGuide();
+  const { celebrating, completedPath } = useMissionCelebration();
   const [tapped, setTapped] = useState(false);
 
   const rewardUnlocked = isCompleted && badgeClaim?.status !== 'claimed';
@@ -57,6 +66,18 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
   if (!visible) return null;
 
   const progressValue = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+  // The same action-specific acknowledgement the desktop widget shows, for the
+  // celebration window only — see `MissionsWidget` for the reasoning.
+  const interactionSuccess =
+    celebrating && completedPath === 'interact' && interaction
+      ? interactionSuccessMessage(interaction.action)
+      : undefined;
+
+  // Progress stays on screen through the celebration even when this completion
+  // unlocked the reward — see `MissionsWidget` for why the fourth task would
+  // otherwise lose its count pop and progress fill at the moment they land.
+  const showProgress = !rewardUnlocked || celebrating;
 
   return (
     <ExplorerTransitionTarget className={cn('lg:hidden mx-4 my-2', className)}>
@@ -104,7 +125,7 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
             <span className="truncate text-sm font-semibold text-foreground">
               {DITTO_EXPLORER_BADGE_NAME}
             </span>
-            {!rewardUnlocked && !introPending && (
+            {showProgress && !introPending && (
               <div className="relative ml-auto shrink-0">
                 <span
                   className={cn(
@@ -121,7 +142,12 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
             )}
           </div>
 
-          {rewardUnlocked ? (
+          {interactionSuccess ? (
+            <p className="mt-0.5 flex items-center gap-1 truncate text-xs font-medium text-primary">
+              <Check className="size-3 shrink-0" aria-hidden />
+              {interactionSuccess}
+            </p>
+          ) : rewardUnlocked && !celebrating ? (
             <p className="mt-0.5 truncate text-xs font-medium text-primary">
               Reward unlocked · Claim reward
             </p>

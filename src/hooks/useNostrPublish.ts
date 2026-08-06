@@ -5,6 +5,10 @@ import { nip19 } from "nostr-tools";
 import { useAppContext } from "./useAppContext";
 import { useCurrentUser } from "./useCurrentUser";
 import { sendToInboxRelays } from "@/lib/inboxRelays";
+import {
+  classifyPublishedInteraction,
+  emitPostInteraction,
+} from "@/lib/postInteraction";
 
 import type { NostrEvent } from "@nostrify/nostrify";
 
@@ -103,6 +107,20 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
         }
 
         await nostr.event(event, { signal: AbortSignal.timeout(5000) });
+
+        // Report reactions, reposts, quotes and replies to the shared post
+        // interaction signal, now that the publish has actually been accepted.
+        //
+        // Here rather than at the ~160 call sites because this is the one place
+        // that sees every publish in the app, and because "the event went out"
+        // is exactly the moment the signal promises. A publish that throws
+        // above never reaches this line, so intent is never mistaken for
+        // success. `classifyPublishedInteraction` ignores everything that isn't
+        // an interaction (including kind 5 deletions, which is how un-reacting
+        // and un-reposting work, and kind 10003 bookmark lists, which
+        // `useBookmarks` reports itself).
+        const interaction = classifyPublishedInteraction(event);
+        if (interaction) emitPostInteraction(interaction);
 
         // NIP-65: For reply events (kind 1 and 1111), also send to the
         // inbox (read) relays of tagged users so they receive the reply.
