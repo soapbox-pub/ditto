@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.34.7] - 2026-08-07
+
+This release squashes a bug that could hatch a duplicate Blobbi behind your back, makes sure your own mute list never hides your own posts, and speeds up swiping through photo galleries. We also stripped Google's proprietary bits out of the Android build, so your pocket doesn't have to answer to Mountain View.
+
+### Changed
+- Lightbox galleries now preload nearby images so swiping through a photo set feels instant instead of stalling
+- Android app no longer bundles Google Play Services, so any password manager — including FOSS options on de-Googled phones — works with autofill
+
+### Fixed
+- A Blobbi could occasionally hatch a duplicate egg on page load, including when one was already adopted from Blobbi Island
+- Muted words and hashtags no longer hide your own posts
+- Stopped fetching the Bitcoin price on pages that never actually show a dollar amount
+
 ## [2.34.6] - 2026-08-01
 
 Sidebar got a makeover with clearer sections and easier access. Add comments to your zaps, manage your emoji packs, and enjoy better login flows. UI polish across search fields and feeds with full internationalization support.
