@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.34.8] - 2026-08-08
+
+A quiet maintenance release. We updated the plumbing under the hood and patched a security advisory in one of Ditto's dependencies. Nothing to see here — everything works exactly like it did yesterday, just on fresher parts.
+
 ## [2.34.7] - 2026-08-07
 
 This release squashes a bug that could hatch a duplicate Blobbi behind your back, makes sure your own mute list never hides your own posts, and speeds up swiping through photo galleries. We also stripped Google's proprietary bits out of the Android build, so your pocket doesn't have to answer to Mountain View.
