@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 
+import { RotateCcw, Sparkles } from 'lucide-react';
+
 import { SealedRewardArt } from '@/components/MissionArt';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogPortal, DialogTitle } from '@/components/ui/dialog';
@@ -110,6 +112,9 @@ function isUsableRect(rect: DOMRect | null): rect is DOMRect {
  */
 export function RewardCeremony({
   phase,
+  slow = false,
+  failures = 0,
+  onReveal,
   sourceRect,
   sourceElement,
   onSettle,
@@ -117,6 +122,12 @@ export function RewardCeremony({
   onFinishClose,
 }: {
   phase: RewardCeremonyPhase;
+  /** Whether the claim is slow enough to be worth explaining. Acting only. */
+  slow?: boolean;
+  /** Consecutive failures this ceremony has seen. Copy only. */
+  failures?: number;
+  /** The ceremonial act: submit the claim. */
+  onReveal: () => void;
   /** Where the reward was when it was clicked. A ref, read at animation time. */
   sourceRect: { current: DOMRect | null };
   /** The reward element, re-measured on the way back. May have unmounted. */
@@ -219,9 +230,26 @@ export function RewardCeremony({
   useEffect(() => cancelFrame, [cancelFrame]);
 
   const open = phase !== 'closed';
-  // The copy is quiet while the reward is still flying: it belongs to the
-  // settled composition, not to the journey there.
-  const settled = phase === 'sealed';
+  // The composition is quiet while the reward is still flying: it belongs to the
+  // settled stage, not to the journey there.
+  const composed = phase !== 'opening' && phase !== 'closing';
+  const acting = phase === 'acting';
+  const failed = phase === 'failed';
+  const submitted = phase === 'submitted';
+
+  const title = submitted
+    ? 'Your claim is in.'
+    : failed
+      ? 'That didn\'t go through.'
+      : 'Your reward is waiting.';
+
+  const body = submitted
+    ? 'Your badge will appear in Badges once it has been issued.'
+    : failed
+      ? failures > 1
+        ? 'Still not going through. Your journey is complete either way, and the reward is here whenever this works.'
+        : 'Nothing was lost, so you can try again.'
+      : 'You completed your first journey through Ditto.';
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onRequestClose(); }}>
@@ -240,9 +268,10 @@ export function RewardCeremony({
         />
         <DialogPrimitive.Content
           data-reward-ceremony=""
+          data-phase={phase}
           aria-describedby={undefined}
-          // Radix restores focus to the trigger on close by itself, and traps it
-          // here meanwhile. Nothing about focus is hand-rolled.
+          // Radix restores focus and traps it here meanwhile. Nothing about
+          // focus is hand-rolled.
           className={cn(
             'fixed inset-0 z-[240] flex flex-col items-center justify-center gap-7 outline-none',
             // The stage never scrolls sideways, whatever a child asks for.
@@ -255,38 +284,102 @@ export function RewardCeremony({
           )}
         >
           {/* The reward. Laid out in its final place from the first frame; only
-              its transform moves, so nothing around it reflows as it arrives. */}
-          <div ref={setArtNode} className="shrink-0" style={{ willChange: 'transform' }}>
-            <SealedRewardArt size={artSize} ready />
+              its transform moves, so nothing around it reflows as it arrives.
+              The press reaction lives on an inner wrapper so it cannot fight the
+              travel transform on the outer one. */}
+          <div
+            ref={setArtNode}
+            data-reward-travel=""
+            className="shrink-0"
+            style={{ willChange: 'transform' }}
+          >
+            <div
+              data-reward-seal=""
+              className={cn(
+                'rounded-2xl',
+                // Under reduced motion the seal answers with a ring rather than
+                // a movement. The state is still legible; only the physics go.
+                reduced
+                  ? acting && 'ring-2 ring-primary/50'
+                  : acting && 'reward-seal-press',
+              )}
+            >
+              <SealedRewardArt size={artSize} ready />
+            </div>
           </div>
 
-          {/* The composition is laid out in full from the start and revealed
-              with opacity alone, so the reward does not shift as copy appears. */}
+          {/* Laid out in full from the start and revealed with opacity alone, so
+              the reward never shifts as the copy changes. */}
           <div
             className={cn(
               // `w-full` as well as the cap: on a 360px phone a bare `max-w-sm`
-            // is wider than the viewport, so the column grew past its parent and
-            // took the whole centred composition off-centre with it.
-            'flex w-full max-w-sm flex-col items-center gap-2 text-center',
+              // is wider than the viewport, so the column grew past its parent
+              // and took the whole centred composition off-centre with it.
+              'flex w-full max-w-sm flex-col items-center gap-2 text-center',
               'transition-opacity duration-500',
-              settled ? 'opacity-100' : 'opacity-0',
+              composed ? 'opacity-100' : 'opacity-0',
             )}
           >
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Special reward
             </p>
             <DialogTitle className="text-xl font-bold leading-tight text-foreground sm:text-2xl">
-              Your reward is waiting.
+              {title}
             </DialogTitle>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              You completed your first journey through Ditto.
-            </p>
+            <p className="text-sm leading-relaxed text-muted-foreground">{body}</p>
           </div>
 
-          {/* Close is the only action here, and that is deliberate: a button
-              offering to reveal the reward would be a promise this build cannot
-              keep, and a disabled one would be furniture. The gesture that opens
-              the seal arrives with the thing it opens. */}
+          {/* Actions. One column so nothing reflows between phases. */}
+          <div
+            className={cn(
+              'flex w-full max-w-sm shrink-0 flex-col items-center gap-1',
+              'transition-opacity duration-500',
+              composed ? 'opacity-100' : 'opacity-0',
+            )}
+          >
+            {acting ? (
+              /* The seal is the thing being watched, so the status is a line of
+                 text rather than a spinner competing with it. Polite, and only
+                 two possible strings, so it cannot chatter. */
+              <p
+                role="status"
+                aria-live="polite"
+                className="py-2 text-sm font-medium text-muted-foreground"
+              >
+                {slow ? 'Still sending. Your signer may be waiting for you.' : 'Sending your claim…'}
+              </p>
+            ) : submitted ? null : (
+              <>
+                <Button
+                  type="button"
+                  size="lg"
+                  className="w-full max-w-64 gap-1.5 rounded-full font-semibold"
+                  onClick={onReveal}
+                >
+                  {failed ? (
+                    <>
+                      <RotateCcw className="size-4" aria-hidden />
+                      Try again
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="size-4" aria-hidden />
+                      Reveal your reward
+                    </>
+                  )}
+                </Button>
+                {!failed && (
+                  <p className="pt-1 text-xs leading-relaxed text-muted-foreground">
+                    Revealing publishes a public claim so your badge can be issued.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Always reachable, in every phase, including while a claim is in
+              flight: the publish belongs to the hook and carries on without the
+              stage being open to watch it. */}
           <DialogPrimitive.Close asChild>
             <Button
               type="button"
@@ -294,10 +387,10 @@ export function RewardCeremony({
               className={cn(
                 'shrink-0 rounded-full px-6 text-muted-foreground hover:text-foreground',
                 'transition-opacity duration-500',
-                settled ? 'opacity-100' : 'opacity-0',
+                composed ? 'opacity-100' : 'opacity-0',
               )}
             >
-              Close
+              {submitted ? 'Done' : 'Close'}
             </Button>
           </DialogPrimitive.Close>
         </DialogPrimitive.Content>

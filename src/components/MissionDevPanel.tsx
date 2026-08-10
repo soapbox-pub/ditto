@@ -39,7 +39,11 @@ const MISSION_SCENARIOS: ReadonlyArray<{ id: MissionDevState; label: string }> =
 
 const CEREMONY_SCENARIOS: ReadonlyArray<{ id: MissionDevState; label: string }> = [
   { id: 'ceremony-opening', label: 'Open with travel' },
-  { id: 'ceremony-sealed', label: 'Open sealed (no travel)' },
+  { id: 'ceremony-sealed', label: 'Sealed' },
+  { id: 'ceremony-acting', label: 'Acting' },
+  { id: 'ceremony-slow', label: 'Slow signer' },
+  { id: 'ceremony-failed', label: 'Failed' },
+  { id: 'ceremony-submitted', label: 'Claim submitted' },
 ];
 
 export function MissionDevPanel() {
@@ -87,9 +91,10 @@ export function MissionDevPanel() {
       {row('Mission', MISSION_SCENARIOS)}
       {row('Ceremony', CEREMONY_SCENARIOS)}
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        Ceremony scenarios open the stage on load. From any 4/4 state you can also
-        open it with the panel's own “View your reward”, then close it with the
-        Close button, Escape, the backdrop, or browser Back.
+        Ceremony scenarios open the stage on load and render that phase directly:
+        no claim is attempted, nothing is signed, published or saved. To exercise
+        the real claim, open the stage from the reward panel's “Reveal your
+        reward” with a signed-in account.
       </p>
     </aside>
   );

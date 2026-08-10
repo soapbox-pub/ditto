@@ -43,10 +43,24 @@ import { cn } from '@/lib/utils';
 /**
  * The Ditto Explorer journey's own mark.
  *
- * An orbit and a small traveller: it echoes Ditto's ringed planet without
- * borrowing the app's logo, and says "a journey" rather than "a prize". Built
- * from an inline SVG so it inherits the theme's primary colour, costs no
- * network request, and cannot be confused with the badge.
+ * Ditto's real planet, with a path around it and a traveller on the way.
+ *
+ * The previous version hand-drew an ellipse and two circles as an *approximation*
+ * of the ringed planet, deliberately kept unlike the logo. That caution was
+ * aimed at the wrong thing: what must not be shown early is the **reward**, and
+ * the app's own mark is not the reward. Meanwhile the approximation had all the
+ * usual costs of a lookalike — it drifted from the real proportions, and it
+ * meant the journey's identity was a drawing of Ditto rather than Ditto.
+ *
+ * So it now uses `logo.svg`, the same asset `DittoLogo` renders, as a mask
+ * filled with the theme's primary colour. That keeps it crisp at every size,
+ * correct in both themes, and identical to the mark everywhere else in the app.
+ * Masked rather than composed with `DittoLogo` itself so this stays a pure
+ * presentational span: `DittoLogo` reads the current user and app config, and
+ * this renders in surfaces (and tests) that have neither.
+ *
+ * It still says *a journey*, not *a prize*: the orbit and the traveller are the
+ * mark's own, and nothing here borrows the badge's artwork or its silhouette.
  */
 export function ExplorerJourneyMark({ className }: { className?: string }) {
   return (
@@ -61,21 +75,39 @@ export function ExplorerJourneyMark({ className }: { className?: string }) {
         className,
       )}
     >
-      <svg viewBox="0 0 48 48" fill="none" className="size-[64%] text-primary">
+      {/* The path travelled, behind the planet. */}
+      <svg viewBox="0 0 48 48" fill="none" className="absolute size-[86%] text-primary">
         <ellipse
           cx="24"
           cy="24"
-          rx="19"
-          ry="8"
+          rx="20"
+          ry="8.5"
           stroke="currentColor"
-          strokeOpacity="0.4"
-          strokeWidth="2"
+          strokeOpacity="0.38"
+          strokeWidth="1.75"
+          strokeDasharray="2.5 3.5"
+          strokeLinecap="round"
           transform="rotate(-24 24 24)"
         />
-        <circle cx="24" cy="24" r="8.5" stroke="currentColor" strokeWidth="2.5" />
-        <circle cx="24" cy="24" r="3" fill="currentColor" fillOpacity="0.5" />
-        <circle cx="39.5" cy="15" r="2.75" fill="currentColor" />
+        {/* The traveller, out on the orbit. */}
+        <circle cx="41.5" cy="15.5" r="2.5" fill="currentColor" />
       </svg>
+
+      {/* Ditto itself. */}
+      <span
+        data-explorer-journey-planet=""
+        className="relative block size-[52%] bg-primary"
+        style={{
+          maskImage: 'url(/logo.svg)',
+          maskSize: 'contain',
+          maskRepeat: 'no-repeat',
+          maskPosition: 'center',
+          WebkitMaskImage: 'url(/logo.svg)',
+          WebkitMaskSize: 'contain',
+          WebkitMaskRepeat: 'no-repeat',
+          WebkitMaskPosition: 'center',
+        }}
+      />
     </span>
   );
 }

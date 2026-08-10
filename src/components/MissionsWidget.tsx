@@ -43,6 +43,16 @@ import { cn } from '@/lib/utils';
  * journey — but the reveal is a separate fact now, and a user who claimed under
  * a build that had no reveal would otherwise have lost every route back to it.
  * It hides once the reward has actually been revealed. See `isCeremonyOwed`.
+ *
+ * ### It never claimed, and now it stops saying it does
+ *
+ * The reward action here has always been a **navigation**: it takes the user to
+ * `/missions`, where the reward lives. It was labelled "Claim reward", so
+ * pressing it looked like it should submit something and then visibly do
+ * nothing but change page — the reported "no animation" defect. 300px is not
+ * where an irreversible public publish should happen, and mounting a second
+ * full-screen ceremony from the sidebar would give one act two owners, so the
+ * fix is the label rather than the behaviour: it now says where it goes.
  */
 export function MissionsWidget() {
   const navigate = useNavigate();
@@ -127,7 +137,7 @@ export function MissionsWidget() {
             ceremonyOwed
               ? claimSubmitted
                 ? `${DITTO_EXPLORER_BADGE_NAME} — badge claim submitted`
-                : `${DITTO_EXPLORER_BADGE_NAME} — claim your badge`
+                : `${DITTO_EXPLORER_BADGE_NAME} — open your reward`
               : `${DITTO_EXPLORER_BADGE_NAME}: ${completedCount} of ${totalCount} steps complete`
           }
         >
@@ -155,7 +165,7 @@ export function MissionsWidget() {
                   ) : (
                     <FormattedMessage
                       id="mission.widget.claim"
-                      defaultMessage="Claim your badge"
+                      defaultMessage="Your reward is ready"
                     />
                   )}
                 </span>
@@ -204,7 +214,7 @@ export function MissionsWidget() {
               ) : (
                 <FormattedMessage
                   id="mission.widget.openReward"
-                  defaultMessage="Claim reward"
+                  defaultMessage="Open reward"
                 />
               )
             ) : (

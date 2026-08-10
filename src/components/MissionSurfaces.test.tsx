@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render as rtlRender, screen } from '@testing-library/react';
+import { fireEvent, render as rtlRender, screen } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 import type { ReactElement } from 'react';
 
@@ -60,7 +60,8 @@ vi.mock('@/hooks/useAppContext', () => ({
 vi.mock('@/hooks/useCurrentUser', () => ({
   useCurrentUser: () => ({ user: { pubkey: 'a'.repeat(64) } }),
 }));
-vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+const navigate = vi.fn();
+vi.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
 
 /** These surfaces use `FormattedMessage`, so they need an intl ancestor. */
 function render(ui: ReactElement) {
@@ -187,10 +188,10 @@ describe('desktop sidebar widget', () => {
     expect(render(<MissionsWidget />).container).toBeEmptyDOMElement();
   });
 
-  it('reframes as a claim prompt once the reward is unlocked', () => {
+  it('reframes as a reward prompt once the reward is unlocked', () => {
     seed({ status: 'completed', paths: { ...ALL_DONE } });
     render(<MissionsWidget />);
-    expect(screen.getByRole('button', { name: /claim reward/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /open reward/i })).toBeInTheDocument();
   });
 
   it('disappears once the reward has been revealed', () => {
@@ -282,6 +283,67 @@ describe('mobile teaser', () => {
  * That rule now lives in `useMissionSurfaceState` rather than being restated in
  * each surface, which is exactly why it is worth pinning here.
  */
+/**
+ * The compact surfaces have never claimed anything: their reward action is a
+ * *navigation* to `/missions`, where the reward lives. It was labelled "Claim
+ * reward", so pressing it looked like it should submit something and then
+ * visibly did nothing but change page — the reported "no feedback" defect.
+ *
+ * These pin the behaviour (it navigates) and the promise (it says so), because
+ * the fix was the label rather than the behaviour: a 300px sidebar card is not
+ * where an irreversible public publish belongs, and a second full-screen
+ * ceremony mounted here would give one act two owners.
+ */
+describe('the reward action on the compact surfaces', () => {
+  const completed = () => ({
+    status: 'completed' as const,
+    paths: { ...ALL_DONE },
+  });
+
+  beforeEach(() => {
+    state = undefined;
+    celebration = { celebrating: false };
+    navigate.mockClear();
+  });
+
+  for (const [name, Surface] of [
+    ['sidebar widget', MissionsWidget],
+    ['mobile teaser', MobileMissionTeaser],
+  ] as const) {
+    it(`${name}: takes the user to the reward instead of claiming it`, () => {
+      seed(completed());
+      render(<Surface />);
+
+      const action = screen.getAllByRole('button').find((b) => /reward/i.test(b.textContent ?? ''))!;
+      fireEvent.click(action);
+
+      expect(navigate).toHaveBeenCalledWith('/missions');
+    });
+
+    it(`${name}: never says it will claim`, () => {
+      seed(completed());
+      const { container } = render(<Surface />);
+
+      // "Claim reward" / "Claim your badge" promised a submit and delivered a
+      // page change. Nothing here may make that promise again.
+      expect(container.textContent).not.toMatch(/claim reward/i);
+      expect(container.textContent).not.toMatch(/claim your badge/i);
+      expect(container.textContent).toMatch(/reward/i);
+    });
+  }
+
+  it('sidebar widget: still reports a submitted claim rather than asking again', () => {
+    seed({
+      ...completed(),
+      badgeClaim: { badge: 'ditto-explorer', status: 'claimed', claimEventId: 'f'.repeat(64) },
+    });
+    render(<MissionsWidget />);
+
+    expect(screen.getByText('Badge claim submitted')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view journey/i })).toBeEnabled();
+  });
+});
+
 describe('the 4/4 completion moment', () => {
   beforeEach(() => {
     state = undefined;

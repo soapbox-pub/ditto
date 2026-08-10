@@ -54,6 +54,27 @@ describe('mission harness — reward ceremony scenarios', () => {
     expect(isCeremonyOwed(readMissionDevState()!)).toBe(true);
   });
 
+  it('renders each ceremony phase directly, without acting', () => {
+    // The point of these: inspect acting, the slow-signer copy, failure and the
+    // submitted bridge without a signer, a relay, or a claim being attempted.
+    const phases = {
+      'ceremony-acting': 'acting',
+      'ceremony-slow': 'slow',
+      'ceremony-failed': 'failed',
+      'ceremony-submitted': 'submitted',
+    } as const;
+
+    for (const [scenario, entry] of Object.entries(phases)) {
+      harness(`?missionDev=${scenario}`);
+      expect(missionDevCeremonyEntry()).toBe(entry);
+      // The backing state is untouched 4/4-ready in every one of them: none of
+      // these scenarios can express a claim, so none can have made one.
+      const state = readMissionDevState()!;
+      expect(badgeRewardView(state)).toBe('ready');
+      expect(state.badgeClaim).toBeUndefined();
+    }
+  });
+
   it('asks for no ceremony from any other scenario', () => {
     for (const scenario of ['ready', 'claimed', 'revealed', 'active3', 'intro']) {
       harness(`?missionDev=${scenario}`);

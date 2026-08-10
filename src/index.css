@@ -1380,6 +1380,25 @@
   animation: sealed-reward-drift 14s ease-in-out infinite;
 }
 
+/* The reward ceremony's press. The seal answers the gesture physically once,
+   then settles: it is an acknowledgement, not a flourish, and the object being
+   watched is the reward rather than a spinner beside it.
+   Transform only, on a wrapper inside the travelling element so the two cannot
+   fight over the same property. Under prefers-reduced-motion the component swaps
+   this for a ring change instead, so the state stays legible without the motion —
+   which is why this is disabled rather than softened below. */
+@keyframes reward-seal-press {
+  0%   { transform: scale(1); }
+  22%  { transform: scale(0.97); }
+  60%  { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+.reward-seal-press {
+  animation: reward-seal-press 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+  transform-origin: center center;
+}
+
 /* Progress bar halo while it fills on completion. */
 @keyframes mission-progress-glow {
   0%   { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
@@ -1399,7 +1418,8 @@
   .mission-count-pop,
   .mission-sparkle,
   .mission-progress-glow,
-  .sealed-reward-image {
+  .sealed-reward-image,
+  .reward-seal-press {
     animation: none;
   }
 }

@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, Check, Eye, Loader2, Lock, RotateCcw } from 'lucide-react';
+import { Award, Check, Lock, Sparkles } from 'lucide-react';
 
 import { missionDevCeremonyEntry } from '@/dev/missionHarness';
 import { RevealedRewardArt, SealedRewardArt } from '@/components/MissionArt';
 import { RewardCeremony } from '@/components/RewardCeremony';
 import { Button } from '@/components/ui/button';
 import { useBadgeClaim } from '@/hooks/useBadgeClaim';
-import { useRewardCeremony } from '@/hooks/useRewardCeremony';
+import { useRewardCeremony, type RewardCeremonyPhase } from '@/hooks/useRewardCeremony';
 import { rewardPresentation } from '@/lib/postOnboardingGuide';
 import { cn } from '@/lib/utils';
 
@@ -19,11 +19,11 @@ import { cn } from '@/lib/utils';
  * |-------------|-------------------------------------------------------------|
  * | `locked`    | sealed token, how far off it is, no action                  |
  * | `settling`  | sealed token, "Journey complete", no action yet             |
- * | `ready`     | "Journey complete", the seal opened, "Claim reward"         |
- * | `claiming`  | spinner, action disabled                                    |
+ * | `ready`     | "Journey complete", "Reveal your reward" (opens the ceremony)|
+ * | `claiming`  | a claim already in flight; the action waits for it           |
  * | `claimed`   | "Badge claim submitted", a link to Badges                   |
  * | `revealed`  | as `claimed` — the reveal experience does not exist yet     |
- * | `failed`    | "That didn't go through", "Try again"                       |
+ * | `failed`    | "That didn't go through"; retry happens in the ceremony      |
  * | `dismissed` | a quiet note that the journey is hidden                     |
  *
  * ### Why `settling` exists
@@ -48,6 +48,15 @@ import { cn } from '@/lib/utils';
  * exist yet, so even `ready` shows a sealed-but-openable token rather than
  * pretending the reveal already happened.
  *
+ * ### One way to claim
+ *
+ * The claim is submitted inside the ceremony, and only there. This panel used to
+ * carry its own "Claim reward" button calling `claim()` directly, with no success
+ * feedback at all: the one reward animation is bound to `ready`, so a successful
+ * claim *removed* the only thing moving on screen. Keeping both would mean two
+ * entry points to one irreversible act, and the quiet one would keep winning
+ * because it was closer to hand.
+ *
  * It does not promise a notification. Claiming publishes a public request
  * (kind 30637); the NIP-58 award is issued later by a server Ditto does not
  * control, and which is currently inactive. "You'll be notified" was a promise
@@ -60,6 +69,22 @@ import { cn } from '@/lib/utils';
  */
 /** The reward art's edge length on this panel, in px (was `size-28`). */
 const REWARD_ART_SIZE = 112;
+
+/**
+ * Localhost harness entries, mapped to the phase each one renders. `undefined`
+ * means "use the ordinary entrance", which is what the two opening entries want.
+ */
+const DEV_CEREMONY_PHASE: Record<
+  NonNullable<ReturnType<typeof missionDevCeremonyEntry>>,
+  RewardCeremonyPhase | undefined
+> = {
+  opening: undefined,
+  sealed: undefined,
+  acting: 'acting',
+  slow: 'acting',
+  failed: 'failed',
+  submitted: 'submitted',
+};
 
 export function MissionReward({
   completedCount,
@@ -88,8 +113,8 @@ export function MissionReward({
   celebrating?: boolean;
 }) {
   const navigate = useNavigate();
-  const { claim, rewardView, isClaiming } = useBadgeClaim();
-  const ceremony = useRewardCeremony();
+  const { claim, rewardView, isClaimed } = useBadgeClaim();
+  const ceremony = useRewardCeremony({ claimSubmitted: isClaimed });
   const artRef = useRef<HTMLDivElement | null>(null);
   const openRef = useRef<HTMLButtonElement | null>(null);
 
@@ -103,7 +128,13 @@ export function MissionReward({
   useEffect(() => {
     const entry = missionDevCeremonyEntry();
     if (!entry || !ceremonyOpenable) return;
-    openCeremony(artRef.current, { immediate: entry === 'sealed' });
+    openCeremony(artRef.current, {
+      immediate: entry !== 'opening',
+      // Every entry but the two entrance ones is a phase rendered directly. No
+      // claim runs to reach them: the harness shows the stage, it does not act.
+      phase: DEV_CEREMONY_PHASE[entry],
+      slow: entry === 'slow',
+    });
   }, [ceremonyOpenable, openCeremony]);
   const remaining = Math.max(0, totalCount - completedCount);
   const sealed = view === 'locked' || view === 'settling' || view === 'dismissed';
@@ -177,70 +208,17 @@ export function MissionReward({
       )}
 
       {(view === 'ready' || view === 'claiming' || view === 'failed') && (
-        <>
-          <div className="space-y-1.5">
-            <p className="text-base font-semibold text-foreground">Journey complete</p>
-            <p className="text-sm text-muted-foreground">
-              {view === 'failed'
-                ? 'That claim didn’t go through. Nothing was lost, so you can try again.'
+        <div className="space-y-1.5">
+          <p className="text-base font-semibold text-foreground">Journey complete</p>
+          <p className="text-sm text-muted-foreground">
+            {view === 'failed'
+              ? 'That claim didn’t go through. Nothing was lost, so you can try again.'
+              : view === 'claiming'
+                ? 'Your claim is on its way.'
                 : 'Your special reward is ready.'}
-            </p>
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            className="w-full max-w-56 gap-1.5 rounded-full font-semibold"
-            disabled={isClaiming}
-            onClick={() => void claim()}
-          >
-            {isClaiming ? (
-              <>
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-                Claiming…
-              </>
-            ) : view === 'failed' ? (
-              <>
-                <RotateCcw className="size-4" aria-hidden />
-                Try again
-              </>
-            ) : (
-              <>
-                <Award className="size-4" aria-hidden />
-                Claim reward
-              </>
-            )}
-          </Button>
-        </>
+          </p>
+        </div>
       )}
-
-      {/* The ceremony's entrance. A control of its own rather than a replacement
-          for "Claim reward": the ceremony does not claim anything yet, so
-          hanging the claim behind it would take away an action that works today.
-          It is labelled for what it currently does — the stage it opens shows
-          the sealed reward and nothing else — and becomes "Reveal your reward"
-          in the same change that gives it something to reveal. */}
-      {ceremonyOpenable && (
-        <Button
-          ref={openRef}
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="w-full max-w-56 gap-1.5 rounded-full text-muted-foreground hover:text-foreground"
-          onClick={() => ceremony.open(artRef.current, { trigger: openRef.current })}
-        >
-          <Eye className="size-4" aria-hidden />
-          View your reward
-        </Button>
-      )}
-
-      <RewardCeremony
-        phase={ceremony.phase}
-        sourceRect={ceremony.sourceRect}
-        sourceElement={ceremony.sourceElement}
-        onSettle={ceremony.settle}
-        onRequestClose={ceremony.requestClose}
-        onFinishClose={ceremony.finishClose}
-      />
 
       {claimSubmitted && (
         <>
@@ -265,6 +243,42 @@ export function MissionReward({
           </Button>
         </>
       )}
+
+      {/* The one way to claim, now that the ceremony can actually do it.
+          There used to be a "Claim reward" button here too, calling `claim()`
+          directly. It had no success feedback of any kind — the only reward
+          animation is bound to `ready`, so a successful claim *removed* the one
+          thing moving on screen — and in the dev harness, where there is no
+          signer, it silently returned `ineligible` and did nothing at all. Two
+          entry points to one irreversible act, one of them mute, is worse than
+          one that narrates itself.
+
+          It renders for a submitted-but-unrevealed claim as well: the reveal is
+          still owed, and the ceremony is where it will happen. */}
+      {ceremonyOpenable && (
+        <Button
+          ref={openRef}
+          type="button"
+          size="sm"
+          className="w-full max-w-56 gap-1.5 rounded-full font-semibold"
+          onClick={() => ceremony.open(artRef.current, { trigger: openRef.current })}
+        >
+          <Sparkles className="size-4" aria-hidden />
+          Reveal your reward
+        </Button>
+      )}
+
+      <RewardCeremony
+        phase={ceremony.phase}
+        slow={ceremony.slow}
+        failures={ceremony.failures}
+        onReveal={() => void ceremony.reveal(claim)}
+        sourceRect={ceremony.sourceRect}
+        sourceElement={ceremony.sourceElement}
+        onSettle={ceremony.settle}
+        onRequestClose={ceremony.requestClose}
+        onFinishClose={ceremony.finishClose}
+      />
     </div>
   );
 }

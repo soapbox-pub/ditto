@@ -132,7 +132,11 @@ export type MissionDevState =
   // load; `ceremony-sealed` skips the entrance so a settled frame can be
   // inspected without replaying the travel every time.
   | 'ceremony-opening'
-  | 'ceremony-sealed';
+  | 'ceremony-sealed'
+  | 'ceremony-acting'
+  | 'ceremony-slow'
+  | 'ceremony-failed'
+  | 'ceremony-submitted';
 
 const ALL_TASKS: PostOnboardingPathId[] = [
   'find-people',
@@ -278,15 +282,33 @@ export function missionDevRejectsWrites(): boolean {
  * are a few hundred milliseconds long, and replaying the whole entrance to reach
  * each one costs more than the inspection.
  *
- * It only *opens* the ceremony. It cannot claim, publish, or reveal anything —
- * there is no code path from here to any of those, in the harness or out of it.
+ * It only ever *presents* a phase. Nothing here signs, publishes, persists, or
+ * reveals: `acting`, `slow`, `failed` and `submitted` are the stage rendered in
+ * that state, reached without a claim ever being attempted. The claim itself is
+ * only reachable through the real gesture, which needs a real signer.
  */
-export function missionDevCeremonyEntry(): 'opening' | 'sealed' | undefined {
+export type MissionDevCeremonyEntry =
+  | 'opening'
+  | 'sealed'
+  | 'acting'
+  | 'slow'
+  | 'failed'
+  | 'submitted';
+
+export function missionDevCeremonyEntry(): MissionDevCeremonyEntry | undefined {
   switch (missionDevState()) {
     case 'ceremony-opening':
       return 'opening';
     case 'ceremony-sealed':
       return 'sealed';
+    case 'ceremony-acting':
+      return 'acting';
+    case 'ceremony-slow':
+      return 'slow';
+    case 'ceremony-failed':
+      return 'failed';
+    case 'ceremony-submitted':
+      return 'submitted';
     default:
       return undefined;
   }
@@ -478,6 +500,10 @@ function buildMissionDevState(): PostOnboardingGuideState | undefined {
     case 'ready':
     case 'ceremony-opening':
     case 'ceremony-sealed':
+    case 'ceremony-acting':
+    case 'ceremony-slow':
+    case 'ceremony-failed':
+    case 'ceremony-submitted':
       complete(4);
       return { ...state, intro: acknowledged, status: 'completed', completedAt: now - 5_000 };
     case 'claiming':

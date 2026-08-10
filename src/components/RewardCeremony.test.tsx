@@ -4,6 +4,10 @@ import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-rou
 
 import { MissionReward } from './MissionReward';
 import {
+  CEREMONY_MIN_ACTING_MS,
+  CEREMONY_SLOW_MS,
+} from '@/hooks/useRewardCeremony';
+import {
   areAllPathsCompleted,
   badgeRewardView,
   createInitialGuideState,
@@ -97,6 +101,8 @@ function LocationProbe() {
         data-testid="location"
         data-pathname={location.pathname}
         data-ceremony={String(!!(location.state as { rewardCeremony?: boolean } | null)?.rewardCeremony)}
+        data-search={location.search}
+        data-hash={location.hash}
       />
       <button type="button" onClick={() => navigate(-1)}>
         browser back
@@ -135,7 +141,19 @@ function renderReward(celebrating = false): ReturnType<typeof render> {
   );
 }
 
-const openButton = () => screen.queryByRole('button', { name: /view your reward/i });
+/**
+ * The panel's own trigger. Scoped outside the stage on purpose: once the
+ * ceremony is open there is a second "Reveal your reward" on it, and that one is
+ * the ceremonial act rather than the way in.
+ */
+const openButton = () =>
+  (Array.from(document.querySelectorAll('button')) as HTMLButtonElement[]).find(
+    (b) => /reveal your reward/i.test(b.textContent ?? '') && !b.closest('[data-reward-ceremony]'),
+  ) ?? null;
+
+/** The ceremonial act, on the stage. */
+const revealButton = () =>
+  document.querySelector<HTMLButtonElement>('[data-reward-ceremony] button');
 const stage = () => document.querySelector('[data-reward-ceremony]');
 const snapshot = () => JSON.stringify(state);
 
@@ -143,6 +161,8 @@ beforeEach(() => {
   state = undefined;
   reducedMotion = false;
   claim.mockClear();
+  claim.mockReset();
+  claim.mockResolvedValue({ status: 'claimed', claimEventId: 'e'.repeat(64) });
   markRewardRevealed.mockClear();
   completeBadgeClaim.mockClear();
   publishEvent.mockClear();
@@ -399,7 +419,7 @@ describe('reward ceremony — travel', () => {
     // Read synchronously: the starting transform is applied in a layout effect
     // during the same commit, and the animation clears it again when it lands —
     // so anything that waits is racing the thing it is trying to observe.
-    const art = stage()!.querySelector('[data-sealed-reward-art]')!.parentElement as HTMLElement;
+    const art = stage()!.querySelector('[data-reward-travel]') as HTMLElement;
     // Placed over the source before the first paint, rather than appearing at
     // its destination and then sliding.
     expect(art.style.transform).toMatch(/translate\(.*\) scale\(/);
@@ -412,7 +432,7 @@ describe('reward ceremony — travel', () => {
     fireEvent.click(openButton()!);
     await waitFor(() => expect(stage()).not.toBeNull());
 
-    const art = stage()!.querySelector('[data-sealed-reward-art]')!.parentElement as HTMLElement;
+    const art = stage()!.querySelector('[data-reward-travel]') as HTMLElement;
     expect(art.style.transform).toBe('');
     // …and it settles anyway, rather than waiting for an animation that can
     // never run.
@@ -433,7 +453,7 @@ describe('reward ceremony — travel', () => {
     fireEvent.click(openButton()!);
     await waitFor(() => expect(stage()).not.toBeNull());
 
-    const art = stage()!.querySelector('[data-sealed-reward-art]')!.parentElement as HTMLElement;
+    const art = stage()!.querySelector('[data-reward-travel]') as HTMLElement;
     expect(art.style.transform).toBe('');
     // The composition is there to read immediately: reduced motion removes the
     // movement, not the ceremony.
@@ -450,6 +470,315 @@ describe('reward ceremony — travel', () => {
     // switch). Closing must not depend on the source still existing.
     rerender(<MemoryRouter initialEntries={['/missions']} />);
     await waitFor(() => expect(stage()).toBeNull());
+  });
+});
+
+/**
+ * The ceremonial act. This is where the public kind 30637 is published, so the
+ * bar is: it happens once, it happens only when the user asks for it, and the
+ * stage never says anything about it that isn't true yet.
+ */
+describe('reward ceremony — the claim', () => {
+  /** Open the stage and wait for it to settle. */
+  async function openStage() {
+    renderReward();
+    fireEvent.click(openButton()!);
+    await waitFor(() => expect(stage()).not.toBeNull());
+    await waitFor(() => expect(revealButton()).toHaveTextContent(/reveal your reward/i));
+  }
+
+  it('offers the act, and says what it will do', async () => {
+    ready();
+    await openStage();
+
+    expect(revealButton()).toHaveTextContent(/reveal your reward/i);
+    // The gesture publishes a public event, so the stage says so before it does.
+    expect(
+      within(stage() as HTMLElement).getByText(/publishes a public claim/i),
+    ).toBeInTheDocument();
+  });
+
+  it('publishes exactly once, and only when asked', async () => {
+    ready();
+    await openStage();
+    expect(claim).not.toHaveBeenCalled();
+
+    fireEvent.click(revealButton()!);
+    await waitFor(() => expect(claim).toHaveBeenCalledTimes(1));
+    // No `revealedAt`: a claim is not a reveal, and the option that writes both
+    // in one go belongs to the choreography that actually shows the reward.
+    expect(claim).toHaveBeenCalledWith();
+  });
+
+  it('does not publish twice on a double tap', async () => {
+    ready();
+    claim.mockImplementation(() => new Promise(() => {}));
+    await openStage();
+
+    const act = revealButton()!;
+    fireEvent.click(act);
+    fireEvent.click(act);
+    fireEvent.click(act);
+
+    await waitFor(() => expect(claim).toHaveBeenCalledTimes(1));
+  });
+
+  it('acknowledges the press immediately', async () => {
+    ready();
+    claim.mockImplementation(() => new Promise(() => {}));
+    await openStage();
+    fireEvent.click(revealButton()!);
+
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'acting'));
+    // The seal is the thing being watched, so the status is a line of text.
+    expect(within(stage() as HTMLElement).getByRole('status')).toHaveTextContent(
+      /sending your claim/i,
+    );
+    expect(stage()!.querySelector('[data-reward-seal]')?.className).toContain(
+      'reward-seal-press',
+    );
+  });
+
+  it('holds the act long enough to be read, even when the claim is instant', async () => {
+    ready();
+    claim.mockResolvedValue({ status: 'claimed', claimEventId: 'e'.repeat(64) });
+    await openStage();
+
+    fireEvent.click(revealButton()!);
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'acting'));
+
+    // Still acting well after the publish resolved: a send that flashes past in
+    // 50ms reads as a glitch rather than as an act.
+    await new Promise((r) => setTimeout(r, CEREMONY_MIN_ACTING_MS / 2));
+    expect(stage()).toHaveAttribute('data-phase', 'acting');
+
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'submitted'), {
+      timeout: 3_000,
+    });
+  });
+
+  it('explains a slow signer once, and still succeeds afterwards', async () => {
+    ready();
+    let resolveClaim: (o: { status: 'claimed'; claimEventId: string }) => void = () => {};
+    claim.mockImplementation(() => new Promise((r) => { resolveClaim = r; }));
+    await openStage();
+    fireEvent.click(revealButton()!);
+
+    const status = () => within(stage() as HTMLElement).getByRole('status').textContent ?? '';
+    await waitFor(() => expect(status()).toMatch(/sending your claim/i));
+
+    // The copy names the likely cause once. It cancels nothing.
+    await waitFor(() => expect(status()).toMatch(/your signer may be waiting for you/i), {
+      timeout: CEREMONY_SLOW_MS + 2_000,
+    });
+    expect(claim).toHaveBeenCalledTimes(1);
+
+    resolveClaim({ status: 'claimed', claimEventId: 'e'.repeat(64) });
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'submitted'), {
+      timeout: 3_000,
+    });
+  });
+
+  it('says what happened, and no more, once the claim is in', async () => {
+    ready();
+    claim.mockResolvedValue({ status: 'claimed', claimEventId: 'e'.repeat(64) });
+    await openStage();
+    fireEvent.click(revealButton()!);
+
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'submitted'), {
+      timeout: 3_000,
+    });
+    const stageEl = stage() as HTMLElement;
+    expect(within(stageEl).getByText('Your claim is in.')).toBeInTheDocument();
+    expect(within(stageEl).getByText(/appear in Badges once it has been issued/i))
+      .toBeInTheDocument();
+    // The reward is still sealed. Nothing here has been revealed.
+    expect(stageEl.querySelector('[data-sealed-reward-art]')).not.toBeNull();
+    expect(stageEl.querySelector('[data-revealed-reward-art]')).toBeNull();
+    expect(within(stageEl).queryByText(/awarded|you own|notified/i)).toBeNull();
+  });
+
+  it('keeps the reward sealed when the claim fails, and offers a retry', async () => {
+    ready();
+    claim.mockResolvedValue({ status: 'failed', error: new Error('relay unreachable') });
+    await openStage();
+    fireEvent.click(revealButton()!);
+
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'failed'), {
+      timeout: 3_000,
+    });
+    const stageEl = stage() as HTMLElement;
+    expect(within(stageEl).getByText(/that didn.t go through/i)).toBeInTheDocument();
+    expect(within(stageEl).getByText(/nothing was lost/i)).toBeInTheDocument();
+    expect(within(stageEl).getByRole('button', { name: /try again/i })).toBeEnabled();
+    expect(within(stageEl).getByRole('button', { name: /close/i })).toBeEnabled();
+    expect(stageEl.querySelector('[data-sealed-reward-art]')).not.toBeNull();
+    expect(state?.badgeClaim?.revealedAt).toBeUndefined();
+  });
+
+  it('retries for real, and stays retryable however often it fails', async () => {
+    ready();
+    claim.mockResolvedValue({ status: 'failed', error: new Error('nope') });
+    await openStage();
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      fireEvent.click(
+        within(stage() as HTMLElement).getByRole('button', { name: /reveal your reward|try again/i }),
+      );
+      await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'failed'), {
+        timeout: 3_000,
+      });
+      expect(claim).toHaveBeenCalledTimes(attempt);
+    }
+
+    // No lockout, ever. The journey is finished either way.
+    expect(within(stage() as HTMLElement).getByRole('button', { name: /try again/i }))
+      .toBeEnabled();
+  });
+
+  it('republishes nothing for a claim that already exists', async () => {
+    // The user claimed under a build that had no ceremony. The act must reach
+    // the same place without a second event.
+    seed({
+      paths: { ...ALL_DONE },
+      status: 'completed',
+      badgeClaim: { badge: 'ditto-explorer', status: 'claimed', claimEventId: 'x', claimedAt: 1 },
+    });
+    claim.mockResolvedValue({ status: 'already-claimed', claimEventId: 'x' });
+    await openStage();
+    fireEvent.click(revealButton()!);
+
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'submitted'), {
+      timeout: 3_000,
+    });
+    expect(publishEvent).not.toHaveBeenCalled();
+    // And the reveal is still owed: this task does not write it.
+    expect(markRewardRevealed).not.toHaveBeenCalled();
+    expect(state?.badgeClaim?.revealedAt).toBeUndefined();
+  });
+
+  it('treats an in-flight claim as a wait, not a failure', async () => {
+    ready();
+    claim.mockResolvedValue({ status: 'in-flight' });
+    await openStage();
+    fireEvent.click(revealButton()!);
+
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'acting'));
+    await new Promise((r) => setTimeout(r, CEREMONY_MIN_ACTING_MS + 300));
+    // Still acting. Offering a retry here would start a second publish for a
+    // claim that is already on its way.
+    expect(stage()).toHaveAttribute('data-phase', 'acting');
+    expect(within(stage() as HTMLElement).queryByText(/didn.t go through/i)).toBeNull();
+  });
+
+  it('falls back to the truth when the reward stops being claimable', async () => {
+    ready();
+    claim.mockResolvedValue({ status: 'ineligible', rewardView: 'locked' });
+    await openStage();
+    fireEvent.click(revealButton()!);
+
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'sealed'), {
+      timeout: 3_000,
+    });
+    // Never a fabricated success, and never stuck.
+    expect(within(stage() as HTMLElement).queryByText('Your claim is in.')).toBeNull();
+    expect(revealButton()).toHaveTextContent(/reveal your reward/i);
+  });
+
+  it('lets the user leave while the claim is still running', async () => {
+    ready();
+    claim.mockImplementation(() => new Promise(() => {}));
+    await openStage();
+    fireEvent.click(revealButton()!);
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'acting'));
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    await waitFor(() => expect(stage()).toBeNull());
+
+    // The publish belongs to the hook and carries on without a stage to watch
+    // it; closing cancels nothing and fabricates nothing.
+    expect(claim).toHaveBeenCalledTimes(1);
+    expect(state?.badgeClaim?.revealedAt).toBeUndefined();
+  });
+
+  it('never writes a reveal in this task, whatever the outcome', async () => {
+    for (const outcome of [
+      { status: 'claimed' as const, claimEventId: 'e'.repeat(64) },
+      { status: 'already-claimed' as const, claimEventId: 'x' },
+      { status: 'failed' as const, error: new Error('no') },
+    ]) {
+      ready();
+      claim.mockClear();
+      claim.mockResolvedValue(outcome);
+      const { unmount } = renderReward();
+      fireEvent.click(openButton()!);
+      await waitFor(() => expect(stage()).not.toBeNull());
+      fireEvent.click(revealButton()!);
+      await waitFor(() => expect(claim).toHaveBeenCalled());
+      await new Promise((r) => setTimeout(r, CEREMONY_MIN_ACTING_MS + 200));
+
+      expect(markRewardRevealed).not.toHaveBeenCalled();
+      expect(state?.badgeClaim?.revealedAt).toBeUndefined();
+      unmount();
+    }
+  });
+});
+
+/**
+ * The ceremony pushes a history entry so Back can close it. If its owner goes
+ * away while the stage is open, that entry must go too — otherwise the user is
+ * left with a Back press that pops an entry for a ceremony that no longer
+ * exists, at a URL identical to the one they are already on.
+ */
+describe('reward ceremony — history hygiene', () => {
+  const ceremonyEntry = () =>
+    screen.getByTestId('location').getAttribute('data-ceremony');
+
+  it('takes its history entry with it when its owner unmounts', async () => {
+    ready();
+    const { rerender } = renderReward();
+    fireEvent.click(openButton()!);
+    await waitFor(() => expect(ceremonyEntry()).toBe('true'));
+
+    // The panel disappears underneath the open stage: a route change, an
+    // account switch, a parent that stops rendering the reward.
+    rerender(
+      <MemoryRouter initialEntries={['/missions']}>
+        <Routes>
+          <Route path="/missions" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(stage()).toBeNull());
+    await waitFor(() => expect(ceremonyEntry()).toBe('false'));
+  });
+
+  it('keeps the whole URL, hash included', async () => {
+    ready();
+    render(
+      <MemoryRouter initialEntries={['/missions?tab=x#reward']}>
+        <Routes>
+          <Route
+            path="/missions"
+            element={
+              <>
+                <LocationProbe />
+                <MissionReward completedCount={4} totalCount={4} ceremonyOpenable />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(openButton()!);
+    await waitFor(() => expect(stage()).not.toBeNull());
+
+    // Dropping the hash would move the user off their anchor on the way in, and
+    // again on the way back out.
+    expect(screen.getByTestId('location').getAttribute('data-hash')).toBe('#reward');
+    expect(screen.getByTestId('location').getAttribute('data-search')).toBe('?tab=x');
   });
 });
 

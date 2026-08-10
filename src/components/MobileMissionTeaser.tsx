@@ -139,7 +139,7 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
               ) : (
                 <FormattedMessage
                   id="mission.teaser.reward"
-                  defaultMessage="Reward unlocked · Claim reward"
+                  defaultMessage="Reward unlocked · Open reward"
                 />
               )}
             </p>

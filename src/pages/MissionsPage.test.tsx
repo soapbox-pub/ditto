@@ -365,6 +365,15 @@ describe('/missions — the reward stays sealed', () => {
   });
 });
 
+/**
+ * The reward has exactly one action, and it opens the ceremony.
+ *
+ * It used to have a "Claim reward" button that called `claim()` from here. That
+ * button had no success feedback of any kind — the only reward animation is
+ * bound to `ready`, so a claim that worked *removed* the one thing moving — and
+ * with no signer (the dev harness, a logged-out render) it returned `ineligible`
+ * and did nothing at all, silently. These pin that it is gone.
+ */
 describe('/missions — claim lifecycle', () => {
   it('reads as ready, distinctly from locked, at 4/4', () => {
     seed({ paths: { ...ALL_DONE }, status: 'completed' });
@@ -373,21 +382,28 @@ describe('/missions — claim lifecycle', () => {
     expect(screen.getByText('Journey complete')).toBeInTheDocument();
     expect(screen.getByText(/your special reward is ready/i)).toBeInTheDocument();
     expect(screen.queryByText('Locked')).toBeNull();
-    expect(screen.getByRole('button', { name: /claim reward/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /reveal your reward/i })).toBeEnabled();
   });
 
-  it('disables the action while a claim is in flight', () => {
-    seed({
-      paths: { ...ALL_DONE },
-      status: 'completed',
-      badgeClaim: { badge: 'ditto-explorer', status: 'claiming', claimingStartedAt: Date.now() },
-    });
-    render(<MissionsPage />);
+  it('offers no way to claim without the ceremony', () => {
+    for (const badgeClaim of [
+      undefined,
+      { badge: 'ditto-explorer', status: 'claiming', claimingStartedAt: Date.now() },
+      { badge: 'ditto-explorer', status: 'failed', failedAt: 1 },
+    ] as const) {
+      seed({ paths: { ...ALL_DONE }, status: 'completed', badgeClaim });
+      const { unmount } = render(<MissionsPage />);
 
-    expect(screen.getByRole('button', { name: /claiming/i })).toBeDisabled();
+      expect(screen.queryByRole('button', { name: /^claim reward$/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /try again/i })).toBeNull();
+      // …and the one action there is leads to the ceremony rather than claiming.
+      expect(screen.getByRole('button', { name: /reveal your reward/i })).toBeEnabled();
+      expect(claim).not.toHaveBeenCalled();
+      unmount();
+    }
   });
 
-  it('offers a retry after a failed claim, without losing progress', () => {
+  it('still says what a failed claim means, and that nothing was lost', () => {
     seed({
       paths: { ...ALL_DONE },
       status: 'completed',
@@ -396,7 +412,6 @@ describe('/missions — claim lifecycle', () => {
     render(<MissionsPage />);
 
     expect(screen.getByText(/nothing was lost/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /try again/i })).toBeEnabled();
   });
 
   it('does not promise a notification once the claim is submitted', () => {
@@ -413,6 +428,16 @@ describe('/missions — claim lifecycle', () => {
     expect(screen.getByText(/appear in badges once it has been issued/i)).toBeInTheDocument();
     expect(screen.queryByText(/notified/i)).toBeNull();
     expect(screen.queryByText(/award pending/i)).toBeNull();
+  });
+
+  it('keeps the reward reachable while a claim is already in flight', () => {
+    seed({
+      paths: { ...ALL_DONE },
+      status: 'completed',
+      badgeClaim: { badge: 'ditto-explorer', status: 'claiming', claimingStartedAt: Date.now() },
+    });
+    render(<MissionsPage />);
+    expect(screen.getByText(/your claim is on its way/i)).toBeInTheDocument();
   });
 
   it('stays a usable page after the claim', () => {
@@ -464,7 +489,7 @@ describe('/missions — the 4/4 moment', () => {
 
     expect(screen.getByText('Journey complete')).toBeInTheDocument();
     expect(screen.queryByText(/your special reward is ready/i)).toBeNull();
-    expect(screen.queryByRole('button', { name: /claim reward/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /reveal your reward/i })).toBeNull();
     expect(screen.queryByText('Locked')).toBeNull();
   });
 
@@ -492,7 +517,7 @@ describe('/missions — the 4/4 moment', () => {
 
     expect(screen.getByText('Journey complete')).toBeInTheDocument();
     expect(screen.getByText(/your special reward is ready/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /claim reward/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /reveal your reward/i })).toBeEnabled();
   });
 
   it('offers the reward immediately to someone who finished elsewhere', () => {
@@ -502,7 +527,7 @@ describe('/missions — the 4/4 moment', () => {
     seed({ paths: { ...ALL_DONE }, status: 'completed' });
     render(<MissionsPage />);
 
-    expect(screen.getByRole('button', { name: /claim reward/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /reveal your reward/i })).toBeEnabled();
   });
 
   it('keeps the count on screen once the journey is finished', () => {
@@ -512,6 +537,47 @@ describe('/missions — the 4/4 moment', () => {
     seed({ paths: { ...ALL_DONE }, status: 'completed' });
     render(<MissionsPage />);
     expect(screen.getByText('4/4')).toBeInTheDocument();
+  });
+});
+
+/**
+ * The journey's identity mark, which is not the reward and must never become it.
+ */
+describe('/missions — the journey mark', () => {
+  it('marks the journey with Ditto itself, not with a drawing of it', () => {
+    // It used to hand-draw an ellipse and two circles as a lookalike of the
+    // ringed planet. The real asset is the same one the app's logo uses, so the
+    // mark cannot drift from the brand it is standing for.
+    seed({ paths: { ...ALL_DONE, interact: 'not_started' } });
+    const { container } = render(<MissionsPage />);
+
+    const marks = container.querySelectorAll('[data-explorer-journey-mark]');
+    expect(marks.length).toBeGreaterThan(0);
+    for (const mark of marks) {
+      const planet = mark.querySelector<HTMLElement>('[data-explorer-journey-planet]');
+      expect(planet).not.toBeNull();
+      expect(planet!.style.getPropertyValue('-webkit-mask-image') || planet!.style.maskImage)
+        .toContain('logo.svg');
+    }
+  });
+
+  it('never lets the journey mark become the reward', () => {
+    for (const overrides of [
+      { paths: { ...ALL_DONE, interact: 'not_started' } },
+      { paths: { ...ALL_DONE }, status: 'completed' as const },
+    ]) {
+      seed(overrides as Partial<PostOnboardingGuideState>);
+      const { container, unmount } = render(<MissionsPage />);
+
+      for (const mark of container.querySelectorAll('[data-explorer-journey-mark]')) {
+        // No badge artwork, treated or otherwise, and no reward art of any kind.
+        expect(mark.querySelector('img')).toBeNull();
+        expect(mark.querySelector('[data-sealed-reward-art]')).toBeNull();
+        expect(mark.querySelector('[data-revealed-reward-art]')).toBeNull();
+        expect(mark.innerHTML).not.toContain(DITTO_EXPLORER_BADGE_IMAGE);
+      }
+      unmount();
+    }
   });
 });
 
