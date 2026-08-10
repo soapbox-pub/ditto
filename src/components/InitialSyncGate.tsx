@@ -36,7 +36,6 @@ import { useAuthors } from "@/hooks/useAuthors";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEncryptedSettings, getLocalSettingsSync } from "@/hooks/useEncryptedSettings";
 import { type SyncPhase, useInitialSync } from "@/hooks/useInitialSync";
-import { useNostrPublish } from "@/hooks/useNostrPublish";
 import { OnboardingContext } from "@/hooks/useOnboarding";
 import { markFirstArrival } from "@/lib/firstArrival";
 import { devSignupActive } from "@/dev/devSignupArrival";
@@ -670,11 +669,16 @@ function ProfileStep({
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   const signupServices = useSignupServices();
-  const { isPending: isPublishing } =
-    useNostrPublish();
+  // Read from the seam, not from a separately-constructed `useNostrPublish()`.
+  // The publish happens inside `signupServices.publishProfile`, so a local
+  // mutation instance would report on an operation nobody ran — permanently
+  // false — leaving Continue live for the whole kind-0 round-trip.
+  const isPublishing = signupServices.isPublishingProfile;
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const pickInputRef = useRef<HTMLInputElement>(null);
   const pendingField = useRef<"picture" | "banner">("picture");
+  /** Synchronous companion to `isPublishing`, for same-frame double taps. */
+  const publishingRef = useRef(false);
 
   const [profileData, setProfileData] = useState<Partial<NostrMetadata>>({
     name: "",
@@ -738,6 +742,10 @@ function ProfileStep({
 
   const handlePublishProfile = useCallback(async () => {
     if (!user) return;
+    // Re-entry guard for the frame before `isPublishing` has re-rendered the
+    // button into its disabled state. Two taps inside one frame would otherwise
+    // publish kind 0 twice and advance the step twice.
+    if (publishingRef.current) return;
 
     // Defensive guard: when this is the signup flow, only publish kind 0 if
     // the active signer matches the freshly generated key. If the
@@ -756,6 +764,7 @@ function ProfileStep({
 
     const hasData = Object.values(profileData).some((v) => v);
     if (hasData) {
+      publishingRef.current = true;
       try {
         // Build the outgoing metadata, stripping empty strings and validating shape.
         const { shape, ...rest } = profileData;
@@ -776,6 +785,8 @@ function ProfileStep({
             "Your account was created but profile setup failed. You can update it later.",
           variant: "destructive",
         });
+      } finally {
+        publishingRef.current = false;
       }
     }
     onNext();
@@ -991,8 +1002,11 @@ function FollowsStep({
 }) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  // Publishing goes through the seam. This step's own `submitting` flag already
+  // spans the awaited publish, so it needs no pending state from the services —
+  // and it certainly needs no second, unused `useNostrPublish()` instance,
+  // which is what was left here when the publish moved behind the seam.
   const signupServices = useSignupServices();
-  useNostrPublish();
 
   const [packs, setPacks] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(true);

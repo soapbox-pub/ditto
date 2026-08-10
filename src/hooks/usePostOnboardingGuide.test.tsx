@@ -62,14 +62,33 @@ vi.mock('@/dev/missionHarness', () => ({
   missionDevRejectsWrites: () => false,
 }));
 
+/**
+ * The active account, and every other account's settings.
+ *
+ * The real `useEncryptedSettings` query is keyed by pubkey, so switching
+ * accounts swaps the whole settings object out — and reports `undefined` for an
+ * account that has none. {@link switchAccount} reproduces exactly that.
+ */
+let pubkey: string | undefined;
+const accounts = new Map<string, EncryptedSettings | undefined>();
+
 vi.mock('./useEncryptedSettings', () => ({
   useEncryptedSettings: () => ({
     settings: useSyncExternalStore(subscribe, () => settings),
     isLoading,
     updateSettings: { mutateAsync, isPending: false },
     hasNip44Support: true,
+    pubkey,
   }),
 }));
+
+/** Make a different account active, exactly as a login switch would. */
+function switchAccount(next: string | undefined) {
+  if (pubkey !== undefined) accounts.set(pubkey, settings);
+  pubkey = next;
+  settings = next === undefined ? undefined : accounts.get(next);
+  emit();
+}
 
 function reset() {
   resetAutoWrites();
@@ -80,6 +99,8 @@ function reset() {
   writeCount = 0;
   failNextWrite = false;
   listeners.clear();
+  accounts.clear();
+  pubkey = undefined;
   mutateAsync.mockClear();
   vi.spyOn(console, 'error').mockImplementation(() => {});
 }
@@ -977,5 +998,166 @@ describe('usePostOnboardingGuide — automatic writes are bounded', () => {
     expect(writeCount).toBe(0);
     expect(mutateAsync).not.toHaveBeenCalled();
     devState = undefined;
+  });
+});
+
+/**
+ * Account isolation.
+ *
+ * The hook keeps an in-memory snapshot of the freshest mission state it has
+ * written (`latestRef`), so rapid successive transitions in one tab compose
+ * instead of clobbering each other. That snapshot belongs to exactly one
+ * account. It used to be seeded only from a *truthy* state, which meant an
+ * account switch left the previous account's mission sitting in it: the new
+ * account reports `undefined` while it has no mission, so nothing overwrote it.
+ *
+ * Two things went wrong from there, and both are covered below: the new account
+ * could not initialize (an occupied snapshot reads as "already has a mission"),
+ * and any later transition reduced from the *previous* account's state and
+ * wrote the result into the new account's settings.
+ */
+describe('usePostOnboardingGuide — account isolation', () => {
+  beforeEach(reset);
+
+  const A = 'a'.repeat(64);
+  const B = 'b'.repeat(64);
+
+  it('lets an account with no mission initialize after switching from one that has', async () => {
+    pubkey = A;
+    seed({ paths: { 'find-people': 'completed', 'post-small': 'completed', customize: 'not_started', interact: 'not_started' } });
+    const { result, rerender } = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(result.current.completedCount).toBe(2));
+    const accountAState = stored();
+
+    act(() => switchAccount(B));
+    rerender();
+    expect(result.current.state).toBeUndefined();
+
+    await act(async () => {
+      await result.current.initializeGuide();
+    });
+
+    // B gets a mission of its own, at zero progress — not A's.
+    expect(stored()).toBeDefined();
+    expect(stored()?.paths).toEqual({
+      'find-people': 'not_started',
+      'post-small': 'not_started',
+      customize: 'not_started',
+      interact: 'not_started',
+    });
+    expect(result.current.completedCount).toBe(0);
+
+    // A's own state was never touched.
+    act(() => switchAccount(A));
+    expect(accounts.get(A)?.postOnboardingGuide).toEqual(accountAState);
+  });
+
+  it('never reduces a transition from the previous account’s state', async () => {
+    pubkey = A;
+    seed({ paths: { 'find-people': 'completed', 'post-small': 'completed', customize: 'completed', interact: 'not_started' } });
+    const { result, rerender } = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(result.current.completedCount).toBe(3));
+
+    act(() => switchAccount(B));
+    rerender();
+
+    await act(async () => {
+      await result.current.initializeGuide();
+    });
+    await act(async () => {
+      await result.current.completePath('find-people');
+    });
+
+    // Exactly one task done. If the write had composed onto A's snapshot this
+    // would read 4/4 — and would have carried A's progress into B's settings.
+    expect(stored()?.paths['find-people']).toBe('completed');
+    expect(stored()?.paths['post-small']).toBe('not_started');
+    expect(stored()?.paths.customize).toBe('not_started');
+    expect(result.current.completedCount).toBe(1);
+    expect(result.current.isCompleted).toBe(false);
+  });
+
+  it('follows the first account’s own state when switching back', async () => {
+    pubkey = A;
+    seed({ paths: { 'find-people': 'completed', 'post-small': 'not_started', customize: 'not_started', interact: 'not_started' } });
+    const { result, rerender } = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(result.current.completedCount).toBe(1));
+
+    act(() => switchAccount(B));
+    rerender();
+    await act(async () => {
+      await result.current.initializeGuide();
+      await result.current.completePath('interact');
+    });
+    expect(result.current.completedCount).toBe(1);
+
+    act(() => switchAccount(A));
+    rerender();
+    await waitFor(() => expect(result.current.completedCount).toBe(1));
+
+    // Back on A, a transition composes onto A — not onto whatever B last wrote.
+    await act(async () => {
+      await result.current.completePath('post-small');
+    });
+    expect(stored()?.paths['find-people']).toBe('completed');
+    expect(stored()?.paths['post-small']).toBe('completed');
+    expect(stored()?.paths.interact).toBe('not_started');
+  });
+
+  it('keeps the automatic-write guard scoped per account', async () => {
+    pubkey = A;
+    const { result, rerender } = renderHook(() => usePostOnboardingGuide());
+    await act(async () => {
+      await result.current.initializeGuide();
+    });
+    expect(writeCount).toBe(1);
+
+    // A second attempt for A is refused for the rest of the session…
+    await act(async () => {
+      await result.current.initializeGuide();
+    });
+    expect(writeCount).toBe(1);
+
+    // …but B is a different account and gets its own single attempt.
+    act(() => switchAccount(B));
+    rerender();
+    await act(async () => {
+      await result.current.initializeGuide();
+    });
+    expect(writeCount).toBe(2);
+    await act(async () => {
+      await result.current.initializeGuide();
+    });
+    expect(writeCount).toBe(2);
+  });
+
+  it('a failed write before a switch cannot restart writes on the new account', async () => {
+    pubkey = A;
+    seed();
+    const { result, rerender } = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(result.current.state).toBeDefined());
+
+    failNextWrite = true;
+    await act(async () => {
+      await result.current.completePath('find-people');
+    });
+    expect(writeCount).toBe(1);
+    expect(stored()?.paths['find-people']).toBe('not_started');
+
+    act(() => switchAccount(B));
+    rerender();
+
+    // The rolled-back snapshot belonged to A and must not survive the switch:
+    // B reads as having no mission, and re-rendering does not write anything.
+    expect(result.current.state).toBeUndefined();
+    for (let i = 0; i < 10; i++) rerender();
+    expect(writeCount).toBe(1);
+
+    // B still initializes exactly once.
+    await act(async () => {
+      await result.current.initializeGuide();
+    });
+    expect(writeCount).toBe(2);
+    expect(result.current.completedCount).toBe(0);
   });
 });

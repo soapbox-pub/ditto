@@ -53,6 +53,12 @@ import {
  * merging, so a concurrent write loses at most the other tab's last few
  * seconds — and because completion is re-derived from real product state on
  * every pass, a lost completion simply gets re-detected and re-written.
+ *
+ * **Account isolation.** Every in-memory snapshot this hook keeps belongs to
+ * exactly one pubkey (see `latestOwnerRef`). Switching accounts discards it
+ * rather than carrying it forward, so one account's progress can never become
+ * the base of another account's write, and the new account is free to
+ * initialize immediately rather than waiting for a page reload.
  */
 export function usePostOnboardingGuide() {
   const { settings, updateSettings, isLoading, pubkey } = useEncryptedSettings();
@@ -95,7 +101,29 @@ export function usePostOnboardingGuide() {
   const latestRef = useRef<PostOnboardingGuideState | undefined>(undefined);
   /** Whether the write that just ran rejected. Read by `updateOnce`. */
   const failedRef = useRef(false);
-  if (state && latestRef.current?.updatedAt !== state.updatedAt) {
+  // `latestRef` belongs to exactly one account, and this is who. Without it, an
+  // account switch left the previous account's mission in the ref: the new
+  // account's `state` is `undefined`, so the "only seed from a truthy state"
+  // rule below never overwrote it. That had two consequences — `initializeGuide`
+  // saw a non-empty ref and refused to create a mission for the new account
+  // (until a full page reload), and any later transition would have reduced
+  // from the *previous* account's state and written the result into the new
+  // account's encrypted settings.
+  const latestOwnerRef = useRef<string | undefined>(pubkey);
+
+  if (latestOwnerRef.current !== pubkey) {
+    // A different account is active. The previous account's snapshot is not a
+    // usable base for anything, and must not survive as a fallback: adopt the
+    // new account's state, which is `undefined` while its settings load and
+    // when it genuinely has no mission. The pubkey-scoped auto-write guards in
+    // `missionAutoWrites` are unaffected — they were already keyed by account.
+    latestOwnerRef.current = pubkey;
+    latestRef.current = state;
+    failedRef.current = false;
+  } else if (state && latestRef.current?.updatedAt !== state.updatedAt) {
+    // Same account. Only ever seeded from a truthy state, so an ordinary
+    // settings refetch (which briefly reports no settings) can't discard a
+    // snapshot we are mid-way through composing onto.
     latestRef.current = state;
   }
 
@@ -126,15 +154,22 @@ export function usePostOnboardingGuide() {
       if (!current) return Promise.resolve();
       const next = reduce(current);
       if (!next) return Promise.resolve();
+      // Whose write this is. An account switch can land while it is in flight,
+      // and a rollback that ignored that would put the previous account's state
+      // straight back into a ref the switch had just cleared.
+      const owner = latestOwnerRef.current;
       latestRef.current = next;
       return mutateRef
         .current({ postOnboardingGuide: next })
         .then(() => undefined)
         .catch((error) => {
           // Roll the local snapshot back so a failed write doesn't make later
-          // transitions build on state that was never persisted.
-          latestRef.current = current;
-          failedRef.current = true;
+          // transitions build on state that was never persisted — but only
+          // while this hook still belongs to the account the write was for.
+          if (latestOwnerRef.current === owner) {
+            latestRef.current = current;
+            failedRef.current = true;
+          }
           console.error('Failed to persist mission state:', error);
         });
     },
@@ -214,6 +249,7 @@ export function usePostOnboardingGuide() {
     const key = pubkeyRef.current;
     if (!claimAutoWrite(key, 'initializeGuide')) return Promise.resolve();
 
+    const owner = latestOwnerRef.current;
     const fresh = createInitialGuideState();
     latestRef.current = fresh;
     return mutateRef
@@ -223,7 +259,8 @@ export function usePostOnboardingGuide() {
         return undefined;
       })
       .catch((error) => {
-        latestRef.current = undefined;
+        // Same rule as `update`: only clear a snapshot that is still ours.
+        if (latestOwnerRef.current === owner) latestRef.current = undefined;
         settleAutoWrite(key, 'initializeGuide', false);
         console.error('Failed to initialize mission state:', error);
       });
