@@ -126,6 +126,7 @@ export type MissionDevState =
   | 'ready'
   | 'claiming'
   | 'claimed'
+  | 'revealed'
   | 'failed';
 
 const ALL_TASKS: PostOnboardingPathId[] = [
@@ -476,6 +477,24 @@ function buildMissionDevState(): PostOnboardingGuideState | undefined {
         status: 'completed',
         completedAt: now - 5_000,
         badgeClaim: { badge: 'ditto-explorer', status: 'failed', failedAt: now - 1_000 },
+      };
+    // The reveal has no caller yet, so this is the only way to see the state a
+    // revealed reward settles into — and to check that it is *not* the sealed
+    // artwork with the blur turned off.
+    case 'revealed':
+      complete(4);
+      return {
+        ...state,
+        intro: acknowledged,
+        status: 'completed',
+        completedAt: now - 5_000,
+        badgeClaim: {
+          badge: 'ditto-explorer',
+          status: 'claimed',
+          claimEventId: 'f'.repeat(64),
+          claimedAt: now - 2_000,
+          revealedAt: now - 1_000,
+        },
       };
     default:
       return state;

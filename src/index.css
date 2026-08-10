@@ -1358,6 +1358,28 @@
   animation: mission-sparkle 0.9s ease-out var(--sd, 0ms) 1 both;
 }
 
+/* Sealed reward — the one ambient loop in this block, and the exception that
+   needs stating. Everything else here is a cue that must not nag; this is a
+   *sealed object*, and a completely static blurred field reads as a broken
+   image rather than as something waiting. A 14s period and a 4% scale sit under
+   the threshold where the eye is drawn to it.
+   Transform only, on the artwork layer only, inside an overflow-hidden frame:
+   it cannot shift layout, and it never touches the blur radius (re-rasterising
+   a filter every frame is the expensive part, and a blur that visibly breathes
+   reads as the image trying to resolve — a reveal the seal must not promise).
+   The crop factor comes from `--sealed-crop-scale`, set inline by the component,
+   so the resting scale here can never drift from the one the component applies.
+   No `will-change`: a 14s transform on one small element does not need a
+   permanent compositor layer. */
+@keyframes sealed-reward-drift {
+  0%, 100% { transform: scale(var(--sealed-crop-scale)); }
+  50%      { transform: scale(calc(var(--sealed-crop-scale) * 1.04)); }
+}
+
+.sealed-reward-image {
+  animation: sealed-reward-drift 14s ease-in-out infinite;
+}
+
 /* Progress bar halo while it fills on completion. */
 @keyframes mission-progress-glow {
   0%   { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
@@ -1376,7 +1398,8 @@
   .mission-celebrate,
   .mission-count-pop,
   .mission-sparkle,
-  .mission-progress-glow {
+  .mission-progress-glow,
+  .sealed-reward-image {
     animation: none;
   }
 }

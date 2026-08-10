@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Award, Check, Loader2, Lock, RotateCcw } from 'lucide-react';
 
-import { LockedRewardArt } from '@/components/MissionArt';
+import { RevealedRewardArt, SealedRewardArt } from '@/components/MissionArt';
 import { Button } from '@/components/ui/button';
 import { useBadgeClaim } from '@/hooks/useBadgeClaim';
 import { rewardPresentation } from '@/lib/postOnboardingGuide';
@@ -54,6 +54,9 @@ import { cn } from '@/lib/utils';
  * padlock in the art, a padlock beside the word "Locked", and the count of what
  * is left to do.
  */
+/** The reward art's edge length on this panel, in px (was `size-28`). */
+const REWARD_ART_SIZE = 112;
+
 export function MissionReward({
   completedCount,
   totalCount,
@@ -96,7 +99,15 @@ export function MissionReward({
         Special reward
       </p>
 
-      <LockedRewardArt ready={!sealed} className="size-28" />
+      {/* Every state before the reveal shows the same sealed object, warmed once
+          the journey is finished. A submitted claim is *not* a reveal, so
+          `claimed` is still sealed — publishing the claim must not be what
+          finally shows the user their reward. */}
+      {view === 'revealed' ? (
+        <RevealedRewardArt size={REWARD_ART_SIZE} />
+      ) : (
+        <SealedRewardArt size={REWARD_ART_SIZE} ready={!sealed} />
+      )}
 
       {view === 'settling' && (
         /* Earned, acknowledged, still sealed. One true line and no action: every

@@ -235,38 +235,107 @@ describe('/missions — mission list', () => {
   });
 });
 
+/**
+ * The badge artwork is the reward. It may appear on this page — the sealed
+ * treatment is built from it, because a mystery has to be a picture of the real
+ * thing — but *only* cropped and obscured inside `SealedRewardArt`.
+ *
+ * So these no longer assert the image is absent. They assert the stronger,
+ * truer thing: every instance of it is sealed, and there is never an untreated
+ * one. That rule is what stops a future change from quietly rendering the badge
+ * somewhere plain and calling the journey spoiled.
+ */
 describe('/missions — the reward stays sealed', () => {
   /** Every image the page renders, from every state. */
   function renderedImageSources(container: HTMLElement) {
     return Array.from(container.querySelectorAll('img')).map((img) => img.getAttribute('src'));
   }
 
-  it('never renders the real badge artwork while the journey is unfinished', () => {
-    for (const paths of [
-      { ...ALL_DONE, 'find-people': 'not_started', 'post-small': 'not_started', customize: 'not_started', interact: 'not_started' },
-      { ...ALL_DONE, interact: 'not_started' },
-    ] as const) {
-      seed({ paths });
-      const { container, unmount } = render(<MissionsPage />);
-      expect(renderedImageSources(container)).not.toContain(DITTO_EXPLORER_BADGE_IMAGE);
-      unmount();
-    }
+  /** Badge-artwork images that are *not* inside the sealed treatment. */
+  function untreatedBadgeImages(container: HTMLElement) {
+    return Array.from(container.querySelectorAll('img'))
+      .filter((img) => img.getAttribute('src') === DITTO_EXPLORER_BADGE_IMAGE)
+      .filter((img) => !img.closest('[data-sealed-reward-art]'));
+  }
+
+  const SEALED_STATES = [
+    ['locked, 0/4', { paths: { ...ALL_DONE, 'find-people': 'not_started', 'post-small': 'not_started', customize: 'not_started', interact: 'not_started' } }],
+    ['locked, 3/4', { paths: { ...ALL_DONE, interact: 'not_started' } }],
+    ['ready', { paths: { ...ALL_DONE }, status: 'completed' }],
+    ['claiming', { paths: { ...ALL_DONE }, status: 'completed', badgeClaim: { badge: 'ditto-explorer', status: 'claiming', claimingStartedAt: Date.now() } }],
+    ['failed', { paths: { ...ALL_DONE }, status: 'completed', badgeClaim: { badge: 'ditto-explorer', status: 'failed', failedAt: 1 } }],
+    ['claimed, unrevealed', { paths: { ...ALL_DONE }, status: 'completed', badgeClaim: { badge: 'ditto-explorer', status: 'claimed', claimEventId: 'x', claimedAt: 1 } }],
+  ] as const;
+
+  for (const [name, overrides] of SEALED_STATES) {
+    it(`seals the reward in the ${name} state`, () => {
+      seed(overrides as Partial<PostOnboardingGuideState>);
+      const { container } = render(<MissionsPage />);
+
+      const art = container.querySelector('[data-sealed-reward-art]');
+      expect(art).not.toBeNull();
+      // The artwork is present — and every instance of it is inside the seal.
+      expect(renderedImageSources(container)).toContain(DITTO_EXPLORER_BADGE_IMAGE);
+      expect(untreatedBadgeImages(container)).toHaveLength(0);
+      expect(art!.querySelector('[data-sealed-reward-image]')).not.toBeNull();
+    });
+  }
+
+  it('keeps a submitted claim sealed — publishing is not revealing', () => {
+    // The one that would be easy to get wrong: the claim going out must not be
+    // the thing that finally shows the user their reward.
+    seed({
+      paths: { ...ALL_DONE },
+      status: 'completed',
+      badgeClaim: { badge: 'ditto-explorer', status: 'claimed', claimEventId: 'x', claimedAt: 1 },
+    });
+    const { container } = render(<MissionsPage />);
+
+    expect(container.querySelector('[data-sealed-reward-art]')).not.toBeNull();
+    expect(container.querySelector('[data-revealed-reward-art]')).toBeNull();
   });
 
-  it('does not reveal the reward even once the journey is complete', () => {
-    // The reveal experience does not exist yet, so 4/4 must not quietly become
-    // the reveal by showing the artwork early.
-    for (const badgeClaim of [
-      undefined,
-      { badge: 'ditto-explorer', status: 'claiming', claimingStartedAt: Date.now() },
-      { badge: 'ditto-explorer', status: 'claimed', claimEventId: 'x', claimedAt: 1 },
-      { badge: 'ditto-explorer', status: 'failed', failedAt: 1 },
-    ] as const) {
-      seed({ paths: { ...ALL_DONE }, status: 'completed', badgeClaim });
-      const { container, unmount } = render(<MissionsPage />);
-      expect(renderedImageSources(container)).not.toContain(DITTO_EXPLORER_BADGE_IMAGE);
-      unmount();
-    }
+  it('drops the sealed treatment once the reward has been revealed', () => {
+    seed({
+      paths: { ...ALL_DONE },
+      status: 'completed',
+      badgeClaim: {
+        badge: 'ditto-explorer',
+        status: 'claimed',
+        claimEventId: 'x',
+        claimedAt: 1,
+        revealedAt: 2,
+      },
+    });
+    const { container } = render(<MissionsPage />);
+
+    expect(container.querySelector('[data-sealed-reward-art]')).toBeNull();
+    expect(container.querySelector('[data-revealed-reward-art]')).not.toBeNull();
+    // And the placeholder is not the badge artwork wearing a different hat.
+    expect(renderedImageSources(container)).not.toContain(DITTO_EXPLORER_BADGE_IMAGE);
+  });
+
+  it('treats the badge artwork it does render, rather than showing it plainly', () => {
+    seed({ paths: { ...ALL_DONE }, status: 'completed' });
+    const { container } = render(<MissionsPage />);
+
+    const image = container.querySelector<HTMLImageElement>('[data-sealed-reward-image]')!;
+    expect(image.getAttribute('src')).toBe(DITTO_EXPLORER_BADGE_IMAGE);
+    // Cropped past the recognisable subject, and blurred proportionally to the
+    // rendered size. Asserted as "there is a crop and a blur", not as exact
+    // pixels — the values are a design decision that will be tuned.
+    expect(image.style.transform).toMatch(/scale\(([3-9]|\d{2,})/);
+    expect(image.style.filter).toMatch(/blur\(\d+(\.\d+)?px\)/);
+    expect(image.style.filter).toMatch(/saturate\(0?\.\d+\)/);
+  });
+
+  it('marks the artwork decorative, so nothing depends on it', () => {
+    seed({ paths: { ...ALL_DONE }, status: 'completed' });
+    const { container } = render(<MissionsPage />);
+
+    const image = container.querySelector<HTMLImageElement>('[data-sealed-reward-image]')!;
+    expect(image.getAttribute('alt')).toBe('');
+    expect(container.querySelector('[data-sealed-reward-art]')).toHaveAttribute('aria-hidden');
   });
 
   it('states the locked reward in words, not only by desaturation', () => {

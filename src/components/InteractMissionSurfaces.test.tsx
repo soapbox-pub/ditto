@@ -159,21 +159,32 @@ describe('reduced motion', () => {
       'mission-count-pop',
       'mission-sparkle',
       'mission-progress-glow',
+      'sealed-reward-image',
     ]) {
       expect(css).toContain(`.${cls} {`);
       expect(reducedBlock).toContain(`.${cls}`);
     }
   });
 
-  it('runs every mission animation a finite number of times', () => {
-    // No `infinite` anywhere in the mission block: noticeable, never nagging.
+  it('runs every mission *cue* a finite number of times', () => {
+    // Cues must be noticeable and never nagging, so none of them loops.
+    //
+    // The sealed reward's ambient drift is the single deliberate exception, and
+    // it is named here rather than exempted by a loosened pattern: it is not a
+    // cue asking for attention, it is a sealed object, and a completely static
+    // blurred field reads as a broken image rather than as something waiting.
+    // Anything *else* that starts looping should fail this.
+    const AMBIENT: string[] = ['sealed-reward-drift'];
+
     const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
     const start = css.indexOf('── Post-onboarding mission surfaces');
     const end = css.indexOf('── Overstimulation block overlay');
     const declarations = css.slice(start, end).match(/animation:[^;]*;/g) ?? [];
 
     expect(declarations.length).toBeGreaterThan(0);
-    for (const declaration of declarations) {
+    const cues = declarations.filter((d) => !AMBIENT.some((name) => d.includes(name)));
+    expect(cues.length).toBeGreaterThan(0);
+    for (const declaration of cues) {
       expect(declaration).not.toMatch(/\binfinite\b/);
     }
   });
