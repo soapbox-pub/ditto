@@ -27,9 +27,13 @@ import { cn } from '@/lib/utils';
  * layout variables — so this is the only mobile mission surface that survived.
  *
  * It shows the badge, a thin progress bar with a `2/4` count, and a chevron;
- * tapping goes to `/missions`. Once complete but unclaimed it reframes as a
- * claim prompt. Hidden at `lg`+ where the sidebar widget takes over, and
- * self-hiding when the mission is dismissed, claimed, or uninitialized.
+ * tapping goes to `/missions`. Once complete it reframes as a reward prompt.
+ * Hidden at `lg`+ where the sidebar widget takes over, and self-hiding when the
+ * mission is dismissed, uninitialized, or the reward has been revealed.
+ *
+ * It deliberately outlives the claim. Hiding on `claimed` was right while
+ * claiming ended the journey; the reveal is a separate fact now, so the prompt
+ * stays (with truthful copy) until the reward has actually been revealed.
  *
  * Attention is one bounded glow (at most twice, never off-screen, never in a
  * hidden tab, never under `prefers-reduced-motion`). The predecessor also
@@ -47,19 +51,20 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
     totalCount,
     introState,
     celebrating,
-    rewardUnlocked,
+    ceremonyOwed,
+    claimSubmitted,
     showProgress,
     interactionSuccess,
   } = useMissionSurfaceState();
   const [tapped, setTapped] = useState(false);
 
   const introPending = introState === 'pending' && isActive;
-  const visible = !!state && (isActive || rewardUnlocked);
+  const visible = !!state && (isActive || ceremonyOwed);
 
   // Per-user budget rather than per-mount: this teaser mounts on several pages,
   // so a mount-scoped cap would nudge again on each of them.
   const { ref: attentionRef, cueing, stop } = useBoundedAttention({
-    enabled: visible && !rewardUnlocked && completedCount === 0 && !tapped,
+    enabled: visible && !ceremonyOwed && completedCount === 0 && !tapped,
     budgetKey: user ? getStorageKey(config.appId, `mission-attention:${user.pubkey}`) : undefined,
   });
 
@@ -76,8 +81,10 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
           navigate('/missions');
         }}
         aria-label={
-          rewardUnlocked
-            ? `${DITTO_EXPLORER_BADGE_NAME} reward unlocked — claim your badge`
+          ceremonyOwed
+            ? claimSubmitted
+              ? `${DITTO_EXPLORER_BADGE_NAME} reward unlocked — badge claim submitted`
+              : `${DITTO_EXPLORER_BADGE_NAME} reward unlocked — claim your badge`
             : `${DITTO_EXPLORER_BADGE_NAME} mission: ${completedCount} of ${totalCount} steps complete`
         }
         className={cn(
@@ -87,14 +94,16 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
           'transition-[transform,box-shadow] active:scale-[0.98]',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           celebrating && 'mission-celebrate',
-          !celebrating && (rewardUnlocked ? 'mission-reward-glow' : cueing && 'mission-attention-glow'),
+          // Never under the celebration: the reward's own attention cue must not
+          // start on top of the completion moment that produced it.
+          !celebrating && (ceremonyOwed ? 'mission-reward-glow' : cueing && 'mission-attention-glow'),
         )}
       >
         <ExplorerJourneyMark className="size-8 shrink-0" />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            {rewardUnlocked ? (
+            {ceremonyOwed ? (
               <Award className="size-3.5 shrink-0 text-primary" aria-hidden />
             ) : (
               <Sparkles className="size-3.5 shrink-0 text-primary" aria-hidden />
@@ -119,12 +128,20 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
               <Check className="size-3 shrink-0" aria-hidden />
               {interactionSuccess}
             </p>
-          ) : rewardUnlocked && !celebrating ? (
+          ) : ceremonyOwed && !celebrating ? (
             <p className="mt-0.5 truncate text-xs font-medium text-primary">
-              <FormattedMessage
-                id="mission.teaser.reward"
-                defaultMessage="Reward unlocked · Claim reward"
-              />
+              {/* Once the claim is in, asking for it again would be a lie. */}
+              {claimSubmitted ? (
+                <FormattedMessage
+                  id="mission.teaser.rewardClaimed"
+                  defaultMessage="Reward unlocked · Badge claim submitted"
+                />
+              ) : (
+                <FormattedMessage
+                  id="mission.teaser.reward"
+                  defaultMessage="Reward unlocked · Claim reward"
+                />
+              )}
             </p>
           ) : introPending ? (
             /* Before acknowledgement the teaser is an invitation, not a

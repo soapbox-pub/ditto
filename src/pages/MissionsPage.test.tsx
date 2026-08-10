@@ -360,22 +360,75 @@ describe('/missions — claim lifecycle', () => {
 });
 
 describe('/missions — the 4/4 moment', () => {
-  it('celebrates on the journey itself, with the count still reading 4/4', () => {
-    // The engine drives this in the real app (see `useMissionCelebration`); the
-    // page's job is to put it somewhere it can be seen, and to keep showing the
-    // count it has just reached rather than swapping straight to the reward.
+  /** 4/4 has just landed on this page, and the celebration is playing. */
+  function seedCelebrating() {
     celebration = { celebrating: true, completedPath: 'interact' };
     seed({
       paths: { ...ALL_DONE },
       status: 'completed',
       interact: { action: 'reaction', completedAt: 5_000 },
     });
+  }
+
+  it('celebrates on the journey itself, with the count still reading 4/4', () => {
+    // The engine drives this in the real app (see `useMissionCelebration`); the
+    // page's job is to put it somewhere it can be seen, and to keep showing the
+    // count it has just reached rather than swapping straight to the reward.
+    seedCelebrating();
     const { container } = render(<MissionsPage />);
 
     expect(container.querySelector('.mission-celebrate')).not.toBeNull();
     expect(screen.getByText('4/4')).toBeInTheDocument();
     expect(screen.getByText('You reacted to a post.')).toBeInTheDocument();
-    // The reward is reachable in the same breath, not hidden behind the pop.
+  });
+
+  it('keeps the reward sealed and actionless while the celebration plays', () => {
+    // The fourth task lands 4/4 and an earned reward in one write, so the
+    // reward used to start asking for attention on top of the moment that
+    // produced it. It acknowledges the completion and waits.
+    seedCelebrating();
+    render(<MissionsPage />);
+
+    expect(screen.getByText('Journey complete')).toBeInTheDocument();
+    expect(screen.queryByText(/your special reward is ready/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /claim reward/i })).toBeNull();
+    expect(screen.queryByText('Locked')).toBeNull();
+  });
+
+  it('keeps the reward glow off until the celebration is over', () => {
+    seedCelebrating();
+    const { container, unmount } = render(<MissionsPage />);
+    // No overlap: the completion ring and the reward halo never run together.
+    expect(container.querySelector('.mission-celebrate')).not.toBeNull();
+    expect(container.querySelector('.mission-reward-glow')).toBeNull();
+    unmount();
+
+    celebration = { celebrating: false };
+    const settled = render(<MissionsPage />);
+    expect(settled.container.querySelector('.mission-celebrate')).toBeNull();
+    expect(settled.container.querySelector('.mission-reward-glow')).not.toBeNull();
+  });
+
+  it('resolves to the ready reward once the celebration ends', () => {
+    seedCelebrating();
+    const { unmount } = render(<MissionsPage />);
+    unmount();
+
+    celebration = { celebrating: false };
+    render(<MissionsPage />);
+
+    expect(screen.getByText('Journey complete')).toBeInTheDocument();
+    expect(screen.getByText(/your special reward is ready/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /claim reward/i })).toBeEnabled();
+  });
+
+  it('offers the reward immediately to someone who finished elsewhere', () => {
+    // The common path: the fourth task completes on the feed, so this page
+    // never sees the count change and must not invent a settle to sit through.
+    celebration = { celebrating: false };
+    seed({ paths: { ...ALL_DONE }, status: 'completed' });
+    render(<MissionsPage />);
+
     expect(screen.getByRole('button', { name: /claim reward/i })).toBeEnabled();
   });
 

@@ -6,6 +6,7 @@ import type { ReactElement } from 'react';
 import { MissionsWidget } from './MissionsWidget';
 import { MobileMissionTeaser } from './MobileMissionTeaser';
 import {
+  badgeRewardView,
   createInitialGuideState,
   introState as deriveIntroState,
   isIntroOutstanding,
@@ -35,6 +36,7 @@ vi.mock('@/hooks/usePostOnboardingGuide', () => ({
       ? Object.values(state.paths).filter((p) => p === 'completed').length
       : 0,
     totalCount: 4,
+    rewardView: badgeRewardView(state),
     badgeClaim: state?.badgeClaim,
     introState: deriveIntroState(state),
     introOutstanding: isIntroOutstanding(state),
@@ -191,13 +193,36 @@ describe('desktop sidebar widget', () => {
     expect(screen.getByRole('button', { name: /claim reward/i })).toBeInTheDocument();
   });
 
-  it('disappears once the badge is claimed', () => {
+  it('disappears once the reward has been revealed', () => {
+    seed({
+      status: 'completed',
+      paths: { ...ALL_DONE },
+      badgeClaim: {
+        badge: 'ditto-explorer',
+        status: 'claimed',
+        claimEventId: 'f'.repeat(64),
+        revealedAt: 9_000,
+      },
+    });
+    expect(render(<MissionsWidget />).container).toBeEmptyDOMElement();
+  });
+
+  it('stays reachable while the claim is in but the reward is not revealed', () => {
+    // Claiming used to be the end of the journey, and this surface vanished on
+    // it. The reveal is a separate fact now, and this branch already shipped
+    // claiming without one — so the route back must survive the claim.
     seed({
       status: 'completed',
       paths: { ...ALL_DONE },
       badgeClaim: { badge: 'ditto-explorer', status: 'claimed', claimEventId: 'f'.repeat(64) },
     });
-    expect(render(<MissionsWidget />).container).toBeEmptyDOMElement();
+    render(<MissionsWidget />);
+
+    expect(screen.getByText('Reward unlocked')).toBeInTheDocument();
+    // …without asking again for something already done.
+    expect(screen.getByText('Badge claim submitted')).toBeInTheDocument();
+    expect(screen.queryByText('Claim your badge')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Claim reward' })).toBeNull();
   });
 });
 
@@ -297,9 +322,20 @@ describe('the 4/4 completion moment', () => {
       expect(screen.getAllByText(/Reward unlocked|Claim your badge/).length).toBeGreaterThan(0);
     });
 
-    it(`${name}: hides once the badge has actually been claimed`, () => {
-      seed({ ...completed(), badgeClaim: { badge: 'ditto-explorer', status: 'claimed' } });
+    it(`${name}: hides once the reward has actually been revealed`, () => {
+      seed({
+        ...completed(),
+        badgeClaim: { badge: 'ditto-explorer', status: 'claimed', revealedAt: 9_000 },
+      });
       expect(render(<Surface />).container).toBeEmptyDOMElement();
+    });
+
+    it(`${name}: stays discoverable while the reveal is still owed`, () => {
+      // claim submitted, reward not revealed — the ceremony is still owed, so
+      // the surface that leads to it must not have gone.
+      seed({ ...completed(), badgeClaim: { badge: 'ditto-explorer', status: 'claimed' } });
+      expect(render(<Surface />).container).not.toBeEmptyDOMElement();
+      expect(screen.getAllByText(/Badge claim submitted/).length).toBeGreaterThan(0);
     });
   }
 });

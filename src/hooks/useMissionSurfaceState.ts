@@ -1,6 +1,10 @@
 import { useMissionCelebration } from '@/hooks/useMissionCelebration';
 import { usePostOnboardingGuide } from '@/hooks/usePostOnboardingGuide';
-import { interactionSuccessMessage } from '@/lib/postOnboardingGuide';
+import {
+  interactionSuccessMessage,
+  isCeremonyOwed,
+  rewardPresentation,
+} from '@/lib/postOnboardingGuide';
 
 /**
  * The facts every mission surface derives from the mission, in one place.
@@ -21,8 +25,29 @@ export function useMissionSurfaceState() {
   const guide = usePostOnboardingGuide();
   const { celebrating, completedPath } = useMissionCelebration();
 
-  /** Earned, not yet claimed — the state that reframes a surface as a reward. */
-  const rewardUnlocked = guide.isCompleted && guide.badgeClaim?.status !== 'claimed';
+  /**
+   * Earned, and the reveal still owed — the state that reframes a surface as a
+   * reward.
+   *
+   * This used to be "earned and not claimed", which made every compact surface
+   * vanish the moment the claim went out. That was right while claiming *was*
+   * the end of the journey; it stopped being right the moment the reveal became
+   * a separate fact, because a user who claimed before the reveal existed would
+   * have lost every route back to it. See `isCeremonyOwed`.
+   */
+  const ceremonyOwed = isCeremonyOwed(guide.state);
+
+  /**
+   * How the reward should present itself right now — `settling` while the
+   * completion celebration is still playing, otherwise the claim state itself.
+   */
+  const presentation = rewardPresentation(guide.rewardView, celebrating);
+
+  /**
+   * Whether the reward is ready to be acted on. False through the settle, so
+   * the reward's own moment cannot start on top of the completion's.
+   */
+  const ceremonyOpenable = ceremonyOwed && presentation !== 'settling';
 
   /**
    * Hold the progress presentation through the celebration, even when this
@@ -34,7 +59,7 @@ export function useMissionSurfaceState() {
    * mean the most. The order the user should read is: *you did this* → *that's
    * 4 of 4* → *here's your reward*, and the reward is still one settle away.
    */
-  const showProgress = !rewardUnlocked || celebrating;
+  const showProgress = !ceremonyOwed || celebrating;
 
   /**
    * What the user actually did, for the celebration window only.
@@ -53,8 +78,12 @@ export function useMissionSurfaceState() {
     ...guide,
     celebrating,
     completedPath,
-    rewardUnlocked,
+    ceremonyOwed,
+    ceremonyOpenable,
+    presentation,
     showProgress,
     interactionSuccess,
+    /** Whether the claim has been published, revealed or not. */
+    claimSubmitted: guide.badgeClaim?.status === 'claimed',
   };
 }

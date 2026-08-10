@@ -524,9 +524,23 @@ export function usePostOnboardingGuide() {
     })).then(() => true);
   }, [update]);
 
-  /** Record a successfully-published claim event. Never re-publishes. */
+  /**
+   * Record a successfully-published claim event.
+   *
+   * `revealedAt` is accepted here — rather than left to a follow-up call —
+   * specifically so a claim made *during* a reward reveal lands as **one**
+   * encrypted-settings write. Two sequential writes would leave a window in
+   * which a crash produced a state that says "claim submitted, reveal still
+   * owed" for a reveal the user was already watching, and the next mount would
+   * offer them the ceremony over again.
+   *
+   * A claim already recorded as `claimed` is left completely alone (no write),
+   * so this can never re-stamp `claimedAt` or replace a `claimEventId`.
+   * Revealing an *already*-claimed reward is {@link markRewardRevealed}'s job,
+   * and does not republish anything.
+   */
   const completeBadgeClaim = useCallback(
-    (claimEventId: string) =>
+    (claimEventId: string, options?: { revealedAt?: number }) =>
       update((current) => {
         if (current.badgeClaim?.status === 'claimed') return null;
         const now = Date.now();
@@ -537,7 +551,39 @@ export function usePostOnboardingGuide() {
             status: 'claimed',
             claimEventId,
             claimedAt: now,
+            ...(options?.revealedAt !== undefined
+              ? { revealedAt: options.revealedAt }
+              : {}),
           },
+          updatedAt: now,
+        };
+      }),
+    [update],
+  );
+
+  /**
+   * Stamp the reward reveal as irreversible on a claim that already exists.
+   *
+   * The path for a user who claimed under a build that had no reveal: there is
+   * nothing to publish, so this must not republish anything — it only records
+   * that the reveal has been crossed.
+   *
+   * Idempotent and non-destructive by construction. It spreads the existing
+   * claim rather than rebuilding it, so `claimEventId` and any fields written by
+   * a newer client ride through untouched; it writes nothing at all if the
+   * timestamp is already set; and it refuses any state that isn't `claimed`, so
+   * it can never rewind a `claiming` or `failed` claim into looking successful.
+   */
+  const markRewardRevealed = useCallback(
+    () =>
+      update((current) => {
+        const claim = current.badgeClaim;
+        if (claim?.status !== 'claimed') return null;
+        if (claim.revealedAt !== undefined) return null;
+        const now = Date.now();
+        return {
+          ...current,
+          badgeClaim: { ...claim, revealedAt: now },
           updatedAt: now,
         };
       }),
@@ -636,6 +682,7 @@ export function usePostOnboardingGuide() {
     beginBadgeClaim,
     completeBadgeClaim,
     failBadgeClaim,
+    markRewardRevealed,
     /** DEV-only: reset the mission to a fresh active state (no-op in prod). */
     resetGuideDev,
   };

@@ -69,6 +69,27 @@ export interface PostOnboardingBadgeClaim {
   claimingStartedAt?: number;
   /** Epoch ms of the last failed claim attempt. */
   failedAt?: number;
+  /**
+   * Epoch ms when the reward reveal crossed its **irreversible point**.
+   *
+   * This is emphatically *not* "the user watched the whole reveal". It is
+   * written at the moment the reveal becomes owed to them and can no longer be
+   * taken back — in practice, in the same write that records a successful claim,
+   * i.e. at the *start* of the reveal rather than the end. Everything after that
+   * moment (the animation, a skip, a close, a reload halfway through) is
+   * presentation, and none of it may change this field.
+   *
+   * Its only job is to answer one question on every future mount: *should the
+   * stable revealed state render, or is the reveal still owed?* Persisting the
+   * end of the animation instead would mean a user who skipped, closed the tab,
+   * or reloaded mid-reveal came back to a reward that had un-revealed itself.
+   *
+   * Deliberately separate from `status: 'claimed'`. A claim being submitted and
+   * a reward being revealed are two different facts, and this branch could
+   * already produce the first without the second (claiming shipped before the
+   * reveal existed) — see {@link badgeRewardView}.
+   */
+  revealedAt?: number;
 }
 
 /**
@@ -399,22 +420,32 @@ export function isClaimInFlight(
 }
 
 /**
- * The claim state as the UI should present it — the six distinct states the
+ * The claim state as the UI should present it — the seven distinct states the
  * reward surfaces must be able to tell apart. Derived (never persisted) so a
  * stale `claiming` reads as `failed` (retryable) rather than a stuck spinner.
  *
  * - `locked`     — the mission isn't finished, so the badge isn't earned yet.
  * - `ready`      — earned and ready to claim.
  * - `claiming`   — a claim publish is in flight.
- * - `claimed`    — the claim was published; the award is pending server-side.
+ * - `claimed`    — the claim was published, and the reward has *not* been
+ *                  revealed. The award is pending server-side either way.
+ * - `revealed`   — the claim was published *and* the reveal crossed its
+ *                  irreversible point. Terminal for this client.
  * - `failed`     — the last attempt failed (or died mid-flight); retryable.
  * - `dismissed`  — the user dismissed the mission before claiming.
+ *
+ * `claimed` and `revealed` are separate because *claim submitted* and *reward
+ * revealed* are separate facts, and this branch shipped claiming before any
+ * reveal existed: a user who claimed under an earlier build is `claimed`, and is
+ * still owed the reveal. Neither value says anything about the badge having been
+ * issued or owned — that is the issuer's business, and Ditto cannot observe it.
  */
 export type BadgeRewardView =
   | 'locked'
   | 'ready'
   | 'claiming'
   | 'claimed'
+  | 'revealed'
   | 'failed'
   | 'dismissed';
 
@@ -424,13 +455,82 @@ export function badgeRewardView(
 ): BadgeRewardView {
   if (!state) return 'locked';
   const claim = state.badgeClaim;
-  if (claim?.status === 'claimed') return 'claimed';
+  // A successful claim still outranks dismissal: hiding the mission must never
+  // undo a published claim, and it must not undo a reveal either.
+  if (claim?.status === 'claimed') {
+    return claim.revealedAt === undefined ? 'claimed' : 'revealed';
+  }
   if (state.status === 'skipped') return 'dismissed';
   if (!areAllPathsCompleted(state)) return 'locked';
   if (isClaimInFlight(claim, now)) return 'claiming';
   // A stale `claiming` never leaves the user stuck — it reads as retryable.
   if (claim?.status === 'failed' || claim?.status === 'claiming') return 'failed';
   return 'ready';
+}
+
+/**
+ * Whether the user has earned a reward reveal they have not had yet.
+ *
+ * Derived from {@link badgeRewardView} rather than from the raw state, so it
+ * inherits every precedence rule that function already owns — dismissal, stale
+ * claim recovery, and the claim-outranks-dismissal exception — instead of
+ * introducing a second, subtly different completion model.
+ *
+ * True for `ready`, `claiming`, `failed` and `claimed`: the journey is finished
+ * and the reveal has not happened. False for `locked` (not earned), `dismissed`
+ * (deliberately hidden) and `revealed` (already had).
+ *
+ * `claimed` counts. A claim submitted under a build that had no reveal still
+ * owes the user one, and the surfaces that lead there must not vanish just
+ * because the claim went out.
+ */
+export function isCeremonyOwed(
+  state: PostOnboardingGuideState | undefined,
+  now = Date.now(),
+): boolean {
+  switch (badgeRewardView(state, now)) {
+    case 'ready':
+    case 'claiming':
+    case 'failed':
+    case 'claimed':
+      return true;
+    case 'locked':
+    case 'dismissed':
+    case 'revealed':
+      return false;
+  }
+}
+
+/**
+ * How the reward region should present itself, which is *not* always the claim
+ * state it is presenting.
+ *
+ * One extra value on top of {@link BadgeRewardView}: `settling`. The fourth task
+ * is always the last one, so finishing it lands 4/4 and an earned reward in the
+ * same write — and the reward used to start asking for attention (its ready
+ * copy, its call to action, its glow) underneath the completion celebration
+ * that was still playing. The order the user should read is *you did this* →
+ * *that's 4 of 4* → *here's your reward*, and the reward is one settle away.
+ *
+ * `settling` is that settle: earned, acknowledged, still sealed, no action yet.
+ *
+ * Only `ready` is held. Every other value is either impossible at the moment a
+ * count increases (nothing can be `claiming`, `claimed`, `revealed` or `failed`
+ * before the journey is finished) or has nothing to hold back (`locked`,
+ * `dismissed`). Deriving it from the *view* rather than from the state keeps the
+ * rule in one place for both the page's reward panel and the compact surfaces.
+ *
+ * `celebrating` is transient by design (see `useMissionCelebration`) and is
+ * never persisted — so this takes it as an argument rather than reading it out
+ * of the mission state, which knows nothing about it.
+ */
+export type RewardPresentation = BadgeRewardView | 'settling';
+
+export function rewardPresentation(
+  view: BadgeRewardView,
+  celebrating: boolean,
+): RewardPresentation {
+  return view === 'ready' && celebrating ? 'settling' : view;
 }
 
 // ── Real-product-state predicates ───────────────────────────────────────────

@@ -42,7 +42,8 @@ vi.mock('./useCurrentUser', () => ({ useCurrentUser: () => ({ user: { pubkey: PU
 vi.mock('./useNostrPublish', () => ({
   useNostrPublish: () => ({ mutateAsync: publishSpy }),
 }));
-vi.mock('./useToast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
+const toast = vi.fn();
+vi.mock('./useToast', () => ({ useToast: () => ({ toast }) }));
 
 function claimEvent(id = 'e'.repeat(64)): NostrEvent {
   return {
@@ -77,16 +78,20 @@ function seed(overrides: Partial<PostOnboardingGuideState> = {}) {
   } as EncryptedSettings;
 }
 
-describe('useBadgeClaim', () => {
-  beforeEach(() => {
-    settings = undefined;
-    listeners.clear();
-    mutateAsync.mockClear();
-    publishSpy.mockClear();
-    publish = async () => claimEvent();
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-  });
+// Module-level, not per-describe: the fake settings store, the publish stub and
+// the spies are all module state, so a suite that inherited them from the one
+// before would be testing whatever the previous test happened to leave behind.
+beforeEach(() => {
+  settings = undefined;
+  listeners.clear();
+  mutateAsync.mockClear();
+  publishSpy.mockClear();
+  toast.mockClear();
+  publish = async () => claimEvent();
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+});
 
+describe('useBadgeClaim', () => {
   it('publishes a well-formed addressable claim', async () => {
     seed(COMPLETED);
     const { result } = renderHook(() => useBadgeClaim());
@@ -230,5 +235,199 @@ describe('useBadgeClaim', () => {
     for (const call of publishSpy.mock.calls) {
       expect((call[0] as { kind: number }).kind).toBe(BADGE_CLAIM_KIND);
     }
+  });
+});
+
+/**
+ * Ditto knows one thing when a claim succeeds: the event went out. It does not
+ * know the badge was awarded, that the user owns it, that the issuer is even
+ * running, or that anybody will be told when it is.
+ *
+ * A success toast used to claim three of those four. It is gone — the reward
+ * surface already says the true thing — and these keep it gone.
+ */
+describe('useBadgeClaim — what success is allowed to say', () => {
+  /** Anything a client that cannot observe the issuer must never assert. */
+  const FORBIDDEN = [/awarded/i, /you'll be notified/i, /you’ll be notified/i, /badge claimed/i];
+
+  it('says nothing at all when the claim is published', async () => {
+    seed(COMPLETED);
+    const { result } = renderHook(() => useBadgeClaim());
+
+    await act(async () => {
+      await result.current.claim();
+    });
+
+    expect(stored()?.badgeClaim?.status).toBe('claimed');
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it('makes no award or notification claim in any toast it does raise', async () => {
+    seed(COMPLETED);
+    publish = async () => { throw new Error('relay unreachable'); };
+    const { result } = renderHook(() => useBadgeClaim());
+
+    await act(async () => {
+      await result.current.claim();
+    });
+
+    // The failure toast survives — its wording asserts nothing untrue.
+    expect(toast).toHaveBeenCalledTimes(1);
+    for (const [payload] of toast.mock.calls) {
+      const words = `${payload.title ?? ''} ${payload.description ?? ''}`;
+      for (const forbidden of FORBIDDEN) expect(words).not.toMatch(forbidden);
+    }
+  });
+});
+
+describe('useBadgeClaim — outcomes', () => {
+  it('reports a newly published claim, with its event id', async () => {
+    seed(COMPLETED);
+    const { result } = renderHook(() => useBadgeClaim());
+
+    let outcome: Awaited<ReturnType<typeof result.current.claim>> | undefined;
+    await act(async () => {
+      outcome = await result.current.claim();
+    });
+
+    expect(outcome).toEqual({ status: 'claimed', claimEventId: 'e'.repeat(64) });
+  });
+
+  it('distinguishes an existing claim from a failure', async () => {
+    // The difference that matters: one means "nothing left to do", the other
+    // means "offer a retry". Both used to be a silent return.
+    seed({
+      ...COMPLETED,
+      badgeClaim: {
+        badge: 'ditto-explorer',
+        status: 'claimed',
+        claimEventId: 'f'.repeat(64),
+        claimedAt: 6_000,
+      },
+    });
+    const { result } = renderHook(() => useBadgeClaim());
+    await waitFor(() => expect(result.current.isClaimed).toBe(true));
+
+    let outcome: Awaited<ReturnType<typeof result.current.claim>> | undefined;
+    await act(async () => {
+      outcome = await result.current.claim();
+    });
+
+    expect(outcome).toEqual({ status: 'already-claimed', claimEventId: 'f'.repeat(64) });
+    expect(publishSpy).not.toHaveBeenCalled();
+  });
+
+  it('still reports an existing claim once the reward has been revealed', async () => {
+    seed({
+      ...COMPLETED,
+      badgeClaim: {
+        badge: 'ditto-explorer',
+        status: 'claimed',
+        claimEventId: 'f'.repeat(64),
+        claimedAt: 6_000,
+        revealedAt: 7_000,
+      },
+    });
+    const { result } = renderHook(() => useBadgeClaim());
+    await waitFor(() => expect(result.current.rewardView).toBe('revealed'));
+
+    let outcome: Awaited<ReturnType<typeof result.current.claim>> | undefined;
+    await act(async () => {
+      outcome = await result.current.claim();
+    });
+
+    expect(outcome?.status).toBe('already-claimed');
+    // A revealed reward is still a claimed one.
+    expect(result.current.isClaimed).toBe(true);
+    expect(publishSpy).not.toHaveBeenCalled();
+  });
+
+  it('reports a failure with the error that caused it', async () => {
+    seed(COMPLETED);
+    const boom = new Error('relay unreachable');
+    publish = async () => { throw boom; };
+    const { result } = renderHook(() => useBadgeClaim());
+
+    let outcome: Awaited<ReturnType<typeof result.current.claim>> | undefined;
+    await act(async () => {
+      outcome = await result.current.claim();
+    });
+
+    expect(outcome).toEqual({ status: 'failed', error: boom });
+    expect(stored()?.badgeClaim?.status).toBe('failed');
+  });
+
+  it('reports a double-tap as in flight, not as a failure', async () => {
+    seed(COMPLETED);
+    let releasePublish: (event: NostrEvent) => void = () => {};
+    const published = new Promise<NostrEvent>((resolve) => { releasePublish = resolve; });
+    publish = () => published;
+
+    const { result } = renderHook(() => useBadgeClaim());
+
+    let first: Awaited<ReturnType<typeof result.current.claim>> | undefined;
+    let second: Awaited<ReturnType<typeof result.current.claim>> | undefined;
+    await act(async () => {
+      const a = result.current.claim();
+      const b = result.current.claim();
+      await waitFor(() => expect(publishSpy).toHaveBeenCalledTimes(1));
+      releasePublish(claimEvent());
+      [first, second] = await Promise.all([a, b]);
+    });
+
+    expect(first?.status).toBe('claimed');
+    // The second tap did nothing, and saying "failed" would have offered a
+    // retry for a claim that was on its way to succeeding.
+    expect(second).toEqual({ status: 'in-flight' });
+  });
+
+  it('reports a state that cannot be claimed from at all', async () => {
+    seed(); // active, nothing done
+    const { result } = renderHook(() => useBadgeClaim());
+
+    let outcome: Awaited<ReturnType<typeof result.current.claim>> | undefined;
+    await act(async () => {
+      outcome = await result.current.claim();
+    });
+
+    expect(outcome).toEqual({ status: 'ineligible', rewardView: 'locked' });
+    expect(publishSpy).not.toHaveBeenCalled();
+  });
+
+  it('persists the claim and the reveal in one write when asked to', async () => {
+    seed(COMPLETED);
+    const { result } = renderHook(() => useBadgeClaim());
+
+    await act(async () => {
+      await result.current.claim({ revealedAt: 9_000 });
+    });
+
+    expect(stored()?.badgeClaim?.status).toBe('claimed');
+    expect(stored()?.badgeClaim?.revealedAt).toBe(9_000);
+    await waitFor(() => expect(result.current.rewardView).toBe('revealed'));
+    // begin + complete. Nothing extra to stamp the reveal separately.
+    expect(mutateAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it('reveals an already-claimed reward without publishing again', async () => {
+    seed({
+      ...COMPLETED,
+      badgeClaim: {
+        badge: 'ditto-explorer',
+        status: 'claimed',
+        claimEventId: 'f'.repeat(64),
+        claimedAt: 6_000,
+      },
+    });
+    const { result } = renderHook(() => useBadgeClaim());
+    await waitFor(() => expect(result.current.rewardView).toBe('claimed'));
+
+    await act(async () => {
+      await result.current.markRewardRevealed();
+    });
+
+    await waitFor(() => expect(result.current.isRevealed).toBe(true));
+    expect(publishSpy).not.toHaveBeenCalled();
+    expect(stored()?.badgeClaim?.claimEventId).toBe('f'.repeat(64));
   });
 });

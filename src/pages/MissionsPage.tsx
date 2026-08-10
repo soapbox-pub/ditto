@@ -250,7 +250,14 @@ export function MissionsPage() {
               }
               reward={
                 !isDismissed && canShowDetail ? (
-                  <MissionReward completedCount={completedCount} totalCount={totalCount} />
+                  <MissionReward
+                    completedCount={completedCount}
+                    totalCount={totalCount}
+                    // The reward waits out the completion celebration rather
+                    // than opening on top of it. Same flag the hero uses, so the
+                    // two cannot disagree about when the moment ends.
+                    celebrating={celebrating}
+                  />
                 ) : undefined
               }
               footer={devReset}

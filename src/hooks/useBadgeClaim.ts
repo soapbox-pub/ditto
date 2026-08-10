@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/useToast';
 import { buildExplorerClaimTemplate } from '@/lib/badgeClaim';
 import {
   POST_ONBOARDING_PATH_IDS,
+  type BadgeRewardView,
   type PostOnboardingGuideState,
 } from '@/lib/postOnboardingGuide';
 
@@ -14,6 +15,43 @@ import {
 function completedPaths(state: PostOnboardingGuideState) {
   return POST_ONBOARDING_PATH_IDS.filter((id) => state.paths[id] === 'completed');
 }
+
+/**
+ * What actually happened when {@link useBadgeClaim.claim} was called.
+ *
+ * Returned rather than left to be inferred from the derived `rewardView`,
+ * because the caller needs to tell apart outcomes that state alone cannot
+ * distinguish — most importantly *"nothing was published because the claim
+ * already existed"* (a success: there is nothing left to do) from *"nothing was
+ * published because it went wrong"* (retry). Both used to be a silent `return`.
+ *
+ * A future reward reveal reads this to decide whether to reveal, wait, or offer
+ * a retry; nothing consumes it yet, and `MissionReward` ignores it exactly as it
+ * did before.
+ */
+export type BadgeClaimOutcome =
+  /** A new claim event was published and recorded. */
+  | { status: 'claimed'; claimEventId: string }
+  /**
+   * The claim already existed — this device, another device, or another tab.
+   * Nothing was published, and nothing needed to be: the claim is addressable,
+   * so a republish would only replace it with itself.
+   */
+  | { status: 'already-claimed'; claimEventId?: string }
+  /**
+   * A claim is genuinely in flight right now (a double-tap here, or another
+   * tab's attempt still inside the stale window). Neither claimed nor failed —
+   * waiting is the correct response, and a retry would be a second publish.
+   */
+  | { status: 'in-flight' }
+  /**
+   * The reward cannot be claimed from this state at all: not signed in, the
+   * journey unfinished, or the mission dismissed. A guard, not a user-facing
+   * outcome — no surface offers the action from these states.
+   */
+  | { status: 'ineligible'; rewardView: BadgeRewardView }
+  /** The signature or the publish failed. Retryable, and recorded as such. */
+  | { status: 'failed'; error: unknown };
 
 /**
  * Publish the public Ditto Explorer badge claim (kind 30637) on explicit user
@@ -39,6 +77,20 @@ function completedPaths(state: PostOnboardingGuideState) {
  * Award/accept (NIP-58 kind 8 / 10008) is intentionally NOT handled here — a
  * future issuer server publishes the award after observing this claim, so the
  * UI must say "claimed, award pending" rather than "you have the badge".
+ *
+ * ### There is no success toast
+ *
+ * There used to be: *"Badge claimed! You'll be notified when it's awarded."*
+ * Both halves were untrue. The claim was *submitted*, not awarded — the award is
+ * issued later by a server this client does not control and cannot observe — and
+ * nothing in Ditto notifies anyone of anything when it is. The reward surface
+ * already says the one true thing ("Badge claim submitted", and where the badge
+ * will appear), so the toast was deleted rather than reworded: the success is
+ * legible on the surface the user is already looking at.
+ *
+ * The failure toast stays. Its wording claims nothing that isn't true, and a
+ * publish that fails while the user is somewhere else on the page is exactly
+ * what a toast is for.
  */
 export function useBadgeClaim() {
   const { user } = useCurrentUser();
@@ -51,73 +103,116 @@ export function useBadgeClaim() {
     beginBadgeClaim,
     completeBadgeClaim,
     failBadgeClaim,
+    markRewardRevealed,
   } = usePostOnboardingGuide();
 
   const [isPublishing, setIsPublishing] = useState(false);
   // Guards re-entry within the same tick, before any state has had a chance to
   // reflect the attempt.
   const inFlightRef = useRef(false);
+  // The freshest state, for reading *after* an await. The `state` captured in
+  // the callback's closure is from the render that created it, so it cannot say
+  // why `beginBadgeClaim` refused — the refusal is decided by state written
+  // since, possibly by another tab.
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
-  const claim = useCallback(async () => {
-    if (!user || !state) return;
-    if (inFlightRef.current) return;
-    // Only an earned, unclaimed (or previously-failed) reward can be claimed.
-    if (rewardView !== 'ready' && rewardView !== 'failed') return;
+  const claim = useCallback(
+    async (options?: { revealedAt?: number }): Promise<BadgeClaimOutcome> => {
+      if (!user || !state) return { status: 'ineligible', rewardView };
+      // A second call before the first has reached any await. Not a failure —
+      // the first one is still going to produce the real outcome.
+      if (inFlightRef.current) return { status: 'in-flight' };
+      // Only an earned, unclaimed (or previously-failed) reward can be claimed.
+      if (rewardView !== 'ready' && rewardView !== 'failed') {
+        return rewardView === 'claimed' || rewardView === 'revealed'
+          ? { status: 'already-claimed', claimEventId: badgeClaim?.claimEventId }
+          : rewardView === 'claiming'
+            ? { status: 'in-flight' }
+            : { status: 'ineligible', rewardView };
+      }
 
-    inFlightRef.current = true;
-    setIsPublishing(true);
-    try {
-      // Latch "claiming" in encrypted state first. A `false` result means the
-      // transition wasn't allowed (claimed elsewhere, already in flight) — bail
-      // without publishing.
-      const began = await beginBadgeClaim();
-      if (!began) return;
+      inFlightRef.current = true;
+      setIsPublishing(true);
+      try {
+        // Latch "claiming" in encrypted state first. A `false` result means the
+        // transition wasn't allowed — bail without publishing, and say which of
+        // the two reasons it was rather than returning silently.
+        const began = await beginBadgeClaim();
+        if (!began) {
+          const current = stateRef.current?.badgeClaim;
+          return current?.status === 'claimed'
+            ? { status: 'already-claimed', claimEventId: current.claimEventId }
+            : { status: 'in-flight' };
+        }
 
-      const template = buildExplorerClaimTemplate(completedPaths(state));
-      const event = await publishEvent(template);
+        const template = buildExplorerClaimTemplate(completedPaths(state));
+        const event = await publishEvent(template);
 
-      await completeBadgeClaim(event.id);
-      toast({
-        title: 'Badge claimed!',
-        description: 'You’ll be notified when it’s awarded.',
-      });
-    } catch {
-      // Record the failure explicitly so the UI can offer a retry instead of
-      // pretending the user never tried.
-      await failBadgeClaim();
-      toast({
-        title: 'Couldn’t claim the badge',
-        description: 'Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      inFlightRef.current = false;
-      setIsPublishing(false);
-    }
-  }, [
-    user,
-    state,
-    rewardView,
-    beginBadgeClaim,
-    publishEvent,
-    completeBadgeClaim,
-    failBadgeClaim,
-    toast,
-  ]);
+        // One write, carrying both facts. A reveal in progress must not be able
+        // to persist "claimed" and "revealed" as two separate settings writes.
+        await completeBadgeClaim(event.id, options);
+        return { status: 'claimed', claimEventId: event.id };
+      } catch (error) {
+        // Record the failure explicitly so the UI can offer a retry instead of
+        // pretending the user never tried.
+        await failBadgeClaim();
+        toast({
+          title: 'Couldn’t claim the badge',
+          description: 'Please try again.',
+          variant: 'destructive',
+        });
+        return { status: 'failed', error };
+      } finally {
+        inFlightRef.current = false;
+        setIsPublishing(false);
+      }
+    },
+    [
+      user,
+      state,
+      rewardView,
+      badgeClaim?.claimEventId,
+      beginBadgeClaim,
+      publishEvent,
+      completeBadgeClaim,
+      failBadgeClaim,
+      toast,
+    ],
+  );
 
   return {
-    /** Publish the claim (guarded and idempotent). */
+    /**
+     * Publish the claim (guarded and idempotent), and report what happened.
+     *
+     * `revealedAt` is threaded straight through to the persisted claim so a
+     * caller that is revealing the reward gets both facts in one write. Callers
+     * that are only claiming omit it, exactly as `MissionReward` does.
+     */
     claim,
     /**
+     * Record the reveal on a claim that already exists, without republishing.
+     * Idempotent; a no-op unless the claim is `claimed` and unrevealed.
+     */
+    markRewardRevealed,
+    /**
      * The reward state the UI should render: `locked` | `ready` | `claiming` |
-     * `claimed` | `failed` | `dismissed`. Derived, so a stale in-flight claim
-     * surfaces as retryable rather than stuck.
+     * `claimed` | `revealed` | `failed` | `dismissed`. Derived, so a stale
+     * in-flight claim surfaces as retryable rather than stuck.
      */
     rewardView,
     /** Whether a publish is in flight right now (local or persisted). */
     isClaiming: isPublishing || rewardView === 'claiming',
-    /** Whether the claim has already been published successfully. */
-    isClaimed: rewardView === 'claimed',
+    /**
+     * Whether the claim has already been published successfully.
+     *
+     * Read from the persisted claim rather than from `rewardView`, because a
+     * revealed reward is still a claimed one — the view splits them apart, and
+     * this must not start reporting `false` the moment a reveal lands.
+     */
+    isClaimed: badgeClaim?.status === 'claimed',
+    /** Whether the reward reveal has crossed its irreversible point. */
+    isRevealed: rewardView === 'revealed',
     /** Whether the last attempt failed and can be retried. */
     isFailed: rewardView === 'failed',
     /** Raw claim record from encrypted settings. */

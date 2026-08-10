@@ -604,6 +604,153 @@ describe('usePostOnboardingGuide — badge claim lifecycle', () => {
   });
 });
 
+describe('usePostOnboardingGuide — reward reveal', () => {
+  beforeEach(reset);
+
+  const completed = {
+    status: 'completed' as const,
+    completedAt: 5_000,
+    paths: {
+      'find-people': 'completed' as const,
+      'post-small': 'completed' as const,
+      customize: 'completed' as const,
+      interact: 'completed' as const,
+    },
+  };
+
+  const claimed = {
+    ...completed,
+    badgeClaim: {
+      badge: 'ditto-explorer' as const,
+      status: 'claimed' as const,
+      claimEventId: 'f'.repeat(64),
+      claimedAt: 6_000,
+    },
+  };
+
+  it('records the claim and the reveal in a single write', async () => {
+    // The whole reason `completeBadgeClaim` takes the timestamp: two sequential
+    // writes leave a window where a crash produces "claim submitted, reveal
+    // still owed" for a reveal the user was already watching.
+    seed(completed);
+    const { result } = renderHook(() => usePostOnboardingGuide());
+
+    await act(async () => {
+      await result.current.beginBadgeClaim();
+    });
+    const afterBegin = writeCount;
+
+    await act(async () => {
+      await result.current.completeBadgeClaim('a'.repeat(64), { revealedAt: 7_000 });
+    });
+
+    expect(writeCount).toBe(afterBegin + 1);
+    expect(stored()?.badgeClaim?.status).toBe('claimed');
+    expect(stored()?.badgeClaim?.claimEventId).toBe('a'.repeat(64));
+    expect(stored()?.badgeClaim?.revealedAt).toBe(7_000);
+    await waitFor(() => expect(result.current.rewardView).toBe('revealed'));
+  });
+
+  it('leaves the reveal unstamped when the claim is only being claimed', async () => {
+    seed(completed);
+    const { result } = renderHook(() => usePostOnboardingGuide());
+
+    await act(async () => {
+      await result.current.beginBadgeClaim();
+      await result.current.completeBadgeClaim('a'.repeat(64));
+    });
+
+    expect(stored()?.badgeClaim?.revealedAt).toBeUndefined();
+    await waitFor(() => expect(result.current.rewardView).toBe('claimed'));
+  });
+
+  it('reveals an already-claimed reward without republishing anything', async () => {
+    // The path for a user who claimed under a build that had no reveal.
+    seed(claimed);
+    const { result } = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(result.current.rewardView).toBe('claimed'));
+
+    await act(async () => {
+      await result.current.markRewardRevealed();
+    });
+
+    expect(writeCount).toBe(1);
+    expect(typeof stored()?.badgeClaim?.revealedAt).toBe('number');
+    // The claim itself is untouched — same event, same timestamp, same status.
+    expect(stored()?.badgeClaim?.status).toBe('claimed');
+    expect(stored()?.badgeClaim?.claimEventId).toBe('f'.repeat(64));
+    expect(stored()?.badgeClaim?.claimedAt).toBe(6_000);
+    await waitFor(() => expect(result.current.rewardView).toBe('revealed'));
+  });
+
+  it('writes the reveal once and never again', async () => {
+    seed(claimed);
+    const { result } = renderHook(() => usePostOnboardingGuide());
+
+    await act(async () => {
+      await result.current.markRewardRevealed();
+    });
+    const revealedAt = stored()?.badgeClaim?.revealedAt;
+    expect(writeCount).toBe(1);
+
+    await act(async () => {
+      await result.current.markRewardRevealed();
+      await result.current.markRewardRevealed();
+    });
+
+    // No write, and above all no new timestamp: the irreversible point happened
+    // once, and re-running the ceremony cannot move it.
+    expect(writeCount).toBe(1);
+    expect(stored()?.badgeClaim?.revealedAt).toBe(revealedAt);
+  });
+
+  it('refuses to reveal a claim that has not succeeded', async () => {
+    for (const badgeClaim of [
+      undefined,
+      { badge: 'ditto-explorer' as const, status: 'failed' as const, failedAt: 6_000 },
+      {
+        badge: 'ditto-explorer' as const,
+        status: 'claiming' as const,
+        claimingStartedAt: Date.now(),
+      },
+    ]) {
+      reset();
+      seed({ ...completed, badgeClaim });
+      const { result, unmount } = renderHook(() => usePostOnboardingGuide());
+
+      await act(async () => {
+        await result.current.markRewardRevealed();
+      });
+
+      // Revealing must never be a back door into looking claimed.
+      expect(writeCount).toBe(0);
+      expect(stored()?.badgeClaim?.revealedAt).toBeUndefined();
+      expect(stored()?.badgeClaim?.status).toBe(badgeClaim?.status);
+      unmount();
+    }
+  });
+
+  it('preserves fields a newer client wrote into the claim', async () => {
+    seed({
+      ...completed,
+      badgeClaim: {
+        ...claimed.badgeClaim,
+        // Unknown to this build; rides through the loose schema and must not be
+        // dropped by a transition that rebuilt the claim from scratch.
+        acknowledgedAt: 8_000,
+      } as never,
+    });
+    const { result } = renderHook(() => usePostOnboardingGuide());
+
+    await act(async () => {
+      await result.current.markRewardRevealed();
+    });
+
+    expect((stored()?.badgeClaim as unknown as Record<string, unknown>).acknowledgedAt)
+      .toBe(8_000);
+  });
+});
+
 describe('usePostOnboardingGuide — introduction lifecycle', () => {
   beforeEach(reset);
 
@@ -1104,6 +1251,46 @@ describe('usePostOnboardingGuide — account isolation', () => {
     expect(stored()?.paths['find-people']).toBe('completed');
     expect(stored()?.paths['post-small']).toBe('completed');
     expect(stored()?.paths.interact).toBe('not_started');
+  });
+
+  it('never carries one account’s reveal into another’s', async () => {
+    pubkey = A;
+    seed({
+      status: 'completed',
+      completedAt: 5_000,
+      paths: {
+        'find-people': 'completed',
+        'post-small': 'completed',
+        customize: 'completed',
+        interact: 'completed',
+      },
+      badgeClaim: {
+        badge: 'ditto-explorer',
+        status: 'claimed',
+        claimEventId: 'f'.repeat(64),
+        claimedAt: 6_000,
+        revealedAt: 7_000,
+      },
+    });
+    const { result, rerender } = renderHook(() => usePostOnboardingGuide());
+    await waitFor(() => expect(result.current.rewardView).toBe('revealed'));
+
+    act(() => switchAccount(B));
+    rerender();
+
+    // B has no mission, so it certainly has no reveal — and a transition on B
+    // must not compose onto A's claimed-and-revealed snapshot.
+    expect(result.current.rewardView).toBe('locked');
+    await act(async () => {
+      await result.current.markRewardRevealed();
+      await result.current.initializeGuide();
+    });
+    expect(stored()?.badgeClaim).toBeUndefined();
+
+    act(() => switchAccount(A));
+    rerender();
+    await waitFor(() => expect(result.current.rewardView).toBe('revealed'));
+    expect(accounts.get(A)?.postOnboardingGuide?.badgeClaim?.revealedAt).toBe(7_000);
   });
 
   it('keeps the automatic-write guard scoped per account', async () => {

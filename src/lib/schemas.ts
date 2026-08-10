@@ -376,6 +376,13 @@ export const PostOnboardingGuideStateSchema = z.looseObject({
       claimedAt: z.number().optional(),
       claimingStartedAt: z.number().optional(),
       failedAt: z.number().optional(),
+      /**
+       * When the reward reveal became irreversible — not when its animation
+       * finished. Optional and additive for the same reason as `intro` below:
+       * a state written before it existed parses cleanly and simply reads as
+       * "the reveal is still owed", with no version bump and no migration.
+       */
+      revealedAt: z.number().optional(),
     })
     .optional(),
   /** Substep progress for the two-step `customize` task. */

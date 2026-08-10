@@ -34,9 +34,15 @@ import { cn } from '@/lib/utils';
  *  - **introduction pending** → {@link DittoExplorerIntroduction}, so the
  *    introduction grows out of the slot that will go on to host the mission.
  *  - **active** → compact summary with the recommended step.
- *  - **reward unlocked** → claim prompt pointing at `/missions`.
+ *  - **reward unlocked** → a prompt pointing at `/missions`.
  *
  * Hidden missions render nothing here; `/missions` offers the resume.
+ *
+ * The reward prompt survives the claim. It used to disappear the instant the
+ * claim was published, which was right while claiming was the end of the
+ * journey — but the reveal is a separate fact now, and a user who claimed under
+ * a build that had no reveal would otherwise have lost every route back to it.
+ * It hides once the reward has actually been revealed. See `isCeremonyOwed`.
  */
 export function MissionsWidget() {
   const navigate = useNavigate();
@@ -51,7 +57,8 @@ export function MissionsWidget() {
     nextPath,
     dismissGuide,
     celebrating,
-    rewardUnlocked,
+    ceremonyOwed,
+    claimSubmitted,
     showProgress,
     interactionSuccess,
   } = useMissionSurfaceState();
@@ -66,7 +73,7 @@ export function MissionsWidget() {
     budgetKey: user ? getStorageKey(config.appId, `mission-attention:${user.pubkey}`) : undefined,
   });
 
-  if (!state || (!isActive && !rewardUnlocked)) return null;
+  if (!state || (!isActive && !ceremonyOwed)) return null;
 
   // Introduction, while pending. Wrapped as the arrival transition's target so
   // the travelling card knows exactly where to land — and so this stays laid
@@ -95,7 +102,7 @@ export function MissionsWidget() {
         <div className="flex items-center justify-between gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
             <Sparkles className="size-3 shrink-0" aria-hidden />
-            {rewardUnlocked && !celebrating ? (
+            {ceremonyOwed && !celebrating ? (
               <FormattedMessage id="mission.widget.reward" defaultMessage="Reward unlocked" />
             ) : (
               <FormattedMessage id="mission.widget.eyebrow" defaultMessage="Mission" />
@@ -117,8 +124,10 @@ export function MissionsWidget() {
           onClick={() => navigate('/missions')}
           className="mt-2 flex w-full items-center gap-2.5 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={
-            rewardUnlocked
-              ? `${DITTO_EXPLORER_BADGE_NAME} — claim your badge`
+            ceremonyOwed
+              ? claimSubmitted
+                ? `${DITTO_EXPLORER_BADGE_NAME} — badge claim submitted`
+                : `${DITTO_EXPLORER_BADGE_NAME} — claim your badge`
               : `${DITTO_EXPLORER_BADGE_NAME}: ${completedCount} of ${totalCount} steps complete`
           }
         >
@@ -133,10 +142,22 @@ export function MissionsWidget() {
                   <Check className="size-3 shrink-0" aria-hidden />
                   {interactionSuccess}
                 </span>
-              ) : rewardUnlocked ? (
+              ) : ceremonyOwed ? (
                 <span className="inline-flex items-center gap-1 text-primary">
                   <Award className="size-3 shrink-0" aria-hidden />
-                  <FormattedMessage id="mission.widget.claim" defaultMessage="Claim your badge" />
+                  {/* Never "Claim your badge" once the claim has gone out —
+                      the surface would be asking for something already done. */}
+                  {claimSubmitted ? (
+                    <FormattedMessage
+                      id="mission.widget.claimSubmitted"
+                      defaultMessage="Badge claim submitted"
+                    />
+                  ) : (
+                    <FormattedMessage
+                      id="mission.widget.claim"
+                      defaultMessage="Claim your badge"
+                    />
+                  )}
                 </span>
               ) : nextLabel ? (
                 <FormattedMessage
@@ -170,12 +191,22 @@ export function MissionsWidget() {
             className="h-8 flex-1 rounded-full text-xs font-semibold"
             onClick={() => {
               stop();
-              if (rewardUnlocked || !nextPath) navigate('/missions');
+              if (ceremonyOwed || !nextPath) navigate('/missions');
               else startMissionTask(nextPath);
             }}
           >
-            {rewardUnlocked ? (
-              <FormattedMessage id="mission.widget.openReward" defaultMessage="Claim reward" />
+            {ceremonyOwed ? (
+              claimSubmitted ? (
+                <FormattedMessage
+                  id="mission.widget.openJourney"
+                  defaultMessage="View journey"
+                />
+              ) : (
+                <FormattedMessage
+                  id="mission.widget.openReward"
+                  defaultMessage="Claim reward"
+                />
+              )
             ) : (
               <FormattedMessage id="mission.widget.continue" defaultMessage="Continue" />
             )}

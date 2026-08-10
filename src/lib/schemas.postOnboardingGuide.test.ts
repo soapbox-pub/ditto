@@ -43,6 +43,58 @@ describe('PostOnboardingGuideStateSchema', () => {
     expect(parsed.badgeClaim?.claimedAt).toBe(1_700_000_000_000);
   });
 
+  it('round-trips a reveal stamp alongside the claim it belongs to', () => {
+    const state = {
+      ...createInitialGuideState(1_000),
+      status: 'completed' as const,
+      badgeClaim: {
+        badge: 'ditto-explorer' as const,
+        status: 'claimed' as const,
+        claimEventId: 'f'.repeat(64),
+        claimedAt: 1_700_000_000_000,
+        revealedAt: 1_700_000_005_000,
+      },
+    };
+    expect(PostOnboardingGuideStateSchema.parse(state)).toEqual(state);
+  });
+
+  it('parses a claim written before the reveal existed', () => {
+    // The field is optional and additive on purpose: every state this branch
+    // has already written lacks it, and must keep parsing without a migration
+    // or a version bump.
+    const state = {
+      ...createInitialGuideState(1_000),
+      status: 'completed' as const,
+      badgeClaim: {
+        badge: 'ditto-explorer' as const,
+        status: 'claimed' as const,
+        claimEventId: 'f'.repeat(64),
+        claimedAt: 1_700_000_000_000,
+      },
+    };
+    const parsed = PostOnboardingGuideStateSchema.parse(state);
+    expect(parsed.badgeClaim?.revealedAt).toBeUndefined();
+    expect(parsed.version).toBe(1);
+  });
+
+  it('preserves unknown claim fields sitting beside the reveal stamp', () => {
+    // A newer client may have written more into the claim. Stripping it here
+    // would destroy it on the next write, which spreads the parsed state.
+    const state = {
+      ...createInitialGuideState(1_000),
+      status: 'completed' as const,
+      badgeClaim: {
+        badge: 'ditto-explorer' as const,
+        status: 'claimed' as const,
+        claimEventId: 'f'.repeat(64),
+        revealedAt: 1_700_000_005_000,
+        acknowledgedAt: 1_700_000_009_000,
+      },
+    };
+    const parsed = PostOnboardingGuideStateSchema.parse(state);
+    expect(parsed.badgeClaim).toEqual(state.badgeClaim);
+  });
+
   it('round-trips customize substeps and baselines', () => {
     const state = {
       ...createInitialGuideState(1_000),

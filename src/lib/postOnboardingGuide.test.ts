@@ -12,10 +12,12 @@ import {
   createInitialGuideState,
   hasMeaningfulProfile,
   interactionSuccessMessage,
+  isCeremonyOwed,
   isClaimInFlight,
   isProfileTaskSatisfied,
   isQualifyingStarterPost,
   nextRecommendedPath,
+  rewardPresentation,
   themeSignature,
   type PostOnboardingBadgeClaim,
   type PostOnboardingGuideState,
@@ -192,6 +194,123 @@ describe('badgeRewardView', () => {
   it('is dismissed when the mission was hidden before claiming', () => {
     const state = stateWith([...allDone], { status: 'skipped', skippedAt: now });
     expect(badgeRewardView(state, now)).toBe('dismissed');
+  });
+
+  it('separates a submitted claim from a revealed reward', () => {
+    // Two different facts. This branch shipped claiming before any reveal
+    // existed, so a claim with no `revealedAt` is still owed one.
+    const claimed = stateWith([...allDone], {
+      badgeClaim: {
+        badge: 'ditto-explorer',
+        status: 'claimed',
+        claimEventId: 'f'.repeat(64),
+        claimedAt: now,
+      },
+    });
+    expect(badgeRewardView(claimed, now)).toBe('claimed');
+
+    const revealed = stateWith([...allDone], {
+      badgeClaim: {
+        badge: 'ditto-explorer',
+        status: 'claimed',
+        claimEventId: 'f'.repeat(64),
+        claimedAt: now,
+        revealedAt: now + 1_000,
+      },
+    });
+    expect(badgeRewardView(revealed, now)).toBe('revealed');
+  });
+
+  it('keeps a revealed reward revealed after the mission is hidden', () => {
+    const state = stateWith([...allDone], {
+      status: 'skipped',
+      skippedAt: now,
+      badgeClaim: {
+        badge: 'ditto-explorer',
+        status: 'claimed',
+        claimEventId: 'f'.repeat(64),
+        claimedAt: now,
+        revealedAt: now,
+      },
+    });
+    // Same precedence as `claimed`: hiding undoes neither the claim nor the
+    // reveal.
+    expect(badgeRewardView(state, now)).toBe('revealed');
+  });
+
+  it('ignores a reveal stamp on a claim that never succeeded', () => {
+    const state = stateWith([...allDone], {
+      badgeClaim: { badge: 'ditto-explorer', status: 'failed', failedAt: now, revealedAt: now },
+    });
+    expect(badgeRewardView(state, now)).toBe('failed');
+  });
+});
+
+describe('isCeremonyOwed', () => {
+  const now = 1_700_000_000_000;
+  const allDone = ['find-people', 'post-small', 'customize', 'interact'] as const;
+
+  it('is false before the journey is finished', () => {
+    expect(isCeremonyOwed(undefined, now)).toBe(false);
+    expect(isCeremonyOwed(stateWith(['find-people', 'post-small']), now)).toBe(false);
+  });
+
+  it('is true for every state between finishing and revealing', () => {
+    const cases: Array<PostOnboardingBadgeClaim | undefined> = [
+      undefined,
+      { badge: 'ditto-explorer', status: 'claiming', claimingStartedAt: now },
+      { badge: 'ditto-explorer', status: 'failed', failedAt: now },
+      { badge: 'ditto-explorer', status: 'claimed', claimEventId: 'f'.repeat(64), claimedAt: now },
+    ];
+    for (const badgeClaim of cases) {
+      expect(isCeremonyOwed(stateWith([...allDone], { badgeClaim }), now)).toBe(true);
+    }
+  });
+
+  it('is false once the reward has been revealed', () => {
+    const state = stateWith([...allDone], {
+      badgeClaim: {
+        badge: 'ditto-explorer',
+        status: 'claimed',
+        claimEventId: 'f'.repeat(64),
+        claimedAt: now,
+        revealedAt: now,
+      },
+    });
+    expect(isCeremonyOwed(state, now)).toBe(false);
+  });
+
+  it('is false for a mission the user deliberately hid', () => {
+    const state = stateWith([...allDone], { status: 'skipped', skippedAt: now });
+    expect(isCeremonyOwed(state, now)).toBe(false);
+  });
+
+  it('inherits stale-claim recovery rather than restating it', () => {
+    const state = stateWith([...allDone], {
+      badgeClaim: {
+        badge: 'ditto-explorer',
+        status: 'claiming',
+        claimingStartedAt: now - STALE_CLAIMING_TIMEOUT_MS - 1,
+      },
+    });
+    expect(badgeRewardView(state, now)).toBe('failed');
+    expect(isCeremonyOwed(state, now)).toBe(true);
+  });
+});
+
+describe('rewardPresentation', () => {
+  it('holds a ready reward back through the completion celebration', () => {
+    expect(rewardPresentation('ready', true)).toBe('settling');
+    expect(rewardPresentation('ready', false)).toBe('ready');
+  });
+
+  it('leaves every other state exactly as it is', () => {
+    // Nothing else is reachable at the moment a count increases, and nothing
+    // else has attention to hold back.
+    for (const view of ['locked', 'claiming', 'claimed', 'revealed', 'failed', 'dismissed'] as const) {
+      expect(rewardPresentation(view, true)).toBe(view);
+      expect(rewardPresentation(view, false)).toBe(view);
+    }
   });
 });
 
