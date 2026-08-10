@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Compass, Sparkles } from 'lucide-react';
 
-import { ExplorerBadgeArt } from '@/components/DittoExplorerVisual';
+import { ExplorerJourneyMark } from '@/components/MissionArt';
 import { Button } from '@/components/ui/button';
 import { usePostOnboardingGuide } from '@/hooks/usePostOnboardingGuide';
 import { DITTO_EXPLORER_BADGE_NAME } from '@/lib/badgeClaim';
@@ -63,7 +63,7 @@ export function DittoExplorerIntroduction({
       </div>
 
       <div className={cn('flex gap-3', compact ? 'items-start' : 'items-center')}>
-        <ExplorerBadgeArt className={cn('shrink-0 rounded-xl', compact ? 'size-12' : 'size-16')} />
+        <ExplorerJourneyMark className={cn('shrink-0', compact ? 'size-12' : 'size-16')} />
         <div className="min-w-0 flex-1 space-y-1">
           {/* The sidebar has no other title, so it names the mission. The page
               already carries the mission name in its own header — repeating it

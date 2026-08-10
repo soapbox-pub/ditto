@@ -39,9 +39,17 @@ export const DITTO_EXPLORER_BADGE_DTAG = 'ditto-explorer';
 export const DITTO_EXPLORER_BADGE_NAME = 'Ditto Explorer';
 
 /**
- * The Ditto Explorer badge image (from the published kind 30009 definition).
- * Used for the celebratory claim UI so we don't need a relay round-trip just to
- * render the reward.
+ * The Ditto Explorer badge image, from the published kind 30009 definition.
+ *
+ * **Not rendered by any mission surface, deliberately.** This is a picture of
+ * the reward itself, so showing it before the journey is finished gives away
+ * the thing the journey is building towards; desaturating it does not help,
+ * because the shape is the spoiler. The mission surfaces use the abstract art
+ * in `MissionArt` instead, and `/badges` renders the real image from the badge
+ * event once it has actually been issued.
+ *
+ * Kept here because it belongs to the badge definition this module describes,
+ * and because the reward reveal will need it.
  */
 export const DITTO_EXPLORER_BADGE_IMAGE =
   'https://blossom.ditto.pub/cfcae6ec5919460d562edab918af9d71f6197557689542f42a3b6659acd0880f.png';

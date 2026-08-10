@@ -1,113 +1,107 @@
 import { useNavigate } from 'react-router-dom';
-import { Award, Check, Clock, Loader2, RotateCcw } from 'lucide-react';
+import { Award, Check, Loader2, Lock, RotateCcw } from 'lucide-react';
 
-import { ExplorerBadgeArt } from '@/components/DittoExplorerVisual';
+import { LockedRewardArt } from '@/components/MissionArt';
 import { Button } from '@/components/ui/button';
 import { useBadgeClaim } from '@/hooks/useBadgeClaim';
-import { DITTO_EXPLORER_BADGE_NAME } from '@/lib/badgeClaim';
-import { POST_ONBOARDING_PATH_IDS } from '@/lib/postOnboardingGuide';
+import { cn } from '@/lib/utils';
 
 /**
- * The single reward surface for the Ditto Explorer badge. It lives on
- * `/missions`, and the claim lifecycle is described here and nowhere else.
- *
- * It renders every state the claim can actually be in, and never blurs two of
- * them together:
+ * The reward region of a journey: one panel that never blurs two states
+ * together, and never shows what is inside before it has been revealed.
  *
  * | State       | What the user sees                                          |
  * |-------------|-------------------------------------------------------------|
- * | `locked`    | dimmed, padlocked badge — "complete N steps to unlock"       |
- * | `ready`     | full-colour badge + "Claim Badge"                            |
- * | `claiming`  | spinner + "Claiming…", button disabled                       |
- * | `claimed`   | "Badge claimed · award pending" + a link to Badges           |
- * | `failed`    | "That didn't go through" + "Try again"                       |
- * | `dismissed` | quiet note that the mission was dismissed                    |
+ * | `locked`    | sealed token, how far off it is, no action                  |
+ * | `ready`     | "Journey complete", the seal opened, "Claim reward"         |
+ * | `claiming`  | spinner, action disabled                                    |
+ * | `claimed`   | "Badge claim submitted", a link to Badges                   |
+ * | `failed`    | "That didn't go through", "Try again"                       |
+ * | `dismissed` | a quiet note that the journey is hidden                     |
  *
- * `claimed` deliberately says *award pending*, not "you have the badge": the
- * claim is a public request (kind 30637) and the NIP-58 award is issued later,
- * server-side. Showing the celebration while implying the badge is already in
- * their profile would be a lie the Badges page would immediately contradict.
+ * ### Two things this deliberately does not say
+ *
+ * It does not show the reward. The badge artwork is a picture of what the user
+ * has not earned yet, so every state here uses the abstract seal from
+ * `MissionArt`. Opening it belongs to the reveal experience, which does not
+ * exist yet, so even `ready` shows a sealed-but-openable token rather than
+ * pretending the reveal already happened.
+ *
+ * It does not promise a notification. Claiming publishes a public request
+ * (kind 30637); the NIP-58 award is issued later by a server Ditto does not
+ * control, and which is currently inactive. "You'll be notified" was a promise
+ * this client cannot keep, so the copy says where the badge will appear instead
+ * of undertaking to tell anyone about it.
+ *
+ * The locked state never depends on colour or desaturation alone: there is a
+ * padlock in the art, a padlock beside the word "Locked", and the count of what
+ * is left to do.
  */
-export function MissionReward() {
+export function MissionReward({
+  completedCount,
+  totalCount,
+}: {
+  completedCount: number;
+  totalCount: number;
+}) {
   const navigate = useNavigate();
   const { claim, rewardView, isClaiming } = useBadgeClaim();
 
-  if (rewardView === 'locked') {
-    return (
-      <div className="flex items-center gap-3 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3">
-        <ExplorerBadgeArt
-          className="size-14 rounded-lg opacity-60 grayscale"
-          lock={{ badgeClassName: 'size-5', iconClassName: 'size-3' }}
-        />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground">
-            Earn the {DITTO_EXPLORER_BADGE_NAME} badge
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Complete these {POST_ONBOARDING_PATH_IDS.length} steps to unlock your first Ditto badge.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (rewardView === 'dismissed') {
-    return (
-      <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center">
-        <p className="text-sm font-medium text-foreground">You dismissed this mission.</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Your progress is kept — nothing was lost.
-        </p>
-      </div>
-    );
-  }
+  const remaining = Math.max(0, totalCount - completedCount);
+  const sealed = rewardView === 'locked' || rewardView === 'dismissed';
 
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 text-center">
-      <ExplorerBadgeArt
-        alt={`${DITTO_EXPLORER_BADGE_NAME} badge`}
-        className="size-20 rounded-xl shadow-sm"
-      />
+    <div
+      className={cn(
+        'flex h-full flex-col items-center gap-4 rounded-2xl border p-6 text-center',
+        sealed ? 'border-border/70 bg-muted/20' : 'border-primary/30 bg-primary/[0.04]',
+        // Finite (three runs) and already disabled under prefers-reduced-motion.
+        rewardView === 'ready' && 'mission-reward-glow',
+      )}
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Special reward
+      </p>
 
-      {rewardView === 'claimed' ? (
+      <LockedRewardArt ready={!sealed} className="size-28" />
+
+      {rewardView === 'locked' && (
+        <div className="space-y-1.5">
+          <p className="flex items-center justify-center gap-1.5 text-sm font-semibold text-foreground">
+            <Lock className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            Locked
+          </p>
+          <p className="text-sm text-muted-foreground">Complete your journey to reveal it.</p>
+          <p className="text-xs text-muted-foreground">
+            {completedCount} of {totalCount} missions complete
+            {remaining > 0 ? `, ${remaining} to go` : ''}
+          </p>
+        </div>
+      )}
+
+      {rewardView === 'dismissed' && (
+        <div className="space-y-1.5">
+          <p className="text-sm font-semibold text-foreground">This journey is hidden</p>
+          <p className="text-sm text-muted-foreground">
+            Your progress is kept. Pick it back up whenever you like.
+          </p>
+        </div>
+      )}
+
+      {(rewardView === 'ready' || rewardView === 'claiming' || rewardView === 'failed') && (
         <>
-          <div className="space-y-0.5">
-            <p className="flex items-center justify-center gap-1.5 text-base font-semibold text-foreground">
-              <Check className="size-4 shrink-0 text-primary" aria-hidden />
-              Badge claimed
-            </p>
-            <p className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
-              <Clock className="size-3.5 shrink-0" aria-hidden />
-              Award pending — you’ll be notified.
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => navigate('/badges')}
-          >
-            <Award className="size-4" aria-hidden />
-            Open Badges
-          </Button>
-        </>
-      ) : (
-        <>
-          <div className="space-y-0.5">
-            <p className="text-base font-semibold text-foreground">
-              You unlocked the {DITTO_EXPLORER_BADGE_NAME} badge
-            </p>
+          <div className="space-y-1.5">
+            <p className="text-base font-semibold text-foreground">Journey complete</p>
             <p className="text-sm text-muted-foreground">
               {rewardView === 'failed'
-                ? 'That claim didn’t go through. Nothing was lost — you can try again.'
-                : 'Claim it to mark your first journey through Ditto.'}
+                ? 'That claim didn’t go through. Nothing was lost, so you can try again.'
+                : 'Your special reward is ready.'}
             </p>
           </div>
           <Button
             type="button"
             size="sm"
-            className="w-full max-w-xs gap-1.5"
+            className="w-full max-w-56 gap-1.5 rounded-full font-semibold"
             disabled={isClaiming}
             onClick={() => void claim()}
           >
@@ -124,9 +118,33 @@ export function MissionReward() {
             ) : (
               <>
                 <Award className="size-4" aria-hidden />
-                Claim Badge
+                Claim reward
               </>
             )}
+          </Button>
+        </>
+      )}
+
+      {rewardView === 'claimed' && (
+        <>
+          <div className="space-y-1.5">
+            <p className="flex items-center justify-center gap-1.5 text-base font-semibold text-foreground">
+              <Check className="size-4 shrink-0 text-primary" aria-hidden />
+              Badge claim submitted
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Your badge will appear in Badges once it has been issued.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full max-w-56 gap-1.5 rounded-full"
+            onClick={() => navigate('/badges')}
+          >
+            <Award className="size-4" aria-hidden />
+            Open Badges
           </Button>
         </>
       )}

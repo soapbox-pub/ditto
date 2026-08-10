@@ -5,7 +5,7 @@ import { Award, Check, ChevronRight, EyeOff, Sparkles } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DittoExplorerIntroduction } from '@/components/DittoExplorerIntroduction';
-import { ExplorerBadgeArt } from '@/components/DittoExplorerVisual';
+import { ExplorerJourneyMark } from '@/components/MissionArt';
 import { ExplorerTransitionTarget } from '@/components/ExplorerTransitionTarget';
 import { MissionProgressBar, MissionProgressCount } from '@/components/MissionProgress';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -122,7 +122,7 @@ export function MissionsWidget() {
               : `${DITTO_EXPLORER_BADGE_NAME}: ${completedCount} of ${totalCount} steps complete`
           }
         >
-          <ExplorerBadgeArt className="size-10 shrink-0 rounded-lg" locked={!rewardUnlocked} />
+          <ExplorerJourneyMark className="size-10 shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold leading-snug text-foreground">
               {DITTO_EXPLORER_BADGE_NAME}

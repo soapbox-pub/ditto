@@ -18,12 +18,13 @@ function renderCard(props: Parameters<typeof ExplorerArrivalCard>[0] = {}) {
 }
 
 describe('ExplorerArrivalCard — content groups', () => {
-  it('presents the full content as a centred column with the large badge', () => {
+  it('presents the full content as a centred column with the large mark', () => {
     const { full } = renderCard({ showFullContent: true });
-    const visual = full().querySelector('img')!.parentElement!;
+    const mark = full().querySelector('[data-explorer-journey-mark]')!;
+    const visual = mark.parentElement!;
 
     expect(visual.className).toContain('flex-col');
-    expect(full().querySelector('img')!.className).toContain('size-24');
+    expect(mark.className).toContain('size-24');
     // The presentation-only pieces: the eyebrow and the locked-reward row.
     expect(full().textContent).toContain('New');
     expect(full().textContent).toContain('A reward is waiting');
@@ -34,11 +35,12 @@ describe('ExplorerArrivalCard — content groups', () => {
     // is already arranged the way the sidebar widget and the mobile teaser
     // arrange their own contents, so nothing has to reflow on arrival.
     const { compact } = renderCard({ showCompactContent: true });
-    const visual = compact().querySelector('img')!.parentElement!;
+    const mark = compact().querySelector('[data-explorer-journey-mark]')!;
+    const visual = mark.parentElement!;
 
     expect(visual.className).not.toContain('flex-col');
     expect(visual.className).toContain('items-center');
-    expect(compact().querySelector('img')!.className).toContain('size-12');
+    expect(mark.className).toContain('size-12');
     // None of the presentation framing travels with it.
     expect(compact().textContent).not.toContain('New');
     expect(compact().textContent).not.toContain('A reward is waiting');

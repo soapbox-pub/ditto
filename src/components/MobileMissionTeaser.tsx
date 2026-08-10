@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FormattedMessage } from 'react-intl';
 import { Award, Check, ChevronRight, Sparkles } from 'lucide-react';
 
-import { ExplorerBadgeArt } from '@/components/DittoExplorerVisual';
+import { ExplorerJourneyMark } from '@/components/MissionArt';
 import { ExplorerTransitionTarget } from '@/components/ExplorerTransitionTarget';
 import { MissionProgressCount } from '@/components/MissionProgress';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -90,7 +90,7 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
           !celebrating && (rewardUnlocked ? 'mission-reward-glow' : cueing && 'mission-attention-glow'),
         )}
       >
-        <ExplorerBadgeArt className="size-8 shrink-0 rounded-lg" locked={!rewardUnlocked} />
+        <ExplorerJourneyMark className="size-8 shrink-0" />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">

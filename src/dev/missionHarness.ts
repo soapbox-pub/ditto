@@ -22,6 +22,22 @@ import {
  * `/?missionDev=intro` or `/missions?missionDev=ready`. Reduced-motion variants
  * come from the OS/browser setting; desktop vs. mobile from the viewport.
  *
+ * The `/missions` journey states, in the order they occur:
+ *  - `intro`     — the introduction, before any mission rows are offered.
+ *  - `active0`   — acknowledged, nothing done. "Next up" on the first mission.
+ *  - `active1` / `active2` / `active3` — 1, 2 and 3 of 4 done.
+ *  - `guided`    — a mission the user has actually launched, so the page shows
+ *                  "In progress" and *Continue* rather than "Next up".
+ *  - `ready`     — 4/4, reward sealed but claimable.
+ *  - `claiming` / `failed` / `claimed` — the claim lifecycle.
+ *  - `hidden`    — dismissed, with the resume path.
+ *
+ * For **4/4 celebrating**, open `/missions?missionDev=interact-reaction`: the
+ * injected interaction drives the real engine → persistence → celebration path,
+ * so the count animates 3/4 → 4/4 on the page exactly as it does in production.
+ * `&missionDevDelay=<ms>` pushes the injection out if the window is easy to
+ * miss.
+ *
  * Interaction-task scenarios, all on `/feed?missionDev=<state>` with the first
  * three tasks already done, so the fourth is the one in play:
  *  - `interact`            — the task active, with its feed guidance showing.
@@ -96,6 +112,7 @@ export type MissionDevState =
   | 'active1'
   | 'active2'
   | 'active3'
+  | 'guided'
   | 'interact'
   | 'interact-empty-feed'
   | 'interact-reaction'
@@ -388,11 +405,19 @@ function buildMissionDevState(): PostOnboardingGuideState | undefined {
       return { ...state, intro: acknowledged };
     case 'active1':
       complete(1);
-      return { ...state, intro: acknowledged, activePath: 'post-small' };
+      return { ...state, intro: acknowledged };
     case 'active2':
       complete(2);
-      return { ...state, intro: acknowledged, activePath: 'customize' };
+      return { ...state, intro: acknowledged };
+    case 'guided':
+      // A mission genuinely in flight: `startPath` writes both halves, so the
+      // harness must too, or the surfaces cannot tell it from a recommendation.
+      complete(1);
+      state.paths['post-small'] = 'active';
+      return { ...state, intro: acknowledged, activePath: 'post-small' };
     case 'active3':
+      complete(3);
+      return { ...state, intro: acknowledged };
     case 'interact':
     case 'interact-empty-feed':
     case 'interact-reaction':
@@ -402,6 +427,8 @@ function buildMissionDevState(): PostOnboardingGuideState | undefined {
     case 'interact-own-post':
     case 'interact-write-fails':
       complete(3);
+      // Launched, not merely recommended: `startPath` writes both halves.
+      state.paths.interact = 'active';
       return { ...state, intro: acknowledged, activePath: 'interact' };
     case 'interact-done':
       complete(4);

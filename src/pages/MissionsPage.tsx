@@ -1,39 +1,88 @@
 import { FormattedMessage } from 'react-intl';
-import { Play, RotateCcw, Sparkles, Target } from 'lucide-react';
+import { Play, RotateCcw, Target } from 'lucide-react';
 
 import { DittoExplorerIntroduction } from '@/components/DittoExplorerIntroduction';
 import { missionDevActive } from '@/dev/missionHarness';
 import { LoginArea } from '@/components/auth/LoginArea';
-import { MissionProgressBar, MissionProgressCount } from '@/components/MissionProgress';
+import { ExplorerJourneyMark } from '@/components/MissionArt';
+import { MissionJourney } from '@/components/MissionJourney';
 import { MissionReward } from '@/components/MissionReward';
 import { MissionTaskList } from '@/components/MissionTaskList';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMissionSurfaceState } from '@/hooks/useMissionSurfaceState';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { DITTO_EXPLORER_BADGE_NAME } from '@/lib/badgeClaim';
-import { POST_ONBOARDING_PATH_IDS } from '@/lib/postOnboardingGuide';
-import { cn } from '@/lib/utils';
+import {
+  POST_ONBOARDING_PATH_IDS,
+  type PostOnboardingGuideState,
+} from '@/lib/postOnboardingGuide';
 
 /**
- * The Missions page — the mission's durable home.
+ * Missions — the durable home for the user's journeys through Ditto.
  *
- * Every other surface is transient by design: the sidebar widget can be
- * hidden, and both it and the mobile teaser self-hide once the reward is
- * claimed. This page is always reachable and always reflects the real state,
- * including the ones the compact surfaces hide: dismissed missions, claimed
- * rewards, and failed claims. That separation is what lets the prompts stay
- * quiet without the mission becoming unreachable.
+ * Every other mission surface is transient by design: the sidebar widget can be
+ * hidden, and both it and the mobile teaser self-hide once the reward has been
+ * claimed. This page is always reachable and always shows the real state,
+ * including the ones the compact surfaces hide (hidden journeys, claimed
+ * rewards, failed claims). That separation is what lets the prompts stay quiet
+ * without the journey becoming unreachable.
  *
- * It reuses the same mission state, task list, and reward panel as every other
- * surface, so there is no second copy of the mission's rules living here.
+ * ### Why the page is not the Ditto Explorer detail page
+ *
+ * The route is plural, and the shell is built that way: the page owns the
+ * destination framing, and a `MissionJourney` owns everything about a journey.
+ * Today exactly one is rendered. A second is another instance rather than a
+ * restructure. There is deliberately no placeholder for journeys that do not
+ * exist: an empty "coming soon" slot is clutter that makes the page look
+ * unfinished rather than extensible.
+ *
+ * It still reuses the same state, missions and reward panel as every other
+ * surface, so no copy of the journey's rules lives here.
  */
-const MISSION_DESCRIPTION =
-  'Take your first steps through Ditto. Complete these to unlock your first badge.';
+
+/**
+ * How to say where the journey stands, when that is worth saying at all.
+ *
+ * A journey that is simply underway needs no label: the count and the bar
+ * beside it already say `2/4`, and a chip repeating "in progress" would both
+ * add noise and collide with the marker the *mission* rows use for a guided
+ * flow that is actually in flight.
+ */
+function journeyStatus({
+  isDismissed,
+  introOutstanding,
+  allCompleted,
+  completedCount,
+}: {
+  isDismissed: boolean;
+  introOutstanding: boolean;
+  allCompleted: boolean;
+  completedCount: number;
+}): string | undefined {
+  if (isDismissed) return 'Hidden';
+  if (allCompleted) return 'Complete';
+  if (introOutstanding && completedCount === 0) return 'Not started';
+  return undefined;
+}
+
+/**
+ * The mission the user has actually launched and not finished.
+ *
+ * Both halves are required: `startPath` writes `activePath` *and* moves that
+ * mission to `active`, so a genuinely-in-flight guided flow has both. Reading
+ * only `activePath` would keep saying "in progress" about something the user
+ * merely tapped once and abandoned.
+ */
+function inProgressPath(state: PostOnboardingGuideState | undefined) {
+  const active = state?.activePath;
+  if (!active) return undefined;
+  if (!POST_ONBOARDING_PATH_IDS.includes(active)) return undefined;
+  return state?.paths[active] === 'active' ? active : undefined;
+}
 
 export function MissionsPage() {
   const { config } = useAppContext();
@@ -41,7 +90,7 @@ export function MissionsPage() {
 
   useSeoMeta({
     title: `Missions | ${config.appName}`,
-    description: 'Complete missions to explore Ditto and earn rewards.',
+    description: 'Small journeys that help you discover Ditto and make it your own.',
   });
 
   const {
@@ -51,157 +100,164 @@ export function MissionsPage() {
     isDismissed,
     completedCount,
     totalCount,
+    allCompleted,
     introOutstanding,
     canShowDetail,
+    nextPath,
     resumeGuide,
     resetGuideDev,
     celebrating,
   } = useMissionSurfaceState();
 
-  // DEV-only reset so the whole mission + claim flow can be re-run without a
+  // DEV-only reset so the whole journey and claim flow can be re-run without a
   // fresh account. `import.meta.env.DEV` is statically false in production, so
   // this renders nothing there; `resetGuideDev` is a no-op in prod anyway.
-  const devResetButton = import.meta.env.DEV ? (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      className="gap-1.5 text-muted-foreground hover:text-foreground"
-      onClick={() => void resetGuideDev()}
-      title="DEV only: reset this account's first mission"
-    >
-      <RotateCcw className="size-3.5" aria-hidden />
-      Reset mission
-    </Button>
+  const devReset = import.meta.env.DEV ? (
+    <div className="flex justify-end">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="gap-1.5 text-muted-foreground hover:text-foreground"
+        onClick={() => void resetGuideDev()}
+        title="DEV only: reset this account's first journey"
+      >
+        <RotateCcw className="size-3.5" aria-hidden />
+        Reset journey
+      </Button>
+    </div>
   ) : null;
 
   return (
     <main>
       <PageHeader title="Missions" icon={<Target className="size-5" />} />
 
-      {!user && !missionDevActive() ? (
-        <div className="flex flex-col items-center gap-6 px-8 py-20 text-center">
-          <div className="rounded-full bg-primary/10 p-4">
-            <Target className="size-8 text-primary" aria-hidden />
+      <div className="mx-auto w-full max-w-5xl px-4 pb-12 pt-2">
+        {!user && !missionDevActive() ? (
+          <div className="flex flex-col items-center gap-6 px-4 py-20 text-center">
+            <ExplorerJourneyMark className="size-16" />
+            <div className="max-w-sm space-y-2">
+              <h2 className="text-xl font-bold">Your journeys start here</h2>
+              <p className="text-sm text-muted-foreground">
+                Log in to begin your first journey through Ditto and earn the{' '}
+                {DITTO_EXPLORER_BADGE_NAME} badge.
+              </p>
+            </div>
+            <LoginArea className="max-w-60" />
           </div>
-          <div className="max-w-xs space-y-2">
-            <h2 className="text-xl font-bold">Missions</h2>
-            <p className="text-sm text-muted-foreground">
-              Log in to start your first mission and earn the {DITTO_EXPLORER_BADGE_NAME} badge.
-            </p>
-          </div>
-          <LoginArea className="max-w-60" />
-        </div>
-      ) : isLoading && !state ? (
-        <div className="mx-auto max-w-xl px-4 py-6">
-          <Card className="overflow-hidden">
-            <CardHeader className="space-y-3 p-4">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="h-3 w-64" />
-              <Skeleton className="h-2 w-full rounded-full" />
-            </CardHeader>
-            <CardContent className="space-y-2 p-4 pt-0">
-              {POST_ONBOARDING_PATH_IDS.map((id) => (
-                <Skeleton key={id} className="h-14 w-full rounded-lg" />
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <div className="mx-auto max-w-xl px-4 py-6">
-          <Card
-            className={cn(
-              'overflow-hidden border-primary/30 bg-gradient-to-br from-primary/5 via-card to-card',
-              celebrating && 'mission-celebrate',
-            )}
-          >
-            <CardHeader className="space-y-3 p-4 pb-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 space-y-1">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
-                    <Sparkles className="size-3 shrink-0" aria-hidden />
-                    First mission
-                  </span>
-                  <h2 className="text-lg font-bold leading-tight text-foreground">
-                    {DITTO_EXPLORER_BADGE_NAME}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">{MISSION_DESCRIPTION}</p>
-                </div>
-                <MissionProgressCount
-                  completedCount={completedCount}
-                  totalCount={totalCount}
-                  celebrating={celebrating}
-                  countClassName="block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
-                  ariaLabel={`${completedCount} of ${totalCount} complete`}
-                />
+        ) : isLoading && !state ? (
+          <div className="space-y-5 py-4">
+            <Skeleton className="h-32 w-full rounded-2xl" />
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+              <div className="space-y-2">
+                {POST_ONBOARDING_PATH_IDS.map((id) => (
+                  <Skeleton key={id} className="h-[74px] w-full rounded-xl" />
+                ))}
               </div>
-              <MissionProgressBar
-                completedCount={completedCount}
-                totalCount={totalCount}
-                celebrating={celebrating}
-                className="h-2"
-                aria-label={`Mission progress: ${completedCount} of ${totalCount} steps complete`}
-              />
-            </CardHeader>
+              <Skeleton className="h-72 w-full rounded-2xl" />
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* The destination's own framing. The app header above already
+                carries "Missions" as the page title, so this says what the
+                place is for rather than repeating its name. */}
+            <header className="max-w-2xl space-y-2 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Your journeys
+              </p>
+              <p className="text-base leading-relaxed text-muted-foreground">
+                Small journeys that help you discover Ditto, meet people, and make the
+                experience your own.
+              </p>
+            </header>
 
-            <CardContent className="space-y-4 p-4 pt-0">
-              {/* Hidden mission: the resume path. Hiding used to be terminal in
-                  production while the UI promised it could be picked back up
-                  here — this is that promise, kept. */}
-              {isDismissed && (
-                <div className="space-y-3 rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground">
-                      <FormattedMessage
-                        id="mission.hidden.title"
-                        defaultMessage="This mission is hidden."
-                      />
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {completedCount > 0 ? (
+            <MissionJourney
+              eyebrow={DITTO_EXPLORER_BADGE_NAME}
+              title="Your first journey through Ditto"
+              description="Four small missions to meet people, share something, make Ditto yours, and join in with the community."
+              mark={<ExplorerJourneyMark className="size-14 sm:size-16" />}
+              status={journeyStatus({
+                isDismissed,
+                introOutstanding,
+                allCompleted,
+                completedCount,
+              })}
+              completedCount={completedCount}
+              totalCount={totalCount}
+              celebrating={celebrating}
+              missions={
+                <>
+                  {/* Hidden journey: the resume path. Hiding used to be terminal
+                      in production while the UI promised it could be picked back
+                      up here. This is that promise, kept. */}
+                  {isDismissed && (
+                    <div className="mb-3 space-y-3 rounded-xl border border-dashed border-border bg-muted/30 p-4 text-center">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground">
+                          <FormattedMessage
+                            id="mission.hidden.title"
+                            defaultMessage="This mission is hidden."
+                          />
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {completedCount > 0 ? (
+                            <FormattedMessage
+                              id="mission.hidden.progress"
+                              defaultMessage="You completed {done} of {total} steps. Nothing was lost."
+                              values={{ done: completedCount, total: totalCount }}
+                            />
+                          ) : (
+                            <FormattedMessage
+                              id="mission.hidden.empty"
+                              defaultMessage="You can pick it back up whenever you like."
+                            />
+                          )}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="gap-1.5 rounded-full font-semibold"
+                        onClick={() => void resumeGuide()}
+                      >
+                        <Play className="size-4" aria-hidden />
                         <FormattedMessage
-                          id="mission.hidden.progress"
-                          defaultMessage="You completed {done} of {total} steps. Nothing was lost."
-                          values={{ done: completedCount, total: totalCount }}
+                          id="mission.hidden.resume"
+                          defaultMessage="Resume mission"
                         />
-                      ) : (
-                        <FormattedMessage
-                          id="mission.hidden.empty"
-                          defaultMessage="You can pick it back up whenever you like."
-                        />
-                      )}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="gap-1.5 rounded-full font-semibold"
-                    onClick={() => void resumeGuide()}
-                  >
-                    <Play className="size-4" aria-hidden />
-                    <FormattedMessage id="mission.hidden.resume" defaultMessage="Resume mission" />
-                  </Button>
-                </div>
-              )}
+                      </Button>
+                    </div>
+                  )}
 
-              {/* Introduction, while it is still owed. Task rows stay hidden
-                  until it is acknowledged, so a first encounter is an
-                  invitation rather than a checklist. */}
-              {!isDismissed && introOutstanding && <DittoExplorerIntroduction variant="page" />}
+                  {/* The introduction, while it is still owed. Mission rows stay
+                      hidden until it is acknowledged, so a first encounter is an
+                      invitation rather than a checklist. */}
+                  {!isDismissed && introOutstanding && (
+                    <DittoExplorerIntroduction variant="page" />
+                  )}
 
-              {/* Reward: locked preview, claim UI, claimed, retry after a
-                  failure — all of it, once the introduction is behind us. */}
-              {!isDismissed && canShowDetail && <MissionReward />}
-
-              {state && (canShowDetail || isDismissed) && (
-                <MissionTaskList state={state} interactive={isActive} showHints />
-              )}
-
-              {devResetButton && <div className="flex justify-end pt-1">{devResetButton}</div>}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                  {state && (canShowDetail || isDismissed) && (
+                    <MissionTaskList
+                      state={state}
+                      interactive={isActive}
+                      showHints
+                      nextPath={nextPath}
+                      inProgressPath={inProgressPath(state)}
+                    />
+                  )}
+                </>
+              }
+              reward={
+                !isDismissed && canShowDetail ? (
+                  <MissionReward completedCount={completedCount} totalCount={totalCount} />
+                ) : undefined
+              }
+              footer={devReset}
+            />
+          </>
+        )}
+      </div>
     </main>
   );
 }
