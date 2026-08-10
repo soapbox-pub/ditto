@@ -13,7 +13,6 @@ import {
 } from '@/lib/postInteraction';
 import {
   createInitialGuideState,
-  normalizeGuideState,
   type PostOnboardingGuideState,
 } from '@/lib/postOnboardingGuide';
 import type { EncryptedSettings } from './useEncryptedSettings';
@@ -585,47 +584,65 @@ describe('useMissionEngine — detection is gated on an active mission', () => {
   });
 });
 
-// ── Compatibility with mission state written before this task changed ───────
-
-describe('useMissionEngine — retired `explore` state', () => {
+/**
+ * Detection effects must re-arm on the thing they are about, and on nothing
+ * else.
+ *
+ * The `find-people` effect was keyed on the whole mission state object, so any
+ * unrelated write — an introduction timestamp, a theme baseline, another task
+ * completing — re-ran it and had it re-attempt its own write. Idempotence made
+ * that harmless, but the persistence loop this branch already survived once was
+ * exactly this shape: an automatic write whose effect re-arms on changes it
+ * does not read.
+ */
+describe('useMissionEngine — detection effects re-arm narrowly', () => {
   beforeEach(reset);
 
-  it('keeps a completed `explore` completed as `interact`', async () => {
-    // Nobody who finished the old fourth task may be quietly reset to 3/4
-    // because the task was redesigned.
-    seed({
-      paths: {
-        'find-people': 'completed',
-        'post-small': 'completed',
-        customize: 'completed',
-        explore: 'completed',
-      } as unknown as PostOnboardingGuideState['paths'],
+  it('does not re-attempt the follow baseline after unrelated mission writes', async () => {
+    // The baseline write fails, so it stays unrecorded and the effect's own
+    // guard cannot latch. Whether it tries again therefore depends entirely on
+    // whether unrelated state changes re-arm it — which is the property under
+    // test, and the shape a hot write loop grows from.
+    followPubkeys = ['x'.repeat(64)];
+    seed();
+    mutateAsync.mockImplementation(async () => {
+      writeCount += 1;
+      throw new Error('publish failed');
     });
-    renderHook(() => useMissionEngine(), { wrapper });
 
-    await new Promise((resolve) => setTimeout(resolve, 40));
-    expect(normalizeGuideState(stored())?.paths.interact).toBe('completed');
-    // Migrated, not re-earned: no interaction record is invented for something
-    // the user did under the old rule.
-    expect(stored()?.interact).toBeUndefined();
+    renderHook(() => useMissionEngine(), { wrapper });
+    await waitFor(() => expect(writeCount).toBeGreaterThan(0));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const attemptsAfterFirstTry = writeCount;
+
+    // Three unrelated mission writes, each landing a fresh state object.
+    for (const patch of [
+      { intro: { presentedAt: 1 } },
+      { activePath: 'post-small' as const },
+      { customize: { profileCompleted: true } },
+    ]) {
+      settings = {
+        ...settings,
+        postOnboardingGuide: { ...stored()!, ...patch, updatedAt: Date.now() },
+      } as EncryptedSettings;
+      for (const listener of listeners) listener();
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+
+    expect(writeCount).toBe(attemptsAfterFirstTry);
   });
 
-  it('leaves an unfinished `explore` to be earned by a real interaction', async () => {
-    seed({
-      paths: {
-        'find-people': 'completed',
-        'post-small': 'completed',
-        customize: 'completed',
-        explore: 'active',
-      } as unknown as PostOnboardingGuideState['paths'],
-      activePath: 'explore' as unknown as PostOnboardingGuideState['activePath'],
-    });
-    renderHook(() => useMissionEngine(), { wrapper });
+  it('still completes find-people when the follow list actually grows', async () => {
+    // The narrowing must not cost the detection itself.
+    followPubkeys = ['x'.repeat(64)];
+    seed({ baselines: { follows: 1 } });
+    const { rerender } = renderHook(() => useMissionEngine(), { wrapper });
     await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(stored()?.paths['find-people']).toBe('not_started');
 
-    expect(normalizeGuideState(stored())?.paths.interact).toBe('not_started');
+    followPubkeys = ['x'.repeat(64), 'y'.repeat(64)];
+    rerender();
 
-    interact();
-    await waitFor(() => expect(stored()?.paths.interact).toBe('completed'));
+    await waitFor(() => expect(stored()?.paths['find-people']).toBe('completed'));
   });
 });

@@ -24,8 +24,10 @@ import { isLocalhostDev } from '@/dev/isLocalhostDev';
  * lifecycle, the real destinations and the real FLIP travel all run untouched.
  *
  * Every export returns an inert value when the localhost gate fails, and
- * `import.meta.env.DEV` is statically false in production builds, so the whole
- * module drops out of the bundle.
+ * `isLocalhostDev()` is false in every production build, so nothing here can
+ * shadow an account or alter a publish on a deployed environment. The module is
+ * still imported by production code and therefore still emitted — unreachable
+ * rather than absent.
  */
 
 /**

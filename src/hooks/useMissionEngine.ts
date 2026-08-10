@@ -93,6 +93,13 @@ export function useMissionEngine(): void {
   const { data: followList } = useFollowList();
   const followCount = followList?.pubkeys.length;
   const followBaseline = state?.baselines?.follows;
+  // The completion flag, not the whole state object. Keyed on `state` this
+  // effect re-ran after *any* mission write — an intro timestamp, a theme
+  // baseline, another task completing — and re-attempted its own write each
+  // time. Idempotence made that harmless, but "re-arms on every unrelated
+  // change" is the dependency shape the persistence loop grew out of, and the
+  // effect only ever reads this one field.
+  const findPeopleDone = state?.paths['find-people'] === 'completed';
 
   useEffect(() => {
     if (!detectionEnabled) return;
@@ -102,11 +109,18 @@ export function useMissionEngine(): void {
       void recordBaseline({ follows: followCount });
       return;
     }
-    if (state?.paths['find-people'] === 'completed') return;
+    if (findPeopleDone) return;
     if (followCount > followBaseline) {
       void completePath('find-people');
     }
-  }, [detectionEnabled, followCount, followBaseline, state, recordBaseline, completePath]);
+  }, [
+    detectionEnabled,
+    followCount,
+    followBaseline,
+    findPeopleDone,
+    recordBaseline,
+    completePath,
+  ]);
 
   // ── 2b. post-small — a qualifying note was published ──────────────────────
   //
@@ -233,8 +247,9 @@ export function useMissionEngine(): void {
   // DEV-only: let the localhost harness stand in for a real interaction, so the
   // guidance → completion → celebration sequence can be inspected without
   // publishing anything. `import.meta.env.DEV` is statically false in
-  // production, so the bundler drops this; `armMissionDevInteraction` is
-  // additionally a no-op off localhost and without a `?missionDev=` scenario.
+  // production, so this effect body is dropped by the bundler;
+  // `armMissionDevInteraction` is additionally a no-op off localhost and
+  // without a `?missionDev=` scenario.
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     return armMissionDevInteraction(pubkey);

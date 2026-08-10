@@ -206,7 +206,8 @@ export function useEncryptedSettings() {
       // write means a NIP-44 encrypt and a published kind 30078 — exactly what
       // the simulation exists to avoid. Fail loudly rather than let it through:
       // a silent write would make the tool's "0 writes" readout a lie.
-      // `devSignupActive()` is false in production builds and off localhost.
+      // `devSignupActive()` is false in production builds and off localhost,
+      // so no deployed session can reach the throw.
       if (devSignupActive()) {
         recordDevSignupViolation(
           'settingsWrites',

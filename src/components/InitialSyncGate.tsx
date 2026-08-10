@@ -135,7 +135,7 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
   // then launch the real settings questionnaire on top of the tool. There is
   // nothing to sync for an account that does not exist, so pass straight
   // through. `devSignupActive()` is false in production builds and off
-  // localhost, so production behaviour is untouched.
+  // localhost, so this branch is never taken there.
   if (devSignupActive()) {
     return (
       <OnboardingContext.Provider value={contextValue}>

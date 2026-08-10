@@ -3,15 +3,15 @@ import type { PostOnboardingPathId } from '@/lib/postOnboardingGuide';
 /**
  * Shared "start a mission task" plumbing.
  *
- * Every mission surface (the `/missions` page, the feed card, the sidebar and
- * mobile teasers) starts a task the same way, through `useStartMissionTask`.
- * This module holds the pure pieces that orchestration needs: the route-state
+ * Every mission surface (the `/missions` page, the sidebar widget, the mobile
+ * teaser) starts a task the same way, through `useStartMissionTask`. This
+ * module holds the pure pieces that orchestration needs: the route-state
  * contracts used to hand a page into a guided flow, and the starter copy.
  *
  * **Nothing here completes a task.** Completion is decided entirely by
- * `useMissionEngine` from real product state (a follow that landed, a note that
- * published, a profile that was saved, a theme that changed, a page that was
- * actually reached). Starting a task only navigates.
+ * `useMissionEngine` from real product state — a follow that landed, a note
+ * that published, a profile that was saved, a theme that changed, an
+ * interaction with somebody else's post. Starting a task only navigates.
  */
 
 /**

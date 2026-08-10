@@ -243,3 +243,63 @@ describe('mobile teaser', () => {
     expect(render(<MobileMissionTeaser />).container).toBeEmptyDOMElement();
   });
 });
+
+/**
+ * The 4/4 moment, on both compact surfaces.
+ *
+ * The fourth task is always the last one, so completing it both finishes the
+ * mission and unlocks the reward in the same write. Without an explicit rule
+ * the surfaces swapped straight to "Reward unlocked" the instant it landed,
+ * throwing away the count reaching 4/4 and the acknowledgement of what the user
+ * just did. The order that must survive is: *you did this* → *that's 4 of 4* →
+ * *here's your reward*.
+ *
+ * That rule now lives in `useMissionSurfaceState` rather than being restated in
+ * each surface, which is exactly why it is worth pinning here.
+ */
+describe('the 4/4 completion moment', () => {
+  beforeEach(() => {
+    state = undefined;
+    celebration = { celebrating: false };
+  });
+
+  const completed = () => ({
+    status: 'completed' as const,
+    paths: { ...ALL_DONE },
+    interact: { action: 'repost' as const, completedAt: 4_000 },
+  });
+
+  for (const [name, Surface] of [
+    ['sidebar widget', MissionsWidget],
+    ['mobile teaser', MobileMissionTeaser],
+  ] as const) {
+    it(`${name}: holds progress at 4/4 through the celebration`, () => {
+      celebration = { celebrating: true, completedPath: 'interact' };
+      seed(completed());
+      render(<Surface />);
+
+      // The count is still on screen, and it reads 4/4 rather than being
+      // replaced by the reward framing.
+      expect(screen.getByText('4/4')).toBeInTheDocument();
+      // …with the action-specific acknowledgement, not a generic success.
+      expect(screen.getByText('You shared a post.')).toBeInTheDocument();
+      // …and the reward prompt is deliberately still one settle away.
+      expect(screen.queryByText(/Reward unlocked/)).not.toBeInTheDocument();
+    });
+
+    it(`${name}: settles into the reward state once the celebration ends`, () => {
+      celebration = { celebrating: false };
+      seed(completed());
+      render(<Surface />);
+
+      expect(screen.queryByText('4/4')).not.toBeInTheDocument();
+      expect(screen.queryByText('You shared a post.')).not.toBeInTheDocument();
+      expect(screen.getAllByText(/Reward unlocked|Claim your badge/).length).toBeGreaterThan(0);
+    });
+
+    it(`${name}: hides once the badge has actually been claimed`, () => {
+      seed({ ...completed(), badgeClaim: { badge: 'ditto-explorer', status: 'claimed' } });
+      expect(render(<Surface />).container).toBeEmptyDOMElement();
+    });
+  }
+});

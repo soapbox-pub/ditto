@@ -30,14 +30,14 @@ describe('mission introduction lifecycle', () => {
     expect(canShowMissionDetail(state)).toBe(false);
   });
 
-  it('legacy states are treated as already past the introduction', () => {
-    // Users who have been working the checklist for weeks must not suddenly be
-    // shown a "welcome, here's what this is" panel. The absent `intro` key is
-    // the marker: structural, clock-independent, and needs no migration write.
-    const legacy = legacyState();
-    expect(introState(legacy)).toBe('none');
-    expect(isIntroOutstanding(legacy)).toBe(false);
-    expect(canShowMissionDetail(legacy)).toBe(true);
+  it('reads a state that somehow lost its intro object as still owing one', () => {
+    // Every mission is created with `intro: {}`, so this only covers a state
+    // that lost it. Offering the introduction again is the harmless outcome:
+    // it is dismissible and changes nothing about the mission's progress.
+    const withoutIntro = legacyState();
+    expect(introState(withoutIntro)).toBe('pending');
+    expect(isIntroOutstanding(withoutIntro)).toBe(true);
+    expect(canShowMissionDetail(withoutIntro)).toBe(false);
   });
 
   it('acknowledging reveals the mission detail', () => {
@@ -71,9 +71,8 @@ describe('mission introduction lifecycle', () => {
     expect(introState(state)).toBe('acknowledged');
   });
 
-  it('has no introduction concept when there is no mission', () => {
-    expect(introState(undefined)).toBe('none');
-    expect(isIntroOutstanding(undefined)).toBe(false);
+  it('offers nothing when there is no mission at all', () => {
+    expect(canShowMissionDetail(undefined)).toBe(false);
   });
 });
 

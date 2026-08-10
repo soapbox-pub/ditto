@@ -357,21 +357,12 @@ export const PostOnboardingPathStatusSchema = z.enum([
 export const PostOnboardingGuideStateSchema = z.looseObject({
   version: z.literal(1),
   status: z.enum(['active', 'completed', 'skipped']),
-  // `explore` is the retired fourth task. It is still accepted (never written)
-  // so a state persisted before the change parses instead of failing validation
-  // and dropping the user's *entire* settings object into the raw-JSON fallback.
-  // `normalizeGuideState` maps it onto `interact` on read.
-  activePath: z
-    .enum(['find-people', 'post-small', 'customize', 'interact', 'explore'])
-    .optional(),
+  activePath: z.enum(['find-people', 'post-small', 'customize', 'interact']).optional(),
   paths: z.looseObject({
     'find-people': PostOnboardingPathStatusSchema,
     'post-small': PostOnboardingPathStatusSchema,
     customize: PostOnboardingPathStatusSchema,
-    // Both fourth-task keys are optional: old states have only `explore`, new
-    // ones only `interact`, and requiring either would reject the other.
-    interact: PostOnboardingPathStatusSchema.optional(),
-    explore: PostOnboardingPathStatusSchema.optional(),
+    interact: PostOnboardingPathStatusSchema,
   }),
   startedAt: z.number(),
   updatedAt: z.number(),
@@ -403,9 +394,9 @@ export const PostOnboardingGuideStateSchema = z.looseObject({
     .optional(),
   /**
    * Introduction presentation state. Optional and additive on purpose: adding a
-   * `status` value or bumping `version` would fail validation on older clients
-   * and drop them into the raw-JSON fallback for the *whole* settings object.
-   * Its presence also doubles as the rollout marker — see `introState`.
+   * `status` value or bumping `version` would fail validation on a client that
+   * predates the change and drop it into the raw-JSON fallback for the *whole*
+   * settings object.
    */
   intro: z
     .looseObject({

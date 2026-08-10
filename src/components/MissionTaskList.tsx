@@ -46,17 +46,12 @@ interface MissionTaskListProps {
   state: PostOnboardingGuideState;
   /** Whether tasks can still be started. */
   interactive: boolean;
-  /** Two-column grid (feed card) vs. a single column (page, sidebar). */
-  columns?: 1 | 2;
   /** Show each task's "what completes this" hint. */
   showHints?: boolean;
-  /** Fired when a task is started, e.g. to silence an attention cue. */
-  onStart?: () => void;
 }
 
 /**
- * The mission's task list, shared by the feed card and the `/missions` page so
- * the two can't drift apart in labelling, ordering, or what a tap does.
+ * The mission's task list — the rows, their icons, and what a tap does.
  *
  * Tapping a task only *starts* it (navigation); nothing here completes
  * anything. Optional hints spell out what actually finishes each task, so the
@@ -65,14 +60,12 @@ interface MissionTaskListProps {
 export function MissionTaskList({
   state,
   interactive,
-  columns = 1,
   showHints = false,
-  onStart,
 }: MissionTaskListProps) {
-  const startMissionTask = useStartMissionTask(onStart);
+  const startMissionTask = useStartMissionTask();
 
   return (
-    <ul className={cn('gap-2', columns === 2 ? 'grid auto-rows-fr sm:grid-cols-2' : 'space-y-2')}>
+    <ul className="space-y-2 gap-2">
       {POST_ONBOARDING_PATH_IDS.map((pathId) => {
         const meta = POST_ONBOARDING_PATHS[pathId];
         const done = state.paths[pathId] === 'completed';
@@ -84,7 +77,7 @@ export function MissionTaskList({
           ? INTERACTION_ICONS[interaction.action]
           : TASK_ICONS[pathId];
         return (
-          <li key={pathId} className={columns === 2 ? 'flex' : undefined}>
+          <li key={pathId}>
             <button
               type="button"
               onClick={() => startMissionTask(pathId)}

@@ -241,6 +241,34 @@ describe('useBoundedAttention — persisted budget', () => {
     expect(other.result.current.cueing).toBe(true);
   });
 
+  it('re-seeds the budget when the account changes under a mounted surface', () => {
+    // The sidebar widget and the mobile teaser stay mounted across an account
+    // switch; only their `budgetKey` changes. Seeding the spend count once, at
+    // first render, meant the incoming account inherited the outgoing one's —
+    // and at the cap, inherited a silence it never earned.
+    const OTHER = 'ditto:mission-attention:other';
+    expect(spendOneCue()).toBe(true);
+    expect(spendOneCue()).toBe(true);
+
+    const view = renderAttention({ ...OPTIONS, budgetKey: BUDGET });
+    act(() => void vi.advanceTimersByTime(60_000));
+    expect(view.result.current.cueing).toBe(false);
+
+    // A different account: its own budget, untouched.
+    act(() => view.rerender({ ...OPTIONS, budgetKey: OTHER }));
+    act(() => void vi.advanceTimersByTime(1_000));
+    expect(view.result.current.cueing).toBe(true);
+    act(() => void vi.advanceTimersByTime(500));
+    expect(localStorage.getItem(OTHER)).toBe('1');
+
+    // …and switching back restores the first account's own spend, rather than
+    // whatever the second one happened to leave behind.
+    act(() => view.rerender({ ...OPTIONS, budgetKey: BUDGET }));
+    act(() => void vi.advanceTimersByTime(60_000));
+    expect(view.result.current.cueing).toBe(false);
+    expect(localStorage.getItem(BUDGET)).toBe('2');
+  });
+
   it('treats a corrupt budget as unspent rather than throwing', () => {
     localStorage.setItem(BUDGET, 'not-a-number');
     const view = renderAttention({ ...OPTIONS, budgetKey: BUDGET });

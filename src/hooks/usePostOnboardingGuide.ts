@@ -28,7 +28,6 @@ import {
   isClaimInFlight,
   isIntroOutstanding,
   nextRecommendedPath,
-  normalizeGuideState,
   POST_ONBOARDING_PATH_IDS,
 } from '@/lib/postOnboardingGuide';
 
@@ -87,13 +86,10 @@ export function usePostOnboardingGuide() {
   const devStateRef = useRef(devState);
   devStateRef.current = devState;
 
-  // Normalized on read so a state persisted before the fourth task changed
-  // presents in the current shape everywhere at once (see `normalizeGuideState`).
-  // Memoized because a fresh object identity on every render is exactly what
-  // re-armed the effects behind the mission write loop; the normalization is
-  // pure, so memoizing on the raw state is sound.
-  const rawState = devState ?? settings?.postOnboardingGuide;
-  const state = useMemo(() => normalizeGuideState(rawState), [rawState]);
+  // Read straight through, with no per-render transformation. Identity must
+  // stay stable across renders: a fresh object each time is exactly what
+  // re-armed the effects behind the mission write loop.
+  const state = devState ?? settings?.postOnboardingGuide;
 
   // Tracks the freshest state we've written this session so rapid successive
   // transitions in the same tab compose instead of clobbering each other (the
@@ -570,10 +566,10 @@ export function usePostOnboardingGuide() {
   /**
    * DEV-ONLY: reset the mission to a fresh, active state for the current
    * account — including clearing any `badgeClaim` and baselines — so the whole
-   * flow can be re-run without creating a new account. Gated behind
-   * `import.meta.env.DEV`, which is statically false in production builds, so
-   * the branch is dropped by the bundler and can never reach end users. It only
-   * touches the `postOnboardingGuide` key; every other setting is untouched.
+   * flow can be re-run without creating a new account. `import.meta.env.DEV` is
+   * statically false in production builds, so this returns immediately there
+   * and the body is dropped by the bundler. It only touches the
+   * `postOnboardingGuide` key; every other setting is untouched.
    */
   const resetGuideDev = useCallback((): Promise<void> => {
     if (!import.meta.env.DEV) return Promise.resolve();

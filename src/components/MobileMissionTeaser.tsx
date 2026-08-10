@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FormattedMessage } from 'react-intl';
 import { Award, Check, ChevronRight, Sparkles } from 'lucide-react';
 
+import { ExplorerBadgeArt } from '@/components/DittoExplorerVisual';
 import { ExplorerTransitionTarget } from '@/components/ExplorerTransitionTarget';
-import { MissionCelebrationSparkle } from '@/components/MissionCelebrationSparkle';
+import { MissionProgressCount } from '@/components/MissionProgress';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBoundedAttention } from '@/hooks/useBoundedAttention';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useMissionCelebration } from '@/hooks/useMissionCelebration';
-import { usePostOnboardingGuide } from '@/hooks/usePostOnboardingGuide';
-import { DITTO_EXPLORER_BADGE_IMAGE, DITTO_EXPLORER_BADGE_NAME } from '@/lib/badgeClaim';
-import { interactionSuccessMessage } from '@/lib/postOnboardingGuide';
+import { useMissionSurfaceState } from '@/hooks/useMissionSurfaceState';
+import { DITTO_EXPLORER_BADGE_NAME } from '@/lib/badgeClaim';
+import { missionProgressValue } from '@/lib/postOnboardingGuide';
 import { getStorageKey } from '@/lib/storageKey';
 import { cn } from '@/lib/utils';
 
@@ -42,17 +43,16 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
   const {
     state,
     isActive,
-    isCompleted,
     completedCount,
     totalCount,
-    badgeClaim,
     introState,
-    interaction,
-  } = usePostOnboardingGuide();
-  const { celebrating, completedPath } = useMissionCelebration();
+    celebrating,
+    rewardUnlocked,
+    showProgress,
+    interactionSuccess,
+  } = useMissionSurfaceState();
   const [tapped, setTapped] = useState(false);
 
-  const rewardUnlocked = isCompleted && badgeClaim?.status !== 'claimed';
   const introPending = introState === 'pending' && isActive;
   const visible = !!state && (isActive || rewardUnlocked);
 
@@ -64,20 +64,6 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
   });
 
   if (!visible) return null;
-
-  const progressValue = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
-
-  // The same action-specific acknowledgement the desktop widget shows, for the
-  // celebration window only — see `MissionsWidget` for the reasoning.
-  const interactionSuccess =
-    celebrating && completedPath === 'interact' && interaction
-      ? interactionSuccessMessage(interaction.action)
-      : undefined;
-
-  // Progress stays on screen through the celebration even when this completion
-  // unlocked the reward — see `MissionsWidget` for why the fourth task would
-  // otherwise lose its count pop and progress fill at the moment they land.
-  const showProgress = !rewardUnlocked || celebrating;
 
   return (
     <ExplorerTransitionTarget className={cn('lg:hidden mx-4 my-2', className)}>
@@ -104,16 +90,7 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
           !celebrating && (rewardUnlocked ? 'mission-reward-glow' : cueing && 'mission-attention-glow'),
         )}
       >
-        <img
-          src={DITTO_EXPLORER_BADGE_IMAGE}
-          alt=""
-          aria-hidden
-          loading="lazy"
-          className={cn(
-            'size-8 shrink-0 rounded-lg object-cover ring-1 ring-primary/20',
-            !rewardUnlocked && 'opacity-70 grayscale',
-          )}
-        />
+        <ExplorerBadgeArt className="size-8 shrink-0 rounded-lg" locked={!rewardUnlocked} />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
@@ -126,19 +103,14 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
               {DITTO_EXPLORER_BADGE_NAME}
             </span>
             {showProgress && !introPending && (
-              <div className="relative ml-auto shrink-0">
-                <span
-                  className={cn(
-                    'block text-[11px] font-medium tabular-nums',
-                    celebrating
-                      ? 'rounded-full bg-primary/10 px-1.5 py-0.5 text-primary mission-count-pop'
-                      : 'text-muted-foreground',
-                  )}
-                >
-                  {completedCount}/{totalCount}
-                </span>
-                <MissionCelebrationSparkle active={celebrating} />
-              </div>
+              <MissionProgressCount
+                completedCount={completedCount}
+                totalCount={totalCount}
+                celebrating={celebrating}
+                className="ml-auto"
+                countClassName="block text-[11px] font-medium tabular-nums text-muted-foreground"
+                celebratingCountClassName="block text-[11px] font-medium tabular-nums rounded-full bg-primary/10 px-1.5 py-0.5 text-primary"
+              />
             )}
           </div>
 
@@ -149,14 +121,22 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
             </p>
           ) : rewardUnlocked && !celebrating ? (
             <p className="mt-0.5 truncate text-xs font-medium text-primary">
-              Reward unlocked · Claim reward
+              <FormattedMessage
+                id="mission.teaser.reward"
+                defaultMessage="Reward unlocked · Claim reward"
+              />
             </p>
           ) : introPending ? (
             /* Before acknowledgement the teaser is an invitation, not a
                progress bar — a 0/4 meter is a poor first impression, and the
-               introduction itself lives on /missions where there is room. */
+               introduction itself lives on /missions where there is room.
+               Its own id rather than `explorer.intro.headline`: the same
+               sentence, but without the full stop the panel's headline carries. */
             <p className="mt-0.5 truncate text-xs font-medium text-primary">
-              Your first journey through Ditto is ready
+              <FormattedMessage
+                id="mission.teaser.introPending"
+                defaultMessage="Your first journey through Ditto is ready"
+              />
             </p>
           ) : (
             <div
@@ -171,7 +151,7 @@ export function MobileMissionTeaser({ className }: { className?: string } = {}) 
                   'h-full rounded-full bg-primary transition-[width] duration-500',
                   celebrating && 'mission-progress-glow',
                 )}
-                style={{ width: `${progressValue}%` }}
+                style={{ width: `${missionProgressValue(completedCount, totalCount)}%` }}
               />
             </div>
           )}

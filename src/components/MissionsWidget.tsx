@@ -5,23 +5,16 @@ import { Award, Check, ChevronRight, EyeOff, Sparkles } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DittoExplorerIntroduction } from '@/components/DittoExplorerIntroduction';
+import { ExplorerBadgeArt } from '@/components/DittoExplorerVisual';
 import { ExplorerTransitionTarget } from '@/components/ExplorerTransitionTarget';
-import { MissionCelebrationSparkle } from '@/components/MissionCelebrationSparkle';
-import { Progress } from '@/components/ui/progress';
+import { MissionProgressBar, MissionProgressCount } from '@/components/MissionProgress';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBoundedAttention } from '@/hooks/useBoundedAttention';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useMissionCelebration } from '@/hooks/useMissionCelebration';
-import { usePostOnboardingGuide } from '@/hooks/usePostOnboardingGuide';
+import { useMissionSurfaceState } from '@/hooks/useMissionSurfaceState';
 import { useStartMissionTask } from '@/hooks/useStartMissionTask';
-import {
-  DITTO_EXPLORER_BADGE_IMAGE,
-  DITTO_EXPLORER_BADGE_NAME,
-} from '@/lib/badgeClaim';
-import {
-  interactionSuccessMessage,
-  POST_ONBOARDING_PATHS,
-} from '@/lib/postOnboardingGuide';
+import { DITTO_EXPLORER_BADGE_NAME } from '@/lib/badgeClaim';
+import { POST_ONBOARDING_PATHS } from '@/lib/postOnboardingGuide';
 import { getStorageKey } from '@/lib/storageKey';
 import { cn } from '@/lib/utils';
 
@@ -52,19 +45,18 @@ export function MissionsWidget() {
   const {
     state,
     isActive,
-    isCompleted,
     completedCount,
     totalCount,
-    badgeClaim,
     introState,
     nextPath,
-    interaction,
     dismissGuide,
-  } = usePostOnboardingGuide();
-  const { celebrating, completedPath } = useMissionCelebration();
+    celebrating,
+    rewardUnlocked,
+    showProgress,
+    interactionSuccess,
+  } = useMissionSurfaceState();
   const startMissionTask = useStartMissionTask();
 
-  const rewardUnlocked = isCompleted && badgeClaim?.status !== 'claimed';
   const showIntro = introState === 'pending' && isActive;
 
   // A per-user budget, not a per-mount one: this widget remounts on every
@@ -88,29 +80,7 @@ export function MissionsWidget() {
     );
   }
 
-  const progressValue = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const nextLabel = nextPath ? POST_ONBOARDING_PATHS[nextPath].label : undefined;
-
-  // While the celebration is playing for the interaction task, the guidance line
-  // is replaced by what the user actually did ("You shared a post."). Named by
-  // `completedPath`, so a *different* task completing later can never
-  // mistakenly replay this acknowledgement, and it lasts exactly as long as the
-  // celebration — then the card settles back into its ordinary next-step state.
-  const interactionSuccess =
-    celebrating && completedPath === 'interact' && interaction
-      ? interactionSuccessMessage(interaction.action)
-      : undefined;
-
-  // Hold the progress presentation through the celebration, even when this
-  // completion also unlocked the reward.
-  //
-  // The fourth task is always the last one, so without this the card swapped
-  // straight to "Reward unlocked" the instant it landed — throwing away the
-  // count pop, the sparkles and the progress bar reaching 4/4 at the one moment
-  // they mean the most, and skipping the acknowledgement of what the user just
-  // did. The order the user should read is: *you did this* → *that's 4 of 4* →
-  // *here's your reward*, and the reward is still one settle away.
-  const showProgress = !rewardUnlocked || celebrating;
 
   return (
     <div ref={attentionRef} className="mb-2 w-full shrink-0" onPointerDown={stop}>
@@ -132,18 +102,13 @@ export function MissionsWidget() {
             )}
           </span>
           {showProgress && (
-            <div className="relative shrink-0">
-              <span
-                className={cn(
-                  'block rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary',
-                  celebrating && 'mission-count-pop',
-                )}
-                aria-label={`${completedCount} of ${totalCount} complete`}
-              >
-                {completedCount}/{totalCount}
-              </span>
-              <MissionCelebrationSparkle active={celebrating} />
-            </div>
+            <MissionProgressCount
+              completedCount={completedCount}
+              totalCount={totalCount}
+              celebrating={celebrating}
+              countClassName="block rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary"
+              ariaLabel={`${completedCount} of ${totalCount} complete`}
+            />
           )}
         </div>
 
@@ -157,16 +122,7 @@ export function MissionsWidget() {
               : `${DITTO_EXPLORER_BADGE_NAME}: ${completedCount} of ${totalCount} steps complete`
           }
         >
-          <img
-            src={DITTO_EXPLORER_BADGE_IMAGE}
-            alt=""
-            aria-hidden
-            loading="lazy"
-            className={cn(
-              'size-10 shrink-0 rounded-lg object-cover ring-1 ring-primary/20',
-              !rewardUnlocked && 'opacity-70 grayscale',
-            )}
-          />
+          <ExplorerBadgeArt className="size-10 shrink-0 rounded-lg" locked={!rewardUnlocked} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold leading-snug text-foreground">
               {DITTO_EXPLORER_BADGE_NAME}
@@ -197,9 +153,11 @@ export function MissionsWidget() {
         </button>
 
         {showProgress && (
-          <Progress
-            value={progressValue}
-            className={cn('mt-2.5 h-1.5', celebrating && 'mission-progress-glow')}
+          <MissionProgressBar
+            completedCount={completedCount}
+            totalCount={totalCount}
+            celebrating={celebrating}
+            className="mt-2.5 h-1.5"
             aria-hidden
           />
         )}

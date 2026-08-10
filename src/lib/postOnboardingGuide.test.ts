@@ -16,7 +16,6 @@ import {
   isProfileTaskSatisfied,
   isQualifyingStarterPost,
   nextRecommendedPath,
-  normalizeGuideState,
   themeSignature,
   type PostOnboardingBadgeClaim,
   type PostOnboardingGuideState,
@@ -390,59 +389,9 @@ describe('interactionSuccessMessage', () => {
   });
 });
 
-// ── Compatibility with state written before the fourth task changed ─────────
+// ── Resilience to states this build did not write ───────────────────────────
 
-describe('normalizeGuideState', () => {
-  /** A state as persisted by a build that still had the `explore` task. */
-  function legacy(exploreStatus: string, overrides: Record<string, unknown> = {}) {
-    const base = createInitialGuideState(STARTED_AT) as unknown as Record<string, unknown>;
-    return {
-      ...base,
-      paths: {
-        'find-people': 'completed',
-        'post-small': 'completed',
-        customize: 'completed',
-        explore: exploreStatus,
-      },
-      ...overrides,
-    } as unknown as PostOnboardingGuideState;
-  }
-
-  it('leaves a current state untouched, identity included', () => {
-    const state = createInitialGuideState(STARTED_AT);
-    expect(normalizeGuideState(state)).toBe(state);
-  });
-
-  it('keeps a completed `explore` completed, so nobody is reset to 3/4', () => {
-    const normalized = normalizeGuideState(legacy('completed'))!;
-    expect(normalized.paths.interact).toBe('completed');
-    expect(areAllPathsCompleted(normalized)).toBe(true);
-    expect(countCompletedPaths(normalized)).toBe(4);
-  });
-
-  it('treats an unfinished `explore` as not started, never as half-done', () => {
-    const normalized = normalizeGuideState(legacy('active'))!;
-    expect(normalized.paths.interact).toBe('not_started');
-    expect(countCompletedPaths(normalized)).toBe(3);
-  });
-
-  it('remaps a legacy activePath so no surface looks up a task that is gone', () => {
-    const normalized = normalizeGuideState(legacy('active', { activePath: 'explore' }))!;
-    expect(normalized.activePath).toBe('interact');
-    expect(POST_ONBOARDING_PATHS[normalized.activePath!]).toBeDefined();
-    expect(nextRecommendedPath(normalized)).toBe('interact');
-  });
-
-  it('preserves the legacy key rather than destroying the record', () => {
-    const normalized = normalizeGuideState(legacy('completed'))!;
-    expect((normalized.paths as Record<string, string>).explore).toBe('completed');
-  });
-
-  it('is idempotent', () => {
-    const once = normalizeGuideState(legacy('completed'))!;
-    expect(normalizeGuideState(once)).toBe(once);
-  });
-
+describe('unknown task ids', () => {
   it('survives an unknown activePath from a newer client', () => {
     const state = {
       ...createInitialGuideState(STARTED_AT),
@@ -452,7 +401,7 @@ describe('normalizeGuideState', () => {
     expect(nextRecommendedPath(state)).toBe('find-people');
   });
 
-  it('passes undefined through', () => {
-    expect(normalizeGuideState(undefined)).toBeUndefined();
+  it('has no recommendation when there is no mission', () => {
+    expect(nextRecommendedPath(undefined)).toBeUndefined();
   });
 });

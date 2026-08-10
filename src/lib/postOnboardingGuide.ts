@@ -32,22 +32,6 @@ export type PostOnboardingPathId =
   | 'customize'
   | 'interact';
 
-/**
- * The retired fourth task, `explore` ("Explore Ditto"), which completed on
- * reaching `/trends`.
- *
- * It was replaced by `interact` because it was the one task that told the user
- * nothing: not which action mattered, not what they were learning, not what the
- * action was worth. Visiting a page is not a first-session skill. `interact`
- * closes the loop the other three open — find people, publish something, make
- * it yours, *engage with someone*.
- *
- * The id survives here only as a **read-side compatibility concern**: it is
- * never written again, and {@link normalizeGuideState} is the single place that
- * knows about it. See that function for the migration rule.
- */
-export const LEGACY_EXPLORE_PATH_ID = 'explore';
-
 export type PostOnboardingPathStatus = 'not_started' | 'active' | 'completed';
 
 /**
@@ -135,11 +119,12 @@ export interface MissionBaselines {
  * what this is" panel shown before the task list.
  *
  * This is an **optional, additive** field rather than a new `status` value or a
- * `version` bump, and that is a deliberate compatibility decision. Both of
- * those alternatives make an older client fail `EncryptedSettingsSchema`
- * validation, which drops it into the raw-JSON fallback path for *every*
- * setting the user has — not just the mission. An extra optional field costs
- * nothing and is preserved verbatim by the `looseObject` strategy.
+ * `version` bump, and that is a deliberate forward-compatibility decision. Both
+ * of those alternatives make a client that predates them fail
+ * `EncryptedSettingsSchema` validation, which drops it into the raw-JSON
+ * fallback path for *every* setting the user has — not just the mission. An
+ * extra optional field costs nothing and is preserved verbatim by the
+ * `looseObject` strategy.
  */
 export interface MissionIntro {
   /** Epoch ms the introduction was first shown. */
@@ -191,8 +176,10 @@ export interface PostOnboardingGuideState {
   /** Real-product-state snapshots used for change-based completion. */
   baselines?: MissionBaselines;
   /**
-   * Introduction presentation state. **Its presence is the rollout marker** —
-   * see {@link introState} for the compatibility rule.
+   * Introduction presentation state. Every mission is born with this present
+   * and empty (see {@link createInitialGuideState}); it stays optional in the
+   * type and the schema so a state that somehow arrives without it parses and
+   * reads as "introduction still owed" rather than failing validation.
    */
   intro?: MissionIntro;
   /** What completed the `interact` task. Absent until it completes. */
@@ -288,8 +275,8 @@ export function createInitialGuideState(now = Date.now()): PostOnboardingGuideSt
       interact: 'not_started',
     },
     startedAt: now,
-    // Written explicitly (empty, not absent) so this state is identifiable as
-    // post-rollout and begins with the introduction pending. See `introState`.
+    // Written explicitly (empty, not absent) so a mission always carries its
+    // introduction state rather than implying it by omission.
     intro: {},
     updatedAt: now,
   };
@@ -298,34 +285,24 @@ export function createInitialGuideState(now = Date.now()): PostOnboardingGuideSt
 /**
  * How the introduction should be treated for a given mission state.
  *
- * - `none`         — legacy state, created before the introduction existed.
- *                    Treated as already past it: these users have been using
- *                    the checklist for weeks and must not be shown a "welcome,
- *                    here's what this is" panel now.
  * - `pending`      — never acknowledged or postponed. Show the introduction.
  * - `postponed`    — the user chose "Maybe later". Promotional surfaces go
  *                    quiet, but `/missions` still offers the introduction, and
  *                    the mission itself is untouched.
  * - `acknowledged` — the user chose "Start exploring". Show the real mission.
  *
- * ### The compatibility rule
- *
- * **Presence of the `intro` object is the rollout marker.** States created
- * before this feature have no `intro` key at all and resolve to `none`; every
- * state created afterwards is born with `intro: {}` and resolves to `pending`.
- *
- * This is preferred over a date cutoff because it needs no clock agreement
- * between devices, cannot be wrong for a user whose local clock is skewed, and
- * requires no migration write — the distinction is structural and permanent.
+ * A state with no `intro` object at all reads as `pending`: every mission is
+ * created with one, so this only covers a state that lost it, and offering the
+ * introduction again is the harmless outcome — it is dismissible and changes
+ * nothing about the mission's progress.
  */
-export type MissionIntroState = 'none' | 'pending' | 'postponed' | 'acknowledged';
+export type MissionIntroState = 'pending' | 'postponed' | 'acknowledged';
 
 export function introState(
   state: PostOnboardingGuideState | undefined,
 ): MissionIntroState {
-  if (!state?.intro) return 'none';
-  if (state.intro.acknowledgedAt) return 'acknowledged';
-  if (state.intro.postponedAt) return 'postponed';
+  if (state?.intro?.acknowledgedAt) return 'acknowledged';
+  if (state?.intro?.postponedAt) return 'postponed';
   return 'pending';
 }
 
@@ -345,60 +322,7 @@ export function isIntroOutstanding(state: PostOnboardingGuideState | undefined):
  * checklist.
  */
 export function canShowMissionDetail(state: PostOnboardingGuideState | undefined): boolean {
-  const intro = introState(state);
-  return intro === 'none' || intro === 'acknowledged';
-}
-
-/**
- * Bring a persisted state written before `explore` became `interact` up to the
- * current shape, without writing anything.
- *
- * ### The rule
- *
- * A finished `explore` stays finished: `explore: 'completed'` maps to
- * `interact: 'completed'`. Anyone who did the old fourth task keeps their
- * progress, their `4/4`, and their badge — silently resetting somebody to `3/4`
- * because we changed our minds about the task is not an acceptable outcome of a
- * copy decision.
- *
- * An *unfinished* `explore` maps to `not_started`, not `active`: it was never
- * completed, the task it referred to no longer exists, and "you're partway
- * through Explore Ditto" would be a claim about a task the user can no longer
- * see. `activePath` is remapped for the same reason — left alone it would name
- * a task with no metadata and crash every surface that looks up its label.
- *
- * The legacy `paths.explore` key itself is deliberately left in place. Mission
- * state is a `looseObject` precisely so unknown keys ride through untouched;
- * deleting it would buy nothing and would destroy the only evidence of what the
- * user actually did if this ever needs re-examining.
- *
- * This runs on **read**, so it is idempotent, needs no migration write, and
- * cannot half-apply. The corrected shape is persisted naturally by whatever the
- * user's next real transition happens to be.
- */
-export function normalizeGuideState(
-  state: PostOnboardingGuideState | undefined,
-): PostOnboardingGuideState | undefined {
-  if (!state) return state;
-
-  const paths = state.paths as Partial<Record<string, PostOnboardingPathStatus>>;
-  const needsPaths = paths?.interact === undefined;
-  const needsActivePath = (state.activePath as string | undefined) === LEGACY_EXPLORE_PATH_ID;
-  if (!needsPaths && !needsActivePath) return state;
-
-  return {
-    ...state,
-    ...(needsActivePath ? { activePath: 'interact' as const } : {}),
-    ...(needsPaths
-      ? {
-          paths: {
-            ...state.paths,
-            interact:
-              paths?.[LEGACY_EXPLORE_PATH_ID] === 'completed' ? 'completed' : 'not_started',
-          },
-        }
-      : {}),
-  };
+  return introState(state) === 'acknowledged';
 }
 
 /** Number of completed tasks. */
@@ -407,6 +331,11 @@ export function countCompletedPaths(state: PostOnboardingGuideState): number {
     (total, id) => total + (state.paths[id] === 'completed' ? 1 : 0),
     0,
   );
+}
+
+/** Completion as a percentage. Zero tasks reads as zero, never as `NaN`. */
+export function missionProgressValue(completedCount: number, totalCount: number): number {
+  return totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 }
 
 /** True when every task has been completed. */
@@ -427,9 +356,9 @@ export function nextRecommendedPath(
 ): PostOnboardingPathId | undefined {
   if (!state) return undefined;
   const { activePath } = state;
-  // Guarded against an id this build doesn't know (a retired task in old state,
-  // a task from a newer client): an unknown id has no metadata, and every
-  // surface that renders `nextPath` looks its label up.
+  // Guarded against an id this build doesn't know — a task added by a newer
+  // client, riding through on the `looseObject` schema. An unknown id has no
+  // metadata, and every surface that renders `nextPath` looks its label up.
   if (
     activePath &&
     POST_ONBOARDING_PATH_IDS.includes(activePath) &&

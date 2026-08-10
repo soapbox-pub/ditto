@@ -6,10 +6,15 @@
  * duplicated rather than imported so the mission code doesn't reach into the
  * Blobbi module for a two-line utility; both are deliberately tiny.
  *
- * `import.meta.env.DEV` is statically false in a production build, so every
- * branch guarded by this is dropped by the bundler and cannot reach end users.
- * The hostname check is a second line of defence for dev builds served on a
- * real host.
+ * `import.meta.env.DEV` is statically false in a production build, so this
+ * returns `false` there unconditionally — no query parameter, hostname, or
+ * console call can turn it on. The hostname check is a second line of defence
+ * for dev builds served on a real host.
+ *
+ * It is a **runtime** gate, not a bundling one. Rollup folds the constant
+ * inside this function but does not inline the function into its callers, so
+ * modules reached through it are still emitted; a production build has been
+ * checked and does contain them. They are unreachable, not absent.
  */
 export function isLocalhostDev(): boolean {
   if (!import.meta.env.DEV) {

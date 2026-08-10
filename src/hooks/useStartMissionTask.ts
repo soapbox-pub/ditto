@@ -12,7 +12,7 @@ import type { PostOnboardingPathId } from '@/lib/postOnboardingGuide';
 
 /**
  * The one reusable "start a mission task" action, shared by every mission
- * surface so the `/missions` page and the feed card can never diverge.
+ * surface so `/missions` and the sidebar widget can never diverge.
  *
  * Starting a task **only navigates** (plus route state for the two guided
  * flows) and records which task the user launched. It never marks anything

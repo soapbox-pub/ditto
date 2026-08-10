@@ -688,16 +688,18 @@ describe('usePostOnboardingGuide — introduction lifecycle', () => {
     await waitFor(() => expect(result.current.introState).toBe('pending'));
   });
 
-  it('legacy states never resurface the introduction', async () => {
-    // A state written before the feature existed has no `intro` key.
-    const legacy = createInitialGuideState(1_000);
-    delete (legacy as { intro?: unknown }).intro;
-    settings = { postOnboardingGuide: legacy } as EncryptedSettings;
+  it('still owes an introduction to a state that lost its intro object', async () => {
+    // Every mission is created with `intro: {}`, so this only covers a state
+    // that lost it. Detail stays withheld and the introduction is offered
+    // again, which is dismissible and touches no progress.
+    const withoutIntro = createInitialGuideState(1_000);
+    delete (withoutIntro as { intro?: unknown }).intro;
+    settings = { postOnboardingGuide: withoutIntro } as EncryptedSettings;
 
     const { result } = renderHook(() => usePostOnboardingGuide());
-    await waitFor(() => expect(result.current.introState).toBe('none'));
-    expect(result.current.introOutstanding).toBe(false);
-    expect(result.current.canShowDetail).toBe(true);
+    await waitFor(() => expect(result.current.introState).toBe('pending'));
+    expect(result.current.introOutstanding).toBe(true);
+    expect(result.current.canShowDetail).toBe(false);
   });
 });
 

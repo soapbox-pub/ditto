@@ -64,11 +64,15 @@ import {
  *
  * ### Isolation
  *
- * Three layers keep this away from production. `import.meta.env.DEV` is
- * statically false in a production build so the bundler drops these branches;
- * {@link isLocalhostDev} additionally requires a localhost hostname; and every
- * export here returns `undefined`/`false` when the gate fails, so a caller that
- * forgets to check still gets production behaviour.
+ * Two layers keep this away from users. {@link isLocalhostDev} is false in
+ * every production build and off localhost, and every export here returns
+ * `undefined`/`false` when that gate fails — so a caller that forgets to check
+ * still gets production behaviour, and `?missionDev=` does nothing on a
+ * deployed build.
+ *
+ * The gate is behavioural rather than a bundling guarantee: this module is
+ * imported from production hooks, so its scenario tables are still emitted into
+ * the bundle. They are inert there, not absent.
  *
  * It carries **no policy**. It substitutes a state object for reading and
  * swallows writes; it never decides eligibility, never completes a task, and

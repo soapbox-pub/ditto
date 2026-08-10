@@ -14,9 +14,10 @@ import { DevSignupArrivalReturn } from "@/components/DevSignupArrivalReturn";
 import { isLocalhostDev } from "@/dev/isLocalhostDev";
 
 /**
- * Localhost-only developer tool, in its own chunk so a production build never
- * downloads it. The route below is not registered when `isLocalhostDev()` is
- * false, so the chunk is unreachable outside localhost development.
+ * Localhost-only developer tool, lazily imported so it lives in its own chunk.
+ * The route below is not registered when `isLocalhostDev()` is false, so no
+ * production navigation can reach it and the chunk is never fetched — it is
+ * still emitted by the build, just unreachable.
  */
 const DevSignupArrivalPage = lazy(() =>
   import("@/pages/DevSignupArrivalPage").then((m) => ({ default: m.DevSignupArrivalPage })),
@@ -156,7 +157,7 @@ export function AppRouter() {
 
           {/* Localhost-only developer tool for the signup -> arrival handoff.
               `isLocalhostDev()` is false in production builds, so the route is
-              not registered at all there and the component tree-shakes out. */}
+              not registered there and its chunk is never requested. */}
           {isLocalhostDev() && (
             <Route
               path="/dev/signup-arrival"

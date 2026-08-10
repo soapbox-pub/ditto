@@ -97,6 +97,15 @@ export function useBoundedAttention({
   // Seeded from the persisted budget when one is supplied, so a remount picks
   // up where the previous mount left off instead of starting over.
   const firedRef = useRef(readSpent(budgetKey));
+  // …and re-seeded when the key changes. The key is per-account, and this
+  // surface stays mounted across an account switch: without this, a new user
+  // inherited however many cues the previous one had already spent — including,
+  // at the cap, silence they never earned.
+  const budgetKeyRef = useRef(budgetKey);
+  if (budgetKeyRef.current !== budgetKey) {
+    budgetKeyRef.current = budgetKey;
+    firedRef.current = readSpent(budgetKey);
+  }
 
   const ref = useCallback((next: HTMLElement | null) => setNode(next), []);
   const stop = useCallback(() => {

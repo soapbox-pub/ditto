@@ -1,19 +1,15 @@
 import { useNavigate } from 'react-router-dom';
-import { Award, Check, Clock, Loader2, Lock, RotateCcw } from 'lucide-react';
+import { Award, Check, Clock, Loader2, RotateCcw } from 'lucide-react';
 
+import { ExplorerBadgeArt } from '@/components/DittoExplorerVisual';
 import { Button } from '@/components/ui/button';
 import { useBadgeClaim } from '@/hooks/useBadgeClaim';
-import {
-  DITTO_EXPLORER_BADGE_IMAGE,
-  DITTO_EXPLORER_BADGE_NAME,
-} from '@/lib/badgeClaim';
+import { DITTO_EXPLORER_BADGE_NAME } from '@/lib/badgeClaim';
 import { POST_ONBOARDING_PATH_IDS } from '@/lib/postOnboardingGuide';
-import { cn } from '@/lib/utils';
 
 /**
- * The single reward surface for the Ditto Explorer badge, shared by the feed
- * card and the `/missions` page so the claim lifecycle is described in exactly
- * one place.
+ * The single reward surface for the Ditto Explorer badge. It lives on
+ * `/missions`, and the claim lifecycle is described here and nowhere else.
  *
  * It renders every state the claim can actually be in, and never blurs two of
  * them together:
@@ -32,48 +28,22 @@ import { cn } from '@/lib/utils';
  * server-side. Showing the celebration while implying the badge is already in
  * their profile would be a lie the Badges page would immediately contradict.
  */
-export function MissionReward({ compact = false }: { compact?: boolean }) {
+export function MissionReward() {
   const navigate = useNavigate();
   const { claim, rewardView, isClaiming } = useBadgeClaim();
 
   if (rewardView === 'locked') {
     return (
-      <div
-        className={cn(
-          'flex items-center rounded-lg border border-dashed border-primary/30 bg-primary/5',
-          compact ? 'gap-2.5 p-2.5' : 'gap-3 p-3',
-        )}
-      >
-        <div className="relative shrink-0">
-          <img
-            src={DITTO_EXPLORER_BADGE_IMAGE}
-            alt=""
-            aria-hidden
-            loading="lazy"
-            className={cn(
-              'rounded-lg object-cover opacity-60 grayscale ring-1 ring-primary/20',
-              compact ? 'size-10' : 'size-14',
-            )}
-          />
-          <span
-            className={cn(
-              'absolute -bottom-1 -right-1 flex items-center justify-center rounded-full bg-background text-muted-foreground shadow-sm ring-1 ring-border',
-              compact ? 'size-4' : 'size-5',
-            )}
-          >
-            <Lock className={compact ? 'size-2.5' : 'size-3'} aria-hidden />
-          </span>
-        </div>
+      <div className="flex items-center gap-3 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3">
+        <ExplorerBadgeArt
+          className="size-14 rounded-lg opacity-60 grayscale"
+          lock={{ badgeClassName: 'size-5', iconClassName: 'size-3' }}
+        />
         <div className="min-w-0 flex-1">
-          <p
-            className={cn(
-              'font-semibold leading-snug text-foreground',
-              compact ? 'text-xs' : 'text-sm',
-            )}
-          >
+          <p className="text-sm font-semibold text-foreground">
             Earn the {DITTO_EXPLORER_BADGE_NAME} badge
           </p>
-          <p className={cn('text-muted-foreground', compact ? 'text-[11px] leading-snug' : 'text-xs')}>
+          <p className="text-xs text-muted-foreground">
             Complete these {POST_ONBOARDING_PATH_IDS.length} steps to unlock your first Ditto badge.
           </p>
         </div>
@@ -93,40 +63,20 @@ export function MissionReward({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <div
-      className={cn(
-        'flex flex-col items-center rounded-lg border border-primary/30 bg-primary/5 text-center',
-        compact ? 'gap-2 p-3' : 'gap-3 p-4',
-      )}
-    >
-      <img
-        src={DITTO_EXPLORER_BADGE_IMAGE}
+    <div className="flex flex-col items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 text-center">
+      <ExplorerBadgeArt
         alt={`${DITTO_EXPLORER_BADGE_NAME} badge`}
-        loading="lazy"
-        className={cn(
-          'rounded-xl object-cover shadow-sm ring-1 ring-primary/20',
-          compact ? 'size-14' : 'size-20',
-        )}
+        className="size-20 rounded-xl shadow-sm"
       />
 
       {rewardView === 'claimed' ? (
         <>
           <div className="space-y-0.5">
-            <p
-              className={cn(
-                'flex items-center justify-center gap-1.5 font-semibold text-foreground',
-                compact ? 'text-sm' : 'text-base',
-              )}
-            >
+            <p className="flex items-center justify-center gap-1.5 text-base font-semibold text-foreground">
               <Check className="size-4 shrink-0 text-primary" aria-hidden />
               Badge claimed
             </p>
-            <p
-              className={cn(
-                'flex items-center justify-center gap-1.5 text-muted-foreground',
-                compact ? 'text-xs' : 'text-sm',
-              )}
-            >
+            <p className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
               <Clock className="size-3.5 shrink-0" aria-hidden />
               Award pending — you’ll be notified.
             </p>
@@ -145,12 +95,10 @@ export function MissionReward({ compact = false }: { compact?: boolean }) {
       ) : (
         <>
           <div className="space-y-0.5">
-            <p
-              className={cn('font-semibold text-foreground', compact ? 'text-sm' : 'text-base')}
-            >
+            <p className="text-base font-semibold text-foreground">
               You unlocked the {DITTO_EXPLORER_BADGE_NAME} badge
             </p>
-            <p className={cn('text-muted-foreground', compact ? 'text-xs' : 'text-sm')}>
+            <p className="text-sm text-muted-foreground">
               {rewardView === 'failed'
                 ? 'That claim didn’t go through. Nothing was lost — you can try again.'
                 : 'Claim it to mark your first journey through Ditto.'}

@@ -12,8 +12,9 @@ import { cn } from '@/lib/utils';
  *
  * It is an **introduction, not the checklist** — the four tasks are deliberately
  * absent. It shows what Ditto Explorer is, that a reward is waiting, and that
- * the reward is still locked. The reward silhouette is abstract on purpose:
- * what is behind the lock stays unrevealed for now.
+ * the reward is still locked. The locked row is a padlock and a line of copy,
+ * with no artwork of its own; the badge above it is the Ditto Explorer badge,
+ * shown as itself.
  *
  * It carries no actions. The user chooses "Start exploring" or "Maybe later" on
  * the destination once the transition lands, so the arrival never becomes a
@@ -139,7 +140,7 @@ export const ExplorerArrivalCard = forwardRef<
             className="arrival-block flex justify-center"
             style={{ '--block-delay': '75ms' } as React.CSSProperties}
           >
-            <DittoExplorerVisual size="lg" layout="column" showBody={false} />
+            <DittoExplorerVisual size="lg" layout="column" />
           </div>
 
           <div
@@ -176,7 +177,7 @@ export const ExplorerArrivalCard = forwardRef<
                 : 'arrival-content-in'),
           )}
         >
-          <DittoExplorerVisual size="sm" layout="row" showBody={false} className="w-full" />
+          <DittoExplorerVisual size="sm" layout="row" className="w-full" />
         </div>
       </div>
     </div>

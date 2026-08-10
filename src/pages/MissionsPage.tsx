@@ -4,18 +4,16 @@ import { Play, RotateCcw, Sparkles, Target } from 'lucide-react';
 import { DittoExplorerIntroduction } from '@/components/DittoExplorerIntroduction';
 import { missionDevActive } from '@/dev/missionHarness';
 import { LoginArea } from '@/components/auth/LoginArea';
-import { MissionCelebrationSparkle } from '@/components/MissionCelebrationSparkle';
+import { MissionProgressBar, MissionProgressCount } from '@/components/MissionProgress';
 import { MissionReward } from '@/components/MissionReward';
 import { MissionTaskList } from '@/components/MissionTaskList';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useMissionCelebration } from '@/hooks/useMissionCelebration';
-import { usePostOnboardingGuide } from '@/hooks/usePostOnboardingGuide';
+import { useMissionSurfaceState } from '@/hooks/useMissionSurfaceState';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { DITTO_EXPLORER_BADGE_NAME } from '@/lib/badgeClaim';
 import { POST_ONBOARDING_PATH_IDS } from '@/lib/postOnboardingGuide';
@@ -24,11 +22,12 @@ import { cn } from '@/lib/utils';
 /**
  * The Missions page — the mission's durable home.
  *
- * Every other surface is transient by design: the feed card can be hidden, the
- * teasers self-hide once the reward is claimed. This page is always reachable
- * and always reflects the real state, including the ones the teasers hide:
- * dismissed missions, claimed rewards, and failed claims. That separation is
- * what lets the prompts stay quiet without the mission becoming unreachable.
+ * Every other surface is transient by design: the sidebar widget can be
+ * hidden, and both it and the mobile teaser self-hide once the reward is
+ * claimed. This page is always reachable and always reflects the real state,
+ * including the ones the compact surfaces hide: dismissed missions, claimed
+ * rewards, and failed claims. That separation is what lets the prompts stay
+ * quiet without the mission becoming unreachable.
  *
  * It reuses the same mission state, task list, and reward panel as every other
  * surface, so there is no second copy of the mission's rules living here.
@@ -56,15 +55,12 @@ export function MissionsPage() {
     canShowDetail,
     resumeGuide,
     resetGuideDev,
-  } = usePostOnboardingGuide();
-
-  const { celebrating } = useMissionCelebration();
-
-  const progressValue = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+    celebrating,
+  } = useMissionSurfaceState();
 
   // DEV-only reset so the whole mission + claim flow can be re-run without a
   // fresh account. `import.meta.env.DEV` is statically false in production, so
-  // the bundler drops this branch; `resetGuideDev` is a no-op in prod anyway.
+  // this renders nothing there; `resetGuideDev` is a no-op in prod anyway.
   const devResetButton = import.meta.env.DEV ? (
     <Button
       type="button"
@@ -131,22 +127,19 @@ export function MissionsPage() {
                   </h2>
                   <p className="text-sm text-muted-foreground">{MISSION_DESCRIPTION}</p>
                 </div>
-                <div className="relative shrink-0">
-                  <span
-                    className={cn(
-                      'block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary',
-                      celebrating && 'mission-count-pop',
-                    )}
-                    aria-label={`${completedCount} of ${totalCount} complete`}
-                  >
-                    {completedCount}/{totalCount}
-                  </span>
-                  <MissionCelebrationSparkle active={celebrating} />
-                </div>
+                <MissionProgressCount
+                  completedCount={completedCount}
+                  totalCount={totalCount}
+                  celebrating={celebrating}
+                  countClassName="block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                  ariaLabel={`${completedCount} of ${totalCount} complete`}
+                />
               </div>
-              <Progress
-                value={progressValue}
-                className={cn('h-2', celebrating && 'mission-progress-glow')}
+              <MissionProgressBar
+                completedCount={completedCount}
+                totalCount={totalCount}
+                celebrating={celebrating}
+                className="h-2"
                 aria-label={`Mission progress: ${completedCount} of ${totalCount} steps complete`}
               />
             </CardHeader>
