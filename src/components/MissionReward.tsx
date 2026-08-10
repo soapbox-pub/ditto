@@ -1,9 +1,13 @@
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, Check, Loader2, Lock, RotateCcw } from 'lucide-react';
+import { Award, Check, Eye, Loader2, Lock, RotateCcw } from 'lucide-react';
 
+import { missionDevCeremonyEntry } from '@/dev/missionHarness';
 import { RevealedRewardArt, SealedRewardArt } from '@/components/MissionArt';
+import { RewardCeremony } from '@/components/RewardCeremony';
 import { Button } from '@/components/ui/button';
 import { useBadgeClaim } from '@/hooks/useBadgeClaim';
+import { useRewardCeremony } from '@/hooks/useRewardCeremony';
 import { rewardPresentation } from '@/lib/postOnboardingGuide';
 import { cn } from '@/lib/utils';
 
@@ -61,9 +65,17 @@ export function MissionReward({
   completedCount,
   totalCount,
   celebrating = false,
+  ceremonyOpenable = false,
 }: {
   completedCount: number;
   totalCount: number;
+  /**
+   * Whether the reward ceremony may be opened from here right now. Derived by
+   * `useMissionSurfaceState` from the real mission state and passed in, so this
+   * panel cannot invent its own eligibility rule — and so the ceremony stays
+   * shut through the completion celebration, like every other reward attention.
+   */
+  ceremonyOpenable?: boolean;
   /**
    * Whether the completion celebration is playing right now.
    *
@@ -77,8 +89,22 @@ export function MissionReward({
 }) {
   const navigate = useNavigate();
   const { claim, rewardView, isClaiming } = useBadgeClaim();
+  const ceremony = useRewardCeremony();
+  const artRef = useRef<HTMLDivElement | null>(null);
+  const openRef = useRef<HTMLButtonElement | null>(null);
 
   const view = rewardPresentation(rewardView, celebrating);
+
+  // Localhost-only: enter the ceremony straight from the URL, so its frames can
+  // be inspected without clicking through 4/4 first. `missionDevCeremonyEntry`
+  // returns `undefined` in every production build and off localhost, so this
+  // collapses to nothing there — and it can still only *open* the stage.
+  const { open: openCeremony } = ceremony;
+  useEffect(() => {
+    const entry = missionDevCeremonyEntry();
+    if (!entry || !ceremonyOpenable) return;
+    openCeremony(artRef.current, { immediate: entry === 'sealed' });
+  }, [ceremonyOpenable, openCeremony]);
   const remaining = Math.max(0, totalCount - completedCount);
   const sealed = view === 'locked' || view === 'settling' || view === 'dismissed';
   // Claimed and revealed read the same here: the reveal experience does not
@@ -102,12 +128,24 @@ export function MissionReward({
       {/* Every state before the reveal shows the same sealed object, warmed once
           the journey is finished. A submitted claim is *not* a reveal, so
           `claimed` is still sealed — publishing the claim must not be what
-          finally shows the user their reward. */}
-      {view === 'revealed' ? (
-        <RevealedRewardArt size={REWARD_ART_SIZE} />
-      ) : (
-        <SealedRewardArt size={REWARD_ART_SIZE} ready={!sealed} />
-      )}
+          finally shows the user their reward.
+
+          While the ceremony holds this object, the panel keeps its space but
+          stops painting it: the ceremony is showing the same reward, and two of
+          them on screen at once would undo the whole point of the travel. Laid
+          out rather than unmounted, so nothing reflows and the element stays
+          measurable for the journey back. */}
+      <div
+        ref={artRef}
+        className={cn(ceremony.isOpen && 'invisible')}
+        aria-hidden={ceremony.isOpen || undefined}
+      >
+        {view === 'revealed' ? (
+          <RevealedRewardArt size={REWARD_ART_SIZE} />
+        ) : (
+          <SealedRewardArt size={REWARD_ART_SIZE} ready={!sealed} />
+        )}
+      </div>
 
       {view === 'settling' && (
         /* Earned, acknowledged, still sealed. One true line and no action: every
@@ -174,6 +212,35 @@ export function MissionReward({
           </Button>
         </>
       )}
+
+      {/* The ceremony's entrance. A control of its own rather than a replacement
+          for "Claim reward": the ceremony does not claim anything yet, so
+          hanging the claim behind it would take away an action that works today.
+          It is labelled for what it currently does — the stage it opens shows
+          the sealed reward and nothing else — and becomes "Reveal your reward"
+          in the same change that gives it something to reveal. */}
+      {ceremonyOpenable && (
+        <Button
+          ref={openRef}
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="w-full max-w-56 gap-1.5 rounded-full text-muted-foreground hover:text-foreground"
+          onClick={() => ceremony.open(artRef.current, { trigger: openRef.current })}
+        >
+          <Eye className="size-4" aria-hidden />
+          View your reward
+        </Button>
+      )}
+
+      <RewardCeremony
+        phase={ceremony.phase}
+        sourceRect={ceremony.sourceRect}
+        sourceElement={ceremony.sourceElement}
+        onSettle={ceremony.settle}
+        onRequestClose={ceremony.requestClose}
+        onFinishClose={ceremony.finishClose}
+      />
 
       {claimSubmitted && (
         <>

@@ -127,7 +127,12 @@ export type MissionDevState =
   | 'claiming'
   | 'claimed'
   | 'revealed'
-  | 'failed';
+  | 'failed'
+  // Reward ceremony. Both put the journey at 4/4-ready and open the stage on
+  // load; `ceremony-sealed` skips the entrance so a settled frame can be
+  // inspected without replaying the travel every time.
+  | 'ceremony-opening'
+  | 'ceremony-sealed';
 
 const ALL_TASKS: PostOnboardingPathId[] = [
   'find-people',
@@ -260,6 +265,31 @@ export function missionDevForcesEmptyFeed(): boolean {
  */
 export function missionDevRejectsWrites(): boolean {
   return missionDevState() === 'interact-write-fails';
+}
+
+// ── Reward ceremony scenarios ───────────────────────────────────────────────
+
+/**
+ * How the harness should enter the reward ceremony on load, if at all.
+ *
+ * `'opening'` plays the entrance; `'sealed'` lands directly on the settled
+ * stage. The second exists for the same reason the arrival has mid-sequence
+ * entry points: once the reveal choreography starts, the frames worth looking at
+ * are a few hundred milliseconds long, and replaying the whole entrance to reach
+ * each one costs more than the inspection.
+ *
+ * It only *opens* the ceremony. It cannot claim, publish, or reveal anything —
+ * there is no code path from here to any of those, in the harness or out of it.
+ */
+export function missionDevCeremonyEntry(): 'opening' | 'sealed' | undefined {
+  switch (missionDevState()) {
+    case 'ceremony-opening':
+      return 'opening';
+    case 'ceremony-sealed':
+      return 'sealed';
+    default:
+      return undefined;
+  }
 }
 
 /** Stand-in actor for the signed-out harness. Never signs or publishes. */
@@ -443,7 +473,11 @@ function buildMissionDevState(): PostOnboardingGuideState | undefined {
     case 'hidden':
       complete(2);
       return { ...state, intro: acknowledged, status: 'skipped', skippedAt: now - 5_000 };
+    // The ceremony scenarios are the ready state plus an auto-open; the state
+    // itself is identical, so they share it rather than restating it.
     case 'ready':
+    case 'ceremony-opening':
+    case 'ceremony-sealed':
       complete(4);
       return { ...state, intro: acknowledged, status: 'completed', completedAt: now - 5_000 };
     case 'claiming':

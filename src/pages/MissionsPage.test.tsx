@@ -77,6 +77,10 @@ vi.mock('@/hooks/useCurrentUser', () => ({
 vi.mock('@/hooks/useSeoMeta', () => ({ useSeoMeta: () => {} }));
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
+  // The reward ceremony reads the location to notice browser Back. These
+  // scenarios never open it; the ceremony's own behaviour is exercised against
+  // a real router in `RewardCeremony.test.tsx`.
+  useLocation: () => ({ pathname: '/missions', search: '', hash: '', state: null, key: 'test' }),
   Link: ({ children }: { children?: React.ReactNode }) => <a href="/">{children}</a>,
 }));
 

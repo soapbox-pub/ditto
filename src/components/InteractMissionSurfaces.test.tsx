@@ -179,7 +179,7 @@ describe('reduced motion', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
     const start = css.indexOf('── Post-onboarding mission surfaces');
     const end = css.indexOf('── Overstimulation block overlay');
-    const declarations = css.slice(start, end).match(/animation:[^;]*;/g) ?? [];
+    const declarations: string[] = css.slice(start, end).match(/animation:[^;]*;/g) ?? [];
 
     expect(declarations.length).toBeGreaterThan(0);
     const cues = declarations.filter((d) => !AMBIENT.some((name) => d.includes(name)));

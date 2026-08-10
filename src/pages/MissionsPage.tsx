@@ -5,6 +5,7 @@ import { DittoExplorerIntroduction } from '@/components/DittoExplorerIntroductio
 import { missionDevActive } from '@/dev/missionHarness';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { ExplorerJourneyMark } from '@/components/MissionArt';
+import { MissionDevPanel } from '@/components/MissionDevPanel';
 import { MissionJourney } from '@/components/MissionJourney';
 import { MissionReward } from '@/components/MissionReward';
 import { MissionTaskList } from '@/components/MissionTaskList';
@@ -107,25 +108,31 @@ export function MissionsPage() {
     resumeGuide,
     resetGuideDev,
     celebrating,
+    ceremonyOpenable,
   } = useMissionSurfaceState();
 
   // DEV-only reset so the whole journey and claim flow can be re-run without a
   // fresh account. `import.meta.env.DEV` is statically false in production, so
   // this renders nothing there; `resetGuideDev` is a no-op in prod anyway.
   const devReset = import.meta.env.DEV ? (
-    <div className="flex justify-end">
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="gap-1.5 text-muted-foreground hover:text-foreground"
-        onClick={() => void resetGuideDev()}
-        title="DEV only: reset this account's first journey"
-      >
-        <RotateCcw className="size-3.5" aria-hidden />
-        Reset journey
-      </Button>
-    </div>
+    <>
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-muted-foreground hover:text-foreground"
+          onClick={() => void resetGuideDev()}
+          title="DEV only: reset this account's first journey"
+        >
+          <RotateCcw className="size-3.5" aria-hidden />
+          Reset journey
+        </Button>
+      </div>
+      {/* Localhost-only scenario switcher. Renders nothing unless the harness is
+          already driving this page load. */}
+      <MissionDevPanel />
+    </>
   ) : null;
 
   return (
@@ -257,6 +264,7 @@ export function MissionsPage() {
                     // than opening on top of it. Same flag the hero uses, so the
                     // two cannot disagree about when the moment ends.
                     celebrating={celebrating}
+                    ceremonyOpenable={ceremonyOpenable}
                   />
                 ) : undefined
               }
