@@ -332,21 +332,31 @@ export function useRewardCeremony({
    * dropping the user back on the journey they just asked to leave. The
    * destination flashed past and the journey came back.
    *
-   * So the entry is handed back first, and the destination pushed onto the
-   * stack the ceremony originally found. Back then returns to the journey once,
-   * which is what a person expects after following a link out of a dialog.
+   * So the destination *replaces* the ceremony's entry rather than sitting on
+   * top of it. One navigation, and the stack it leaves behind is the one the
+   * ceremony found plus the destination: Back returns to the journey exactly
+   * once, which is what a person expects after following a link out of a
+   * dialog. `pushedRef` is dropped first, so the unmount cleanup — which fires
+   * moments later as the panel leaves the route — knows the entry is already
+   * spent and pops nothing.
+   *
+   * ### Why not pop, then push
+   *
+   * That was the first fix, and it only worked in tests. `navigate(-1)` is
+   * `window.history.go(-1)`, and a real browser *queues* that traversal as a
+   * task, reporting it back through `popstate` later; `pushState` is immediate.
+   * So a push issued in the same turn — even deferred by a microtask, which
+   * still runs before any task — lands while the traversal is pending, and the
+   * traversal then fires anyway and takes the user off the destination. A
+   * memory history cannot show this: its `go` updates the index and notifies
+   * synchronously, so pop-then-push looks perfect there and fails in the app.
+   * Replacing needs no traversal at all, so there is no ordering to lose.
    */
   const leave = useCallback(
     (to: string) => {
-      if (!pushedRef.current) {
-        navigate(to);
-        return;
-      }
+      const replace = pushedRef.current;
       pushedRef.current = false;
-      navigate(-1);
-      // After the pop has landed. Issued together, the router applies them in
-      // one pass and the ceremony's entry survives underneath the destination.
-      queueMicrotask(() => navigate(to));
+      navigate(to, { replace });
     },
     [navigate],
   );

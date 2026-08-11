@@ -910,13 +910,22 @@ describe('reward ceremony — where Open Badges goes', () => {
     expect(location().getAttribute('data-search')).toBe(`?${BADGES_TAB_PARAM}=mine`);
     expect(await screen.findByTestId('badges-page')).toBeInTheDocument();
 
-    // …and *stays* there. The stage's history entry is handed back before the
-    // navigation, not left underneath it: the panel's unmount used to pop that
-    // entry and drop the user straight back onto the journey, so Badges only
-    // flashed past. This is the assertion that catches that returning.
+    // The stage goes with them: no overlay left mounted over the destination.
+    expect(stage()).toBeNull();
+
+    // …and they *stay* there. The destination replaces the stage's history
+    // entry rather than sitting on top of it, so the panel's unmount — which
+    // runs a beat later, as the route changes — finds nothing left to pop. It
+    // used to pop that entry and drop the user straight back onto the journey,
+    // with Badges only flashing past. The wait is what makes this meaningful:
+    // the cleanup defers its work, so an immediate assertion would pass either
+    // way. See `useRewardCeremony.leave.test.tsx` for the mechanics a memory
+    // history cannot show.
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(location().getAttribute('data-pathname')).toBe('/badges');
     expect(location().getAttribute('data-search')).toBe(`?${BADGES_TAB_PARAM}=mine`);
+    expect(location().getAttribute('data-ceremony')).toBe('false');
+    expect(stage()).toBeNull();
   });
 
   it('takes the revealed reward panel to the same place', async () => {
