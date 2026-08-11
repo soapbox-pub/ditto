@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-rou
 import { MissionReward } from './MissionReward';
 import {
   CEREMONY_MIN_ACTING_MS,
+  CEREMONY_REVEAL_MS,
   CEREMONY_SLOW_MS,
 } from '@/hooks/useRewardCeremony';
 import {
@@ -505,9 +506,9 @@ describe('reward ceremony — the claim', () => {
 
     fireEvent.click(revealButton()!);
     await waitFor(() => expect(claim).toHaveBeenCalledTimes(1));
-    // No `revealedAt`: a claim is not a reveal, and the option that writes both
-    // in one go belongs to the choreography that actually shows the reward.
-    expect(claim).toHaveBeenCalledWith();
+    // The claim and the reveal go down together, in one write. The timestamp is
+    // the irreversible point, and it is taken before a single pixel moves.
+    expect(claim).toHaveBeenCalledWith({ revealedAt: expect.any(Number) });
   });
 
   it('does not publish twice on a double tap', async () => {
@@ -552,7 +553,7 @@ describe('reward ceremony — the claim', () => {
     await new Promise((r) => setTimeout(r, CEREMONY_MIN_ACTING_MS / 2));
     expect(stage()).toHaveAttribute('data-phase', 'acting');
 
-    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'submitted'), {
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'revealing'), {
       timeout: 3_000,
     });
   });
@@ -574,28 +575,79 @@ describe('reward ceremony — the claim', () => {
     expect(claim).toHaveBeenCalledTimes(1);
 
     resolveClaim({ status: 'claimed', claimEventId: 'e'.repeat(64) });
-    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'submitted'), {
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'revealing'), {
       timeout: 3_000,
     });
   });
 
-  it('says what happened, and no more, once the claim is in', async () => {
+  it('reveals the badge, and says only what is true about it', async () => {
+    ready();
+    claim.mockResolvedValue({ status: 'claimed', claimEventId: 'e'.repeat(64) });
+    await openStage();
+    // Sealed right up to the moment the claim lands.
+    expect(stage()!.querySelector('[data-sealed-reward-art]')).not.toBeNull();
+    expect(stage()!.querySelector('[data-explorer-badge-image]')).toBeNull();
+
+    fireEvent.click(revealButton()!);
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'revealing'), {
+      timeout: 3_000,
+    });
+
+    const stageEl = stage() as HTMLElement;
+    // The badge itself, untreated, on the same object the seal was on.
+    expect(stageEl.querySelector('[data-revealed-reward-art]')).not.toBeNull();
+    expect(stageEl.querySelector('[data-explorer-badge-image]')).not.toBeNull();
+    expect(stageEl.querySelector('[data-sealed-reward-art]')).toBeNull();
+    expect(within(stageEl).getByText('Ditto Explorer')).toBeInTheDocument();
+    expect(within(stageEl).getByText(/reward revealed/i)).toBeInTheDocument();
+    expect(within(stageEl).getByText(/appear in Badges once it has been issued/i))
+      .toBeInTheDocument();
+    // Revealed is not awarded, and never says it is.
+    expect(within(stageEl).queryByText(/awarded|you own|notified|pending approval|issuing/i))
+      .toBeNull();
+  });
+
+  it('offers the way onward only once the composition has settled', async () => {
     ready();
     claim.mockResolvedValue({ status: 'claimed', claimEventId: 'e'.repeat(64) });
     await openStage();
     fireEvent.click(revealButton()!);
 
-    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'submitted'), {
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'revealing'), {
       timeout: 3_000,
     });
-    const stageEl = stage() as HTMLElement;
-    expect(within(stageEl).getByText('Your claim is in.')).toBeInTheDocument();
-    expect(within(stageEl).getByText(/appear in Badges once it has been issued/i))
-      .toBeInTheDocument();
-    // The reward is still sealed. Nothing here has been revealed.
-    expect(stageEl.querySelector('[data-sealed-reward-art]')).not.toBeNull();
-    expect(stageEl.querySelector('[data-revealed-reward-art]')).toBeNull();
-    expect(within(stageEl).queryByText(/awarded|you own|notified/i)).toBeNull();
+    // While the badge is resolving there is one control, and it is Skip.
+    expect(within(stage() as HTMLElement).queryByRole('button', { name: /open badges/i }))
+      .toBeNull();
+    expect(within(stage() as HTMLElement).getByRole('button', { name: /^skip$/i }))
+      .toBeEnabled();
+
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'settled'), {
+      timeout: CEREMONY_REVEAL_MS + 2_000,
+    });
+    expect(within(stage() as HTMLElement).getByRole('button', { name: /open badges/i }))
+      .toBeEnabled();
+    expect(within(stage() as HTMLElement).getByRole('button', { name: /done/i })).toBeEnabled();
+    expect(within(stage() as HTMLElement).queryByRole('button', { name: /^skip$/i })).toBeNull();
+  });
+
+  it('lets the reveal be skipped without undoing it', async () => {
+    ready();
+    claim.mockResolvedValue({ status: 'claimed', claimEventId: 'e'.repeat(64) });
+    await openStage();
+    fireEvent.click(revealButton()!);
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'revealing'), {
+      timeout: 3_000,
+    });
+
+    fireEvent.click(within(stage() as HTMLElement).getByRole('button', { name: /^skip$/i }));
+
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'settled'));
+    // Skipping the animation is not undoing the reward: the badge is fully
+    // there, and it lands without easing rather than continuing to ease.
+    const image = stage()!.querySelector<HTMLImageElement>('[data-explorer-badge-image]')!;
+    expect(image.style.transition).toBe('');
+    expect(claim).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the reward sealed when the claim fails, and offers a retry', async () => {
@@ -648,13 +700,14 @@ describe('reward ceremony — the claim', () => {
     await openStage();
     fireEvent.click(revealButton()!);
 
-    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'submitted'), {
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'revealing'), {
       timeout: 3_000,
     });
     expect(publishEvent).not.toHaveBeenCalled();
-    // And the reveal is still owed: this task does not write it.
-    expect(markRewardRevealed).not.toHaveBeenCalled();
-    expect(state?.badgeClaim?.revealedAt).toBeUndefined();
+    // Nothing republished, and the reveal stamped on its own — the same
+    // ceremony a fresh claim gets, not a lesser one.
+    expect(markRewardRevealed).toHaveBeenCalledTimes(1);
+    expect(stage()!.querySelector('[data-explorer-badge-image]')).not.toBeNull();
   });
 
   it('treats an in-flight claim as a wait, not a failure', async () => {
@@ -701,26 +754,36 @@ describe('reward ceremony — the claim', () => {
     expect(state?.badgeClaim?.revealedAt).toBeUndefined();
   });
 
-  it('never writes a reveal in this task, whatever the outcome', async () => {
-    for (const outcome of [
-      { status: 'claimed' as const, claimEventId: 'e'.repeat(64) },
-      { status: 'already-claimed' as const, claimEventId: 'x' },
-      { status: 'failed' as const, error: new Error('no') },
-    ]) {
-      ready();
-      claim.mockClear();
-      claim.mockResolvedValue(outcome);
-      const { unmount } = renderReward();
-      fireEvent.click(openButton()!);
-      await waitFor(() => expect(stage()).not.toBeNull());
-      fireEvent.click(revealButton()!);
-      await waitFor(() => expect(claim).toHaveBeenCalled());
-      await new Promise((r) => setTimeout(r, CEREMONY_MIN_ACTING_MS + 200));
+  it('never reveals anything when the claim fails', async () => {
+    ready();
+    claim.mockResolvedValue({ status: 'failed', error: new Error('no') });
+    await openStage();
+    fireEvent.click(revealButton()!);
 
-      expect(markRewardRevealed).not.toHaveBeenCalled();
-      expect(state?.badgeClaim?.revealedAt).toBeUndefined();
-      unmount();
-    }
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'failed'), {
+      timeout: 3_000,
+    });
+    // No stamp, no badge, no way to mistake a failure for a reward.
+    expect(markRewardRevealed).not.toHaveBeenCalled();
+    expect(state?.badgeClaim?.revealedAt).toBeUndefined();
+    expect(stage()!.querySelector('[data-explorer-badge-image]')).toBeNull();
+    expect(stage()!.querySelector('[data-sealed-reward-art]')).not.toBeNull();
+  });
+
+  it('stays revealed when the stage is closed mid-reveal', async () => {
+    // The most important invariant: the animation is disposable, the timestamp
+    // is not. `revealedAt` went down before the choreography started.
+    ready();
+    claim.mockResolvedValue({ status: 'claimed', claimEventId: 'e'.repeat(64) });
+    await openStage();
+    fireEvent.click(revealButton()!);
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'revealing'), {
+      timeout: 3_000,
+    });
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    await waitFor(() => expect(stage()).toBeNull());
+    expect(claim).toHaveBeenCalledWith({ revealedAt: expect.any(Number) });
   });
 });
 

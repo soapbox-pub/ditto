@@ -1,11 +1,14 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 
 import {
+  MISSION_DEV_FAKE_CLAIM_EVENT_ID,
   missionDevActive,
   missionDevCeremonyEntry,
+  missionDevFakePublish,
   missionDevState,
   readMissionDevState,
 } from './missionHarness';
+import { BADGE_CLAIM_KIND, buildExplorerClaimTemplate } from '@/lib/badgeClaim';
 import { areAllPathsCompleted, badgeRewardView, isCeremonyOwed } from '@/lib/postOnboardingGuide';
 
 /**
@@ -61,7 +64,8 @@ describe('mission harness — reward ceremony scenarios', () => {
       'ceremony-acting': 'acting',
       'ceremony-slow': 'slow',
       'ceremony-failed': 'failed',
-      'ceremony-submitted': 'submitted',
+      'ceremony-revealing': 'revealing',
+      'ceremony-revealed': 'revealed',
     } as const;
 
     for (const [scenario, entry] of Object.entries(phases)) {
@@ -109,6 +113,53 @@ describe('mission harness — reward ceremony scenarios', () => {
     // nothing carries an identity that a relay would accept.
     expect(JSON.stringify(state)).not.toContain('claimEventId');
     expect(JSON.stringify(state)).not.toContain('revealedAt');
+  });
+
+  it('stands in for the signer and the relay, and for nothing else', async () => {
+    // Without this the success path could not be exercised at all: the harness
+    // has no account, so the real claim stopped at its first guard. This fakes
+    // exactly one step — the publish — so everything around it stays the
+    // production path.
+    harness('?missionDev=ready');
+    const publish = missionDevFakePublish();
+    expect(publish).toBeDefined();
+
+    const template = buildExplorerClaimTemplate(['find-people', 'post-small']);
+    const event = await publish!(template);
+
+    // A plain object built here: nothing signed it, and nothing sent it.
+    expect(event.id).toBe(MISSION_DEV_FAKE_CLAIM_EVENT_ID);
+    expect(event.kind).toBe(BADGE_CLAIM_KIND);
+    expect(event.tags).toEqual(template.tags);
+    // Obviously not a real signature or a real author.
+    expect(event.sig).toMatch(/^0+$/);
+    expect(event.id).toMatch(/^dev0/);
+  });
+
+  it('offers no publisher at all outside the harness', () => {
+    vi.stubGlobal('location', { ...window.location, search: '', hostname: 'localhost' } as Location);
+    expect(missionDevFakePublish()).toBeUndefined();
+
+    vi.stubGlobal('location', {
+      ...window.location,
+      search: '?missionDev=ready',
+      hostname: 'ditto.pub',
+    } as Location);
+    expect(missionDevFakePublish()).toBeUndefined();
+  });
+
+  it('can run its fake claim over and over', async () => {
+    // The point of the harness: repeat the flow without leaving anything behind.
+    harness('?missionDev=ready');
+    const publish = missionDevFakePublish()!;
+    const template = buildExplorerClaimTemplate(['find-people']);
+
+    const first = await publish(template);
+    const second = await publish(template);
+    expect(first.id).toBe(second.id);
+    // The scenario state is rebuilt from the query parameter, so nothing the
+    // fake claim did has accumulated in it.
+    expect(readMissionDevState()?.badgeClaim).toBeUndefined();
   });
 
   it('is inert off localhost, whatever the query string says', () => {

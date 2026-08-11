@@ -1,13 +1,19 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import { RevealedRewardArt, SealedRewardArt } from './MissionArt';
+import { ExplorerRewardArt } from './MissionArt';
 import { DITTO_EXPLORER_BADGE_IMAGE } from '@/lib/badgeClaim';
 
 vi.mock('@/hooks/useAppContext', () => ({
   useAppContext: () => ({ config: { appId: 'ditto', appName: 'Ditto' } }),
 }));
 vi.mock('@/hooks/useCurrentUser', () => ({ useCurrentUser: () => ({ user: undefined }) }));
+let reducedMotion = false;
+vi.mock('@/lib/reducedMotion', () => ({ prefersReducedMotion: () => reducedMotion }));
+
+beforeEach(() => {
+  reducedMotion = false;
+});
 
 /**
  * The sealed reward is the badge artwork, obscured — so the interesting
@@ -21,8 +27,8 @@ vi.mock('@/hooks/useCurrentUser', () => ({ useCurrentUser: () => ({ user: undefi
  * cannot be bypassed.
  */
 describe('SealedRewardArt', () => {
-  function sealed(props: Parameters<typeof SealedRewardArt>[0] = {}) {
-    const { container } = render(<SealedRewardArt {...props} />);
+  function sealed(props: Parameters<typeof ExplorerRewardArt>[0] = {}) {
+    const { container } = render(<ExplorerRewardArt {...props} />);
     return {
       container,
       root: container.querySelector('[data-sealed-reward-art]')!,
@@ -112,16 +118,85 @@ describe('SealedRewardArt', () => {
   });
 });
 
-describe('RevealedRewardArt', () => {
-  it('shows no badge artwork and no seal', () => {
-    // The placeholder for a reward that has been revealed. It must not reveal
-    // the reward by falling back to the picture the seal was hiding.
-    const { container } = render(<RevealedRewardArt />);
+describe('ExplorerRewardArt — revealed', () => {
+  function revealed(props: Parameters<typeof ExplorerRewardArt>[0] = {}) {
+    const { container } = render(<ExplorerRewardArt revealed {...props} />);
+    return {
+      container,
+      root: container.querySelector('[data-revealed-reward-art]')!,
+      image: container.querySelector<HTMLImageElement>('[data-explorer-badge-image]'),
+    };
+  }
 
-    expect(container.querySelector('[data-revealed-reward-art]')).not.toBeNull();
+  it('shows the badge itself, untreated', () => {
+    const { image } = revealed();
+    expect(image).not.toBeNull();
+    expect(image!.getAttribute('src')).toBe(DITTO_EXPLORER_BADGE_IMAGE);
+    // No crop, no blur, no desaturation: the reward, at its own scale and its
+    // own colours.
+    expect(image!.style.transform).toBe('scale(1)');
+    expect(image!.style.filter).toContain('blur(0px)');
+    expect(image!.style.filter).toContain('saturate(1)');
+  });
+
+  it('is the same element the seal was on, not a second one', () => {
+    // The whole idea of the reveal: the object the user was watching becomes
+    // visible. Two components crossfading would be a swap.
+    const { container, rerender } = render(<ExplorerRewardArt size={200} />);
+    const before = container.querySelector('img');
+    expect(before).toHaveAttribute('data-sealed-reward-image');
+
+    rerender(<ExplorerRewardArt size={200} revealed />);
+    const after = container.querySelector('img');
+    expect(after).toBe(before);
+    expect(after).toHaveAttribute('data-explorer-badge-image');
+  });
+
+  it('drops the seal: no lock, no mark in front, no sealed hook', () => {
+    const { container, root } = revealed();
     expect(container.querySelector('[data-sealed-reward-art]')).toBeNull();
     expect(container.querySelector('[data-sealed-reward-image]')).toBeNull();
-    expect(container.querySelector('img[src]')).toBeNull();
-    expect(container.querySelector('.lucide-lock')).toBeNull();
+    // The seal's own layers are still in the tree so they can transition out,
+    // but they are transparent and cannot be seen or hit.
+    expect(root.querySelector('.lucide-lock')?.closest('span')?.className)
+      .toContain('opacity-0');
+  });
+
+  it('stops the ambient drift, which would fight the crop pulling back', () => {
+    const { image } = revealed();
+    expect(image!.className).not.toContain('sealed-reward-image');
+  });
+
+  it('lands without easing when the reveal was skipped', () => {
+    const { image } = revealed({ instant: true });
+    expect(image!.style.transition).toBe('');
+  });
+
+  it('crossfades instead of animating blur and scale under reduced motion', () => {
+    // A 3x crop collapsing to 1 is exactly the movement the setting removes, and
+    // an animating blur radius is uncomfortable on its own. So the badge is
+    // simply revealed, and a copy of the seal dissolves off the top of it.
+    reducedMotion = true;
+    const { container, image } = revealed();
+
+    expect(image!.style.transition).toBe('');
+    const ghost = container.querySelector<HTMLImageElement>('[data-sealed-reward-ghost]');
+    expect(ghost).not.toBeNull();
+    expect(ghost!.className).toContain('reward-seal-dissolve');
+    // Same picture, still wearing the seal, on its way out.
+    expect(ghost!.getAttribute('src')).toBe(DITTO_EXPLORER_BADGE_IMAGE);
+    expect(ghost!.style.filter).toMatch(/blur\((?!0px)/);
+  });
+
+  it('adds no second layer when motion is welcome', () => {
+    const { container } = revealed();
+    expect(container.querySelector('[data-sealed-reward-ghost]')).toBeNull();
+    expect(container.querySelectorAll('img')).toHaveLength(1);
+  });
+
+  it('eases when the reveal is being watched', () => {
+    const { image } = revealed({ instant: false });
+    expect(image!.style.transition).toContain('filter');
+    expect(image!.style.transition).toContain('transform');
   });
 });

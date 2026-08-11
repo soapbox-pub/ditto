@@ -299,7 +299,7 @@ describe('/missions — the reward stays sealed', () => {
     expect(container.querySelector('[data-revealed-reward-art]')).toBeNull();
   });
 
-  it('drops the sealed treatment once the reward has been revealed', () => {
+  it('shows the badge plainly once the reward has been revealed', () => {
     seed({
       paths: { ...ALL_DONE },
       status: 'completed',
@@ -313,10 +313,40 @@ describe('/missions — the reward stays sealed', () => {
     });
     const { container } = render(<MissionsPage />);
 
+    // From `revealedAt` onwards the badge *is* the reward, shown as itself.
     expect(container.querySelector('[data-sealed-reward-art]')).toBeNull();
     expect(container.querySelector('[data-revealed-reward-art]')).not.toBeNull();
-    // And the placeholder is not the badge artwork wearing a different hat.
-    expect(renderedImageSources(container)).not.toContain(DITTO_EXPLORER_BADGE_IMAGE);
+    const badge = container.querySelector<HTMLImageElement>('[data-explorer-badge-image]')!;
+    expect(badge.getAttribute('src')).toBe(DITTO_EXPLORER_BADGE_IMAGE);
+    expect(badge.style.filter).toContain('blur(0px)');
+    expect(badge.style.transform).toBe('scale(1)');
+    // No seal in front of it any more.
+    expect(container.querySelector('[data-sealed-reward-image]')).toBeNull();
+  });
+
+  it('reads as finished, not as waiting on the issuer', () => {
+    seed({
+      paths: { ...ALL_DONE },
+      status: 'completed',
+      badgeClaim: {
+        badge: 'ditto-explorer',
+        status: 'claimed',
+        claimEventId: 'x',
+        claimedAt: 1,
+        revealedAt: 2,
+      },
+    });
+    const { container } = render(<MissionsPage />);
+
+    // The journey's eyebrow also says "Ditto Explorer", so scope to the reward.
+    const reward = screen.getByText('Special reward').closest('div')!;
+    expect(within(reward).getByText('Ditto Explorer')).toBeInTheDocument();
+    expect(within(reward).getByText(/reward revealed/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /open badges/i })).toBeEnabled();
+    // Terminal: nothing left to press, and nothing pretending to be in progress.
+    expect(screen.queryByRole('button', { name: /reveal your reward/i })).toBeNull();
+    expect(screen.queryByRole('progressbar', { name: /issu/i })).toBeNull();
+    expect(container.textContent).not.toMatch(/awarded|you own|notified|pending approval|issuing/i);
   });
 
   it('treats the badge artwork it does render, rather than showing it plainly', () => {
@@ -440,12 +470,18 @@ describe('/missions — claim lifecycle', () => {
     expect(screen.getByText(/your claim is on its way/i)).toBeInTheDocument();
   });
 
-  it('stays a usable page after the claim', () => {
+  it('stays a usable page after the reveal', () => {
     seed({
       paths: { ...ALL_DONE },
       status: 'completed',
       interact: { action: 'reaction', completedAt: 5_000 },
-      badgeClaim: { badge: 'ditto-explorer', status: 'claimed', claimEventId: 'x', claimedAt: 1 },
+      badgeClaim: {
+        badge: 'ditto-explorer',
+        status: 'claimed',
+        claimEventId: 'x',
+        claimedAt: 1,
+        revealedAt: 2,
+      },
     });
     const { container } = render(<MissionsPage />);
 
@@ -454,6 +490,20 @@ describe('/missions — claim lifecycle', () => {
     expect(container.querySelectorAll('ol > li')).toHaveLength(4);
     expect(screen.getByRole('button', { name: /open badges/i })).toBeEnabled();
     expect(screen.getByText('Complete')).toBeInTheDocument();
+  });
+
+  it('keeps a submitted-but-unrevealed claim sealed, with the reveal still owed', () => {
+    seed({
+      paths: { ...ALL_DONE },
+      status: 'completed',
+      badgeClaim: { badge: 'ditto-explorer', status: 'claimed', claimEventId: 'x', claimedAt: 1 },
+    });
+    const { container } = render(<MissionsPage />);
+
+    expect(container.querySelector('[data-sealed-reward-art]')).not.toBeNull();
+    expect(container.querySelector('[data-explorer-badge-image]')).toBeNull();
+    expect(screen.getByText('Badge claim submitted')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /reveal your reward/i })).toBeEnabled();
   });
 });
 

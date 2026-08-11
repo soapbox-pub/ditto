@@ -11,26 +11,26 @@ import { prefersReducedMotion } from '@/lib/reducedMotion';
  * - `opening`   — the sealed reward is travelling from where the user clicked it.
  * - `sealed`    — settled and still, waiting for the user. Indefinite.
  * - `acting`    — the claim is being signed and published.
- * - `submitted` — the claim exists. The reward is still sealed.
+ * - `revealing` — the seal is coming off the badge.
+ * - `settled`   — the badge is revealed and the composition is still.
  * - `failed`    — the publish did not go through. Retryable, forever.
  * - `closing`   — travelling back toward where it came from.
  *
- * There is still no `revealing` or `revealed` here. `submitted` is the honest
- * end of *this* ceremony: the claim is in, and the reward has not been shown to
- * anyone. The phases that open the seal belong to the reveal choreography, along
- * with the only thing that may write `revealedAt`.
- *
- * **None of this is persisted.** The only durable fact about a reveal is
- * `badgeClaim.revealedAt`, and nothing here writes it. Opening and closing the
- * ceremony leaves the mission exactly as it found it, which is what makes the
- * shell safe to open and close a hundred times while it is being built.
+ * **None of these is persisted, and that is the point.** The one durable fact
+ * about a reveal is `badgeClaim.revealedAt`, written the moment the claim
+ * succeeds — *before* the animation runs, not after. So the animation is
+ * disposable: skipping it, closing over it, or reloading through it all land on
+ * the same revealed reward, because none of them can un-write the timestamp.
+ * `revealing` and `settled` differ only in whether the choreography is still
+ * playing.
  */
 export type RewardCeremonyPhase =
   | 'closed'
   | 'opening'
   | 'sealed'
   | 'acting'
-  | 'submitted'
+  | 'revealing'
+  | 'settled'
   | 'failed'
   | 'closing';
 
@@ -54,6 +54,15 @@ export const CEREMONY_MIN_ACTING_MS = 700;
  * late success proceeds exactly as an early one would.
  */
 export const CEREMONY_SLOW_MS = 2_200;
+
+/**
+ * How long the reveal choreography runs before the composition is settled.
+ *
+ * Covers the seal getting out of the way, the badge resolving, and the name and
+ * copy arriving after it. Purely a presentation clock: `revealedAt` is already
+ * persisted when this starts, so nothing depends on it finishing.
+ */
+export const CEREMONY_REVEAL_MS = 1_900;
 
 /** Router state marking the history entry the ceremony pushes for Back. */
 const CEREMONY_HISTORY_STATE = 'rewardCeremony';
@@ -100,6 +109,19 @@ export function useRewardCeremony({
   const [slow, setSlow] = useState(false);
   /** Consecutive failures in *this* ceremony, for the copy only. Never a limit. */
   const [failures, setFailures] = useState(0);
+  /** The reveal was skipped, so it should land without easing. */
+  const [skipped, setSkipped] = useState(false);
+  /**
+   * Whether *this* ceremony is mid-submit.
+   *
+   * The "a claim resolved elsewhere" effect below watches persisted state, and
+   * for a user who was already claimed that state is true from the first frame —
+   * so it fired the moment the act began, moved the phase off `acting`, and the
+   * real outcome then found itself too late to stamp the reveal. The already
+   * claimed path silently stopped persisting `revealedAt`. While our own submit
+   * is running, its outcome is the only thing allowed to end the act.
+   */
+  const submittingRef = useRef(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -176,26 +198,34 @@ export function useRewardCeremony({
    * presentation around it: the minimum hold, the one copy change for a slow
    * signer, and which phase each outcome lands in.
    *
-   * Deliberately does **not** pass `revealedAt`. That option exists so the
-   * eventual reveal can record "claimed" and "revealed" in a single write, and
-   * using it here would mark the reward revealed on the strength of a claim the
-   * user has not been shown anything for. *Claim submitted* and *reward
-   * revealed* stay two facts until there is a reveal to justify the second.
+   * ### The irreversible point is a write, not a frame
+   *
+   * A fresh claim persists `status: 'claimed'` **and** `revealedAt` in one
+   * settings write, via the atomic option on `completeBadgeClaim`. A claim that
+   * already existed publishes nothing and stamps `revealedAt` on its own. Either
+   * way the timestamp is down before a single pixel moves, which is what makes
+   * the choreography safe to skip, close over, or reload through.
    */
   const reveal = useCallback(
-    async (submit: () => Promise<BadgeClaimOutcome>) => {
+    async (actions: {
+      /** Publish and persist the claim, recording the reveal in the same write. */
+      submit: (options: { revealedAt: number }) => Promise<BadgeClaimOutcome>;
+      /** Stamp the reveal on a claim that already exists. Publishes nothing. */
+      markRevealed: () => Promise<void>;
+    }) => {
       // The button is disabled while acting, but a keyboard repeat or a
       // programmatic double call must not start a second publish either.
       if (phaseRef.current !== 'sealed' && phaseRef.current !== 'failed') return;
 
       setPhase('acting');
       setSlow(false);
+      submittingRef.current = true;
       const startedAt = Date.now();
       const slowTimer = setTimeout(() => setSlow(true), CEREMONY_SLOW_MS);
 
       let outcome: BadgeClaimOutcome;
       try {
-        outcome = await submit();
+        outcome = await actions.submit({ revealedAt: Date.now() });
       } catch (error) {
         // `claim()` reports failure rather than throwing, so this is a bug
         // guard, not the failure path.
@@ -208,6 +238,7 @@ export function useRewardCeremony({
       if (held < CEREMONY_MIN_ACTING_MS) {
         await new Promise((resolve) => setTimeout(resolve, CEREMONY_MIN_ACTING_MS - held));
       }
+      submittingRef.current = false;
 
       // The user may have closed the stage while the signer was open. The
       // publish still ran and still persisted; there is just nothing to narrate.
@@ -220,12 +251,17 @@ export function useRewardCeremony({
 
       switch (outcome.status) {
         case 'claimed':
-        case 'already-claimed':
-          // Both mean "the claim exists". `already-claimed` published nothing,
-          // which is the correct outcome for a user who claimed before this
-          // ceremony existed — it must not republish to catch up.
+          // `revealedAt` went down with the claim, in one write.
           setFailures(0);
-          setPhase('submitted');
+          setPhase('revealing');
+          return;
+        case 'already-claimed':
+          // Claimed under an earlier build, so there is nothing to publish —
+          // but the reveal is still owed, and it must be the same ceremony
+          // rather than a lesser one. Stamp it, then reveal.
+          await actions.markRevealed();
+          setFailures(0);
+          if ((phaseRef.current as RewardCeremonyPhase) === 'acting') setPhase('revealing');
           return;
         case 'failed':
           setFailures((count) => count + 1);
@@ -245,6 +281,21 @@ export function useRewardCeremony({
     },
     [],
   );
+
+  /**
+   * Jump to the end of the reveal.
+   *
+   * Skipping the *animation* is not undoing the reward: `revealedAt` was written
+   * before it started, so this only stops the choreography and shows the badge
+   * at once. `skipped` also tells the art to apply the revealed treatment with
+   * no transition, so a skip lands immediately instead of easing for another
+   * second.
+   */
+  const skipReveal = useCallback(() => {
+    if (phaseRef.current !== 'revealing') return;
+    setSkipped(true);
+    setPhase('settled');
+  }, []);
 
   /** Begin closing: run the return animation, then pop the history entry. */
   const requestClose = useCallback(() => {
@@ -276,8 +327,17 @@ export function useRewardCeremony({
   // stage narrating a send that is already over.
   useEffect(() => {
     if (phase !== 'acting' || !claimSubmitted) return;
-    setPhase('submitted');
+    if (submittingRef.current) return;
+    setPhase('revealing');
   }, [phase, claimSubmitted]);
+
+  // The choreography's own clock. Nothing waits on it: `revealedAt` is already
+  // persisted, so this only decides when the composition stops moving.
+  useEffect(() => {
+    if (phase !== 'revealing') return;
+    const timer = setTimeout(() => setPhase('settled'), CEREMONY_REVEAL_MS);
+    return () => clearTimeout(timer);
+  }, [phase]);
 
   // Back (or any navigation that drops the marker) closes immediately. This is
   // also the tail of the deliberate close path, via `navigate(-1)`.
@@ -300,6 +360,7 @@ export function useRewardCeremony({
     if (phase !== 'closed') return;
     setSlow(false);
     setFailures(0);
+    setSkipped(false);
     const trigger = triggerRef.current;
     triggerRef.current = null;
     if (trigger && trigger.isConnected) trigger.focus();
@@ -342,6 +403,10 @@ export function useRewardCeremony({
     slow,
     /** Consecutive failures in this ceremony. Copy only; never a lockout. */
     failures,
+    /** Whether the reveal was skipped, so it should apply without easing. */
+    skipped,
+    /** Jump to the settled reveal. Never undoes anything. */
+    skipReveal,
     isOpen: phase !== 'closed',
     /** Submit the claim and narrate it. */
     reveal,

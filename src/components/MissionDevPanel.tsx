@@ -43,7 +43,8 @@ const CEREMONY_SCENARIOS: ReadonlyArray<{ id: MissionDevState; label: string }> 
   { id: 'ceremony-acting', label: 'Acting' },
   { id: 'ceremony-slow', label: 'Slow signer' },
   { id: 'ceremony-failed', label: 'Failed' },
-  { id: 'ceremony-submitted', label: 'Claim submitted' },
+  { id: 'ceremony-revealing', label: 'Revealing' },
+  { id: 'ceremony-revealed', label: 'Revealed' },
 ];
 
 export function MissionDevPanel() {
@@ -92,9 +93,10 @@ export function MissionDevPanel() {
       {row('Ceremony', CEREMONY_SCENARIOS)}
       <p className="text-[11px] leading-relaxed text-muted-foreground">
         Ceremony scenarios open the stage on load and render that phase directly:
-        no claim is attempted, nothing is signed, published or saved. To exercise
-        the real claim, open the stage from the reward panel's “Reveal your
-        reward” with a signed-in account.
+        no claim is attempted. For the whole flow, use “4/4 ready” and press
+        “Reveal your reward”: the harness stands in for the signer and the relay,
+        so the real ceremony runs end to end while publishing nothing and saving
+        nothing.
       </p>
     </aside>
   );

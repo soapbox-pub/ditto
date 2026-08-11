@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Award, Check, Lock, Sparkles } from 'lucide-react';
 
 import { missionDevCeremonyEntry } from '@/dev/missionHarness';
-import { RevealedRewardArt, SealedRewardArt } from '@/components/MissionArt';
+import { ExplorerRewardArt } from '@/components/MissionArt';
 import { RewardCeremony } from '@/components/RewardCeremony';
 import { Button } from '@/components/ui/button';
 import { useBadgeClaim } from '@/hooks/useBadgeClaim';
@@ -21,8 +21,8 @@ import { cn } from '@/lib/utils';
  * | `settling`  | sealed token, "Journey complete", no action yet             |
  * | `ready`     | "Journey complete", "Reveal your reward" (opens the ceremony)|
  * | `claiming`  | a claim already in flight; the action waits for it           |
- * | `claimed`   | "Badge claim submitted", a link to Badges                   |
- * | `revealed`  | as `claimed` — the reveal experience does not exist yet     |
+ * | `claimed`   | "Badge claim submitted"; the reveal is still owed            |
+ * | `revealed`  | the badge itself, its name, and a link to Badges. Terminal.  |
  * | `failed`    | "That didn't go through"; retry happens in the ceremony      |
  * | `dismissed` | a quiet note that the journey is hidden                     |
  *
@@ -83,7 +83,8 @@ const DEV_CEREMONY_PHASE: Record<
   acting: 'acting',
   slow: 'acting',
   failed: 'failed',
-  submitted: 'submitted',
+  revealing: 'revealing',
+  revealed: 'settled',
 };
 
 export function MissionReward({
@@ -113,7 +114,7 @@ export function MissionReward({
   celebrating?: boolean;
 }) {
   const navigate = useNavigate();
-  const { claim, rewardView, isClaimed } = useBadgeClaim();
+  const { claim, markRewardRevealed, rewardView, isClaimed } = useBadgeClaim();
   const ceremony = useRewardCeremony({ claimSubmitted: isClaimed });
   const artRef = useRef<HTMLDivElement | null>(null);
   const openRef = useRef<HTMLButtonElement | null>(null);
@@ -138,9 +139,6 @@ export function MissionReward({
   }, [ceremonyOpenable, openCeremony]);
   const remaining = Math.max(0, totalCount - completedCount);
   const sealed = view === 'locked' || view === 'settling' || view === 'dismissed';
-  // Claimed and revealed read the same here: the reveal experience does not
-  // exist yet, so both say the one true thing about the claim.
-  const claimSubmitted = view === 'claimed' || view === 'revealed';
 
   return (
     <div
@@ -171,11 +169,14 @@ export function MissionReward({
         className={cn(ceremony.isOpen && 'invisible')}
         aria-hidden={ceremony.isOpen || undefined}
       >
-        {view === 'revealed' ? (
-          <RevealedRewardArt size={REWARD_ART_SIZE} />
-        ) : (
-          <SealedRewardArt size={REWARD_ART_SIZE} ready={!sealed} />
-        )}
+        <ExplorerRewardArt
+          size={REWARD_ART_SIZE}
+          ready={!sealed}
+          revealed={view === 'revealed'}
+          // A page that already knows the reward is revealed shows it revealed.
+          // The choreography belongs to the ceremony and happens exactly once.
+          instant
+        />
       </div>
 
       {view === 'settling' && (
@@ -220,7 +221,7 @@ export function MissionReward({
         </div>
       )}
 
-      {claimSubmitted && (
+      {view === 'claimed' && (
         <>
           <div className="space-y-1.5">
             <p className="flex items-center justify-center gap-1.5 text-base font-semibold text-foreground">
@@ -229,6 +230,21 @@ export function MissionReward({
             </p>
             <p className="text-sm text-muted-foreground">
               Your badge will appear in Badges once it has been issued.
+            </p>
+          </div>
+        </>
+      )}
+
+      {/* Terminal. The journey is over, the reward is out, and the page says so
+          without pretending anything is still in progress: no spinner, no
+          issuance meter, nothing waiting on a server Ditto cannot see. */}
+      {view === 'revealed' && (
+        <>
+          <div className="space-y-1.5">
+            <p className="text-base font-semibold text-foreground">Ditto Explorer</p>
+            <p className="text-sm text-muted-foreground">
+              Reward revealed. Your badge claim was submitted, and the badge will appear
+              in Badges once it has been issued.
             </p>
           </div>
           <Button
@@ -272,7 +288,13 @@ export function MissionReward({
         phase={ceremony.phase}
         slow={ceremony.slow}
         failures={ceremony.failures}
-        onReveal={() => void ceremony.reveal(claim)}
+        skipped={ceremony.skipped}
+        rewardRevealed={view === 'revealed'}
+        onReveal={() =>
+          void ceremony.reveal({ submit: claim, markRevealed: markRewardRevealed })
+        }
+        onSkipReveal={ceremony.skipReveal}
+        onOpenBadges={() => navigate('/badges')}
         sourceRect={ceremony.sourceRect}
         sourceElement={ceremony.sourceElement}
         onSettle={ceremony.settle}

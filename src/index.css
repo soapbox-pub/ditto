@@ -1399,6 +1399,19 @@
   transform-origin: center center;
 }
 
+/* Reduced motion's reveal: the sealed treatment dissolving off a badge that is
+   already there underneath. Opacity only — the point of this path is that the
+   crop and the blur do not animate at all, so this must survive the
+   reduced-motion block below rather than being disabled by it. */
+@keyframes reward-seal-dissolve {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.reward-seal-dissolve {
+  animation: reward-seal-dissolve 500ms ease-out 1 both;
+}
+
 /* Progress bar halo while it fills on completion. */
 @keyframes mission-progress-glow {
   0%   { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }

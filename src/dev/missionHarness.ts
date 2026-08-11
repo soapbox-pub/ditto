@@ -1,5 +1,7 @@
 import { isLocalhostDev } from '@/dev/isLocalhostDev';
 import type { ArrivalStageEntry } from '@/hooks/useArrivalStage';
+import type { NostrEvent } from '@nostrify/nostrify';
+
 import {
   emitPostInteraction,
   type PostInteractionKind,
@@ -136,7 +138,8 @@ export type MissionDevState =
   | 'ceremony-acting'
   | 'ceremony-slow'
   | 'ceremony-failed'
-  | 'ceremony-submitted';
+  | 'ceremony-revealing'
+  | 'ceremony-revealed';
 
 const ALL_TASKS: PostOnboardingPathId[] = [
   'find-people',
@@ -283,8 +286,8 @@ export function missionDevRejectsWrites(): boolean {
  * each one costs more than the inspection.
  *
  * It only ever *presents* a phase. Nothing here signs, publishes, persists, or
- * reveals: `acting`, `slow`, `failed` and `submitted` are the stage rendered in
- * that state, reached without a claim ever being attempted. The claim itself is
+ * reveals: `acting`, `slow`, `failed`, `revealing` and `revealed` are the stage
+ * rendered in that state, reached without a claim ever being attempted. The claim itself is
  * only reachable through the real gesture, which needs a real signer.
  */
 export type MissionDevCeremonyEntry =
@@ -293,7 +296,8 @@ export type MissionDevCeremonyEntry =
   | 'acting'
   | 'slow'
   | 'failed'
-  | 'submitted';
+  | 'revealing'
+  | 'revealed';
 
 export function missionDevCeremonyEntry(): MissionDevCeremonyEntry | undefined {
   switch (missionDevState()) {
@@ -307,8 +311,10 @@ export function missionDevCeremonyEntry(): MissionDevCeremonyEntry | undefined {
       return 'slow';
     case 'ceremony-failed':
       return 'failed';
-    case 'ceremony-submitted':
-      return 'submitted';
+    case 'ceremony-revealing':
+      return 'revealing';
+    case 'ceremony-revealed':
+      return 'revealed';
     default:
       return undefined;
   }
@@ -503,7 +509,8 @@ function buildMissionDevState(): PostOnboardingGuideState | undefined {
     case 'ceremony-acting':
     case 'ceremony-slow':
     case 'ceremony-failed':
-    case 'ceremony-submitted':
+    case 'ceremony-revealing':
+    case 'ceremony-revealed':
       complete(4);
       return { ...state, intro: acknowledged, status: 'completed', completedAt: now - 5_000 };
     case 'claiming':
@@ -559,4 +566,51 @@ function buildMissionDevState(): PostOnboardingGuideState | undefined {
     default:
       return state;
   }
+}
+
+// ── Fake claim publisher ────────────────────────────────────────────────────
+
+/**
+ * The event id every harness claim reports. Deterministic on purpose: a test or
+ * a screenshot can assert on it, and it is obviously not a real event id.
+ */
+export const MISSION_DEV_FAKE_CLAIM_EVENT_ID = `dev0${'0'.repeat(59)}1`;
+
+/**
+ * A stand-in publisher for the harness, or `undefined` in every other context.
+ *
+ * The harness has no signer and no account, so the real claim path stopped at
+ * its first guard and returned `ineligible` — which meant the one flow the
+ * ceremony exists for could not be exercised at all without publishing a real
+ * kind 30637 from a real key to real relays. That is far too much to pay for
+ * looking at an animation, and it made the success path effectively unreviewable.
+ *
+ * So this fakes exactly one thing: the publish. Everything around it is the
+ * production path — the same guards, the same three layers of idempotency, the
+ * same outcome mapping, the same persistence calls, the same ceremony. The write
+ * those persistence calls make is already absorbed by the harness store above
+ * (see `update` in `usePostOnboardingGuide`), so nothing reaches encrypted
+ * settings either.
+ *
+ * It signs nothing, opens no socket, and touches no key. The returned event is
+ * a plain object built here.
+ */
+export function missionDevFakePublish():
+  | ((template: { kind: number; content?: string; tags: string[][] }) => Promise<NostrEvent>)
+  | undefined {
+  if (!missionDevActive()) return undefined;
+  return async (template) => {
+    // A visible beat, so the acting state is something you can actually watch
+    // rather than a frame that has already gone.
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    return {
+      id: MISSION_DEV_FAKE_CLAIM_EVENT_ID,
+      pubkey: HARNESS_ACTOR,
+      kind: template.kind,
+      created_at: Math.floor(Date.now() / 1000),
+      content: template.content ?? '',
+      tags: template.tags,
+      sig: '0'.repeat(128),
+    };
+  };
 }

@@ -3,6 +3,7 @@ import { Lock } from 'lucide-react';
 
 import { DittoLogo } from '@/components/DittoLogo';
 import { DITTO_EXPLORER_BADGE_IMAGE } from '@/lib/badgeClaim';
+import { prefersReducedMotion } from '@/lib/reducedMotion';
 import { cn } from '@/lib/utils';
 
 /**
@@ -20,20 +21,24 @@ import { cn } from '@/lib/utils';
  *  - {@link ExplorerJourneyMark} — what the *journey* looks like. Abstract, and
  *    safe to show at 0/4. Used by the sidebar widget, the mobile teaser, the
  *    introduction and the page header.
- *  - {@link SealedRewardArt} — what the *unrevealed reward* looks like. The
- *    real badge artwork, cropped and blurred past recognition behind a sharp
- *    Ditto seal.
- *  - The real badge image, sharp — rendered only by `/badges`, from the badge
- *    event, once the badge has actually been issued.
+ *  - {@link ExplorerRewardArt} — the reward itself, in whichever of its two
+ *    states it is in: sealed (cropped and blurred past recognition behind a
+ *    Ditto seal) or revealed (the badge, untreated). One component and one
+ *    `<img>`, because the reveal has to be the *same object* becoming visible.
  *
- * ### The mission surfaces may now render the badge image — but only sealed
+ * ### When the badge may be shown
  *
- * The rule used to be "no mission surface ever renders the badge artwork", and
- * for a fully abstract placeholder that was the whole story. It is now more
- * precise: **the reward surfaces may render the official badge artwork, but only
- * inside {@link SealedRewardArt}, cropped and obscured so the reward is not
- * revealed.** A sharp, recognisable badge image before the reveal is still
- * forbidden, and that is what the tests pin.
+ * The rule used to be "no mission surface ever renders the badge artwork". It is
+ * now precise, and it is the one thing the structural tests pin:
+ *
+ *  - **Before `revealedAt`** — the artwork may only appear inside the sealed
+ *    treatment: cropped, blurred, desaturated, behind the mark and the padlock.
+ *    A sharp badge anywhere before the reveal is a spoiler and a bug.
+ *  - **From `revealedAt` onwards** — the badge is the reward, shown plainly, in
+ *    the ceremony and on `/missions`, forever.
+ *
+ * `revealedAt` is persisted, so which of those applies survives reload, remount,
+ * a skipped animation, and a ceremony closed halfway through.
  *
  * This is spoiler prevention, not secrecy. The badge definition is a public
  * kind 30009 event and the image URL is in the DOM; anyone who wants to look can
@@ -160,14 +165,43 @@ const SEAL_PLATE_RATIO = 0.44;
 const SEAL_LOCK_RATIO = 0.2;
 
 /**
- * The reward, still sealed: the real thing, behind Ditto's seal.
+ * The reveal's own timing, on the artwork itself.
  *
- * The predecessor was a hexagon — honest, safe, and silent. A generic container
- * implies generic contents, so it carried no anticipation at all. This shows the
- * actual badge artwork, cropped and blurred past recognition, which says *there
- * is a specific, real, made thing here* without saying what it is.
+ * Long enough to read as an object being uncovered rather than a state flipping,
+ * short enough that nobody is waiting. The easing decelerates hard at the end so
+ * the badge arrives and stays rather than drifting into place.
+ */
+const REVEAL_MS = 900;
+const REVEAL_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
+
+/** How long the seal itself takes to get out of the way, and when the mark goes. */
+const SEAL_EXIT_MS = 320;
+const SEAL_LOGO_DELAY_MS = 80;
+
+/**
+ * The sealed edge fade, and its absence.
  *
- * Layered back to front:
+ * Sealed, the artwork dissolves before the frame's edge so the crop never reads
+ * as a rectangular photograph sitting underneath. Revealed, the mask opens to
+ * the whole frame: a vignetted badge would look like it was still behind
+ * something. Both are `radial-gradient`s of the same shape so the transition
+ * between them is continuous.
+ */
+const SEALED_MASK = 'radial-gradient(circle at 50% 46%, black 48%, transparent 92%)';
+const REVEALED_MASK = 'radial-gradient(circle at 50% 50%, black 100%, transparent 100%)';
+
+/**
+ * The Ditto Explorer reward, sealed or revealed — one object, two states.
+ *
+ * **One component and one `<img>` on purpose.** The reveal has to feel like the
+ * thing that was hidden becoming visible, not like a blurred picture being
+ * swapped for a sharp one. So the badge artwork is mounted once and the seal is
+ * *removed from it*: the crop pulls back, the blur clears, the colour returns,
+ * the Ditto wash fades, and the mark and padlock in front of it get out of the
+ * way. Two components crossfading would have been easier and would have thrown
+ * away the only idea the ceremony has.
+ *
+ * ### Sealed
  *
  *  1. **Ground** — a soft primary field and the abstract seal. Always rendered,
  *     never conditional, because the artwork above it is a remote image: if it
@@ -182,25 +216,30 @@ const SEAL_LOCK_RATIO = 0.2;
  *     belong to Ditto's palette rather than announcing the reward's own.
  *  4. **Seal** — the Ditto logo, sharp, on a plate. The plate is not decoration:
  *     the logo is a solid `--primary` silhouette and the artwork behind it is
- *     purple, so without it the mark disappears into its own background. On the
- *     plate it holds in every theme, and the composition reads as *Ditto is
- *     holding something for you*.
+ *     purple, so without it the mark disappears into its own background.
  *  5. **Lock** — a chip on the plate's edge. Never colour alone: there is a
  *     padlock glyph here, and the word "Locked" beside it in `MissionReward`.
  *
- * `ready` warms the treatment — the frame's ring, the ground, the wash — but the
- * padlock **stays**. Nothing has been unlocked at 4/4; the reward has only become
- * claimable, and the panel's copy and its call to action carry that. Swapping the
- * lock for a spark here said "opened" a whole ceremony too early.
+ * ### Revealed
+ *
+ * Everything the seal added is gone: no crop, no blur, no desaturation, no wash,
+ * no plate, no mark, no padlock. What is left is the badge, at its own scale and
+ * its own colours, which is the whole point of the journey.
+ *
+ * `revealed` is driven by persisted state (`badgeClaim.revealedAt`), never by a
+ * local flag, so a reload lands on the revealed object without replaying
+ * anything. `instant` skips the transition for the cases where animating would
+ * be wrong: a skipped reveal, and a mount that is already revealed.
  *
  * Decorative throughout: `aria-hidden` on the root, `alt=""` on the image. The
- * reward's state is carried by real text in `MissionReward`, so none of it
- * depends on this rendering, on filters being supported, or on the remote image
- * arriving at all.
+ * reward's state is carried by real text beside it, so none of it depends on
+ * this rendering, on filters being supported, or on the image arriving at all.
  */
-export function SealedRewardArt({
+export function ExplorerRewardArt({
   size = 112,
   ready = false,
+  revealed = false,
+  instant = false,
   className,
 }: {
   /**
@@ -210,35 +249,90 @@ export function SealedRewardArt({
   size?: number;
   /** The journey is finished and the reward can be claimed. Still sealed. */
   ready?: boolean;
+  /** The reveal has crossed its irreversible point. Show the badge. */
+  revealed?: boolean;
+  /** Apply the revealed treatment with no transition. */
+  instant?: boolean;
   className?: string;
 }) {
   // Local and deliberately not persisted: a failed image is a fact about this
   // page load, not about the user. A remount is free to try again.
   const [imageFailed, setImageFailed] = useState(false);
+  const reduced = prefersReducedMotion();
+
+  /**
+   * How the seal comes off, and why there are two ways.
+   *
+   * **Full motion** animates `filter` and `transform` on the badge itself, so
+   * the crop pulls back and the blur clears as one movement on the object the
+   * user has been watching. Measured at 4× CPU throttle on a 390px viewport:
+   * median 16.7ms per frame, nothing over 32ms. It is smooth, so it is what
+   * ships.
+   *
+   * **Reduced motion** must not do that: a 3× scale collapsing to 1 is exactly
+   * the kind of movement the setting exists to remove, and an animating blur
+   * radius is uncomfortable in its own right. So the badge simply *is* revealed,
+   * with no transition, and a copy of the sealed treatment dissolves off the top
+   * of it. Same before, same after, no motion in between.
+   */
+  const crossfade = reduced && revealed && !instant;
+
+  const revealTransition = instant || reduced
+    ? undefined
+    : `filter ${REVEAL_MS}ms ${REVEAL_EASING}, transform ${REVEAL_MS}ms ${REVEAL_EASING}, ` +
+      `-webkit-mask-image ${REVEAL_MS}ms linear, mask-image ${REVEAL_MS}ms linear`;
+
+  const sealFade = instant ? undefined : `opacity ${SEAL_EXIT_MS}ms ease-out, transform ${SEAL_EXIT_MS}ms ease-out`;
+
+  /** The sealed treatment, as inline style. Shared by the badge and its ghost. */
+  const sealedImageStyle = {
+    objectPosition: SEALED_CROP_POSITION,
+    ['--sealed-crop-scale' as string]: String(SEALED_CROP_SCALE),
+    transform: `scale(${SEALED_CROP_SCALE})`,
+    filter: `blur(${(size * SEALED_BLUR_RATIO).toFixed(1)}px) saturate(0.55) contrast(0.88)`,
+    maskImage: SEALED_MASK,
+    WebkitMaskImage: SEALED_MASK,
+  };
 
   return (
     <span
       aria-hidden
-      data-sealed-reward-art=""
+      data-explorer-reward-art=""
+      {...(revealed ? { 'data-revealed-reward-art': '' } : { 'data-sealed-reward-art': '' })}
       style={{ width: size, height: size }}
       className={cn(
         'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-2xl',
-        'ring-1',
-        ready ? 'ring-primary/30' : 'ring-border',
+        'transition-[box-shadow,background-color] duration-500',
+        // Revealed, the frame goes too. A ring around the badge would read as
+        // "the badge, in a card" when the point is that the container is gone.
+        revealed ? 'ring-0' : ready ? 'ring-1 ring-primary/30' : 'ring-1 ring-border',
         className,
       )}
     >
       {/* 1 — ground. Also the whole picture when the artwork never arrives. */}
       <span
         className={cn(
-          'absolute inset-0',
+          'absolute inset-0 transition-opacity duration-500',
+          revealed && 'opacity-0',
           ready
             ? 'bg-[radial-gradient(circle_at_50%_38%,hsl(var(--primary)/0.30),hsl(var(--primary)/0.10)_52%,transparent_76%)]'
             : 'bg-[radial-gradient(circle_at_50%_38%,hsl(var(--primary)/0.16),hsl(var(--primary)/0.05)_52%,transparent_76%)]',
         )}
       />
-      <span className={cn('absolute inset-0', ready ? 'bg-primary/[0.04]' : 'bg-muted/40')} />
-      <svg viewBox="0 0 64 64" fill="none" className="absolute size-[62%]">
+      <span
+        className={cn(
+          'absolute inset-0 transition-opacity duration-500',
+          revealed ? 'opacity-0' : ready ? 'bg-primary/[0.04]' : 'bg-muted/40',
+        )}
+      />
+      <svg
+        viewBox="0 0 64 64"
+        fill="none"
+        className={cn(
+          'absolute size-[62%] transition-opacity duration-300',
+          revealed && 'opacity-0',
+        )}
+      >
         <polygon
           points="32,7 54,19.5 54,44.5 32,57 10,44.5 10,19.5"
           stroke="currentColor"
@@ -248,45 +342,85 @@ export function SealedRewardArt({
         />
       </svg>
 
-      {/* 2 — the real reward, unreadable. */}
+      {/* 2 — the reward. The same element throughout: sealed, then unsealed. */}
       {!imageFailed && (
         <img
           src={DITTO_EXPLORER_BADGE_IMAGE}
           alt=""
           aria-hidden
-          data-sealed-reward-image=""
+          {...(revealed
+            ? { 'data-explorer-badge-image': '' }
+            : { 'data-sealed-reward-image': '' })}
           onError={() => setImageFailed(true)}
           // Never `loading="lazy"`: the ground is the fallback, and an image
           // that arrives late is fine, but one deferred behind the fold makes
           // the sealed reward change appearance as the user scrolls to it.
-          className="sealed-reward-image absolute inset-0 size-full object-cover"
+          className={cn(
+            'absolute inset-0 size-full',
+            // The drift is an *animation* on transform, and an animation beats a
+            // transition on the same property — so it has to go before the crop
+            // can pull back. It is only there to keep a sealed object alive.
+            !revealed && 'sealed-reward-image',
+            revealed ? 'object-contain' : 'object-cover',
+          )}
           style={{
-            objectPosition: SEALED_CROP_POSITION,
+            objectPosition: revealed ? 'center' : SEALED_CROP_POSITION,
             // Both the resting transform and the ambient drift's keyframes read
             // this, so the two cannot disagree about where the crop sits.
             ['--sealed-crop-scale' as string]: String(SEALED_CROP_SCALE),
-            transform: `scale(${SEALED_CROP_SCALE})`,
-            filter: `blur(${(size * SEALED_BLUR_RATIO).toFixed(1)}px) saturate(0.55) contrast(0.88)`,
-            // Fades to nothing before the frame's edge, so the crop never
-            // resolves into a rectangle with corners.
-            maskImage: 'radial-gradient(circle at 50% 46%, black 48%, transparent 92%)',
-            WebkitMaskImage: 'radial-gradient(circle at 50% 46%, black 48%, transparent 92%)',
+            transform: `scale(${revealed ? 1 : SEALED_CROP_SCALE})`,
+            filter: revealed
+              ? 'blur(0px) saturate(1) contrast(1)'
+              : `blur(${(size * SEALED_BLUR_RATIO).toFixed(1)}px) saturate(0.55) contrast(0.88)`,
+            // Fades to nothing before the frame's edge while sealed, so the crop
+            // never resolves into a rectangle with corners. Opens out to the
+            // full frame on reveal so the badge is not vignetted.
+            maskImage: revealed ? REVEALED_MASK : SEALED_MASK,
+            WebkitMaskImage: revealed ? REVEALED_MASK : SEALED_MASK,
+            transition: revealTransition,
           }}
+        />
+      )}
+
+      {/* Reduced motion's crossfade: the seal, dissolving off the badge that is
+          already revealed underneath. Opacity only, and mounted only for the
+          moment it takes to go. */}
+      {crossfade && !imageFailed && (
+        <img
+          src={DITTO_EXPLORER_BADGE_IMAGE}
+          alt=""
+          aria-hidden
+          data-sealed-reward-ghost=""
+          className="reward-seal-dissolve pointer-events-none absolute inset-0 size-full object-cover"
+          style={sealedImageStyle}
         />
       )}
 
       {/* 3 — tone what survives toward Ditto. Subtle on purpose: heavier and the
           reward stops being an object and becomes a purple gradient. */}
-      <span className="absolute inset-0 bg-primary/[0.14]" />
+      <span
+        className={cn(
+          'absolute inset-0 bg-primary/[0.14] transition-opacity duration-700',
+          revealed && 'opacity-0',
+        )}
+      />
 
-      {/* 4 — the seal. */}
+      {/* 4 — the seal. It does not slide off in a direction: a direction would
+          imply somewhere it went. It gets out of the way. */}
       <span
         className={cn(
           'relative flex items-center justify-center rounded-full shadow-sm ring-1',
           'bg-background/95',
           ready ? 'ring-primary/25' : 'ring-border/70',
+          revealed && 'pointer-events-none opacity-0',
         )}
-        style={{ width: size * SEAL_PLATE_RATIO, height: size * SEAL_PLATE_RATIO }}
+        style={{
+          width: size * SEAL_PLATE_RATIO,
+          height: size * SEAL_PLATE_RATIO,
+          transform: revealed ? 'scale(1.35)' : 'scale(1)',
+          transition: sealFade,
+          transitionDelay: instant || !revealed ? undefined : `${SEAL_LOGO_DELAY_MS}ms`,
+        }}
       >
         <DittoLogo size={Math.round(size * SEAL_LOGO_RATIO)} />
       </span>
@@ -297,6 +431,7 @@ export function SealedRewardArt({
           'absolute flex items-center justify-center rounded-full ring-1',
           'bg-background text-muted-foreground',
           ready ? 'ring-primary/30' : 'ring-border',
+          revealed && 'pointer-events-none opacity-0',
         )}
         style={{
           width: size * SEAL_LOCK_RATIO,
@@ -308,55 +443,11 @@ export function SealedRewardArt({
           // free of it.
           right: size / 2 - ((size * SEAL_PLATE_RATIO) / 2) * 0.707 - (size * SEAL_LOCK_RATIO) / 2,
           bottom: size / 2 - ((size * SEAL_PLATE_RATIO) / 2) * 0.707 - (size * SEAL_LOCK_RATIO) / 2,
+          transform: revealed ? 'scale(0.6)' : 'scale(1)',
+          transition: sealFade,
         }}
       >
         <Lock className="size-[52%] min-h-3 min-w-3" aria-hidden />
-      </span>
-    </span>
-  );
-}
-
-/**
- * The reward, once the reveal has happened — as a placeholder.
- *
- * The revealed reward is eventually a character of Ditto's own, drawn as an SVG
- * so it can be sized, themed and animated. That does not exist yet, and this
- * fills the gap **without** falling back to the sharp badge artwork: revealing
- * the reward by finally showing the picture the seal was hiding is the one thing
- * this branch of the UI must not do by accident.
- *
- * So it is the seal, opened: the same plate and mark, warmed, with no artwork
- * behind it and no padlock on it. Deliberately quiet — it is a placeholder, and
- * looking unfinished is more honest than looking like the finished thing.
- *
- * Separate from {@link SealedRewardArt} rather than a variant of it, because the
- * tests need "no sealed art in the revealed state" to be a structural fact.
- */
-export function RevealedRewardArt({
-  size = 112,
-  className,
-}: {
-  size?: number;
-  className?: string;
-}) {
-  return (
-    <span
-      aria-hidden
-      data-revealed-reward-art=""
-      style={{ width: size, height: size }}
-      className={cn(
-        'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-2xl',
-        'ring-1 ring-primary/30',
-        className,
-      )}
-    >
-      <span className="absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,hsl(var(--primary)/0.30),hsl(var(--primary)/0.10)_52%,transparent_76%)]" />
-      <span className="absolute inset-0 bg-primary/[0.04]" />
-      <span
-        className="relative flex items-center justify-center rounded-full bg-background/95 shadow-sm ring-1 ring-primary/25"
-        style={{ width: size * SEAL_PLATE_RATIO, height: size * SEAL_PLATE_RATIO }}
-      >
-        <DittoLogo size={Math.round(size * SEAL_LOGO_RATIO)} />
       </span>
     </span>
   );

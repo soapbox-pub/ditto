@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 
-import { RotateCcw, Sparkles } from 'lucide-react';
+import { Award, RotateCcw, Sparkles } from 'lucide-react';
 
-import { SealedRewardArt } from '@/components/MissionArt';
+import { ExplorerRewardArt } from '@/components/MissionArt';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogPortal, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 /**
  * How big the sealed reward is on the ceremony stage.
  *
- * A number rather than a class because `SealedRewardArt` derives its blur from
+ * A number rather than a class because `ExplorerRewardArt` derives its blur from
  * its rendered size, and the whole point of that is that the treatment cannot
  * weaken as the reward grows. Recomputed on resize and orientation change, so a
  * phone turned sideways mid-ceremony re-lays-out rather than overflowing.
@@ -114,7 +114,11 @@ export function RewardCeremony({
   phase,
   slow = false,
   failures = 0,
+  skipped = false,
+  rewardRevealed = false,
   onReveal,
+  onSkipReveal,
+  onOpenBadges,
   sourceRect,
   sourceElement,
   onSettle,
@@ -126,8 +130,20 @@ export function RewardCeremony({
   slow?: boolean;
   /** Consecutive failures this ceremony has seen. Copy only. */
   failures?: number;
-  /** The ceremonial act: submit the claim. */
+  /** Whether the reveal was skipped, so it should land without easing. */
+  skipped?: boolean;
+  /**
+   * Whether the reward is revealed in *persisted* state. Keeps the badge on
+   * screen while the stage travels back: `revealing` and `settled` both end when
+   * closing begins, and without this the reward re-sealed itself on the way out.
+   */
+  rewardRevealed?: boolean;
+  /** The ceremonial act: submit the claim, then reveal. */
   onReveal: () => void;
+  /** Jump to the end of the reveal. Never undoes it. */
+  onSkipReveal: () => void;
+  /** Leave the ceremony, and the badges destination. */
+  onOpenBadges: () => void;
   /** Where the reward was when it was clicked. A ref, read at animation time. */
   sourceRect: { current: DOMRect | null };
   /** The reward element, re-measured on the way back. May have unmounted. */
@@ -235,16 +251,18 @@ export function RewardCeremony({
   const composed = phase !== 'opening' && phase !== 'closing';
   const acting = phase === 'acting';
   const failed = phase === 'failed';
-  const submitted = phase === 'submitted';
+  const revealing = phase === 'revealing';
+  const settled = phase === 'settled';
+  const revealed = revealing || settled || rewardRevealed;
 
-  const title = submitted
-    ? 'Your claim is in.'
+  const title = revealed
+    ? 'Ditto Explorer'
     : failed
       ? 'That didn\'t go through.'
       : 'Your reward is waiting.';
 
-  const body = submitted
-    ? 'Your badge will appear in Badges once it has been issued.'
+  const body = revealed
+    ? 'Reward revealed. Your badge claim was submitted, and the badge will appear in Badges once it has been issued.'
     : failed
       ? failures > 1
         ? 'Still not going through. Your journey is complete either way, and the reward is here whenever this works.'
@@ -304,7 +322,12 @@ export function RewardCeremony({
                   : acting && 'reward-seal-press',
               )}
             >
-              <SealedRewardArt size={artSize} ready />
+              <ExplorerRewardArt
+                size={artSize}
+                ready
+                revealed={revealed}
+                instant={skipped}
+              />
             </div>
           </div>
 
@@ -321,7 +344,7 @@ export function RewardCeremony({
             )}
           >
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Special reward
+              {revealed ? 'Your reward' : 'Special reward'}
             </p>
             <DialogTitle className="text-xl font-bold leading-tight text-foreground sm:text-2xl">
               {title}
@@ -348,7 +371,31 @@ export function RewardCeremony({
               >
                 {slow ? 'Still sending. Your signer may be waiting for you.' : 'Sending your claim…'}
               </p>
-            ) : submitted ? null : (
+            ) : settled ? (
+              <div className="flex w-full max-w-64 flex-col items-center gap-2">
+                <Button
+                  type="button"
+                  size="lg"
+                  className="w-full gap-1.5 rounded-full font-semibold"
+                  onClick={onOpenBadges}
+                >
+                  <Award className="size-4" aria-hidden />
+                  Open Badges
+                </Button>
+              </div>
+            ) : revealing ? (
+              /* The only control while the badge is resolving. Skipping ends the
+                 animation, not the reward: the reveal is already persisted. */
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="rounded-full px-5 text-muted-foreground hover:text-foreground"
+                onClick={onSkipReveal}
+              >
+                Skip
+              </Button>
+            ) : (
               <>
                 <Button
                   type="button"
@@ -390,7 +437,7 @@ export function RewardCeremony({
                 composed ? 'opacity-100' : 'opacity-0',
               )}
             >
-              {submitted ? 'Done' : 'Close'}
+              {revealed ? 'Done' : 'Close'}
             </Button>
           </DialogPrimitive.Close>
         </DialogPrimitive.Content>
