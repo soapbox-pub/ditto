@@ -14,6 +14,47 @@
  * State is persisted in the user's private, cross-device encrypted settings
  * (NIP-78 kind 30078, see `useEncryptedSettings`) keyed by pubkey — never in
  * localStorage and never in the public kind-0 profile.
+ *
+ * ## Where this feature touches the rest of the app
+ *
+ * This module is the feature's root, so the map lives here. Everything under
+ * "owned" exists only for this journey and can be deleted outright; everything
+ * under "integration" is a line or two in a file that has its own reasons to
+ * exist. Nothing else in the app knows this feature is here.
+ *
+ * **Owned** (delete): `postOnboardingGuide` · `missionAutoWrites` ·
+ * `missionTasks` · `badgeClaim` · `usePostOnboardingGuide` · `useMissionEngine` ·
+ * `useMissionSurfaceState` · `useMissionCelebration` · `useStartMissionTask` ·
+ * `useInteractMissionFlow` · `useCustomizeMissionFlow` · `useBadgeClaim` ·
+ * `useRewardCeremony` · `Mission*` components · `RewardCeremony` ·
+ * `DittoExplorer*` · `InteractMissionTip` · `MissionsPage` · `dev/missionHarness`.
+ *
+ * **Integration** (revert a few lines):
+ *  1. `AppRouter` — the `/missions` route.
+ *  2. `sidebarItems` — the Missions nav entry.
+ *  3. `MainLayout` — mounts `MissionEngine`.
+ *  4. `WidgetSidebar` — renders `MissionsWidget`, and suppresses it on `/missions`.
+ *  5. `Feed` / `NotificationsPage` / `SearchPage` / `TrendsPage` — render
+ *     `MobileMissionTeaser`.
+ *  6. `ProfileSettings` / `ThemesPage` — render `MissionHelperCard` and call
+ *     `useCustomizeMissionFlow`, which is how the customize task completes.
+ *  7. `Index` — renders `InteractMissionTip` and reads `isMissionComposeState` /
+ *     `isQualifyingStarterPost` for the post-small task's compose flow.
+ *  8. `useEncryptedSettings` — the `postOnboardingGuide` field, and
+ *     `schemas.ts` — `PostOnboardingGuideStateSchema`. Dropping the field leaves
+ *     stale data in users' settings, which the loose schema simply ignores.
+ *
+ * **Shared, keep** (used by this feature, owned by nobody): `lib/reducedMotion` ·
+ * `lib/sharedElementTravel` · `lib/postInteraction` · the Dialog primitives ·
+ * `useNostrPublish` · `useEncryptedSettings` itself.
+ *
+ * **Adjacent, not owned**: the first-arrival experience is a *signup*
+ * transition. It introduces this journey and hands its card to
+ * `MissionsWidget` / `MobileMissionTeaser` via `ExplorerTransitionTarget`, but
+ * it reads no mission state and would need only a new destination — or removing
+ * in its own right. The general `/badges` feature is likewise independent: this
+ * feature publishes a *claim* (kind 30637) and never awards, accepts or equips
+ * anything.
  */
 
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';

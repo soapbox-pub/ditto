@@ -4,9 +4,11 @@ import { useRef, type ReactNode } from 'react';
 
 import {
   CROSSFADE_MS,
-  travelDurationFor,
   useExplorerArrivalTransition,
 } from './useExplorerArrivalTransition';
+// The movement itself is shared with the reward ceremony and lives in a neutral
+// module; the hook around it is the arrival's own.
+import { travelDurationFor } from '@/lib/sharedElementTravel';
 import { ExplorerArrivalProvider } from '@/components/ExplorerArrivalProvider';
 import { ExplorerArrivalContext } from '@/contexts/ExplorerArrivalContext';
 

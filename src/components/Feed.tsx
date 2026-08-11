@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
 import { MobileMissionTeaser } from '@/components/MobileMissionTeaser';
-import { missionDevActive } from '@/dev/missionHarness';
 import { LandingHero } from '@/components/LandingHero';
 import { LazyFeedItem } from '@/components/LazyFeedItem';
 import { NoteCard } from '@/components/NoteCard';
@@ -458,7 +457,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
               fold; on desktop the sidebar widget now carries the mission on
               every page, including this one. Tapping opens /missions, which is
               where the introduction and full detail live. */}
-          {(user || missionDevActive()) && !kinds && <MobileMissionTeaser />}
+          {!kinds && <MobileMissionTeaser />}
           {feedItems.length > 0 ? (
             <div>
               {feedItems.map((item: FeedItem, index: number) => (

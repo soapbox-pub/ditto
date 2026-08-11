@@ -42,11 +42,11 @@ import { cn } from '@/lib/utils';
  *
  * ### Two things this deliberately does not say
  *
- * It does not show the reward. The badge artwork is a picture of what the user
- * has not earned yet, so every state here uses the abstract seal from
- * `MissionArt`. Opening it belongs to the reveal experience, which does not
- * exist yet, so even `ready` shows a sealed-but-openable token rather than
- * pretending the reveal already happened.
+ * It does not show the reward before it has been revealed. The badge artwork is
+ * a picture of what the user has not earned yet, so every state up to and
+ * including `claimed` shows it sealed. Taking the seal off is the ceremony's
+ * job, and `revealedAt` is what says it happened; from there this panel shows
+ * the badge plainly, forever.
  *
  * ### One way to claim
  *

@@ -6,10 +6,7 @@ import { Award, RotateCcw, Sparkles } from 'lucide-react';
 import { ExplorerRewardArt } from '@/components/MissionArt';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogPortal, DialogTitle } from '@/components/ui/dialog';
-import {
-  easeTravel,
-  travelDurationFor,
-} from '@/hooks/useExplorerArrivalTransition';
+import { easeTravel, travelDurationFor } from '@/lib/sharedElementTravel';
 import type { RewardCeremonyPhase } from '@/hooks/useRewardCeremony';
 import { prefersReducedMotion } from '@/lib/reducedMotion';
 import { cn } from '@/lib/utils';
@@ -80,10 +77,14 @@ function isUsableRect(rect: DOMRect | null): rect is DOMRect {
 /**
  * The stage the reward reveal will eventually happen on.
  *
- * Today it does exactly one thing: it takes the sealed reward the user clicked,
- * carries it to the middle of a quietened screen, and waits. There is no claim,
- * no reveal, no astronaut, and nothing here writes a single byte of mission
- * state. It is the room, built and validated before anything is staged in it.
+ * It takes the sealed reward the user clicked, carries it to the middle of a
+ * quietened screen, waits for them, publishes the badge claim on their gesture,
+ * and takes the seal off the reward the moment that claim lands.
+ *
+ * The claim *policy* is `useBadgeClaim`'s and the phases are
+ * `useRewardCeremony`'s; this owns the stage. The one thing worth remembering
+ * here: `revealedAt` is persisted before the choreography starts, so every way
+ * out of it — Skip, Escape, Back, a reload — lands on the same revealed reward.
  *
  * ### What travels, and what does not
  *
@@ -100,8 +101,8 @@ function isUsableRect(rect: DOMRect | null): rect is DOMRect {
  * `useExplorerArrivalTransition` is bound to `ExplorerArrivalContext`'s
  * claim/release ownership of a persistent surface and to a once-per-account
  * lifecycle; reusing it would couple two unrelated state machines for the sake
- * of an animation. What *is* reused is the part that is genuinely shared and
- * genuinely pure: `easeTravel` and `travelDurationFor`. The curve and the
+ * of an animation. What *is* shared is the movement itself — `easeTravel` and
+ * `travelDurationFor`, in `lib/sharedElementTravel`. The curve and the
  * distance-derived duration are the reason a short mobile hop and a long desktop
  * diagonal both feel right, and restating either here would let them drift.
  *

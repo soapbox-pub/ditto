@@ -28,8 +28,7 @@ import { cn } from '@/lib/utils';
  *
  * ### When the badge may be shown
  *
- * The rule used to be "no mission surface ever renders the badge artwork". It is
- * now precise, and it is the one thing the structural tests pin:
+ * One rule, and the structural tests pin it:
  *
  *  - **Before `revealedAt`** — the artwork may only appear inside the sealed
  *    treatment: cropped, blurred, desaturated, behind the mark and the padlock.

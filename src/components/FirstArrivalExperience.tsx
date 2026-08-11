@@ -76,7 +76,8 @@ const SIGNALS: ReadonlyArray<{ x: string; y: string; size: number; d: string }> 
  * destination.
  *
  * Deliberately not an egg, a hatching, or a birth — this is an arrival into a
- * place that already exists. The astronaut behind the lock stays unrevealed.
+ * place that already exists. The reward behind the seal stays unrevealed: that
+ * belongs to the journey, and to the ceremony at the end of it.
  */
 export function FirstArrivalExperience() {
   const {
