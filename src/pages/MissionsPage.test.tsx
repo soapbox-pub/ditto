@@ -631,6 +631,39 @@ describe('/missions — the journey mark', () => {
   });
 });
 
+/**
+ * A reviewer opening `/missions` on a dev build must see what a user sees.
+ *
+ * The scenario switcher and the journey reset used to live at the bottom of
+ * this page. They still exist — at `/dev` — but nothing of ours belongs in the
+ * frame of the thing being reviewed.
+ */
+describe('/missions — no development controls', () => {
+  it('carries no scenario switcher, in any state', () => {
+    for (const overrides of [
+      {},
+      { paths: { ...ALL_DONE }, status: 'completed' as const },
+      { status: 'skipped' as const, skippedAt: 3_000 },
+    ]) {
+      seed(overrides as Partial<PostOnboardingGuideState>);
+      const { container, unmount } = render(<MissionsPage />);
+
+      expect(container.querySelector('[data-mission-dev-panel]')).toBeNull();
+      expect(screen.queryByText(/mission harness/i)).toBeNull();
+      unmount();
+    }
+  });
+
+  it('offers no journey reset', () => {
+    // `import.meta.env.DEV` is true under vitest, so this would have rendered.
+    seed({ paths: { ...ALL_DONE }, status: 'completed' });
+    render(<MissionsPage />);
+
+    expect(screen.queryByRole('button', { name: /reset journey/i })).toBeNull();
+    expect(screen.queryByText(/dev only/i)).toBeNull();
+  });
+});
+
 describe('/missions — layout', () => {
   it('gives the missions and the reward their own regions, missions wider', () => {
     seed({ paths: { ...ALL_DONE, interact: 'not_started' } });

@@ -32,7 +32,6 @@ export function MissionJourney({
   celebrating = false,
   missions,
   reward,
-  footer,
 }: {
   /** The journey's own name, as a quiet label above the title. */
   eyebrow: string;
@@ -59,8 +58,6 @@ export function MissionJourney({
   missions: ReactNode;
   /** The journey's reward, when it has one. */
   reward?: ReactNode;
-  /** Anything that belongs under both columns (development controls, notes). */
-  footer?: ReactNode;
 }) {
   return (
     <section aria-label={eyebrow} className="space-y-5">
@@ -125,8 +122,6 @@ export function MissionJourney({
         <div className="min-w-0">{missions}</div>
         {reward && <div className="min-w-0">{reward}</div>}
       </div>
-
-      {footer}
     </section>
   );
 }

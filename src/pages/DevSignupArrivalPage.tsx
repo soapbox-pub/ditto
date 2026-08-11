@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useNostrLogin } from '@nostrify/react/login';
 
 import { isLocalhostDev } from '@/dev/isLocalhostDev';
@@ -182,7 +182,10 @@ export function DevSignupArrivalPage() {
   return (
     <div className="mx-auto max-w-3xl p-6 font-mono text-sm">
       <header className="mb-6">
-        <p className="text-xs font-bold uppercase tracking-widest text-amber-600">
+        <Link to="/dev" className="text-xs text-muted-foreground hover:underline">
+          ← Developer Playground
+        </Link>
+        <p className="mt-1 text-xs font-bold uppercase tracking-widest text-amber-600">
           Developer tool · localhost only
         </p>
         <h1 className="text-xl font-bold">Signup → arrival handoff</h1>

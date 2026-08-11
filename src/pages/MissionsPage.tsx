@@ -1,11 +1,10 @@
 import { FormattedMessage } from 'react-intl';
-import { Play, RotateCcw, Target } from 'lucide-react';
+import { Play, Target } from 'lucide-react';
 
 import { DittoExplorerIntroduction } from '@/components/DittoExplorerIntroduction';
 import { missionDevActive } from '@/dev/missionHarness';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { ExplorerJourneyMark } from '@/components/MissionArt';
-import { MissionDevPanel } from '@/components/MissionDevPanel';
 import { MissionJourney } from '@/components/MissionJourney';
 import { MissionReward } from '@/components/MissionReward';
 import { MissionTaskList } from '@/components/MissionTaskList';
@@ -43,6 +42,16 @@ import {
  *
  * It still reuses the same state, missions and reward panel as every other
  * surface, so no copy of the journey's rules lives here.
+ *
+ * ### No development controls
+ *
+ * A scenario switcher and a journey reset used to sit at the bottom of this
+ * page under a dev-build check. They were useful and they are not gone — they
+ * live at `/dev`, which is the one entrance to the first-session harnesses. The
+ * reason to move them is that a reviewer opening `/missions` on a dev build
+ * should be looking at exactly what a user sees, with nothing of ours in the
+ * frame. The harness *seams* remain: `missionDevActive()` below still lets the
+ * page render signed-out, which is what makes the scenarios inspectable at all.
  */
 
 /**
@@ -106,34 +115,9 @@ export function MissionsPage() {
     canShowDetail,
     nextPath,
     resumeGuide,
-    resetGuideDev,
     celebrating,
     ceremonyOpenable,
   } = useMissionSurfaceState();
-
-  // DEV-only reset so the whole journey and claim flow can be re-run without a
-  // fresh account. `import.meta.env.DEV` is statically false in production, so
-  // this renders nothing there; `resetGuideDev` is a no-op in prod anyway.
-  const devReset = import.meta.env.DEV ? (
-    <>
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="gap-1.5 text-muted-foreground hover:text-foreground"
-          onClick={() => void resetGuideDev()}
-          title="DEV only: reset this account's first journey"
-        >
-          <RotateCcw className="size-3.5" aria-hidden />
-          Reset journey
-        </Button>
-      </div>
-      {/* Localhost-only scenario switcher. Renders nothing unless the harness is
-          already driving this page load. */}
-      <MissionDevPanel />
-    </>
-  ) : null;
 
   return (
     <main>
@@ -268,7 +252,6 @@ export function MissionsPage() {
                   />
                 ) : undefined
               }
-              footer={devReset}
             />
           </>
         )}

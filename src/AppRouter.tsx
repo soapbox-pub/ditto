@@ -14,11 +14,14 @@ import { DevSignupArrivalReturn } from "@/components/DevSignupArrivalReturn";
 import { isLocalhostDev } from "@/dev/isLocalhostDev";
 
 /**
- * Localhost-only developer tool, lazily imported so it lives in its own chunk.
- * The route below is not registered when `isLocalhostDev()` is false, so no
- * production navigation can reach it and the chunk is never fetched — it is
- * still emitted by the build, just unreachable.
+ * Localhost-only developer tools, lazily imported so they live in their own
+ * chunks. The routes below are not registered when `isLocalhostDev()` is false,
+ * so no production navigation can reach them and the chunks are never fetched —
+ * they are still emitted by the build, just unreachable.
  */
+const DevPlaygroundPage = lazy(() =>
+  import("@/pages/DevPlaygroundPage").then((m) => ({ default: m.DevPlaygroundPage })),
+);
 const DevSignupArrivalPage = lazy(() =>
   import("@/pages/DevSignupArrivalPage").then((m) => ({ default: m.DevSignupArrivalPage })),
 );
@@ -155,18 +158,31 @@ export function AppRouter() {
           {/* Auto-follow deep link: fullscreen immersive (no sidebars/nav) */}
           <Route path="/follow/:npub" element={<FollowPage />} />
 
-          {/* Localhost-only developer tool for the signup -> arrival handoff.
-              `isLocalhostDev()` is false in production builds, so the route is
-              not registered there and its chunk is never requested. */}
+          {/* Localhost-only developer area: `/dev` is the one entrance to the
+              first-session harnesses, and `/dev/signup-arrival` is the richer
+              tool it links into. `isLocalhostDev()` is false in production
+              builds, so neither route is registered there — `/dev` is an
+              ordinary unknown path that falls through to the 404 — and their
+              chunks are never requested. */}
           {isLocalhostDev() && (
-            <Route
-              path="/dev/signup-arrival"
-              element={
-                <Suspense fallback={null}>
-                  <DevSignupArrivalPage />
-                </Suspense>
-              }
-            />
+            <>
+              <Route
+                path="/dev"
+                element={
+                  <Suspense fallback={null}>
+                    <DevPlaygroundPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/dev/signup-arrival"
+                element={
+                  <Suspense fallback={null}>
+                    <DevSignupArrivalPage />
+                  </Suspense>
+                }
+              />
+            </>
           )}
 
           {/* All routes share the persistent MainLayout (sidebar + nav) */}
