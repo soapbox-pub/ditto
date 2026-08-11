@@ -8,6 +8,7 @@ import {
   CEREMONY_REVEAL_MS,
   CEREMONY_SLOW_MS,
 } from '@/hooks/useRewardCeremony';
+import { BADGES_TAB_PARAM } from '@/lib/badgesTabs';
 import {
   areAllPathsCompleted,
   badgeRewardView,
@@ -842,6 +843,122 @@ describe('reward ceremony — history hygiene', () => {
     // again on the way back out.
     expect(screen.getByTestId('location').getAttribute('data-hash')).toBe('#reward');
     expect(screen.getByTestId('location').getAttribute('data-search')).toBe('?tab=x');
+  });
+});
+
+/**
+ * "Open Badges" means *take me to my badges*.
+ *
+ * It used to navigate to `/badges` bare, which leaves the tab to a session
+ * preference that defaults to Follows — so the last step of the journey landed
+ * on other people's badges. Both actions now name the tab in the URL, and both
+ * name the *same* one, which is why they are asserted together.
+ *
+ * These assert the real navigation through a real router rather than a spy on
+ * `navigate`: a spy would happily accept a destination the Badges page cannot
+ * read. `badgesTabs.test.ts` closes the other half — that this URL parses back
+ * to the My Badges tab.
+ */
+describe('reward ceremony — where Open Badges goes', () => {
+  /** A router with somewhere to actually arrive, and a probe that outlives it. */
+  function renderWithBadgesRoute(celebrating = false) {
+    const openable = state
+      ? isCeremonyOwed(state) &&
+        rewardPresentation(badgeRewardView(state), celebrating) !== 'settling'
+      : false;
+
+    return render(
+      <MemoryRouter initialEntries={['/missions']}>
+        <LocationProbe />
+        <Routes>
+          <Route
+            path="/missions"
+            element={
+              <MissionReward
+                completedCount={4}
+                totalCount={4}
+                celebrating={celebrating}
+                ceremonyOpenable={openable}
+              />
+            }
+          />
+          <Route path="/badges" element={<div data-testid="badges-page" />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
+
+  const location = () => screen.getByTestId('location');
+
+  it('takes the settled ceremony to the My Badges tab', async () => {
+    ready();
+    claim.mockResolvedValue({ status: 'claimed', claimEventId: 'e'.repeat(64) });
+    renderWithBadgesRoute();
+
+    fireEvent.click(openButton()!);
+    await waitFor(() => expect(stage()).not.toBeNull());
+    fireEvent.click(revealButton()!);
+    await waitFor(() => expect(stage()).toHaveAttribute('data-phase', 'settled'), {
+      timeout: CEREMONY_REVEAL_MS + 3_000,
+    });
+
+    fireEvent.click(
+      within(stage() as HTMLElement).getByRole('button', { name: /open badges/i }),
+    );
+
+    await waitFor(() => expect(location().getAttribute('data-pathname')).toBe('/badges'));
+    expect(location().getAttribute('data-search')).toBe(`?${BADGES_TAB_PARAM}=mine`);
+    expect(await screen.findByTestId('badges-page')).toBeInTheDocument();
+
+    // …and *stays* there. The stage's history entry is handed back before the
+    // navigation, not left underneath it: the panel's unmount used to pop that
+    // entry and drop the user straight back onto the journey, so Badges only
+    // flashed past. This is the assertion that catches that returning.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(location().getAttribute('data-pathname')).toBe('/badges');
+    expect(location().getAttribute('data-search')).toBe(`?${BADGES_TAB_PARAM}=mine`);
+  });
+
+  it('takes the revealed reward panel to the same place', async () => {
+    // The panel's own action, for someone returning to /missions afterwards.
+    seed({
+      paths: { ...ALL_DONE },
+      status: 'completed',
+      badgeClaim: {
+        badge: 'ditto-explorer',
+        status: 'claimed',
+        claimEventId: 'e'.repeat(64),
+        claimedAt: 1,
+        revealedAt: 2,
+      },
+    });
+    renderWithBadgesRoute();
+
+    fireEvent.click(screen.getByRole('button', { name: /open badges/i }));
+
+    await waitFor(() => expect(location().getAttribute('data-pathname')).toBe('/badges'));
+    expect(location().getAttribute('data-search')).toBe(`?${BADGES_TAB_PARAM}=mine`);
+  });
+
+  it('is an ordinary router navigation, so Back returns to the journey', async () => {
+    seed({
+      paths: { ...ALL_DONE },
+      status: 'completed',
+      badgeClaim: {
+        badge: 'ditto-explorer',
+        status: 'claimed',
+        claimEventId: 'e'.repeat(64),
+        claimedAt: 1,
+        revealedAt: 2,
+      },
+    });
+    renderWithBadgesRoute();
+
+    fireEvent.click(screen.getByRole('button', { name: /open badges/i }));
+    await waitFor(() => expect(location().getAttribute('data-pathname')).toBe('/badges'));
+
+    fireEvent.click(screen.getByRole('button', { name: /browser back/i }));
+    await waitFor(() => expect(location().getAttribute('data-pathname')).toBe('/missions'));
   });
 });
 

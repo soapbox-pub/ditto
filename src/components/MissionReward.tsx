@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Award, Check, Lock, Sparkles } from 'lucide-react';
 
 import { missionDevCeremonyEntry } from '@/dev/missionHarness';
@@ -8,6 +7,7 @@ import { RewardCeremony } from '@/components/RewardCeremony';
 import { Button } from '@/components/ui/button';
 import { useBadgeClaim } from '@/hooks/useBadgeClaim';
 import { useRewardCeremony, type RewardCeremonyPhase } from '@/hooks/useRewardCeremony';
+import { DITTO_EXPLORER_BADGES_DESTINATION } from '@/lib/badgesTabs';
 import { rewardPresentation } from '@/lib/postOnboardingGuide';
 import { cn } from '@/lib/utils';
 
@@ -113,7 +113,6 @@ export function MissionReward({
    */
   celebrating?: boolean;
 }) {
-  const navigate = useNavigate();
   const { claim, markRewardRevealed, rewardView, isClaimed } = useBadgeClaim();
   const ceremony = useRewardCeremony({ claimSubmitted: isClaimed });
   const artRef = useRef<HTMLDivElement | null>(null);
@@ -252,7 +251,7 @@ export function MissionReward({
             variant="outline"
             size="sm"
             className="w-full max-w-56 gap-1.5 rounded-full"
-            onClick={() => navigate('/badges')}
+            onClick={() => ceremony.leave(DITTO_EXPLORER_BADGES_DESTINATION)}
           >
             <Award className="size-4" aria-hidden />
             Open Badges
@@ -294,7 +293,11 @@ export function MissionReward({
           void ceremony.reveal({ submit: claim, markRevealed: markRewardRevealed })
         }
         onSkipReveal={ceremony.skipReveal}
-        onOpenBadges={() => navigate('/badges')}
+        // Both "Open Badges" actions share one destination, so the panel and
+        // the ceremony cannot drift apart about where they lead — and both go
+        // through `leave`, which gives the ceremony's history entry back before
+        // navigating so Back returns to the journey rather than bouncing off it.
+        onOpenBadges={() => ceremony.leave(DITTO_EXPLORER_BADGES_DESTINATION)}
         sourceRect={ceremony.sourceRect}
         sourceElement={ceremony.sourceElement}
         onSettle={ceremony.settle}

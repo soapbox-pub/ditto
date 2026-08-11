@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { AwardBadgeDialog } from "@/components/AwardBadgeDialog";
 import { LoginArea } from "@/components/auth/LoginArea";
 import { BadgeContent } from "@/components/BadgeContent";
@@ -79,11 +79,16 @@ import { useReorderBadges } from "@/hooks/useReorderBadges";
 import { useToast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { BADGE_AWARD_KIND, BADGE_DEFINITION_KIND, getBadgeATag } from "@/lib/badgeUtils";
+import {
+  BADGES_TABS,
+  BADGES_TAB_PARAM,
+  type BadgesTab,
+  parseBadgesTab,
+  resolveBadgesTab,
+} from "@/lib/badgesTabs";
 import { deduplicateEvents } from "@/lib/deduplicateEvents";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
-
-type BadgesTab = "mine" | "follows";
 
 interface ParsedBadge {
   event: NostrEvent;
@@ -139,10 +144,34 @@ export function BadgesPage() {
     hasSubHeader: !!user,
   });
 
-  const [activeTab, setActiveTab] = useFeedTab<BadgesTab>("badges", [
-    "mine",
-    "follows",
-  ]);
+  // The tab is a session preference, except when a link names one. `?tab=mine`
+  // is how "Open Badges" at the end of the Ditto Explorer reward flow says
+  // *take me to my badges* rather than to whichever tab this session was last
+  // on. Same shape `/search` uses. With no parameter, nothing about the default
+  // changes.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [storedTab, setStoredTab] = useFeedTab<BadgesTab>("badges", BADGES_TABS);
+  const requestedTab = parseBadgesTab(searchParams.get(BADGES_TAB_PARAM));
+  const activeTab = resolveBadgesTab(requestedTab, storedTab);
+
+  // Choosing a tab by hand has to beat the URL, or the tabs would look stuck on
+  // a page reached by such a link. Dropping the parameter hands control back to
+  // the stored preference, and `replace` keeps it out of the history stack.
+  const setActiveTab = useCallback(
+    (tab: BadgesTab) => {
+      setStoredTab(tab);
+      if (!requestedTab) return;
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete(BADGES_TAB_PARAM);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [requestedTab, setSearchParams, setStoredTab],
+  );
 
   useSeoMeta({
     title: `Badges | ${config.appName}`,

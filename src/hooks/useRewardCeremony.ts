@@ -322,6 +322,35 @@ export function useRewardCeremony({
     }
   }, [navigate]);
 
+  /**
+   * Leave the ceremony for somewhere else in the app.
+   *
+   * Navigating straight out pushes the destination *on top of* the entry the
+   * ceremony added for Back. The unmount cleanup below then finds itself still
+   * holding that entry — the location it last rendered with is the marked one,
+   * because a component being removed does not render again — and pops it,
+   * dropping the user back on the journey they just asked to leave. The
+   * destination flashed past and the journey came back.
+   *
+   * So the entry is handed back first, and the destination pushed onto the
+   * stack the ceremony originally found. Back then returns to the journey once,
+   * which is what a person expects after following a link out of a dialog.
+   */
+  const leave = useCallback(
+    (to: string) => {
+      if (!pushedRef.current) {
+        navigate(to);
+        return;
+      }
+      pushedRef.current = false;
+      navigate(-1);
+      // After the pop has landed. Issued together, the router applies them in
+      // one pass and the ceremony's entry survives underneath the destination.
+      queueMicrotask(() => navigate(to));
+    },
+    [navigate],
+  );
+
   // A claim that resolved somewhere else (another tab, or a publish that landed
   // after `in-flight` was reported) finishes the act here rather than leaving the
   // stage narrating a send that is already over.
@@ -416,6 +445,8 @@ export function useRewardCeremony({
     requestClose,
     settle,
     finishClose,
+    /** Go somewhere else, handing the ceremony's history entry back on the way. */
+    leave,
     /** The reward's on-screen box at the moment it was clicked, if measurable. */
     sourceRect: sourceRectRef,
     /** The reward element, for re-measuring on the way back. */
