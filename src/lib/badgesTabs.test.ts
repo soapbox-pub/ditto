@@ -4,7 +4,6 @@ import {
   BADGES_TABS,
   BADGES_TAB_PARAM,
   DITTO_EXPLORER_BADGES_DESTINATION,
-  badgesPath,
   parseBadgesTab,
   resolveBadgesTab,
 } from './badgesTabs';
@@ -33,7 +32,7 @@ describe('badges tabs', () => {
   it('travels as the stable identifier, never the visible label', () => {
     // "My Badges" is copy and may be reworded; `mine` is the contract.
     expect(DITTO_EXPLORER_BADGES_DESTINATION).not.toMatch(/my.?badges/i);
-    expect(badgesPath('follows')).toBe(`/badges?${BADGES_TAB_PARAM}=follows`);
+    expect(DITTO_EXPLORER_BADGES_DESTINATION).toBe(`/badges?${BADGES_TAB_PARAM}=mine`);
   });
 
   it('beats the session preference, which is what the bug was', () => {

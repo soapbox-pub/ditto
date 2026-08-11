@@ -537,7 +537,7 @@ After resolution (assuming `$follows` = `["pk1", "pk2"]`):
 
 Addressable event by which a user **publicly requests to be awarded a NIP-58 badge** ([NIP-58](https://github.com/nostr-protocol/nips/blob/master/58.md) — badge definitions are kind 30009, awards kind 8). It is the public bridge for badges whose award criteria are computed from **private** data the issuer cannot see.
 
-Ditto's first use is the **Ditto Explorer** badge, granted for completing the post-onboarding "first steps" guide. That guide's progress lives in the user's private, NIP-44-encrypted NIP-78 settings (kind 30078), so the badge-award server has no way to observe completion. Instead, when the user finishes the guide and explicitly clicks **Claim Badge**, the client publishes a kind 30637 claim. A server operated by the badge issuer listens for these claims, validates them, and (if no award already exists) issues the NIP-58 kind 8 award from the issuer key.
+Ditto's first use is the **Ditto Explorer** badge, granted for completing the post-onboarding "first steps" guide. That guide's progress lives in the user's private, NIP-44-encrypted NIP-78 settings (kind 30078), so the badge-award server has no way to observe completion. Instead, when the user finishes the guide and explicitly asks for the reward, the client publishes a kind 30637 claim. A server operated by the badge issuer listens for these claims, validates them, and (if no award already exists) issues the NIP-58 kind 8 award from the issuer key.
 
 The kind is **addressable** (`30000–39999`), keyed by `(pubkey, kind, d)` where `d` is the badge's d-tag. A claim is therefore **idempotent per user+badge**: re-claiming (or claiming from another device) replaces the prior claim rather than creating duplicates.
 

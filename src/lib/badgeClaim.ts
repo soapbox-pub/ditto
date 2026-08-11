@@ -5,9 +5,10 @@
  * award. Ditto's badge progress for the post-onboarding "Ditto Explorer" badge
  * lives in the user's private, encrypted NIP-78 settings — which a badge-award
  * server can never read. So when the user finishes the guide and explicitly
- * clicks "Claim Badge", the client publishes this public claim event. A future
- * server listens for it and, after validation, issues the NIP-58 kind 8 award
- * from the Ditto Badges issuer key.
+ * asks for the reward (the reveal gesture in the reward ceremony, which says it
+ * publishes publicly before it does), the client publishes this public claim
+ * event. A future server listens for it and, after validation, issues the
+ * NIP-58 kind 8 award from the Ditto Badges issuer key.
  *
  * The kind is **addressable** (30000–39999) keyed by `(pubkey, kind, d)` where
  * `d` is the badge's d-tag. This makes a claim naturally idempotent: re-clicking
@@ -41,15 +42,13 @@ export const DITTO_EXPLORER_BADGE_NAME = 'Ditto Explorer';
 /**
  * The Ditto Explorer badge image, from the published kind 30009 definition.
  *
- * **Not rendered by any mission surface, deliberately.** This is a picture of
- * the reward itself, so showing it before the journey is finished gives away
- * the thing the journey is building towards; desaturating it does not help,
- * because the shape is the spoiler. The mission surfaces use the abstract art
- * in `MissionArt` instead, and `/badges` renders the real image from the badge
- * event once it has actually been issued.
- *
- * Kept here because it belongs to the badge definition this module describes,
- * and because the reward reveal will need it.
+ * **Never render this directly.** It is a picture of the reward itself, so
+ * showing it before the journey is finished gives away the thing the journey is
+ * building towards — and desaturating it does not help, because the shape is
+ * the spoiler. Every use goes through `ExplorerRewardArt` in `MissionArt`,
+ * which crops and blurs it past recognition while the reward is sealed and
+ * shows it plainly only once `revealedAt` is down. `/badges` renders the real
+ * image from the badge event, separately, once it has actually been issued.
  */
 export const DITTO_EXPLORER_BADGE_IMAGE =
   'https://blossom.ditto.pub/cfcae6ec5919460d562edab918af9d71f6197557689542f42a3b6659acd0880f.png';

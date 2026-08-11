@@ -43,18 +43,41 @@
  *  8. `useEncryptedSettings` — the `postOnboardingGuide` field, and
  *     `schemas.ts` — `PostOnboardingGuideStateSchema`. Dropping the field leaves
  *     stale data in users' settings, which the loose schema simply ignores.
+ *  9. `useNostrPublish` — one call reporting an accepted publish to
+ *     `lib/postInteraction`, which is how the interact task hears about
+ *     reactions, replies and reposts.
+ * 10. `useBookmarks` / `NoteMoreMenu` — the same report for bookmarks. **The
+ *     one integration that is not additive:** `toggleBookmark` takes
+ *     `{ eventId, authorPubkey }` rather than a bare `eventId`, because a kind
+ *     10003 `e` tag carries no author and the call site is the only place that
+ *     knows whose post is being saved. Reverting this feature means reverting
+ *     that signature too, or leaving a parameter nothing reads.
+ * 11. `BadgesPage` — reads `?tab=` through `lib/badgesTabs`, so the reward's
+ *     "Open Badges" can land on My Badges. `lib/badgesTabs` belongs to Badges,
+ *     not to this feature: it holds that page's own tab vocabulary, and only
+ *     `DITTO_EXPLORER_BADGES_DESTINATION` is ours to delete.
  *
  * **Shared, keep** (used by this feature, owned by nobody): `lib/reducedMotion` ·
- * `lib/sharedElementTravel` · `lib/postInteraction` · the Dialog primitives ·
- * `useNostrPublish` · `useEncryptedSettings` itself.
+ * `lib/sharedElementTravel` · `lib/postInteraction` · `lib/badgesTabs` · the
+ * Dialog primitives · `useNostrPublish` · `useEncryptedSettings` itself.
  *
  * **Adjacent, not owned**: the first-arrival experience is a *signup*
- * transition. It introduces this journey and hands its card to
- * `MissionsWidget` / `MobileMissionTeaser` via `ExplorerTransitionTarget`, but
- * it reads no mission state and would need only a new destination — or removing
- * in its own right. The general `/badges` feature is likewise independent: this
- * feature publishes a *claim* (kind 30637) and never awards, accepts or equips
- * anything.
+ * transition, with its own seams — `App.tsx` mounts `ExplorerArrivalProvider`
+ * and `FirstArrivalExperience`, and `InitialSyncGate` calls `markFirstArrival`
+ * at the signup completion boundary and resolves `useSignupServices`. It
+ * introduces this journey and hands its card to `MissionsWidget` /
+ * `MobileMissionTeaser` via `ExplorerTransitionTarget`, but it reads no mission
+ * state and would need only a new destination — or removing in its own right.
+ * The general `/badges` feature is likewise independent: this feature publishes
+ * a *claim* (kind 30637) and never awards, accepts or equips anything.
+ *
+ * **Development only**: `AppRouter` also registers `/dev` and
+ * `/dev/signup-arrival` behind `isLocalhostDev()`, and `App.tsx`-level
+ * `DevSignupArrivalReturn` renders during a simulated signup. Those, `src/dev/`
+ * and the harness seams inside `useMissionEngine`, `usePostOnboardingGuide`,
+ * `useBadgeClaim`, `useCurrentUser`, `useEncryptedSettings`, `signupServices`
+ * and `InitialSyncGate` are inert in every production build — see
+ * `dev/isLocalhostDev`.
  */
 
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';

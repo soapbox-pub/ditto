@@ -38,7 +38,7 @@ export function resolveBadgesTab(
 }
 
 /** A link to `/badges` with `tab` explicitly selected. */
-export function badgesPath(tab: BadgesTab): string {
+function badgesPath(tab: BadgesTab): string {
   return `/badges?${BADGES_TAB_PARAM}=${tab}`;
 }
 

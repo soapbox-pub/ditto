@@ -26,9 +26,9 @@ function completedPaths(state: PostOnboardingGuideState) {
  * already existed"* (a success: there is nothing left to do) from *"nothing was
  * published because it went wrong"* (retry). Both used to be a silent `return`.
  *
- * A future reward reveal reads this to decide whether to reveal, wait, or offer
- * a retry; nothing consumes it yet, and `MissionReward` ignores it exactly as it
- * did before.
+ * The reward ceremony reads it to decide whether to reveal, wait, or offer a
+ * retry: `claimed` and `already-claimed` both reveal, `in-flight` waits, and
+ * `failed` offers the act again. See `reveal` in `useRewardCeremony`.
  */
 export type BadgeClaimOutcome =
   /** A new claim event was published and recorded. */
