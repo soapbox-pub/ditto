@@ -1,5 +1,6 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { aesGcmDecrypt, toBufferSource } from '@/lib/aesGcm';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import type { ArmadaImagePointer } from '@/lib/armadaInvite';
 
@@ -10,14 +11,6 @@ import type { ArmadaImagePointer } from '@/lib/armadaInvite';
  * `{ url, key, nonce, hash }`. We fetch the ciphertext, decrypt, and verify
  * the plaintext SHA-256 so a swapped blob fails closed.
  */
-
-/** Copy into a fresh ArrayBuffer-backed view (WebCrypto wants BufferSource). */
-function buf(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
-  const ab = new ArrayBuffer(bytes.byteLength);
-  const view = new Uint8Array(ab);
-  view.set(bytes);
-  return view;
-}
 
 /** Best-effort mime from magic bytes (display only). */
 function sniffImageMime(bytes: Uint8Array): string {
@@ -52,25 +45,17 @@ export async function decryptArmadaImage(
     if (!res.ok) return undefined;
     const ciphertext = new Uint8Array(await res.arrayBuffer());
 
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      buf(hexToBytes(pointer.key)),
-      'AES-GCM',
-      false,
-      ['decrypt'],
+    const plaintext = await aesGcmDecrypt(
+      ciphertext,
+      hexToBytes(pointer.key),
+      hexToBytes(pointer.nonce),
     );
-    const pt = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: buf(hexToBytes(pointer.nonce)) },
-      cryptoKey,
-      buf(ciphertext),
-    );
-    const plaintext = new Uint8Array(pt);
 
     if (bytesToHex(sha256(plaintext)) !== pointer.hash.toLowerCase()) {
       return undefined; // integrity check failed — a swapped blob
     }
     const mime = sniffImageMime(plaintext);
-    return URL.createObjectURL(new Blob([buf(plaintext)], { type: mime }));
+    return URL.createObjectURL(new Blob([toBufferSource(plaintext)], { type: mime }));
   } catch {
     return undefined;
   }
