@@ -3,7 +3,7 @@ import { nip19 } from 'nostr-tools';
 import type { AudioTrack } from '@/contexts/audioPlayerContextDef';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { parseFirstImeta } from '@/lib/imeta';
-import { type FileEncryption } from '@/lib/encryptedFile';
+import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
 
 /** Gets a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -28,7 +28,11 @@ export interface ParsedMusicTrack {
   title: string;
   artist: string;
   url: string;
+  /** Present when `url` serves ciphertext. */
+  encryption?: FileEncryption;
   artwork?: string;
+  /** Present when `artwork` serves ciphertext. */
+  artworkEncryption?: FileEncryption;
   album?: string;
   duration?: number;
   videoUrl?: string;
@@ -43,17 +47,32 @@ export function parseMusicTrack(event: NostrEvent): ParsedMusicTrack | null {
   const imeta = parseImeta(event.tags);
 
   // Audio URL: try imeta first, then standalone url tag, then content if it looks like a URL
-  const url = sanitizeUrl(imeta.url) ?? sanitizeUrl(getTag(event.tags, 'url')) ?? sanitizeUrl(getTag(event.tags, 'media'));
+  const imetaUrl = sanitizeUrl(imeta.url);
+  const url = imetaUrl ?? sanitizeUrl(getTag(event.tags, 'url')) ?? sanitizeUrl(getTag(event.tags, 'media'));
   if (!url) return null;
 
   const durationStr = imeta.duration ?? getTag(event.tags, 'duration');
   const duration = durationStr ? parseFloat(durationStr) : undefined;
 
+  // The imeta encryption params describe the imeta URL and nothing else, so a
+  // track that fell back to a bare `url` tag is not covered by them.
+  const encryption = url === imetaUrl ? imeta.encryption : undefined;
+
+  // `thumb` is a separate blob encrypted under the same key and nonce; a
+  // standalone `image`/`thumb` tag isn't part of the imeta entry at all.
+  const imetaThumbnail = sanitizeUrl(imeta.thumbnail);
+  const artwork = imetaThumbnail ?? sanitizeUrl(getTag(event.tags, 'image')) ?? sanitizeUrl(getTag(event.tags, 'thumb'));
+  const artworkEncryption = artwork && artwork === imetaThumbnail && imeta.encryption
+    ? companionEncryption(imeta.encryption)
+    : undefined;
+
   return {
     title,
     artist,
     url,
-    artwork: sanitizeUrl(imeta.thumbnail) ?? sanitizeUrl(getTag(event.tags, 'image')) ?? sanitizeUrl(getTag(event.tags, 'thumb')),
+    encryption,
+    artwork,
+    artworkEncryption,
     album,
     duration: duration && isFinite(duration) ? duration : undefined,
     videoUrl: sanitizeUrl(getTag(event.tags, 'video')),
@@ -108,7 +127,9 @@ export function toAudioTrack(event: NostrEvent, parsed: ParsedMusicTrack): Audio
     title: parsed.title,
     artist: parsed.artist,
     url: parsed.url,
+    encryption: parsed.encryption,
     artwork: parsed.artwork,
+    artworkEncryption: parsed.artworkEncryption,
     duration: parsed.duration,
     path: eventPath(event),
   };

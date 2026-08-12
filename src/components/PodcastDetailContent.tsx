@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, Podcast, Zap, Clock } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Podcast, Zap, Clock, Loader2 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -31,6 +31,9 @@ import { ZapDialog } from '@/components/ZapDialog';
 import { InteractionsModal, type InteractionTab } from '@/components/InteractionsModal';
 import { NoteCard } from '@/components/NoteCard';
 import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
+import { DecryptedImage } from '@/components/DecryptedImage';
+import { TrackLoadNotice } from '@/components/AudioTrackStatus';
+import { useTrackLoadState } from '@/hooks/useTrackLoadState';
 import { parsePodcastEpisode, parsePodcastTrailer, episodeToAudioTrack, trailerToAudioTrack } from '@/lib/podcastHelpers';
 
 /** Format a full date. */
@@ -65,6 +68,7 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
   const [replyOpen, setReplyOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [interactionsTab, setInteractionsTab] = useState<InteractionTab | null>(null);
+  const loadState = useTrackLoadState(event.id);
 
   // Comments (NIP-22)
   const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);
@@ -108,9 +112,16 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
       {/* Hero: artwork + info side by side */}
       <div className="px-4 flex gap-5 items-start">
         {/* Artwork */}
-        <div className="shrink-0 w-32 sm:w-40 aspect-square rounded-2xl overflow-hidden bg-muted shadow-lg">
+        <div className="relative shrink-0 w-32 sm:w-40 aspect-square rounded-2xl overflow-hidden bg-muted shadow-lg">
           {parsed?.artwork ? (
-            <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" decoding="async" />
+            <DecryptedImage
+              url={parsed.artwork}
+              encryption={parsed.artworkEncryption}
+              alt={parsed.title}
+              className="w-full h-full object-cover"
+              decoding="async"
+              noticeFill
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-primary/10">
               <Podcast className="size-12 text-primary/30" />
@@ -149,17 +160,20 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
           <div className="flex items-center gap-2 pt-2">
             <button
               onClick={handlePlay}
+              disabled={loadState.status === 'decrypting'}
               className={cn(
-                'size-11 rounded-full flex items-center justify-center transition-colors',
+                'size-11 rounded-full flex items-center justify-center transition-colors disabled:cursor-progress',
                 isNowPlaying && player.isPlaying
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-primary/15 text-primary hover:bg-primary/25',
               )}
               aria-label={isNowPlaying && player.isPlaying ? 'Pause' : 'Play'}
             >
-              {isNowPlaying && player.isPlaying
-                ? <Pause className="size-5" fill="currentColor" />
-                : <Play className="size-5 ml-0.5" fill="currentColor" />}
+              {loadState.status === 'decrypting'
+                ? <Loader2 className="size-5 animate-spin" />
+                : isNowPlaying && player.isPlaying
+                  ? <Pause className="size-5" fill="currentColor" />
+                  : <Play className="size-5 ml-0.5" fill="currentColor" />}
             </button>
 
             <ReactionButton
@@ -209,6 +223,8 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
               <Clock className="size-3" />{dur}
             </p>
           )}
+
+          <TrackLoadNotice trackId={event.id} className="pt-1" />
         </div>
       </div>
 
@@ -288,6 +304,7 @@ function TrailerDetail({ event }: { event: NostrEvent }) {
   const avatarShape = getAvatarShape(metadata);
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
+  const loadState = useTrackLoadState(event.id);
 
   const isNowPlaying = player.currentTrack?.id === event.id;
 
@@ -338,19 +355,24 @@ function TrailerDetail({ event }: { event: NostrEvent }) {
           <div className="pt-2">
             <button
               onClick={handlePlay}
+              disabled={loadState.status === 'decrypting'}
               className={cn(
-                'size-11 rounded-full flex items-center justify-center transition-colors',
+                'size-11 rounded-full flex items-center justify-center transition-colors disabled:cursor-progress',
                 isNowPlaying && player.isPlaying
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-primary/15 text-primary hover:bg-primary/25',
               )}
               aria-label={isNowPlaying && player.isPlaying ? 'Pause' : 'Play'}
             >
-              {isNowPlaying && player.isPlaying
-                ? <Pause className="size-5" fill="currentColor" />
-                : <Play className="size-5 ml-0.5" fill="currentColor" />}
+              {loadState.status === 'decrypting'
+                ? <Loader2 className="size-5 animate-spin" />
+                : isNowPlaying && player.isPlaying
+                  ? <Pause className="size-5" fill="currentColor" />
+                  : <Play className="size-5 ml-0.5" fill="currentColor" />}
             </button>
           </div>
+
+          <TrackLoadNotice trackId={event.id} className="pt-1" />
 
           {parsed?.season && (
             <p className="text-xs text-muted-foreground pt-1">Season {parsed.season}</p>

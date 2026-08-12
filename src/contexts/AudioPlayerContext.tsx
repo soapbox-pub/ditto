@@ -1,9 +1,19 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 
-import { AudioPlayerContext, type AudioTrack } from '@/contexts/audioPlayerContextDef';
+import { AudioPlayerContext, type AudioTrack, type TrackLoadState } from '@/contexts/audioPlayerContextDef';
+import { useAppContext } from '@/hooks/useAppContext';
+import { getEffectiveBlossomServers } from '@/lib/appBlossom';
+import { blossomAlternatives } from '@/lib/blossomFallback';
+import {
+  decryptFileToObjectUrl,
+  FileTooLargeError,
+  isSupportedEncryption,
+} from '@/lib/encryptedFile';
 
 const VOLUME_KEY = 'audio-player-volume';
+
+const READY: TrackLoadState = { status: 'ready' };
 
 function getStoredVolume(): number {
   try {
@@ -27,6 +37,169 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolumeState] = useState(getStoredVolume);
+  const [loadState, setLoadState] = useState<TrackLoadState>(READY);
+  const [artworkSrc, setArtworkSrc] = useState<string | undefined>();
+
+  const { config } = useAppContext();
+
+  // Read through a ref so loading a track doesn't have to re-bind every time
+  // the user's Blossom server list changes.
+  const serversRef = useRef<string[]>([]);
+  serversRef.current = getEffectiveBlossomServers(
+    config.blossomServerMetadata,
+    config.useAppBlossomServers,
+  );
+
+  /** Object URL backing the current track, if it had to be decrypted. */
+  const objectUrlRef = useRef<string | undefined>(undefined);
+  /** Identifies the newest load, so a slow decryption can't clobber a newer one. */
+  const loadSeqRef = useRef(0);
+  const abortRef = useRef<AbortController | undefined>(undefined);
+  /** The track being loaded, so `decryptAnyway` knows what to retry. */
+  const pendingTrackRef = useRef<AudioTrack | undefined>(undefined);
+
+  const revokeObjectUrl = useCallback(() => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = undefined;
+    }
+  }, []);
+
+  /**
+   * Point the audio element at a track, decrypting it first when it's
+   * encrypted.
+   *
+   * Encrypted media can't be streamed by the element — AES-GCM only
+   * authenticates a complete message — so the whole file is fetched and
+   * decrypted into an object URL before playback starts. The element is left
+   * with no source in the meantime, and on failure it *stays* that way: the
+   * track URL serves ciphertext, so falling back to it would hand the decoder
+   * garbage.
+   */
+  const loadTrack = useCallback((track: AudioTrack, opts: { allowOversize?: boolean } = {}) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const seq = ++loadSeqRef.current;
+    abortRef.current?.abort();
+    abortRef.current = undefined;
+    revokeObjectUrl();
+    pendingTrackRef.current = track;
+
+    if (!track.encryption) {
+      setLoadState(READY);
+      audio.src = track.url;
+      audio.play().catch(() => {});
+      return;
+    }
+
+    // Detach the previous source rather than leaving the old track loaded
+    // under the new track's title.
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+
+    if (!isSupportedEncryption(track.encryption)) {
+      setLoadState({ status: 'unsupported' });
+      return;
+    }
+
+    setLoadState({ status: 'decrypting' });
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    decryptFileToObjectUrl(track.url, track.encryption, {
+      signal: controller.signal,
+      fallbackUrls: blossomAlternatives(track.url, serversRef.current),
+      ...(opts.allowOversize ? { maxBytes: Number.POSITIVE_INFINITY } : {}),
+    })
+      .then(({ objectUrl }) => {
+        if (seq !== loadSeqRef.current) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+        objectUrlRef.current = objectUrl;
+        setLoadState(READY);
+        audio.src = objectUrl;
+        // Decryption outlives the tap that started it, so a browser that wants
+        // a fresh user gesture will refuse this. The track is loaded either
+        // way, and the play button then starts it on the next tap.
+        audio.play().catch(() => {});
+      })
+      .catch((e) => {
+        if (seq !== loadSeqRef.current) return;
+        if (e instanceof FileTooLargeError) setLoadState({ status: 'too-large', byteSize: e.byteSize });
+        else if (!controller.signal.aborted) setLoadState({ status: 'failed' });
+      });
+  }, [revokeObjectUrl]);
+
+  const decryptAnyway = useCallback(() => {
+    const track = pendingTrackRef.current;
+    if (track) loadTrack(track, { allowOversize: true });
+  }, [loadTrack]);
+
+  /** Switch to a playlist entry and start it. */
+  const goToIndex = useCallback((idx: number) => {
+    const track = playlist[idx];
+    if (!track) return;
+    setCurrentIndex(idx);
+    setCurrentTrack(track);
+    setCurrentTime(0);
+    setDuration(track.duration ?? 0);
+    loadTrack(track);
+  }, [playlist, loadTrack]);
+
+  // Decrypt the artwork of the current track, when it needs it. The `thumb`
+  // travels under the same key as the audio but is its own blob.
+  useEffect(() => {
+    const artwork = currentTrack?.artwork;
+    const encryption = currentTrack?.artworkEncryption;
+
+    if (!artwork) {
+      setArtworkSrc(undefined);
+      return;
+    }
+    if (!encryption) {
+      setArtworkSrc(artwork);
+      return;
+    }
+
+    setArtworkSrc(undefined);
+    if (!isSupportedEncryption(encryption)) return;
+
+    let objectUrl: string | undefined;
+    let cancelled = false;
+    const controller = new AbortController();
+
+    decryptFileToObjectUrl(artwork, encryption, {
+      signal: controller.signal,
+      fallbackUrls: blossomAlternatives(artwork, serversRef.current),
+    })
+      .then((result) => {
+        if (cancelled) {
+          URL.revokeObjectURL(result.objectUrl);
+          return;
+        }
+        objectUrl = result.objectUrl;
+        setArtworkSrc(result.objectUrl);
+      })
+      // Cover art is decoration: on failure the players fall back to their
+      // placeholder icon rather than surfacing an error.
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [currentTrack?.artwork, currentTrack?.artworkEncryption]);
+
+  // Release the decrypted track on unmount — nothing else revokes it.
+  useEffect(() => () => {
+    abortRef.current?.abort();
+    revokeObjectUrl();
+  }, [revokeObjectUrl]);
 
   // Sync volume to audio element
   useEffect(() => {
@@ -44,11 +217,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(false);
       // Auto-advance playlist
       if (playlist.length > 0 && currentIndex < playlist.length - 1) {
-        const next = currentIndex + 1;
-        setCurrentIndex(next);
-        setCurrentTrack(playlist[next]);
-        audio.src = playlist[next].url;
-        audio.play().catch(() => {});
+        goToIndex(currentIndex + 1);
       }
     };
     const onTimeUpdate = () => setCurrentTime(audio.currentTime);
@@ -71,7 +240,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener('durationchange', onDurationChange);
       audio.removeEventListener('loadedmetadata', onDurationChange);
     };
-  }, [playlist, currentIndex]);
+  }, [playlist, currentIndex, goToIndex]);
 
   // Media Session API — populates Android/iOS notification panel with track info and controls
   useEffect(() => {
@@ -80,15 +249,17 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       navigator.mediaSession.metadata = null;
       return;
     }
-    const artwork: MediaImage[] = currentTrack.artwork
-      ? [{ src: currentTrack.artwork, sizes: '512x512', type: 'image/jpeg' }]
+    // `artworkSrc` is an object URL for encrypted covers, so the OS panel gets
+    // the decrypted image rather than a URL it can't make sense of.
+    const artwork: MediaImage[] = artworkSrc
+      ? [{ src: artworkSrc, sizes: '512x512' }]
       : [];
     navigator.mediaSession.metadata = new MediaMetadata({
       title: currentTrack.title,
       artist: currentTrack.artist,
       artwork,
     });
-  }, [currentTrack]);
+  }, [currentTrack, artworkSrc]);
 
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
@@ -116,22 +287,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     navigator.mediaSession.setActionHandler('pause', () => audio?.pause());
     navigator.mediaSession.setActionHandler('previoustrack', () => {
       if (audio && audio.currentTime > 3) { audio.currentTime = 0; return; }
-      const prev = currentIndex - 1;
-      if (prev < 0 || playlist.length === 0) return;
-      setCurrentIndex(prev);
-      setCurrentTrack(playlist[prev]);
-      setCurrentTime(0);
-      setDuration(playlist[prev].duration ?? 0);
-      if (audio) { audio.src = playlist[prev].url; audio.play().catch(() => {}); }
+      if (playlist.length === 0) return;
+      goToIndex(currentIndex - 1);
     });
     navigator.mediaSession.setActionHandler('nexttrack', () => {
-      const next = currentIndex + 1;
-      if (next >= playlist.length) return;
-      setCurrentIndex(next);
-      setCurrentTrack(playlist[next]);
-      setCurrentTime(0);
-      setDuration(playlist[next].duration ?? 0);
-      if (audio) { audio.src = playlist[next].url; audio.play().catch(() => {}); }
+      goToIndex(currentIndex + 1);
     });
     navigator.mediaSession.setActionHandler('seekto', (details) => {
       if (audio && details.seekTime != null) audio.currentTime = details.seekTime;
@@ -144,7 +304,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       navigator.mediaSession.setActionHandler('nexttrack', null);
       navigator.mediaSession.setActionHandler('seekto', null);
     };
-  }, [currentIndex, playlist]);
+  }, [currentIndex, playlist, goToIndex]);
 
   // beforeunload warning when playing
   useEffect(() => {
@@ -157,21 +317,17 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, [currentTrack]);
 
   const playTrack = useCallback((track: AudioTrack) => {
-    const audio = audioRef.current;
-    if (!audio) return;
     setCurrentTrack(track);
     setPlaylist([]);
     setCurrentIndex(0);
     setMinimized(false);
     setCurrentTime(0);
     setDuration(track.duration ?? 0);
-    audio.src = track.url;
-    audio.play().catch(() => {});
-  }, []);
+    loadTrack(track);
+  }, [loadTrack]);
 
   const playPlaylist = useCallback((tracks: AudioTrack[], startIndex = 0) => {
-    const audio = audioRef.current;
-    if (!audio || tracks.length === 0) return;
+    if (tracks.length === 0) return;
     const idx = Math.max(0, Math.min(startIndex, tracks.length - 1));
     setPlaylist(tracks);
     setCurrentIndex(idx);
@@ -179,9 +335,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setMinimized(false);
     setCurrentTime(0);
     setDuration(tracks[idx].duration ?? 0);
-    audio.src = tracks[idx].url;
-    audio.play().catch(() => {});
-  }, []);
+    loadTrack(tracks[idx]);
+  }, [loadTrack]);
 
   const pause = useCallback(() => {
     audioRef.current?.pause();
@@ -203,17 +358,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const nextTrack = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio || playlist.length === 0) return;
-    const next = currentIndex + 1;
-    if (next >= playlist.length) return;
-    setCurrentIndex(next);
-    setCurrentTrack(playlist[next]);
-    setCurrentTime(0);
-    setDuration(playlist[next].duration ?? 0);
-    audio.src = playlist[next].url;
-    audio.play().catch(() => {});
-  }, [playlist, currentIndex]);
+    if (playlist.length === 0) return;
+    goToIndex(currentIndex + 1);
+  }, [playlist, currentIndex, goToIndex]);
 
   const prevTrack = useCallback(() => {
     const audio = audioRef.current;
@@ -223,15 +370,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       audio.currentTime = 0;
       return;
     }
-    const prev = currentIndex - 1;
-    if (prev < 0) return;
-    setCurrentIndex(prev);
-    setCurrentTrack(playlist[prev]);
-    setCurrentTime(0);
-    setDuration(playlist[prev].duration ?? 0);
-    audio.src = playlist[prev].url;
-    audio.play().catch(() => {});
-  }, [playlist, currentIndex]);
+    goToIndex(currentIndex - 1);
+  }, [playlist, currentIndex, goToIndex]);
 
   const minimize = useCallback(() => setMinimized(true), []);
 
@@ -243,6 +383,13 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       audio.pause();
       audio.src = '';
     }
+    // Abandon any decryption in flight and hand back its memory.
+    loadSeqRef.current++;
+    abortRef.current?.abort();
+    abortRef.current = undefined;
+    pendingTrackRef.current = undefined;
+    revokeObjectUrl();
+    setLoadState(READY);
     setCurrentTrack(null);
     setPlaylist([]);
     setCurrentIndex(0);
@@ -250,13 +397,15 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
-  }, []);
+  }, [revokeObjectUrl]);
 
   return (
     <AudioPlayerContext.Provider
       value={{
         currentTrack, playlist, currentIndex, minimized, isPlaying, currentTime, duration, volume,
+        loadState, artworkSrc,
         playTrack, playPlaylist, pause, resume, seek, setVolume, nextTrack, prevTrack, minimize, expand, stop,
+        decryptAnyway,
       }}
     >
       {/* Hidden global audio element */}

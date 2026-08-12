@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Play, Pause, Music } from 'lucide-react';
+import { Play, Pause, Music, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
 import { useAuthor } from '@/hooks/useAuthor';
+import { DecryptedImage } from '@/components/DecryptedImage';
+import { useTrackLoadState } from '@/hooks/useTrackLoadState';
 import { parseMusicTrack, toAudioTrack } from '@/lib/musicHelpers';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -37,10 +39,12 @@ export function MusicTrackCard({ event }: MusicTrackCardProps) {
   }, [event]);
 
   const [imgError, setImgError] = useState(false);
+  const loadState = useTrackLoadState(event.id);
 
   if (!parsed) return null;
 
   const isNowPlaying = player.currentTrack?.id === event.id;
+  const decrypting = loadState.status === 'decrypting';
 
   const handlePlay = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -66,7 +70,15 @@ export function MusicTrackCard({ event }: MusicTrackCardProps) {
         )}
       >
         {parsed.artwork && !imgError ? (
-          <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" onError={() => setImgError(true)} decoding="async" />
+          <DecryptedImage
+            url={parsed.artwork}
+            encryption={parsed.artworkEncryption}
+            alt={parsed.title}
+            className="w-full h-full object-cover"
+            onError={() => setImgError(true)}
+            decoding="async"
+            noticeFill
+          />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/15 via-primary/5 to-transparent flex items-center justify-center">
             <Music className="size-8 text-primary/20" />
@@ -80,13 +92,15 @@ export function MusicTrackCard({ event }: MusicTrackCardProps) {
           <div className={cn(
             'size-10 rounded-full flex items-center justify-center transition-all',
             'opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100',
-            isNowPlaying && player.isPlaying
+            (isNowPlaying && player.isPlaying) || decrypting
               ? 'bg-primary text-primary-foreground opacity-100 scale-100'
               : 'bg-white/90 text-black',
           )}>
-            {isNowPlaying && player.isPlaying
-              ? <Pause className="size-4" fill="currentColor" />
-              : <Play className="size-4 ml-0.5" fill="currentColor" />}
+            {decrypting
+              ? <Loader2 className="size-4 animate-spin" />
+              : isNowPlaying && player.isPlaying
+                ? <Pause className="size-4" fill="currentColor" />
+                : <Play className="size-4 ml-0.5" fill="currentColor" />}
           </div>
         </div>
       </div>

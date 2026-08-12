@@ -59,22 +59,29 @@ Object.defineProperty(window, 'scrollTo', {
   value: vi.fn(),
 });
 
-// Mock IntersectionObserver
-global.IntersectionObserver = vi.fn().mockImplementation((_callback) => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-  root: null,
-  rootMargin: '',
-  thresholds: [],
-}));
+// Mock IntersectionObserver and ResizeObserver.
+//
+// These are classes rather than `vi.fn().mockImplementation(() => ({...}))`:
+// an arrow function can't be called with `new`, so components that actually
+// construct an observer would throw ("is not a constructor") and take their
+// whole subtree down with them.
+class MockIntersectionObserver implements IntersectionObserver {
+  readonly root = null;
+  readonly rootMargin = '';
+  readonly thresholds: number[] = [];
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  takeRecords = vi.fn(() => []);
+}
+global.IntersectionObserver = MockIntersectionObserver;
 
-// Mock ResizeObserver
-global.ResizeObserver = vi.fn().mockImplementation((_callback) => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+class MockResizeObserver implements ResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+global.ResizeObserver = MockResizeObserver;
 
 // jsdom's TextEncoder returns a Uint8Array from a different realm, which fails
 // `@noble/hashes`'s `instanceof Uint8Array` check ("expected Uint8Array, got

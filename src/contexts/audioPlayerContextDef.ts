@@ -1,5 +1,7 @@
 import { createContext, useContext } from 'react';
 
+import type { FileEncryption } from '@/lib/encryptedFile';
+
 /** A track that can be played by the global audio player. */
 export interface AudioTrack {
   /** Nostr event ID. */
@@ -10,13 +12,34 @@ export interface AudioTrack {
   artist: string;
   /** Audio file URL. */
   url: string;
+  /** Present when `url` serves ciphertext that must be decrypted to play. */
+  encryption?: FileEncryption;
   /** Artwork/cover image URL. */
   artwork?: string;
+  /** Present when `artwork` serves ciphertext. */
+  artworkEncryption?: FileEncryption;
   /** Duration in seconds (from metadata). */
   duration?: number;
   /** Navigation path to the track's detail page (e.g. /naddr1…). */
   path?: string;
 }
+
+/**
+ * How far along the current track is in becoming playable.
+ *
+ * Only encrypted tracks are ever anything but `ready`: they have to be fetched
+ * and decrypted in full before the `<audio>` element gets a source, and that
+ * can fail in ways the UI has to explain rather than silently doing nothing.
+ */
+export type TrackLoadState =
+  | { status: 'ready' }
+  | { status: 'decrypting' }
+  /** Fetch, decryption, or the `ox` hash check failed. */
+  | { status: 'failed' }
+  /** Encrypted with an algorithm this client doesn't implement. */
+  | { status: 'unsupported' }
+  /** Past the size cap; `decryptAnyway()` overrides. */
+  | { status: 'too-large'; byteSize: number };
 
 export interface AudioPlayerState {
   /** Currently loaded track. */
@@ -35,6 +58,14 @@ export interface AudioPlayerState {
   duration: number;
   /** Volume (0–1). */
   volume: number;
+  /** Whether the current track is playable yet, and why not when it isn't. */
+  loadState: TrackLoadState;
+  /**
+   * What to feed an `<img>` for the current track's artwork: the URL itself
+   * when it isn't encrypted, an object URL once decrypted, `undefined` while
+   * decrypting or after a failure.
+   */
+  artworkSrc: string | undefined;
 }
 
 export interface AudioPlayerActions {
@@ -60,6 +91,11 @@ export interface AudioPlayerActions {
   expand: () => void;
   /** Stop playback and close the player. */
   stop: () => void;
+  /**
+   * Decrypt the current track despite the size cap. Only meaningful while
+   * `loadState.status` is `too-large`.
+   */
+  decryptAnyway: () => void;
 }
 
 export type AudioPlayerContextType = AudioPlayerState & AudioPlayerActions;

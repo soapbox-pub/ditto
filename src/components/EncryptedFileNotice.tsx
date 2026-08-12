@@ -2,6 +2,7 @@ import { HardDrive, Lock, LockKeyholeOpen, ShieldAlert } from 'lucide-react';
 import { FormattedMessage } from 'react-intl';
 
 import { Button } from '@/components/ui/button';
+import { formatBytes } from '@/lib/formatBytes';
 import { cn } from '@/lib/utils';
 
 interface EncryptedFileNoticeProps {
@@ -21,14 +22,6 @@ interface EncryptedFileNoticeProps {
    */
   fill?: boolean;
   className?: string;
-}
-
-/** Round a byte count to the nearest sensible unit. */
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${Math.round(bytes / (1024 * 1024))} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
 /**

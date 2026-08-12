@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, Music, ListMusic, Disc3, Zap, Clock, Calendar, Tag } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Music, ListMusic, Disc3, Zap, Clock, Calendar, Tag, Loader2 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
@@ -32,6 +32,9 @@ import { ZapDialog } from '@/components/ZapDialog';
 import { InteractionsModal, type InteractionTab } from '@/components/InteractionsModal';
 import { NoteCard } from '@/components/NoteCard';
 import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
+import { DecryptedImage } from '@/components/DecryptedImage';
+import { TrackLoadNotice } from '@/components/AudioTrackStatus';
+import { useTrackLoadState } from '@/hooks/useTrackLoadState';
 import { parseMusicTrack, parseMusicPlaylist, toAudioTrack } from '@/lib/musicHelpers';
 import { usePlaylistTracks } from '@/hooks/usePlaylistTracks';
 import { MusicTrackRowSkeleton } from '@/components/music/MusicTrackRow';
@@ -70,6 +73,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [interactionsTab, setInteractionsTab] = useState<InteractionTab | null>(null);
   const [imgError, setImgError] = useState(false);
+  const loadState = useTrackLoadState(event.id);
 
   // Comments (NIP-22)
   const { data: commentsData, isLoading: commentsLoading } = useComments(event, 500);
@@ -110,9 +114,17 @@ function TrackDetail({ event }: { event: NostrEvent }) {
       {/* Hero: artwork + info side by side */}
       <div className="px-4 flex gap-5 items-start">
         {/* Artwork */}
-        <div className="shrink-0 w-32 sm:w-40 aspect-square rounded-2xl overflow-hidden bg-muted shadow-lg">
+        <div className="relative shrink-0 w-32 sm:w-40 aspect-square rounded-2xl overflow-hidden bg-muted shadow-lg">
           {parsed?.artwork && !imgError ? (
-            <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" onError={() => setImgError(true)} decoding="async" />
+            <DecryptedImage
+              url={parsed.artwork}
+              encryption={parsed.artworkEncryption}
+              alt={parsed.title}
+              className="w-full h-full object-cover"
+              onError={() => setImgError(true)}
+              decoding="async"
+              noticeFill
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-primary/10">
               <Music className="size-12 text-primary/30" />
@@ -153,17 +165,20 @@ function TrackDetail({ event }: { event: NostrEvent }) {
           <div className="flex items-center gap-2 pt-2">
             <button
               onClick={handlePlay}
+              disabled={loadState.status === 'decrypting'}
               className={cn(
-                'size-11 rounded-full flex items-center justify-center transition-colors',
+                'size-11 rounded-full flex items-center justify-center transition-colors disabled:cursor-progress',
                 isNowPlaying && player.isPlaying
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-primary/15 text-primary hover:bg-primary/25',
               )}
               aria-label={isNowPlaying && player.isPlaying ? 'Pause' : 'Play'}
             >
-              {isNowPlaying && player.isPlaying
-                ? <Pause className="size-5" fill="currentColor" />
-                : <Play className="size-5 ml-0.5" fill="currentColor" />}
+              {loadState.status === 'decrypting'
+                ? <Loader2 className="size-5 animate-spin" />
+                : isNowPlaying && player.isPlaying
+                  ? <Pause className="size-5" fill="currentColor" />
+                  : <Play className="size-5 ml-0.5" fill="currentColor" />}
             </button>
 
             <ReactionButton
@@ -214,6 +229,8 @@ function TrackDetail({ event }: { event: NostrEvent }) {
               {parsed?.album && <> · {parsed.album}</>}
             </p>
           )}
+
+          <TrackLoadNotice trackId={event.id} className="pt-1" />
         </div>
       </div>
 
@@ -349,12 +366,14 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
       .filter((t): t is NonNullable<typeof t> => t !== null);
   }, [trackEvents]);
 
-  // Cover art: playlist's own artwork, or first track's artwork as fallback
+  // Cover art: playlist's own artwork, or first track's artwork as fallback.
+  // The borrowed one may be an encrypted `thumb`, so it carries its params.
   const coverArt = useMemo(() => {
-    if (parsed?.artwork && !imgError) return parsed.artwork;
+    if (parsed?.artwork && !imgError) return { url: parsed.artwork };
     if (!trackEvents || trackEvents.length === 0) return undefined;
     const firstTrack = parseMusicTrack(trackEvents[0]);
-    return firstTrack?.artwork;
+    if (!firstTrack?.artwork) return undefined;
+    return { url: firstTrack.artwork, encryption: firstTrack.artworkEncryption };
   }, [parsed?.artwork, imgError, trackEvents]);
 
   const trackCount = parsed?.trackRefs.length ?? 0;
@@ -396,9 +415,17 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
 
       {/* Hero */}
       <div className="px-4 flex gap-5 items-start">
-        <div className="shrink-0 w-32 sm:w-40 aspect-square rounded-2xl overflow-hidden bg-muted shadow-lg">
+        <div className="relative shrink-0 w-32 sm:w-40 aspect-square rounded-2xl overflow-hidden bg-muted shadow-lg">
           {coverArt ? (
-            <img src={coverArt} alt={parsed?.title ?? ''} className="w-full h-full object-cover" onError={() => setImgError(true)} decoding="async" />
+            <DecryptedImage
+              url={coverArt.url}
+              encryption={coverArt.encryption}
+              alt={parsed?.title ?? ''}
+              className="w-full h-full object-cover"
+              onError={() => setImgError(true)}
+              decoding="async"
+              noticeFill
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-primary/10">
               <FallbackIcon className="size-12 text-primary/30" />
@@ -521,6 +548,7 @@ function PlaylistTrackRow({
   const player = useAudioPlayer();
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
   const [imgError, setImgError] = useState(false);
+  const loadState = useTrackLoadState(event.id);
 
   const naddrPath = useMemo(() => {
     const d = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
@@ -555,10 +583,13 @@ function PlaylistTrackRow({
       {/* Index / Play button */}
       <button
         onClick={handlePlay}
-        className="size-8 flex items-center justify-center shrink-0"
+        disabled={loadState.status === 'decrypting'}
+        className="size-8 flex items-center justify-center shrink-0 disabled:cursor-progress"
         aria-label={isNowPlaying && player.isPlaying ? 'Pause' : 'Play'}
       >
-        {isNowPlaying && player.isPlaying ? (
+        {loadState.status === 'decrypting' ? (
+          <Loader2 className="size-4 text-primary animate-spin" />
+        ) : isNowPlaying && player.isPlaying ? (
           <Pause className="size-4 text-primary" fill="currentColor" />
         ) : (
           <>
@@ -571,9 +602,18 @@ function PlaylistTrackRow({
       </button>
 
       {/* Artwork */}
-      <div className="size-12 rounded-lg overflow-hidden shrink-0 bg-muted">
+      <div className="relative size-12 rounded-lg overflow-hidden shrink-0 bg-muted">
         {parsed.artwork && !imgError ? (
-          <img src={parsed.artwork} alt={parsed.title} className="size-full object-cover" loading="lazy" onError={() => setImgError(true)} decoding="async" />
+          <DecryptedImage
+            url={parsed.artwork}
+            encryption={parsed.artworkEncryption}
+            alt={parsed.title}
+            className="size-full object-cover"
+            loading="lazy"
+            onError={() => setImgError(true)}
+            decoding="async"
+            noticeFill
+          />
         ) : (
           <div className="size-full flex items-center justify-center bg-primary/10">
             <Music className="size-5 text-primary/30" />
@@ -589,7 +629,9 @@ function PlaylistTrackRow({
         )}>
           {parsed.title}
         </p>
-        <p className="text-xs text-muted-foreground truncate">{parsed.artist}</p>
+        {loadState.status === 'ready'
+          ? <p className="text-xs text-muted-foreground truncate">{parsed.artist}</p>
+          : <TrackLoadNotice trackId={event.id} />}
       </div>
 
       {/* Duration */}

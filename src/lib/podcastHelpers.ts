@@ -2,7 +2,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import type { AudioTrack } from '@/contexts/audioPlayerContextDef';
 import { parseFirstImeta } from '@/lib/imeta';
-import { type FileEncryption } from '@/lib/encryptedFile';
+import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
 
 /** Gets a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -26,9 +26,13 @@ export interface ParsedPodcastEpisode {
   title: string;
   audioUrl: string;
   audioMime?: string;
+  /** Present when `audioUrl` serves ciphertext. */
+  encryption?: FileEncryption;
   pubdate?: number;
   description: string;
   artwork?: string;
+  /** Present when `artwork` serves ciphertext. */
+  artworkEncryption?: FileEncryption;
   duration?: number;
 }
 
@@ -62,13 +66,25 @@ export function parsePodcastEpisode(event: NostrEvent): ParsedPodcastEpisode | n
     pubdate = event.created_at;
   }
 
+  // The imeta encryption params cover the imeta URL and its `thumb`, and
+  // nothing else — an `audio` or `image` tag pointing somewhere else is its own
+  // blob, plaintext as far as this event says.
+  const encryption = audioUrl === imeta.url ? imeta.encryption : undefined;
+
+  const artwork = getTag(event.tags, 'image') ?? imeta.thumbnail ?? getTag(event.tags, 'thumb');
+  const artworkEncryption = artwork && artwork === imeta.thumbnail && imeta.encryption
+    ? companionEncryption(imeta.encryption)
+    : undefined;
+
   return {
     title,
     audioUrl,
     audioMime: audioMimeFromTag ?? imeta.mime ?? getTag(event.tags, 'm'),
+    encryption,
     pubdate: pubdate && isFinite(pubdate) ? pubdate : undefined,
     description: getTag(event.tags, 'description') || event.content || '',
-    artwork: getTag(event.tags, 'image') ?? imeta.thumbnail ?? getTag(event.tags, 'thumb'),
+    artwork,
+    artworkEncryption,
     duration: duration && isFinite(duration) ? duration : undefined,
   };
 }
@@ -76,6 +92,8 @@ export function parsePodcastEpisode(event: NostrEvent): ParsedPodcastEpisode | n
 export interface ParsedPodcastTrailer {
   title: string;
   url: string;
+  /** Present when `url` serves ciphertext. */
+  encryption?: FileEncryption;
   pubdate?: number;
   type?: string;
   season?: string;
@@ -91,6 +109,7 @@ export function parsePodcastTrailer(event: NostrEvent): ParsedPodcastTrailer | n
   return {
     title,
     url,
+    encryption: url === imeta.url ? imeta.encryption : undefined,
     pubdate: event.created_at,
     type: getTag(event.tags, 'type'),
     season: getTag(event.tags, 'season'),
@@ -115,7 +134,9 @@ export function episodeToAudioTrack(event: NostrEvent, parsed: ParsedPodcastEpis
     title: parsed.title,
     artist: '',
     url: parsed.audioUrl,
+    encryption: parsed.encryption,
     artwork: parsed.artwork,
+    artworkEncryption: parsed.artworkEncryption,
     duration: parsed.duration,
     path: eventPath(event),
   };
@@ -128,6 +149,7 @@ export function trailerToAudioTrack(event: NostrEvent, parsed: ParsedPodcastTrai
     title: parsed.title,
     artist: '',
     url: parsed.url,
+    encryption: parsed.encryption,
     path: eventPath(event),
   };
 }

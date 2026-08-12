@@ -262,24 +262,10 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
 
   // Nothing to play yet: still decrypting, or the file can't be decrypted at
   // all. Falling back to `originalSrc` would only feed the player ciphertext.
-  if (decrypted.encrypted && !decrypted.src) {
-    return (
-      <div
-        className={cn('relative mt-3 rounded-2xl overflow-hidden border border-border', className)}
-        style={{ aspectRatio }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <EncryptedFileNotice
-          fill
-          loading={decrypted.loading}
-          unsupported={decrypted.unsupported}
-          tooLarge={decrypted.tooLarge}
-          byteSize={decrypted.byteSize}
-          onDecryptAnyway={decrypted.decryptAnyway}
-        />
-      </div>
-    );
-  }
+  // The notice renders as an overlay rather than in place of the player: the
+  // <video> and its container have to stay mounted, because usePlayerControls
+  // binds its scroll-pause observer and volume sync to them once, on mount.
+  const unplayable = decrypted.encrypted && !decrypted.src;
 
   return (
     <div
@@ -308,7 +294,9 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
 
       <video
         ref={videoRef}
-        src={isHls ? undefined : src}
+        // An empty string would resolve against the document URL and make the
+        // element try to load the page itself.
+        src={isHls || !src ? undefined : src}
         data-no-native-poster=""
         poster={BLANK_POSTER}
         className={cn(
@@ -350,6 +338,20 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
         onLoadedData={() => setVideoReady(true)}
         onError={onBlossomError}
       />
+
+      {unplayable && (
+        <EncryptedFileNotice
+          fill
+          // The player's own backdrop is black, so the notice brings its own
+          // surface rather than tinting through it at half opacity.
+          className="bg-background"
+          loading={decrypted.loading}
+          unsupported={decrypted.unsupported}
+          tooLarge={decrypted.tooLarge}
+          byteSize={decrypted.byteSize}
+          onDecryptAnyway={decrypted.decryptAnyway}
+        />
+      )}
 
       {/* Poster/thumbnail overlay — rendered as a plain <img> so it never
           triggers WebView's native video placeholder. Stays visible until the
