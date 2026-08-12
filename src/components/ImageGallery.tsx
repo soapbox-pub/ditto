@@ -19,6 +19,7 @@ import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { useBackDismiss } from '@/hooks/useBackDismiss';
+import { useInView } from '@/hooks/useInView';
 
 /** Minimal imeta fields needed for pre-load sizing and decryption. */
 interface ImetaDimensions {
@@ -201,7 +202,10 @@ function GridImage({
   const [probedAspectRatio, setProbedAspectRatio] = useState<string | undefined>(undefined);
   const imgRef = useRef<HTMLImageElement>(null);
   const fallback = useBlossomFallback(url);
-  const decrypted = useDecryptedFile(url, encryption);
+  // Only decrypt tiles the user can actually see — scrolling a media feed would
+  // otherwise pull every attachment into memory at once.
+  const { ref: inViewRef, inView } = useInView({ rootMargin: '400px', skip: !encryption });
+  const decrypted = useDecryptedFile(url, encryption, { enabled: inView });
 
   // Encrypted blobs are fetched and decrypted by `useDecryptedFile`, which does
   // its own cross-server fallback; the <img> only ever sees the object URL.
@@ -248,6 +252,7 @@ function GridImage({
 
   return (
     <button
+      ref={inViewRef}
       type="button"
       className={cn(
         'relative block w-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
@@ -257,7 +262,7 @@ function GridImage({
       onClick={onOpen}
     >
       {/* Placeholder shown while the image is loading */}
-      {!loaded && !decrypted.error && (
+      {!loaded && !decrypted.error && !decrypted.tooLarge && (
         isValidBlurhash(blurhash) ? (
           // Blurhash canvas fills the container via CSS — pass small integer decode
           // resolution; the canvas is stretched to 100%×100% by the style prop.
@@ -279,8 +284,14 @@ function GridImage({
           <Skeleton className="absolute inset-0 w-full h-full rounded-none" />
         )
       )}
-      {decrypted.error ? (
-        <EncryptedFileNotice fill unsupported={decrypted.unsupported} />
+      {decrypted.error || decrypted.tooLarge ? (
+        <EncryptedFileNotice
+          fill
+          unsupported={decrypted.unsupported}
+          tooLarge={decrypted.tooLarge}
+          byteSize={decrypted.byteSize}
+          onDecryptAnyway={decrypted.decryptAnyway}
+        />
       ) : (
         <img
           ref={imgRef}
@@ -824,11 +835,12 @@ function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZo
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) handleLoaded();
   }, [src, handleLoaded]);
 
-  // A slot that failed to decrypt will never fire onLoad. Mark it resolved so
-  // the overlay spinner gives way to the notice instead of spinning forever.
+  // A slot that failed to decrypt (or that we refused to decrypt) will never
+  // fire onLoad. Mark it resolved so the overlay spinner gives way to the
+  // notice instead of spinning forever.
   useEffect(() => {
-    if (decrypted.error) handleLoaded();
-  }, [decrypted.error, handleLoaded]);
+    if (decrypted.error || decrypted.tooLarge) handleLoaded();
+  }, [decrypted.error, decrypted.tooLarge, handleLoaded]);
 
   /** Notify parent when zoom state changes. */
   const notifyZoom = useCallback(() => {
@@ -1017,8 +1029,14 @@ function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZo
       style={{ cursor: scale.current > 1 ? 'grab' : 'default' }}
     >
       <div ref={wrapRef} style={{ transformOrigin: 'center center', willChange: 'transform', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {decrypted.error ? (
-          <EncryptedFileNotice unsupported={decrypted.unsupported} className="max-w-sm bg-white/10 text-white/80" />
+        {decrypted.error || decrypted.tooLarge ? (
+          <EncryptedFileNotice
+            unsupported={decrypted.unsupported}
+            tooLarge={decrypted.tooLarge}
+            byteSize={decrypted.byteSize}
+            onDecryptAnyway={decrypted.decryptAnyway}
+            className="max-w-sm bg-white/10 text-white/80"
+          />
         ) : (
           <img
             ref={imgRef}
@@ -1061,29 +1079,19 @@ function LightboxSlot({
   const author = useAuthor(type === 'audio' ? meta?.pubkey : undefined);
   const authorMeta = author.data?.metadata;
   const fallback = meta?.pubkey ? 'Anonymous' : '?';
-  // Images decrypt inside LightboxImage, which also owns the zoom/pan state;
-  // video and audio have no such wrapper, so resolve their source here.
-  const decrypted = useDecryptedFile(url, type === 'image' ? undefined : meta?.encryption);
 
   if (url === LOADING_SENTINEL) {
     return <div className="size-10 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />;
   }
 
-  if (type !== 'image' && decrypted.encrypted && !decrypted.src) {
-    return (
-      <EncryptedFileNotice
-        loading={decrypted.loading}
-        unsupported={decrypted.unsupported}
-        className="max-w-sm bg-white/10 text-white/80"
-      />
-    );
-  }
-
+  // Video and audio decrypt inside their own players; images decrypt inside
+  // LightboxImage, which also owns the zoom/pan state.
   if (type === 'video') {
     return (
       <div className="w-full flex items-center justify-center px-4" onClick={(e) => e.stopPropagation()}>
         <VideoPlayer
-          src={decrypted.src ?? url}
+          src={url}
+          encryption={meta?.encryption}
           dim={meta?.dim}
           blurhash={meta?.blurhash}
           className="w-full max-w-lg"
@@ -1095,8 +1103,9 @@ function LightboxSlot({
     return (
       <div className="w-full flex items-center justify-center px-4" onClick={(e) => e.stopPropagation()}>
         <AudioVisualizer
-          src={decrypted.src ?? url}
-          mime={decrypted.mime ?? meta?.mime}
+          src={url}
+          mime={meta?.mime}
+          encryption={meta?.encryption}
           avatarUrl={authorMeta?.picture}
           avatarFallback={fallback[0]?.toUpperCase()}
           avatarShape={getAvatarShape(authorMeta)}

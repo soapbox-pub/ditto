@@ -9,6 +9,8 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useCardTilt } from '@/hooks/useCardTilt';
 import { useDominantColor } from '@/hooks/useDominantColor';
 import { useWebxdc } from '@/hooks/useWebxdc';
+import { useDecryptedFile } from '@/hooks/useDecryptedFile';
+import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
 import { deriveIframeSubdomain } from '@/lib/iframeSubdomain';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +23,11 @@ export interface WebxdcEmbedProps {
   name?: string;
   /** App icon URL. */
   icon?: string;
+  /**
+   * Present when the `.xdc` bundle (and its icon) serve ciphertext. Both are
+   * decrypted to object URLs, which `resolveXdc` fetches like any other URL.
+   */
+  encryption?: FileEncryption;
   /**
    * If true, renders a description-style card below the cartridge with the
    * app name. Defaults to true. Set to false when a parent component is
@@ -59,7 +66,7 @@ function useElementRect(el: HTMLElement | null): Rect | null {
  * then opens a fullscreen panel (covering the center column on desktop, the
  * full screen on mobile) when the user clicks Play — matching the nsite UX.
  */
-export function WebxdcEmbed({ url, uuid, name, icon, showNameCard = true, className }: WebxdcEmbedProps) {
+export function WebxdcEmbed({ url: originalUrl, uuid, name, icon: originalIcon, encryption, showNameCard = true, className }: WebxdcEmbedProps) {
   const [launched, setLaunched] = useState(false);
   const [showGamepad, setShowGamepad] = useState(false);
   const webxdcHandleRef = useRef<WebxdcHandle>(null);
@@ -68,8 +75,19 @@ export function WebxdcEmbed({ url, uuid, name, icon, showNameCard = true, classN
   const columnRect = useElementRect(launched ? centerColumn : null);
   const { config } = useAppContext();
 
+  // The bundle and its icon are separate blobs under one key, so the icon can't
+  // be checked against the bundle's `ox` hash or MIME type.
+  const decrypted = useDecryptedFile(originalUrl, encryption);
+  const decryptedIcon = useDecryptedFile(
+    originalIcon ?? '',
+    originalIcon && encryption ? companionEncryption(encryption) : undefined,
+  );
+  const url = decrypted.src ?? originalUrl;
+  const icon = originalIcon ? decryptedIcon.src : undefined;
+
   // Derive a private, stable subdomain from a device-local seed + the identifier.
-  const identifier = uuid ?? url;
+  // Keyed off the original URL so the identity survives re-decryption.
+  const identifier = uuid ?? originalUrl;
   const iframeId = deriveIframeSubdomain(config.appId, 'webxdc', identifier);
 
   const handleClose = useCallback(() => {

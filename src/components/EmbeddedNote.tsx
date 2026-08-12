@@ -46,7 +46,7 @@ import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
 import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
-import { parseImetaMap } from '@/lib/imeta';
+import { parseImetaEntries, parseImetaMap } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { ImageGallery } from '@/components/ImageGallery';
 import { VideoPlayer } from '@/components/VideoPlayer';
@@ -890,13 +890,9 @@ function EmbeddedNoteCard({
     if (isBlobbiState) return { images: [] };
     // Collect ordered image + first video URLs.
     if (isPhoto) {
-      const images: string[] = [];
-      for (const tag of event.tags) {
-        if (tag[0] !== 'imeta') continue;
-        const urlPart = tag.find((p) => p.startsWith('url '));
-        const url = urlPart ? sanitizeUrl(urlPart.slice(4)) : undefined;
-        if (url) images.push(url);
-      }
+      const images = parseImetaEntries(event.tags)
+        .map((entry) => sanitizeUrl(entry.url))
+        .filter((url): url is string => !!url);
       return { images };
     }
     const imageMatches = event.content.match(new RegExp(IMAGE_URL_REGEX.source, 'gi')) || [];
@@ -1022,6 +1018,7 @@ function EmbeddedNoteCard({
                   <VideoPlayer
                     src={previewMedia.video}
                     poster={imetaMap.get(previewMedia.video)?.thumbnail}
+                    encryption={imetaMap.get(previewMedia.video)?.encryption}
                     dim={imetaMap.get(previewMedia.video)?.dim}
                     blurhash={imetaMap.get(previewMedia.video)?.blurhash}
                   />

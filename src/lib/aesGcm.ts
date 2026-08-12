@@ -54,12 +54,19 @@ export function decodeKeyMaterial(value: string): Uint8Array | undefined {
  * Decrypt AES-GCM ciphertext (with the authentication tag appended, as
  * WebCrypto produces it). Throws if the key/nonce are malformed or the tag
  * doesn't verify.
+ *
+ * Takes and returns an `ArrayBuffer` rather than a `Uint8Array` so large media
+ * files pass through without being copied: `Response.arrayBuffer()` and
+ * `crypto.subtle.decrypt` both already hand back an ArrayBuffer, and a `Blob`
+ * accepts one directly. AES-GCM can't be streamed — the tag authenticates the
+ * whole message, so ciphertext and plaintext are necessarily both resident —
+ * and at that size every avoidable copy matters.
  */
 export async function aesGcmDecrypt(
-  ciphertext: Uint8Array,
+  ciphertext: BufferSource,
   key: Uint8Array,
   nonce: Uint8Array,
-): Promise<Uint8Array> {
+): Promise<ArrayBuffer> {
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
     toBufferSource(key),
@@ -67,10 +74,9 @@ export async function aesGcmDecrypt(
     false,
     ['decrypt'],
   );
-  const plaintext = await crypto.subtle.decrypt(
+  return crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: toBufferSource(nonce) },
     cryptoKey,
-    toBufferSource(ciphertext),
+    ciphertext,
   );
-  return new Uint8Array(plaintext);
 }

@@ -1,7 +1,8 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { extractBlossomUris, resolveBlossomUri, resolveBlossomUrl } from '@/lib/blossomUri';
-import { parseFileEncryption, type FileEncryption } from '@/lib/encryptedFile';
+import { type FileEncryption } from '@/lib/encryptedFile';
+import { parseImetaEntries } from '@/lib/imeta';
 import { getContentWarning } from '@/lib/contentWarning';
 import { mimeFromExt } from '@/lib/mediaUrls';
 
@@ -62,50 +63,6 @@ export interface MediaItem {
   contentWarning?: string;
 }
 
-interface ImetaMedia {
-  url: string;
-  blurhash?: string;
-  dim?: string;
-  alt?: string;
-  mime?: string;
-  encryption?: FileEncryption;
-}
-
-function parseImeta(tags: string[][]): ImetaMedia[] {
-  const results: ImetaMedia[] = [];
-  for (const tag of tags) {
-    if (tag[0] !== 'imeta') continue;
-    const parts: Record<string, string> = {};
-    const fallbacks: string[] = [];
-    for (let i = 1; i < tag.length; i++) {
-      const sp = tag[i].indexOf(' ');
-      if (sp === -1) continue;
-      const key = tag[i].slice(0, sp);
-      const value = tag[i].slice(sp + 1);
-      if (key === 'fallback') fallbacks.push(value);
-      else parts[key] = value;
-    }
-    if (parts.url) {
-      results.push({
-        url: parts.url,
-        blurhash: parts.blurhash,
-        dim: parts.dim,
-        alt: parts.alt,
-        mime: parts.m,
-        encryption: parseFileEncryption({
-          algorithm: parts['encryption-algorithm'],
-          key: parts['decryption-key'],
-          nonce: parts['decryption-nonce'],
-          hash: parts.ox,
-          mime: parts.m,
-          fallbacks,
-        }),
-      });
-    }
-  }
-  return results;
-}
-
 function extractMediaUrls(content: string): string[] {
   return content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|qt|mp3|mpga|ogg|flac|wav|aac|opus)(\?[^\s]*)?/gi) ?? [];
 }
@@ -133,7 +90,7 @@ function extractBlossomMediaUrls(content: string, blossomServers: string[]): str
  * fetchable HTTPS URLs when the URI carries no usable `xs` server hint.
  */
 export function eventToMediaItem(event: NostrEvent, blossomServers: string[] = []): MediaItem | null {
-  const imeta = parseImeta(event.tags).flatMap((entry) => {
+  const imeta = parseImetaEntries(event.tags).flatMap((entry) => {
     const url = resolveBlossomUrl(entry.url, blossomServers);
     return url ? [{ ...entry, url }] : [];
   });

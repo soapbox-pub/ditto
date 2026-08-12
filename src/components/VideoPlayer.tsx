@@ -5,6 +5,9 @@ import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
 import { isValidBlurhash } from '@/lib/blurhash';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
+import { useDecryptedFile } from '@/hooks/useDecryptedFile';
+import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
+import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
 import { useVideoThumbnail } from '@/hooks/useVideoThumbnail';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -25,6 +28,12 @@ interface VideoPlayerProps {
   artist?: string;
   /** When true, the video auto-plays muted without requiring a click. */
   autoPlay?: boolean;
+  /**
+   * Present when `src` (and `poster`) serve ciphertext. The player fetches and
+   * decrypts them to object URLs before playback; the poster is decrypted with
+   * the same key and nonce, per the NIP-94 encryption extension.
+   */
+  encryption?: FileEncryption;
 }
 
 /** Parses a NIP-94 `dim` string like "1280x720" into `{ width, height }`. */
@@ -76,15 +85,29 @@ function useHls(videoRef: React.RefObject<HTMLVideoElement | null>, src: string)
   return { isHls };
 }
 
-export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash, title, artist, autoPlay }: VideoPlayerProps) {
+export function VideoPlayer({ src: originalSrc, poster: originalPoster, className, dim, blurhash, title, artist, autoPlay, encryption }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { src, onError: onBlossomError } = useBlossomFallback(originalSrc);
+  const fallback = useBlossomFallback(originalSrc);
+
+  // An encrypted source is fetched and decrypted to an object URL, which makes
+  // cross-server fallback the decryption hook's job rather than the <video>'s.
+  const decrypted = useDecryptedFile(originalSrc, encryption);
+  const decryptedPoster = useDecryptedFile(
+    originalPoster ?? '',
+    originalPoster && encryption ? companionEncryption(encryption) : undefined,
+  );
+  const src = decrypted.encrypted ? (decrypted.src ?? '') : fallback.src;
+  const poster = originalPoster ? decryptedPoster.src : undefined;
+  const onBlossomError = decrypted.encrypted ? () => {} : fallback.onError;
+
   const { isHls } = useHls(videoRef, src);
   const { config } = useAppContext();
   const shouldAutoPlay = autoPlay ?? config.autoplayVideos;
 
+  // Generating a poster means decoding frames — pointless against ciphertext,
+  // so wait for the decrypted source.
   const generatedPoster = useVideoThumbnail(src, poster);
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -236,6 +259,27 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
     togglePlay(e);
     revealControls();
   };
+
+  // Nothing to play yet: still decrypting, or the file can't be decrypted at
+  // all. Falling back to `originalSrc` would only feed the player ciphertext.
+  if (decrypted.encrypted && !decrypted.src) {
+    return (
+      <div
+        className={cn('relative mt-3 rounded-2xl overflow-hidden border border-border', className)}
+        style={{ aspectRatio }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <EncryptedFileNotice
+          fill
+          loading={decrypted.loading}
+          unsupported={decrypted.unsupported}
+          tooLarge={decrypted.tooLarge}
+          byteSize={decrypted.byteSize}
+          onDecryptAnyway={decrypted.decryptAnyway}
+        />
+      </div>
+    );
+  }
 
   return (
     <div

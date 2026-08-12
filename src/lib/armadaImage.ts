@@ -1,6 +1,6 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
-import { aesGcmDecrypt, toBufferSource } from '@/lib/aesGcm';
+import { aesGcmDecrypt } from '@/lib/aesGcm';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import type { ArmadaImagePointer } from '@/lib/armadaInvite';
 
@@ -43,19 +43,19 @@ export async function decryptArmadaImage(
   try {
     const res = await fetch(url, { signal });
     if (!res.ok) return undefined;
-    const ciphertext = new Uint8Array(await res.arrayBuffer());
 
-    const plaintext = await aesGcmDecrypt(
-      ciphertext,
+    const decrypted = await aesGcmDecrypt(
+      await res.arrayBuffer(),
       hexToBytes(pointer.key),
       hexToBytes(pointer.nonce),
     );
+    const plaintext = new Uint8Array(decrypted);
 
     if (bytesToHex(sha256(plaintext)) !== pointer.hash.toLowerCase()) {
       return undefined; // integrity check failed — a swapped blob
     }
     const mime = sniffImageMime(plaintext);
-    return URL.createObjectURL(new Blob([toBufferSource(plaintext)], { type: mime }));
+    return URL.createObjectURL(new Blob([plaintext], { type: mime }));
   } catch {
     return undefined;
   }

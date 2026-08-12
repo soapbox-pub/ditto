@@ -118,6 +118,9 @@ import { ProfileHoverCard } from "@/components/ProfileHoverCard";
 const PullRequestCard = lazy(() => import("@/components/PullRequestCard").then(m => ({ default: m.PullRequestCard })));
 import { ReactionButton } from "@/components/ReactionButton";
 import { ReplyComposeModal } from "@/components/ReplyComposeModal";
+import { parseFirstImeta, parseImetaEntries, parseImetaMap } from '@/lib/imeta';
+import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
+import { useDecryptedFile } from '@/hooks/useDecryptedFile';
 import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
@@ -1841,44 +1844,16 @@ function TruncatedNoteContent({
 
 // ── NIP-68 Photo content (kind 20) ────────────────────────────────────────────
 
-/** Parse all imeta image URLs from NIP-68 photo events. */
-function parsePhotoUrls(
-  tags: string[][],
-): Array<{ url: string; alt?: string; blurhash?: string }> {
-  const results: Array<{ url: string; alt?: string; blurhash?: string }> = [];
-  for (const tag of tags) {
-    if (tag[0] !== "imeta") continue;
-    const parts: Record<string, string> = {};
-    for (let i = 1; i < tag.length; i++) {
-      const p = tag[i];
-      const sp = p.indexOf(" ");
-      if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
-    }
-    if (parts.url)
-      results.push({
-        url: parts.url,
-        alt: parts.alt,
-        blurhash: parts.blurhash,
-      });
-  }
-  return results;
-}
-
 /** Inline photo gallery for NIP-68 kind 20 events. */
 function PhotoContent({ event }: { event: NostrEvent }) {
-  const photos = useMemo(() => parsePhotoUrls(event.tags), [event.tags]);
+  const photos = useMemo(() => parseImetaEntries(event.tags), [event.tags]);
   const title = getTag(event.tags, "title");
   const description = event.content;
   const hashtags = event.tags.filter(([n]) => n === "t").map(([, v]) => v);
 
-  // Build imetaMap with dim + blurhash so ImageGallery can show blurhash placeholders
-  const imetaMap = useMemo(() => {
-    const map = new Map<string, { dim?: string; blurhash?: string }>();
-    for (const photo of photos) {
-      map.set(photo.url, { blurhash: photo.blurhash });
-    }
-    return map;
-  }, [photos]);
+  // Carries dim + blurhash for placeholders, and the decryption key for
+  // encrypted photos — ImageGallery decrypts each tile from this map.
+  const imetaMap = useMemo(() => parseImetaMap(event.tags), [event.tags]);
 
   if (photos.length === 0) return null;
 
@@ -1921,21 +1896,16 @@ function parseVideoImeta(tags: string[][]): {
   url?: string;
   thumbnail?: string;
   duration?: string;
+  encryption?: FileEncryption;
 } {
-  for (const tag of tags) {
-    if (tag[0] !== "imeta") continue;
-    const parts: Record<string, string> = {};
-    for (let i = 1; i < tag.length; i++) {
-      const p = tag[i];
-      const sp = p.indexOf(" ");
-      if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
-    }
-    if (parts.url)
-      return {
-        url: parts.url,
-        thumbnail: parts.image,
-        duration: parts.duration,
-      };
+  const entry = parseFirstImeta(tags);
+  if (entry) {
+    return {
+      url: entry.url,
+      thumbnail: entry.thumbnail,
+      duration: entry.duration,
+      encryption: entry.encryption,
+    };
   }
   // Fallback to plain url/thumb tags
   return {
@@ -1960,7 +1930,7 @@ function fmtDuration(seconds: string | undefined): string | undefined {
 
 /** Inline video player for NIP-71 kind 21 events. */
 function VideoContent({ event }: { event: NostrEvent }) {
-  const { url, thumbnail, duration } = useMemo(
+  const { url, thumbnail, duration, encryption } = useMemo(
     () => parseVideoImeta(event.tags),
     [event.tags],
   );
@@ -1975,7 +1945,7 @@ function VideoContent({ event }: { event: NostrEvent }) {
     <div className="mt-2 space-y-2">
       {title && <p className="font-semibold text-[15px]">{title}</p>}
       <div className="relative rounded-xl overflow-hidden bg-muted">
-        <VideoPlayer src={url} poster={thumbnail} title={title ?? undefined} />
+        <VideoPlayer src={url} poster={thumbnail} encryption={encryption} title={title ?? undefined} />
         {formattedDuration && (
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-medium pointer-events-none">
             {formattedDuration}
@@ -2010,10 +1980,19 @@ function VineMedia({
   imeta,
   hashtags,
 }: {
-  imeta?: { url?: string; thumbnail?: string };
+  imeta?: { url?: string; thumbnail?: string; encryption?: FileEncryption };
   hashtags: string[];
 }) {
   const { config } = useAppContext();
+  // The vine and its thumbnail are separate blobs under one key, so the
+  // thumbnail can't be checked against the vine's `ox` hash or MIME type.
+  const decrypted = useDecryptedFile(imeta?.url ?? '', imeta?.encryption);
+  const decryptedThumb = useDecryptedFile(
+    imeta?.thumbnail ?? '',
+    imeta?.thumbnail && imeta.encryption ? companionEncryption(imeta.encryption) : undefined,
+  );
+  const videoUrl = decrypted.src;
+  const thumbnailUrl = imeta?.thumbnail ? decryptedThumb.src : undefined;
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -2099,7 +2078,7 @@ function VineMedia({
               native gray play-circle that a poster-bearing <video> would draw. */}
           {imeta.thumbnail && !isPlaying && (
             <img
-              src={imeta.thumbnail}
+              src={thumbnailUrl}
               alt=""
               aria-hidden
               className="w-full max-h-[70vh] object-cover"
@@ -2108,7 +2087,7 @@ function VineMedia({
           )}
           <video
             ref={videoRef}
-            src={imeta.url}
+            src={videoUrl}
             data-no-native-poster=""
             poster={BLANK_POSTER}
             className={cn(

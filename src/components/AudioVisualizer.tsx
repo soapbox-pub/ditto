@@ -4,11 +4,19 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import type { AvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
+import { useDecryptedFile } from '@/hooks/useDecryptedFile';
+import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
+import type { FileEncryption } from '@/lib/encryptedFile';
 import { formatTime } from '@/lib/formatTime';
 
 interface AudioVisualizerProps {
   src: string;
   mime?: string;
+  /**
+   * Present when `src` serves ciphertext. The player fetches and decrypts it to
+   * an object URL before playback.
+   */
+  encryption?: FileEncryption;
   /** Avatar image URL for the circle in the centre */
   avatarUrl?: string;
   /** Fallback display letter for the avatar */
@@ -25,13 +33,20 @@ interface AudioVisualizerProps {
  * a canvas showing an animated sinewave with the author's avatar centred.
  */
 export function AudioVisualizer({
-  src,
-  mime,
+  src: originalSrc,
+  mime: declaredMime,
+  encryption,
   avatarUrl,
   avatarFallback = '?',
   avatarShape,
   className,
 }: AudioVisualizerProps) {
+  const decrypted = useDecryptedFile(originalSrc, encryption);
+  const src = decrypted.src ?? '';
+  // Once decrypted the object URL carries the plaintext type, which is what
+  // <source type> needs — the `m` tag describes the plaintext too.
+  const mime = decrypted.mime ?? declaredMime;
+
   const audioRef = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -230,6 +245,27 @@ export function AudioVisualizer({
     cancelAnimationFrame(animFrameRef.current);
     audioCtxRef.current?.close();
   }, []);
+
+  // Nothing to play yet: still decrypting, or undecryptable. Pointing <audio>
+  // at the original URL would only hand it ciphertext.
+  if (decrypted.encrypted && !decrypted.src) {
+    return (
+      <div
+        className={cn('relative mt-3 rounded-2xl overflow-hidden border border-border', className)}
+        style={{ aspectRatio: '16 / 9' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <EncryptedFileNotice
+          fill
+          loading={decrypted.loading}
+          unsupported={decrypted.unsupported}
+          tooLarge={decrypted.tooLarge}
+          byteSize={decrypted.byteSize}
+          onDecryptAnyway={decrypted.decryptAnyway}
+        />
+      </div>
+    );
+  }
 
   return (
     <div

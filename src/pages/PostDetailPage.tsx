@@ -118,6 +118,8 @@ import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
 import { LoveListContent } from "@/components/LoveListContent";
 import { LOVE_LIST_KIND } from "@/hooks/useLoveList";
 import { VanishEventContent } from "@/components/VanishEventContent";
+import { parseFirstImeta, parseImetaEntries, parseImetaMap } from '@/lib/imeta';
+import { type FileEncryption } from '@/lib/encryptedFile';
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { ProfileCard } from "@/components/ProfileCard";
@@ -254,22 +256,9 @@ function parseImeta(tags: string[][]): {
   thumbnail?: string;
   dim?: string;
   blurhash?: string;
+  encryption?: FileEncryption;
 } {
-  const imetaTag = tags.find(([name]) => name === "imeta");
-  if (!imetaTag) return {};
-  const result: Record<string, string> = {};
-  for (let i = 1; i < imetaTag.length; i++) {
-    const part = imetaTag[i];
-    const spaceIdx = part.indexOf(" ");
-    if (spaceIdx === -1) continue;
-    const key = part.slice(0, spaceIdx);
-    const value = part.slice(spaceIdx + 1);
-    if (key === "url") result.url = value;
-    else if (key === "image") result.thumbnail = value;
-    else if (key === "dim") result.dim = value;
-    else if (key === "blurhash") result.blurhash = value;
-  }
-  return result;
+  return parseFirstImeta(tags) ?? {};
 }
 
 /** Formats a timestamp into a full date string like "Feb 16, 2026, 2:53 PM". */
@@ -1084,19 +1073,14 @@ function EventNotFound({
 
 /** NIP-68 Photo detail content (kind 20). */
 function PhotoDetailContent({ event }: { event: NostrEvent }) {
-  const photos = useMemo(() => parsePhotoUrls(event.tags), [event.tags]);
+  const photos = useMemo(() => parseImetaEntries(event.tags), [event.tags]);
   const title = getTag(event.tags, "title");
   const description = event.content;
   const hashtags = event.tags.filter(([n]) => n === "t").map(([, v]) => v);
 
-  // Build imetaMap with blurhash so ImageGallery can show blurhash placeholders
-  const imetaMap = useMemo(() => {
-    const map = new Map<string, { dim?: string; blurhash?: string }>();
-    for (const photo of photos) {
-      map.set(photo.url, { blurhash: photo.blurhash });
-    }
-    return map;
-  }, [photos]);
+  // Carries blurhash for placeholders, and the decryption key for encrypted
+  // photos — ImageGallery decrypts each tile from this map.
+  const imetaMap = useMemo(() => parseImetaMap(event.tags), [event.tags]);
 
   if (photos.length === 0) return null;
 
@@ -1131,29 +1115,6 @@ function PhotoDetailContent({ event }: { event: NostrEvent }) {
   );
 }
 
-/** Parse all imeta image URLs from NIP-68 photo events. */
-function parsePhotoUrls(
-  tags: string[][],
-): Array<{ url: string; alt?: string; blurhash?: string }> {
-  const results: Array<{ url: string; alt?: string; blurhash?: string }> = [];
-  for (const tag of tags) {
-    if (tag[0] !== "imeta") continue;
-    const parts: Record<string, string> = {};
-    for (let i = 1; i < tag.length; i++) {
-      const p = tag[i];
-      const sp = p.indexOf(" ");
-      if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
-    }
-    if (parts.url)
-      results.push({
-        url: parts.url,
-        alt: parts.alt,
-        blurhash: parts.blurhash,
-      });
-  }
-  return results;
-}
-
 /** Video + title + hashtags for a kind 34236 vine on the detail page. */
 function VideoDetailContent({ event }: { event: NostrEvent }) {
   const imeta = useMemo(() => parseImeta(event.tags), [event.tags]);
@@ -1167,6 +1128,7 @@ function VideoDetailContent({ event }: { event: NostrEvent }) {
         <VideoPlayer
           src={imeta.url}
           poster={imeta.thumbnail}
+          encryption={imeta.encryption}
           dim={imeta.dim}
           blurhash={imeta.blurhash}
           title={title ?? undefined}
@@ -1215,6 +1177,7 @@ function VineDetailContent({ event }: { event: NostrEvent }) {
         <VideoPlayer
           src={imeta.url}
           poster={imeta.thumbnail}
+          encryption={imeta.encryption}
           title={vineTitle ?? undefined}
         />
       )}

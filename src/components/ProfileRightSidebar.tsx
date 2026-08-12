@@ -32,6 +32,10 @@ import { mimeFromExt } from '@/lib/mediaUrls';
 import { isWeatherFieldLabel } from '@/lib/weatherStation';
 import { WeatherStationCard } from '@/components/WeatherStationCard';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { parseImetaEntries } from '@/lib/imeta';
+import { type FileEncryption } from '@/lib/encryptedFile';
+import { useDecryptedFile } from '@/hooks/useDecryptedFile';
+import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
 
 /** Media-native kinds shown in the sidebar (excludes kind 1 text notes and kind 1111 comments). */
 const SIDEBAR_MEDIA_KINDS = [20, 21, 22, 34236, 36787, 34139, 30054, 30055];
@@ -104,6 +108,8 @@ interface MediaItem {
   dim?: string;
   /** MIME type from the imeta `m` field, e.g. "video/mp4". */
   mime?: string;
+  /** Present when `url` serves ciphertext that must be decrypted to render. */
+  encryption?: FileEncryption;
 }
 
 /** Extracts image URLs from content. */
@@ -119,18 +125,16 @@ function extractVideoUrls(content: string): string[] {
 }
 
 /** Extract url, blurhash, dim, and mime from the first matching imeta tag for a given URL (or the first tag if no URL given). */
-function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: string; blurhash?: string; dim?: string; mime?: string } {
-  const imetaTags = event.tags.filter(([name]) => name === 'imeta');
-  for (const imetaTag of imetaTags) {
-    const fields: Record<string, string> = {};
-    for (let i = 1; i < imetaTag.length; i++) {
-      const spaceIdx = imetaTag[i].indexOf(' ');
-      if (spaceIdx === -1) continue;
-      fields[imetaTag[i].slice(0, spaceIdx)] = imetaTag[i].slice(spaceIdx + 1);
-    }
-    if (!fields.url) continue;
-    if (matchUrl && fields.url !== matchUrl) continue;
-    return { url: fields.url, blurhash: fields.blurhash, dim: fields.dim, mime: fields.m };
+function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: string; blurhash?: string; dim?: string; mime?: string; encryption?: FileEncryption } {
+  for (const entry of parseImetaEntries(event.tags)) {
+    if (matchUrl && entry.url !== matchUrl) continue;
+    return {
+      url: entry.url,
+      blurhash: entry.blurhash,
+      dim: entry.dim,
+      mime: entry.mime,
+      encryption: entry.encryption,
+    };
   }
   return {};
 }
@@ -152,12 +156,12 @@ function extractMedia(events: NostrEvent[], cwPolicy: string, blossomServers: st
 
     // For media-native kinds (vines etc.), extract from imeta tags
     if (event.kind !== 1) {
-      const { url: rawUrl, blurhash, dim, mime } = extractImetaFields(event);
+      const { url: rawUrl, blurhash, dim, mime, encryption } = extractImetaFields(event);
       const url = rawUrl ? resolveBlossomUrl(rawUrl, blossomServers) : undefined;
       if (url && !seen.has(url)) {
         seen.add(url);
         const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-        items.push({ url, blurhash, dim, mime, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
+        items.push({ url, blurhash, dim, mime, encryption, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
       }
       continue;
     }
@@ -168,8 +172,8 @@ function extractMedia(events: NostrEvent[], cwPolicy: string, blossomServers: st
     for (const url of [...images, ...videos]) {
       if (!seen.has(url)) {
         seen.add(url);
-        const { blurhash, dim, mime } = extractImetaFields(event, url);
-        items.push({ url, blurhash, dim, mime, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
+        const { blurhash, dim, mime, encryption } = extractImetaFields(event, url);
+        items.push({ url, blurhash, dim, mime, encryption, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
       }
     }
 
@@ -181,8 +185,8 @@ function extractMedia(events: NostrEvent[], cwPolicy: string, blossomServers: st
       const [url] = resolveBlossomUri(uri, blossomServers);
       if (!url || seen.has(url)) continue;
       seen.add(url);
-      const { blurhash, dim } = extractImetaFields(event, raw);
-      items.push({ url, blurhash, dim, mime, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
+      const { blurhash, dim, encryption } = extractImetaFields(event, raw);
+      items.push({ url, blurhash, dim, mime, encryption, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
     }
   }
 
@@ -206,7 +210,11 @@ function MediaTile({ item }: { item: MediaItem }) {
   const imgRef = useRef<HTMLImageElement>(null);
   const { config } = useAppContext();
   // Content-addressed Blossom URLs get automatic fallback across servers.
-  const { src, onError } = useBlossomFallback(item.url);
+  const fallback = useBlossomFallback(item.url);
+  // Encrypted blobs are fetched and decrypted to an object URL instead.
+  const decrypted = useDecryptedFile(item.url, item.encryption);
+  const src = decrypted.encrypted ? decrypted.src : fallback.src;
+  const onError = decrypted.encrypted ? undefined : fallback.onError;
   const isVideo = isVideoItem(item);
 
   useEffect(() => {
@@ -217,8 +225,18 @@ function MediaTile({ item }: { item: MediaItem }) {
 
   return (
     <div className="relative w-full h-full">
+      {decrypted.encrypted && !decrypted.src && (
+        <EncryptedFileNotice
+          fill
+          loading={decrypted.loading}
+          unsupported={decrypted.unsupported}
+          tooLarge={decrypted.tooLarge}
+          byteSize={decrypted.byteSize}
+          onDecryptAnyway={decrypted.decryptAnyway}
+        />
+      )}
       {/* Blurhash or skeleton placeholder while media loads */}
-      {!loaded && (
+      {!loaded && !decrypted.error && !decrypted.tooLarge && (
         isValidBlurhash(item.blurhash) ? (
           <Blurhash
             hash={item.blurhash}

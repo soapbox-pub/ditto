@@ -38,6 +38,9 @@ import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { getKindLabel } from '@/lib/kindLabels';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
+import { parseFirstImeta } from '@/lib/imeta';
+import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
+import { DecryptedImage } from '@/components/DecryptedImage';
 
 // ---------------------------------------------------------------------------
 // Full-size content headers (used on /i/ page)
@@ -1241,25 +1244,24 @@ export function ProfilePreview({ pubkey }: { pubkey: string }) {
 // ---------------------------------------------------------------------------
 
 /** Extract a thumbnail URL from an addressable event's tags. */
-function extractThumbnail(tags: string[][]): string | undefined {
+function extractThumbnail(tags: string[][]): { url: string; encryption?: FileEncryption } | undefined {
   // 1. Explicit icon tag (used by zapstore kind 32267)
   const iconTag = tags.find(([n]) => n === 'icon')?.[1];
-  if (iconTag) return iconTag;
+  if (iconTag) return { url: iconTag };
 
   // 2. Explicit image/thumb tag
   const imageTag = tags.find(([n]) => n === 'image' || n === 'thumb')?.[1];
-  if (imageTag) return imageTag;
+  if (imageTag) return { url: imageTag };
 
-  // 3. imeta tag (used by vines / kind 34236)
-  const imetaTag = tags.find(([n]) => n === 'imeta');
-  if (imetaTag) {
-    for (let i = 1; i < imetaTag.length; i++) {
-      const part = imetaTag[i];
-      if (part.startsWith('image ')) return part.slice(6);
-    }
-  }
-
-  return undefined;
+  // 3. imeta tag (used by vines / kind 34236). A thumbnail here shares the
+  // file's key and nonce but is its own blob, so it can't be checked against
+  // the file's `ox` hash or MIME type.
+  const entry = parseFirstImeta(tags);
+  if (!entry?.thumbnail) return undefined;
+  return {
+    url: entry.thumbnail,
+    encryption: entry.encryption ? companionEncryption(entry.encryption) : undefined,
+  };
 }
 
 /** Check if an event has video content (imeta with url containing video indicators). */
@@ -1335,10 +1337,12 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
     >
       {thumbnail ? (
         <div className="relative size-12 rounded-lg overflow-hidden shrink-0">
-          <img
-            src={thumbnail}
+          <DecryptedImage
+            url={thumbnail.url}
+            encryption={thumbnail.encryption}
             alt={title}
             className="size-full object-cover"
+            noticeFill
             loading="lazy"
             decoding="async"
           />

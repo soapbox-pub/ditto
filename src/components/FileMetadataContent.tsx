@@ -8,11 +8,9 @@ import { ImageGallery } from '@/components/ImageGallery';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
-import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
 import { useAuthor } from '@/hooks/useAuthor';
-import { useDecryptedFile } from '@/hooks/useDecryptedFile';
 import { useToast } from '@/hooks/useToast';
-import { companionEncryption, parseFileEncryption, type FileEncryption } from '@/lib/encryptedFile';
+import { parseFileEncryption, type FileEncryption } from '@/lib/encryptedFile';
 import { downloadDecryptedUrl } from '@/lib/downloadFile';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -58,11 +56,13 @@ function AudioFileContent({
   event,
   url,
   mime,
+  encryption,
   description,
 }: {
   event: NostrEvent;
   url: string;
   mime: string;
+  encryption?: FileEncryption;
   description: string | undefined;
 }) {
   const author = useAuthor(event.pubkey);
@@ -74,6 +74,7 @@ function AudioFileContent({
       <AudioVisualizer
         src={url}
         mime={mime}
+        encryption={encryption}
         avatarUrl={metadata?.picture}
         avatarFallback={displayName[0]?.toUpperCase() ?? '?'}
         avatarShape={getAvatarShape(metadata)}
@@ -163,27 +164,13 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
     fallbacks: getTags(event.tags, 'fallback'),
   });
 
-  // Images are handed to ImageGallery, which decrypts each tile (and lightbox
-  // slot) itself — decrypting here too would fetch the same blob twice.
+  // Every branch below hands `encryption` to a component that decrypts for
+  // itself — ImageGallery per tile, VideoPlayer / AudioVisualizer / WebxdcEmbed
+  // per source. Decrypting here as well would fetch the same blob twice.
   const isImage = mime.startsWith('image/');
-  const decrypted = useDecryptedFile(url ?? '', url && !isImage ? encryption : undefined);
-  const decryptedThumb = useDecryptedFile(
-    thumb ?? '',
-    thumb && encryption && !isImage ? companionEncryption(encryption) : undefined,
-  );
 
   if (!url) return null;
 
-  if (decrypted.encrypted && !decrypted.src) {
-    return (
-      <div className="mt-3">
-        <EncryptedFileNotice loading={decrypted.loading} unsupported={decrypted.unsupported} />
-      </div>
-    );
-  }
-
-  const src = decrypted.src ?? url;
-  const poster = thumb ? decryptedThumb.src : undefined;
   const description = event.content || undefined;
   const altText = alt ?? undefined;
   const fileName = url.split('/').pop() ?? 'file';
@@ -195,9 +182,10 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
     return (
       <div className="mt-3">
         <WebxdcEmbed
-          url={src}
+          url={url}
           uuid={webxdcId}
-          icon={poster}
+          icon={thumb}
+          encryption={encryption}
           showNameCard={false}
         />
         <DescriptionCard title={appName} text={description} />
@@ -222,7 +210,7 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
   if (mime.startsWith('video/')) {
     return (
       <div className="mt-3">
-        <VideoPlayer src={src} poster={poster} dim={dim} blurhash={blurhash} title={altText} />
+        <VideoPlayer src={url} poster={thumb} encryption={encryption} dim={dim} blurhash={blurhash} title={altText} />
         {description && !compact && <DescriptionCard text={description} />}
       </div>
     );
@@ -230,7 +218,7 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
 
   // ── Audio ───────────────────────────────────────────────────────────
   if (mime.startsWith('audio/')) {
-    return <AudioFileContent event={event} url={src} mime={mime} description={description} />;
+    return <AudioFileContent event={event} url={url} mime={mime} encryption={encryption} description={description} />;
   }
 
   // ── Fallback: generic file ──────────────────────────────────────────

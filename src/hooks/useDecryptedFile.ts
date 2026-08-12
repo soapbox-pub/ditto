@@ -1,9 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAppContext } from './useAppContext';
 import { getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { blossomAlternatives } from '@/lib/blossomFallback';
-import { decryptFileToObjectUrl, isSupportedEncryption, type FileEncryption } from '@/lib/encryptedFile';
+import {
+  decryptFileToObjectUrl,
+  FileTooLargeError,
+  isSupportedEncryption,
+  type FileEncryption,
+} from '@/lib/encryptedFile';
 
 export interface DecryptedFileState {
   /**
@@ -22,6 +27,27 @@ export interface DecryptedFileState {
   error: boolean;
   /** The file is encrypted with an algorithm this client doesn't implement. */
   unsupported: boolean;
+  /** The file exceeds the size cap and hasn't been explicitly allowed through. */
+  tooLarge: boolean;
+  /** Size in bytes, known only when we refused the file for being too large. */
+  byteSize: number | undefined;
+  /** Decrypt anyway, ignoring the size cap. Only meaningful when `tooLarge`. */
+  decryptAnyway: () => void;
+}
+
+export interface UseDecryptedFileOptions {
+  /**
+   * Defer decryption until true. Use for off-screen grid tiles so scrolling a
+   * media feed doesn't decrypt everything at once. Defaults to true.
+   */
+  enabled?: boolean;
+}
+
+interface InternalState {
+  src?: string;
+  mime?: string;
+  error: boolean;
+  tooLarge?: number;
 }
 
 /**
@@ -35,14 +61,18 @@ export interface DecryptedFileState {
  *
  * On failure `src` stays `undefined` and `error` is set — callers must render a
  * placeholder rather than falling back to the raw URL, which would display
- * ciphertext.
+ * ciphertext. Files past the size cap set `tooLarge` instead, and the user can
+ * wave one through with `decryptAnyway()`.
  */
 export function useDecryptedFile(
   url: string,
   encryption: FileEncryption | undefined,
+  opts: UseDecryptedFileOptions = {},
 ): DecryptedFileState {
+  const { enabled = true } = opts;
   const { config } = useAppContext();
-  const [state, setState] = useState<{ src?: string; mime?: string; error: boolean }>({ error: false });
+  const [state, setState] = useState<InternalState>({ error: false });
+  const [allowOversize, setAllowOversize] = useState(false);
 
   // Depend on the tag values rather than object identity — callers often build
   // the encryption object inline during render.
@@ -63,11 +93,15 @@ export function useDecryptedFile(
 
   const unsupported = !!encryption && !isSupportedEncryption(encryption);
 
+  // A new source is a new decision — don't carry an override across it.
+  useEffect(() => setAllowOversize(false), [url]);
+
   useEffect(() => {
     if (!algorithm || !key || !nonce || unsupported) {
       setState({ error: unsupported });
       return;
     }
+    if (!enabled) return;
 
     let objectUrl: string | undefined;
     let cancelled = false;
@@ -85,7 +119,11 @@ export function useDecryptedFile(
         mime: declaredMime,
         fallbacks: fallbacks ? fallbacks.split('\n') : undefined,
       },
-      { signal: controller.signal, fallbackUrls: alternatives },
+      {
+        signal: controller.signal,
+        fallbackUrls: alternatives,
+        ...(allowOversize ? { maxBytes: Number.POSITIVE_INFINITY } : {}),
+      },
     )
       .then((result) => {
         if (cancelled) {
@@ -95,8 +133,10 @@ export function useDecryptedFile(
         objectUrl = result.objectUrl;
         setState({ src: result.objectUrl, mime: result.mime, error: false });
       })
-      .catch(() => {
-        if (!cancelled) setState({ error: true });
+      .catch((e) => {
+        if (cancelled) return;
+        if (e instanceof FileTooLargeError) setState({ error: false, tooLarge: e.byteSize });
+        else setState({ error: true });
       });
 
     return () => {
@@ -104,18 +144,47 @@ export function useDecryptedFile(
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url, algorithm, key, nonce, hash, declaredMime, fallbacks, unsupported, alternatives]);
+  }, [
+    url,
+    algorithm,
+    key,
+    nonce,
+    hash,
+    declaredMime,
+    fallbacks,
+    unsupported,
+    alternatives,
+    enabled,
+    allowOversize,
+  ]);
+
+  const decryptAnyway = useCallback(() => setAllowOversize(true), []);
 
   if (!encryption) {
-    return { src: url, mime: undefined, encrypted: false, loading: false, error: false, unsupported: false };
+    return {
+      src: url,
+      mime: undefined,
+      encrypted: false,
+      loading: false,
+      error: false,
+      unsupported: false,
+      tooLarge: false,
+      byteSize: undefined,
+      decryptAnyway,
+    };
   }
+
+  const tooLarge = state.tooLarge !== undefined;
 
   return {
     src: state.src,
     mime: state.mime ?? declaredMime,
     encrypted: true,
-    loading: !state.src && !state.error,
+    loading: enabled && !state.src && !state.error && !tooLarge,
     error: state.error,
     unsupported,
+    tooLarge,
+    byteSize: state.tooLarge,
+    decryptAnyway,
   };
 }

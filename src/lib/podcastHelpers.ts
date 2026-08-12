@@ -1,6 +1,8 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import type { AudioTrack } from '@/contexts/audioPlayerContextDef';
+import { parseFirstImeta } from '@/lib/imeta';
+import { type FileEncryption } from '@/lib/encryptedFile';
 
 /** Gets a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -8,25 +10,16 @@ function getTag(tags: string[][], name: string): string | undefined {
 }
 
 /** Parse imeta fields. */
-function parseImeta(tags: string[][]): { url?: string; thumbnail?: string; duration?: string; mime?: string } {
-  for (const tag of tags) {
-    if (tag[0] !== 'imeta') continue;
-    const parts: Record<string, string> = {};
-    for (let i = 1; i < tag.length; i++) {
-      const p = tag[i];
-      const sp = p.indexOf(' ');
-      if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
-    }
-    if (parts.url) {
-      return {
-        url: parts.url,
-        thumbnail: parts.image ?? parts.thumb,
-        duration: parts.duration,
-        mime: parts.m,
-      };
-    }
-  }
-  return {};
+function parseImeta(tags: string[][]): { url?: string; thumbnail?: string; duration?: string; mime?: string; encryption?: FileEncryption } {
+  const entry = parseFirstImeta(tags);
+  if (!entry) return {};
+  return {
+    url: entry.url,
+    thumbnail: entry.thumbnail,
+    duration: entry.duration,
+    mime: entry.mime,
+    encryption: entry.encryption,
+  };
 }
 
 export interface ParsedPodcastEpisode {

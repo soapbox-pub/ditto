@@ -16,19 +16,15 @@ import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { timeAgo } from '@/lib/timeAgo';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { parseImetaEntries } from '@/lib/imeta';
+import { DecryptedImage } from '@/components/DecryptedImage';
+import { type FileEncryption } from '@/lib/encryptedFile';
 
 /** Parse the first imeta image URL from a kind 20 photo event. Sanitizes the URL at the parse layer. */
-function parseFirstPhoto(tags: string[][]): { url: string; alt?: string } | undefined {
-  for (const tag of tags) {
-    if (tag[0] !== 'imeta') continue;
-    const parts: Record<string, string> = {};
-    for (let i = 1; i < tag.length; i++) {
-      const p = tag[i];
-      const sp = p.indexOf(' ');
-      if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
-    }
-    const url = sanitizeUrl(parts.url);
-    if (url) return { url, alt: parts.alt };
+function parseFirstPhoto(tags: string[][]): { url: string; alt?: string; encryption?: FileEncryption } | undefined {
+  for (const entry of parseImetaEntries(tags)) {
+    const url = sanitizeUrl(entry.url);
+    if (url) return { url, alt: entry.alt, encryption: entry.encryption };
   }
   return undefined;
 }
@@ -90,8 +86,9 @@ function PhotoCard({ event }: { event: NostrEvent }) {
     <Link to={`/${encodedId}`} className="block group">
       {/* Photo */}
       <div className="rounded-lg overflow-hidden bg-secondary/30">
-        <img
-          src={photo.url}
+        <DecryptedImage
+          url={photo.url}
+          encryption={photo.encryption}
           alt={photo.alt ?? caption ?? intl.formatMessage({ id: 'widgets.photo.alt', defaultMessage: "Photo" })}
           className="w-full object-cover max-h-[220px] group-hover:scale-[1.02] transition-transform duration-300"
           loading="lazy"

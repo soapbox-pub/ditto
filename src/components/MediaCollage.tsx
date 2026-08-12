@@ -25,6 +25,7 @@ import { type FileEncryption } from '@/lib/encryptedFile';
 import { getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useInView } from '@/hooks/useInView';
 import { parseDimToAspectRatio, eventToMediaItem, type MediaType, type MediaItem } from '@/lib/mediaUtils';
 
 /** A row of items in the justified layout. */
@@ -140,7 +141,10 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
   const fallback = useBlossomFallback(item.url);
   // Encrypted blobs are fetched and decrypted to an object URL instead, since
   // pointing an <img>/<video> at the ciphertext would only render garbage.
-  const decrypted = useDecryptedFile(item.url, item.encryption);
+  // Only decrypt tiles the user can see — a collage would otherwise pull every
+  // attachment on screen into memory at once.
+  const { ref: inViewRef, inView } = useInView({ rootMargin: '400px', skip: !item.encryption });
+  const decrypted = useDecryptedFile(item.url, item.encryption, { enabled: inView });
   const src = decrypted.encrypted ? decrypted.src : fallback.src;
   const onError = decrypted.encrypted ? undefined : fallback.onError;
   const hasCW = item.contentWarning !== undefined;
@@ -150,6 +154,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
 
   return (
     <button
+      ref={inViewRef}
       className="relative overflow-hidden rounded-lg bg-muted group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary w-full h-full"
       onClick={showBlur ? (e) => { e.stopPropagation(); setCwRevealed(true); } : onClick}
       aria-label={showBlur ? 'Reveal sensitive content' : 'View media'}
@@ -200,8 +205,15 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
         <AudioThumb pubkey={item.event.pubkey} />
       )}
 
-      {decrypted.error && !showBlur && (
-        <EncryptedFileNotice fill unsupported={decrypted.unsupported} />
+      {decrypted.encrypted && !decrypted.src && !showBlur && (
+        <EncryptedFileNotice
+          fill
+          loading={decrypted.loading}
+          unsupported={decrypted.unsupported}
+          tooLarge={decrypted.tooLarge}
+          byteSize={decrypted.byteSize}
+          onDecryptAnyway={decrypted.decryptAnyway}
+        />
       )}
 
       {/* Content warning overlay — matches sidebar presentation */}

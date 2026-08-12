@@ -21,14 +21,14 @@ import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { useDecryptedFile } from '@/hooks/useDecryptedFile';
 import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
-import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
+import { type FileEncryption } from '@/lib/encryptedFile';
 import { COUNTRIES } from '@/lib/countries';
 import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
 import { parseBlossomUri, resolveBlossomUri, type BlossomUri } from '@/lib/blossomUri';
 import { useBlossomUri } from '@/hooks/useBlossomUri';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveBlossomServers } from '@/lib/appBlossom';
-import { parseImetaMap, type ImetaEntry } from '@/lib/imeta';
+import { parseImetaEntries, parseImetaMap, type ImetaEntry } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { parseArmadaInvite, type ArmadaInvite } from '@/lib/armadaInvite';
 import { HASHTAG_PATTERN } from '@/lib/hashtag';
@@ -591,17 +591,7 @@ export function NoteContent({
       const contentMediaUrls = new Set(
         result.filter((t): t is { type: 'media-embed'; url: string } => t.type === 'media-embed').map((t) => t.url),
       );
-      for (const tag of event.tags) {
-        if (tag[0] !== 'imeta') continue;
-        let rawUrl: string | undefined;
-        let mime: string | undefined;
-        for (let j = 1; j < tag.length; j++) {
-          const sp = tag[j].indexOf(' ');
-          if (sp === -1) continue;
-          const key = tag[j].slice(0, sp);
-          if (key === 'url') rawUrl = tag[j].slice(sp + 1);
-          else if (key === 'm') mime = tag[j].slice(sp + 1);
-        }
+      for (const { url: rawUrl, mime } of parseImetaEntries(event.tags)) {
         const url = sanitizeUrl(rawUrl);
         if (!url || contentMediaUrls.has(url)) continue;
         const isEmbeddableMedia = mime?.startsWith('audio/') || mime?.startsWith('video/')
@@ -839,7 +829,16 @@ export function NoteContent({
             const isWebxdc = mime === 'application/x-webxdc' || mime === 'application/vnd.webxdc+zip' || token.url.endsWith('.xdc');
             const isAudio = mime.startsWith('audio/') || /\.(mp3|mpga|wav|ogg|flac|m4a|aac|opus)(\?[^\s]*)?$/i.test(token.url);
             if (isWebxdc && imeta) {
-              return <WebxdcEmbed key={i} url={token.url} uuid={imeta.webxdc} name={imeta.summary} icon={imeta.thumbnail} />;
+              return (
+                <WebxdcEmbed
+                  key={i}
+                  url={token.url}
+                  uuid={imeta.webxdc}
+                  name={imeta.summary}
+                  icon={imeta.thumbnail}
+                  encryption={imeta.encryption}
+                />
+              );
             }
             return (
               <MediaEmbed
@@ -980,7 +979,15 @@ function InlineImage({ url, encryption, onClick }: {
   const [loaded, setLoaded] = useState(false);
 
   if (decrypted.encrypted && !decrypted.src) {
-    return <EncryptedFileNotice loading={decrypted.loading} unsupported={decrypted.unsupported} />;
+    return (
+      <EncryptedFileNotice
+        loading={decrypted.loading}
+        unsupported={decrypted.unsupported}
+        tooLarge={decrypted.tooLarge}
+        byteSize={decrypted.byteSize}
+        onDecryptAnyway={decrypted.decryptAnyway}
+      />
+    );
   }
 
   return (
@@ -1016,23 +1023,12 @@ function MediaEmbed({ url, imeta, isAudio, authorMetadata, authorDisplayName }: 
   authorMetadata?: NostrMetadata;
   authorDisplayName: string;
 }) {
-  const decrypted = useDecryptedFile(url, imeta?.encryption);
-  const poster = useDecryptedFile(
-    imeta?.thumbnail ?? '',
-    imeta?.thumbnail && imeta.encryption ? companionEncryption(imeta.encryption) : undefined,
-  );
-
-  if (decrypted.encrypted && !decrypted.src) {
-    return <EncryptedFileNotice loading={decrypted.loading} unsupported={decrypted.unsupported} />;
-  }
-
-  const src = decrypted.src ?? url;
-
   if (isAudio) {
     return (
       <AudioVisualizer
-        src={src}
-        mime={decrypted.mime ?? imeta?.mime}
+        src={url}
+        mime={imeta?.mime}
+        encryption={imeta?.encryption}
         avatarUrl={authorMetadata?.picture}
         avatarFallback={authorDisplayName[0]?.toUpperCase() ?? '?'}
         avatarShape={getAvatarShape(authorMetadata)}
@@ -1042,8 +1038,9 @@ function MediaEmbed({ url, imeta, isAudio, authorMetadata, authorDisplayName }: 
 
   return (
     <VideoPlayer
-      src={src}
-      poster={imeta?.thumbnail ? poster.src : undefined}
+      src={url}
+      poster={imeta?.thumbnail}
+      encryption={imeta?.encryption}
       dim={imeta?.dim}
       blurhash={imeta?.blurhash}
       artist={authorDisplayName}
