@@ -16,9 +16,12 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Lightbox, LOADING_SENTINEL } from '@/components/ImageGallery';
 import { PhotoBottomBar } from '@/components/PhotoBottomBar';
+import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
+import { useDecryptedFile } from '@/hooks/useDecryptedFile';
+import { type FileEncryption } from '@/lib/encryptedFile';
 import { getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -97,6 +100,8 @@ interface FlatEntry {
   mime?: string;
   dim?: string;
   blurhash?: string;
+  /** Present when `url` serves ciphertext that must be decrypted before display. */
+  encryption?: FileEncryption;
   pubkey: string;
   event: NostrEvent;
   indexInEvent: number;
@@ -132,7 +137,12 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
   const [loaded, setLoaded] = useState(false);
   const { config } = useAppContext();
   // Content-addressed Blossom URLs get automatic fallback across servers.
-  const { src, onError } = useBlossomFallback(item.url);
+  const fallback = useBlossomFallback(item.url);
+  // Encrypted blobs are fetched and decrypted to an object URL instead, since
+  // pointing an <img>/<video> at the ciphertext would only render garbage.
+  const decrypted = useDecryptedFile(item.url, item.encryption);
+  const src = decrypted.encrypted ? decrypted.src : fallback.src;
+  const onError = decrypted.encrypted ? undefined : fallback.onError;
   const hasCW = item.contentWarning !== undefined;
   const policy = config.contentWarningPolicy;
   const [cwRevealed, setCwRevealed] = useState(false);
@@ -188,6 +198,10 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
       )}
       {item.type === 'audio' && !showBlur && (
         <AudioThumb pubkey={item.event.pubkey} />
+      )}
+
+      {decrypted.error && !showBlur && (
+        <EncryptedFileNotice fill unsupported={decrypted.unsupported} />
       )}
 
       {/* Content warning overlay — matches sidebar presentation */}
@@ -319,6 +333,7 @@ export function MediaCollage({ events, className, initialOpenUrl, onInitialOpenC
         mime: item.mime,
         dim: item.allDims[indexInEvent] ?? item.dim,
         blurhash: item.blurhash,
+        encryption: item.allEncryption[indexInEvent] ?? item.encryption,
         pubkey: item.event.pubkey,
         event: item.event,
         indexInEvent,
@@ -381,7 +396,10 @@ export function MediaCollage({ events, className, initialOpenUrl, onInitialOpenC
   }, [flat, hasNextPage]);
 
   const mediaTypes = useMemo(() => flat.map((e) => e.type as 'image' | 'video' | 'audio'), [flat]);
-  const mediaMeta = useMemo(() => flat.map((e) => ({ mime: e.mime, dim: e.dim, blurhash: e.blurhash, pubkey: e.pubkey })), [flat]);
+  const mediaMeta = useMemo(
+    () => flat.map((e) => ({ mime: e.mime, dim: e.dim, blurhash: e.blurhash, pubkey: e.pubkey, encryption: e.encryption })),
+    [flat],
+  );
 
   // When flat grows (new page loaded) while parked on the sentinel, auto-advance.
   const waitingForMore = useRef(false);

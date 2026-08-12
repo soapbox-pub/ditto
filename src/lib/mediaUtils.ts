@@ -1,6 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { extractBlossomUris, resolveBlossomUri, resolveBlossomUrl } from '@/lib/blossomUri';
+import { parseFileEncryption, type FileEncryption } from '@/lib/encryptedFile';
 import { getContentWarning } from '@/lib/contentWarning';
 import { mimeFromExt } from '@/lib/mediaUrls';
 
@@ -48,25 +49,59 @@ export interface MediaItem {
   dim?: string;
   alt?: string;
   mime?: string;
+  /** Present when `url` serves ciphertext that must be decrypted before display. */
+  encryption?: FileEncryption;
   allUrls: string[];
   allTypes: MediaType[];
   allDims: (string | undefined)[];
+  /** Per-URL encryption, aligned with `allUrls`. */
+  allEncryption: (FileEncryption | undefined)[];
   event: NostrEvent;
   hasMultiple: boolean;
   /** NIP-36 content warning reason, or empty string if flagged with no reason, or undefined if clean. */
   contentWarning?: string;
 }
 
-function parseImeta(tags: string[][]): { url: string; blurhash?: string; dim?: string; alt?: string; mime?: string }[] {
-  const results: { url: string; blurhash?: string; dim?: string; alt?: string; mime?: string }[] = [];
+interface ImetaMedia {
+  url: string;
+  blurhash?: string;
+  dim?: string;
+  alt?: string;
+  mime?: string;
+  encryption?: FileEncryption;
+}
+
+function parseImeta(tags: string[][]): ImetaMedia[] {
+  const results: ImetaMedia[] = [];
   for (const tag of tags) {
     if (tag[0] !== 'imeta') continue;
     const parts: Record<string, string> = {};
+    const fallbacks: string[] = [];
     for (let i = 1; i < tag.length; i++) {
       const sp = tag[i].indexOf(' ');
-      if (sp !== -1) parts[tag[i].slice(0, sp)] = tag[i].slice(sp + 1);
+      if (sp === -1) continue;
+      const key = tag[i].slice(0, sp);
+      const value = tag[i].slice(sp + 1);
+      if (key === 'fallback') fallbacks.push(value);
+      else parts[key] = value;
     }
-    if (parts.url) results.push({ url: parts.url, blurhash: parts.blurhash, dim: parts.dim, alt: parts.alt, mime: parts.m });
+    if (parts.url) {
+      results.push({
+        url: parts.url,
+        blurhash: parts.blurhash,
+        dim: parts.dim,
+        alt: parts.alt,
+        mime: parts.m,
+        encryption: parseFileEncryption({
+          algorithm: parts['encryption-algorithm'],
+          key: parts['decryption-key'],
+          nonce: parts['decryption-nonce'],
+          hash: parts.ox,
+          mime: parts.m,
+          fallbacks,
+        }),
+      });
+    }
   }
   return results;
 }
@@ -113,9 +148,11 @@ export function eventToMediaItem(event: NostrEvent, blossomServers: string[] = [
       dim: first.dim,
       alt: first.alt,
       mime: first.mime,
+      encryption: first.encryption,
       allUrls: imeta.map((e) => e.url),
       allTypes: imeta.map((e) => detectType(e.url, e.mime, event.kind)),
       allDims: imeta.map((e) => e.dim),
+      allEncryption: imeta.map((e) => e.encryption),
       event,
       hasMultiple: imeta.length > 1,
       contentWarning: cw,
@@ -134,6 +171,7 @@ export function eventToMediaItem(event: NostrEvent, blossomServers: string[] = [
         allUrls: urls,
         allTypes: types,
         allDims: urls.map(() => undefined),
+        allEncryption: urls.map(() => undefined),
         event,
         hasMultiple: urls.length > 1,
         contentWarning: cw,

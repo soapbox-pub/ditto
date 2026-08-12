@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback, type ReactNode } from 'react';
-import { type NostrEvent } from '@nostrify/nostrify';
+import { type NostrEvent, type NostrMetadata } from '@nostrify/nostrify';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -19,13 +19,16 @@ import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { buildEmojiMap } from '@/lib/customEmoji';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
+import { useDecryptedFile } from '@/hooks/useDecryptedFile';
+import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
+import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
 import { COUNTRIES } from '@/lib/countries';
 import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
 import { parseBlossomUri, resolveBlossomUri, type BlossomUri } from '@/lib/blossomUri';
 import { useBlossomUri } from '@/hooks/useBlossomUri';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveBlossomServers } from '@/lib/appBlossom';
-import { parseImetaMap } from '@/lib/imeta';
+import { parseImetaMap, type ImetaEntry } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { parseArmadaInvite, type ArmadaInvite } from '@/lib/armadaInvite';
 import { HASHTAG_PATTERN } from '@/lib/hashtag';
@@ -720,6 +723,12 @@ export function NoteContent({
     [groupedTokens],
   );
 
+  // Per-slot metadata for the shared lightbox — chiefly the decryption key.
+  const lightboxMeta = useMemo(
+    () => allImages.map((url) => imetaMap.get(url) ?? {}),
+    [allImages, imetaMap],
+  );
+
   // Shared lightbox state for inline images
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const closeLightbox = useCallback(() => setLightboxIndex(null), []);
@@ -763,6 +772,7 @@ export function NoteContent({
               <InlineImage
                 key={i}
                 url={token.url}
+                encryption={imetaMap.get(token.url)?.encryption}
                 onClick={(e) => { e.stopPropagation(); setLightboxIndex(imgIndex); }}
               />
             );
@@ -831,27 +841,14 @@ export function NoteContent({
             if (isWebxdc && imeta) {
               return <WebxdcEmbed key={i} url={token.url} uuid={imeta.webxdc} name={imeta.summary} icon={imeta.thumbnail} />;
             }
-            if (isAudio) {
-              return (
-                <AudioVisualizer
-                  key={i}
-                  src={token.url}
-                  mime={imeta?.mime}
-                  avatarUrl={authorMetadata?.picture}
-                  avatarFallback={authorDisplayName[0]?.toUpperCase() ?? '?'}
-                  avatarShape={getAvatarShape(authorMetadata)}
-                />
-              );
-            }
-            // Default: video
             return (
-              <VideoPlayer
+              <MediaEmbed
                 key={i}
-                src={token.url}
-                poster={imeta?.thumbnail}
-                dim={imeta?.dim}
-                blurhash={imeta?.blurhash}
-                artist={authorDisplayName}
+                url={token.url}
+                imeta={imeta}
+                isAudio={isAudio}
+                authorMetadata={authorMetadata}
+                authorDisplayName={authorDisplayName}
               />
             );
           }
@@ -963,6 +960,7 @@ export function NoteContent({
           onClose={closeLightbox}
           onNext={goNext}
           onPrev={goPrev}
+          mediaMeta={lightboxMeta}
         />
       )}
     </Wrapper>
@@ -971,9 +969,19 @@ export function NoteContent({
 
 /** Inline image thumbnail that opens the shared lightbox on click.
  *  Uses a min-height placeholder to prevent layout shifts while loading. */
-function InlineImage({ url, onClick }: { url: string; onClick: (e: React.MouseEvent) => void }) {
-  const { src, onError } = useBlossomFallback(url);
+function InlineImage({ url, encryption, onClick }: {
+  url: string;
+  /** Present when `url` serves ciphertext that must be decrypted before display. */
+  encryption?: FileEncryption;
+  onClick: (e: React.MouseEvent) => void;
+}) {
+  const fallback = useBlossomFallback(url);
+  const decrypted = useDecryptedFile(url, encryption);
   const [loaded, setLoaded] = useState(false);
+
+  if (decrypted.encrypted && !decrypted.src) {
+    return <EncryptedFileNotice loading={decrypted.loading} unsupported={decrypted.unsupported} />;
+  }
 
   return (
     <button
@@ -983,16 +991,63 @@ function InlineImage({ url, onClick }: { url: string; onClick: (e: React.MouseEv
     >
       <div className={cn('relative w-full rounded-lg overflow-hidden', !loaded && 'bg-muted')} style={!loaded ? { minHeight: 200 } : undefined}>
         <img
-          src={src}
+          src={decrypted.encrypted ? decrypted.src : fallback.src}
           alt=""
           className="block w-full h-auto rounded-lg hover:opacity-90 transition-opacity"
           loading="lazy"
           onLoad={() => setLoaded(true)}
-          onError={() => { setLoaded(true); onError(); }}
+          onError={() => { setLoaded(true); if (!decrypted.encrypted) fallback.onError(); }}
           decoding="async"
         />
       </div>
     </button>
+  );
+}
+
+/**
+ * Inline video or audio attachment. Encrypted sources are decrypted to an
+ * object URL first — including the poster, which the sender encrypts under the
+ * same key as the file itself.
+ */
+function MediaEmbed({ url, imeta, isAudio, authorMetadata, authorDisplayName }: {
+  url: string;
+  imeta?: ImetaEntry;
+  isAudio: boolean;
+  authorMetadata?: NostrMetadata;
+  authorDisplayName: string;
+}) {
+  const decrypted = useDecryptedFile(url, imeta?.encryption);
+  const poster = useDecryptedFile(
+    imeta?.thumbnail ?? '',
+    imeta?.thumbnail && imeta.encryption ? companionEncryption(imeta.encryption) : undefined,
+  );
+
+  if (decrypted.encrypted && !decrypted.src) {
+    return <EncryptedFileNotice loading={decrypted.loading} unsupported={decrypted.unsupported} />;
+  }
+
+  const src = decrypted.src ?? url;
+
+  if (isAudio) {
+    return (
+      <AudioVisualizer
+        src={src}
+        mime={decrypted.mime ?? imeta?.mime}
+        avatarUrl={authorMetadata?.picture}
+        avatarFallback={authorDisplayName[0]?.toUpperCase() ?? '?'}
+        avatarShape={getAvatarShape(authorMetadata)}
+      />
+    );
+  }
+
+  return (
+    <VideoPlayer
+      src={src}
+      poster={imeta?.thumbnail ? poster.src : undefined}
+      dim={imeta?.dim}
+      blurhash={imeta?.blurhash}
+      artist={authorDisplayName}
+    />
   );
 }
 

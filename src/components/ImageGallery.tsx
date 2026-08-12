@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X, Download, Loader2 } from 'lucide-react';
 import { Blurhash } from 'react-blurhash';
@@ -10,16 +10,22 @@ import { downloadUrl } from '@/lib/downloadFile';
 import { useToast } from '@/hooks/useToast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
+import { useDecryptedFile } from '@/hooks/useDecryptedFile';
+import { type FileEncryption } from '@/lib/encryptedFile';
+import { downloadDecryptedUrl } from '@/lib/downloadFile';
+import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { useBackDismiss } from '@/hooks/useBackDismiss';
 
-/** Minimal imeta fields needed for pre-load sizing. */
+/** Minimal imeta fields needed for pre-load sizing and decryption. */
 interface ImetaDimensions {
   dim?: string;
   blurhash?: string;
+  /** Present when the URL serves ciphertext that must be decrypted to render. */
+  encryption?: FileEncryption;
 }
 
 interface ImageGalleryProps {
@@ -70,6 +76,13 @@ export function ImageGallery({
 
   const visibleImages = images.slice(0, maxVisible);
   const overflow = images.length - maxVisible;
+
+  // The lightbox shows every image, not just the visible tiles, so it needs the
+  // per-slot metadata (chiefly the decryption key) in the same order.
+  const lightboxMeta = useMemo(
+    () => (imetaMap ? images.map((url) => imetaMap.get(url) ?? {}) : undefined),
+    [images, imetaMap],
+  );
 
   const openLightbox = (index: number, e: React.MouseEvent) => {
     e.preventDefault();
@@ -126,6 +139,7 @@ export function ImageGallery({
             onOpen={(e) => openLightbox(i, e)}
             dim={imetaMap?.get(url)?.dim}
             blurhash={imetaMap?.get(url)?.blurhash}
+            encryption={imetaMap?.get(url)?.encryption}
           />
         ))}
       </div>
@@ -138,6 +152,7 @@ export function ImageGallery({
           onClose={closeLightbox}
           onNext={goNext}
           onPrev={goPrev}
+          mediaMeta={lightboxMeta}
           topBarLeft={lightboxTopBarLeft}
           bottomBar={lightboxBottomBar}
         />
@@ -167,6 +182,7 @@ function GridImage({
   onOpen,
   dim,
   blurhash,
+  encryption,
 }: {
   url: string;
   index: number;
@@ -178,11 +194,19 @@ function GridImage({
   dim?: string;
   /** NIP-94 `blurhash` tag value. Rendered as a canvas placeholder before the image loads. */
   blurhash?: string;
+  /** Present when `url` serves ciphertext that must be decrypted before display. */
+  encryption?: FileEncryption;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [probedAspectRatio, setProbedAspectRatio] = useState<string | undefined>(undefined);
   const imgRef = useRef<HTMLImageElement>(null);
-  const { src, onError } = useBlossomFallback(url);
+  const fallback = useBlossomFallback(url);
+  const decrypted = useDecryptedFile(url, encryption);
+
+  // Encrypted blobs are fetched and decrypted by `useDecryptedFile`, which does
+  // its own cross-server fallback; the <img> only ever sees the object URL.
+  const src = decrypted.encrypted ? decrypted.src : fallback.src;
+  const onError = decrypted.encrypted ? undefined : fallback.onError;
 
   // If the image is already cached by the browser, onLoad may have
   // fired before the ref was attached. Check on mount.
@@ -233,7 +257,7 @@ function GridImage({
       onClick={onOpen}
     >
       {/* Placeholder shown while the image is loading */}
-      {!loaded && (
+      {!loaded && !decrypted.error && (
         isValidBlurhash(blurhash) ? (
           // Blurhash canvas fills the container via CSS — pass small integer decode
           // resolution; the canvas is stretched to 100%×100% by the style prop.
@@ -255,29 +279,33 @@ function GridImage({
           <Skeleton className="absolute inset-0 w-full h-full rounded-none" />
         )
       )}
-      <img
-        ref={imgRef}
-        src={src}
-        alt=""
-        width={dimensions?.width}
-        height={dimensions?.height}
-        className={cn(
-          'absolute inset-0 w-full h-full object-cover transition-all duration-300 hover:scale-[1.02]',
-          loaded ? 'opacity-100' : 'opacity-0',
-        )}
-        loading="lazy"
-        onLoad={(e) => {
-          setLoaded(true);
-          if (!dim) {
-            const img = e.currentTarget;
-            if (img.naturalWidth && img.naturalHeight) {
-              setProbedAspectRatio(`${img.naturalWidth} / ${img.naturalHeight}`);
+      {decrypted.error ? (
+        <EncryptedFileNotice fill unsupported={decrypted.unsupported} />
+      ) : (
+        <img
+          ref={imgRef}
+          src={src}
+          alt=""
+          width={dimensions?.width}
+          height={dimensions?.height}
+          className={cn(
+            'absolute inset-0 w-full h-full object-cover transition-all duration-300 hover:scale-[1.02]',
+            loaded ? 'opacity-100' : 'opacity-0',
+          )}
+          loading="lazy"
+          onLoad={(e) => {
+            setLoaded(true);
+            if (!dim) {
+              const img = e.currentTarget;
+              if (img.naturalWidth && img.naturalHeight) {
+                setProbedAspectRatio(`${img.naturalWidth} / ${img.naturalHeight}`);
+              }
             }
-          }
-        }}
-        onError={onError}
-        decoding="async"
-      />
+          }}
+          onError={onError}
+          decoding="async"
+        />
+      )}
       {/* "+N" overlay on last visible image */}
       {overflow > 0 && (
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-[2px]">
@@ -299,6 +327,8 @@ export interface LightboxMediaMeta {
   avatarFallback?: string;
   /** Nostr pubkey — used by audio slot to resolve author avatar via useAuthor. */
   pubkey?: string;
+  /** Present when the slot URL serves ciphertext that must be decrypted. */
+  encryption?: FileEncryption;
 }
 
 export interface LightboxProps {
@@ -549,7 +579,12 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     if (downloading) return;
     setDownloading(true);
     try {
-      const result = await downloadUrl(currentUrl);
+      // Encrypted files must be decrypted first — `downloadUrl` would otherwise
+      // save the ciphertext blob, which is useless to the user.
+      const encryption = mediaMeta?.[currentIndex]?.encryption;
+      const result = encryption
+        ? await downloadDecryptedUrl(currentUrl, encryption)
+        : await downloadUrl(currentUrl);
       if (result === 'downloaded') {
         const platform = Capacitor.getPlatform();
         toast(
@@ -609,6 +644,9 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
       const i = currentIndex + offset;
       if (i < 0 || i >= images.length) continue;
       if ((mediaTypes?.[i] ?? 'image') !== 'image') continue;
+      // Encrypted slots decrypt on mount; an <img> pointed at the ciphertext
+      // would only warm the HTTP cache and never fire onload.
+      if (mediaMeta?.[i]?.encryption) continue;
       const url = images[i];
       if (!url || url === LOADING_SENTINEL || preloadedUrlsRef.current.has(url)) continue;
       preloadedUrlsRef.current.add(url);
@@ -626,7 +664,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
         preloadImagesRef.current.shift();
       }
     }
-  }, [currentIndex, images, mediaTypes, markLoaded]);
+  }, [currentIndex, images, mediaTypes, mediaMeta, markLoaded]);
 
   // Release retained preload references when the lightbox closes.
   useEffect(() => {
@@ -747,8 +785,10 @@ const MIN_SCALE = 1;
 const MAX_SCALE = 8;
 
 /** Lightbox image with pinch/wheel zoom and pan support. */
-function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked, onZoomChange }: {
+function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZoomChange }: {
   url: string;
+  /** Present when `url` serves ciphertext that must be decrypted before display. */
+  encryption?: FileEncryption;
   isLoaded: boolean;
   onLoad: (url: string) => void;
   /** Called when a horizontal swipe is intercepted by pan (image is zoomed). */
@@ -756,7 +796,10 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked, onZoomChange }: 
   /** Called when the image zoom state changes (zoomed in or back to 1x). */
   onZoomChange?: (zoomed: boolean) => void;
 }) {
-  const { src, onError } = useBlossomFallback(url);
+  const fallback = useBlossomFallback(url);
+  const decrypted = useDecryptedFile(url, encryption);
+  const src = decrypted.encrypted ? decrypted.src : fallback.src;
+  const onError = decrypted.encrypted ? undefined : fallback.onError;
   const imgRef = useRef<HTMLImageElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -780,6 +823,12 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked, onZoomChange }: 
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) handleLoaded();
   }, [src, handleLoaded]);
+
+  // A slot that failed to decrypt will never fire onLoad. Mark it resolved so
+  // the overlay spinner gives way to the notice instead of spinning forever.
+  useEffect(() => {
+    if (decrypted.error) handleLoaded();
+  }, [decrypted.error, handleLoaded]);
 
   /** Notify parent when zoom state changes. */
   const notifyZoom = useCallback(() => {
@@ -968,19 +1017,23 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked, onZoomChange }: 
       style={{ cursor: scale.current > 1 ? 'grab' : 'default' }}
     >
       <div ref={wrapRef} style={{ transformOrigin: 'center center', willChange: 'transform', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <img
-          ref={imgRef}
-          src={src}
-          alt=""
-          className={cn(
-            'block max-w-full max-h-full object-contain select-none transition-opacity duration-300',
-            isLoaded ? 'opacity-100' : 'opacity-0',
-          )}
-          onLoad={handleLoaded}
-          onError={onError}
-          draggable={false}
-          decoding="async"
-        />
+        {decrypted.error ? (
+          <EncryptedFileNotice unsupported={decrypted.unsupported} className="max-w-sm bg-white/10 text-white/80" />
+        ) : (
+          <img
+            ref={imgRef}
+            src={src}
+            alt=""
+            className={cn(
+              'block max-w-full max-h-full object-contain select-none transition-opacity duration-300',
+              isLoaded ? 'opacity-100' : 'opacity-0',
+            )}
+            onLoad={handleLoaded}
+            onError={onError}
+            draggable={false}
+            decoding="async"
+          />
+        )}
       </div>
     </div>
   );
@@ -1008,16 +1061,29 @@ function LightboxSlot({
   const author = useAuthor(type === 'audio' ? meta?.pubkey : undefined);
   const authorMeta = author.data?.metadata;
   const fallback = meta?.pubkey ? 'Anonymous' : '?';
+  // Images decrypt inside LightboxImage, which also owns the zoom/pan state;
+  // video and audio have no such wrapper, so resolve their source here.
+  const decrypted = useDecryptedFile(url, type === 'image' ? undefined : meta?.encryption);
 
   if (url === LOADING_SENTINEL) {
     return <div className="size-10 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />;
+  }
+
+  if (type !== 'image' && decrypted.encrypted && !decrypted.src) {
+    return (
+      <EncryptedFileNotice
+        loading={decrypted.loading}
+        unsupported={decrypted.unsupported}
+        className="max-w-sm bg-white/10 text-white/80"
+      />
+    );
   }
 
   if (type === 'video') {
     return (
       <div className="w-full flex items-center justify-center px-4" onClick={(e) => e.stopPropagation()}>
         <VideoPlayer
-          src={url}
+          src={decrypted.src ?? url}
           dim={meta?.dim}
           blurhash={meta?.blurhash}
           className="w-full max-w-lg"
@@ -1029,8 +1095,8 @@ function LightboxSlot({
     return (
       <div className="w-full flex items-center justify-center px-4" onClick={(e) => e.stopPropagation()}>
         <AudioVisualizer
-          src={url}
-          mime={meta?.mime}
+          src={decrypted.src ?? url}
+          mime={decrypted.mime ?? meta?.mime}
           avatarUrl={authorMeta?.picture}
           avatarFallback={fallback[0]?.toUpperCase()}
           avatarShape={getAvatarShape(authorMeta)}
@@ -1039,5 +1105,5 @@ function LightboxSlot({
       </div>
     );
   }
-  return <LightboxImage url={url} isLoaded={isLoaded} onLoad={onLoad} onSwipeBlocked={onSwipeBlocked} onZoomChange={onZoomChange} />;
+  return <LightboxImage url={url} encryption={meta?.encryption} isLoaded={isLoaded} onLoad={onLoad} onSwipeBlocked={onSwipeBlocked} onZoomChange={onZoomChange} />;
 }
