@@ -242,7 +242,7 @@ function FeaturedArticleCard({ page }: { page: WikiPage }) {
       <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-amber-500/10 to-orange-500/10">
         {page.thumbnail ? (
           <img
-            src={wikimediaImageUrl(page.thumbnail.source, 1024, page.originalimage?.width)}
+            src={wikimediaImageUrl(page.thumbnail.source, 960, page.originalimage?.width)}
             alt={page.normalizedtitle}
             loading="lazy"
             decoding="async"

@@ -406,9 +406,9 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
     return <LinkEmbed url={url} showActions={false} />;
   }
 
-  // `originalImage` is the raw Wikimedia upload and can be enormous; ask the
-  // thumbnailer for something close to the rendered size instead.
-  const heroImage = wikimediaImageUrl(wiki.thumbnail?.source, 1024, wiki.originalImage?.width);
+  // `originalImage` can be tens of megapixels; ask the thumbnailer for
+  // something close to the rendered size instead.
+  const heroImage = wikimediaImageUrl(wiki.thumbnail?.source, 960, wiki.originalImage?.width);
 
   return (
     <div className="rounded-2xl border border-border overflow-hidden">

@@ -30,9 +30,9 @@ export function WikipediaWidget() {
     return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.wikipedia.empty" defaultMessage={"No featured article today."} /></p>;
   }
 
-  // Ask Wikimedia for a sidebar-sized render. The `originalimage` here is the
-  // untouched upload, which can be hundreds of megapixels.
-  const imageUrl = wikimediaImageUrl(tfa.thumbnail?.source, 640, tfa.originalimage?.width);
+  // Ask Wikimedia for a sidebar-sized render. The `originalimage` here runs to
+  // tens of megapixels, for a card a few hundred pixels wide.
+  const imageUrl = wikimediaImageUrl(tfa.thumbnail?.source, 500, tfa.originalimage?.width);
   const excerpt = tfa.extract.length > 200 ? tfa.extract.slice(0, 200) + '...' : tfa.extract;
   // Prefer the human-readable title from the API; `tfa.title` uses underscores.
   const displayTitle = tfa.normalizedtitle ?? tfa.titles?.normalized ?? tfa.title;
