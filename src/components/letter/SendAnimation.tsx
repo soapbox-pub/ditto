@@ -414,6 +414,7 @@ export function SendAnimation({
                         height: sealSize * 0.58,
                         filter: 'brightness(0) invert(1) opacity(0.85)',
                       }}
+                      decoding="async"
                     />
                   </div>
                 </div>
@@ -479,9 +480,9 @@ export function SendAnimation({
                 }}
               >
                 {recipientPicture ? (
-                  <img src={recipientPicture} alt="" className="w-full h-full object-cover" />
+                  <img src={recipientPicture} alt="" className="w-full h-full object-cover" decoding="async" />
                 ) : (
-                  <img src="/logo.svg" alt="" style={{ width: 44, height: 44, opacity: 0.5 }} />
+                  <img src="/logo.svg" alt="" style={{ width: 44, height: 44, opacity: 0.5 }} decoding="async" />
                 )}
               </div>
             </div>

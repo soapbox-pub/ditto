@@ -122,7 +122,7 @@ export function buildMarkdownComponents(event: NostrEvent): Components {
     img: ({ src, alt, node: _node, ...rest }) => {
       const safe = typeof src === 'string' ? sanitizeUrl(src) : undefined;
       if (!safe) return null;
-      return <img {...rest} src={safe} alt={alt ?? ''} loading="lazy" />;
+      return <img {...rest} src={safe} alt={alt ?? ''} loading="lazy" decoding="async" />;
     },
   } as Components;
 }

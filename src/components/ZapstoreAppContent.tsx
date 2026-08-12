@@ -151,6 +151,7 @@ function ScreenshotLightbox({
             className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl select-none"
             onClick={(e) => e.stopPropagation()}
             draggable={false}
+            decoding="async"
           />
 
           {/* Next button */}
@@ -214,6 +215,7 @@ function ScreenshotStrip({ images, maxHeight, maxCount }: { images: string[]; ma
               onError={(e) => {
                 (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
               }}
+              decoding="async"
             />
           </button>
         ))}
@@ -268,6 +270,7 @@ export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) 
               onError={(e) => {
                 (e.currentTarget as HTMLElement).style.display = 'none';
               }}
+              decoding="async"
             />
           ) : (
             <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -339,6 +342,7 @@ export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) 
             onError={(e) => {
               (e.currentTarget as HTMLElement).style.display = 'none';
             }}
+            decoding="async"
           />
         ) : (
           <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">

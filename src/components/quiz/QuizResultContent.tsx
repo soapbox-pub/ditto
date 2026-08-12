@@ -100,6 +100,7 @@ export function QuizResultContent({ event, expanded = false, className }: QuizRe
                         'mb-2 w-full rounded-xl border object-cover',
                         expanded ? 'max-h-64' : 'max-h-44',
                       )}
+                      decoding="async"
                     />
                   )}
                   <p className={cn('font-bold text-foreground', expanded ? 'text-xl' : 'text-lg')}>

@@ -95,6 +95,7 @@ function PhotoCard({ event }: { event: NostrEvent }) {
           alt={photo.alt ?? caption ?? intl.formatMessage({ id: 'widgets.photo.alt', defaultMessage: "Photo" })}
           className="w-full object-cover max-h-[220px] group-hover:scale-[1.02] transition-transform duration-300"
           loading="lazy"
+          decoding="async"
         />
       </div>
 

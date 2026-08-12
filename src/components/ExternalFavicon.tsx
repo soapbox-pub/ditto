@@ -66,6 +66,7 @@ export function ExternalFavicon({
             fallbackElement.style.display = 'inline-block';
           }
         }}
+        decoding="async"
       />
       {fallback && (
         <span style={{ display: 'none' }}>

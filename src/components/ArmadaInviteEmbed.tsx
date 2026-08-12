@@ -82,7 +82,7 @@ function InviteIconTile({
       style={cutCorners(cut)}
     >
       {iconUrl ? (
-        <img src={iconUrl} alt={preview?.name || 'Community icon'} className="size-full object-cover" />
+        <img src={iconUrl} alt={preview?.name || 'Community icon'} className="size-full object-cover" decoding="async" />
       ) : (
         <ArmadaCrest className={cn('text-primary', crestClass)} />
       )}

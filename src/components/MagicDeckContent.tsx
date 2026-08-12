@@ -133,6 +133,7 @@ function CardTile({ card, onClick }: { card: CardEntry; onClick?: () => void }) 
         className="w-full h-full object-cover transition-transform group-hover:scale-105"
         loading="lazy"
         onError={() => setFailed(true)}
+        decoding="async"
       />
       {card.foil && (
         <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent pointer-events-none" />
@@ -223,6 +224,7 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
             onError={(e) => {
               (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
             }}
+            decoding="async"
           />
         </div>
       )}

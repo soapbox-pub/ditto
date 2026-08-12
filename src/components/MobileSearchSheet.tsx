@@ -735,6 +735,7 @@ function MobileCommentOnUrlItem({
               e.currentTarget.style.display = 'none';
               (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
             }}
+            decoding="async"
           />
         ) : null}
         <div
@@ -848,6 +849,7 @@ function MobileWikipediaItem({
               e.currentTarget.style.display = 'none';
               (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
             }}
+            decoding="async"
           />
         ) : null}
         <div className={cn('items-center justify-center size-9', result.thumbnail ? 'hidden' : 'flex')}>
@@ -894,6 +896,7 @@ function MobileArchiveItem({
             e.currentTarget.style.display = 'none';
             (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
           }}
+          decoding="async"
         />
         <div className="hidden items-center justify-center size-9">
           <Archive className="size-3.5 text-muted-foreground" />

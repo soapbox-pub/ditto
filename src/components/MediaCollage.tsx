@@ -183,6 +183,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
           loading="lazy"
           onLoad={() => setLoaded(true)}
           onError={onError}
+          decoding="async"
         />
       )}
       {item.type === 'audio' && !showBlur && (

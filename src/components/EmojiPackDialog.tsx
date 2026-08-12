@@ -420,7 +420,7 @@ function EmojiPackForm({ editEvent, onDone }: { editEvent?: NostrEvent; onDone: 
             {iconUploading ? (
               <Loader2 className="size-5 animate-spin text-muted-foreground" />
             ) : icon ? (
-              <img src={icon} alt="" className="size-full object-cover" />
+              <img src={icon} alt="" className="size-full object-cover" decoding="async" />
             ) : (
               <ImagePlus className="size-5" />
             )}

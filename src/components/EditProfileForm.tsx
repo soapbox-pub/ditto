@@ -638,6 +638,7 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
                 src={field.value}
                 alt={intl.formatMessage({ id: 'editProfile.previewAlt', defaultMessage: "{label} preview" }, { label })}
                 className="h-full w-full object-cover"
+                decoding="async"
               />
             </div>
           )}

@@ -114,6 +114,7 @@ export function YouTubeEmbed({ videoId, className }: YouTubeEmbedProps) {
                 src={resolvedThumb}
                 alt=""
                 className="absolute inset-0 w-full h-full object-cover"
+                decoding="async"
               />
             )}
 

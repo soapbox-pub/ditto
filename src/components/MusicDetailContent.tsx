@@ -112,7 +112,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
         {/* Artwork */}
         <div className="shrink-0 w-32 sm:w-40 aspect-square rounded-2xl overflow-hidden bg-muted shadow-lg">
           {parsed?.artwork && !imgError ? (
-            <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" onError={() => setImgError(true)} />
+            <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" onError={() => setImgError(true)} decoding="async" />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-primary/10">
               <Music className="size-12 text-primary/30" />
@@ -398,7 +398,7 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
       <div className="px-4 flex gap-5 items-start">
         <div className="shrink-0 w-32 sm:w-40 aspect-square rounded-2xl overflow-hidden bg-muted shadow-lg">
           {coverArt ? (
-            <img src={coverArt} alt={parsed?.title ?? ''} className="w-full h-full object-cover" onError={() => setImgError(true)} />
+            <img src={coverArt} alt={parsed?.title ?? ''} className="w-full h-full object-cover" onError={() => setImgError(true)} decoding="async" />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-primary/10">
               <FallbackIcon className="size-12 text-primary/30" />
@@ -573,7 +573,7 @@ function PlaylistTrackRow({
       {/* Artwork */}
       <div className="size-12 rounded-lg overflow-hidden shrink-0 bg-muted">
         {parsed.artwork && !imgError ? (
-          <img src={parsed.artwork} alt={parsed.title} className="size-full object-cover" loading="lazy" onError={() => setImgError(true)} />
+          <img src={parsed.artwork} alt={parsed.title} className="size-full object-cover" loading="lazy" onError={() => setImgError(true)} decoding="async" />
         ) : (
           <div className="size-full flex items-center justify-center bg-primary/10">
             <Music className="size-5 text-primary/30" />

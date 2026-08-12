@@ -143,6 +143,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
                 className="size-11 rounded-full object-cover"
                 loading="lazy"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                decoding="async"
               />
             ) : (
               <div className="size-11 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold">
@@ -198,6 +199,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
                       loading="lazy"
                       className="absolute inset-0 w-full h-full object-cover"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      decoding="async"
                     />
                   </div>
                 ))}
@@ -215,6 +217,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
                       loading="lazy"
                       className="w-full h-full object-cover"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      decoding="async"
                     />
                   </div>
                 )}
@@ -418,6 +421,7 @@ function BlueskySearchBar() {
                       alt=""
                       className="size-10 rounded-full object-cover bg-secondary shrink-0"
                       loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <div className="size-10 rounded-full bg-gradient-to-br from-sky-500/20 to-blue-500/20 flex items-center justify-center shrink-0">

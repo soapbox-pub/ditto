@@ -72,6 +72,7 @@ function ThemePreviewCard({
             src={backgroundUrl}
             alt=""
             className="absolute inset-0 w-full h-full object-cover opacity-40"
+            decoding="async"
           />
         )}
         {/* Content preview area */}

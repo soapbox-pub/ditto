@@ -164,6 +164,7 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
             src={pack.picture}
             alt={pack.name}
             className="size-12 rounded-lg object-cover shrink-0 border border-border"
+            decoding="async"
           />
         )}
         <div className="flex-1 min-w-0">

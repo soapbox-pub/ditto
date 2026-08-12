@@ -39,6 +39,7 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
             src={image}
             alt={title ?? 'Article image'}
             className="w-full rounded-lg object-cover max-h-64 mt-2"
+            decoding="async"
           />
         )}
         {summary ? (
@@ -82,6 +83,7 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
           src={image}
           alt={title ?? 'Article image'}
           className="w-full rounded-xl object-cover max-h-96 mb-6"
+          decoding="async"
         />
       )}
       <div dir="auto" {...highlightSourceAttrs(event)} className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-[13px] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:font-normal prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border prose-th:text-foreground">

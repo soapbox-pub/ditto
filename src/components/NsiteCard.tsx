@@ -122,6 +122,7 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 							onError={(e) => {
 								(e.currentTarget.parentElement as HTMLElement).style.display = "none";
 							}}
+							decoding="async"
 						/>
 					</div>
 				)}

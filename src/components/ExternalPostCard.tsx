@@ -123,6 +123,7 @@ export function ExternalPostCard({ post, hideImage, className }: ExternalPostCar
               onError={(e) => {
                 (e.currentTarget as HTMLElement).style.display = 'none';
               }}
+              decoding="async"
             />
           ))}
         </div>
@@ -139,6 +140,7 @@ export function ExternalPostCard({ post, hideImage, className }: ExternalPostCar
             onError={(e) => {
               (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
             }}
+            decoding="async"
           />
         </div>
       )}

@@ -119,6 +119,7 @@ export function LightningInvoiceCard({ invoice, className }: LightningInvoiceCar
       alt="Lightning Invoice QR"
       className="rounded-xl"
       style={{ imageRendering: 'pixelated' }}
+      decoding="async"
     />
   ) : (
     <div className="aspect-square rounded-xl bg-muted animate-pulse" />
@@ -147,6 +148,7 @@ export function LightningInvoiceCard({ invoice, className }: LightningInvoiceCar
               alt="Lightning Invoice QR"
               className="w-full h-full rounded-xl"
               style={{ imageRendering: 'pixelated' }}
+              decoding="async"
             />
           ) : (
             <div className="w-full h-full rounded-xl bg-muted animate-pulse" />

@@ -163,6 +163,7 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
               src={resolved.imageUrl}
               alt=""
               className="w-full h-full object-cover"
+              decoding="async"
             />
           </div>
         )}

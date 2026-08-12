@@ -70,6 +70,7 @@ function GitSiteButton({
 					className="size-3.5 object-contain"
 					loading="lazy"
 					onError={() => setFaviconError(true)}
+					decoding="async"
 				/>
 			)}
 			View on {site.name}

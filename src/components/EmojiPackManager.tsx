@@ -193,6 +193,7 @@ function PackRow({ pack, mode, onEdit }: PackRowProps) {
           src={picture}
           alt=""
           className="size-10 shrink-0 rounded-lg object-cover border border-border"
+          decoding="async"
         />
       ) : (
         <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">

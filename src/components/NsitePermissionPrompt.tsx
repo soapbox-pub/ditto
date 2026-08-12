@@ -129,6 +129,7 @@ export function NsitePermissionPrompt({
               src={appPicture}
               alt={appName}
               className="size-8 rounded-md object-cover shrink-0"
+              decoding="async"
             />
           )}
         </div>

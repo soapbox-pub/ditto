@@ -130,7 +130,7 @@ export function MinimizedAudioBar() {
 
         {/* Artwork thumbnail */}
         {currentTrack.artwork ? (
-          <img src={currentTrack.artwork} alt="" className="size-10 rounded-lg object-cover shrink-0" />
+          <img src={currentTrack.artwork} alt="" className="size-10 rounded-lg object-cover shrink-0" decoding="async" />
         ) : (
           <div className="size-10 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
             <Play className="size-4 text-primary" />

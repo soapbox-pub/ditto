@@ -109,6 +109,7 @@ export function InteractiveRoomContent({ event, expanded }: { event: NostrEvent;
               onError={(e) => {
                 (e.currentTarget.parentElement as HTMLElement).style.display = "none";
               }}
+              decoding="async"
             />
             <div className="absolute top-2 left-2">
               <Badge variant="outline" className={cn("text-[10px]", statusConfig.className)}>

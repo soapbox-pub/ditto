@@ -18,6 +18,7 @@ import { extractYouTubeId, extractWikipediaTitle, extractWikidataId, extractBlue
 import { GathererCardHeader } from '@/components/GathererCardHeader';
 import { useScryfallCard } from '@/hooks/useScryfallCard';
 import { cardPrimaryImage } from '@/lib/scryfall';
+import { wikimediaImageUrl } from '@/lib/wikimedia';
 import { parseExternalUri, formatIsbn } from '@/lib/externalContent';
 import { shareOrCopy } from '@/lib/share';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
@@ -196,6 +197,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
                 className="size-11 rounded-full object-cover"
                 loading="lazy"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                decoding="async"
               />
             ) : (
               <div className="size-11 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold">
@@ -253,6 +255,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
                       loading="lazy"
                       className="absolute inset-0 w-full h-full object-cover"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      decoding="async"
                     />
                   </div>
                 ))}
@@ -269,6 +272,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
                     loading="lazy"
                     className="w-full h-full object-cover"
                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    decoding="async"
                   />
                 </div>
                 {post.external.title && (
@@ -402,7 +406,9 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
     return <LinkEmbed url={url} showActions={false} />;
   }
 
-  const heroImage = wiki.originalImage?.source ?? wiki.thumbnail?.source;
+  // `originalImage` is the raw Wikimedia upload and can be enormous; ask the
+  // thumbnailer for something close to the rendered size instead.
+  const heroImage = wikimediaImageUrl(wiki.thumbnail?.source, 1024, wiki.originalImage?.width);
 
   return (
     <div className="rounded-2xl border border-border overflow-hidden">
@@ -414,6 +420,7 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
             alt={wiki.title}
             className="w-full max-h-[320px] object-cover"
             loading="eager"
+            decoding="async"
             onError={(e) => {
               (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
             }}
@@ -563,6 +570,7 @@ export function BookContentHeader({ isbn }: { isbn: string }) {
                 onError={(e) => {
                   (e.currentTarget as HTMLElement).style.display = 'none';
                 }}
+                decoding="async"
               />
             </div>
           ) : (
@@ -781,6 +789,7 @@ export function CountryContentHeader({ code }: { code: string }) {
               src={wiki.thumbnail.source}
               alt={info.subdivisionName ?? info.subdivision}
               className="size-16 sm:size-20 rounded-md object-cover shadow-sm border border-border"
+              decoding="async"
             />
           ) : (
             <span className="text-6xl sm:text-7xl leading-none" role="img" aria-label={`Flag of ${info.name}`}>
@@ -913,6 +922,7 @@ function UrlPreview({ url, link }: { url: string; link: string }) {
           onError={(e) => {
             (e.currentTarget as HTMLElement).style.display = 'none';
           }}
+          decoding="async"
         />
       ) : (
         <div className="size-12 rounded-lg bg-secondary flex items-center justify-center shrink-0">
@@ -967,6 +977,7 @@ function BookPreview({ isbn, link }: { isbn: string; link: string }) {
           alt={book?.title || 'Book cover'}
           className="w-9 h-12 rounded object-cover shrink-0"
           loading="lazy"
+          decoding="async"
         />
       ) : (
         <div className="w-9 h-12 rounded bg-secondary flex items-center justify-center shrink-0">
@@ -1041,6 +1052,7 @@ function GathererCardPreview({ card, url, link }: { card: GathererCard; url: str
           alt={scryCard?.name ?? 'Magic card'}
           className="w-9 h-12 rounded-md object-cover shrink-0 shadow-sm"
           loading="lazy"
+          decoding="async"
         />
       ) : (
         <div className="w-9 h-12 rounded-md bg-secondary flex items-center justify-center shrink-0">
@@ -1144,6 +1156,7 @@ export function CommunityPreview({ addr }: { addr: { kind: number; pubkey: strin
           alt={communityName}
           className="size-12 rounded-lg object-cover shrink-0"
           loading="lazy"
+          decoding="async"
         />
       ) : (
         <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -1327,6 +1340,7 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
             alt={title}
             className="size-full object-cover"
             loading="lazy"
+            decoding="async"
           />
           {isVideo && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/20">

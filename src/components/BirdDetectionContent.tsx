@@ -130,6 +130,7 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
                 alt={commonName}
                 className="h-full w-full object-cover"
                 loading="lazy"
+                decoding="async"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">

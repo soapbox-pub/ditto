@@ -138,6 +138,7 @@ function StreamCard({ event }: { event: NostrEvent }) {
             onError={(e) => {
               (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
             }}
+            decoding="async"
           />
           {/* Status badge overlay */}
           <div className="absolute top-2 left-2">

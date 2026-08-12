@@ -50,6 +50,7 @@ export function MusicPlaylistCard({ event }: MusicPlaylistCardProps) {
             alt={parsed.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             onError={() => setFailedUrls((prev) => new Set(prev).add(displayArt))}
+            decoding="async"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/15 via-primary/5 to-transparent flex items-center justify-center">

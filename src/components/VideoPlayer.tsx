@@ -327,6 +327,7 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
               setDiscoveredAspect((prev) => prev ?? `${img.naturalWidth} / ${img.naturalHeight}`);
             }
           }}
+          decoding="async"
         />
       )}
 

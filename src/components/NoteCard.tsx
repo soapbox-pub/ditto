@@ -2103,6 +2103,7 @@ function VineMedia({
               alt=""
               aria-hidden
               className="w-full max-h-[70vh] object-cover"
+              decoding="async"
             />
           )}
           <video
@@ -2255,6 +2256,7 @@ function StreamContent({ event }: { event: NostrEvent }) {
                 (e.currentTarget.parentElement as HTMLElement).style.display =
                   "none";
               }}
+              decoding="async"
             />
             <div className="absolute top-2 left-2">
               <Badge

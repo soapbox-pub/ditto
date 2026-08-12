@@ -132,6 +132,7 @@ export function WebxdcEmbed({ url, uuid, name, icon, showNameCard = true, classN
                 src={icon}
                 alt={name ?? 'Webxdc App'}
                 className="size-6 rounded-md object-cover shrink-0"
+                decoding="async"
               />
             ) : (
               <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
@@ -244,6 +245,7 @@ function WebxdcCartridgeButton({
           aria-hidden="true"
           className="w-full h-auto block select-none pointer-events-none drop-shadow-md"
           draggable={false}
+          decoding="async"
         />
         {/* Color tint layer — masked to cartridge silhouette, blended with the
             grayscale PNG beneath to colorize it while preserving shading. */}
@@ -280,6 +282,7 @@ function WebxdcCartridgeButton({
               aria-hidden="true"
               className="w-[70%] aspect-square rounded-[12%] object-cover drop-shadow-md"
               draggable={false}
+              decoding="async"
             />
           ) : (
             <div className="w-[70%] aspect-square rounded-[12%] bg-primary/15 flex items-center justify-center drop-shadow-md">

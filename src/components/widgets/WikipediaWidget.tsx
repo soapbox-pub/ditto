@@ -4,6 +4,7 @@ import { FormattedMessage } from 'react-intl';
 
 import { useWikipediaFeatured } from '@/hooks/useWikipediaFeatured';
 import { Skeleton } from '@/components/ui/skeleton';
+import { wikimediaImageUrl } from '@/lib/wikimedia';
 
 /** Wikipedia widget showing today's featured article. */
 export function WikipediaWidget() {
@@ -29,7 +30,9 @@ export function WikipediaWidget() {
     return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.wikipedia.empty" defaultMessage={"No featured article today."} /></p>;
   }
 
-  const imageUrl = tfa.originalimage?.source ?? tfa.thumbnail?.source;
+  // Ask Wikimedia for a sidebar-sized render. The `originalimage` here is the
+  // untouched upload, which can be hundreds of megapixels.
+  const imageUrl = wikimediaImageUrl(tfa.thumbnail?.source, 640, tfa.originalimage?.width);
   const excerpt = tfa.extract.length > 200 ? tfa.extract.slice(0, 200) + '...' : tfa.extract;
   // Prefer the human-readable title from the API; `tfa.title` uses underscores.
   const displayTitle = tfa.normalizedtitle ?? tfa.titles?.normalized ?? tfa.title;
@@ -48,6 +51,7 @@ export function WikipediaWidget() {
             alt={displayTitle}
             className="w-full h-full object-cover"
             loading="lazy"
+            decoding="async"
           />
         </div>
       )}

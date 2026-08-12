@@ -60,6 +60,7 @@ function GifThumbnail({ gif, onClick }: { gif: GifResult; onClick: (gif: GifResu
         )}
         onLoad={() => setLoaded(true)}
         onError={() => setError(true)}
+        decoding="async"
       />
 
       {/* Hover overlay with title */}

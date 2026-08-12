@@ -256,6 +256,7 @@ function MediaTile({ item }: { item: MediaItem }) {
           loading="lazy"
           onLoad={() => setLoaded(true)}
           onError={onError}
+          decoding="async"
         />
       )}
     </div>
@@ -307,7 +308,7 @@ function BitcoinQRModal({ address }: { address: string }) {
         <div className="flex justify-center my-5">
           <div className="bg-white p-3 rounded-xl">
             {qrUrl ? (
-              <img src={qrUrl} alt="Bitcoin QR" className="size-[220px]" />
+              <img src={qrUrl} alt="Bitcoin QR" className="size-[220px]" decoding="async" />
             ) : (
               <div className="size-[220px] bg-muted animate-pulse rounded" />
             )}
@@ -452,6 +453,7 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
             alt={field.label || 'Profile image'}
             className="w-full rounded-lg object-cover"
             loading="lazy"
+            decoding="async"
           />
         </a>
       </div>

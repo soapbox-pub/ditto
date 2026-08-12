@@ -71,6 +71,7 @@ export function BirdexTile({
             !nonInteractive && 'motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:scale-[1.03]',
           )}
           loading="lazy"
+          decoding="async"
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center">

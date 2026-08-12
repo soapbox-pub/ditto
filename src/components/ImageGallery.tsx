@@ -276,6 +276,7 @@ function GridImage({
           }
         }}
         onError={onError}
+        decoding="async"
       />
       {/* "+N" overlay on last visible image */}
       {overflow > 0 && (
@@ -978,6 +979,7 @@ function LightboxImage({ url, isLoaded, onLoad, onSwipeBlocked, onZoomChange }: 
           onLoad={handleLoaded}
           onError={onError}
           draggable={false}
+          decoding="async"
         />
       </div>
     </div>

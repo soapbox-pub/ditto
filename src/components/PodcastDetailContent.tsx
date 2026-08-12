@@ -110,7 +110,7 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
         {/* Artwork */}
         <div className="shrink-0 w-32 sm:w-40 aspect-square rounded-2xl overflow-hidden bg-muted shadow-lg">
           {parsed?.artwork ? (
-            <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" />
+            <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" decoding="async" />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-primary/10">
               <Podcast className="size-12 text-primary/30" />

@@ -989,6 +989,7 @@ function InlineImage({ url, onClick }: { url: string; onClick: (e: React.MouseEv
           loading="lazy"
           onLoad={() => setLoaded(true)}
           onError={() => { setLoaded(true); onError(); }}
+          decoding="async"
         />
       </div>
     </button>
@@ -1057,6 +1058,7 @@ function BlossomEmbed({ uri, raw, artist, avatarUrl, avatarFallback, avatarShape
               loading="lazy"
               onLoad={() => setLoaded(true)}
               onError={() => { setLoaded(true); onError(); }}
+              decoding="async"
             />
           </div>
         </button>

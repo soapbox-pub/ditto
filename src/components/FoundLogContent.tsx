@@ -93,6 +93,7 @@ export function FoundLogContent({ event }: { event: NostrEvent }) {
             alt="Found log"
             className="w-full max-h-[300px] object-cover"
             loading="lazy"
+            decoding="async"
           />
         </div>
       )}

@@ -81,6 +81,7 @@ export function FollowQRDialog({ open, onOpenChange }: FollowQRDialogProps) {
             alt="Follow QR code"
             className="w-full rounded-xl border border-border"
             style={{ imageRendering: 'pixelated' }}
+            decoding="async"
           />
         ) : (
           <div className="w-full aspect-square rounded-xl border border-border bg-muted animate-pulse" />

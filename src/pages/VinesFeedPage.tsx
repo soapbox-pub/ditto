@@ -505,6 +505,7 @@ export function VineCard({
 							alt=""
 							aria-hidden
 							className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+							decoding="async"
 						/>
 					)}
 

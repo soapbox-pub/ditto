@@ -66,6 +66,7 @@ export function MusicHeroCard({ event }: MusicHeroCardProps) {
           className="w-full aspect-[16/10] object-cover"
           loading="eager"
           onError={() => setImgError(true)}
+          decoding="async"
         />
       ) : (
         <div className="w-full aspect-[16/10] bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 flex items-center justify-center">

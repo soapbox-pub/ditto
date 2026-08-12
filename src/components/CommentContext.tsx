@@ -1167,6 +1167,7 @@ function IsbnCommentContext({ identifier, className }: { identifier: string; cla
                 alt={bookInfo?.title || 'Book cover'}
                 className="w-9 h-12 rounded object-cover shrink-0"
                 loading="lazy"
+                decoding="async"
               />
             ) : (
               <div className="w-9 h-12 rounded bg-secondary flex items-center justify-center shrink-0">
@@ -1246,6 +1247,7 @@ function GathererCardCommentContext({
                 alt={scryCard?.name ?? 'Magic card'}
                 className="w-9 h-12 rounded object-cover shrink-0"
                 loading="lazy"
+                decoding="async"
               />
             ) : (
               <div className="w-9 h-12 rounded bg-secondary flex items-center justify-center shrink-0">

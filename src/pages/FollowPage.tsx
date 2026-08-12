@@ -239,7 +239,7 @@ function FollowView({ pubkey }: { pubkey: string }) {
           {author.isLoading ? (
             <Skeleton className="w-full h-full rounded-none" />
           ) : bannerUrl ? (
-            <img src={bannerUrl} alt="" className="w-full h-full object-cover" />
+            <img src={bannerUrl} alt="" className="w-full h-full object-cover" decoding="async" />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />
           )}
@@ -448,7 +448,7 @@ function FollowPackView({ addr, relays }: { addr: AddrCoords; relays?: string[] 
         {/* Banner */}
         <div className="h-36 md:h-48 bg-secondary relative">
           {bannerUrl ? (
-            <img src={bannerUrl} alt="" className="w-full h-full object-cover" />
+            <img src={bannerUrl} alt="" className="w-full h-full object-cover" decoding="async" />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />
           )}

@@ -931,6 +931,7 @@ function CommentOnUrlItem({
               e.currentTarget.style.display = 'none';
               (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
             }}
+            decoding="async"
           />
         ) : null}
         <div
@@ -1057,6 +1058,7 @@ function WikipediaItem({
               e.currentTarget.style.display = 'none';
               (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
             }}
+            decoding="async"
           />
         ) : null}
         <div className={cn('items-center justify-center size-10', result.thumbnail ? 'hidden' : 'flex')}>
@@ -1103,6 +1105,7 @@ function ArchiveItem({
             e.currentTarget.style.display = 'none';
             (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
           }}
+          decoding="async"
         />
         <div className="hidden items-center justify-center size-10">
           <Archive className="size-4 text-muted-foreground" />
@@ -1158,6 +1161,7 @@ function EventResultItem({
               e.currentTarget.style.display = 'none';
               (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
             }}
+            decoding="async"
           />
         ) : null}
         <div className={cn('items-center justify-center size-10', image ? 'hidden' : 'flex')}>

@@ -112,6 +112,7 @@ function MusicCard({ event }: { event: NostrEvent }) {
             alt={parsed.title}
             className="w-full aspect-square object-cover"
             loading="lazy"
+            decoding="async"
           />
         ) : (
           <div className="w-full aspect-square bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">

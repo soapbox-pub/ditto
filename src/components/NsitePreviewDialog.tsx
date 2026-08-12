@@ -252,6 +252,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
                 src={appPicture}
                 alt={appName}
                 className="size-6 rounded-md object-cover shrink-0"
+                decoding="async"
               />
             ) : (
               <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">

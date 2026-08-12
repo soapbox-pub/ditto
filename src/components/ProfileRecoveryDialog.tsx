@@ -223,6 +223,7 @@ function ThemeSnapshotCard({
             src={parsed.background.url}
             alt=""
             className="absolute inset-0 w-full h-full object-cover opacity-40"
+            decoding="async"
           />
         )}
         <div className="p-4 space-y-2 relative">

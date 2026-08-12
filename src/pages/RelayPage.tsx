@@ -175,14 +175,14 @@ function RelayInfoPanel({ info, infoLoading, infoError, open }: {
             {/* Banner */}
             {info.banner && (
               <div className="w-full h-40 overflow-hidden rounded-lg">
-                <img src={info.banner} alt="" className="w-full h-full object-cover" />
+                <img src={info.banner} alt="" className="w-full h-full object-cover" decoding="async" />
               </div>
             )}
 
             {/* Icon + name (when different from hostname) */}
             {info.icon && (
               <div className="flex items-center gap-2.5">
-                <img src={info.icon} alt="" className="size-8 rounded-full object-cover ring-1 ring-border" />
+                <img src={info.icon} alt="" className="size-8 rounded-full object-cover ring-1 ring-border" decoding="async" />
                 {info.name && (
                   <span className="text-sm font-medium">{info.name}</span>
                 )}
