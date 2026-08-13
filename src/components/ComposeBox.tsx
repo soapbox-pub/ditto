@@ -55,6 +55,7 @@ import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
 import { resizeImage } from '@/lib/resizeImage';
 import { extractHashtags } from '@/lib/hashtag';
 import { parseAddr } from '@/lib/parseAddr';
+import { isNostrId } from '@/lib/nostrId';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
 const MAX_CHARS = 5000;
@@ -1073,7 +1074,6 @@ export function ComposeBox({
             }
           } else {
             const rootKind = K ? parseInt(K, 10) : NaN;
-            const rootPubkey = P ?? '';
 
             // Root coordinates: prefer the uppercase A tag, but fall back to
             // the lowercase a parent tag — some clients omit A and reference
@@ -1081,29 +1081,29 @@ export function ComposeBox({
             // reconstructed root loses its d-tag and we'd publish a malformed
             // `A` value like "37516:<pubkey>:".
             const addrValue = A ?? replyTo.tags.find(([n]) => n === 'a')?.[1];
+            // parseAddr only succeeds when the pubkey is valid hex, so a corrupt
+            // coordinate like "0::" yields undefined and is handled by the
+            // re-root fallback below rather than producing another bad `A`.
+            const parsedAddr = addrValue ? parseAddr(addrValue) : undefined;
 
-            if (addrValue) {
-              // Addressable/replaceable root: extract d-tag from the A value
-              const parsedAddr = parseAddr(addrValue);
-              const dValue = parsedAddr?.identifier ?? '';
+            if (parsedAddr) {
+              // Addressable/replaceable root.
               root = {
-                id: E ?? '',
-                kind: Number.isFinite(rootKind) ? rootKind : (parsedAddr?.kind ?? 0),
-                pubkey: rootPubkey || (parsedAddr?.pubkey ?? ''),
+                id: E && isNostrId(E) ? E : '',
+                kind: Number.isFinite(rootKind) ? rootKind : parsedAddr.kind,
+                pubkey: parsedAddr.pubkey,
                 content: '',
                 created_at: 0,
                 sig: '',
-                tags: [['d', dValue]],
+                tags: [['d', parsedAddr.identifier]],
               };
-            } else {
-              // The root is referenced only by an `E` tag, so it is a regular
-              // (non-replaceable) event and must be re-emitted as `E`/`K`/`P`.
-              // Never fabricate a replaceable kind here: when a parent comment
-              // omits the root `K` tag, defaulting the kind to 0 made
-              // `makeCommentTags` treat the root as replaceable and emit an
-              // addressable coordinate `A` "0::" (empty pubkey) instead of the
-              // root `E`. Keep the parent's root kind only when it's actually a
-              // regular kind; otherwise fall back to kind 1.
+            } else if (E && isNostrId(E)) {
+              // Root referenced only by a valid `E` tag → a regular event, which
+              // must be re-emitted as `E`/`K`/`P`. Never fabricate a replaceable
+              // kind here: defaulting to kind 0 made `makeCommentTags` treat the
+              // root as replaceable and emit an addressable coordinate `A` "0::"
+              // instead of the root `E`. Keep the parent's root kind only when
+              // it's actually a regular kind; otherwise fall back to kind 1.
               const regularKind =
                 Number.isFinite(rootKind) &&
                 !NKinds.replaceable(rootKind) &&
@@ -1111,14 +1111,20 @@ export function ComposeBox({
                   ? rootKind
                   : 1;
               root = {
-                id: E ?? '',
+                id: E,
                 kind: regularKind,
-                pubkey: rootPubkey,
+                pubkey: P && isNostrId(P) ? P : '',
                 content: '',
                 created_at: 0,
                 sig: '',
                 tags: [],
               };
+            } else {
+              // The parent's root reference is missing or corrupt — e.g. a
+              // legacy "A 0::" comment with no usable root pubkey or event id.
+              // Re-root the new thread at the parent comment itself rather than
+              // emit empty/garbage root tags like `E ""` or `A "0::"`.
+              root = replyTo;
             }
           }
         } else {
