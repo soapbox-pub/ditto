@@ -4,7 +4,7 @@ import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker, BarC
 import { nip19 } from 'nostr-tools';
 import { encode as blurhashEncode } from 'blurhash';
 import { useNostr } from '@nostrify/react';
-import type { NostrEvent } from '@nostrify/nostrify';
+import { NKinds, type NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { PartyHat } from '@/components/BirthdayRain';
@@ -1072,7 +1072,7 @@ export function ComposeBox({
               }
             }
           } else {
-            const rootKind = K ? parseInt(K, 10) : 0;
+            const rootKind = K ? parseInt(K, 10) : NaN;
             const rootPubkey = P ?? '';
 
             // Root coordinates: prefer the uppercase A tag, but fall back to
@@ -1088,7 +1088,7 @@ export function ComposeBox({
               const dValue = parsedAddr?.identifier ?? '';
               root = {
                 id: E ?? '',
-                kind: rootKind || (parsedAddr?.kind ?? 0),
+                kind: Number.isFinite(rootKind) ? rootKind : (parsedAddr?.kind ?? 0),
                 pubkey: rootPubkey || (parsedAddr?.pubkey ?? ''),
                 content: '',
                 created_at: 0,
@@ -1096,9 +1096,23 @@ export function ComposeBox({
                 tags: [['d', dValue]],
               };
             } else {
+              // The root is referenced only by an `E` tag, so it is a regular
+              // (non-replaceable) event and must be re-emitted as `E`/`K`/`P`.
+              // Never fabricate a replaceable kind here: when a parent comment
+              // omits the root `K` tag, defaulting the kind to 0 made
+              // `makeCommentTags` treat the root as replaceable and emit an
+              // addressable coordinate `A` "0::" (empty pubkey) instead of the
+              // root `E`. Keep the parent's root kind only when it's actually a
+              // regular kind; otherwise fall back to kind 1.
+              const regularKind =
+                Number.isFinite(rootKind) &&
+                !NKinds.replaceable(rootKind) &&
+                !NKinds.addressable(rootKind)
+                  ? rootKind
+                  : 1;
               root = {
                 id: E ?? '',
-                kind: rootKind,
+                kind: regularKind,
                 pubkey: rootPubkey,
                 content: '',
                 created_at: 0,

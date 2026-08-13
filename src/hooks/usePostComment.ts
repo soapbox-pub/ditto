@@ -75,7 +75,10 @@ function makeCommentTags(scope: 'root' | 'reply', target: NostrEvent | URL | `#$
     tags.push(['I', target]);
   } else if (target instanceof URL) {
     tags.push(['I', target.toString()]);
-  } else if (NKinds.replaceable(target.kind) || NKinds.addressable(target.kind)) {
+  } else if ((NKinds.replaceable(target.kind) || NKinds.addressable(target.kind)) && isNostrId(target.pubkey)) {
+    // Only emit an addressable coordinate when the pubkey is a valid hex id.
+    // A blank/invalid pubkey would produce a malformed `A` like "0::"; in that
+    // case fall through to referencing the root by its event id instead.
     const d = target.tags.find(([name]) => name === 'd')?.[1] ?? '';
     const addr = `${target.kind}:${target.pubkey}:${NKinds.addressable(target.kind) ? d : ''}`;
     tags.push(['A', addr, ...aHints.get(addr) ?? []]);
@@ -96,7 +99,10 @@ function makeCommentTags(scope: 'root' | 'reply', target: NostrEvent | URL | `#$
     }
   } else {
     tags.push(['K', target.kind.toString()]);
-    tags.push(['P', target.pubkey, ...pHints.get(target.pubkey) ?? []]);
+    // Skip a blank/invalid pubkey rather than emitting an empty `P` tag.
+    if (isNostrId(target.pubkey)) {
+      tags.push(['P', target.pubkey, ...pHints.get(target.pubkey) ?? []]);
+    }
   }
 
   // Lowercase all tag names for reply scope
