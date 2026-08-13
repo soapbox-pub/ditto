@@ -11,6 +11,14 @@ interface PostCommentParams {
   reply?: NostrEvent | URL | `#${string}`; // Optional reply to another comment
   content: string;
   tags?: string[][]; // Additional tags (hashtags, mentions, imeta, etc.)
+  /**
+   * Pre-built uppercase root-scope tags, used verbatim instead of deriving them
+   * from `root`. Set when replying to a NIP-22 comment: the parent already
+   * carries the thread root, so its root scope is copied forward unchanged
+   * rather than reconstructed. `root` is still used for cache/rebroadcast
+   * bookkeeping.
+   */
+  rootTags?: string[][];
 }
 
 /** Post a NIP-22 (kind 1111) comment on an event. */
@@ -20,13 +28,18 @@ export function usePostComment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ root, reply, content, tags: extraTags }: PostCommentParams) => {
+    mutationFn: async ({ root, reply, content, tags: extraTags, rootTags }: PostCommentParams) => {
       // Extract hint maps from the reply event's existing tags, if available.
       const hints = extractHints(reply);
       const tags: string[][] = [];
 
-      // Root event tags
-      tags.push(...makeCommentTags('root', root, hints));
+      // Root event tags: copy the parent comment's root scope forward verbatim
+      // when provided (see PostCommentParams.rootTags), otherwise derive it.
+      if (rootTags?.length) {
+        tags.push(...rootTags);
+      } else {
+        tags.push(...makeCommentTags('root', root, hints));
+      }
 
       // Reply event tags
       if (reply) {

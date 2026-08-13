@@ -4,7 +4,7 @@ import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker, BarC
 import { nip19 } from 'nostr-tools';
 import { encode as blurhashEncode } from 'blurhash';
 import { useNostr } from '@nostrify/react';
-import { NKinds, type NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { PartyHat } from '@/components/BirthdayRain';
@@ -121,6 +121,43 @@ export type ExternalReplyRoot = URL | `#${string}`;
 /** True if `replyTo` is an external (non-Nostr-event) root. */
 function isExternalRoot(replyTo: NostrEvent | ExternalReplyRoot | undefined): replyTo is ExternalReplyRoot {
   return replyTo instanceof URL || typeof replyTo === 'string';
+}
+
+/**
+ * Copy a NIP-22 comment's root scope (the uppercase `A`/`E`/`I` reference plus
+ * `K`/`P`) so a reply to that comment carries the identical root forward — a
+ * NIP-22 root is stable at every depth. Tags are copied verbatim, preserving
+ * relay/pubkey hints, and reference tags are validated so a corrupt coordinate
+ * like `A "0::"` (or an empty/invalid `E`/`P`) is dropped rather than
+ * propagated. Returns `null` when no valid root reference survives, signalling
+ * the caller to re-root the new thread at the parent comment instead.
+ */
+function copyCommentRootScope(parent: NostrEvent): string[][] | null {
+  const tags: string[][] = [];
+  let hasRootRef = false;
+
+  for (const tag of parent.tags) {
+    const [name, value] = tag;
+    switch (name) {
+      case 'I':
+        if (value) { tags.push([...tag]); hasRootRef = true; }
+        break;
+      case 'A':
+        if (parseAddr(value)) { tags.push([...tag]); hasRootRef = true; }
+        break;
+      case 'E':
+        if (value && isNostrId(value)) { tags.push([...tag]); hasRootRef = true; }
+        break;
+      case 'K':
+        if (value) tags.push([...tag]);
+        break;
+      case 'P':
+        if (value && isNostrId(value)) tags.push([...tag]);
+        break;
+    }
+  }
+
+  return hasRootRef ? tags : null;
 }
 
 interface ComposeBoxProps {
@@ -1043,6 +1080,8 @@ export function ComposeBox({
         // Determine root and reply params for the comment hook
         let root: NostrEvent | URL | `#${string}`;
         let reply: NostrEvent | undefined;
+        /** When set, the parent comment's root scope copied forward verbatim. */
+        let rootScopeTags: string[][] | undefined;
 
         if (replyTo instanceof URL) {
           // External content root — the URL is the root directly
@@ -1051,89 +1090,24 @@ export function ComposeBox({
           // NIP-73 hashtag-style identifier root (e.g. `bitcoin:tx:...`, `isbn:...`)
           root = replyTo;
         } else if (replyTo.kind === 1111) {
-          // Replying to a comment: replyTo is the parent, root is derived from its uppercase tags
+          // Replying to a comment. Per NIP-22 the root scope is stable at every
+          // depth, so copy the parent comment's uppercase root tags (A/E/I plus
+          // K/P) forward unchanged — preserving the real root reference and its
+          // relay/pubkey hints — instead of reconstructing them, which used to
+          // corrupt an E-referenced root into `A "0::"`. When the parent carries
+          // no usable root reference (e.g. a legacy corrupt "A 0::" comment),
+          // `copyCommentRootScope` returns null and we re-root the new thread at
+          // the parent comment itself.
           reply = replyTo;
-
-          // Reconstruct the original root from the comment's uppercase tags
-          const K = replyTo.tags.find(([n]) => n === 'K')?.[1];
-          const P = replyTo.tags.find(([n]) => n === 'P')?.[1];
-          const A = replyTo.tags.find(([n]) => n === 'A')?.[1];
-          const E = replyTo.tags.find(([n]) => n === 'E')?.[1];
-          const I = replyTo.tags.find(([n]) => n === 'I')?.[1];
-
-          // External content root (URL or hashtag identifier)
-          if (I) {
-            if (K === '#') {
-              root = I as `#${string}`;
-            } else {
-              try {
-                root = new URL(I);
-              } catch {
-                root = I as `#${string}`;
-              }
-            }
-          } else {
-            const rootKind = K ? parseInt(K, 10) : NaN;
-
-            // Root coordinates: prefer the uppercase A tag, but fall back to
-            // the lowercase a parent tag — some clients omit A and reference
-            // an addressable root only via E + a. Without this fallback the
-            // reconstructed root loses its d-tag and we'd publish a malformed
-            // `A` value like "37516:<pubkey>:".
-            const addrValue = A ?? replyTo.tags.find(([n]) => n === 'a')?.[1];
-            // parseAddr only succeeds when the pubkey is valid hex, so a corrupt
-            // coordinate like "0::" yields undefined and is handled by the
-            // re-root fallback below rather than producing another bad `A`.
-            const parsedAddr = addrValue ? parseAddr(addrValue) : undefined;
-
-            if (parsedAddr) {
-              // Addressable/replaceable root.
-              root = {
-                id: E && isNostrId(E) ? E : '',
-                kind: Number.isFinite(rootKind) ? rootKind : parsedAddr.kind,
-                pubkey: parsedAddr.pubkey,
-                content: '',
-                created_at: 0,
-                sig: '',
-                tags: [['d', parsedAddr.identifier]],
-              };
-            } else if (E && isNostrId(E)) {
-              // Root referenced only by a valid `E` tag → a regular event, which
-              // must be re-emitted as `E`/`K`/`P`. Never fabricate a replaceable
-              // kind here: defaulting to kind 0 made `makeCommentTags` treat the
-              // root as replaceable and emit an addressable coordinate `A` "0::"
-              // instead of the root `E`. Keep the parent's root kind only when
-              // it's actually a regular kind; otherwise fall back to kind 1.
-              const regularKind =
-                Number.isFinite(rootKind) &&
-                !NKinds.replaceable(rootKind) &&
-                !NKinds.addressable(rootKind)
-                  ? rootKind
-                  : 1;
-              root = {
-                id: E,
-                kind: regularKind,
-                pubkey: P && isNostrId(P) ? P : '',
-                content: '',
-                created_at: 0,
-                sig: '',
-                tags: [],
-              };
-            } else {
-              // The parent's root reference is missing or corrupt — e.g. a
-              // legacy "A 0::" comment with no usable root pubkey or event id.
-              // Re-root the new thread at the parent comment itself rather than
-              // emit empty/garbage root tags like `E ""` or `A "0::"`.
-              root = replyTo;
-            }
-          }
+          root = replyTo;
+          rootScopeTags = copyCommentRootScope(replyTo) ?? undefined;
         } else {
           // Replying directly to a non-kind-1 event: it is the root
           root = replyTo;
         }
 
         threadRoot = root;
-        published = await postComment({ root, reply, content: finalContent, tags });
+        published = await postComment({ root, reply, content: finalContent, tags, rootTags: rootScopeTags });
       } else {
         published = await createEvent({
           kind: 1,
