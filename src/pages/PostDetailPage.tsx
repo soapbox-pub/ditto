@@ -72,7 +72,7 @@ const GitStatusCard = lazy(() => import("@/components/GitStatusCard").then(m => 
 const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ default: m.IssueCard })));
 import { PrUpdateCard } from "@/components/PrUpdateCard";
 import { RepoStateCard } from "@/components/RepoStateCard";
-import { ImageGallery } from "@/components/ImageGallery";
+import { PhotoPostContent } from "@/components/PhotoPostContent";
 import {
   InteractionsModal,
   type InteractionTab,
@@ -118,7 +118,7 @@ import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
 import { LoveListContent } from "@/components/LoveListContent";
 import { LOVE_LIST_KIND } from "@/hooks/useLoveList";
 import { VanishEventContent } from "@/components/VanishEventContent";
-import { parseFirstImeta, parseImetaEntries, parseImetaMap } from '@/lib/imeta';
+import { parseFirstImeta } from '@/lib/imeta';
 import { type FileEncryption } from '@/lib/encryptedFile';
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
@@ -1067,50 +1067,6 @@ function EventNotFound({
           </Collapsible>
         )}
       </div>
-    </div>
-  );
-}
-
-/** NIP-68 Photo detail content (kind 20). */
-function PhotoDetailContent({ event }: { event: NostrEvent }) {
-  const photos = useMemo(() => parseImetaEntries(event.tags), [event.tags]);
-  const title = getTag(event.tags, "title");
-  const description = event.content;
-  const hashtags = event.tags.filter(([n]) => n === "t").map(([, v]) => v);
-
-  // Carries blurhash for placeholders, and the decryption key for encrypted
-  // photos — ImageGallery decrypts each tile from this map.
-  const imetaMap = useMemo(() => parseImetaMap(event.tags), [event.tags]);
-
-  if (photos.length === 0) return null;
-
-  return (
-    <div className="mt-3 space-y-3">
-      {title && <p className="text-[15px] font-semibold leading-snug break-words">{title}</p>}
-      <ImageGallery
-        images={photos.map((p) => p.url)}
-        maxVisible={4}
-        maxGridHeight="600px"
-        imetaMap={imetaMap}
-      />
-      {description && (
-        <p className="text-sm text-muted-foreground leading-relaxed break-words">
-          {description}
-        </p>
-      )}
-      {hashtags.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {hashtags.slice(0, 8).map((tag) => (
-            <Link
-              key={tag}
-              to={`/t/${encodeURIComponent(tag)}`}
-              className="text-sm text-primary hover:underline"
-            >
-              #{tag}
-            </Link>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -2644,7 +2600,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           >
             <ContentWarningGuard event={event}>
             {isPhoto ? (
-              <PhotoDetailContent event={event} />
+              <PhotoPostContent event={event} variant="detail" fullBleed />
             ) : isVideo ? (
               <VideoDetailContent event={event} />
             ) : isArticle ? (

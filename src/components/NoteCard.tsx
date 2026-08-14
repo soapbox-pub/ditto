@@ -101,7 +101,7 @@ import { ATTESTATION_KIND } from "@/lib/attestation";
 import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { ZapContent } from "@/components/ZapContent";
 import { NsiteCard } from "@/components/NsiteCard";
-import { ImageGallery } from "@/components/ImageGallery";
+import { PhotoPostContent } from "@/components/PhotoPostContent";
 import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
 import { RepostIcon } from "@/components/icons/RepostIcon";
@@ -118,7 +118,7 @@ import { ProfileHoverCard } from "@/components/ProfileHoverCard";
 const PullRequestCard = lazy(() => import("@/components/PullRequestCard").then(m => ({ default: m.PullRequestCard })));
 import { ReactionButton } from "@/components/ReactionButton";
 import { ReplyComposeModal } from "@/components/ReplyComposeModal";
-import { parseFirstImeta, parseImetaEntries, parseImetaMap } from '@/lib/imeta';
+import { parseFirstImeta } from '@/lib/imeta';
 import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
 import { useDecryptedFile } from '@/hooks/useDecryptedFile';
 import { ReplyContext } from "@/components/ReplyContext";
@@ -794,7 +794,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
       >
         <ContentWarningGuard event={event}>
         {isPhoto ? (
-          <PhotoContent event={event} />
+          <PhotoPostContent event={event} fullBleed={!threaded && !threadedLast} />
         ) : isVideo ? (
           <VideoContent event={event} />
         ) : isVine ? (
@@ -1837,53 +1837,6 @@ function TruncatedNoteContent({
         >
           {expanded ? "Show less" : "Read more"}
         </button>
-      )}
-    </div>
-  );
-}
-
-// ── NIP-68 Photo content (kind 20) ────────────────────────────────────────────
-
-/** Inline photo gallery for NIP-68 kind 20 events. */
-function PhotoContent({ event }: { event: NostrEvent }) {
-  const photos = useMemo(() => parseImetaEntries(event.tags), [event.tags]);
-  const title = getTag(event.tags, "title");
-  const description = event.content;
-  const hashtags = event.tags.filter(([n]) => n === "t").map(([, v]) => v);
-
-  // Carries dim + blurhash for placeholders, and the decryption key for
-  // encrypted photos — ImageGallery decrypts each tile from this map.
-  const imetaMap = useMemo(() => parseImetaMap(event.tags), [event.tags]);
-
-  if (photos.length === 0) return null;
-
-  return (
-    <div className="mt-2 space-y-2">
-      {title && <p className="font-semibold text-[15px]">{title}</p>}
-      <ImageGallery
-        images={photos.map((p) => p.url)}
-        maxVisible={4}
-        maxGridHeight="480px"
-        imetaMap={imetaMap}
-      />
-      {description && (
-        <p className="text-[15px] leading-relaxed text-muted-foreground">
-          {description}
-        </p>
-      )}
-      {hashtags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {hashtags.slice(0, 5).map((tag) => (
-            <Link
-              key={tag}
-              to={`/t/${encodeURIComponent(tag)}`}
-              className="text-xs text-primary hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              #{tag}
-            </Link>
-          ))}
-        </div>
       )}
     </div>
   );
