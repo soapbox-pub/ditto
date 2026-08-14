@@ -311,6 +311,7 @@ const KIND_SUFFIXES: Partial<Record<number, string>> = {
   30054: 'episode',
   30055: 'trailer',
   34139: 'playlist',
+  39701: 'bookmark',
 };
 
 /** Postfix that replaces the default pattern (e.g. "Ditto on Zapstore" instead of "Ditto Zapstore app"). */
