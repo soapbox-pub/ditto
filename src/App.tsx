@@ -3,6 +3,7 @@
 
 import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ActiveAccountSync } from "@/components/ActiveAccountSync";
 import { AppProvider } from "@/components/AppProvider";
 import { I18nProvider } from "@/components/I18nProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
@@ -20,6 +21,7 @@ import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
 import { DittoConfigSchema, type DittoConfig } from "@/lib/schemas";
 import { secureStorage } from "@/lib/secureStorage";
+import { APP_CONFIG_STORAGE_KEY } from "@/lib/activeAccount";
 import { DEFAULT_ESPLORA_APIS } from "@/lib/esplora";
 import { DEFAULT_SIDEBAR_WIDGETS } from "@/lib/sidebarWidgets";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
@@ -218,12 +220,13 @@ export function App() {
 
 
   return (
-    <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
+    <AppProvider storageKey={APP_CONFIG_STORAGE_KEY} defaultConfig={defaultConfig}>
       <I18nProvider>
         <SentryProvider>
           <PlausibleProvider>
             <QueryClientProvider client={queryClient}>
               <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
+                <ActiveAccountSync />
                 <NostrProvider>
                   <NostrSync />
                   <NativeNotifications />
