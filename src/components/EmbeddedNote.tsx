@@ -996,7 +996,7 @@ function EmbeddedNoteCard({
         </div>
       ) : isUnknownKind ? (
         <p className="text-sm italic text-muted-foreground">
-          This event kind is not supported
+          Kind {event.kind} &middot; not supported
         </p>
       ) : (
         <>
