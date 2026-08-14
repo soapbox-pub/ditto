@@ -245,6 +245,13 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
     const hasSource = event.tags.some(([n]) => n === 'a' || n === 'e' || n === 'r');
     if (!hasContent && !hasSource) return true;
   }
+  // NIP-B0 web bookmarks (kind 39701) with no bookmarked URL — an `r` (or a
+  // scheme-less `d`) is the whole point of the card. Without one there's
+  // nothing to link to.
+  if (event.kind === 39701) {
+    const hasUrl = event.tags.some(([n, v]) => (n === 'r' || n === 'd') && typeof v === 'string' && v.trim().length > 0);
+    if (!hasUrl) return true;
+  }
   // Attestations (kind 31871) without a valid `s` state tag have nothing
   // trustworthy to render — the state pill is the whole point of the card.
   if (event.kind === 31871) {

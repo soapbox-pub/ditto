@@ -3,7 +3,7 @@ import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import {
-  Award, BarChart3, Bird, Bitcoin, BookOpen, CalendarClock, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Egg, FileText, Film,
+  Award, BarChart3, Bird, Bitcoin, Bookmark, BookOpen, CalendarClock, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Egg, FileText, Film,
   GitBranch, GitPullRequest, HandHeart, Heart, Mail, MapPin, MessageSquare, Mic, Music, Newspaper,
   Video,
   Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, ShieldCheck, SmilePlus, Sparkles,
@@ -185,6 +185,7 @@ const KIND_LABELS: Record<number, string> = {
   39089: 'a follow pack',
   9735: 'a zap',
   9802: 'a highlight',
+  39701: 'a web bookmark',
   8333: 'a zap',
   31124: 'a Blobbi',
   31871: 'an attestation',
@@ -225,6 +226,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   30008: Award,
   30009: Award,
   30023: BookOpen,
+  39701: Bookmark,
   33953: BookOpen,
   34609: Newspaper,
   39731: Newspaper,

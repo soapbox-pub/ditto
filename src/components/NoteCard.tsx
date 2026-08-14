@@ -41,6 +41,7 @@ import {
   Zap,
   Newspaper,
   BookOpen,
+  Bookmark,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import { type ReactNode, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -91,6 +92,7 @@ const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ defau
 import { PrUpdateCard } from "@/components/PrUpdateCard";
 import { RepoStateCard } from "@/components/RepoStateCard";
 import { HighlightContent } from "@/components/HighlightContent";
+import { WebBookmarkContent } from "@/components/WebBookmarkContent";
 import { StatusContent } from "@/components/StatusContent";
 import { InteractiveRoomContent } from "@/components/InteractiveRoomContent";
 import { QuizContent } from "@/components/quiz/QuizContent";
@@ -601,6 +603,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isLetter = event.kind === 8211;
   const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
+  const isWebBookmark = event.kind === 39701;
   const isStatus = event.kind === 30315;
   const isAttestation = event.kind === ATTESTATION_KIND;
   const isCampaign = event.kind === 33863;
@@ -664,6 +667,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     !isLetter &&
     !isLoveList &&
     !isHighlight &&
+    !isWebBookmark &&
     !isStatus &&
     !isAttestation &&
     !isCampaign &&
@@ -916,6 +920,8 @@ const NoteCardImpl = memo(function NoteCardImpl({
           <LoveListContent event={event} compact />
         ) : isHighlight ? (
           <HighlightContent event={event} />
+        ) : isWebBookmark ? (
+          <WebBookmarkContent event={event} />
         ) : isStatus ? (
           <StatusContent event={event} />
         ) : isRoom ? (
@@ -2378,6 +2384,11 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     icon: SmilePlus,
     action: "updated their",
     noun: "status",
+  },
+  39701: {
+    icon: Bookmark,
+    action: (event) => publishedAtAction(event, { created: "bookmarked a", updated: "updated a", fallback: "bookmarked a" }),
+    noun: "web page",
   },
   8: {
     icon: Award,

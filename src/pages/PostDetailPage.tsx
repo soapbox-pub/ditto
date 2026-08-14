@@ -49,6 +49,7 @@ import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { HighlightContent } from "@/components/HighlightContent";
+import { WebBookmarkContent } from "@/components/WebBookmarkContent";
 import { StatusContent } from "@/components/StatusContent";
 import { InteractiveRoomContent } from "@/components/InteractiveRoomContent";
 import { QuizContent } from "@/components/quiz/QuizContent";
@@ -1313,6 +1314,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isLetter = event.kind === 8211;
   const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
+  const isWebBookmark = event.kind === 39701;
   const isStatus = event.kind === 30315;
   const isRoom = event.kind === 30312 || event.kind === 30313;
   const isAttestation = event.kind === ATTESTATION_KIND;
@@ -1357,6 +1359,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isLetter &&
     !isLoveList &&
     !isHighlight &&
+    !isWebBookmark &&
     !isStatus &&
     !isRoom &&
     !isAttestation &&
@@ -2689,6 +2692,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <LoveListContent event={event} />
             ) : isHighlight ? (
               <HighlightContent event={event} expanded />
+            ) : isWebBookmark ? (
+              <WebBookmarkContent event={event} expanded />
             ) : isStatus ? (
               <StatusContent event={event} expanded />
             ) : isRoom ? (
