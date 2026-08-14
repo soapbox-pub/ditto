@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.34.9] - 2026-08-14
+
+Web bookmarks and photo posts now strut into your feed as full cards. Encrypted files and audio decrypt right before your eyes. Unknown events show up as mystery encounters — poke one and see what happens. Plus: per-account settings, snappier relays, and copy-link buttons on nsite previews.
+
+### Added
+- Web bookmarks render as rich link-preview cards in feeds, detail pages, and quote embeds
+- Picture posts display Instagram-style with edge-to-edge photo carousels and swipeable galleries
+- Encrypted files and audio now decrypt and display inline, with a size guard for large attachments
+- Unknown event kinds appear as a mystery encounter with an expandable raw-event viewer
+
+### Changed
+- App config is now scoped per account so switching logins can't clobber your theme and feed settings
+- nsite preview dialog gains copy-link and open-in-browser buttons
+- Relay messages are no longer re-verified and re-wrapped on every receipt, improving feed performance
+- Wikimedia images now request only thumbnail widths instead of decoding full-resolution originals
+
+### Fixed
+- Editing advanced settings fields no longer overwrites the rest of your config
+
 ## [2.34.8] - 2026-08-08
 
 A quiet maintenance release. We updated the plumbing under the hood and patched a security advisory in one of Ditto's dependencies. Nothing to see here — everything works exactly like it did yesterday, just on fresher parts.
