@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronDown, Star } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { CopyButton } from '@/components/EventJsonDialog';
@@ -21,6 +21,59 @@ interface UnknownKindContentProps {
   className?: string;
 }
 
+/** Rainbow palette the PK-attack projectiles cycle through. */
+const PK_COLORS = ['#f0abfc', '#c084fc', '#818cf8', '#38bdf8', '#34d399', '#fde047', '#fb7185'];
+
+interface PkBeam {
+  left: string;
+  top: string;
+  delay: string;
+  duration: string;
+  color: string;
+  length: number;
+}
+
+interface PkStar {
+  left: string;
+  top: string;
+  delay: string;
+  size: number;
+  color: string;
+}
+
+/**
+ * Procedurally build a dense, chromatic PK-attack volley: long diagonal beam
+ * streaks plus a scatter of star bursts, all staggered so the barrage rolls
+ * across the frame over ~1.6s rather than firing in a single instant.
+ */
+function buildBarrage(seed: number): { beams: PkBeam[]; stars: PkStar[] } {
+  // Small deterministic PRNG so a given event always animates identically.
+  let s = seed || 1;
+  const rand = () => {
+    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    return s / 0x7fffffff;
+  };
+
+  const beams: PkBeam[] = Array.from({ length: 18 }, () => ({
+    left: `${rand() * 120 - 20}%`,
+    top: `${rand() * 120 - 20}%`,
+    delay: `${(rand() * 1.1).toFixed(3)}s`,
+    duration: `${(0.45 + rand() * 0.35).toFixed(3)}s`,
+    color: PK_COLORS[Math.floor(rand() * PK_COLORS.length)],
+    length: Math.round(60 + rand() * 90),
+  }));
+
+  const stars: PkStar[] = Array.from({ length: 22 }, () => ({
+    left: `${rand() * 100}%`,
+    top: `${rand() * 100}%`,
+    delay: `${(rand() * 1.3).toFixed(3)}s`,
+    size: Math.round(10 + rand() * 14),
+    color: PK_COLORS[Math.floor(rand() * PK_COLORS.length)],
+  }));
+
+  return { beams, stars };
+}
+
 /**
  * Fallback renderer for event kinds this client doesn't know how to display.
  *
@@ -35,6 +88,7 @@ interface UnknownKindContentProps {
  */
 export function UnknownKindContent({ event, expanded = false, className }: UnknownKindContentProps) {
   const [showDetails, setShowDetails] = useState(false);
+  const [attacking, setAttacking] = useState(false);
 
   const fallbackText = getEventFallbackText(event);
   // getKindLabel falls back to "Kind <n>" for kinds absent from the registry,
@@ -46,6 +100,13 @@ export function UnknownKindContent({ event, expanded = false, className }: Unkno
   const nip19Id = encodeEventAddress(event);
   const jsonText = JSON.stringify(event, null, 2);
 
+  // Deterministic per-event barrage layout (seeded off the event id).
+  const barrage = useMemo(() => {
+    let seed = 0;
+    for (let i = 0; i < event.id.length; i++) seed = (seed * 31 + event.id.charCodeAt(i)) & 0x7fffffff;
+    return buildBarrage(seed);
+  }, [event.id]);
+
   return (
     <div
       className={cn(
@@ -56,8 +117,25 @@ export function UnknownKindContent({ event, expanded = false, className }: Unkno
     >
       {/* The encounter — an Earthbound-battle-style wavy backdrop: gradient
           bands warped through an SVG turbulence displacement filter, swaying
-          and hue-shifting behind a big prismatic "?". */}
-      <div className="relative isolate flex flex-col items-center px-4 pt-6 pb-5 overflow-hidden">
+          and hue-shifting behind a big prismatic "?". Clicking fires a one-shot
+          "PK Starstorm" — the frame shakes while star projectiles streak
+          diagonally across it. */}
+      <div
+        className={cn(
+          'relative isolate flex flex-col items-center px-4 pt-6 pb-5 overflow-hidden cursor-pointer',
+          attacking && 'mystery-attack',
+        )}
+        onClick={(e) => {
+          e.stopPropagation();
+          // Retrigger by keying the star layer; restart the shake by briefly
+          // clearing the class first.
+          setAttacking(false);
+          requestAnimationFrame(() => setAttacking(true));
+        }}
+        onAnimationEnd={(e) => {
+          if (e.animationName === 'mystery-shake') setAttacking(false);
+        }}
+      >
         {/* Displacement field for .mystery-waves (see index.css) */}
         <svg aria-hidden="true" className="absolute size-0">
           <filter id="mystery-warp">
@@ -66,6 +144,50 @@ export function UnknownKindContent({ event, expanded = false, className }: Unkno
           </filter>
         </svg>
         <div className="mystery-waves absolute -inset-4 -z-10 pointer-events-none" aria-hidden="true" />
+
+        {/* PK attack — a dense chromatic barrage of beam streaks + star bursts
+            plus a color-cycling bloom, keyed on `attacking` so each click
+            remounts the layer and replays from 0. */}
+        {attacking && (
+          <div className="mystery-storm absolute inset-0 z-20 overflow-hidden pointer-events-none" aria-hidden="true">
+            {/* Full-frame chromatic bloom */}
+            <div className="mystery-bloom absolute inset-0" />
+
+            {/* Diagonal beam streaks */}
+            {barrage.beams.map((b, i) => (
+              <span
+                key={`b${i}`}
+                className="mystery-beam absolute rounded-full"
+                style={{
+                  left: b.left,
+                  top: b.top,
+                  width: `${b.length}px`,
+                  background: `linear-gradient(90deg, transparent, ${b.color}, #fff)`,
+                  boxShadow: `0 0 10px 2px ${b.color}`,
+                  animationDelay: b.delay,
+                  animationDuration: b.duration,
+                }}
+              />
+            ))}
+
+            {/* Star bursts */}
+            {barrage.stars.map((st, i) => (
+              <Star
+                key={`s${i}`}
+                className="mystery-star absolute fill-current"
+                style={{
+                  left: st.left,
+                  top: st.top,
+                  width: `${st.size}px`,
+                  height: `${st.size}px`,
+                  color: st.color,
+                  filter: `drop-shadow(0 0 6px ${st.color})`,
+                  animationDelay: st.delay,
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         {/* The mark */}
         <span
