@@ -1,7 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Package, X } from 'lucide-react';
+import { Copy, ExternalLink, Package, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
@@ -11,6 +11,8 @@ import { SandboxFrame } from '@/components/SandboxFrame';
 import { useCenterColumn } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useToast } from '@/hooks/useToast';
+import { openUrl } from '@/lib/downloadFile';
 import { useNsiteSignerRpc } from '@/hooks/useNsiteSignerRpc';
 import { APP_BLOSSOM_SERVERS, getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { deriveIframeSubdomain } from '@/lib/iframeSubdomain';
@@ -150,6 +152,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
   const columnRect = useElementRect(open ? centerColumn : null);
   const { config } = useAppContext();
   const { user } = useCurrentUser();
+  const { toast } = useToast();
 
   // Use the NIP-5A canonical subdomain as the stable identifier, then derive
   // a private HMAC-SHA256 subdomain so the raw identifier is never exposed as
@@ -157,6 +160,16 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
   const nsiteSubdomain = getNsiteSubdomain(event);
   const siteUrl = `https://${nsiteSubdomain}.nsite.lol`;
   const previewSubdomain = useMemo(() => deriveIframeSubdomain(config.appId, 'nsite', nsiteSubdomain), [config.appId, nsiteSubdomain]);
+
+  const copySiteUrl = useCallback(() => {
+    navigator.clipboard.writeText(siteUrl)
+      .then(() => toast({ title: 'Link copied to clipboard' }))
+      .catch(() => toast({ title: 'Could not copy link', variant: 'destructive' }));
+  }, [siteUrl, toast]);
+
+  const openExternally = useCallback(() => {
+    openUrl(siteUrl);
+  }, [siteUrl]);
 
   // NIP-07 signer proxy — only active when a user is logged in.
   const signerRpc = useNsiteSignerRpc({
@@ -265,6 +278,28 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
             )}
             <span className="text-sm font-medium truncate">{appName}</span>
           </div>
+
+          {/* Copy URL */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0 shrink-0"
+            onClick={copySiteUrl}
+            title="Copy link"
+          >
+            <Copy className="size-3.5" />
+          </Button>
+
+          {/* Open externally */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0 shrink-0"
+            onClick={openExternally}
+            title="Open in browser"
+          >
+            <ExternalLink className="size-3.5" />
+          </Button>
 
           {/* Permissions manager (only when logged in) */}
           {user && (
