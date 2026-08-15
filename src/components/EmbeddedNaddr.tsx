@@ -18,6 +18,7 @@ import { parseBadgeDefinition, type BadgeData } from '@/lib/parseBadgeDefinition
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { parseProfileBadges } from '@/lib/parseProfileBadges';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
+import { EmbeddedRelayListCard } from '@/components/EmbeddedRelayListCard';
 import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
 import { MEMORY_CARD_KIND } from '@/lib/memorycard';
 import { isPeopleListKind } from '@/lib/packUtils';
@@ -182,6 +183,12 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
   // dedicated card showing title + avatar stack + member count.
   if (isPeopleListKind(event.kind)) {
     return <EmbeddedPeopleListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-65 relay lists (kind 10002) are replaceable, so they're addressed by
+  // naddr with an empty identifier and land here rather than in EmbeddedNote.
+  if (event.kind === 10002) {
+    return <EmbeddedRelayListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Kind 31871 attestations get a compact status card showing the state

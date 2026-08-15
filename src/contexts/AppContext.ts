@@ -218,6 +218,8 @@ export interface FeedSettings {
   feedIncludeBadgeAwards: boolean;
   /** Include Request to Vanish events (kind 62) in the follows/global feed */
   feedIncludeVanish: boolean;
+  /** Include NIP-65 relay list updates (kind 10002) in the follows/global feed */
+  feedIncludeRelayLists: boolean;
   /** Include Love List updates (kind 15683, see NIP.md) in the follows/global feed */
   feedIncludeLoveLists: boolean;
   /** Include Blobbi pet updates (kind 31124) in the follows/global feed */

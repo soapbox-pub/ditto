@@ -42,6 +42,7 @@ import {
   Newspaper,
   BookOpen,
   Bookmark,
+  Server,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import { type ReactNode, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -80,6 +81,7 @@ const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => 
 import { EmojiPackContent } from "@/components/EmojiPackContent";
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
+import { RelayListContent } from "@/components/RelayListContent";
 import { PeopleAvatarStack } from "@/components/PeopleAvatarStack";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
@@ -558,6 +560,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isBirdex = event.kind === 12473;
   const isConstellation = event.kind === 30621;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
+  const isRelayList = event.kind === 10002;
   const isArticle = event.kind === 30023;
   const isPublication = PUBLICATION_KINDS.has(event.kind);
   const isMagicDeck = event.kind === 37381;
@@ -641,6 +644,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     !isBirdex &&
     !isConstellation &&
     !isPeopleList &&
+    !isRelayList &&
     !isArticle &&
     !isPublication &&
     !isMagicDeck &&
@@ -828,6 +832,8 @@ const NoteCardImpl = memo(function NoteCardImpl({
           <ConstellationContent event={event} />
         ) : isPeopleList ? (
           <PeopleListContent event={event} />
+        ) : isRelayList ? (
+          <RelayListContent event={event} />
         ) : isArticle ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <EmbeddedArticleCard event={event} className="mt-2" />
@@ -2603,6 +2609,11 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     icon: UserCheck,
     action: "updated their",
     noun: "follow list",
+  },
+  10002: {
+    icon: Server,
+    action: "updated their",
+    noun: "relay list",
   },
 };
 

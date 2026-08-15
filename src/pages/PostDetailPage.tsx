@@ -59,6 +59,7 @@ import { AttestationContent } from "@/components/AttestationContent";
 import { ATTESTATION_KIND } from "@/lib/attestation";
 import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
+import { RelayListContent } from "@/components/RelayListContent";
 import { PeopleListDetailContent } from "@/components/PeopleListDetailContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
@@ -1285,6 +1286,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isBirdex = event.kind === 12473;
   const isConstellation = event.kind === 30621;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
+  const isRelayList = event.kind === 10002;
   const isEmojiPack = event.kind === 30030;
   const isArticle = event.kind === 30023;
   const isPublication = PUBLICATION_KINDS.has(event.kind);
@@ -1338,6 +1340,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isBirdDetection &&
     !isConstellation &&
     !isPeopleList &&
+    !isRelayList &&
     !isEmojiPack &&
     !isArticle &&
     !isPublication &&
@@ -2723,6 +2726,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               isBirdex ||
               isConstellation ||
               isPeopleList ||
+              isRelayList ||
               isEmojiPack ? (
               <>
                 {isVine && <VineDetailContent event={event} />}
@@ -2734,6 +2738,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 {isBirdex && <BirdexContent event={event} expanded />}
                 {isConstellation && <ConstellationContent event={event} />}
                 {isPeopleList && <PeopleListContent event={event} />}
+                {isRelayList && <RelayListContent event={event} expanded />}
                 {isEmojiPack && <EmojiPackContent event={event} />}
               </>
             ) : isUnknownKind ? (

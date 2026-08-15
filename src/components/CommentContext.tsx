@@ -1,13 +1,14 @@
 import type React from 'react';
 import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { FormattedMessage } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import {
   Award, BarChart3, Bird, Bitcoin, Bookmark, BookOpen, CalendarClock, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Egg, FileText, Film,
   GitBranch, GitPullRequest, HandHeart, Heart, Mail, MapPin, MessageSquare, Mic, Music, Newspaper,
   Video,
   Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, ShieldCheck, SmilePlus, Sparkles,
-  Stars, UserCheck, Users, Vote, Zap,
+  Server, Stars, UserCheck, Users, Vote, Zap,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -121,6 +122,7 @@ const KIND_LABELS: Record<number, string> = {
   7: 'a reaction',
   8: 'a badge award',
   16: 'a repost',
+  10002: 'a relay list',
   20: 'a photo',
   21: 'a video',
   22: 'a short video',
@@ -251,6 +253,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   37516: ChestIcon,
   7516: ChestIcon,
   3: UserCheck,
+  10002: Server,
   30000: Users,
   39089: PartyPopper,
   3367: Palette,
@@ -528,7 +531,28 @@ function AddrCommentContext({ root, className }: { root: CommentRoot; className?
 
   // Kind 3 follow lists have no title of their own — synthesize one from the author's name
   if (root.addr?.kind === 3) {
-    return <FollowListCommentContext pubkey={root.addr.pubkey} className={className} />;
+    return (
+      <AuthorListCommentContext
+        pubkey={root.addr.pubkey}
+        kind={3}
+        icon={UserCheck}
+        noun="follow list"
+        className={className}
+      />
+    );
+  }
+
+  // Kind 10002 relay lists likewise carry no title — only `r` tags.
+  if (root.addr?.kind === 10002) {
+    return (
+      <AuthorListCommentContext
+        pubkey={root.addr.pubkey}
+        kind={10002}
+        icon={Server}
+        noun={<FormattedMessage id="relayList.commentContextNoun" defaultMessage="relay list" />}
+        className={className}
+      />
+    );
   }
 
   // Kind 33863 fundraisers: attribute to the campaign owner so the row
@@ -541,15 +565,26 @@ function AddrCommentContext({ root, className }: { root: CommentRoot; className?
   return <GenericAddrCommentContext root={root} className={className} />;
 }
 
-/** Comment context for kind 3 (follow list) roots — shows "Commenting on @Name's follow list". */
-function FollowListCommentContext({ pubkey, className }: { pubkey: string; className?: string }) {
+/**
+ * Comment context for replaceable list kinds that carry no title of their own —
+ * kind 3 follow lists and kind 10002 relay lists. Shows "Commenting on
+ * @Name's follow list", attributing the list to its author instead of falling
+ * through to the generic title path (which would find nothing to show).
+ */
+function AuthorListCommentContext({ pubkey, kind, icon: Icon, noun, className }: {
+  pubkey: string;
+  kind: number;
+  icon: React.ComponentType<{ className?: string }>;
+  noun: React.ReactNode;
+  className?: string;
+}) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const listLink = useMemo(
-    () => `/${nip19.naddrEncode({ kind: 3, pubkey, identifier: '' })}`,
-    [pubkey],
+    () => `/${nip19.naddrEncode({ kind, pubkey, identifier: '' })}`,
+    [kind, pubkey],
   );
 
   return (
@@ -568,8 +603,8 @@ function FollowListCommentContext({ pubkey, className }: { pubkey: string; class
         className="inline-flex items-center gap-1 text-primary hover:underline shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <UserCheck className="size-3.5 shrink-0" />
-        follow list
+        <Icon className="size-3.5 shrink-0" />
+        {noun}
       </Link>
     </CommentContextRow>
   );

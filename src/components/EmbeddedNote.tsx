@@ -24,6 +24,7 @@ import { EmbeddedPublicationCard } from '@/components/EmbeddedPublicationCard';
 import { ARTICLE_KINDS } from '@/lib/articleHelpers';
 import { PUBLICATION_KINDS } from '@/lib/publications';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
+import { EmbeddedRelayListCard } from '@/components/EmbeddedRelayListCard';
 import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
 import { MEMORY_CARD_KIND } from '@/lib/memorycard';
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
@@ -212,6 +213,12 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
   // because all the data lives in `p` tags, not content or title tags.
   if (isPeopleListKind(event.kind)) {
     return <EmbeddedPeopleListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-65 relay lists (kind 10002) have empty content — everything lives in
+  // `r` tags — so the generic fallback would render an empty shell.
+  if (event.kind === 10002) {
+    return <EmbeddedRelayListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Long-form articles (NIP-23) quoted via nevent get the same rich

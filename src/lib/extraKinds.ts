@@ -1,7 +1,7 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
-import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, Stars, UserCheck, Users } from 'lucide-react';
+import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, Server, Stars, UserCheck, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -398,6 +398,18 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'social',
     feedOnly: true,
     blurb: 'When someone permanently leaves Nostr, their Request to Vanish event signals the end of their identity on the network.',
+  },
+  // Relay lists (feed-only — NIP-65 kind 10002)
+  {
+    kind: 10002,
+    id: 'relay-lists',
+    feedKey: 'feedIncludeRelayLists',
+    label: 'Relay Lists',
+    description: 'NIP-65 relay list updates',
+    addressable: false,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'A relay list announces where someone reads and writes on Nostr. Updates render as a stack of relay icons in the feed, and opening one shows each relay\'s name, capabilities, and read/write markers.',
   },
   // Love Lists (feed-only — Ditto custom kind 15683, see NIP.md)
   {
@@ -911,6 +923,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   6: 'repost',
   7: 'reaction',
   16: 'repost',
+  10002: 'relay list',
   30000: 'follow set',
   1617: 'patch',
   1618: 'pull request',
@@ -939,6 +952,7 @@ const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: st
   3: UserCheck,
   6: RepostIcon,
   16: RepostIcon,
+  10002: Server,
   30000: Users,
   1617: GitPullRequestArrow,
   1618: GitPullRequest,
