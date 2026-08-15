@@ -178,6 +178,21 @@ const BECH32_CHARS = '023456789acdefghjklmnpqrstuvwxyz';
 /** Regex to extract an naddr1 identifier from a URL path. */
 const NADDR_IN_URL_REGEX = new RegExp(`naddr1[${BECH32_CHARS}]{10,}`, 'i');
 
+/**
+ * Character class matching what may immediately precede a bare (non-`nostr:`-prefixed)
+ * NIP-19 identifier. Without this guard, an npub buried inside a larger token —
+ * `ncontainer.io/npub1…/alpine:latest`, `npub1….txt` — is mistaken for a mention.
+ * Path separators, dots, colons, and URL punctuation are excluded along with word
+ * characters; `@` is excluded too, since the pattern consumes an optional `@`
+ * prefix of its own.
+ *
+ * Written as a negated class rather than a lookbehind: iOS 15 WKWebView (the
+ * app's deployment target) predates lookbehind support and would throw on the
+ * `new RegExp` call. The matched character is captured so callers can re-emit it
+ * as text.
+ */
+const BARE_NIP19_BOUNDARY = '[^\\p{L}\\p{N}_/:.@+=?&%#~\\\\-]';
+
 /** Try to extract naddr coordinates from a URL containing an naddr1 identifier. */
 function extractNaddrFromUrl(url: string): AddrCoords | null {
   const match = url.match(NADDR_IN_URL_REGEX);
@@ -347,12 +362,14 @@ export function NoteContent({
     const text = event.content;
     // Match: BOLT11 invoices | URLs | nostr:-prefixed NIP-19 ids | @-prefixed or bare NIP-19 ids | hashtags
     // BOLT11: optional "lightning:" prefix + lnbc/lntb/lnbcrt/lntbs + bech32 data (case-insensitive)
-    // NIP-19 ids can appear anywhere (with optional @ prefix that gets consumed)
+    // A `nostr:` id can appear anywhere, but a bare one must start at a token
+    // boundary (with optional @ prefix that gets consumed) so identifiers
+    // embedded in paths and other compound tokens stay plain text.
     const regex = new RegExp(
       '(?:lightning:)?(ln(?:bc|tb|bcrt|tbs)\\d*[munp]?1[023456789acdefghjklmnpqrstuvwxyz]+)'
       + '|((?:https?|wss?):\\/\\/[^\\s]+)'
       + '|nostr:(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)'
-      + '|@?(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)'
+      + `|(^|${BARE_NIP19_BOUNDARY})@?(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)`
       + `|(${HASHTAG_PATTERN})`
       + '|(blossom:[a-f0-9]{64}\\.[a-z0-9]+(?:\\?[^\\s]*)?)',
       'giu',
@@ -367,11 +384,18 @@ export function NoteContent({
       let [fullMatch] = match;
       const bolt11 = match[1];
       let url = match[2];
-      const hashtag = match[7];
-      const blossom = match[8];
-      const { 3: nostrPrefix, 4: nostrData, 5: barePrefix, 6: bareData } = match;
-      const index = match.index;
+      const hashtag = match[8];
+      const blossom = match[9];
+      const { 3: nostrPrefix, 4: nostrData, 5: bareBoundary, 6: barePrefix, 7: bareData } = match;
+      let index = match.index;
       hadMatches = true;
+
+      // The character preceding a bare NIP-19 id was consumed to prove the id
+      // starts a token. It belongs to the text before the match, so hand it back.
+      if (bareBoundary) {
+        index += bareBoundary.length;
+        fullMatch = fullMatch.slice(bareBoundary.length);
+      }
 
       // Add text before this match
       if (index > lastIndex) {
