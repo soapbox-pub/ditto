@@ -871,6 +871,9 @@ function EmbeddedNoteCard({
 
   const isBlobbiState = event.kind === 31124;
   const isPhoto = event.kind === 20;
+  // NIP-71 videos (21 normal, 22 short) and kind 34236 vines carry their
+  // video in imeta tags — render the actual player, not an alt-text card.
+  const isVideoKind = event.kind === 21 || event.kind === 22 || event.kind === 34236;
   // Kinds whose `content` is a human-readable body/caption and can safely
   // be fed through the kind-1 tokenizer for preview. Everything else
   // (articles, streams, videos, calendar events, themes, polls, voice
@@ -910,6 +913,12 @@ function EmbeddedNoteCard({
         .filter((url): url is string => !!url);
       return { images };
     }
+    if (isVideoKind) {
+      const video = parseImetaEntries(event.tags)
+        .map((entry) => sanitizeUrl(entry.url))
+        .find((url): url is string => !!url);
+      return { images: [], video };
+    }
     const imageMatches = event.content.match(new RegExp(IMAGE_URL_REGEX.source, 'gi')) || [];
     const images = imageMatches
       .map((u) => sanitizeUrl(u))
@@ -920,7 +929,7 @@ function EmbeddedNoteCard({
       .filter((u): u is string => !!u);
     const video = images.length === 0 ? videoUrls[0] : undefined;
     return { images, video };
-  }, [event.content, event.tags, isPhoto, isBlobbiState]);
+  }, [event.content, event.tags, isPhoto, isBlobbiState, isVideoKind]);
 
   const hasMediaPreview = previewMedia.images.length > 0 || !!previewMedia.video;
 
@@ -938,15 +947,16 @@ function EmbeddedNoteCard({
   const tagMeta = useMemo(() => {
     // Content kinds with real content always render that content below.
     if (isContentKind && hasContent) return undefined;
-    // Photo events render their images inline — never fall back to alt text.
-    if (isPhoto && hasMediaPreview) return undefined;
+    // Photo and video events render their media inline — never fall back to
+    // alt text when we actually have something to play.
+    if ((isPhoto || isVideoKind) && hasMediaPreview) return undefined;
     // NIP-31 `alt` is the author's own fallback for clients that can't
     // render the kind. Other tags (title, name, d, …) have kind-specific
     // semantics and are not reliably safe as user-facing preview text.
     const altText = getEventFallbackText(event);
     if (!altText) return undefined;
     return { title: altText, description: undefined as string | undefined };
-  }, [isContentKind, hasContent, isPhoto, hasMediaPreview, event]);
+  }, [isContentKind, hasContent, isPhoto, isVideoKind, hasMediaPreview, event]);
 
   // Truly unknown kind: not a content kind, no Blobbi inline visual, no `alt`
   // fallback text, AND we don't recognize the kind via `getKindLabel`. Only
@@ -954,8 +964,11 @@ function EmbeddedNoteCard({
   // knows about (via `EXTRA_KINDS`) but that the author authored without an
   // `alt` tag get a kind-labeled card showing the icon + label centrally,
   // so the embed at least communicates what type of content it points to.
-  const isUnknownKind = !isContentKind && !isBlobbiState && !tagMeta && !kindMeta;
-  const isKnownKindWithoutPreview = !isContentKind && !isBlobbiState && !tagMeta && !!kindMeta;
+  // A video kind with a playable imeta URL renders its player below and never
+  // counts as preview-less, whatever the label registry knows about it.
+  const videoWithMedia = isVideoKind && hasMediaPreview;
+  const isUnknownKind = !isContentKind && !isBlobbiState && !tagMeta && !kindMeta && !videoWithMedia;
+  const isKnownKindWithoutPreview = !isContentKind && !isBlobbiState && !tagMeta && !!kindMeta && !videoWithMedia;
 
   // NIP-36 content-warning check
   const cwTag = event.tags.find(([name]) => name === 'content-warning');
@@ -1015,6 +1028,14 @@ function EmbeddedNoteCard({
         </p>
       ) : (
         <>
+          {/* Video kinds title their event via a `title` tag — show it as the
+              card's headline above the description and player. */}
+          {isVideoKind && (() => {
+            const title = event.tags.find(([n]) => n === 'title')?.[1];
+            return title
+              ? <p className="text-sm font-semibold leading-snug line-clamp-2">{title}</p>
+              : null;
+          })()}
           {/* Text body (media URLs are stripped here and rendered as a
               gallery/player below). Empty content renders nothing. */}
           <EmbedTruncatedContent event={event} expanded={contentExpanded} onOverflowChange={setContentOverflows} highlightText={highlightText} />
