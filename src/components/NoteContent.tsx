@@ -889,7 +889,7 @@ export function NoteContent({
                 </Link>
               );
             }
-            return <EmbeddedNote key={i} eventId={token.eventId} relays={token.relays} authorHint={token.author} className="my-2.5" />;
+            return <EmbeddedNote key={i} eventId={token.eventId} relays={token.relays} authorHint={token.author} fallbackAuthorHint={event.pubkey} className="my-2.5" />;
           case 'naddr-embed':
             if (disableNoteEmbeds) {
               const naddrId = nip19.naddrEncode({ kind: token.addr.kind, pubkey: token.addr.pubkey, identifier: token.addr.identifier });

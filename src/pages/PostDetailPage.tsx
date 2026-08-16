@@ -301,6 +301,7 @@ export function PostDetailPage({
   authorHint,
 }: PostDetailPageProps) {
   const { config } = useAppContext();
+  const queryClient = useQueryClient();
   const {
     data: event,
     isLoading,
@@ -309,6 +310,14 @@ export function PostDetailPage({
     isFetching,
   } = useEvent(eventId, relays, authorHint);
   const [retryEvent, setRetryEvent] = useState<NostrEvent | null>(null);
+
+  // "Try again" must do a genuinely fresh lookup. useEvent short-circuits on
+  // the hint-less ['event', id] seed cache, so a stale miss there would make
+  // refetch a no-op — drop it first, then refetch.
+  const handleRetry = useCallback(() => {
+    if (eventId) queryClient.removeQueries({ queryKey: ["event", eventId], exact: true });
+    return refetch();
+  }, [queryClient, eventId, refetch]);
 
   useSeoMeta({
     title:
@@ -334,7 +343,7 @@ export function PostDetailPage({
         <EventNotFound
           context={{ type: "event", eventId, relays, authorHint }}
           onEventFound={setRetryEvent}
-          onRetry={() => refetch()}
+          onRetry={handleRetry}
           isRetrying={isFetching}
         />
       </PostDetailShell>

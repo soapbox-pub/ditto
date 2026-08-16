@@ -69,6 +69,13 @@ interface EmbeddedNoteProps {
   relays?: string[];
   /** Optional author pubkey hint from the nevent1 identifier. */
   authorHint?: string;
+  /**
+   * Author of the *embedding* event, used as a lookup hint of last resort when
+   * the identifier carries neither relays nor an author (bare nevent/note with
+   * a bare `q` tag). The quoting author's NIP-65 outbox is the best available
+   * place to find an event they quoted. Never used for link encoding.
+   */
+  fallbackAuthorHint?: string;
   className?: string;
   /** When true, ProfileHoverCards inside the card are disabled to prevent nested hover cards. */
   disableHoverCards?: boolean;
@@ -91,15 +98,16 @@ export function EmbeddedNote(props: EmbeddedNoteProps) {
   );
 }
 
-function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHoverCards, highlightText }: EmbeddedNoteProps) {
-  const { data: event, isLoading, isError } = useEvent(eventId, relays, authorHint);
+function EmbeddedNoteInner({ eventId, relays, authorHint, fallbackAuthorHint, className, disableHoverCards, highlightText }: EmbeddedNoteProps) {
+  const effectiveAuthorHint = authorHint ?? fallbackAuthorHint;
+  const { data: event, isLoading, isError } = useEvent(eventId, relays, effectiveAuthorHint);
 
   if (isLoading) {
     return <EmbeddedNoteSkeleton className={className} />;
   }
 
   if (isError || !event) {
-    return <EmbeddedNoteTombstone eventId={eventId} relays={relays} authorHint={authorHint} className={className} />;
+    return <EmbeddedNoteTombstone eventId={eventId} relays={relays} authorHint={effectiveAuthorHint} className={className} />;
   }
 
   // NIP-62 vanish events get their own dramatic inline card
