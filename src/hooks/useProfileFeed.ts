@@ -1,7 +1,8 @@
 import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useFeedSettings } from './useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { fetchAuthorWriteRelays, queryOutboxRelays, type OutboxPool } from '@/lib/outbox';
 import {
   getPaginationCursor,
   shouldHideFeedEvent,
@@ -30,6 +31,44 @@ const PAGE_SIZE = 15;
  * large time gaps in the visible feed.
  */
 const OVER_FETCH_MULTIPLIER = 3;
+
+/**
+ * Fetch events matching `filter` from an author's NIP-65 write (outbox) relays,
+ * so their notes that never propagated to our configured read relays still show
+ * up on their profile. The write-relay list is fetched once and cached across
+ * pages and hooks (shared `['author-write-relays', pubkey]` key). Best-effort —
+ * resolves to `[]` on any failure and never aborts the caller.
+ */
+async function fetchOutboxEvents(
+  nostr: OutboxPool,
+  queryClient: QueryClient,
+  pubkey: string,
+  filter: NostrFilter,
+  signal: AbortSignal,
+): Promise<NostrEvent[]> {
+  try {
+    const writeRelays = await queryClient.fetchQuery({
+      queryKey: ['author-write-relays', pubkey],
+      queryFn: ({ signal: s }) => fetchAuthorWriteRelays(nostr, pubkey, s),
+      staleTime: 10 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
+    });
+    return await queryOutboxRelays(nostr, writeRelays, [filter], signal);
+  } catch {
+    return [];
+  }
+}
+
+/** Merge event lists, keeping the first occurrence of each id. */
+function dedupeEventsById(...lists: NostrEvent[][]): NostrEvent[] {
+  const byId = new Map<string, NostrEvent>();
+  for (const list of lists) {
+    for (const event of list) {
+      if (!byId.has(event.id)) byId.set(event.id, event);
+    }
+  }
+  return [...byId.values()];
+}
 
 export type ProfileTab = 'posts' | 'replies' | 'media' | 'likes' | 'wall' | 'badges';
 
@@ -119,21 +158,25 @@ export function useProfileFeed(pubkey: string | undefined, activeTab: ProfileTab
       // cursor from jumping over time ranges that contain visible posts.
       const fetchLimit = PAGE_SIZE * OVER_FETCH_MULTIPLIER;
 
-      const feedFilter: Record<string, unknown> = {
+      const feedFilter: NostrFilter = {
         kinds: profileKinds,
         authors: [pubkey],
         limit: fetchLimit,
       };
       if (pageParam) {
-        feedFilter.until = pageParam;
+        feedFilter.until = pageParam as number;
       }
 
-      const allEvents = await nostr.query(
-        [feedFilter] as { kinds: number[]; authors: string[]; limit: number; until?: number }[],
-        { signal: querySignal },
-      );
+      // Query the user's configured read relays (batched + cached) and the
+      // author's own write (outbox) relays in parallel, then merge — so notes
+      // that only ever propagated to the author's relays aren't missing from
+      // their profile. The outbox query is best-effort and never blocks.
+      const [primaryEvents, outboxEvents] = await Promise.all([
+        nostr.query([feedFilter], { signal: querySignal }),
+        fetchOutboxEvents(nostr, queryClient, pubkey, feedFilter, querySignal),
+      ]);
 
-      const events = allEvents;
+      const events = dedupeEventsById(primaryEvents, outboxEvents);
 
       // Track oldest timestamp from the raw query (before tab filtering/dedup) for pagination.
       // getPaginationCursor ignores outliers from out-of-sync relays to prevent cursor jumps.
@@ -182,6 +225,7 @@ interface LikesPage {
  */
 export function useProfileLikes(pubkey: string | undefined, active: boolean) {
   const { nostr } = useNostr();
+  const queryClient = useQueryClient();
 
   return useInfiniteQuery<LikesPage, Error>({
     queryKey: ['profile-likes-infinite', pubkey ?? ''],
@@ -190,19 +234,22 @@ export function useProfileLikes(pubkey: string | undefined, active: boolean) {
 
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
 
-      const filter: Record<string, unknown> = {
+      const filter: NostrFilter = {
         kinds: [7],
         authors: [pubkey],
         limit: PAGE_SIZE,
       };
       if (pageParam) {
-        filter.until = pageParam;
+        filter.until = pageParam as number;
       }
 
-      const reactions = await nostr.query(
-        [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
-        { signal: querySignal },
-      );
+      // Reactions are authored by the profile user, so also pull from their
+      // write (outbox) relays and merge — same rationale as the notes feed.
+      const [primaryReactions, outboxReactions] = await Promise.all([
+        nostr.query([filter], { signal: querySignal }),
+        fetchOutboxEvents(nostr, queryClient, pubkey, filter, querySignal),
+      ]);
+      const reactions = dedupeEventsById(primaryReactions, outboxReactions);
 
       if (reactions.length === 0) return { events: [], oldestReactionTimestamp: undefined };
 

@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useCacheFirstSeed } from '@/hooks/useCacheFirstSeed';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
+import { fetchAuthorWriteRelays, queryOutboxRelays } from '@/lib/outbox';
 
 export type AuthorResult = { event?: NostrEvent; metadata?: NostrMetadata };
 
@@ -45,10 +46,31 @@ export function useAuthor(pubkey: string | undefined) {
       );
 
       if (!event) {
-        // Relay returned nothing — a kind-0 miss is almost always transient
-        // (the relay didn't have it, or the query timed out). Never discard a
-        // profile we already have: fall back to the locally cached event so a
-        // name/avatar already on screen doesn't blank out.
+        // Our configured read relays don't have this profile. Before giving
+        // up, try the author's own NIP-65 write (outbox) relays — a profile
+        // whose kind 0 only lives there would otherwise never resolve.
+        const writeRelays = await queryClient.fetchQuery({
+          queryKey: ['author-write-relays', pubkey],
+          queryFn: ({ signal: s }) => fetchAuthorWriteRelays(nostr, pubkey, s),
+          staleTime: 10 * 60 * 1000,
+          gcTime: 30 * 60 * 1000,
+        });
+        const outboxSignal = AbortSignal.any([signal, AbortSignal.timeout(6000)]);
+        const [outboxEvent] = await queryOutboxRelays(
+          nostr,
+          writeRelays,
+          [{ kinds: [0], authors: [pubkey], limit: 1 }],
+          outboxSignal,
+        );
+        if (outboxEvent) {
+          void store.event(outboxEvent);
+          return parseAuthorEvent(outboxEvent);
+        }
+
+        // Still nothing — a kind-0 miss is almost always transient (the relay
+        // didn't have it, or the query timed out). Never discard a profile we
+        // already have: fall back to the locally cached event so a name/avatar
+        // already on screen doesn't blank out.
         const existing = queryClient.getQueryData<AuthorResult>(['author', pubkey]);
         if (existing?.event) {
           return existing;

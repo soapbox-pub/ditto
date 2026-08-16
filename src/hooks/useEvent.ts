@@ -3,38 +3,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { isNostrId } from '@/lib/nostrId';
+import { fetchAuthorWriteRelays, type OutboxPool } from '@/lib/outbox';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { useCacheFirstSeed } from '@/hooks/useCacheFirstSeed';
 
 /** Kinds whose canonical home is the Zapstore relay. */
 const ZAPSTORE_KINDS = [32267, 30063, 3063];
 
-/**
- * Extract write relay URLs from a NIP-65 (kind 10002) relay list event.
- * Write relays are where the author publishes their content.
- * Tags with no marker are both read+write; tags with "write" are write-only.
- */
-function extractWriteRelays(event: NostrEvent): string[] {
-  const relays = new Set<string>();
-  for (const [name, url, marker] of event.tags) {
-    if (name !== 'r' || marker === 'read' || !url) continue;
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol === 'wss:') {
-        relays.add(parsed.href);
-      }
-    } catch {
-      // skip malformed URLs
-    }
-  }
-  return [...relays];
-}
-
 /** Minimal shape of the pool needed by the fallback helpers. */
-type NostrLike = {
-  query: (filters: NostrFilter[], opts?: { signal?: AbortSignal }) => Promise<NostrEvent[]>;
-  group: (urls: string[]) => { query: (filters: NostrFilter[], opts?: { signal?: AbortSignal }) => Promise<NostrEvent[]> };
-};
+type NostrLike = OutboxPool;
 
 /** Query a specific group of relays for an event; returns the first match or null. */
 async function queryRelayGroup(
@@ -89,16 +66,8 @@ async function queryAuthorRelays(
   signal: AbortSignal,
 ): Promise<NostrEvent | null> {
   try {
-    // Fetch the author's NIP-65 relay list from our connected relays
-    const relayListSignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
-    const relayListEvents = await nostr.query(
-      [{ kinds: [10002], authors: [authorPubkey], limit: 1 }],
-      { signal: relayListSignal },
-    );
-
-    if (relayListEvents.length === 0) return null;
-
-    const writeRelays = extractWriteRelays(relayListEvents[0]).slice(0, 5);
+    // Fetch the author's NIP-65 write (outbox) relays from our connected relays.
+    const writeRelays = await fetchAuthorWriteRelays(nostr, authorPubkey, signal);
     if (writeRelays.length === 0) return null;
 
     // Query the author's write relays for the target event
