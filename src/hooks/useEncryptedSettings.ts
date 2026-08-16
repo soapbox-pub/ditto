@@ -108,6 +108,8 @@ export interface EncryptedSettings {
   linkPreviewUrl?: string;
   /** Autoplay videos in feeds and previews (muted) */
   autoplayVideos?: boolean;
+  /** Whether tracking parameters are stripped from links, published and shown (see AppConfig) */
+  stripTrackingParams?: boolean;
   /** Sentry DSN for error reporting (empty string = disabled) */
   sentryDsn?: string;
   /** How to display monetary amounts ("usd" or "sats"). */

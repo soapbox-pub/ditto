@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { RotateCcw } from 'lucide-react';
-import { MuteSettingsInternals, SensitiveContentSection, ThemePreferencesSection, VideoAutoplaySection } from '@/components/ContentSettings';
+import { LinkPrivacySection, MuteSettingsInternals, SensitiveContentSection, ThemePreferencesSection, VideoAutoplaySection } from '@/components/ContentSettings';
 import { MuteListRecoveryDialog } from '@/components/MuteListRecoveryDialog';
 import { PageHeader } from '@/components/PageHeader';
 import { IntroImage } from '@/components/IntroImage';
@@ -100,6 +100,17 @@ export function ContentPage() {
           <div className="px-3 py-4 space-y-5">
             <VideoAutoplaySection />
             <ThemePreferencesSection />
+          </div>
+        </div>
+
+        {/* Links Section */}
+        <div>
+          <div className="relative px-3 py-3.5">
+            <h2 className="text-base font-semibold"><FormattedMessage id="settings.content.links" defaultMessage={"Links"} /></h2>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+          </div>
+          <div className="px-3 py-4 space-y-5">
+            <LinkPrivacySection />
           </div>
         </div>
 

@@ -54,6 +54,7 @@ import { DITTO_RELAY } from '@/lib/appRelays';
 import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
 import { resizeImage } from '@/lib/resizeImage';
 import { extractHashtags } from '@/lib/hashtag';
+import { stripTrackingParamsInText } from '@/lib/trackingParams';
 import { parseAddr } from '@/lib/parseAddr';
 import { isNostrId } from '@/lib/nostrId';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -915,6 +916,23 @@ export function ComposeBox({
     }
   }, [user, voiceRecorder, uploadFile, createEvent, nostr, replyTo, queryClient, toast, onSuccess]);
 
+  /**
+   * Strip tracking parameters from the links in an outgoing note, unless the
+   * user turned that off. Applied before the content is tagged and published,
+   * so what lands on the relay is clean for every client and every future
+   * reader — but never applied to an uploaded attachment's URL, which is
+   * matched to its `imeta` tag by exact string (and carries no tracking to
+   * begin with).
+   */
+  const canonicalizeLinks = useCallback(
+    (text: string) => (
+      config.stripTrackingParams === false
+        ? text
+        : stripTrackingParamsInText(text, new Set(uploadedFileGroups.keys()))
+    ),
+    [config.stripTrackingParams, uploadedFileGroups],
+  );
+
   const handleSubmit = async () => {
     if (!content.trim() || !user || charCount > MAX_CHARS) return;
 
@@ -977,7 +995,7 @@ export function ComposeBox({
       // Per NIP-18, quotes should use the q tag and include the nostr: URI in content.
       // For addressable events (kinds 30000-39999), use event address coordinates
       // so the reference stays stable across event updates.
-      let finalContent = content.trim();
+      let finalContent = canonicalizeLinks(content.trim());
       if (showQuotedEvent && quotedEvent && quotedEventNip19) {
         if (quotedEvent.kind >= 30000 && quotedEvent.kind < 40000) {
           const dTag = quotedEvent.tags.find(([name]) => name === 'd')?.[1] ?? '';
@@ -1174,7 +1192,7 @@ export function ComposeBox({
 
   const handlePollSubmit = async () => {
     const filledOptions = pollOptions.filter((o) => o.label.trim());
-    const finalContent = content.trim();
+    const finalContent = canonicalizeLinks(content.trim());
     if (!finalContent || filledOptions.length < 2 || !user || isPollPending) return;
 
     const tags: string[][] = [];

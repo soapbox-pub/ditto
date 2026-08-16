@@ -451,6 +451,14 @@ export function NostrSync() {
         changed = true;
       }
 
+      if (
+        encryptedSettings.stripTrackingParams !== undefined &&
+        encryptedSettings.stripTrackingParams !== current.stripTrackingParams
+      ) {
+        updates.stripTrackingParams = encryptedSettings.stripTrackingParams;
+        changed = true;
+      }
+
       // Return the same reference if nothing changed to prevent re-render
       return changed ? updates : current;
     });

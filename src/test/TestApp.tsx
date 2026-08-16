@@ -147,6 +147,7 @@ export function TestApp({ children }: TestAppProps) {
     plausibleEndpoint: "",
     savedFeeds: [],
     autoplayVideos: false,
+    stripTrackingParams: true,
     imageQuality: 'compressed',
     sandboxDomain: 'iframe.diy',
     esploraApis: ['https://mempool.space/api'],

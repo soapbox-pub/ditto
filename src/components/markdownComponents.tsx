@@ -2,6 +2,7 @@ import { Children, createElement, type ReactNode } from 'react';
 import type { Components } from 'react-markdown';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { MarkdownLink } from '@/components/MarkdownLink';
 import { NoteContent } from '@/components/NoteContent';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
@@ -97,28 +98,7 @@ export function buildMarkdownComponents(event: NostrEvent): Components {
     blockquote: wrap('blockquote'),
     td: wrap('td'),
     th: wrap('th'),
-    a: ({ href, children, node: _node, ...rest }) => {
-      const safe = sanitizeUrl(href);
-      if (!safe) {
-        // Unsafe href — render label as plain text so we don't emit a dead/dangerous link.
-        return <span>{children}</span>;
-      }
-      return (
-        <a
-          {...rest}
-          href={safe}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={cn(
-            'text-primary no-underline hover:underline break-all',
-            rest.className as string | undefined,
-          )}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {children}
-        </a>
-      );
-    },
+    a: MarkdownLink,
     img: ({ src, alt, node: _node, ...rest }) => {
       const safe = typeof src === 'string' ? sanitizeUrl(src) : undefined;
       if (!safe) return null;

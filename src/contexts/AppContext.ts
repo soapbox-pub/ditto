@@ -349,6 +349,18 @@ export interface AppConfig {
   savedFeeds: SavedFeed[];
   /** Autoplay videos in feeds and previews (muted). Default: false. */
   autoplayVideos: boolean;
+  /**
+   * Whether tracking parameters are stripped from links — both from what this
+   * client PUBLISHES and from what it renders and fetches. Default: true.
+   *
+   * A share sheet's URL usually carries a per-share identifier (YouTube's
+   * `si=`), a click id (`fbclid`, `gclid`) or a campaign tag (`utm_*`), which
+   * on a note published to a relay is forwarded to every reader and to
+   * everything that follows the link on their behalf, the link-preview
+   * unfurler included. Only named parameters are removed, so the link still
+   * resolves to the same page — see `lib/trackingParams.ts`.
+   */
+  stripTrackingParams: boolean;
   /** Image upload quality: "compressed" resizes/optimizes, "original" uploads as-is. Default: "compressed". */
   imageQuality: 'compressed' | 'original';
   /** Hex pubkey of the curator whose follow list defines the Ditto feed. */

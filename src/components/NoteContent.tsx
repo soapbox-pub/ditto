@@ -32,6 +32,7 @@ import { parseImetaEntries, parseImetaMap, type ImetaEntry } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { parseArmadaInvite, type ArmadaInvite } from '@/lib/armadaInvite';
 import { HASHTAG_PATTERN } from '@/lib/hashtag';
+import { stripTrackingParams } from '@/lib/trackingParams';
 import { highlightSourceAttrs } from '@/lib/highlightSource';
 import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
@@ -358,8 +359,20 @@ export function NoteContent({
     [config.blossomServerMetadata, config.useAppBlossomServers],
   );
 
+  // Canonicalize links on the way in as well as on the way out: a URL that
+  // arrived from another client, a repost, or a note predating the setting
+  // still carries its share/click ids, and rendering it hands them to whatever
+  // fetches the link — the link-preview unfurler included, which runs before
+  // any click.
+  const cleanLinks = config.stripTrackingParams !== false;
+
   const tokens = useMemo(() => {
     const text = event.content;
+
+    // URLs declared in an imeta tag are matched to their metadata by exact
+    // string, so rewriting one would orphan its dimensions, blurhash and
+    // decryption key. An uploaded attachment has no tracking to strip anyway.
+    const imetaUrls = new Set(parseImetaEntries(event.tags).map((entry) => entry.url));
     // Match: BOLT11 invoices | URLs | nostr:-prefixed NIP-19 ids | @-prefixed or bare NIP-19 ids | hashtags
     // BOLT11: optional "lightning:" prefix + lnbc/lntb/lnbcrt/lntbs + bech32 data (case-insensitive)
     // A `nostr:` id can appear anywhere, but a bare one must start at a token
@@ -416,6 +429,13 @@ export function NoteContent({
             fullMatch = urlWithoutPunct;
             // The punctuation will be part of the next text token
           }
+        }
+
+        // Canonicalize before anything classifies, renders or fetches the
+        // link. `fullMatch` is deliberately left alone — it measures how much
+        // of the original text this token consumed.
+        if (cleanLinks && !imetaUrls.has(url)) {
+          url = stripTrackingParams(url);
         }
 
         // WebSocket relay URLs → link to internal relay page
@@ -670,7 +690,7 @@ export function NoteContent({
 
     // Filter out empty text tokens
     return result.filter((t) => !(t.type === 'text' && t.value === ''));
-  }, [event, preserveEdgeWhitespace, blossomServers]);
+  }, [event, preserveEdgeWhitespace, blossomServers, cleanLinks]);
 
   // Build emoji map for NIP-30 custom emoji rendering.
   // Merge the event's own emoji tags with the viewer's custom emoji collection
