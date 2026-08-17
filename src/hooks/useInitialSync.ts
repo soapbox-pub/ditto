@@ -67,6 +67,25 @@ export function useInitialSync() {
     }
   }, [user, config.appId]);
 
+  // Mirror the config, its updater, and markSyncComplete into a ref so the sync
+  // effect below can read them without listing them as dependencies.
+  //
+  // App config is scoped per account (see `lib/activeAccount.ts`): on login the
+  // active-account marker resolves a beat AFTER the effect starts, swapping the
+  // localStorage key. That swap changes `updateConfig`'s identity and the
+  // config's `updatedAt` fields. If those were effect dependencies, the swap
+  // would tear down the effect mid-sync — its cleanup aborts the in-flight
+  // relay query, and the re-run bails immediately on the `syncAttempted` guard,
+  // so `doSync` lands on its AbortError path and sets phase = "not-found". The
+  // result is the setup questionnaire (theme step first) shown to returning
+  // users who already have settings. Reading through the ref keeps the effect
+  // keyed on `user` alone, and reading at query-resolve time also writes to the
+  // now-correctly-scoped account config.
+  const latest = useRef({ config, updateConfig, markSyncComplete });
+  useEffect(() => {
+    latest.current = { config, updateConfig, markSyncComplete };
+  });
+
   // Reset when user changes
   useEffect(() => {
     if (!user) {
@@ -132,7 +151,7 @@ export function useInitialSync() {
           const event = relayEvents[0];
           // Seed into cache so NostrSync can read it without re-fetching
           queryClient.setQueryData(["relayList", user.pubkey], event);
-          if (event.created_at > config.relayMetadata.updatedAt) {
+          if (event.created_at > latest.current.config.relayMetadata.updatedAt) {
             const fetchedRelays = event.tags
               .filter(([name]) => name === "r")
               .map(([, url, marker]) => ({
@@ -142,7 +161,7 @@ export function useInitialSync() {
               }));
 
             if (fetchedRelays.length > 0) {
-              updateConfig((current) => ({
+              latest.current.updateConfig((current) => ({
                 ...current,
                 relayMetadata: {
                   relays: fetchedRelays,
@@ -159,11 +178,11 @@ export function useInitialSync() {
           const event = blossomServerEvents[0];
           // Seed into cache so NostrSync can read it without re-fetching
           queryClient.setQueryData(["blossomServerList", user.pubkey], event);
-          if (event.created_at > config.blossomServerMetadata.updatedAt) {
+          if (event.created_at > latest.current.config.blossomServerMetadata.updatedAt) {
             const fetchedServers = parseBlossomServerList(event);
 
             if (fetchedServers.length > 0) {
-              updateConfig((current) => ({
+              latest.current.updateConfig((current) => ({
                 ...current,
                 blossomServerMetadata: {
                   servers: fetchedServers,
@@ -201,7 +220,7 @@ export function useInitialSync() {
             ) as EncryptedSettings;
 
             // Apply decrypted settings to local config (same logic as NostrSync)
-            updateConfig((current) => {
+            latest.current.updateConfig((current) => {
               const updates = { ...current };
 
               if (parsed.theme) {
@@ -354,7 +373,7 @@ export function useInitialSync() {
         setPhase("found");
         // Auto-complete after a brief moment so user sees the success state
         setTimeout(() => {
-          markSyncComplete();
+          latest.current.markSyncComplete();
           setPhase("complete");
         }, 1200);
       } else {
@@ -368,16 +387,11 @@ export function useInitialSync() {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [
-    user,
-    nostr,
-    config.appId,
-    config.relayMetadata.updatedAt,
-    config.blossomServerMetadata.updatedAt,
-    updateConfig,
-    queryClient,
-    markSyncComplete,
-  ]);
+    // `config`, `updateConfig`, and `markSyncComplete` are read through the
+    // `latest` ref, NOT listed here: the per-account config-key swap on login
+    // changes their identities and would otherwise abort the sync mid-request
+    // (see the `latest` ref comment above). This effect is keyed on the user.
+  }, [user, nostr, config.appId, queryClient]);
 
   const markComplete = useCallback(() => {
     markSyncComplete();
