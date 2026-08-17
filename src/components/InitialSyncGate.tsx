@@ -23,6 +23,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { DittoLogo } from "@/components/DittoLogo";
 import { IntroImage } from "@/components/IntroImage";
@@ -44,6 +45,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
+import { getActivePubkey, subscribeActivePubkey } from "@/lib/activeAccount";
 import {
   beginSignupThemeCapture,
   endSignupThemeCapture,
@@ -316,13 +318,30 @@ function SetupQuestionnaire({
     return () => endSignupThemeCapture();
   }, [isSignup]);
 
-  // Once the just-generated account becomes the active user, flush the buffered
-  // theme onto it. Persistence (kind 30078) and profile publishing (kind 16767)
-  // now sign with the new account's own key, not the previously-active one.
+  // Flush the buffered theme onto the new account once it's the active user AND
+  // AppProvider has swapped its per-account config scope to it. Applying the
+  // moment `user` flips isn't enough: the active-account marker (which drives
+  // AppProvider's scoped storage key) resolves a beat later, so an immediate
+  // write would land in the previously-active account's config and be discarded
+  // when the scope catches up — leaving the new user themeless until a reload.
+  //
+  // `activePubkey` is that marker. Gating the apply on it — and flipping a state
+  // flag first so the write happens in a LATER commit, after useLocalStorage has
+  // re-read the new account's config — guarantees setTheme/applyCustomTheme
+  // (local config + kind 30078 + kind 16767) target the new account and stick.
+  const activePubkey = useSyncExternalStore(subscribeActivePubkey, getActivePubkey);
   const themeDraftApplied = useRef(false);
+  const [newAccountScopeReady, setNewAccountScopeReady] = useState(false);
+
   useEffect(() => {
-    if (!isSignup || themeDraftApplied.current) return;
-    if (!expectedPubkey || user?.pubkey !== expectedPubkey) return;
+    if (!isSignup || themeDraftApplied.current || newAccountScopeReady) return;
+    if (!expectedPubkey) return;
+    if (user?.pubkey !== expectedPubkey || activePubkey !== expectedPubkey) return;
+    setNewAccountScopeReady(true);
+  }, [isSignup, expectedPubkey, user?.pubkey, activePubkey, newAccountScopeReady]);
+
+  useEffect(() => {
+    if (!newAccountScopeReady || themeDraftApplied.current) return;
     themeDraftApplied.current = true;
     endSignupThemeCapture();
     const draft = takeSignupThemeDraft();
@@ -331,7 +350,7 @@ function SetupQuestionnaire({
     } else if (draft?.theme) {
       setTheme(draft.theme);
     }
-  }, [isSignup, expectedPubkey, user?.pubkey, applyCustomTheme, setTheme]);
+  }, [newAccountScopeReady, applyCustomTheme, setTheme]);
 
   const stepIndex = steps.indexOf(step);
   const progress = (stepIndex / (steps.length - 1)) * 100;
