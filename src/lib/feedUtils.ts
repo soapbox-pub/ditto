@@ -1,6 +1,7 @@
 import type { NostrEvent, NPool } from '@nostrify/nostrify';
 import type { InfiniteData, QueryClient } from '@tanstack/react-query';
 import { getGitRootRef } from '@/lib/gitActivity';
+import { isNsiteKind } from '@/lib/nsiteSubdomain';
 import { getZapAmountSats, getZapSenderPubkey, getTargetEventId } from '@/lib/zapHelpers';
 
 /**
@@ -305,6 +306,11 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
   // NIP-65 relay lists (kind 10002) with no `r` tags. Clients publish empty
   // ones during onboarding, and there is nothing to render for them.
   if (event.kind === 10002 && !event.tags.some(([n, v]) => n === 'r' && v)) return true;
+
+  // NIP-5A manifests (root sites, named sites, and snapshots) with no `path`
+  // tags. The spec requires at least one, and without any there are no files
+  // to serve — the card would offer a "Run" button for an empty site.
+  if (isNsiteKind(event.kind) && !event.tags.some(([n, path, hash]) => n === 'path' && path && hash)) return true;
 
   // Profile metadata (kind 0) whose content isn't a JSON object with at least
   // one field worth looking at. Onboarding flows and account deletions both

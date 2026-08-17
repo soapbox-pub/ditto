@@ -51,7 +51,7 @@ import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { encodeEventAddress } from '@/lib/encodeEvent';
 import { isReplaceableLikeKind } from '@/lib/eventKinds';
-import { getNsiteSubdomain } from '@/lib/nsiteSubdomain';
+import { getNsiteSubdomain, isNsiteKind } from '@/lib/nsiteSubdomain';
 import { toast } from '@/hooks/useToast';
 import { impactLight } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -332,10 +332,9 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
   const nip19Id = encodeEventNip19(event);
   const nostrUri = `nostr:${nip19Id}`;
 
-  // Named nsite events (35128) use the nsite:// scheme in the sidebar for auto-play behavior.
-  // Root sites (15128) can't be rendered as sidebar items (no naddr), so they use the normal nostr: URI.
-  const isNamedNsite = event.kind === 35128;
-  const nsiteUri = isNamedNsite ? `nsite://${getNsiteSubdomain(event)}` : undefined;
+  // Nsite events (root sites, named sites, and snapshots) use the nsite://
+  // scheme in the sidebar for auto-play behavior.
+  const nsiteUri = isNsiteKind(event.kind) ? `nsite://${getNsiteSubdomain(event)}` : undefined;
   const sidebarUri = nsiteUri ?? nostrUri;
   const isInSidebar = orderedItems.includes(sidebarUri);
 

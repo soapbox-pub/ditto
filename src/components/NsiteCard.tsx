@@ -1,6 +1,8 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import { ExternalLink, FileText, Globe, Pin, PinOff, Play, Server } from "lucide-react";
+import { ExternalLink, FileText, Globe, History, Pin, PinOff, Play, Rocket, Server } from "lucide-react";
+import { nip19 } from "nostr-tools";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { ExternalFavicon } from "@/components/ExternalFavicon";
@@ -10,7 +12,13 @@ import { useNsitePlayer } from "@/contexts/NsitePlayerContext";
 import { useFeedSettings } from "@/hooks/useFeedSettings";
 import { useLinkPreview } from "@/hooks/useLinkPreview";
 import { toast } from "@/hooks/useToast";
-import { getNsiteSubdomain } from "@/lib/nsiteSubdomain";
+import {
+	getNsiteAggregateHash,
+	getNsiteSubdomain,
+	getSnapshotParent,
+	NSITE_NAMED_KIND,
+	NSITE_SNAPSHOT_KIND,
+} from "@/lib/nsiteSubdomain";
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { cn } from "@/lib/utils";
 
@@ -33,14 +41,24 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 	const pathTags = event.tags.filter(([n]) => n === "path");
 	const serverTags = event.tags.filter(([n]) => n === "server");
 
-	const isNamed = event.kind === 35128 && !!dTag;
+	const isNamed = event.kind === NSITE_NAMED_KIND && !!dTag;
+	const isSnapshot = event.kind === NSITE_SNAPSHOT_KIND;
 	const nsiteSubdomain = getNsiteSubdomain(event);
 	const siteUrl = `https://${nsiteSubdomain}.nsite.lol`;
-	const displayName = title || (isNamed ? dTag : "Root Site");
+	const displayName = title || (isNamed ? dTag : isSnapshot ? "Snapshot" : "Root Site");
+
+	const aggregateHash = isSnapshot ? getNsiteAggregateHash(event) : undefined;
+
+	// The site this snapshot captures, so the card can link back to the
+	// living manifest the version was taken from.
+	const parent = isSnapshot ? getSnapshotParent(event) : null;
+	const parentPath = parent
+		? `/${nip19.naddrEncode({ kind: parent.kind, pubkey: parent.pubkey, identifier: parent.identifier })}`
+		: undefined;
 
 	const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
-	const sidebarUri = isNamed ? `nsite://${nsiteSubdomain}` : undefined;
-	const isPinned = sidebarUri ? orderedItems.includes(sidebarUri) : false;
+	const sidebarUri = `nsite://${nsiteSubdomain}`;
+	const isPinned = orderedItems.includes(sidebarUri);
 
 	const { data: preview, isLoading } = useLinkPreview(siteUrl);
 	const image = preview?.thumbnail_url;
@@ -55,7 +73,6 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 	activeRef.current = activeSubdomain;
 
 	const handleTogglePin = useCallback(() => {
-		if (!sidebarUri) return;
 		if (isPinned) {
 			removeFromSidebar(sidebarUri);
 			toast({ title: 'Removed from sidebar' });
@@ -134,6 +151,11 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 						<p className="text-sm font-semibold leading-snug line-clamp-2">
 							{previewTitle || displayName}
 						</p>
+						{isSnapshot && (
+							<span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+								Snapshot
+							</span>
+						)}
 					</div>
 
 					{/* Description — prefer event description (it's curated), fall back to OEmbed author */}
@@ -144,8 +166,18 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 					)}
 
 					{/* Deployment stats */}
-					{(pathTags.length > 0 || serverTags.length > 0) && (
+					{(pathTags.length > 0 || serverTags.length > 0 || !!aggregateHash) && (
 						<div className="flex items-center gap-3 pt-0.5 text-[11px] text-muted-foreground">
+							{/* The aggregate hash identifies which version of the site this
+							    is. The snapshot's own timestamp is already in the card's
+							    author row, so the hash is the only version marker worth
+							    repeating here. */}
+							{isSnapshot && aggregateHash && (
+								<span className="inline-flex items-center gap-1" title={aggregateHash}>
+									<History className="size-3" />
+									{aggregateHash.slice(0, 8)}
+								</span>
+							)}
 							{pathTags.length > 0 && (
 								<span className="inline-flex items-center gap-1">
 									<FileText className="size-3" />
@@ -198,17 +230,23 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 						</a>
 					</Button>
 				)}
-				{sidebarUri && (
-					<Button
-						size="sm"
-						variant="ghost"
-						className="h-7 text-xs ml-auto text-muted-foreground"
-						onClick={(e) => { e.stopPropagation(); handleTogglePin(); }}
-					>
-						{isPinned ? <PinOff className="size-3 mr-1" /> : <Pin className="size-3 mr-1" />}
-						{isPinned ? 'Unpin' : 'Pin'}
+				{parentPath && (
+					<Button asChild size="sm" variant="secondary" className="h-7 text-xs">
+						<Link to={parentPath} onClick={(e) => e.stopPropagation()}>
+							<Rocket className="size-3 mr-1" />
+							Site
+						</Link>
 					</Button>
 				)}
+				<Button
+					size="sm"
+					variant="ghost"
+					className="h-7 text-xs ml-auto text-muted-foreground"
+					onClick={(e) => { e.stopPropagation(); handleTogglePin(); }}
+				>
+					{isPinned ? <PinOff className="size-3 mr-1" /> : <Pin className="size-3 mr-1" />}
+					{isPinned ? 'Unpin' : 'Pin'}
+				</Button>
 			</div>
 		</div>
 

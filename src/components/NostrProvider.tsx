@@ -7,6 +7,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
 import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { GIT_ACTIVITY_KINDS } from '@/lib/gitActivity';
+import { NSITE_KINDS } from '@/lib/nsiteSubdomain';
 import { AppPool } from '@/lib/AppPool';
 import { EventVerifier } from '@/lib/EventVerifier';
 import { NIndexedDB } from '@nostrify/indexeddb';
@@ -170,7 +171,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         // relays in addition to the read relays. Mixed feeds that include
         // kind 1 etc. never match, so ordinary traffic doesn't hit them.
         const ZAPSTORE_KINDS = [32267, 30063, 3063];
-        const DEV_KINDS = [...ZAPSTORE_KINDS, ...GIT_ACTIVITY_KINDS, 30817, 15128, 35128, 31990];
+        const DEV_KINDS = [...ZAPSTORE_KINDS, ...GIT_ACTIVITY_KINDS, 30817, ...NSITE_KINDS, 31990];
         if (filters.every((f) => f?.kinds?.length && f.kinds.every((k) => DEV_KINDS.includes(k)))) {
           const urls = new Set<string>();
           if (filters.some((f) => f.kinds?.some((k) => ZAPSTORE_KINDS.includes(k)))) urls.add(ZAPSTORE_RELAY);

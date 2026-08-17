@@ -34,6 +34,7 @@ import {
   PartyPopper,
   Sparkles,
   Stars,
+  History,
   UserCheck,
   UserRoundPen,
   Users,
@@ -176,6 +177,7 @@ import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
 import { BLANK_POSTER } from "@/lib/blankPoster";
 import { encodeEventAddress } from "@/lib/encodeEvent";
+import { isNsiteKind } from "@/lib/nsiteSubdomain";
 import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
 
 
@@ -598,7 +600,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isIssue = event.kind === 1621;
   const isGitStatus = event.kind >= 1630 && event.kind <= 1633;
   const isCustomNip = event.kind === 30817;
-  const isNsite = event.kind === 15128 || event.kind === 35128;
+  const isNsite = isNsiteKind(event.kind);
   const isZapstoreApp = event.kind === 32267;
   const isZapstoreRelease = event.kind === 30063;
   const isZapstoreAsset = event.kind === 3063;
@@ -2527,6 +2529,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   35128: {
     icon: Rocket,
     action: (event) => publishedAtAction(event, { created: "deployed an", updated: "redeployed an", fallback: "deployed an" }),
+    noun: "nsite",
+    nounRoute: "/development",
+  },
+  5128: {
+    icon: History,
+    action: "snapshotted an",
     noun: "nsite",
     nounRoute: "/development",
   },

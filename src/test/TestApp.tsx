@@ -107,6 +107,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeCustomNips: false,
       feedIncludeNsiteRoots: false,
       feedIncludeNsiteNamed: false,
+      feedIncludeNsiteSnapshots: false,
       feedIncludeZapstoreApps: false,
       feedIncludeZapstoreReleases: false,
       feedIncludeAppHandlers: false,

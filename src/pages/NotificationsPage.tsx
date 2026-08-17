@@ -88,6 +88,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   12473: 'Birdex',
   3367: 'color moment',
   7516: 'found log',
+  5128: 'nsite snapshot',
   15128: 'nsite',
   16767: 'theme',
   10008: 'profile badges',

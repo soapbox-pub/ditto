@@ -205,6 +205,7 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeCustomNips: z.boolean().optional(),
   feedIncludeNsiteRoots: z.boolean().optional(),
   feedIncludeNsiteNamed: z.boolean().optional(),
+  feedIncludeNsiteSnapshots: z.boolean().optional(),
   feedIncludeZapstoreApps: z.boolean().optional(),
   feedIncludeZapstoreReleases: z.boolean().optional(),
   feedIncludeAppHandlers: z.boolean().optional(),

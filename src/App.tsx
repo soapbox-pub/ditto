@@ -131,6 +131,9 @@ const hardcodedConfig: AppConfig = {
     feedIncludeCustomNips: true,
     feedIncludeNsiteRoots: true,
     feedIncludeNsiteNamed: true,
+    // Off by default: authors who snapshot every deploy would otherwise put
+    // two cards in the feed for each one — the site and its snapshot.
+    feedIncludeNsiteSnapshots: false,
     feedIncludeZapstoreApps: true,
     feedIncludeZapstoreReleases: true,
     feedIncludeAppHandlers: true,

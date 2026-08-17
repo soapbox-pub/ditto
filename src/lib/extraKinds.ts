@@ -1,7 +1,7 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
-import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, Server, Stars, UserCheck, UserRoundPen, Users } from 'lucide-react';
+import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, History, Server, Stars, UserCheck, UserRoundPen, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -811,6 +811,14 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
         description: 'Additional named nsite deployments',
         addressable: true,
       },
+      {
+        kind: 5128,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeNsiteSnapshots',
+        label: 'Snapshots',
+        description: 'Immutable versions of a site, captured at a point in time',
+        addressable: false,
+      },
     ],
   },
   {
@@ -947,6 +955,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   1632: 'status update',
   1633: 'status update',
   30618: 'repository update',
+  5128: 'nsite snapshot',
   15128: 'nsite',
   35128: 'nsite',
   30008: 'badge set',
@@ -977,6 +986,7 @@ const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: st
   1632: CircleX,
   1633: CircleDashed,
   30618: GitBranch,
+  5128: History,
   15128: Globe,
   15683: Heart,
   35128: Globe,

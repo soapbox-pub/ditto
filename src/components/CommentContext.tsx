@@ -5,7 +5,7 @@ import { FormattedMessage } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import {
   Award, BarChart3, Bird, Bitcoin, Bookmark, BookOpen, CalendarClock, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Egg, FileText, Film,
-  GitBranch, GitPullRequest, HandHeart, Heart, Mail, MapPin, MessageSquare, Mic, Music, Newspaper,
+  GitBranch, GitPullRequest, HandHeart, Heart, History, Mail, MapPin, MessageSquare, Mic, Music, Newspaper,
   Video,
   Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, ShieldCheck, SmilePlus, Sparkles,
   Server, Stars, UserCheck, Users, Vote, Zap,
@@ -35,6 +35,7 @@ import { getDisplayName } from '@/lib/getDisplayName';
 import { getCountryInfo } from '@/lib/countries';
 import { extractGathererCard, type GathererCard } from '@/lib/linkEmbed';
 import { isNostrId } from '@/lib/nostrId';
+import { isNsiteKind, NSITE_SNAPSHOT_KIND } from '@/lib/nsiteSubdomain';
 import { parseAddr } from '@/lib/parseAddr';
 import { cardPrimaryImage } from '@/lib/scryfall';
 import { getZapAmountSats, getZapSenderPubkey } from '@/lib/zapHelpers';
@@ -147,6 +148,7 @@ const KIND_LABELS: Record<number, string> = {
   12473: 'a Birdex',
   3367: 'a color moment',
   7516: 'a found log',
+  5128: 'an nsite snapshot',
   15128: 'an nsite',
   16767: 'a theme',
   10008: 'profile badges',
@@ -222,6 +224,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   1631: CircleCheck,
   1632: CircleX,
   1633: CircleDashed,
+  5128: History,
   15128: Rocket,
   35128: Rocket,
   10008: Award,
@@ -328,12 +331,15 @@ const KIND_POSTFIXES: Partial<Record<number, string>> = {
 function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.ComponentType<{ className?: string }> } {
   const icon = KIND_ICONS[event.kind];
 
-  // Nsite deployments: "{siteName} nsite" with rocket icon
-  if (event.kind === 15128 || event.kind === 35128) {
+  // Nsite deployments: "{siteName} nsite" with rocket icon. Snapshots read
+  // as "{siteName} nsite snapshot" so the version is distinguishable from the
+  // living site it was taken from.
+  if (isNsiteKind(event.kind)) {
+    const noun = event.kind === NSITE_SNAPSHOT_KIND ? 'nsite snapshot' : 'nsite';
     const title = event.tags.find(([name]) => name === 'title')?.[1];
     const dTag = event.tags.find(([name]) => name === 'd')?.[1];
     const siteName = title || dTag;
-    return { text: siteName ? `${siteName} nsite` : 'an nsite', icon };
+    return { text: siteName ? `${siteName} ${noun}` : `an ${noun}`, icon };
   }
 
   // NIP-89 apps: name lives in JSON content, not in tags

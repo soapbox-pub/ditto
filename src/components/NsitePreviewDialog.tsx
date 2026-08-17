@@ -126,7 +126,7 @@ async function fetchFromBlossom(sha256: string, servers: string[]): Promise<Resp
 }
 
 interface NsitePreviewDialogProps {
-  /** The nsite event (kind 15128 or 35128) containing path and server tags. */
+  /** The nsite event (root site, named site, or snapshot) containing path and server tags. */
   event: NostrEvent;
   /** Display name for the app. */
   appName: string;
