@@ -119,6 +119,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeBadgeAwards: false,
       feedIncludeVanish: true,
       feedIncludeRelayLists: false,
+      feedIncludeProfileUpdates: false,
       feedIncludeLoveLists: true,
       feedIncludeBlobbi: true,
       showBirdstar: false,

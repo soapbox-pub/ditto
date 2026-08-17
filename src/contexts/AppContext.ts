@@ -220,6 +220,8 @@ export interface FeedSettings {
   feedIncludeVanish: boolean;
   /** Include NIP-65 relay list updates (kind 10002) in the follows/global feed */
   feedIncludeRelayLists: boolean;
+  /** Include profile metadata updates (kind 0) in the follows/global feed */
+  feedIncludeProfileUpdates: boolean;
   /** Include Love List updates (kind 15683, see NIP.md) in the follows/global feed */
   feedIncludeLoveLists: boolean;
   /** Include Blobbi pet updates (kind 31124) in the follows/global feed */

@@ -205,6 +205,35 @@ function isDeprecatedFollowSet(event: NostrEvent): boolean {
   return false;
 }
 
+/** Kind 0 fields that make a profile update worth rendering as a feed card. */
+const RENDERABLE_METADATA_FIELDS = [
+  'name',
+  'display_name',
+  'about',
+  'picture',
+  'banner',
+  'website',
+  'nip05',
+  'lud06',
+  'lud16',
+] as const;
+
+/** Returns true if a kind 0 event carries at least one non-empty display field. */
+function hasRenderableMetadata(event: NostrEvent): boolean {
+  let metadata: unknown;
+  try {
+    metadata = JSON.parse(event.content);
+  } catch {
+    return false;
+  }
+  if (typeof metadata !== 'object' || metadata === null) return false;
+  const record = metadata as Record<string, unknown>;
+  return RENDERABLE_METADATA_FIELDS.some((field) => {
+    const value = record[field];
+    return typeof value === 'string' && value.trim().length > 0;
+  });
+}
+
 /**
  * Returns true if a feed event should be hidden at the feed level.
  * This pre-filters events BEFORE they are rendered as NoteCards,
@@ -276,6 +305,12 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
   // NIP-65 relay lists (kind 10002) with no `r` tags. Clients publish empty
   // ones during onboarding, and there is nothing to render for them.
   if (event.kind === 10002 && !event.tags.some(([n, v]) => n === 'r' && v)) return true;
+
+  // Profile metadata (kind 0) whose content isn't a JSON object with at least
+  // one field worth looking at. Onboarding flows and account deletions both
+  // publish `{}`, and a card showing "Anonymous" over a blank banner is not a
+  // profile update anyone wants in their feed.
+  if (event.kind === 0 && !hasRenderableMetadata(event)) return true;
   // Quizzes (kind 37849, see NIP.md) that don't have the minimum viable
   // structure: a title, at least one question, and at least one option.
   // (Full parse validation happens at the render site.)

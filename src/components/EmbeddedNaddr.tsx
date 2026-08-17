@@ -19,6 +19,7 @@ import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { parseProfileBadges } from '@/lib/parseProfileBadges';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
 import { EmbeddedRelayListCard } from '@/components/EmbeddedRelayListCard';
+import { EmbeddedProfileCard } from '@/components/EmbeddedProfileCard';
 import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
 import { MEMORY_CARD_KIND } from '@/lib/memorycard';
 import { isPeopleListKind } from '@/lib/packUtils';
@@ -189,6 +190,12 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
   // naddr with an empty identifier and land here rather than in EmbeddedNote.
   if (event.kind === 10002) {
     return <EmbeddedRelayListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Profile metadata (kind 0) is legacy-replaceable, so it too is addressed by
+  // naddr with an empty identifier. Its `content` is JSON, not prose.
+  if (event.kind === 0) {
+    return <EmbeddedProfileCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Kind 31871 attestations get a compact status card showing the state

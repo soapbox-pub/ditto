@@ -1,7 +1,7 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
-import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, Server, Stars, UserCheck, Users } from 'lucide-react';
+import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, Server, Stars, UserCheck, UserRoundPen, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -398,6 +398,18 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'social',
     feedOnly: true,
     blurb: 'When someone permanently leaves Nostr, their Request to Vanish event signals the end of their identity on the network.',
+  },
+  // Profile updates (feed-only — NIP-01 kind 0 metadata)
+  {
+    kind: 0,
+    id: 'profiles',
+    feedKey: 'feedIncludeProfileUpdates',
+    label: 'Profile Updates',
+    description: 'Kind 0 metadata updates — new names, avatars, and bios',
+    addressable: false,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'When someone changes their name, avatar, banner, or bio, the new profile shows up in the feed as a card — a lightweight way to notice that a person you follow has a new look.',
   },
   // Relay lists (feed-only — NIP-65 kind 10002)
   {
@@ -919,6 +931,7 @@ export function getSectionKinds(section: ExtraKindSection): number[] {
  * a label more specific than their parent category.
  */
 const KIND_SPECIFIC_LABELS: Record<number, string> = {
+  0: 'profile update',
   3: 'follow list',
   6: 'repost',
   7: 'reaction',
@@ -949,6 +962,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
  * Specific icons for kinds that need a different icon than their parent category.
  */
 const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: string }>>> = {
+  0: UserRoundPen,
   3: UserCheck,
   6: RepostIcon,
   16: RepostIcon,

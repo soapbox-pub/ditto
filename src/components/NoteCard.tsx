@@ -35,6 +35,7 @@ import {
   Sparkles,
   Stars,
   UserCheck,
+  UserRoundPen,
   Users,
   Volume2,
   VolumeX,
@@ -2614,6 +2615,11 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     icon: Server,
     action: "updated their",
     noun: "relay list",
+  },
+  0: {
+    icon: UserRoundPen,
+    action: "updated their",
+    noun: "profile",
   },
 };
 

@@ -25,6 +25,7 @@ import { ARTICLE_KINDS } from '@/lib/articleHelpers';
 import { PUBLICATION_KINDS } from '@/lib/publications';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
 import { EmbeddedRelayListCard } from '@/components/EmbeddedRelayListCard';
+import { EmbeddedProfileCard } from '@/components/EmbeddedProfileCard';
 import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
 import { MEMORY_CARD_KIND } from '@/lib/memorycard';
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
@@ -227,6 +228,12 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, fallbackAuthorHint, cl
   // `r` tags — so the generic fallback would render an empty shell.
   if (event.kind === 10002) {
     return <EmbeddedRelayListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Profile metadata (kind 0) carries JSON in `content`. The generic fallback
+  // would tokenize it as a text note, linkifying the URLs inside the blob.
+  if (event.kind === 0) {
+    return <EmbeddedProfileCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Long-form articles (NIP-23) quoted via nevent get the same rich
