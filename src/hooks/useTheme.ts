@@ -4,6 +4,7 @@ import { useAppContext } from "@/hooks/useAppContext";
 import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
 import { usePublishTheme } from "@/hooks/usePublishTheme";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { isCapturingSignupTheme, recordSignupThemeDraft } from "@/lib/signupTheme";
 import { useRef, useCallback } from "react";
 import { builtinThemes, buildThemeCssFromCore, resolveTheme, resolveThemeConfig } from "@/themes";
 
@@ -78,7 +79,16 @@ export function useTheme() {
       ...currentConfig,
       theme,
     }));
-    syncToEncrypted({ theme });
+    // During signup the chosen theme belongs to the account being created, which
+    // doesn't exist yet — persisting here would write to, and prompt the signer
+    // of, whatever account is currently logged in (the "add another account"
+    // case). Buffer the pick and let the signup flow apply it to the new account
+    // once it's active. See lib/signupTheme.ts.
+    if (isCapturingSignupTheme()) {
+      recordSignupThemeDraft({ theme });
+    } else {
+      syncToEncrypted({ theme });
+    }
   }, [config.themes, config.customTheme?.colors, updateConfig, syncToEncrypted]);
 
   /**
@@ -101,8 +111,15 @@ export function useTheme() {
       theme: 'custom' as Theme,
       customTheme: normalizedConfig,
     }));
-    syncToEncrypted({ theme: 'custom', customTheme: normalizedConfig });
-    autoPublishTheme(normalizedConfig);
+    // See setTheme: while a signup is in flight, buffer the pick instead of
+    // persisting it or publishing to the profile under the previously-active
+    // account.
+    if (isCapturingSignupTheme()) {
+      recordSignupThemeDraft({ theme: 'custom', customTheme: normalizedConfig });
+    } else {
+      syncToEncrypted({ theme: 'custom', customTheme: normalizedConfig });
+      autoPublishTheme(normalizedConfig);
+    }
   }, [updateConfig, syncToEncrypted, autoPublishTheme]);
 
   /** Update the autoShareTheme setting. */

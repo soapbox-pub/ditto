@@ -44,6 +44,11 @@ import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
+import {
+  beginSignupThemeCapture,
+  endSignupThemeCapture,
+  takeSignupThemeDraft,
+} from "@/lib/signupTheme";
 import { resolveTheme, resolveThemeConfig } from "@/themes";
 import { cn } from "@/lib/utils";
 
@@ -274,6 +279,7 @@ function SetupQuestionnaire({
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const login = useLoginActions();
+  const { setTheme, applyCustomTheme } = useTheme();
 
   const steps = isSignup ? SIGNUP_STEPS : SETTINGS_STEPS;
 
@@ -299,6 +305,33 @@ function SetupQuestionnaire({
       return undefined;
     }
   }, [nsec]);
+
+  // The signup theme step renders before the new key exists, and (in the "add
+  // another account" flow) while a prior account is still the active signer.
+  // Buffer theme picks for the duration of signup so they never persist to — or
+  // prompt the extension of — that account. See lib/signupTheme.ts.
+  useEffect(() => {
+    if (!isSignup) return;
+    beginSignupThemeCapture();
+    return () => endSignupThemeCapture();
+  }, [isSignup]);
+
+  // Once the just-generated account becomes the active user, flush the buffered
+  // theme onto it. Persistence (kind 30078) and profile publishing (kind 16767)
+  // now sign with the new account's own key, not the previously-active one.
+  const themeDraftApplied = useRef(false);
+  useEffect(() => {
+    if (!isSignup || themeDraftApplied.current) return;
+    if (!expectedPubkey || user?.pubkey !== expectedPubkey) return;
+    themeDraftApplied.current = true;
+    endSignupThemeCapture();
+    const draft = takeSignupThemeDraft();
+    if (draft?.customTheme) {
+      applyCustomTheme(draft.customTheme);
+    } else if (draft?.theme) {
+      setTheme(draft.theme);
+    }
+  }, [isSignup, expectedPubkey, user?.pubkey, applyCustomTheme, setTheme]);
 
   const stepIndex = steps.indexOf(step);
   const progress = (stepIndex / (steps.length - 1)) * 100;
