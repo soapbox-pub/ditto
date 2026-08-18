@@ -18,6 +18,8 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useWikipediaSearch, type WikipediaSearchResult } from '@/hooks/useWikipediaSearch';
 import { useArchiveSearch, type ArchiveSearchResult } from '@/hooks/useArchiveSearch';
+import { useSearchEvents, type SearchEventResult } from '@/hooks/useSearchEvents';
+import { SearchEventResultItem } from '@/components/SearchEventResultItem';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
 import { searchSidebarItems, type SidebarItemDef } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
@@ -39,6 +41,10 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   // Wikipedia & Archive search (async, debounced by their hooks at >=2 chars)
   const { data: wikipediaResults } = useWikipediaSearch(query);
   const { data: archiveResults } = useArchiveSearch(query);
+
+  // Nostr event search — articles, lists, packs, nsites, apps (debounced internally)
+  const { data: eventResultsRaw } = useSearchEvents(query);
+  const eventResults = useMemo(() => (eventResultsRaw ?? []).slice(0, 5), [eventResultsRaw]);
 
   // Take at most 1 result from each external source
   const wikipediaResult: WikipediaSearchResult | null = wikipediaResults?.[0] ?? null;
@@ -83,10 +89,11 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   const hasWikipedia = !!wikipediaResult;
   const hasArchive = !!archiveResult;
   const navItemCount = navItems.length;
+  const eventCount = eventResults.length;
 
-  const totalItems = navItemCount + profileCount + (hasCountry ? 1 : 0) + (hasUrlComment ? 1 : 0) + (hasIdentifier ? 1 : 0) + (hasWikipedia ? 1 : 0) + (hasArchive ? 1 : 0);
+  const totalItems = navItemCount + profileCount + eventCount + (hasCountry ? 1 : 0) + (hasUrlComment ? 1 : 0) + (hasIdentifier ? 1 : 0) + (hasWikipedia ? 1 : 0) + (hasArchive ? 1 : 0);
 
-  // Order: [...navItems, identifier?, commentUrl?, country?(top), ...profiles, country?(bottom), wikipedia?, archive?]
+  // Order: [...navItems, identifier?, commentUrl?, country?(top), ...profiles, country?(bottom), ...events, wikipedia?, archive?]
   let nextMobileIdx = 0;
   const navItemStartIndex = nextMobileIdx;
   nextMobileIdx += navItemCount;
@@ -97,6 +104,8 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   nextMobileIdx += profileCount;
   const countryBottomIndex = (hasCountry && !countryAtTop) ? nextMobileIdx++ : -1;
   const countryIndex = countryAtTop ? countryTopIndex : countryBottomIndex;
+  const eventStartIndex = nextMobileIdx;
+  nextMobileIdx += eventCount;
   const wikipediaIndex = hasWikipedia ? nextMobileIdx++ : -1;
   const archiveIndex = hasArchive ? nextMobileIdx++ : -1;
 
@@ -137,7 +146,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   // Reset selected index when results change
   useEffect(() => {
     setSelectedIndex(-1);
-  }, [profiles]);
+  }, [profiles, eventResults]);
 
   const handleClose = useCallback(() => {
     setQuery('');
@@ -173,6 +182,11 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   const handleSelectArchive = useCallback((result: ArchiveSearchResult) => {
     handleClose();
     navigate(`/i/${encodeURIComponent(`https://archive.org/details/${result.identifier}`)}`);
+  }, [navigate, handleClose]);
+
+  const handleSelectEvent = useCallback((result: SearchEventResult) => {
+    handleClose();
+    navigate(result.path);
   }, [navigate, handleClose]);
 
   const handleSelect = useCallback((profile: SearchProfile) => {
@@ -215,6 +229,8 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
           handleSelectWikipedia(wikipediaResult!);
         } else if (hasArchive && selectedIndex === archiveIndex) {
           handleSelectArchive(archiveResult!);
+        } else if (eventCount > 0 && selectedIndex >= eventStartIndex && selectedIndex < eventStartIndex + eventCount) {
+          handleSelectEvent(eventResults[selectedIndex - eventStartIndex]);
         } else {
           handleSelect(profiles![selectedIndex - profileStartIndex]);
         }
@@ -233,7 +249,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
     }
   };
 
-  const hasResults = query.trim().length > 0 && (navItemCount > 0 || hasIdentifier || hasUrlComment || hasCountry || hasWikipedia || hasArchive || (profiles && profiles.length > 0));
+  const hasResults = query.trim().length > 0 && (navItemCount > 0 || hasIdentifier || hasUrlComment || hasCountry || hasWikipedia || hasArchive || eventCount > 0 || (profiles && profiles.length > 0));
 
   if (!open) return null;
 
@@ -296,6 +312,14 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
                 onClick={handleSelectCountry}
               />
             )}
+            {eventResults.map((result, index) => (
+              <SearchEventResultItem
+                key={result.path}
+                result={result}
+                isSelected={index + eventStartIndex === selectedIndex}
+                onClick={handleSelectEvent}
+              />
+            ))}
             {hasWikipedia && (
               <MobileWikipediaItem
                 result={wikipediaResult!}

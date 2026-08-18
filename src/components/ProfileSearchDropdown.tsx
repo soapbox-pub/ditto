@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useIntl } from 'react-intl';
-import { Search, UserRoundCheck, MessageSquare, FileText, Hash, Archive, Newspaper, List as ListIcon, Users, SmilePlus } from 'lucide-react';
+import { Search, UserRoundCheck, MessageSquare, FileText, Hash, Archive } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -22,9 +22,9 @@ import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useWikipediaSearch, type WikipediaSearchResult } from '@/hooks/useWikipediaSearch';
 import { useArchiveSearch, type ArchiveSearchResult } from '@/hooks/useArchiveSearch';
 import { useSearchEvents, type SearchEventResult } from '@/hooks/useSearchEvents';
+import { SearchEventResultItem } from '@/components/SearchEventResultItem';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
 import { searchSidebarItems, type SidebarItemDef } from '@/lib/sidebarItems';
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
 interface ProfileSearchDropdownProps {
@@ -63,7 +63,7 @@ export function ProfileSearchDropdown({
   const { data: wikipediaResults } = useWikipediaSearch(query);
   const { data: archiveResults } = useArchiveSearch(query);
 
-  // Nostr event search — articles, lists, and follow packs (debounced internally)
+  // Nostr event search — articles, lists, packs, nsites, apps (debounced internally)
   const { data: eventResultsRaw } = useSearchEvents(query);
   const eventResults = useMemo(() => (eventResultsRaw ?? []).slice(0, 5), [eventResultsRaw]);
 
@@ -383,7 +383,7 @@ export function ProfileSearchDropdown({
               />
             )}
             {eventResults.map((result, index) => (
-              <EventResultItem
+              <SearchEventResultItem
                 key={result.path}
                 result={result}
                 isSelected={index + eventStartIndex === selectedIndex}
@@ -496,9 +496,9 @@ export function ProfileSearchDropdown({
               />
             )}
 
-            {/* Nostr event results — articles, lists, follow packs */}
+            {/* Nostr event results — articles, lists, packs, nsites, apps */}
             {eventResults.map((result, index) => (
-              <EventResultItem
+              <SearchEventResultItem
                 key={result.path}
                 result={result}
                 isSelected={index + eventStartIndex === selectedIndex}
@@ -1114,63 +1114,6 @@ function ArchiveItem({
       <div className="flex-1 min-w-0">
         <span className="font-semibold text-sm truncate block">{result.title}</span>
         <div className="text-xs text-muted-foreground truncate">Internet Archive</div>
-      </div>
-    </button>
-  );
-}
-
-const EVENT_TYPE_META: Record<SearchEventResult['type'], { icon: typeof Newspaper; label: string }> = {
-  'article': { icon: Newspaper, label: 'Article' },
-  'list': { icon: ListIcon, label: 'List' },
-  'follow-pack': { icon: Users, label: 'Follow pack' },
-  'emoji-pack': { icon: SmilePlus, label: 'Emoji pack' },
-};
-
-function EventResultItem({
-  result,
-  isSelected,
-  onClick,
-}: {
-  result: SearchEventResult;
-  isSelected: boolean;
-  onClick: (result: SearchEventResult) => void;
-}) {
-  const { icon: Icon, label } = EVENT_TYPE_META[result.type];
-  // Image comes from untrusted event tags — sanitize before it lands in `src`.
-  const image = sanitizeUrl(result.image);
-
-  return (
-    <button
-      data-search-item
-      role="option"
-      aria-selected={isSelected}
-      className={cn(
-        'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer',
-        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
-      )}
-      onClick={() => onClick(result)}
-      onMouseDown={(e) => e.preventDefault()}
-    >
-      <div className="size-10 shrink-0 rounded-lg overflow-hidden bg-primary/10 flex items-center justify-center">
-        {image ? (
-          <img
-            src={image}
-            alt=""
-            className="size-10 object-cover"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
-            }}
-            decoding="async"
-          />
-        ) : null}
-        <div className={cn('items-center justify-center size-10', image ? 'hidden' : 'flex')}>
-          <Icon className="size-4 text-primary" />
-        </div>
-      </div>
-      <div className="flex-1 min-w-0">
-        <span className="font-semibold text-sm truncate block">{result.title}</span>
-        <div className="text-xs text-muted-foreground truncate">{label}</div>
       </div>
     </button>
   );
