@@ -45,6 +45,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
+import { isAnimatedImage, METADATA_SCAN_BYTES } from "@/lib/imageMetadata";
 import { getActivePubkey, subscribeActivePubkey } from "@/lib/activeAccount";
 import {
   beginSignupThemeCapture,
@@ -696,29 +697,9 @@ function ProfileStep({
     pickInputRef.current?.click();
   }, []);
 
-  const handleFileChosen = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      e.target.value = "";
-      const field = pendingField.current;
-      setCropState({
-        imageSrc: URL.createObjectURL(file),
-        aspect: field === "picture" ? 1 : 3,
-        field,
-      });
-    },
-    [],
-  );
-
-  const handleCropConfirm = useCallback(
-    async (blob: Blob) => {
-      if (!cropState) return;
-      const { field, imageSrc } = cropState;
-      URL.revokeObjectURL(imageSrc);
-      setCropState(null);
+  const uploadImage = useCallback(
+    async (file: File, field: "picture" | "banner") => {
       try {
-        const file = new File([blob], `${field}.jpg`, { type: "image/jpeg" });
         const [[, url]] = await uploadFile(file);
         setProfileData((prev) => ({ ...prev, [field]: url }));
       } catch {
@@ -729,7 +710,44 @@ function ProfileStep({
         });
       }
     },
-    [cropState, uploadFile],
+    [uploadFile],
+  );
+
+  const handleFileChosen = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      e.target.value = "";
+      const field = pendingField.current;
+
+      // Animated images (GIF, APNG, animated WebP) can't survive the crop
+      // dialog's canvas round-trip, which flattens them to a single frame.
+      // Upload them byte-for-byte instead of silently killing the animation.
+      const head = new Uint8Array(await file.slice(0, METADATA_SCAN_BYTES).arrayBuffer());
+      if (isAnimatedImage(file.type, head)) {
+        await uploadImage(file, field);
+        return;
+      }
+
+      setCropState({
+        imageSrc: URL.createObjectURL(file),
+        aspect: field === "picture" ? 1 : 3,
+        field,
+      });
+    },
+    [uploadImage],
+  );
+
+  const handleCropConfirm = useCallback(
+    async (blob: Blob) => {
+      if (!cropState) return;
+      const { field, imageSrc } = cropState;
+      URL.revokeObjectURL(imageSrc);
+      setCropState(null);
+      const file = new File([blob], `${field}.jpg`, { type: "image/jpeg" });
+      await uploadImage(file, field);
+    },
+    [cropState, uploadImage],
   );
 
   const handleCropCancel = useCallback(() => {

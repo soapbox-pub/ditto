@@ -28,6 +28,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { IntroImage } from '@/components/IntroImage';
 import { HelpTip } from '@/components/HelpTip';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
+import { isAnimatedImage, METADATA_SCAN_BYTES } from '@/lib/imageMetadata';
 import { SortableList, SortableItem } from '@/components/SortableList';
 import { PaymentTargetsEditor, type PaymentTargetsEditorHandle } from '@/components/PaymentTargetsEditor';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -609,11 +610,34 @@ export function ProfileSettings() {
     pickInputRef.current?.click();
   };
 
-  const handleFileChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadImage = async (file: File, field: 'picture' | 'banner') => {
+    try {
+      const [[, url]] = await uploadFile(file);
+      form.setValue(field, url, { shouldDirty: true });
+      toast({
+        title: intl.formatMessage({ id: 'settings.profile.uploaded', defaultMessage: "Uploaded" }),
+        description: field === 'picture' ? intl.formatMessage({ id: 'settings.profile.pictureUpdated', defaultMessage: "Profile picture updated" }) : intl.formatMessage({ id: 'settings.profile.bannerUpdated', defaultMessage: "Banner updated" }),
+      });
+    } catch {
+      toast({ title: intl.formatMessage({ id: 'settings.profile.uploadFailed', defaultMessage: "Upload failed" }), description: intl.formatMessage({ id: 'settings.profile.uploadFailedDescription', defaultMessage: "Please try again." }), variant: 'destructive' });
+    }
+  };
+
+  const handleFileChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
     const field = pendingField.current;
+
+    // Animated images (GIF, APNG, animated WebP) can't survive the crop
+    // dialog's canvas round-trip, which flattens them to a single frame. Upload
+    // them byte-for-byte instead of silently killing the animation.
+    const head = new Uint8Array(await file.slice(0, METADATA_SCAN_BYTES).arrayBuffer());
+    if (isAnimatedImage(file.type, head)) {
+      await uploadImage(file, field);
+      return;
+    }
+
     setCropState({
       imageSrc: URL.createObjectURL(file),
       aspect: field === 'picture' ? 1 : 3,
@@ -627,17 +651,8 @@ export function ProfileSettings() {
     const { field, imageSrc } = cropState;
     URL.revokeObjectURL(imageSrc);
     setCropState(null);
-    try {
-      const file = new File([blob], `${field}.jpg`, { type: 'image/jpeg' });
-      const [[, url]] = await uploadFile(file);
-      form.setValue(field, url, { shouldDirty: true });
-      toast({
-        title: intl.formatMessage({ id: 'settings.profile.uploaded', defaultMessage: "Uploaded" }),
-        description: field === 'picture' ? intl.formatMessage({ id: 'settings.profile.pictureUpdated', defaultMessage: "Profile picture updated" }) : intl.formatMessage({ id: 'settings.profile.bannerUpdated', defaultMessage: "Banner updated" }),
-      });
-    } catch {
-      toast({ title: intl.formatMessage({ id: 'settings.profile.uploadFailed', defaultMessage: "Upload failed" }), description: intl.formatMessage({ id: 'settings.profile.uploadFailedDescription', defaultMessage: "Please try again." }), variant: 'destructive' });
-    }
+    const file = new File([blob], `${field}.jpg`, { type: 'image/jpeg' });
+    await uploadImage(file, field);
   };
 
   const handleCropCancel = () => {
