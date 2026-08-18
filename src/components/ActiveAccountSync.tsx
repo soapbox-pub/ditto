@@ -1,5 +1,5 @@
 import { useNostrLogin } from "@nostrify/react/login";
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 
 import { setActivePubkey } from "@/lib/activeAccount";
 
@@ -16,12 +16,22 @@ import { setActivePubkey } from "@/lib/activeAccount";
  * the marker also tracks logins that appear without an explicit switch (a cold
  * boot resolving from secure storage, a fresh signup, a final logout clearing
  * the list).
+ *
+ * This runs in a LAYOUT effect, not a passive one, on purpose. `logins[0]`
+ * flips synchronously on a switch/logout, but AppProvider's account-scoped
+ * config storage only re-points once this marker updates. If that update waited
+ * for the passive phase, other passive effects that write config keyed on the
+ * new user — chiefly NostrSync applying the new account's settings — could run
+ * first, while AppProvider's scope still points at the PREVIOUS account, and
+ * write the new account's theme/relays/etc. into the old account's stored blob.
+ * Updating the marker in the layout phase re-points the scope before any of
+ * those writers run, so every write lands in the correct account.
  */
 export function ActiveAccountSync() {
   const { logins } = useNostrLogin();
   const pubkey = logins[0]?.pubkey ?? null;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setActivePubkey(pubkey);
   }, [pubkey]);
 
