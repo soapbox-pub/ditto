@@ -362,6 +362,16 @@ describe('buildUnsignedSilentPaymentPsbt', () => {
     expect(parsed.outputs[0].script).toBeUndefined();
   });
 
+  it('refuses to build with a non-finite fee rate instead of dropping the change output', () => {
+    // A NaN rate makes every downstream comparison false: `change >= DUST`
+    // fails so no change output is added, `change < 0` fails so nothing
+    // throws, and the difference between the inputs and the send amount goes
+    // to miners in a perfectly valid transaction.
+    expect(() =>
+      buildUnsignedSilentPaymentPsbt(SENDER_PUBKEY_HEX, REFERENCE_SP_ADDRESS, 50_000, senderUtxos(), NaN),
+    ).toThrow(/fee rate/i);
+  });
+
   it('refuses to build when the amount is below the dust limit', () => {
     expect(() =>
       buildUnsignedSilentPaymentPsbt(SENDER_PUBKEY_HEX, REFERENCE_SP_ADDRESS, 100, senderUtxos(), 5),
