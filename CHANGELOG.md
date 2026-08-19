@@ -1,5 +1,37 @@
 # Changelog
 
+## [2.35.0] - 2026-08-19
+
+Links now shed their tracking junk. The utm tags, share ids, and click ids that follow you around get stripped from the links you post and the links you read, with a switch in Settings if you'd rather keep them. Search puts the people you follow first and turns up sites and apps, not just articles. Profile glow-ups and relay lists land in your feed as real cards, videos play right inside quotes, and profiles load from their author's own relays. Plus security fixes for zaps and Bitcoin sends.
+
+### Added
+- Clean up links: tracking parameters are stripped from links you post and links you view, with a toggle under Settings → Content
+- Profile updates appear in the feed as cards, so you see it when someone changes their banner or bio
+- Relay lists render as cards — a stack of relay icons in the feed, and a full list with read/write markers on the detail page
+- Search now finds sites and apps alongside articles, lists, emoji packs, and follow packs
+- Site snapshots render as their own cards, capturing a site at a point in time
+
+### Changed
+- Search results are ranked follow-first, and each result shows who published it
+- Videos and vines now play inline when quoted, instead of falling back to a text card
+- Profiles load posts, likes, and metadata from the author's own relays, so nothing goes missing when it doesn't live on yours
+- Opening an event your relays don't have now falls back to the author's relays and hints mined from other posts
+- Root sites can be pinned to the sidebar, navigated, and auto-played like named ones
+- The share-a-QR dialog now links to the profile instead of a follow link
+
+### Fixed
+- A key buried inside a file path or command no longer turns into a mention and mangles the text
+- Zaps now verify the invoice charges exactly the amount you approved before paying it
+- On-chain sends now derive silent payments from every input, so recipients actually receive them
+- A broken or hostile fee endpoint can no longer turn your entire wallet balance into a miner fee
+- Reposts are verified before they're trusted, so one can't wear another person's name and avatar
+- Notification taps and universal links now validate the path before navigating
+- Signing in with a remote signer now requires the signer to prove it holds the connection secret
+- Hatching a Blobbi no longer risks overwriting your existing Blobbonaut profile
+
+### Removed
+- The one-tap follow link, which published a follow just from visiting the URL, with no confirmation
+
 ## [2.34.9] - 2026-08-14
 
 Web bookmarks and photo posts now strut into your feed as full cards. Encrypted files and audio decrypt right before your eyes. Unknown events show up as mystery encounters — poke one and see what happens. Plus: per-account settings, snappier relays, and copy-link buttons on nsite previews.
