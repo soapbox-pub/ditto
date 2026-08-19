@@ -10,6 +10,8 @@ import type { Event } from 'nostr-tools';
 import type { WebLNProvider } from '@webbtc/webln-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { notificationSuccess } from '@/lib/haptics';
+import { assertInvoiceAmount, invoiceCommitsTo } from '@/lib/bolt11';
+import { resolveLnurlPay, type LnurlPayParams } from '@/lib/lnurlPay';
 
 /**
  * Hook for sending zaps to an event author.
@@ -99,24 +101,33 @@ export function useZaps(
         return;
       }
 
-      // Get zap endpoint using the old reliable method. When an override is
-      // present, build a synthetic kind-0 event so getZapEndpoint resolves the
-      // override's LNURL instead of the profile's.
-      let endpointEvent = author.data.event;
-      if (overrideTrimmed) {
-        const isLnurl = /^lnurl1/i.test(overrideTrimmed);
-        endpointEvent = {
-          ...author.data.event,
-          content: JSON.stringify(
-            isLnurl ? { lud06: overrideTrimmed } : { lud16: overrideTrimmed },
-          ),
-        };
-      }
-      const zapEndpoint = await nip57.getZapEndpoint(endpointEvent);
-      if (!zapEndpoint) {
+      // Resolve the recipient's LNURL-pay endpoint. A NIP-A3 lightning payment
+      // target takes precedence over the profile's own lud16/lud06.
+      const lnurlSource = overrideTrimmed
+        ? /^lnurl1/i.test(overrideTrimmed)
+          ? { lud06: overrideTrimmed }
+          : { lud16: overrideTrimmed }
+        : { lud06, lud16 };
+
+      let lnurlParams: LnurlPayParams;
+      try {
+        lnurlParams = await resolveLnurlPay(lnurlSource);
+      } catch (endpointError) {
         toast({
           title: 'Zap endpoint not found',
-          description: 'Could not find a zap endpoint for the author.',
+          description: endpointError instanceof Error
+            ? endpointError.message
+            : 'Could not find a zap endpoint for the author.',
+          variant: 'destructive',
+        });
+        setIsZapping(false);
+        return;
+      }
+
+      if (!lnurlParams.allowsNostr || !lnurlParams.nostrPubkey) {
+        toast({
+          title: 'Zaps not supported',
+          description: "This author's lightning address does not support zaps.",
           variant: 'destructive',
         });
         setIsZapping(false);
@@ -132,6 +143,20 @@ export function useZaps(
 
       const zapAmount = amount * 1000; // convert to millisats
 
+      // The endpoint advertises what it will accept; asking for anything
+      // outside that range can only produce an invoice we'd have to reject.
+      if (zapAmount < lnurlParams.minSendable || zapAmount > lnurlParams.maxSendable) {
+        toast({
+          title: 'Amount out of range',
+          description:
+            `This lightning address accepts between ${Math.ceil(lnurlParams.minSendable / 1000)} and ` +
+            `${Math.floor(lnurlParams.maxSendable / 1000)} sats.`,
+          variant: 'destructive',
+        });
+        setIsZapping(false);
+        return;
+      }
+
       const zapRequest = nip57.makeZapRequest({
         profile: target.pubkey,
         event: event,
@@ -145,11 +170,12 @@ export function useZaps(
         throw new Error('No signer available');
       }
       const signedZapRequest = await user.signer.signEvent(zapRequest);
+      const zapRequestJson = JSON.stringify(signedZapRequest);
 
       try {
-        const zapUrl = new URL(zapEndpoint);
+        const zapUrl = new URL(lnurlParams.callback);
         zapUrl.searchParams.set('amount', String(zapAmount));
-        zapUrl.searchParams.set('nostr', JSON.stringify(signedZapRequest));
+        zapUrl.searchParams.set('nostr', zapRequestJson);
 
         const res = await fetch(zapUrl.toString());
         const responseText = await res.text();
@@ -172,13 +198,31 @@ export function useZaps(
           throw new Error('Lightning service did not return a valid invoice');
         }
 
+        // The endpoint that produced this invoice is chosen by the recipient,
+        // so the invoice is not trusted: decode it and require that it charges
+        // exactly what the user approved. Without this, the recipient — not the
+        // sender — decides how much the sender pays. Throwing here aborts
+        // before any wallet is touched, on every payment path.
+        const decodedInvoice = assertInvoiceAmount(newInvoice, zapAmount);
+
+        // LUD-06 binds the invoice to the endpoint's `metadata`; NIP-57 binds
+        // it to the zap request instead. Either is fine, anything else means
+        // the invoice was not issued for this request.
+        if (!invoiceCommitsTo(decodedInvoice, [zapRequestJson, lnurlParams.metadata])) {
+          throw new Error('Lightning service returned an invoice for a different request. Payment cancelled.');
+        }
+
+        // Report what the invoice actually charges rather than what was asked
+        // for, so a success screen can never understate a spend.
+        const paidSats = Math.round(decodedInvoice.amountMsat / 1000);
+
         // Get the current active NWC connection dynamically
         const currentNWCConnection = getActiveConnection();
 
         // Try NWC first if available and properly connected
         if (currentNWCConnection && currentNWCConnection.connectionString && currentNWCConnection.isConnected) {
           try {
-            await sendPayment(currentNWCConnection, newInvoice);
+            await sendPayment(currentNWCConnection, newInvoice, zapAmount);
 
             // Clear states immediately on success
             setIsZapping(false);
@@ -191,11 +235,11 @@ export function useZaps(
             if (onZapSuccess) {
               // Consumer (e.g. ZapDialog) owns the success UI — skip the
               // toast so we don't double up with their celebration screen.
-              onZapSuccess({ amountSats: amount });
+              onZapSuccess({ amountSats: paidSats });
             } else {
               toast({
                 title: 'Zap successful!',
-                description: `You sent ${amount} sats via NWC to the author.`,
+                description: `You sent ${paidSats} sats via NWC to the author.`,
               });
             }
             return;
@@ -237,11 +281,11 @@ export function useZaps(
             queryClient.invalidateQueries({ queryKey: ['zaps'] });
 
             if (onZapSuccess) {
-              onZapSuccess({ amountSats: amount });
+              onZapSuccess({ amountSats: paidSats });
             } else {
               toast({
                 title: 'Zap successful!',
-                description: `You sent ${amount} sats to the author.`,
+                description: `You sent ${paidSats} sats to the author.`,
               });
             }
           } catch (weblnError) {
