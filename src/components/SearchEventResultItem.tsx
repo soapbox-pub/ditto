@@ -1,7 +1,13 @@
-import { defineMessage, FormattedMessage, type MessageDescriptor } from 'react-intl';
-import { AppWindow, Globe, Newspaper, List as ListIcon, Users, SmilePlus } from 'lucide-react';
-import type { ComponentType } from 'react';
+import { defineMessage, FormattedMessage, useIntl, type MessageDescriptor } from 'react-intl';
+import { AppWindow, Globe, Newspaper, List as ListIcon, UserRoundCheck, Users, SmilePlus } from 'lucide-react';
+import type { ComponentType, ReactNode } from 'react';
+import { EmojifiedText } from '@/components/CustomEmoji';
+import { ExternalFavicon } from '@/components/ExternalFavicon';
+import { useAuthor } from '@/hooks/useAuthor';
+import { useLinkPreview } from '@/hooks/useLinkPreview';
 import type { SearchEventResult } from '@/hooks/useSearchEvents';
+import { getDisplayName } from '@/lib/getDisplayName';
+import { getNsiteSubdomain } from '@/lib/nsiteSubdomain';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
@@ -47,15 +53,22 @@ const EVENT_TYPE_META: Record<SearchEventResult['type'], EventTypeMeta> = {
 export function SearchEventResultItem({
   result,
   isSelected,
+  isFollowed,
   onClick,
 }: {
   result: SearchEventResult;
   isSelected: boolean;
+  isFollowed: boolean;
   onClick: (result: SearchEventResult) => void;
 }) {
+  const intl = useIntl();
   const { icon: Icon, label } = EVENT_TYPE_META[result.type];
-  // Image comes from untrusted event tags — sanitize before it lands in `src`.
-  const image = sanitizeUrl(result.image);
+
+  // Attribution: "Site · by MK Fain". The type alone doesn't distinguish two
+  // sites with the same name, and the author is usually why a result is worth
+  // clicking — especially now that followed authors sort to the top.
+  const author = useAuthor(result.event.pubkey);
+  const authorEvent = author.data?.event;
 
   return (
     <button
@@ -69,29 +82,111 @@ export function SearchEventResultItem({
       onClick={() => onClick(result)}
       onMouseDown={(e) => e.preventDefault()}
     >
-      <div className="size-10 shrink-0 rounded-lg overflow-hidden bg-primary/10 flex items-center justify-center">
-        {image ? (
-          <img
-            src={image}
-            alt=""
-            className="size-10 object-cover"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
-            }}
-            decoding="async"
-          />
-        ) : null}
-        <div className={cn('items-center justify-center size-10', image ? 'hidden' : 'flex')}>
-          <Icon className="size-4 text-primary" />
-        </div>
+      <div className="relative shrink-0">
+        <ResultThumbnail result={result} Icon={Icon} />
+        {isFollowed && (
+          <span
+            className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full bg-primary flex items-center justify-center ring-2 ring-popover"
+            title={intl.formatMessage({ id: 'search.following', defaultMessage: 'Following' })}
+          >
+            <UserRoundCheck className="size-2.5 text-primary-foreground" strokeWidth={3} />
+          </span>
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <span className="font-semibold text-sm truncate block">{result.title}</span>
         <div className="text-xs text-muted-foreground truncate">
-          <FormattedMessage {...label} />
+          {authorEvent ? (
+            <FormattedMessage
+              id="search.eventResult.byline"
+              defaultMessage="{type} · by {author}"
+              values={{
+                type: intl.formatMessage(label),
+                author: (
+                  <EmojifiedText tags={authorEvent.tags}>
+                    {getDisplayName(author.data?.metadata)}
+                  </EmojifiedText>
+                ),
+              }}
+            />
+          ) : (
+            <FormattedMessage {...label} />
+          )}
         </div>
       </div>
     </button>
+  );
+}
+
+/** Picks the thumbnail strategy for a result type. */
+function ResultThumbnail({
+  result,
+  Icon,
+}: {
+  result: SearchEventResult;
+  Icon: ComponentType<{ className?: string }>;
+}) {
+  if (result.type === 'nsite') {
+    return <NsiteThumbnail result={result} Icon={Icon} />;
+  }
+
+  // Image comes from untrusted event tags — sanitize before it lands in `src`.
+  return (
+    <ThumbnailFrame
+      image={sanitizeUrl(result.image)}
+      fallback={<Icon className="size-4 text-primary" />}
+    />
+  );
+}
+
+/**
+ * Thumbnail for an nsite, which almost never carries an image tag.
+ *
+ * The site is live and served over HTTP, so fall back to the same sources the
+ * nsite card and sidebar item already use: the gateway's OpenGraph thumbnail,
+ * then the site's favicon, then the generic globe.
+ */
+function NsiteThumbnail({
+  result,
+  Icon,
+}: {
+  result: SearchEventResult;
+  Icon: ComponentType<{ className?: string }>;
+}) {
+  const siteUrl = `https://${getNsiteSubdomain(result.event)}.nsite.lol`;
+  const { data: preview } = useLinkPreview(siteUrl);
+
+  const image = sanitizeUrl(result.image) ?? sanitizeUrl(preview?.thumbnail_url);
+
+  return (
+    <ThumbnailFrame
+      image={image}
+      fallback={
+        <ExternalFavicon url={siteUrl} size={20} fallback={<Icon className="size-4 text-primary" />} />
+      }
+    />
+  );
+}
+
+/** Square thumbnail that swaps to `fallback` when the image is absent or fails. */
+function ThumbnailFrame({ image, fallback }: { image?: string; fallback: ReactNode }) {
+  return (
+    <div className="size-10 rounded-lg overflow-hidden bg-primary/10 flex items-center justify-center">
+      {image ? (
+        <img
+          src={image}
+          alt=""
+          className="size-10 object-cover"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
+          }}
+          decoding="async"
+        />
+      ) : null}
+      <div className={cn('items-center justify-center size-10', image ? 'hidden' : 'flex')}>
+        {fallback}
+      </div>
+    </div>
   );
 }
