@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
 import { BackButtonHandler } from "@/components/BackButtonHandler";
 import { DeepLinkHandler } from "@/components/DeepLinkHandler";
+import { NativeNavHandler } from "@/components/NativeNavHandler";
 import { HighlightSelectionButton } from "@/components/HighlightSelectionButton";
 import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
@@ -129,6 +130,7 @@ export function AppRouter() {
         <MinimizedAudioBar />
         <AudioNavigationGuard />
         <DeepLinkHandler />
+        <NativeNavHandler />
         <BackButtonHandler />
         <ScrollToTop />
         <HighlightSelectionButton />

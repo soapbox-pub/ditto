@@ -36,6 +36,49 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
     static let bgTaskIdentifier = "pub.ditto.app.notification-refresh"
     private static let prefsKey = "ditto_notification_config"
 
+    // MARK: - Notification-tap bridge
+
+    /// Live plugin instance, set once the bridge loads the plugin. Taps that
+    /// arrive before the WebView/bridge is ready (cold start) are stashed in
+    /// `pendingTaps` and flushed here.
+    private static weak var instance: DittoNotificationPlugin?
+
+    /// Notification-tap paths emitted before the plugin instance existed.
+    private static var pendingTaps: [String] = []
+    private static let pendingLock = NSLock()
+
+    override public func load() {
+        Self.instance = self
+        Self.flushPendingTaps()
+    }
+
+    /// Forward a notification tap into the JS layer as structured data.
+    ///
+    /// Called from `AppDelegate`'s `UNUserNotificationCenterDelegate`. The path
+    /// crosses the Capacitor bridge as a JSON object — never concatenated into
+    /// a code string — so there is no `evaluateJavaScript` sink to escape. The
+    /// event is retained until a listener consumes it, covering the cold-start
+    /// race where the tap arrives before the JS layer has mounted its listener.
+    static func emitNotificationTap(path: String) {
+        pendingLock.lock()
+        pendingTaps.append(path)
+        pendingLock.unlock()
+        if instance != nil {
+            flushPendingTaps()
+        }
+    }
+
+    private static func flushPendingTaps() {
+        guard let plugin = instance else { return }
+        pendingLock.lock()
+        let toSend = pendingTaps
+        pendingTaps.removeAll()
+        pendingLock.unlock()
+        for path in toSend {
+            plugin.notifyListeners("notificationTap", data: ["path": path], retainUntilConsumed: true)
+        }
+    }
+
     // MARK: - Plugin Methods
 
     /// Called from JS: `DittoNotification.configure({ ... })`.

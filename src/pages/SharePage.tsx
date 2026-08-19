@@ -1,22 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { extractFirstUrl } from '@/lib/shareText';
+
+/** Router state passed by `NativeNavHandler` for native (Android) shares. */
+interface ShareState {
+  mode?: string;
+  text?: string;
+}
 
 /**
  * Landing route for content shared into Ditto from another app's Share button.
  * Reached two ways:
  *
  *   - Android share targets (native app) — see `AndroidManifest.xml` and
- *     `MainActivity.java`. The raw shared text arrives URL-encoded in the
- *     `text` param, and the launched activity-alias sets `mode`.
+ *     `MainActivity.java`. The native `DittoNotification` plugin emits a
+ *     `share` event, which `NativeNavHandler` routes here with `{ mode, text }`
+ *     in `location.state` — the shared text is never assembled into a URL.
  *   - Web Share Target (installed PWA) — see `share_target` in
  *     `public/manifest.webmanifest`. The browser delivers `title`, `text`,
- *     and `url` as separate params (which of them are populated varies by
+ *     and `url` as separate query params (which of them are populated varies by
  *     source app) and no `mode`, so PWA shares default to `post`.
  *
- * Two modes, selected by the `mode` query param:
+ * Two modes, selected by `mode` (state or query param):
  *
  *   - `view` — "View in Ditto". Extract the first URL from the shared text and
  *     redirect to the external-content comment page (`/i/<url>`). If no URL is
@@ -26,10 +33,13 @@ import { extractFirstUrl } from '@/lib/shareText';
  */
 export function SharePage() {
   const [params] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
 
-  const mode = params.get('mode') === 'view' ? 'view' : 'post';
-  const rawText = params.get('text') ?? '';
+  const state = (location.state ?? null) as ShareState | null;
+
+  const mode = (state?.mode ?? params.get('mode')) === 'view' ? 'view' : 'post';
+  const rawText = state?.text ?? params.get('text') ?? '';
   const title = params.get('title') ?? '';
   const url = params.get('url') ?? '';
 
