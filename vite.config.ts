@@ -43,6 +43,11 @@ function copyDirSync(src: string, dest: string): void {
   if (!fs.existsSync(src)) return;
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    // A symlink-to-file reports isDirectory() === false, so it would otherwise
+    // fall through to copyFileSync — which copies the *target's* contents into
+    // dist/ as a real file. One planted link and the build bakes an arbitrary
+    // host file into the artifact CI then publishes.
+    if (entry.isSymbolicLink()) continue;
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) {
@@ -51,6 +56,29 @@ function copyDirSync(src: string, dest: string): void {
       fs.copyFileSync(srcPath, destPath);
     }
   }
+}
+
+/**
+ * Resolve a request path inside `root`, or return `null` if it escapes.
+ *
+ * Decode *then* normalise, and assert containment afterwards. Doing it the
+ * other way round is what made this a traversal: `new URL()` collapses `../`
+ * and `%2e%2e` segments, but it does not decode `%2f`, so running
+ * `decodeURIComponent` afterwards turned `/..%2fsecret` back into `/../secret`
+ * — reconstituting the escape after the only thing that looked like a check.
+ */
+function resolveWithinDir(root: string, urlPath: string): string | null {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(urlPath);
+  } catch {
+    return null; // malformed percent-encoding
+  }
+  if (decoded.includes("\0")) return null;
+
+  const resolved = path.resolve(root, "." + path.posix.normalize(decoded));
+  if (resolved !== root && !resolved.startsWith(root + path.sep)) return null;
+  return resolved;
 }
 
 /**
@@ -72,13 +100,19 @@ function mergePublicDir(externalDir: string): Plugin {
       server.middlewares.use((req, res, next) => {
         if (!req.url) return next();
 
-        const urlPath = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
-        const filePath = path.join(resolved, urlPath);
+        const { pathname } = new URL(req.url, "http://localhost");
+        const filePath = resolveWithinDir(resolved, pathname);
+        if (!filePath) return next();
 
         try {
-          const stat = fs.statSync(filePath);
+          // lstat, not stat: a symlink planted in the public dir would
+          // otherwise be followed straight back out of it at serve time. This
+          // middleware runs ahead of Vite's own server.fs deny-list, so
+          // nothing downstream would catch it.
+          const stat = fs.lstatSync(filePath);
           if (stat.isFile()) {
             // Let Vite's static middleware handle it by pointing to the file.
+            res.setHeader("X-Content-Type-Options", "nosniff");
             const stream = fs.createReadStream(filePath);
             stream.pipe(res);
             return;
