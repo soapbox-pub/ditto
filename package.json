@@ -68,9 +68,9 @@
     "@milkdown/prose": "^7.20.0",
     "@milkdown/react": "^7.20.0",
     "@milkdown/utils": "^7.20.0",
-    "@nostrify/indexeddb": "^0.2.1",
-    "@nostrify/nostrify": "^0.54.1",
-    "@nostrify/react": "^0.6.6",
+    "@nostrify/indexeddb": "^0.2.2",
+    "@nostrify/nostrify": "^0.55.0",
+    "@nostrify/react": "^0.6.7",
     "@nostrify/types": "^0.37.0",
     "@plausible-analytics/tracker": "^0.4.4",
     "@radix-ui/react-accordion": "^1.2.0",
@@ -180,6 +180,12 @@
   },
   "overrides": {
     "react": "$react",
-    "react-dom": "$react-dom"
+    "react-dom": "$react-dom",
+    "@blobbi-kit/core": {
+      "@nostrify/nostrify": "$@nostrify/nostrify"
+    },
+    "@blobbi-kit/react": {
+      "@nostrify/nostrify": "$@nostrify/nostrify"
+    }
   }
 }
