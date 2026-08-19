@@ -26,8 +26,12 @@ export function FollowQRDialog({ open, onOpenChange }: FollowQRDialogProps) {
   const metadata = author.data?.metadata;
   const displayName = user ? metadata?.name || metadata?.display_name || 'Anonymous' : '';
 
+  // Links to the profile, where following is an explicit tap. There used to be
+  // a dedicated /follow/:npub landing page that published a contact-list update
+  // on mount — merely opening the link was enough to rewrite the visitor's
+  // social graph — so the route is gone and this shares the profile instead.
   const npub = user ? nip19.npubEncode(user.pubkey) : '';
-  const followUrl = npub ? `${shareOrigin}/follow/${npub}` : '';
+  const followUrl = npub ? `${shareOrigin}/${npub}` : '';
 
   useEffect(() => {
     if (!followUrl || !open) return;

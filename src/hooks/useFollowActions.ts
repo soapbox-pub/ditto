@@ -94,6 +94,37 @@ export function useFollowActions(): UseFollowActionsReturn {
 
   const [isPending, setIsPending] = useState(false);
 
+  /**
+   * Read the contact list to rebuild from, refusing to fall back to an empty
+   * base when we have reason to believe one exists.
+   *
+   * A kind 3 is replaceable, so publishing one built from nothing replaces the
+   * user's real follow list on every relay it reaches — a social graph that
+   * may have taken years to build, gone in one event. `fetchFreshEvent`
+   * already uses the local store as a floor, but `NPool.query` swallows relay
+   * errors and returns an empty array, so a null result means either "this
+   * account has no contact list" or "no relay answered". The display query
+   * cache is consulted as a last floor before accepting the former.
+   */
+  const readContactList = useCallback(async (): Promise<NostrEvent | null> => {
+    if (!user) throw new Error('Not logged in');
+
+    const fresh = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] }, { store });
+    if (fresh) return fresh;
+
+    const known = queryClient.getQueryData<FollowListData>(['follow-list', user.pubkey]);
+    if (known?.event) return known.event;
+
+    // Nothing anywhere agrees that a contact list exists, but the app has
+    // already rendered follows for this user — the reads went backwards, and
+    // publishing now would drop every one of them.
+    if (known && known.pubkeys.length > 0) {
+      throw new Error('Your follow list is still loading. Please try again in a moment.');
+    }
+
+    return null;
+  }, [nostr, user, queryClient, store]);
+
   const mutateFollowList = useCallback(
     async (targetPubkey: string, action: 'follow' | 'unfollow') => {
       if (!user) throw new Error('Not logged in');
@@ -102,7 +133,7 @@ export function useFollowActions(): UseFollowActionsReturn {
       try {
         // ① Fetch the freshest kind 3 event via pool, falling back to the
         // locally cached copy so a relay miss can't wipe the follow list.
-        const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] }, { store });
+        const prev = await readContactList();
 
         // ② Separate tags into `p` tags (follow entries) and everything else
         const existingTags = prev?.tags ?? [];
@@ -150,7 +181,7 @@ export function useFollowActions(): UseFollowActionsReturn {
         setIsPending(false);
       }
     },
-    [nostr, user, publishEvent, queryClient, store],
+    [readContactList, user, publishEvent, queryClient, store],
   );
 
   const follow = useCallback(
@@ -171,7 +202,7 @@ export function useFollowActions(): UseFollowActionsReturn {
       try {
         // ① Fetch the freshest kind 3 event via pool, falling back to the
         // locally cached copy so a relay miss can't wipe the follow list.
-        const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] }, { store });
+        const prev = await readContactList();
 
         // ② Separate p-tags from everything else (preserve relay hints, petnames, etc.)
         const existingTags = prev?.tags ?? [];
@@ -216,7 +247,7 @@ export function useFollowActions(): UseFollowActionsReturn {
         setIsPending(false);
       }
     },
-    [nostr, user, publishEvent, queryClient, store],
+    [readContactList, user, publishEvent, queryClient, store],
   );
 
   return { isPending, follow, unfollow, followMany };

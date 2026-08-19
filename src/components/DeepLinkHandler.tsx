@@ -60,8 +60,13 @@ export function DeepLinkHandler() {
           return;
         }
 
+        // Universal links only. The path is forwarded to the router verbatim,
+        // so restricting it to https keeps arbitrary custom schemes — which
+        // any app on the device can register and fire — from picking the route
+        // the app lands on. `bitcoin:` and `nostr:` are handled above.
         try {
           const url = new URL(raw);
+          if (url.protocol !== 'https:') return;
           const path = url.pathname + url.search + url.hash;
           if (path) {
             navigate(path);
