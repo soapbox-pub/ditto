@@ -89,10 +89,39 @@ function signBip375PsbtV2Locally(
   // BIP-375 PSBT_OUT_SP_V0_INFO field number).
   const O_SP_V0_INFO = 0x09;
 
+  // Every input must be the sender's own P2TR before we can treat
+  // `tweakedPrivKey` as the private key behind all of them. This used to be
+  // checked seventy lines further down, inside the transaction-building loop —
+  // long after the silent-payment derivation had already assumed it.
+  for (const inp of psbt.inputs) {
+    if (!inp.witnessUtxo) {
+      throw new Error('NSecSignerBtc: input is missing witnessUtxo.');
+    }
+    if (!bytesEqual(inp.witnessUtxo.script, senderScript)) {
+      throw new Error('NSecSignerBtc: input is not from the sender (script mismatch).');
+    }
+  }
+
   // Resolve every SP output once, since the wallet uses every UTXO and the
   // derivation depends on the full input set's outpoints (BIP-352 picks the
   // lex-smallest outpoint for `input_hash`).
   const allOutpoints = psbt.inputs.map((i) => ({ txid: i.txid, vout: i.vout }));
+
+  // BIP-352 requires the sender to aggregate the private keys of *every*
+  // eligible input (`a = Σ aᵢ`), because the recipient reconstructs the
+  // matching `A = Σ Pᵢ` from the transaction's inputs when scanning. Deriving
+  // from `inputs[0]` alone produced a different `input_hash` and a different
+  // ECDH secret the moment the wallet held more than one UTXO — which, since
+  // it spends all of them on every send, is the steady state for any wallet
+  // that has received a payment. The transaction confirmed and the change came
+  // back correctly; the recipient simply never saw the payment, because it
+  // paid a key nobody was scanning for.
+  const spInputs: SilentPaymentInput[] = psbt.inputs.map((i) => ({
+    txid: i.txid,
+    vout: i.vout,
+    privateKey: tweakedPrivKey,
+    isTaproot: true,
+  }));
 
   // Collect all SP recipients up-front so `deriveSilentPaymentOutputs` can
   // group them by scan key and assign `k = 0, 1, …` per group. The PSBT-
@@ -130,13 +159,7 @@ function signBip375PsbtV2Locally(
   });
 
   if (spRecipients.length > 0) {
-    const spInput: SilentPaymentInput = {
-      txid: psbt.inputs[0].txid,
-      vout: psbt.inputs[0].vout,
-      privateKey: tweakedPrivKey,
-      isTaproot: true,
-    };
-    const derived = deriveSilentPaymentOutputs([spInput], spRecipients, {
+    const derived = deriveSilentPaymentOutputs(spInputs, spRecipients, {
       allOutpoints,
       network: 'mainnet',
     });
@@ -166,17 +189,7 @@ function signBip375PsbtV2Locally(
   // BIP-375 verifier can re-derive the output scripts without trusting us.
   const spGlobals: { scanPubKey: Uint8Array; ecdhShare: Uint8Array; dleqProof: Uint8Array }[] = [];
   if (spRecipients.length > 0) {
-    const agg = aggregateSenderPrivateKey(
-      [
-        {
-          txid: psbt.inputs[0].txid,
-          vout: psbt.inputs[0].vout,
-          privateKey: tweakedPrivKey,
-          isTaproot: true,
-        },
-      ],
-      allOutpoints,
-    );
+    const agg = aggregateSenderPrivateKey(spInputs, allOutpoints);
     // Group recipient scan keys, deduplicating so we emit one share per
     // unique scan key (multiple SP outputs to the same recipient share).
     const seen = new Map<string, Uint8Array>();
@@ -199,13 +212,10 @@ function signBip375PsbtV2Locally(
   // is to use `Transaction` directly because we control every input/output.
   const tx = new btc.Transaction();
   for (const inp of psbt.inputs) {
+    // Already validated up front, before the silent-payment derivation that
+    // depends on it; repeated here only to narrow the type.
     if (!inp.witnessUtxo) {
       throw new Error('NSecSignerBtc: input is missing witnessUtxo.');
-    }
-    // Verify the witness UTXO's script matches the sender's address — we
-    // shouldn't be asked to sign anyone else's UTXOs.
-    if (!bytesEqual(inp.witnessUtxo.script, senderScript)) {
-      throw new Error('NSecSignerBtc: input is not from the sender (script mismatch).');
     }
     tx.addInput({
       txid: inp.txid,

@@ -18,6 +18,12 @@ import {
 } from '@/lib/bitcoin';
 import { parsePsbtV2, extractTxFromSignedPsbtV2 } from '@/lib/psbtV2';
 import { NSecSignerBtc } from '@/lib/bitcoin-signers';
+import {
+  decodeSilentPaymentAddress,
+  deriveSilentPaymentOutputs,
+  p2trScriptPubKey,
+  tweakNsecForTaproot,
+} from '@/lib/silentPayments';
 
 /**
  * Regression test vectors for key-path-only P2TR address derivation using the
@@ -459,6 +465,74 @@ describe('NSecSignerBtc.signPsbt — BIP-375 path', () => {
     // `02000000` is txVersion=2 in LE; `0001` is the SegWit marker/flag we
     // expect because Taproot inputs are signed with witnesses.
     expect(txHex.startsWith('020000000001')).toBe(true);
+  });
+
+  /**
+   * BIP-352 requires the sender to aggregate the private keys of *every*
+   * eligible input, because the recipient reconstructs `A = Σ Pᵢ` from the
+   * transaction's inputs when scanning. The signer used to derive from
+   * `inputs[0]` alone, which is invisible with one UTXO and silently
+   * misdirects the payment with two — the normal state for a wallet that has
+   * received anything, since the wallet spends every UTXO on each send.
+   */
+  it('derives the SP output from every input, not just the first', async () => {
+    function hexToBytes(h: string): Uint8Array {
+      const out = new Uint8Array(h.length / 2);
+      for (let i = 0; i < out.length; i++) out[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16);
+      return out;
+    }
+    const signer = new NSecSignerBtc(hexToBytes(SENDER_NSEC_HEX));
+    const senderPubkey = await signer.getPublicKey();
+
+    const utxos: UTXO[] = [
+      {
+        txid: 'f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16',
+        vout: 0,
+        value: 100_000,
+        status: { confirmed: true },
+      },
+      {
+        txid: '0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098',
+        vout: 1,
+        value: 60_000,
+        status: { confirmed: true },
+      },
+    ];
+
+    const signOne = async (spend: UTXO[]) => {
+      const { psbtHex } = buildUnsignedSilentPaymentPsbt(
+        senderPubkey,
+        REFERENCE_SP_ADDRESS,
+        40_000,
+        spend,
+        5,
+      );
+      const parsed = parsePsbtV2(await signer.signPsbt(psbtHex));
+      return parsed.outputs[0].script!;
+    };
+
+    const oneInput = await signOne([utxos[0]]);
+    const twoInputs = await signOne(utxos);
+
+    // The signature of the defect: the derived output was identical no matter
+    // how many inputs the transaction spent.
+    expect(Array.from(twoInputs)).not.toEqual(Array.from(oneInput));
+
+    // And it must equal what a spec-correct derivation over both inputs
+    // produces — the script the recipient's scanner will actually look for.
+    const tweaked = tweakNsecForTaproot(SENDER_NSEC_HEX);
+    const spInputs = utxos.map((u) => ({
+      txid: u.txid,
+      vout: u.vout,
+      privateKey: tweaked,
+      isTaproot: true,
+    }));
+    const [expected] = deriveSilentPaymentOutputs(
+      spInputs,
+      [{ address: decodeSilentPaymentAddress(REFERENCE_SP_ADDRESS) }],
+      { allOutpoints: utxos.map((u) => ({ txid: u.txid, vout: u.vout })), network: 'mainnet' },
+    );
+    expect(Array.from(twoInputs)).toEqual(Array.from(p2trScriptPubKey(expected.xOnlyPubKey)));
   });
 
   it('falls back to the regular PSBT v0 path when no SP outputs are present', async () => {
