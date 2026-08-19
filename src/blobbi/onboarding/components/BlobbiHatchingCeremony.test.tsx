@@ -208,6 +208,9 @@ describe('BlobbiHatchingCeremony silent setup', () => {
     const existing = makeProfileEvent(currentPubkey, [
       ['name', 'Keeper'],
       ['coins', '137'], // legacy tag: preserved opaquely, never rewritten
+      // Dangling reference: no kind:31124 event backs 'pet-old' on the relays,
+      // so the ownership preflight reports no owned Blobbi and the first egg is
+      // still minted. This is recovery, not duplicate creation.
       ['has', 'pet-old'],
       ['current_companion', 'pet-old'],
       ['x-ditto-ext', 'keepme'], // unknown tag must survive
@@ -283,6 +286,8 @@ describe('BlobbiHatchingCeremony silent setup', () => {
     currentPubkey = 'f'.repeat(64);
     const existing = makeProfileEvent(currentPubkey, [
       ['name', 'Keeper'],
+      // Dangling has entry again — nothing on relays backs it, so the ownership
+      // preflight does not veto minting the first egg.
       ['has', 'pet-old'],
     ]);
     const profile = parseBlobbonautEvent(existing);
