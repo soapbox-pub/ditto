@@ -1,6 +1,8 @@
 import type { NostrEvent, NPool } from '@nostrify/nostrify';
 import type { InfiniteData, QueryClient } from '@tanstack/react-query';
+import { EventVerifier } from '@/lib/EventVerifier';
 import { getGitRootRef } from '@/lib/gitActivity';
+import { isNostrId } from '@/lib/nostrId';
 import { isNsiteKind } from '@/lib/nsiteSubdomain';
 import { getZapAmountSats, getZapSenderPubkey, getTargetEventId } from '@/lib/zapHelpers';
 
@@ -546,18 +548,68 @@ export function dedupeFeedItems(items: FeedItem[]): FeedItem[] {
 }
 
 /**
+ * Verifies embedded repost payloads. Module-level so a given event id costs
+ * one Schnorr verification across every feed rebuild, and only a SHA-256
+ * re-hash afterwards.
+ */
+const repostVerifier = new EventVerifier();
+
+/** Runtime shape check for an object claiming to be a Nostr event. */
+function isWellFormedEvent(value: unknown): value is NostrEvent {
+  if (typeof value !== 'object' || value === null) return false;
+  const event = value as Record<string, unknown>;
+
+  return (
+    isNostrId(event.id) &&
+    isNostrId(event.pubkey) &&
+    typeof event.sig === 'string' &&
+    /^[0-9a-f]{128}$/.test(event.sig) &&
+    typeof event.kind === 'number' &&
+    Number.isInteger(event.kind) &&
+    typeof event.content === 'string' &&
+    typeof event.created_at === 'number' &&
+    Number.isInteger(event.created_at) &&
+    Array.isArray(event.tags) &&
+    event.tags.every(
+      (tag) => Array.isArray(tag) && tag.every((value) => typeof value === 'string'),
+    )
+  );
+}
+
+/**
  * Tries to parse the original event from a kind 6 or kind 16 repost's content.
- * Returns undefined if the content is empty or not valid JSON.
+ * Returns undefined if the content is empty, not valid JSON, malformed, or not
+ * genuinely signed by the pubkey it claims.
+ *
+ * The signature check is the point of this function. The app's only other
+ * signature gate sits on the relay socket, and it sees the *outer* repost —
+ * which an attacker signs honestly. Nothing recurses into `content`, so
+ * without a check here a validly-signed kind 6 can carry any JSON at all and
+ * the feed renders it under the impersonated author's name, avatar and NIP-05
+ * badge. Setting the embedded `id` to a real note's id additionally shadows
+ * that note in the `['event', id]` query cache for the rest of the session.
+ *
+ * On failure the caller falls back to resolving the `e` tag, which goes
+ * through the verified relay path.
  */
 export function parseRepostContent(repost: NostrEvent): NostrEvent | undefined {
   if (!repost.content || repost.content.trim() === '') return undefined;
+
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(repost.content);
-    if (parsed && typeof parsed === 'object' && parsed.id && parsed.pubkey && parsed.kind !== undefined) {
-      return parsed as NostrEvent;
-    }
+    parsed = JSON.parse(repost.content);
   } catch {
-    // invalid JSON
+    return undefined;
   }
-  return undefined;
+
+  // Shape first: `verifyEvent` throws on missing or wrong-typed fields, and a
+  // non-array `tags` would otherwise crash the feed's own useMemo — above
+  // NoteCard's error boundary, blanking the whole route.
+  if (!isWellFormedEvent(parsed)) return undefined;
+
+  // `verify` re-hashes on a cache hit, so an object that merely claims a
+  // known id is still rejected.
+  if (!repostVerifier.verify(parsed)) return undefined;
+
+  return parsed;
 }
