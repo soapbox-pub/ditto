@@ -75,17 +75,51 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         let userInfo = response.notification.request.content.userInfo
         let path = userInfo["url"] as? String ?? "/notifications"
 
+        // The path is only ever written by our own poller today, but it comes
+        // out of a dictionary that notification payloads can populate, so it is
+        // treated as untrusted: rejected unless it is a plain rooted path, and
+        // embedded as a JSON string literal rather than by interpolation.
+        // Interpolating it straight into the source would let a single quote
+        // close the literal and run the rest as JavaScript in the
+        // bridge-enabled main frame.
+        guard Self.isSafePath(path) else {
+            completionHandler()
+            return
+        }
+        let literal = Self.jsStringLiteral(path)
+
         // Navigate the Capacitor WebView to the notifications page.
         DispatchQueue.main.async { [weak self] in
             guard let rootVC = self?.window?.rootViewController as? DittoBridgeViewController else {
                 completionHandler()
                 return
             }
-            let js = "window.location.pathname !== '\(path)' && (window.location.pathname = '\(path)');"
+            let js = "window.location.pathname !== \(literal) && (window.location.pathname = \(literal));"
             rootVC.webView?.evaluateJavaScript(js) { _, _ in }
         }
 
         completionHandler()
+    }
+
+    /// Rooted paths limited to the characters RFC 3986 allows in a path,
+    /// query or fragment.
+    private static func isSafePath(_ path: String) -> Bool {
+        guard path.hasPrefix("/") else { return false }
+        let allowed = CharacterSet(charactersIn:
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~!$&'()*+,;=:@%/?#[]")
+        return path.unicodeScalars.allSatisfy { allowed.contains($0) }
+    }
+
+    /// Encode a string as a JavaScript string literal, escaping quotes,
+    /// backslashes and control characters.
+    private static func jsStringLiteral(_ value: String) -> String {
+        guard let data = try? JSONSerialization.data(withJSONObject: [value]),
+              let array = String(data: data, encoding: .utf8),
+              array.count >= 2 else {
+            return "\"\""
+        }
+        // JSONSerialization emits ["…"]; drop the array brackets.
+        return String(array.dropFirst().dropLast())
     }
 
     // MARK: - Notification Categories
