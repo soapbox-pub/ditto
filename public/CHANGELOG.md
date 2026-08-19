@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.35.1] - 2026-08-19
+
+A security release for the mobile apps. Notification taps and content shared into Ditto from another app now arrive as plain data instead of being assembled into code, so a hostile app on your phone can't use them to steer Ditto somewhere you never tapped. Links that try to bounce you off ditto.pub to another site are turned away too. Nothing else about the app changes.
+
+### Fixed
+- Notification taps and shares from other apps are handled as data, closing off a path a malicious app on your device could have used to take Ditto somewhere you didn't ask for
+- Links dressed up to look like ditto.pub addresses but pointing at another site are now rejected instead of followed
+
 ## [2.35.0] - 2026-08-19
 
 Links now shed their tracking junk. The utm tags, share ids, and click ids that follow you around get stripped from the links you post and the links you read, with a switch in Settings if you'd rather keep them. Search puts the people you follow first and turns up sites and apps, not just articles. Profile glow-ups and relay lists land in your feed as real cards, videos play right inside quotes, and profiles load from their author's own relays. Plus security fixes for zaps and Bitcoin sends.
