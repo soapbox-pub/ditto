@@ -61,6 +61,52 @@ export const DITTO_EXPLORER_BADGE_IMAGE =
 export const DITTO_EXPLORER_BADGE_ATAG =
   `${BADGE_DEFINITION_KIND}:${DITTO_BADGES_ISSUER_PUBKEY}:${DITTO_EXPLORER_BADGE_DTAG}`;
 
+/**
+ * The **published claim vocabulary**: internal task id → the `path` tag value
+ * that goes on the wire.
+ *
+ * These two are deliberately different things, and this map is the seam between
+ * them. The internal ids are a product concept and may be renamed whenever the
+ * task itself changes; the `path` values are a *protocol* identifier, specified
+ * in `NIP.md` (Kind 30637), already published by shipped clients and already
+ * consumed by the issuer's award server. Renaming one of them silently breaks
+ * every listener that was written against the spec.
+ *
+ * That is exactly what happened to the fourth path. It shipped as `explore`
+ * ("Explore Ditto", completed by reaching `/trends`) and the task was later
+ * replaced by `interact` ("Find something you like"). The internal id followed
+ * the product; the wire value should not have, and did — so complete journeys
+ * published a claim with no `explore` path and the award server rejected them
+ * with `missing path: explore`.
+ *
+ * So `interact` maps to the frozen wire value `explore`. It is not a
+ * compatibility shim that can invent a completion: the tag is still emitted
+ * only when the fourth task is genuinely completed, and it still means exactly
+ * what the spec says it means — *the fourth path of the Ditto Explorer guide
+ * was finished*. Only the spelling is frozen.
+ *
+ * Typed as an exhaustive `Record`, so adding or renaming a task id is a type
+ * error here until someone decides, explicitly, what it is called on the wire.
+ */
+export const CLAIM_PATH_TAG: Record<PostOnboardingPathId, string> = {
+  'find-people': 'find-people',
+  'post-small': 'post-small',
+  customize: 'customize',
+  // Frozen wire value. See above: NOT a rename of the task.
+  interact: 'explore',
+};
+
+/**
+ * Every `path` value a complete Ditto Explorer claim must carry, in canonical
+ * order. This is the contract the award server validates against.
+ */
+export const DITTO_EXPLORER_CLAIM_PATHS: readonly string[] = [
+  'find-people',
+  'post-small',
+  'customize',
+  'explore',
+] as const;
+
 /** NIP-31 human-readable fallback for a Ditto Explorer claim event. */
 export const DITTO_EXPLORER_CLAIM_ALT = 'Claim for the Ditto Explorer badge';
 
@@ -78,16 +124,23 @@ export interface BadgeClaimTemplate {
  *   - `d`    → the badge d-tag (`ditto-explorer`) — makes the claim addressable.
  *   - `a`    → the badge definition coordinate (`30009:<issuer>:ditto-explorer`).
  *   - `p`    → the issuer pubkey, so the server can also filter by `#p`.
- *   - `path` → one tag per completed guide path (public, non-sensitive).
+ *   - `path` → one tag per completed guide path (public, non-sensitive), named
+ *              with its published wire value from {@link CLAIM_PATH_TAG} rather
+ *              than its internal task id.
  *   - `alt`  → NIP-31 fallback.
  *
  * `content` is empty by convention (this is a tag-only event).
+ *
+ * Duplicates are collapsed. Callers pass a filtered, unique list today, but a
+ * repeated `path` tag would be a malformed claim and this is the only place
+ * that can guarantee it never is.
  *
  * @param completedPaths Completed guide path ids, in their canonical order.
  */
 export function buildExplorerClaimTemplate(
   completedPaths: readonly PostOnboardingPathId[],
 ): BadgeClaimTemplate {
+  const paths = [...new Set(completedPaths.map((path) => CLAIM_PATH_TAG[path]))];
   return {
     kind: BADGE_CLAIM_KIND,
     content: '',
@@ -95,7 +148,7 @@ export function buildExplorerClaimTemplate(
       ['d', DITTO_EXPLORER_BADGE_DTAG],
       ['a', DITTO_EXPLORER_BADGE_ATAG],
       ['p', DITTO_BADGES_ISSUER_PUBKEY],
-      ...completedPaths.map((path) => ['path', path]),
+      ...paths.map((path) => ['path', path]),
       ['alt', DITTO_EXPLORER_CLAIM_ALT],
     ],
   };

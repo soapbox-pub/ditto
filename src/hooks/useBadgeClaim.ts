@@ -7,6 +7,7 @@ import { usePostOnboardingGuide } from '@/hooks/usePostOnboardingGuide';
 import { useToast } from '@/hooks/useToast';
 import { buildExplorerClaimTemplate } from '@/lib/badgeClaim';
 import {
+  areAllPathsCompleted,
   POST_ONBOARDING_PATH_IDS,
   type BadgeRewardView,
   type PostOnboardingGuideState,
@@ -151,7 +152,24 @@ export function useBadgeClaim() {
             : { status: 'in-flight' };
         }
 
-        const template = buildExplorerClaimTemplate(completedPaths(state));
+        // Serialize from the *freshest* state, not from the render that
+        // created this callback. `beginBadgeClaim` just validated against the
+        // state as of now, possibly written by another tab or by a task that
+        // completed while this callback was being awaited; publishing the
+        // closure's older snapshot could name fewer paths than the claim it was
+        // allowed to make.
+        const latest = stateRef.current ?? state;
+        // A claim asserts a *finished* journey. If the freshest state does not
+        // agree — a mid-flight reset, a settings reload, a state written by a
+        // build that knows a task this one doesn't — publish nothing rather than
+        // a claim that under-reports what the user did. `claiming` is cleared so
+        // this can't leave the reward stuck behind a spinner.
+        if (!areAllPathsCompleted(latest)) {
+          await failBadgeClaim();
+          return { status: 'ineligible', rewardView };
+        }
+
+        const template = buildExplorerClaimTemplate(completedPaths(latest));
         const event = fakePublish
           ? await fakePublish(template)
           : await publishEvent(template);

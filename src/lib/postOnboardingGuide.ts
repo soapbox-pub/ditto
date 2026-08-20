@@ -87,8 +87,14 @@ import type { PostInteractionKind } from '@/lib/postInteraction';
 export type PostOnboardingGuideStatus = 'active' | 'completed' | 'skipped';
 
 /**
- * Stable task ids. These are persisted and published (as `path` tags on the
- * badge claim), so they must never be renamed.
+ * Task ids, as persisted in the user's encrypted settings.
+ *
+ * These are an **internal** vocabulary. They are persisted, so renaming one
+ * without a migration resets everybody who had completed it — but they are no
+ * longer what goes on the wire. The badge claim's `path` tags have their own
+ * frozen, published spelling, and `CLAIM_PATH_TAG` in `lib/badgeClaim` is the
+ * single place that maps between the two. Renaming a task id there is a type
+ * error until its wire value is decided explicitly.
  */
 export type PostOnboardingPathId =
   | 'find-people'

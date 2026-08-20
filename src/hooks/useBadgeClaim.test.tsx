@@ -4,7 +4,14 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useBadgeClaim } from './useBadgeClaim';
-import { BADGE_CLAIM_KIND, DITTO_EXPLORER_BADGE_DTAG } from '@/lib/badgeClaim';
+import {
+  BADGE_CLAIM_KIND,
+  DITTO_BADGES_ISSUER_PUBKEY,
+  DITTO_EXPLORER_BADGE_ATAG,
+  DITTO_EXPLORER_BADGE_DTAG,
+  DITTO_EXPLORER_CLAIM_ALT,
+  DITTO_EXPLORER_CLAIM_PATHS,
+} from '@/lib/badgeClaim';
 import {
   createInitialGuideState,
   type PostOnboardingGuideState,
@@ -520,5 +527,149 @@ describe('useBadgeClaim — outcomes', () => {
     await waitFor(() => expect(result.current.isRevealed).toBe(true));
     expect(publishSpy).not.toHaveBeenCalled();
     expect(stored()?.badgeClaim?.claimEventId).toBe('f'.repeat(64));
+  });
+});
+
+/**
+ * The claim that reached the award server, end to end.
+ *
+ * A real DRY_RUN listener rejected a real claim with
+ * `validation failed ... reason=missing path: explore`. These assert the whole
+ * path from mission state to published template, not just the builder — the
+ * builder was fed the right thing all along; what it emitted was wrong.
+ */
+describe('useBadgeClaim — the published claim', () => {
+  /** The template that was actually handed to the publisher. */
+  function published() {
+    expect(publishSpy).toHaveBeenCalledTimes(1);
+    return publishSpy.mock.calls[0][0] as {
+      kind: number;
+      content: string;
+      tags: string[][];
+    };
+  }
+
+  function pathTags(template: { tags: string[][] }) {
+    return template.tags.filter(([name]) => name === 'path').map(([, value]) => value);
+  }
+
+  it('a fully completed mission publishes all four required paths', async () => {
+    seed(COMPLETED);
+    const { result } = renderHook(() => useBadgeClaim());
+    await act(async () => {
+      await result.current.claim();
+    });
+
+    const paths = pathTags(published());
+    for (const required of DITTO_EXPLORER_CLAIM_PATHS) {
+      expect(paths).toContain(required);
+    }
+    expect(paths).toEqual([...DITTO_EXPLORER_CLAIM_PATHS]);
+  });
+
+  it('includes `explore`, the tag the server said was missing', async () => {
+    seed(COMPLETED);
+    const { result } = renderHook(() => useBadgeClaim());
+    await act(async () => {
+      await result.current.claim();
+    });
+
+    expect(published().tags).toContainEqual(['path', 'explore']);
+    expect(published().tags).not.toContainEqual(['path', 'interact']);
+  });
+
+  it('emits no duplicate tags', async () => {
+    seed(COMPLETED);
+    const { result } = renderHook(() => useBadgeClaim());
+    await act(async () => {
+      await result.current.claim();
+    });
+
+    const serialized = published().tags.map((tag) => tag.join('\u0000'));
+    expect(new Set(serialized).size).toBe(serialized.length);
+  });
+
+  it('is otherwise exactly the event the spec describes', async () => {
+    seed(COMPLETED);
+    const { result } = renderHook(() => useBadgeClaim());
+    await act(async () => {
+      await result.current.claim();
+    });
+
+    const template = published();
+    expect(template.kind).toBe(BADGE_CLAIM_KIND);
+    expect(template.content).toBe('');
+    expect(template.tags).toContainEqual(['d', DITTO_EXPLORER_BADGE_DTAG]);
+    expect(template.tags).toContainEqual(['a', DITTO_EXPLORER_BADGE_ATAG]);
+    expect(template.tags).toContainEqual(['p', DITTO_BADGES_ISSUER_PUBKEY]);
+    expect(template.tags).toContainEqual(['alt', DITTO_EXPLORER_CLAIM_ALT]);
+  });
+
+  it('publishes nothing at all from an unfinished mission', async () => {
+    seed({
+      paths: {
+        'find-people': 'completed',
+        'post-small': 'completed',
+        customize: 'completed',
+        interact: 'active',
+      },
+    });
+    const { result } = renderHook(() => useBadgeClaim());
+
+    let outcome: Awaited<ReturnType<typeof result.current.claim>> | undefined;
+    await act(async () => {
+      outcome = await result.current.claim();
+    });
+
+    expect(publishSpy).not.toHaveBeenCalled();
+    expect(outcome).toEqual({ status: 'ineligible', rewardView: 'locked' });
+    expect(stored()?.badgeClaim?.status).toBeUndefined();
+  });
+
+  it('does not publish a claim the state stopped supporting mid-flight', async () => {
+    // The ordering the reveal gesture makes possible: the reward panel renders
+    // from a complete state, and by the time the "claiming" latch has been
+    // written the mission is no longer complete (another tab, a reset, a
+    // settings reload). The claim must be built from the state as of the
+    // publish, never from the render that armed the button — publishing the
+    // stale snapshot would assert a journey the user has not got.
+    seed(COMPLETED);
+    const { result } = renderHook(() => useBadgeClaim());
+
+    let regressed = false;
+    mutateAsync.mockImplementationOnce(async (patch: Partial<EncryptedSettings>) => {
+      settings = { ...settings, ...patch };
+      if (!regressed) {
+        regressed = true;
+        settings = {
+          ...settings,
+          postOnboardingGuide: {
+            ...settings!.postOnboardingGuide!,
+            paths: { ...settings!.postOnboardingGuide!.paths, interact: 'active' },
+          },
+        } as EncryptedSettings;
+      }
+      for (const listener of listeners) listener();
+      return { updatedSettings: settings };
+    });
+
+    await act(async () => {
+      await result.current.claim();
+    });
+
+    expect(publishSpy).not.toHaveBeenCalled();
+    // And it does not leave the reward stuck behind a spinner.
+    expect(stored()?.badgeClaim?.status).not.toBe('claiming');
+  });
+
+  it('a double reveal publishes once, not twice', async () => {
+    seed(COMPLETED);
+    const { result } = renderHook(() => useBadgeClaim());
+
+    await act(async () => {
+      await Promise.all([result.current.claim(), result.current.claim()]);
+    });
+
+    expect(publishSpy).toHaveBeenCalledTimes(1);
   });
 });

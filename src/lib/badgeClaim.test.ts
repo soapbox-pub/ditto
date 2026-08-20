@@ -3,10 +3,12 @@ import { nip19 } from 'nostr-tools';
 
 import {
   BADGE_CLAIM_KIND,
+  CLAIM_PATH_TAG,
   DITTO_BADGES_ISSUER_PUBKEY,
   DITTO_EXPLORER_BADGE_ATAG,
   DITTO_EXPLORER_BADGE_DTAG,
   DITTO_EXPLORER_CLAIM_ALT,
+  DITTO_EXPLORER_CLAIM_PATHS,
   buildExplorerClaimTemplate,
 } from './badgeClaim';
 import { POST_ONBOARDING_PATH_IDS } from './postOnboardingGuide';
@@ -51,7 +53,9 @@ describe('buildExplorerClaimTemplate', () => {
         ['path', 'find-people'],
         ['path', 'post-small'],
         ['path', 'customize'],
-        ['path', 'interact'],
+        // `explore`, not `interact`. The task was renamed; the wire value was
+        // not, because it is the published spec the award server validates.
+        ['path', 'explore'],
         ['alt', DITTO_EXPLORER_CLAIM_ALT],
       ],
     });
@@ -70,7 +74,7 @@ describe('buildExplorerClaimTemplate', () => {
   it('emits one path tag per completed path, in the given order', () => {
     const template = buildExplorerClaimTemplate(['interact', 'customize']);
     const paths = template.tags.filter(([n]) => n === 'path').map(([, v]) => v);
-    expect(paths).toEqual(['interact', 'customize']);
+    expect(paths).toEqual(['explore', 'customize']);
   });
 
   it('omits path tags when none are completed', () => {
@@ -87,5 +91,72 @@ describe('buildExplorerClaimTemplate', () => {
     const template = buildExplorerClaimTemplate([]);
     const p = template.tags.find(([n]) => n === 'p')?.[1];
     expect(p).toBe(DITTO_BADGES_ISSUER_PUBKEY);
+  });
+});
+
+/**
+ * The regression this file exists for.
+ *
+ * The fourth task was renamed `explore` → `interact` in the product, and the
+ * claim serialized internal task ids straight onto the wire. Real claims went
+ * out with no `explore` path and the award server rejected every one of them:
+ * `validation failed ... reason=missing path: explore`.
+ */
+describe('published claim vocabulary (kind 30637 `path`)', () => {
+  it('a fully completed journey carries every path the spec requires', () => {
+    const paths = buildExplorerClaimTemplate(POST_ONBOARDING_PATH_IDS)
+      .tags.filter(([n]) => n === 'path')
+      .map(([, v]) => v);
+
+    for (const required of DITTO_EXPLORER_CLAIM_PATHS) {
+      expect(paths).toContain(required);
+    }
+    expect(paths).toEqual([...DITTO_EXPLORER_CLAIM_PATHS]);
+  });
+
+  it('includes `explore` — the exact tag the award server was missing', () => {
+    const template = buildExplorerClaimTemplate(POST_ONBOARDING_PATH_IDS);
+    expect(template.tags).toContainEqual(['path', 'explore']);
+  });
+
+  it('never publishes the internal task id `interact` on the wire', () => {
+    const template = buildExplorerClaimTemplate(POST_ONBOARDING_PATH_IDS);
+    expect(template.tags).not.toContainEqual(['path', 'interact']);
+  });
+
+  it('names a wire value for every task id, and each exactly once', () => {
+    // An added or renamed task is a type error at `CLAIM_PATH_TAG`; this covers
+    // the other half — two tasks quietly sharing one wire value, which would
+    // make a 3/4 journey indistinguishable from a complete one.
+    const values = POST_ONBOARDING_PATH_IDS.map((id) => CLAIM_PATH_TAG[id]);
+    expect(values.filter(Boolean)).toHaveLength(POST_ONBOARDING_PATH_IDS.length);
+    expect(new Set(values).size).toBe(values.length);
+  });
+
+  it('the required-path list is exactly what a complete journey produces', () => {
+    expect([...DITTO_EXPLORER_CLAIM_PATHS]).toEqual(
+      POST_ONBOARDING_PATH_IDS.map((id) => CLAIM_PATH_TAG[id]),
+    );
+  });
+
+  it('collapses duplicates rather than emitting a repeated path tag', () => {
+    const template = buildExplorerClaimTemplate([
+      'interact',
+      'interact',
+      'customize',
+      'customize',
+    ]);
+    const paths = template.tags.filter(([n]) => n === 'path').map(([, v]) => v);
+    expect(paths).toEqual(['explore', 'customize']);
+  });
+
+  it('an incomplete journey is visibly incomplete on the wire', () => {
+    // The award server's whole job is to tell these apart, so a partial claim
+    // must never accidentally satisfy the required set.
+    const paths = buildExplorerClaimTemplate(['find-people', 'post-small', 'customize'])
+      .tags.filter(([n]) => n === 'path')
+      .map(([, v]) => v);
+    expect(paths).not.toContain('explore');
+    expect(DITTO_EXPLORER_CLAIM_PATHS.every((p) => paths.includes(p))).toBe(false);
   });
 });
