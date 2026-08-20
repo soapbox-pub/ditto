@@ -12,7 +12,8 @@ function withOwning(owning: boolean, children: ReactNode) {
         owning,
         claim: () => {},
         release: () => {},
-        registerTarget: () => {},
+        addTarget: () => {},
+        removeTarget: () => {},
         measureTarget: () => null,
       }}
     >
@@ -59,13 +60,14 @@ describe('ExplorerTransitionTarget', () => {
     expect(screen.getByText('Mission').parentElement).not.toHaveClass('invisible');
   });
 
-  it('registers and unregisters its element', () => {
-    const seen: Array<HTMLElement | null> = [];
+  it('registers its element as a candidate and withdraws it on unmount', () => {
+    const targets = new Set<HTMLElement>();
     const value = {
       owning: false,
       claim: () => {},
       release: () => {},
-      registerTarget: (el: HTMLElement | null) => seen.push(el),
+      addTarget: (el: HTMLElement) => void targets.add(el),
+      removeTarget: (el: HTMLElement) => void targets.delete(el),
       measureTarget: () => null,
     };
     const { unmount } = render(
@@ -73,11 +75,45 @@ describe('ExplorerTransitionTarget', () => {
         <ExplorerTransitionTarget><p>Mission</p></ExplorerTransitionTarget>
       </ExplorerArrivalContext.Provider>,
     );
-    expect(seen.some(Boolean)).toBe(true);
+    expect(targets.size).toBe(1);
+    expect([...targets][0]).toBe(screen.getByText('Mission').parentElement);
 
-    // Unregistering on unmount is what makes a route change mid-flight fall
-    // back safely instead of animating toward a stale rectangle.
+    // Withdrawing on unmount is what makes a route change mid-flight fall back
+    // safely instead of animating toward a detached element.
     unmount();
-    expect(seen.at(-1)).toBeNull();
+    expect(targets.size).toBe(0);
+  });
+
+  it('withdraws only its own element, never another instance\u2019s', () => {
+    // The bug this replaces: one shared slot, cleared by whichever target
+    // happened to unmount. On desktop the CSS-hidden mobile teaser unmounting
+    // wiped the visible sidebar widget's registration, and the arrival card had
+    // nowhere to fly to.
+    const targets = new Set<HTMLElement>();
+    const value = {
+      owning: false,
+      claim: () => {},
+      release: () => {},
+      addTarget: (el: HTMLElement) => void targets.add(el),
+      removeTarget: (el: HTMLElement) => void targets.delete(el),
+      measureTarget: () => null,
+    };
+    function Both({ showSecond }: { showSecond: boolean }) {
+      return (
+        <ExplorerArrivalContext.Provider value={value}>
+          <ExplorerTransitionTarget><p>Desktop</p></ExplorerTransitionTarget>
+          {showSecond && (
+            <ExplorerTransitionTarget><p>Mobile</p></ExplorerTransitionTarget>
+          )}
+        </ExplorerArrivalContext.Provider>
+      );
+    }
+
+    const { rerender } = render(<Both showSecond />);
+    expect(targets.size).toBe(2);
+
+    rerender(<Both showSecond={false} />);
+    expect(targets.size).toBe(1);
+    expect([...targets][0]).toBe(screen.getByText('Desktop').parentElement);
   });
 });

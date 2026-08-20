@@ -19,6 +19,14 @@ import { cn } from '@/lib/utils';
  * It is also inert while hidden (`aria-hidden`, `inert`), so a screen reader or
  * a Tab press can't reach a surface the user cannot see.
  *
+ * Several of these are mounted at once — the desktop sidebar widget and the
+ * mobile Home teaser both use it, and only CSS hides one of them — so this
+ * registers itself as a *candidate*. It does not compete to be "the" target and
+ * must never assume it is: the provider decides from layout at measurement
+ * time. That is also why withdrawal is by element identity rather than by
+ * clearing a shared slot; unregistering blindly used to let the CSS-hidden
+ * surface cancel the visible one's registration.
+ *
  * Outside a provider — in tests, or anywhere the arrival isn't running — this
  * is a transparent pass-through.
  */
@@ -29,20 +37,29 @@ export function ExplorerTransitionTarget({
   children: ReactNode;
   className?: string;
 }) {
-  const { owning, registerTarget } = useExplorerArrival();
+  const { owning, addTarget, removeTarget } = useExplorerArrival();
   const nodeRef = useRef<HTMLDivElement | null>(null);
 
   const setNode = useCallback(
     (node: HTMLDivElement | null) => {
+      // Withdraw the node this instance registered — only ever its own.
+      if (nodeRef.current) removeTarget(nodeRef.current);
       nodeRef.current = node;
-      registerTarget(node);
+      if (node) addTarget(node);
     },
-    [registerTarget],
+    [addTarget, removeTarget],
   );
 
-  // Unregister on unmount so a route change mid-transition leaves the overlay
-  // measuring `null` (and taking the safe fallback) rather than a stale rect.
-  useEffect(() => () => registerTarget(null), [registerTarget]);
+  // Withdraw on unmount, so a route change mid-transition can't leave the
+  // overlay measuring a detached element. React already calls the callback ref
+  // with `null` first; this covers the case where it doesn't get to.
+  useEffect(
+    () => () => {
+      if (nodeRef.current) removeTarget(nodeRef.current);
+      nodeRef.current = null;
+    },
+    [removeTarget],
+  );
 
   return (
     <div

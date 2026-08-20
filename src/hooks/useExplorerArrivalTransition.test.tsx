@@ -44,7 +44,8 @@ function renderTransition({
     owning: true,
     claim: vi.fn(),
     release,
-    registerTarget: vi.fn(),
+    addTarget: vi.fn(),
+    removeTarget: vi.fn(),
     measureTarget,
   };
   const wrapper = ({ children }: { children: ReactNode }) => (

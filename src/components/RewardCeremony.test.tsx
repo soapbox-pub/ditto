@@ -1015,3 +1015,55 @@ describe('reward ceremony — accessibility', () => {
     await waitFor(() => expect(openButton()).toHaveFocus());
   });
 });
+
+/**
+ * How the reward's call to action is shaped.
+ *
+ * jsdom has no layout, so these assert the decisions rather than the pixels —
+ * which is the point: the button was cramped because of the classes it carried,
+ * not because of a measurement.
+ *
+ * It shipped as `size="sm"` (`h-9`, `px-3`) inside a `rounded-full` pill. A pill
+ * that tall curves over ~18px at each end, so 12px of padding put the first and
+ * last glyphs inside the curve, and `Button`'s base `whitespace-nowrap` meant
+ * any longer label — every translation of "Reveal your reward" is longer — left
+ * through the ends rather than wrapping.
+ */
+describe('reward call to action — shape', () => {
+  it('lets a longer label wrap instead of running out of the pill', () => {
+    ready();
+    renderReward();
+    const button = openButton()!;
+    expect(button.className).toContain('whitespace-normal');
+    expect(button.className).not.toContain('whitespace-nowrap');
+    // A wrapped label needs somewhere to go, so the height cannot be fixed.
+    expect(button.className).toContain('h-auto');
+  });
+
+  it('clears its own radius, so the text is not jammed against the curve', () => {
+    ready();
+    renderReward();
+    const button = openButton()!;
+    expect(button.className).toContain('px-6');
+    expect(button.className).not.toContain('px-3');
+  });
+
+  it('is a real touch target on the page a phone reaches it from', () => {
+    ready();
+    renderReward();
+    // `min-h-11` is 44px. It was `h-9` (36px) — under the minimum, for the last
+    // and most consequential step of the journey.
+    expect(openButton()!.className).toContain('min-h-11');
+  });
+
+  it('the stage\u2019s own act is shaped the same way', async () => {
+    ready();
+    renderReward();
+    fireEvent.click(openButton()!);
+    await waitFor(() => expect(revealButton()).not.toBeNull());
+    const button = revealButton()!;
+    expect(button.className).toContain('whitespace-normal');
+    expect(button.className).toContain('h-auto');
+    expect(button.className).toContain('min-h-11');
+  });
+});

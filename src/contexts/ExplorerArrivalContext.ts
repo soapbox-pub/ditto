@@ -26,15 +26,29 @@ export interface ExplorerArrivalState {
   /** Release ownership; the destination becomes visible and interactive. */
   release: () => void;
   /**
-   * Register the live destination element — the desktop sidebar widget or the
-   * mobile Home teaser, whichever is mounted. Registering `null` unregisters.
+   * Offer an element as a *candidate* destination.
+   *
+   * Candidates are a set, not a slot. More than one Explorer surface is mounted
+   * at once on a wide screen — the desktop sidebar widget and the mobile Home
+   * teaser, the latter hidden only by CSS (`lg:hidden`) — and there is no
+   * ordering between their registrations that is safe to rely on. Which one is
+   * the real destination is decided at measurement time, from layout, by
+   * {@link measureTarget}.
    */
-  registerTarget: (element: HTMLElement | null) => void;
+  addTarget: (element: HTMLElement) => void;
+  /** Withdraw a candidate (unmount, or the ref being replaced). */
+  removeTarget: (element: HTMLElement) => void;
   /**
-   * The destination's current bounding box, or `null` when no destination is
-   * mounted or it isn't usefully on screen. The overlay measures at the moment
-   * it starts travelling rather than caching, so a resize, a route change, or a
-   * sidebar of a different width is always accounted for.
+   * The bounding box of the destination that is *actually on screen right now*,
+   * or `null` when none is.
+   *
+   * Chosen, not remembered: every registered candidate is measured and the ones
+   * that are detached, collapsed, `display: none`, or scrolled out of view are
+   * discarded. That is what makes the choice correct without the transition
+   * knowing a single breakpoint — a CSS-hidden surface has no box, so it cannot
+   * win, and a resize across the breakpoint simply changes which candidate has
+   * one. The caller re-measures every frame, so the answer follows the layout
+   * even mid-flight.
    */
   measureTarget: () => DOMRect | null;
 }
@@ -43,7 +57,8 @@ const NOOP_STATE: ExplorerArrivalState = {
   owning: false,
   claim: () => {},
   release: () => {},
-  registerTarget: () => {},
+  addTarget: () => {},
+  removeTarget: () => {},
   measureTarget: () => null,
 };
 

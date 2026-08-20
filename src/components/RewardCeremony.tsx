@@ -111,6 +111,19 @@ function isUsableRect(rect: DOMRect | null): rect is DOMRect {
  * re-expressing its curve as a bezier string in CSS would be a second copy of a
  * number that has already been tuned once.
  */
+/**
+ * The stage's primary action, in every phase that has one.
+ *
+ * `size="lg"` already clears the pill's radius here, so this is only about the
+ * label: `Button`'s base sets `whitespace-nowrap`, which makes any string longer
+ * than the English one — "Reveal your reward", "Try again", "Open Badges", and
+ * every translation of them — push out through the pill's ends rather than
+ * wrap. Letting it wrap into a slightly taller pill keeps the action readable
+ * instead of clipped, and keeps the stage's two actions the same shape.
+ */
+const STAGE_ACTION =
+  'h-auto min-h-11 w-full gap-1.5 whitespace-normal rounded-full py-2.5 leading-tight';
+
 export function RewardCeremony({
   phase,
   slow = false,
@@ -377,7 +390,7 @@ export function RewardCeremony({
                 <Button
                   type="button"
                   size="lg"
-                  className="w-full gap-1.5 rounded-full font-semibold"
+                  className={cn(STAGE_ACTION, 'font-semibold')}
                   onClick={onOpenBadges}
                 >
                   <Award className="size-4" aria-hidden />
@@ -401,7 +414,7 @@ export function RewardCeremony({
                 <Button
                   type="button"
                   size="lg"
-                  className="w-full max-w-64 gap-1.5 rounded-full font-semibold"
+                  className={cn(STAGE_ACTION, 'max-w-64 font-semibold')}
                   onClick={onReveal}
                 >
                   {failed ? (

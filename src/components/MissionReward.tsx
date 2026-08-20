@@ -87,6 +87,30 @@ const DEV_CEREMONY_PHASE: Record<
   revealed: 'settled',
 };
 
+/**
+ * The panel's single call to action, in whichever state it is offering one.
+ *
+ * It shipped as `size="sm"` inside a `rounded-full` pill capped at `max-w-56`:
+ * 224px of button, 12px of horizontal padding, and `whitespace-nowrap` from
+ * `Button`'s base. That is barely enough for "Reveal your reward" in the default
+ * font and not enough in several of Ditto's own — Comfortaa and Fredoka are
+ * appreciably wider, and the label runs to the pill's ends and then out through
+ * them. Which is not an exotic case: *choosing a theme is one of the four
+ * tasks*, so this button is the one control in the whole feature that is
+ * guaranteed to be read after the user changed their font.
+ *
+ * So: a wider cap, padding that clears the pill's own radius rather than
+ * starting the text inside the curve, and `whitespace-normal` with
+ * `h-auto min-h-11` so a label that still doesn't fit wraps into a slightly
+ * taller pill instead of overflowing a fixed-height one. `min-h-11` is 44px,
+ * which is also the touch target this deserves as the last step of the journey.
+ *
+ * Shared by both states' actions so the panel cannot end up with two different
+ * shapes of the same button.
+ */
+const PANEL_ACTION =
+  'h-auto min-h-11 w-full max-w-64 gap-2 whitespace-normal rounded-full px-6 py-2.5 leading-tight';
+
 export function MissionReward({
   completedCount,
   totalCount,
@@ -249,8 +273,7 @@ export function MissionReward({
           <Button
             type="button"
             variant="outline"
-            size="sm"
-            className="w-full max-w-56 gap-1.5 rounded-full"
+            className={PANEL_ACTION}
             onClick={() => ceremony.leave(DITTO_EXPLORER_BADGES_DESTINATION)}
           >
             <Award className="size-4" aria-hidden />
@@ -274,8 +297,7 @@ export function MissionReward({
         <Button
           ref={openRef}
           type="button"
-          size="sm"
-          className="w-full max-w-56 gap-1.5 rounded-full font-semibold"
+          className={cn(PANEL_ACTION, 'font-semibold')}
           onClick={() => ceremony.open(artRef.current, { trigger: openRef.current })}
         >
           <Sparkles className="size-4" aria-hidden />
