@@ -66,9 +66,14 @@ describe('feed guidance for the interaction task', () => {
 
   it('does not choose a post for the user', () => {
     // No synthetic post, no dev placeholder, no "interact with this one" CTA.
+    // The card's own disclosure control is the only button it may offer: it
+    // manages the card, it does not act on the feed.
     flow = { flowActive: true, completed: false, emptyFeed: false };
     render(<InteractMissionTip />);
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+
+    const buttons = screen.getAllByRole('button');
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]).toHaveAttribute('aria-expanded');
   });
 
   it('offers a way forward instead of leaving the user on an empty feed', () => {

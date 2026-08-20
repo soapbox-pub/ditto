@@ -25,9 +25,11 @@
  * **Owned** (delete): `postOnboardingGuide` · `missionAutoWrites` ·
  * `missionTasks` · `badgeClaim` · `usePostOnboardingGuide` · `useMissionEngine` ·
  * `useMissionSurfaceState` · `useMissionCelebration` · `useStartMissionTask` ·
- * `useInteractMissionFlow` · `useCustomizeMissionFlow` · `useBadgeClaim` ·
- * `useRewardCeremony` · `Mission*` components · `RewardCeremony` ·
- * `DittoExplorer*` · `InteractMissionTip` · `MissionsPage` · `dev/missionHarness`.
+ * `useMissionFlowEntry` · `useFindPeopleMissionFlow` · `useInteractMissionFlow` ·
+ * `useCustomizeMissionFlow` · `useBadgeClaim` · `useRewardCeremony` ·
+ * `Mission*` components · `RewardCeremony` · `DittoExplorer*` ·
+ * `FindPeopleMissionTip` · `InteractMissionTip` · `MissionsPage` ·
+ * `dev/missionHarness`.
  *
  * **Integration** (revert a few lines):
  *  1. `AppRouter` — the `/missions` route.
@@ -35,7 +37,8 @@
  *  3. `MainLayout` — mounts `MissionEngine`.
  *  4. `WidgetSidebar` — renders `MissionsWidget`, and suppresses it on `/missions`.
  *  5. `Feed` / `NotificationsPage` / `SearchPage` / `TrendsPage` — render
- *     `MobileMissionTeaser`.
+ *     `MobileMissionTeaser`. `SearchPage` also renders `FindPeopleMissionTip`,
+ *     which is how the first task explains itself, and hands it the active tab.
  *  6. `ProfileSettings` / `ThemesPage` — render `MissionHelperCard` and call
  *     `useCustomizeMissionFlow`, which is how the customize task completes.
  *  7. `Index` — renders `InteractMissionTip` and reads `isMissionComposeState` /
@@ -319,6 +322,26 @@ export const POST_ONBOARDING_PATHS: Record<PostOnboardingPathId, PostOnboardingP
     completionHint: 'Any one of those on someone else’s post completes this.',
   },
 };
+
+/**
+ * The guided instruction shown on Search while `find-people` is in progress.
+ *
+ * The first task is the one that most needed saying out loud. Its button reads
+ * "Find your people" and drops the user on a search page with an empty field —
+ * which is a place, not an instruction. This names the three concrete moves
+ * (search, open, follow) in the order they happen, and the task's
+ * `completionHint` says which of them actually finishes it.
+ */
+export const FIND_PEOPLE_TASK_GUIDANCE =
+  'Search for a name or a topic, open someone’s profile, and tap Follow.';
+
+/**
+ * The nudge shown while the user is on the Posts tab. Accounts is where people
+ * are, and it is the one thing about this page that isn't obvious from looking
+ * at it.
+ */
+export const FIND_PEOPLE_TASK_ACCOUNTS_HINT =
+  'Looking for people? The Accounts tab searches profiles.';
 
 /**
  * The guided instruction shown on the feed while this task is in progress.

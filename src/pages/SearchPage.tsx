@@ -56,6 +56,7 @@ import { cn, parseKindFilter } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { PageHeader } from '@/components/PageHeader';
+import { FindPeopleMissionTip } from '@/components/FindPeopleMissionTip';
 import { MobileMissionTeaser } from '@/components/MobileMissionTeaser';
 import { DittoLogo } from '@/components/DittoLogo';
 import { buildFeedItems, dedupeFeedItems, feedItemKey, type FeedItem } from '@/lib/feedUtils';
@@ -465,6 +466,15 @@ export function SearchPage() {
           can never overlap navigation or feed controls. Mobile only; desktop
           uses the sidebar widget. Self-hides when the mission is inactive. */}
       <MobileMissionTeaser />
+
+      {/* First-mission guidance, above the field it is about and below the tabs
+          it refers to. In flow rather than floating, so it can never sit on top
+          of the search input or the tab bar; it self-hides unless the mission
+          has the user on this task, and it collapses to its header. */}
+      <FindPeopleMissionTip
+        onPostsTab={activeTab === 'posts'}
+        onBrowsePeople={() => setActiveTab('accounts')}
+      />
 
       {/* Search input bar — always rendered right after tabs, like ComposeBox on Feed */}
       <div className="px-4 py-3">

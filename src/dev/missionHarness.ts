@@ -115,6 +115,8 @@ export type MissionDevState =
   | 'active2'
   | 'active3'
   | 'guided'
+  | 'find-people'
+  | 'find-people-done'
   | 'interact'
   | 'interact-empty-feed'
   | 'interact-reaction'
@@ -477,6 +479,14 @@ function buildMissionDevState(): PostOnboardingGuideState | undefined {
     case 'active3':
       complete(3);
       return { ...state, intro: acknowledged };
+    case 'find-people':
+      // The first task, launched. Launched and not merely recommended, because
+      // that is what the Search guidance keys on.
+      state.paths['find-people'] = 'active';
+      return { ...state, intro: acknowledged, activePath: 'find-people' };
+    case 'find-people-done':
+      complete(1);
+      return { ...state, intro: acknowledged, activePath: 'find-people' };
     case 'interact':
     case 'interact-empty-feed':
     case 'interact-reaction':

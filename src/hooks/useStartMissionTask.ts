@@ -2,12 +2,7 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { usePostOnboardingGuide } from '@/hooks/usePostOnboardingGuide';
-import {
-  MISSION_TASK_ROUTES,
-  type MissionComposeState,
-  type MissionCustomizeState,
-  type MissionInteractState,
-} from '@/lib/missionTasks';
+import { MISSION_TASK_ROUTES, type MissionTaskState } from '@/lib/missionTasks';
 import type { PostOnboardingPathId } from '@/lib/postOnboardingGuide';
 
 /**
@@ -32,35 +27,14 @@ export function useStartMissionTask(onStart?: () => void) {
       onStart?.();
       void startPath(pathId);
 
-      switch (pathId) {
-        case 'post-small': {
-          // Open the composer on the home feed via route state. A fresh compose
-          // modal means we never clobber the inline composer's in-progress
-          // draft in place — `Index` decides whether to prefill.
-          const state: MissionComposeState = { missionTask: 'post-small' };
-          navigate(MISSION_TASK_ROUTES['post-small'], { state });
-          break;
-        }
-        case 'customize': {
-          // Start the guided two-step customize flow. The route state only
-          // *shows* the helper card; both substeps still complete on real
-          // product state (a saved profile, a changed theme).
-          const state: MissionCustomizeState = { missionTask: 'customize' };
-          navigate(MISSION_TASK_ROUTES.customize, { state });
-          break;
-        }
-        case 'interact': {
-          // Take the user to a feed and show the guidance tip. No post is
-          // chosen for them: the mission is "find something *you* like", so it
-          // ends where their own attention lands.
-          const state: MissionInteractState = { missionTask: 'interact' };
-          navigate(MISSION_TASK_ROUTES.interact, { state });
-          break;
-        }
-        default:
-          navigate(MISSION_TASK_ROUTES[pathId]);
-          break;
-      }
+      // One navigation for every task, carrying the same route state: *the
+      // mission sent you here, for this task*. Each destination decides what
+      // that means — the home feed opens the composer for `post-small`, and the
+      // three guided tasks show their helper card straight away rather than
+      // waiting for `startPath` to come back from encrypted settings. None of
+      // them treats it as the truth about the mission; that stays persisted.
+      const state: MissionTaskState = { missionTask: pathId };
+      navigate(MISSION_TASK_ROUTES[pathId], { state });
     },
     [navigate, startPath, onStart],
   );

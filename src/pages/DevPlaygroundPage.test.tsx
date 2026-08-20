@@ -270,6 +270,7 @@ describe('/dev — the sections a tester scans', () => {
     expect(headings).toEqual([
       'First session',
       'Missions',
+      'The first mission',
       'The interaction mission',
       'Reward ceremony',
       'Other dev tools',

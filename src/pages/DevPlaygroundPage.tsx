@@ -84,6 +84,7 @@ function scenario(
 const MISSIONS = '/missions';
 const ARRIVAL = '/';
 const FEED = '/feed';
+const SEARCH = '/search';
 
 const SECTIONS: DevSection[] = [
   {
@@ -164,6 +165,29 @@ const SECTIONS: DevSection[] = [
           scenario(MISSIONS, 'claimed', 'Claim submitted', 'Sealed still: publishing is not revealing.'),
           scenario(MISSIONS, 'revealed', 'Reward revealed'),
           scenario(MISSIONS, 'hidden', 'Hidden journey', 'Dismissed, with the resume path.'),
+        ],
+      },
+    ],
+  },
+  {
+    title: 'The first mission',
+    description:
+      'The first mission is the one that completes from Search. Its guidance card is the same component the interaction mission uses on the feed — open both to compare them.',
+    groups: [
+      {
+        links: [
+          scenario(
+            SEARCH,
+            'find-people',
+            'Task active',
+            'The Search guidance, expanded. Press the title to fold it away and again to bring it back.',
+          ),
+          scenario(
+            SEARCH,
+            'find-people-done',
+            'Task complete',
+            'The follow landed. The card says what happened rather than what to do.',
+          ),
         ],
       },
     ],

@@ -15,70 +15,48 @@ import type { PostOnboardingPathId } from '@/lib/postOnboardingGuide';
  */
 
 /**
- * Route-state key set on `navigate('/', { state })` to ask the home feed to
- * open the composer for a specific mission task. Read once by `Index` and then
- * cleared from history so a refresh/back doesn't re-open the composer.
+ * Route state set by `useStartMissionTask` when the user starts a task, read by
+ * whatever page the task lands on.
+ *
+ * One shape for all four tasks rather than a type per task. It says the same
+ * thing every time — *this navigation was the mission starting this task* — and
+ * each destination decides what to do with it: the home feed opens the composer
+ * for `post-small`, and the guided flows (`find-people`, `customize`,
+ * `interact`) use it to show their helper card immediately, before the mission's
+ * own `activePath` write has come back from encrypted settings.
+ *
+ * It is always read once and then cleared from history, so a refresh or a Back
+ * doesn't re-trigger anything. Every destination therefore treats it as a hint
+ * about *this* navigation, never as the source of truth about the mission — that
+ * is the persisted state, which is what keeps the guidance correct across a
+ * reload, a second tab, or another device.
  */
-export interface MissionComposeState {
-  /** The mission task that opened the composer. */
-  missionTask: Extract<PostOnboardingPathId, 'post-small'>;
+export interface MissionTaskState {
+  /** The mission task this navigation started. */
+  missionTask: PostOnboardingPathId;
 }
 
-/** Type guard for the mission-compose route state on the home feed. */
-export function isMissionComposeState(
+/** Whether this route state was set by the mission starting `task`. */
+export function isMissionTaskState(
   state: unknown,
-): state is MissionComposeState {
+  task: PostOnboardingPathId,
+): state is MissionTaskState {
   return (
     typeof state === 'object' &&
     state !== null &&
-    (state as { missionTask?: unknown }).missionTask === 'post-small'
+    (state as { missionTask?: unknown }).missionTask === task
   );
 }
 
 /**
- * Route-state flag set on `navigate('/settings/profile', { state })` when the
- * user starts the guided `customize` task. It tells the profile settings page
- * that the customize flow is in progress so it renders the helper card even
- * before either substep is done. The helper otherwise falls back to the
- * persisted substep state, so a reload / direct navigation to the theme page
- * still shows the correct step without this flag.
+ * The home feed's read of the above: "open the composer, the mission sent me".
+ *
+ * Kept as its own named guard because `Index` is not a mission surface — it
+ * asks one question about one task, and reading `isMissionComposeState` there
+ * says what it means without the caller having to know the task vocabulary.
  */
-export interface MissionCustomizeState {
-  /** The mission task that started this flow. */
-  missionTask: Extract<PostOnboardingPathId, 'customize'>;
-}
-
-/** Type guard for the customize mission route state. */
-export function isMissionCustomizeState(
-  state: unknown,
-): state is MissionCustomizeState {
-  return (
-    typeof state === 'object' &&
-    state !== null &&
-    (state as { missionTask?: unknown }).missionTask === 'customize'
-  );
-}
-
-/**
- * Route state set on `navigate('/feed', { state })` when the user starts the
- * `interact` ("Find something you like") task. It only asks the feed to show
- * the guidance tip — no post is chosen for the user, nothing is injected, and
- * the task completes from a real interaction wherever they end up making it.
- */
-export interface MissionInteractState {
-  /** The mission task that started this flow. */
-  missionTask: Extract<PostOnboardingPathId, 'interact'>;
-}
-
-/** Type guard for the interact mission route state. */
-export function isMissionInteractState(
-  state: unknown,
-): state is MissionInteractState {
-  return (
-    typeof state === 'object' &&
-    state !== null &&
-    (state as { missionTask?: unknown }).missionTask === 'interact'
-  );
+export function isMissionComposeState(state: unknown): boolean {
+  return isMissionTaskState(state, 'post-small');
 }
 
 /**

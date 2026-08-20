@@ -1,11 +1,8 @@
-import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useMissionCelebration } from '@/hooks/useMissionCelebration';
+import { useMissionFlowEntry } from '@/hooks/useMissionFlowEntry';
 import { usePostOnboardingGuide } from '@/hooks/usePostOnboardingGuide';
 import { missionDevForcesEmptyFeed } from '@/dev/missionHarness';
-import { isMissionInteractState } from '@/lib/missionTasks';
 import type { MissionInteraction } from '@/lib/postOnboardingGuide';
 
 /**
@@ -20,10 +17,9 @@ import type { MissionInteraction } from '@/lib/postOnboardingGuide';
  * point of the mission: the tip explains, it doesn't gate.
  *
  * The flow is *in progress* when the mission is active, the task isn't already
- * complete, and either the user arrived via the mission (route state set by
- * `useStartMissionTask`) or the mission still records `interact` as the task
- * they most recently launched — so navigating away and back doesn't lose the
- * guidance, and a reload doesn't either.
+ * complete, and this is the task the mission has the user on — see
+ * `useMissionFlowEntry`, which is also why navigating away and back, or
+ * reloading, doesn't lose the guidance.
  */
 export function useInteractMissionFlow(): {
   /** Whether the guidance tip belongs on this feed right now. */
@@ -38,28 +34,12 @@ export function useInteractMissionFlow(): {
    */
   emptyFeed: boolean;
 } {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { state, isActive, interaction } = usePostOnboardingGuide();
+  const { interaction } = usePostOnboardingGuide();
   const { celebrating, completedPath } = useMissionCelebration();
   const { data: followList } = useFollowList();
+  const { startedViaMission, isActive, pathCompleted } = useMissionFlowEntry('interact');
 
-  // Latch whether this navigation started the flow. Route state is read once
-  // and then cleared, so back/refresh doesn't re-flag it, while the latch keeps
-  // the tip up for this mounted page.
-  const [startedViaMission, setStartedViaMission] = useState(() =>
-    isMissionInteractState(location.state),
-  );
-
-  useEffect(() => {
-    if (!isMissionInteractState(location.state)) return;
-    setStartedViaMission(true);
-    navigate(location.pathname, { replace: true, state: null });
-  }, [location.state, location.pathname, navigate]);
-
-  const pathCompleted = state?.paths.interact === 'completed';
-  const inProgress =
-    isActive && !pathCompleted && (startedViaMission || state?.activePath === 'interact');
+  const inProgress = isActive && !pathCompleted && startedViaMission;
 
   // Once it completes, the tip stays for the celebration window to deliver the
   // acknowledgement in the place the user is actually looking, then leaves.
