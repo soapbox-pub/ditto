@@ -34,15 +34,17 @@ deploy-nsite:
       when: never
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
   variables:
-    NSYTE_VERSION: "v0.27.0"
+    # 0.28.0 is the floor, not a preference. nsite is published by signing a
+    # site *manifest* (the list of every file in dist/) through a NIP-46
+    # bunker, which NIP-44-encrypts the whole sign_event request; every
+    # nostr-tools before the one in 0.28.0 refuses to encrypt a payload over
+    # 64 KiB, so the manifest for a normal code-split build fails to sign at
+    # all ("invalid plaintext size"). That limit is why this job used to build
+    # with `--mode nsite` to collapse dist/ into one app.js + one app.css.
+    NSYTE_VERSION: "v0.28.0"
   script:
-    # Build in nsite mode: code splitting is disabled so the whole app ships as
-    # one app.js + one app.css, keeping the dist/ file count (and therefore the
-    # signed site manifest) small enough to fit the NIP-46 bunker's 65535-byte
-    # sign_event request.
     - npm ci
-    - npx vite build -l error --mode nsite
-    - cp dist/index.html dist/404.html
+    - npm run build
 
     # Download nsyte binary
     - curl -fsSL "https://github.com/sandwichfarm/nsyte/releases/download/${NSYTE_VERSION}/nsyte-linux" -o /usr/local/bin/nsyte
