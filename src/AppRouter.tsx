@@ -125,7 +125,16 @@ function ProfileRedirect() {
 export function AppRouter() {
   return (
     <AudioPlayerProvider>
-      <BrowserRouter>
+      {/* useTransitions={false} restores react-router v6's synchronous
+          navigation. v7 defaults to wrapping every navigation in
+          React.startTransition, which keeps the *previous* page on screen
+          until the next route's render commits — so clicking a note left the
+          feed frozen for the duration of PostDetailPage's render instead of
+          swapping immediately. That regressed when react-router was bumped
+          6 → 7 (npm audit fix). Opting out makes location updates a plain
+          synchronous setState again: the route swaps on click, showing the
+          detail route (or its Suspense skeleton) immediately. */}
+      <BrowserRouter useTransitions={false}>
         <Toaster />
         <NavigationProgress />
         <VersionCheck />
