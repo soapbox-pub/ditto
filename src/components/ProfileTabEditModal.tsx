@@ -21,7 +21,16 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { buildKindOptions, parseSelectedKinds } from '@/lib/feedFilterUtils';
+import {
+  TAB_MEDIA_TYPES,
+  TAB_MEDIA_LABELS,
+  TAB_MEDIA_ICONS,
+  parseMediaSearch,
+  buildTabSearch,
+  type TabMediaType,
+} from '@/lib/tabMediaFilter';
 import {
   MultiKindPicker,
   ScopeToggle,
@@ -118,10 +127,14 @@ export function ProfileTabEditModal({
     return { authors: [ownerPubkey] };
   }, [tab, ownerPubkey]);
 
-  const [label, setLabel] = useState(tab?.label ?? '');
-  const [query, setQuery] = useState(
-    typeof initialFilter.search === 'string' ? initialFilter.search : '',
+  const initialMedia = useMemo(
+    () => parseMediaSearch(typeof initialFilter.search === 'string' ? initialFilter.search : ''),
+    [initialFilter.search],
   );
+
+  const [label, setLabel] = useState(tab?.label ?? '');
+  const [query, setQuery] = useState(initialMedia.query);
+  const [mediaType, setMediaType] = useState<TabMediaType>(initialMedia.mediaType);
   const [authorScope, setAuthorScope] = useState<ProfileAuthorScope>(
     filterToScope(initialFilter, ownerPubkey),
   );
@@ -161,8 +174,10 @@ export function ProfileTabEditModal({
   useEffect(() => {
     if (open) {
       const f = tab ? tab.filter : { authors: [ownerPubkey] };
+      const media = parseMediaSearch(typeof f.search === 'string' ? f.search : '');
       setLabel(tab?.label ?? '');
-      setQuery(typeof f.search === 'string' ? f.search : '');
+      setQuery(media.query);
+      setMediaType(media.mediaType);
       setAuthorScope(filterToScope(f, ownerPubkey));
       setPeoplePubkeys(filterToPeoplePubkeys(f, ownerPubkey));
       setSelectedKinds(parseSelectedKinds(f));
@@ -176,8 +191,9 @@ export function ProfileTabEditModal({
       ...scopeToFilter(authorScope, ownerPubkey, peoplePubkeys),
     };
 
-    if (query.trim()) {
-      filter.search = query.trim();
+    const search = buildTabSearch(query, mediaType);
+    if (search) {
+      filter.search = search;
     }
 
     const kinds = serializeSelectedKinds(selectedKinds);
@@ -221,6 +237,31 @@ export function ProfileTabEditModal({
               options={kindOptions}
               onChange={setSelectedKinds}
             />
+          </div>
+
+          <Separator />
+
+          {/* Media content type */}
+          <div className="space-y-2">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Media</span>
+            <Select value={mediaType} onValueChange={(v) => setMediaType(v as TabMediaType)}>
+              <SelectTrigger className="w-full bg-secondary/50 h-9 text-base md:text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TAB_MEDIA_TYPES.map((value) => {
+                  const Icon = TAB_MEDIA_ICONS[value];
+                  return (
+                    <SelectItem key={value} value={value}>
+                      <span className="flex items-center gap-2">
+                        {Icon && <Icon className="size-3.5 shrink-0" />}
+                        {TAB_MEDIA_LABELS[value]}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
           </div>
 
           <Separator />
