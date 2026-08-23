@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.35.3] - 2026-08-23
+
+Classified listings join the party. Items for sale now land in your feed as rich cards — price, photos, and details — with a toggle to browse just the listings, and they render inline when quoted too. Also patched: a booby-trapped profile theme can no longer break out of its styling to deface the page or sneak out hidden network requests.
+
+### Added
+- Classified listings appear in the feed as rich cards with price and photos, complete with a toggle to browse just the listings and inline previews when they're quoted
+
+### Fixed
+- A maliciously crafted profile theme can no longer escape its styling to deface a page you're viewing or trigger hidden outbound requests
+
 ## [2.35.2] - 2026-08-23
 
 This release smooths out the rough edges. Opening a post from your feed is snappy again — no more freeze before it loads. Animated avatars and banners keep their motion when you crop them instead of getting flattened. Your themes and settings stay put when you switch or add accounts, the theme you pick during signup lands on the right account, and custom profile tabs can now filter down to just their media.
