@@ -45,6 +45,7 @@ import {
   BookOpen,
   Bookmark,
   Server,
+  Tag,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import { type ReactNode, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -52,6 +53,7 @@ import { useInView } from "@/hooks/useInView";
 import { Link } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
 const EmbeddedArticleCard = lazy(() => import("@/components/EmbeddedArticleCard").then(m => ({ default: m.EmbeddedArticleCard })));
+const ClassifiedListingContent = lazy(() => import("@/components/ClassifiedListingContent").then(m => ({ default: m.ClassifiedListingContent })));
 const EmbeddedPublicationCard = lazy(() => import("@/components/EmbeddedPublicationCard").then(m => ({ default: m.EmbeddedPublicationCard })));const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const BlobbiSocialActions = lazy(() => import("@/components/BlobbiSocialActions").then(m => ({ default: m.BlobbiSocialActions })));
 import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
@@ -104,6 +106,7 @@ import { QuizResultContent } from "@/components/quiz/QuizResultContent";
 import { QUIZ_KIND, QUIZ_RESULT_KIND } from "@/lib/quiz";
 import { AttestationContent } from "@/components/AttestationContent";
 import { ATTESTATION_KIND } from "@/lib/attestation";
+import { CLASSIFIED_LISTING_KIND } from "@/lib/classifiedListing";
 import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { ZapContent } from "@/components/ZapContent";
 import { NsiteCard } from "@/components/NsiteCard";
@@ -565,6 +568,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isRelayList = event.kind === 10002;
   const isArticle = event.kind === 30023;
+  const isClassifiedListing = event.kind === CLASSIFIED_LISTING_KIND;
   const isPublication = PUBLICATION_KINDS.has(event.kind);
   const isMagicDeck = event.kind === 37381;
   const isStream = event.kind === 30311;
@@ -649,6 +653,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     !isPeopleList &&
     !isRelayList &&
     !isArticle &&
+    !isClassifiedListing &&
     !isPublication &&
     !isMagicDeck &&
     !isStream &&
@@ -840,6 +845,10 @@ const NoteCardImpl = memo(function NoteCardImpl({
         ) : isArticle ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <EmbeddedArticleCard event={event} className="mt-2" />
+          </Suspense>
+        ) : isClassifiedListing ? (
+          <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+            <ClassifiedListingContent event={event} />
           </Suspense>
         ) : isPublication ? (
           <Suspense fallback={<Skeleton className="h-28 w-full rounded-lg" />}>
@@ -2569,6 +2578,11 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     icon: HandHeart,
     action: (event) => publishedAtAction(event, { created: "started a", updated: "updated their", fallback: "shared a" }),
     noun: "fundraiser",
+  },
+  [CLASSIFIED_LISTING_KIND]: {
+    icon: Tag,
+    action: (event) => publishedAtAction(event, { created: "listed a", updated: "updated a", fallback: "listed a" }),
+    noun: "listing",
   },
   8333: {
     icon: Zap,

@@ -26,6 +26,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useLocation, useNavigate } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
+const ClassifiedListingContent = lazy(() => import("@/components/ClassifiedListingContent").then(m => ({ default: m.ClassifiedListingContent })));
 import { BadgeAwardCard } from "@/components/BadgeAwardCard";
 import { BadgeDetailContent } from "@/components/BadgeDetailContent";
 import { CalendarEventDetailPage } from "@/components/CalendarEventDetailPage";
@@ -57,6 +58,7 @@ import { QuizResultContent } from "@/components/quiz/QuizResultContent";
 import { QUIZ_KIND, QUIZ_RESULT_KIND } from "@/lib/quiz";
 import { AttestationContent } from "@/components/AttestationContent";
 import { ATTESTATION_KIND } from "@/lib/attestation";
+import { CLASSIFIED_LISTING_KIND } from "@/lib/classifiedListing";
 import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
 import { RelayListContent } from "@/components/RelayListContent";
@@ -1299,6 +1301,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isRelayList = event.kind === 10002;
   const isEmojiPack = event.kind === 30030;
   const isArticle = event.kind === 30023;
+  const isClassifiedListing = event.kind === CLASSIFIED_LISTING_KIND;
   const isPublication = PUBLICATION_KINDS.has(event.kind);
   const isMagicDeck = event.kind === 37381;
   const isFileMetadata = event.kind === 1063;
@@ -1353,6 +1356,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isRelayList &&
     !isEmojiPack &&
     !isArticle &&
+    !isClassifiedListing &&
     !isPublication &&
     !isMagicDeck &&
     !isFileMetadata &&
@@ -2622,6 +2626,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             ) : isArticle ? (
               <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
                 <ArticleContent event={event} className="mt-3" />
+              </Suspense>
+            ) : isClassifiedListing ? (
+              <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
+                <ClassifiedListingContent event={event} expanded />
               </Suspense>
             ) : isPublication ? (
               <PublicationContent event={event} />

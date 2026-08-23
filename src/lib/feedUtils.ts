@@ -277,6 +277,15 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
     const hasSource = event.tags.some(([n]) => n === 'a' || n === 'e' || n === 'r');
     if (!hasContent && !hasSource) return true;
   }
+  // NIP-99 classified listings (kind 30402) without a title have nothing to
+  // render. Listings marked `visibility: hidden` (GammaMarkets e-commerce
+  // extension) asked not to appear in public browsing — honor that in feeds.
+  if (event.kind === 30402) {
+    const hasTitle = event.tags.some(([n, v]) => n === 'title' && typeof v === 'string' && v.trim().length > 0);
+    if (!hasTitle) return true;
+    const visibility = event.tags.find(([n]) => n === 'visibility')?.[1]?.trim().toLowerCase();
+    if (visibility === 'hidden') return true;
+  }
   // NIP-B0 web bookmarks (kind 39701) with no bookmarked URL — an `r` (or a
   // scheme-less `d`) is the whole point of the card. Without one there's
   // nothing to link to.

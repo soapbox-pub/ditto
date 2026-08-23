@@ -20,6 +20,8 @@ import { EmbeddedAttestationCard } from '@/components/EmbeddedAttestationCard';
 import { ATTESTATION_KIND } from '@/lib/attestation';
 import { QUIZ_RESULT_KIND, parseQuizResult } from '@/lib/quiz';
 import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
+import { EmbeddedClassifiedListingCard } from '@/components/EmbeddedClassifiedListingCard';
+import { CLASSIFIED_LISTING_KIND, parseClassifiedListing } from '@/lib/classifiedListing';
 import { EmbeddedPublicationCard } from '@/components/EmbeddedPublicationCard';
 import { ARTICLE_KINDS } from '@/lib/articleHelpers';
 import { PUBLICATION_KINDS } from '@/lib/publications';
@@ -234,6 +236,13 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, fallbackAuthorHint, cl
   // would tokenize it as a text note, linkifying the URLs inside the blob.
   if (event.kind === 0) {
     return <EmbeddedProfileCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-99 classified listings (kind 30402) quoted via nevent get the same
+  // compact product card as naddr embeds. Their content is Markdown, so the
+  // generic fallback would tokenize it as a kind-1 note.
+  if (event.kind === CLASSIFIED_LISTING_KIND && parseClassifiedListing(event)) {
+    return <EmbeddedClassifiedListingCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Long-form articles (NIP-23) quoted via nevent get the same rich

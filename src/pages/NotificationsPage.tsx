@@ -112,6 +112,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   30312: 'room',
   30313: 'meeting',
   30315: 'status',
+  30402: 'listing',
   30617: 'repository',
   30618: 'repository update',
   30817: 'custom NIP',

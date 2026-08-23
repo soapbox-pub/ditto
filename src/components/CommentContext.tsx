@@ -9,6 +9,7 @@ import {
   Video,
   Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, ShieldCheck, SmilePlus, Sparkles,
   Server, Stars, UserCheck, Users, Vote, Zap,
+  Tag,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -169,6 +170,7 @@ const KIND_LABELS: Record<number, string> = {
   30312: 'a room',
   30313: 'a meeting',
   30315: 'a status',
+  30402: 'a listing',
   30617: 'a repository',
   30618: 'a repository update',
   30817: 'a custom NIP',
@@ -243,6 +245,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   30311: Radio,
   30312: Video,
   30313: CalendarClock,
+  30402: Tag,
   30617: GitBranch,
   30618: GitBranch,
   31990: Package,

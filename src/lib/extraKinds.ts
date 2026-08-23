@@ -629,6 +629,21 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   // kind 33863 via CampaignContent. We don't host campaign creation or
   // donation flows in Ditto — those belong to Agora — but we surface
   // campaigns in feeds and threads.
+  // Classified listings — kind 30402 (addressable, NIP-99). Feed-only:
+  // opening a listing's naddr lands on PostDetailPage, which renders it via
+  // ClassifiedListingContent. No dedicated page or sidebar entry — the kind
+  // is surfaced in feeds and threads only.
+  {
+    kind: 30402,
+    id: 'classified-listings',
+    feedKey: 'feedIncludeClassifiedListings',
+    label: 'Listings',
+    description: 'Products, services, and offers for sale (NIP-99)',
+    addressable: true,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'Classified listings — anything for sale on Nostr. Products, services, rentals, and giveaways, each with a price, photos, and a description.',
+  },
   {
     kind: 33863,
     id: 'campaigns',
@@ -961,6 +976,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   30008: 'badge set',
   30817: 'custom NIP',
   31871: 'attestation',
+  30402: 'listing',
   32267: 'Zapstore app',
   31990: 'app',
   30063: 'Zapstore release',

@@ -27,6 +27,8 @@ import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
 import { EmbeddedPublicationCard } from '@/components/EmbeddedPublicationCard';
 import { EmbeddedAttestationCard } from '@/components/EmbeddedAttestationCard';
 import { ATTESTATION_KIND } from '@/lib/attestation';
+import { EmbeddedClassifiedListingCard } from '@/components/EmbeddedClassifiedListingCard';
+import { CLASSIFIED_LISTING_KIND, parseClassifiedListing } from '@/lib/classifiedListing';
 import { ExternalSourceLink } from '@/components/ExternalSourceLink';
 import { ARTICLE_KINDS } from '@/lib/articleHelpers';
 import { PUBLICATION_KINDS } from '@/lib/publications';
@@ -232,6 +234,13 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
   // own metadata tags.
   if (event.kind === 39701) {
     return <EmbeddedWebBookmarkCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-99 classified listings (kind 30402) get a compact product card:
+  // photo, "Listing" pill with price, title. Malformed listings (no title)
+  // fall through to the generic naddr card, which renders the NIP-31 `alt`.
+  if (event.kind === CLASSIFIED_LISTING_KIND && parseClassifiedListing(event)) {
+    return <EmbeddedClassifiedListingCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Long-form articles (NIP-23) get a rich link-preview-style card: cover

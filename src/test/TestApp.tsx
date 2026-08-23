@@ -43,6 +43,7 @@ export function TestApp({ children }: TestAppProps) {
       showHighlights: false,
       feedIncludeHighlights: false,
       feedIncludeCampaigns: false,
+      feedIncludeClassifiedListings: false,
       feedIncludeAttestations: false,
       showEvents: false,
       feedIncludeEvents: false,
