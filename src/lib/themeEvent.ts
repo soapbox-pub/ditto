@@ -166,19 +166,8 @@ export function parseThemeDefinition(event: NostrEvent): ThemeDefinition | null 
 
   const description = event.tags.find(([n]) => n === 'description')?.[1];
 
-  // Try new format: colors in `c` tags, content is empty
-  let colors = parseColorTags(event.tags);
-
-  // Fall back to legacy format: colors as JSON in content
-  if (!colors && event.content) {
-    try {
-      const parsed = JSON.parse(event.content);
-      colors = normalizeLegacyColors(parsed);
-    } catch {
-      // Invalid JSON
-    }
-  }
-
+  // Colors live in `c` tags (hex, validated). No other source is trusted.
+  const colors = parseColorTags(event.tags);
   if (!colors) return null;
 
   const { font, titleFont } = parseFontTags(event.tags);
@@ -241,19 +230,8 @@ export interface ActiveProfileTheme {
 export function parseActiveProfileTheme(event: NostrEvent): ActiveProfileTheme | null {
   if (event.kind !== ACTIVE_THEME_KIND) return null;
 
-  // Try new format: colors in `c` tags
-  let colors = parseColorTags(event.tags);
-
-  // Fall back to legacy format: colors as JSON in content
-  if (!colors && event.content) {
-    try {
-      const parsed = JSON.parse(event.content);
-      colors = normalizeLegacyColors(parsed);
-    } catch {
-      // Invalid JSON
-    }
-  }
-
+  // Colors live in `c` tags (hex, validated). No other source is trusted.
+  const colors = parseColorTags(event.tags);
   if (!colors) return null;
 
   const { font, titleFont } = parseFontTags(event.tags);
@@ -288,33 +266,3 @@ export function buildActiveThemeTags(
   return tags;
 }
 
-// ─── Backward Compatibility ───────────────────────────────────────────
-
-/**
- * Normalize a parsed JSON object to CoreThemeColors (legacy format).
- * Handles:
- *   - Current format: { background, text, primary }
- *   - Old 4-color format: { background, text, primary, secondary } (secondary dropped)
- *   - Legacy 19-token format: { background, foreground, primary, ... }
- */
-function normalizeLegacyColors(parsed: Record<string, unknown>): CoreThemeColors | null {
-  // Current or old 4-color format (both have background + text + primary)
-  if (parsed.background && parsed.text && parsed.primary) {
-    return {
-      background: String(parsed.background),
-      text: String(parsed.text),
-      primary: String(parsed.primary),
-    };
-  }
-
-  // Legacy 19-token format (background, foreground, primary, ...)
-  if (parsed.background && parsed.foreground && parsed.primary) {
-    return {
-      background: String(parsed.background),
-      text: String(parsed.foreground),
-      primary: String(parsed.primary),
-    };
-  }
-
-  return null;
-}
