@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.35.2] - 2026-08-23
+
+This release smooths out the rough edges. Opening a post from your feed is snappy again — no more freeze before it loads. Animated avatars and banners keep their motion when you crop them instead of getting flattened. Your themes and settings stay put when you switch or add accounts, the theme you pick during signup lands on the right account, and custom profile tabs can now filter down to just their media.
+
+### Added
+- Custom profile tabs can filter to show only media
+
+### Fixed
+- Opening a post from the feed is instant again, instead of freezing for a beat before it loads
+- Animated avatars and banners keep their animation when you crop them, instead of being flattened to a still image
+- Your theme and settings no longer get overwritten with another account's when you switch accounts or log out
+- Returning users are no longer shown the setup questionnaire again after logging in
+- The theme you choose while signing up now applies to the new account instead of the one you were already using
+
 ## [2.35.1] - 2026-08-19
 
 A security release for the mobile apps. Notification taps and content shared into Ditto from another app now arrive as plain data instead of being assembled into code, so a hostile app on your phone can't use them to steer Ditto somewhere you never tapped. Links that try to bounce you off ditto.pub to another site are turned away too. Nothing else about the app changes.
