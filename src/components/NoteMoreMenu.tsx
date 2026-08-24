@@ -118,9 +118,12 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const bookmarked = isBookmarked(event.id);
   const pinned = isPinned(event.id);
   const userMuted = isMuted('pubkey', event.pubkey);
-  // Conversation = the thread root (NIP-10 root marker), falling back to this
-  // event's own id when it is itself a root. Muting stores an 'e' thread entry.
-  const rootTag = event.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
+  // Conversation = the thread root: a NIP-22 comment names it with the
+  // uppercase `E` tag, a NIP-10 reply with an `e` tag marked "root". Falls
+  // back to this event's own id when it is itself a root. Muting stores an
+  // 'e' thread entry.
+  const rootTag = event.tags.find(([name]) => name === 'E')
+    ?? event.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
   const threadId = rootTag?.[1] ?? event.id;
   const conversationMuted = isMuted('thread', threadId);
   const author = useAuthor(event.pubkey);

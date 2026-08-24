@@ -1163,3 +1163,84 @@ A regular event recording the publisher's own result for a quiz. `content` is an
   ]
 }
 ```
+
+---
+
+## Replies: NIP-22 Everywhere
+
+Ditto publishes **every** reply as a NIP-22 comment — kind 1111 for text, kind
+1244 for voice — including replies to kind 1 notes, where NIP-22 currently says
+"Comments MUST NOT be used to reply to kind 1 notes. NIP-10 should instead be
+followed."
+
+This is a deliberate divergence. NIP-10's positional/marked `e` tags are
+ambiguous and give a thread no stable root, and maintaining two threading models
+side by side means every reply-aware surface has to implement both. Amethyst has
+made kind 1111 its default reply kind, and Ditto follows: the network migrates
+by clients producing the new form, not by amending the spec first. Clients that
+only understand NIP-10 (e.g. Primal) will not show these replies.
+
+Top-level posts remain **kind 1**. Only replies change.
+
+### What Ditto Produces
+
+Replying to a top-level kind 1 note — root scope and parent are the same item:
+
+```json
+{
+  "kind": 1111,
+  "content": "Great post!",
+  "tags": [
+    ["E", "<note-id>", "", "<note-author>"],
+    ["K", "1"],
+    ["P", "<note-author>"],
+    ["e", "<note-id>", "", "<note-author>"],
+    ["k", "1"],
+    ["p", "<note-author>"]
+  ]
+}
+```
+
+Replying to a **NIP-10 kind 1 reply** — the new comment inherits the parent's
+thread root rather than starting a new thread at the parent. The root reference
+is read from the parent's marked `e`/`a` root tag (falling back to the
+deprecated positional scheme, where the first `e` tag is the root), and `K` is
+the parent's own kind, since NIP-10 threads are homogeneous:
+
+```json
+{
+  "kind": 1111,
+  "content": "Agreed.",
+  "tags": [
+    ["E", "<thread-root-id>", "<relay-hint>", "<root-author>"],
+    ["K", "1"],
+    ["P", "<root-author>"],
+    ["e", "<parent-reply-id>", "", "<parent-author>"],
+    ["k", "1"],
+    ["p", "<parent-author>"]
+  ]
+}
+```
+
+`P` is omitted when the parent's NIP-10 `e` tag carries no pubkey hint — NIP-22
+only requires it "when one is available".
+
+Replying to a kind 1111 comment copies the parent's uppercase root scope forward
+verbatim, hints included; the root of a NIP-22 thread is stable at every depth.
+
+Unlike Ditto's old NIP-10 replies, a reply does **not** `p`-tag every
+participant in the thread — only the parent author (`p`) and the root author
+(`P`), per NIP-22, plus any NIP-21 mentions in the content.
+
+### What Ditto Consumes
+
+Reading is unchanged and remains permissive: kind 1 NIP-10 replies still render,
+thread, and count as replies everywhere they did before. Thread queries for a
+kind 1 root ask for both forms:
+
+```json
+[
+  { "kinds": [1, 1111], "#e": ["<root-id>"] },
+  { "kinds": [1111], "#E": ["<root-id>"] }
+]
+```

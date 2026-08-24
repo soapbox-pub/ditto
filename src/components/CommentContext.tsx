@@ -462,17 +462,36 @@ interface CommentContextProps {
 }
 
 /**
+ * Parent kinds that read as a conversation rather than a comment on some other
+ * object: text notes, NIP-22 comments, and voice messages. A comment whose
+ * parent is one of these shows "Replying to @user" instead of "Commenting on".
+ */
+const REPLY_PARENT_KINDS = new Set(['1', '11', '1111', '1222', '1244']);
+
+/**
+ * The parent item's author. NIP-22 records it both at position [3] of the
+ * lowercase `e` tag and in a lowercase `p` tag — but `p` tags also carry
+ * NIP-21 mentions, so prefer the unambiguous `e` hint and fall back to the
+ * FIRST `p` tag (the reply scope is tagged ahead of any mentions).
+ */
+function getParentAuthor(event: NostrEvent): string | undefined {
+  const hint = event.tags.find(([name]) => name === 'e')?.[3];
+  if (isNostrId(hint)) return hint;
+  const pubkey = event.tags.find(([name]) => name === 'p')?.[1];
+  return isNostrId(pubkey) ? pubkey : undefined;
+}
+
+/**
  * Displays "Replying to @user" or "Commenting on [name]" context for kind 1111 comments.
- * When the parent item (lowercase k tag) is another kind 1111 comment, shows "Replying to @user"
- * using the lowercase p tag (parent author). Otherwise shows "Commenting on [root]".
+ * When the parent item (lowercase k tag) is a note, comment, or voice message, shows
+ * "Replying to @user" using the parent author. Otherwise shows "Commenting on [root]".
  */
 export function CommentContext({ event, className }: CommentContextProps) {
-  // If the direct parent is another comment (k="1111"), show "Replying to @user"
   const parentKind = event.tags.find(([name]) => name === 'k')?.[1];
-  const parentAuthorPubkey = event.tags.findLast(([name]) => name === 'p')?.[1];
+  const parentAuthorPubkey = getParentAuthor(event);
 
-  if (parentKind === '1111' && isNostrId(parentAuthorPubkey)) {
-    const rawParentEventId = event.tags.findLast(([name]) => name === 'e')?.[1];
+  if (parentKind && REPLY_PARENT_KINDS.has(parentKind) && parentAuthorPubkey) {
+    const rawParentEventId = event.tags.find(([name]) => name === 'e')?.[1];
     const parentEventId = isNostrId(rawParentEventId) ? rawParentEventId : undefined;
     return <ReplyToCommentContext pubkey={parentAuthorPubkey} eventId={parentEventId} className={className} />;
   }
@@ -495,7 +514,7 @@ export function CommentContext({ event, className }: CommentContextProps) {
 
 // ─── Sub-components ────────────────────────────────────────────
 
-/** Comment context when replying directly to another kind 1111 comment — shows "Replying to @user". */
+/** Comment context when the parent is part of a conversation (a note, comment, or voice message) — shows "Replying to @user". */
 function ReplyToCommentContext({ pubkey, eventId, className }: { pubkey: string; eventId?: string; className?: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;

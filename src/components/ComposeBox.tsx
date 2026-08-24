@@ -56,6 +56,7 @@ import { resizeImage } from '@/lib/resizeImage';
 import { extractHashtags } from '@/lib/hashtag';
 import { stripTrackingParamsInText } from '@/lib/trackingParams';
 import { parseAddr } from '@/lib/parseAddr';
+import { getNip10ThreadRoot, nip22RefTag, type Nip10ThreadRoot } from '@/lib/nostrEvents';
 import { isNostrId } from '@/lib/nostrId';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
@@ -159,6 +160,69 @@ function copyCommentRootScope(parent: NostrEvent): string[][] | null {
   }
 
   return hasRootRef ? tags : null;
+}
+
+/** NIP-22 comment kinds, which carry their thread root in uppercase tags. */
+const NIP22_COMMENT_KINDS = new Set([1111, 1244]);
+
+/**
+ * Build the NIP-22 root scope (`E`/`A` + `K` + `P`) for the thread root a
+ * NIP-10 reply belongs to, so replying to that reply continues its thread
+ * instead of starting a new one rooted at the reply.
+ */
+function nip10RootScopeTags(root: Nip10ThreadRoot): string[][] {
+  const tags: string[][] = [
+    root.type === 'addr'
+      ? nip22RefTag('A', root.addr, root.relayHint)
+      : nip22RefTag('E', root.id, root.relayHint, root.pubkey),
+    ['K', root.kind.toString()],
+  ];
+
+  // The root author is unknown when a NIP-10 `e` tag omits its pubkey hint;
+  // NIP-22 only requires `P` when an author is available.
+  if (root.pubkey) tags.push(['P', root.pubkey]);
+
+  return tags;
+}
+
+/** The root scope and parent a NIP-22 comment should be published against. */
+interface ReplyScope {
+  root: NostrEvent | ExternalReplyRoot;
+  reply?: NostrEvent;
+  rootTags?: string[][];
+}
+
+/**
+ * Resolve the NIP-22 root scope and parent item for a reply target.
+ *
+ * Ditto publishes every reply as a NIP-22 comment, kind 1 notes included (see
+ * NIP.md), so this is the single place that decides what a new reply is scoped
+ * to. Whatever the target is scoped to, the reply inherits: a comment carries
+ * its root in uppercase tags, a NIP-10 reply names its root with a marked
+ * `e`/`a` tag, and anything else is a root in its own right.
+ */
+function resolveReplyScope(replyTo: NostrEvent | ExternalReplyRoot): ReplyScope {
+  // External content (URL or NIP-73 identifier) is always the root itself.
+  if (isExternalRoot(replyTo)) return { root: replyTo };
+
+  if (NIP22_COMMENT_KINDS.has(replyTo.kind)) {
+    // Per NIP-22 the root scope is stable at every depth, so copy the parent
+    // comment's uppercase root tags forward unchanged — preserving the real
+    // root reference and its relay/pubkey hints — instead of reconstructing
+    // them, which used to corrupt an E-referenced root into `A "0::"`. When
+    // the parent carries no usable root reference (e.g. a legacy corrupt
+    // "A 0::" comment), `copyCommentRootScope` returns null and the new
+    // thread re-roots at the parent comment itself.
+    return { root: replyTo, reply: replyTo, rootTags: copyCommentRootScope(replyTo) ?? undefined };
+  }
+
+  const threadRoot = getNip10ThreadRoot(replyTo);
+  if (threadRoot) {
+    return { root: replyTo, reply: replyTo, rootTags: nip10RootScopeTags(threadRoot) };
+  }
+
+  // A top-level event of any kind: it is both the root and the parent.
+  return { root: replyTo };
 }
 
 interface ComposeBoxProps {
@@ -821,64 +885,20 @@ export function ComposeBox({
       ];
       const imetaTag = ['imeta', ...imetaFields];
 
-      // Determine kind: 1244 for NIP-22 replies, 1222 for root messages
-      const isNip22Reply = replyTo && (isExternalRoot(replyTo) || replyTo.kind !== 1);
-      const isKind1Reply = replyTo && !isExternalRoot(replyTo) && replyTo.kind === 1;
-
-      /** Set when this voice message is a reply, so it can be shown in the open thread. */
-      let publishedReply: NostrEvent | undefined;
-
-      if (isNip22Reply) {
-        // NIP-22 voice reply (kind 1244) — use postComment infrastructure
-        // but we need to publish kind 1244 directly since postComment uses kind 1111
-        // Build NIP-22 tags manually
-        const voiceTags: string[][] = [imetaTag];
-
-        if (replyTo instanceof URL) {
-          const kLabel = replyTo.protocol === 'http:' || replyTo.protocol === 'https:' ? 'web' : replyTo.protocol.replace(/:$/, '');
-          voiceTags.push(['I', replyTo.toString()]);
-          voiceTags.push(['K', kLabel]);
-          // lowercase reply tags pointing to same root
-          voiceTags.push(['i', replyTo.toString()]);
-          voiceTags.push(['k', kLabel]);
-        } else if (typeof replyTo === 'string') {
-          // NIP-73 hashtag-style identifier (e.g. `bitcoin:tx:...`, `isbn:...`, `iso3166:...`)
-          voiceTags.push(['I', replyTo]);
-          voiceTags.push(['K', '#']);
-          voiceTags.push(['i', replyTo]);
-          voiceTags.push(['k', '#']);
-        } else {
-          voiceTags.push(['E', replyTo.id]);
-          voiceTags.push(['K', replyTo.kind.toString()]);
-          voiceTags.push(['P', replyTo.pubkey]);
-          // lowercase reply tags
-          voiceTags.push(['e', replyTo.id]);
-          voiceTags.push(['k', replyTo.kind.toString()]);
-          voiceTags.push(['p', replyTo.pubkey]);
-        }
-
-        publishedReply = await createEvent({
+      if (replyTo) {
+        // Every voice reply is a NIP-22 voice comment (kind 1244), whatever it
+        // replies to — postComment handles the root scope, the rebroadcast,
+        // and inserting it into the open thread.
+        await postComment({
+          ...resolveReplyScope(replyTo),
+          content: audioUrl,
+          tags: [imetaTag],
           kind: 1244,
-          content: audioUrl,
-          tags: voiceTags,
         });
-      } else if (isKind1Reply && !isExternalRoot(replyTo)) {
-        // NIP-10 voice reply to a kind 1 note — still publish as kind 1222 with reply tags
-        const voiceTags: string[][] = [imetaTag];
-        const rootTag = replyTo.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
-        if (rootTag) {
-          voiceTags.push(['e', rootTag[1], rootTag[2] || DITTO_RELAY, 'root', ...(rootTag[4] ? [rootTag[4]] : [])]);
-          voiceTags.push(['e', replyTo.id, DITTO_RELAY, 'reply', replyTo.pubkey]);
-        } else {
-          voiceTags.push(['e', replyTo.id, DITTO_RELAY, 'root', replyTo.pubkey]);
-        }
-        voiceTags.push(['p', replyTo.pubkey]);
-
-        publishedReply = await createEvent({
-          kind: 1222,
-          content: audioUrl,
-          tags: voiceTags,
-        });
+        // Voice replies aren't injected into feeds; just mark them stale for
+        // the next natural refetch (see prependEventToFeeds for why there's
+        // no immediate refetch).
+        queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
       } else {
         // Root voice message (kind 1222)
         const published = await createEvent({
@@ -890,22 +910,6 @@ export function ComposeBox({
         prependEventToFeeds(queryClient, published);
       }
 
-      // Reset state
-      if (replyTo) {
-        // Voice replies aren't injected into feeds; just mark them stale for
-        // the next natural refetch (see prependEventToFeeds for why there's
-        // no immediate refetch).
-        queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
-        // Rebroadcast the original event alongside the voice reply (best-effort).
-        if (!isExternalRoot(replyTo)) {
-          rebroadcastEvent(nostr, replyTo);
-        }
-        if (publishedReply) {
-          // Show the voice reply in the open thread right away. Voice replies
-          // always tag `replyTo` as the root, whatever its type.
-          insertReplyIntoThreads(queryClient, publishedReply, replyTo);
-        }
-      }
       notificationSuccess();
       toast({ title: 'Voice message sent!', description: 'Your voice message has been published.' });
       onSuccess?.();
@@ -914,7 +918,7 @@ export function ComposeBox({
     } finally {
       setIsPublishingVoice(false);
     }
-  }, [user, voiceRecorder, uploadFile, createEvent, nostr, replyTo, queryClient, toast, onSuccess]);
+  }, [user, voiceRecorder, uploadFile, createEvent, postComment, replyTo, queryClient, toast, onSuccess]);
 
   /**
    * Strip tracking parameters from the links in an outgoing note, unless the
@@ -959,36 +963,6 @@ export function ComposeBox({
       mentionedPubkeys.delete(user.pubkey);
       for (const pk of mentionedPubkeys) {
         tags.push(['p', pk]);
-      }
-
-      // Reply tags: NIP-10 for kind 1 targets, NIP-22 for non-kind-1 targets and external roots (URL or NIP-73 id)
-      const isNip22Reply = replyTo && (isExternalRoot(replyTo) || replyTo.kind !== 1);
-
-      if (replyTo && !isNip22Reply && !isExternalRoot(replyTo)) {
-        // NIP-10 reply tags (kind 1 targets only)
-        const rootTag = replyTo.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
-        if (rootTag) {
-          // replyTo is itself a reply – preserve the root and mark replyTo as reply
-          tags.push(['e', rootTag[1], rootTag[2] || DITTO_RELAY, 'root', ...(rootTag[4] ? [rootTag[4]] : [])]);
-          tags.push(['e', replyTo.id, DITTO_RELAY, 'reply', replyTo.pubkey]);
-        } else {
-          // replyTo is a top-level note – it becomes the root
-          tags.push(['e', replyTo.id, DITTO_RELAY, 'root', replyTo.pubkey]);
-        }
-
-        // Add p tags: original author + all existing p tags from the parent
-        // Skip pubkeys already added by mention detection above
-        const pPubkeys = new Set<string>();
-        pPubkeys.add(replyTo.pubkey);
-        for (const tag of replyTo.tags) {
-          if (tag[0] === 'p' && tag[1]) pPubkeys.add(tag[1]);
-        }
-        // Don't include ourselves or already-mentioned pubkeys
-        if (user.pubkey) pPubkeys.delete(user.pubkey);
-        for (const pk of mentionedPubkeys) pPubkeys.delete(pk);
-        for (const pk of pPubkeys) {
-          tags.push(['p', pk]);
-        }
       }
 
       // Quote tags (if quoted event and not removed)
@@ -1093,39 +1067,11 @@ export function ComposeBox({
       let published: NostrEvent;
       /** The NIP-22 thread root, which isn't always the event being replied to. */
       let threadRoot: NostrEvent | URL | `#${string}` | undefined;
-      if (isNip22Reply) {
-        // NIP-22: use usePostComment for non-kind-1 targets and URL roots
-        // Determine root and reply params for the comment hook
-        let root: NostrEvent | URL | `#${string}`;
-        let reply: NostrEvent | undefined;
-        /** When set, the parent comment's root scope copied forward verbatim. */
-        let rootScopeTags: string[][] | undefined;
-
-        if (replyTo instanceof URL) {
-          // External content root — the URL is the root directly
-          root = replyTo;
-        } else if (typeof replyTo === 'string') {
-          // NIP-73 hashtag-style identifier root (e.g. `bitcoin:tx:...`, `isbn:...`)
-          root = replyTo;
-        } else if (replyTo.kind === 1111) {
-          // Replying to a comment. Per NIP-22 the root scope is stable at every
-          // depth, so copy the parent comment's uppercase root tags (A/E/I plus
-          // K/P) forward unchanged — preserving the real root reference and its
-          // relay/pubkey hints — instead of reconstructing them, which used to
-          // corrupt an E-referenced root into `A "0::"`. When the parent carries
-          // no usable root reference (e.g. a legacy corrupt "A 0::" comment),
-          // `copyCommentRootScope` returns null and we re-root the new thread at
-          // the parent comment itself.
-          reply = replyTo;
-          root = replyTo;
-          rootScopeTags = copyCommentRootScope(replyTo) ?? undefined;
-        } else {
-          // Replying directly to a non-kind-1 event: it is the root
-          root = replyTo;
-        }
-
-        threadRoot = root;
-        published = await postComment({ root, reply, content: finalContent, tags, rootTags: rootScopeTags });
+      if (replyTo) {
+        // Every reply is a NIP-22 comment (kind 1111), kind 1 notes included.
+        const scope = resolveReplyScope(replyTo);
+        threadRoot = scope.root;
+        published = await postComment({ ...scope, content: finalContent, tags });
       } else {
         published = await createEvent({
           kind: 1,
@@ -1136,12 +1082,8 @@ export function ComposeBox({
       }
 
       resetComposeState();
-      // Rebroadcast the original event(s) alongside the new reply/quote (best-effort).
-      // NIP-22 replies are rebroadcast inside usePostComment, so only handle the
-      // NIP-10 (kind 1) reply target here to avoid double broadcasting.
-      if (replyTo && !isExternalRoot(replyTo) && !isNip22Reply) {
-        rebroadcastEvent(nostr, replyTo);
-      }
+      // Rebroadcast the quoted event alongside the new note (best-effort).
+      // Reply targets are rebroadcast inside usePostComment.
       if (showQuotedEvent && quotedEvent) {
         rebroadcastEvent(nostr, quotedEvent);
       }
