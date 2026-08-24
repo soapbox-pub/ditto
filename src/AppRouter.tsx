@@ -11,7 +11,6 @@ import { BlobbiActionsProvider } from "@/blobbi/companion/interaction/BlobbiActi
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 import { Toaster } from "./components/ui/toaster";
 import { MainLayout } from "./components/MainLayout";
-import { NavigationProgress } from "./components/NavigationProgress";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { VersionCheck } from "./components/VersionCheck";
 import { useCurrentUser } from "./hooks/useCurrentUser";
@@ -137,7 +136,6 @@ export function AppRouter() {
           detail route (or its Suspense skeleton) immediately. */}
       <BrowserRouter useTransitions={false}>
         <Toaster />
-        <NavigationProgress />
         <VersionCheck />
         <MinimizedAudioBar />
         <AudioNavigationGuard />
