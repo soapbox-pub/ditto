@@ -21,6 +21,7 @@ import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { LinkPreview } from '@/components/LinkPreview';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import { ReplyContext } from '@/components/ReplyContext';
 import { ReactionEmoji, EmojifiedText } from '@/components/CustomEmoji';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
@@ -468,32 +469,58 @@ interface CommentContextProps {
  */
 const REPLY_PARENT_KINDS = new Set(['1', '11', '1111', '1222', '1244']);
 
+/** One of a comment's two scopes: the item it replies to, or the thread root. */
+interface CommentScope {
+  /** Kind of the referenced item, as written in the `k`/`K` tag. */
+  kind?: string;
+  /** Author of the referenced item, validated as hex. */
+  pubkey?: string;
+  /** Id of the referenced event, validated as hex. */
+  eventId?: string;
+  relayHint?: string;
+}
+
 /**
- * The parent item's author. NIP-22 records it both at position [3] of the
- * lowercase `e` tag and in a lowercase `p` tag — but `p` tags also carry
- * NIP-21 mentions, so prefer the unambiguous `e` hint and fall back to the
- * FIRST `p` tag (the reply scope is tagged ahead of any mentions).
+ * Read one of a comment's scopes: `parent` from the lowercase tags, `root`
+ * from the uppercase ones.
+ *
+ * NIP-22 records the author both at position [3] of the `e` tag and in a `p`
+ * tag — but `p` tags also carry NIP-21 mentions, so prefer the unambiguous `e`
+ * hint and fall back to the FIRST `p` tag, since the reply scope is tagged
+ * ahead of any mentions.
  */
-function getParentAuthor(event: NostrEvent): string | undefined {
-  const hint = event.tags.find(([name]) => name === 'e')?.[3];
-  if (isNostrId(hint)) return hint;
-  const pubkey = event.tags.find(([name]) => name === 'p')?.[1];
-  return isNostrId(pubkey) ? pubkey : undefined;
+function readCommentScope(event: NostrEvent, scope: 'parent' | 'root'): CommentScope | undefined {
+  const [eName, kName, pName] = scope === 'root' ? ['E', 'K', 'P'] : ['e', 'k', 'p'];
+
+  const eTag = event.tags.find(([name]) => name === eName);
+  const kind = event.tags.find(([name]) => name === kName)?.[1];
+  if (!eTag && !kind) return undefined;
+
+  const hinted = eTag?.[3];
+  const tagged = event.tags.find(([name]) => name === pName)?.[1];
+  const id = eTag?.[1];
+
+  return {
+    kind,
+    pubkey: isNostrId(hinted) ? hinted : isNostrId(tagged) ? tagged : undefined,
+    eventId: isNostrId(id) ? id : undefined,
+    relayHint: eTag?.[2] || undefined,
+  };
 }
 
 /**
  * Displays "Replying to @user" or "Commenting on [name]" context for kind 1111 comments.
  * When the parent item (lowercase k tag) is a note, comment, or voice message, shows
- * "Replying to @user" using the parent author. Otherwise shows "Commenting on [root]".
+ * the same "Replying to @user" row a kind 1 reply gets. Otherwise shows
+ * "Commenting on [root]".
  */
 export function CommentContext({ event, className }: CommentContextProps) {
-  const parentKind = event.tags.find(([name]) => name === 'k')?.[1];
-  const parentAuthorPubkey = getParentAuthor(event);
+  // Some clients write only the uppercase scope on a top-level comment. It
+  // names the same item as the missing lowercase one, so read it instead.
+  const parent = readCommentScope(event, 'parent') ?? readCommentScope(event, 'root');
 
-  if (parentKind && REPLY_PARENT_KINDS.has(parentKind) && parentAuthorPubkey) {
-    const rawParentEventId = event.tags.find(([name]) => name === 'e')?.[1];
-    const parentEventId = isNostrId(rawParentEventId) ? rawParentEventId : undefined;
-    return <ReplyToCommentContext pubkey={parentAuthorPubkey} eventId={parentEventId} className={className} />;
+  if (parent?.kind && REPLY_PARENT_KINDS.has(parent.kind)) {
+    return <ConversationReplyContext event={event} parent={parent} className={className} />;
   }
 
   const root = parseCommentRoot(event);
@@ -514,29 +541,44 @@ export function CommentContext({ event, className }: CommentContextProps) {
 
 // ─── Sub-components ────────────────────────────────────────────
 
-/** Comment context when the parent is part of a conversation (a note, comment, or voice message) — shows "Replying to @user". */
-function ReplyToCommentContext({ pubkey, eventId, className }: { pubkey: string; eventId?: string; className?: string }) {
-  const author = useAuthor(pubkey);
-  const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
-  const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
-  const parentLink = useMemo(() => {
-    if (!eventId) return undefined;
-    try { return `/${nip19.neventEncode({ id: eventId, author: pubkey })}`; } catch { return undefined; }
-  }, [eventId, pubkey]);
+/**
+ * Context row for a comment whose parent is part of a conversation — a note,
+ * another comment, or a voice message.
+ *
+ * Renders the very same `ReplyContext` that kind 1 replies use, so a reply
+ * reads identically whichever protocol carried it: the "Replying to" label
+ * previews the parent post on hover, and each author is a profile link with a
+ * profile hover card. The authors are the parent's and, when the thread runs
+ * deeper, the root's — the NIP-22 counterpart of the participant `p` tags a
+ * NIP-10 reply lists.
+ */
+function ConversationReplyContext({ event, parent, className }: {
+  event: NostrEvent;
+  parent: CommentScope;
+  className?: string;
+}) {
+  // Some clients tag neither the author nor a pubkey hint. Rather than drop
+  // the names, fetch the parent and read its author — the comment is already
+  // rendered, so this only fills in the row.
+  const { data: parentEvent } = useEvent(
+    parent.pubkey ? undefined : parent.eventId,
+    parent.relayHint ? [parent.relayHint] : undefined,
+  );
+  const parentPubkey = parent.pubkey ?? parentEvent?.pubkey;
+
+  const root = readCommentScope(event, 'root');
+  const pubkeys = [parentPubkey, root?.pubkey]
+    .filter((pubkey): pubkey is string => !!pubkey)
+    .filter((pubkey, index, all) => all.indexOf(pubkey) === index);
 
   return (
-    <CommentContextRow prefix="Replying to" className={className} loading={author.isLoading}>
-      <ProfileHoverCard pubkey={pubkey} asChild>
-        <Link
-          to={parentLink ?? `/${npubEncoded}`}
-          className="text-primary hover:underline truncate"
-          onClick={(e) => e.stopPropagation()}
-        >
-          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
-        </Link>
-      </ProfileHoverCard>
-    </CommentContextRow>
+    <ReplyContext
+      pubkeys={pubkeys}
+      parentEventId={parent.eventId}
+      parentRelayHint={parent.relayHint}
+      parentAuthorHint={parentPubkey}
+      className={className}
+    />
   );
 }
 
