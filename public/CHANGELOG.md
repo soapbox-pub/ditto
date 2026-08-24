@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.36.0] - 2026-08-23
+
+Take your account with you. A new Import & Export screen in Settings pulls everything you've ever posted off your relays into a file that's yours to keep, then pushes your history back to any relay that's missing it — one relay at a time, with progress for each, picking up where it left off. Replies got reworked too: every reply now records the post and the thread it belongs to, so reply labels and notifications land right. And muting a conversation finally silences the whole thing.
+
+### Added
+- Import & Export in Settings: download everything you've posted as a file you can keep, and push your history back to relays that don't have it, with per-relay progress and transfers that resume where they left off
+
+### Changed
+- Replies are published in the newer comment format, which names the post and thread they belong to — so "Replying to @user" and reply notifications show up on every reply, whichever app it came from
+- Apps that only understand the older reply format won't show replies posted from Ditto
+
+### Fixed
+- Muting a conversation now hides every reply in it, instead of only the ones sitting directly under the post you muted
+
 ## [2.35.3] - 2026-08-23
 
 Classified listings join the party. Items for sale now land in your feed as rich cards — price, photos, and details — with a toggle to browse just the listings, and they render inline when quoted too. Also patched: a booby-trapped profile theme can no longer break out of its styling to deface the page or sneak out hidden network requests.
