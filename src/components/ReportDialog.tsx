@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from '@/hooks/useToast';
+import { REPORT_KIND, type ReportType } from '@/lib/report';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 interface ReportEventProps {
@@ -32,7 +33,7 @@ interface ReportProfileProps {
 
 type ReportDialogProps = ReportEventProps | ReportProfileProps;
 
-const REPORT_TYPES = [
+const REPORT_TYPES: { value: ReportType; label: string; description: string }[] = [
   { value: 'spam', label: 'Spam', description: 'Unsolicited or repetitive content' },
   { value: 'nudity', label: 'Nudity or sexual content', description: 'Depictions of nudity or pornography' },
   { value: 'impersonation', label: 'Impersonation', description: 'Pretending to be someone else' },
@@ -40,9 +41,7 @@ const REPORT_TYPES = [
   { value: 'illegal', label: 'Illegal content', description: 'Content that may be illegal in some jurisdictions' },
   { value: 'malware', label: 'Malware', description: 'Virus, trojan horse, spyware, or ransomware' },
   { value: 'other', label: 'Other', description: 'Something else not listed above' },
-] as const;
-
-type ReportType = typeof REPORT_TYPES[number]['value'];
+];
 
 export function ReportDialog({ event, pubkey, open, onOpenChange }: ReportDialogProps) {
   const { user } = useCurrentUser();
@@ -64,7 +63,7 @@ export function ReportDialog({ event, pubkey, open, onOpenChange }: ReportDialog
       }
 
       await publishEvent({
-        kind: 1984,
+        kind: REPORT_KIND,
         content: details.trim(),
         tags,
       });

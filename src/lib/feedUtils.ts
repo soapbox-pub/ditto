@@ -310,6 +310,12 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
     const hasWallet = event.tags.some(([n, v]) => n === 'w' && typeof v === 'string' && v.length > 0);
     if (!hasTitle || !hasD || !hasWallet) return true;
   }
+  // NIP-56 reports (kind 1984) that name no target. At least one of `p`,
+  // `e`, or `x` is required; without one there is nothing being reported.
+  if (event.kind === 1984) {
+    const hasTarget = event.tags.some(([n, v]) => (n === 'p' || n === 'e' || n === 'x') && v);
+    if (!hasTarget) return true;
+  }
   // Love Lists (kind 15683, see NIP.md) with no `p` tags — an emptied list
   // has no hearts to show on its paper card.
   if (event.kind === 15683 && !event.tags.some(([n, v]) => n === 'p' && v)) return true;

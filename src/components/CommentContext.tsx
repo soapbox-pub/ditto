@@ -5,6 +5,7 @@ import { FormattedMessage } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import {
   Award, BarChart3, Bird, Bitcoin, Bookmark, BookOpen, CalendarClock, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Egg, FileText, Film,
+  Flag,
   GitBranch, GitPullRequest, HandHeart, Heart, History, Mail, MapPin, MessageSquare, Mic, Music, Newspaper,
   Video,
   Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, ShieldCheck, SmilePlus, Sparkles,
@@ -195,6 +196,7 @@ const KIND_LABELS: Record<number, string> = {
   39701: 'a web bookmark',
   8333: 'a zap',
   31124: 'a Blobbi',
+  1984: 'a report',
   31871: 'an attestation',
   33863: 'a fundraiser',
   37849: 'a quiz',
@@ -271,6 +273,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   2473: Bird,
   12473: Bird,
   30621: Stars,
+  1984: Flag,
   31871: ShieldCheck,
   33863: HandHeart,
   37849: ClipboardList,
