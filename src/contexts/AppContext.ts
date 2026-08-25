@@ -72,6 +72,8 @@ export interface FeedSettings {
   feedIncludeClassifiedListings: boolean;
   /** Include Attestations (kind 31871) in the follows/global feed */
   feedIncludeAttestations: boolean;
+  /** Include NIP-56 Reports (kind 1984) in the follows/global feed */
+  feedIncludeReports: boolean;
   /** Show Events (kind 31922/31923) link in sidebar */
   showEvents: boolean;
   /** Include calendar events in the follows/global feed */

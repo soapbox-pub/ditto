@@ -624,6 +624,20 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedOnly: true,
     blurb: 'Attestations are signed truthfulness claims about other Nostr events — an attestor verifies a claim and publishes whether it is valid, invalid, still being verified, or revoked. They enable a web of trust for notes.',
   },
+  // Reports — kind 1984 (regular, NIP-56). Feed-only: opening a report's
+  // nevent lands on PostDetailPage, which renders it via ReportContent.
+  // Default off — reports are moderation signals about content, not content.
+  {
+    kind: 1984,
+    id: 'reports',
+    feedKey: 'feedIncludeReports',
+    label: 'Reports',
+    description: 'Moderation reports about users, posts, and files (NIP-56)',
+    addressable: false,
+    section: 'social',
+    feedOnly: true,
+    blurb: "Reports are what people flag as objectionable — spam, impersonation, malware, and worse. Nobody's report carries authority on its own; seeing them is a way to watch the network moderate itself.",
+  },
   // Fundraisers — kind 33863 (addressable). Feed-only: opening a
   // campaign's naddr lands on PostDetailPage, which knows how to render
   // kind 33863 via CampaignContent. We don't host campaign creation or
@@ -976,6 +990,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   30008: 'badge set',
   30817: 'custom NIP',
   31871: 'attestation',
+  1984: 'report',
   30402: 'listing',
   32267: 'Zapstore app',
   31990: 'app',

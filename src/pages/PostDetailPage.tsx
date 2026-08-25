@@ -57,6 +57,8 @@ import { QuizContent } from "@/components/quiz/QuizContent";
 import { QuizResultContent } from "@/components/quiz/QuizResultContent";
 import { QUIZ_KIND, QUIZ_RESULT_KIND } from "@/lib/quiz";
 import { AttestationContent } from "@/components/AttestationContent";
+import { ReportContent } from "@/components/ReportContent";
+import { REPORT_KIND } from "@/lib/report";
 import { ATTESTATION_KIND } from "@/lib/attestation";
 import { CLASSIFIED_LISTING_KIND } from "@/lib/classifiedListing";
 import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
@@ -1334,6 +1336,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isStatus = event.kind === 30315;
   const isRoom = event.kind === 30312 || event.kind === 30313;
   const isAttestation = event.kind === ATTESTATION_KIND;
+  const isReport = event.kind === REPORT_KIND;
   const isCampaign = event.kind === 33863;
   const isQuiz = event.kind === QUIZ_KIND;
   const isQuizResult = event.kind === QUIZ_RESULT_KIND;
@@ -1381,6 +1384,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isStatus &&
     !isRoom &&
     !isAttestation &&
+    !isReport &&
     !isCampaign &&
     !isQuiz &&
     !isQuizResult &&
@@ -2725,6 +2729,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </div>
             ) : isAttestation ? (
               <AttestationContent event={event} expanded />
+            ) : isReport ? (
+              <ReportContent event={event} expanded />
             ) : isCampaign ? (
               <CampaignContent event={event} expanded />
             ) : isQuiz ? (

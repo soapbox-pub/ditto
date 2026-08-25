@@ -45,6 +45,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeCampaigns: false,
       feedIncludeClassifiedListings: false,
       feedIncludeAttestations: false,
+      feedIncludeReports: false,
       showEvents: false,
       feedIncludeEvents: false,
       showVines: true,

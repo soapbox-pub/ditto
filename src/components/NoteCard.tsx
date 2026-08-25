@@ -12,6 +12,7 @@ import {
   Egg,
   FileCode,
   FileText,
+  Flag,
   GitBranch,
   GitPullRequest,
   GitPullRequestArrow,
@@ -106,7 +107,9 @@ import { QuizContent } from "@/components/quiz/QuizContent";
 import { QuizResultContent } from "@/components/quiz/QuizResultContent";
 import { QUIZ_KIND, QUIZ_RESULT_KIND } from "@/lib/quiz";
 import { AttestationContent } from "@/components/AttestationContent";
+import { ReportContent } from "@/components/ReportContent";
 import { ATTESTATION_KIND } from "@/lib/attestation";
+import { REPORT_KIND, reportTargetNoun } from "@/lib/report";
 import { CLASSIFIED_LISTING_KIND } from "@/lib/classifiedListing";
 import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { ZapContent } from "@/components/ZapContent";
@@ -617,6 +620,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isWebBookmark = event.kind === 39701;
   const isStatus = event.kind === 30315;
   const isAttestation = event.kind === ATTESTATION_KIND;
+  const isReport = event.kind === REPORT_KIND;
   const isCampaign = event.kind === 33863;
   const isQuiz = event.kind === QUIZ_KIND;
   const isQuizResult = event.kind === QUIZ_RESULT_KIND;
@@ -683,6 +687,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     !isWebBookmark &&
     !isStatus &&
     !isAttestation &&
+    !isReport &&
     !isCampaign &&
     !isQuiz &&
     !isQuizResult &&
@@ -948,6 +953,8 @@ const NoteCardImpl = memo(function NoteCardImpl({
           <InteractiveRoomContent event={event} />
         ) : isAttestation ? (
           <AttestationContent event={event} />
+        ) : isReport ? (
+          <ReportContent event={event} />
         ) : isCampaign ? (
           <CampaignContent event={event} />
         ) : isQuiz ? (
@@ -2580,6 +2587,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     icon: ShieldCheck,
     action: (event) => publishedAtAction(event, { created: "published an", updated: "updated an", fallback: "published an" }),
     noun: "attestation",
+  },
+  [REPORT_KIND]: {
+    icon: Flag,
+    // The whole phrase lives in `action` because the noun varies with the
+    // target ("a post" / "a user" / "a file") and links nowhere.
+    action: (event) => `reported a ${reportTargetNoun(event)}`,
   },
   33863: {
     icon: HandHeart,

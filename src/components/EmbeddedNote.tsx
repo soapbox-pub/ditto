@@ -18,6 +18,8 @@ import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
 import { EmbeddedProfileBadgesCard } from '@/components/EmbeddedNaddr';
 import { EmbeddedAttestationCard } from '@/components/EmbeddedAttestationCard';
 import { ATTESTATION_KIND } from '@/lib/attestation';
+import { EmbeddedReportCard } from '@/components/EmbeddedReportCard';
+import { REPORT_KIND } from '@/lib/report';
 import { QUIZ_RESULT_KIND, parseQuizResult } from '@/lib/quiz';
 import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
 import { EmbeddedClassifiedListingCard } from '@/components/EmbeddedClassifiedListingCard';
@@ -179,6 +181,13 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, fallbackAuthorHint, cl
   // through the kind-1 tokenizer.
   if (event.kind === ATTESTATION_KIND) {
     return <EmbeddedAttestationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Kind 1984 NIP-56 reports get a compact card showing the report type and
+  // reason. The generic fallback would render the reason through the kind-1
+  // tokenizer — and reports routinely link the material being reported.
+  if (event.kind === REPORT_KIND) {
+    return <EmbeddedReportCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Kind 7849 quiz results (see NIP.md) get a compact card showing the

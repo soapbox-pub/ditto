@@ -67,6 +67,7 @@ const hardcodedConfig: AppConfig = {
     feedIncludeCampaigns: true,
     feedIncludeClassifiedListings: true,
     feedIncludeAttestations: false,
+    feedIncludeReports: false,
     showEvents: true,
     feedIncludeEvents: true,
     showVines: true,
