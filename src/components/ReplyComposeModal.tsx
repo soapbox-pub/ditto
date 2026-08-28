@@ -44,7 +44,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSu
 
   const isProfileRoot = !isExternal && event instanceof Object && 'kind' in event && event.kind === 0;
   const title = titleOverride ?? (initialMode === 'poll' ? 'New poll' : isExternal ? 'New comment' : isProfileRoot ? 'Comment on profile' : isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post');
-  const placeholder = placeholderOverride ?? (isExternal ? 'Write a comment...' : isReply ? "What's on your mind?" : isQuote ? 'Add a comment...' : "What's happening?");
+  const placeholder = placeholderOverride ?? (isExternal ? 'Write a comment...' : isQuote && !isReply ? 'Add a comment...' : "What's on your mind?");
 
   const dialogContentRef = useCallback((node: HTMLElement | null) => {
     setPortalContainer(node ?? undefined);
