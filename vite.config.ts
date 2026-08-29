@@ -260,7 +260,7 @@ export default defineConfig(({ mode }) => {
     alias: [
       // @blobbi-kit/core and @blobbi-kit/react resolve through their installed
       // package exports in node_modules (published npm packages), not source aliases.
-      { find: "@", replacement: path.resolve(__dirname, "./src") },
+      { find: "@", replacement: path.resolve(import.meta.dirname, "./src") },
     ],
     // Dedupe the React-context-bearing singletons so a dependency can't pull in a
     // second copy of them (which breaks useContext).
