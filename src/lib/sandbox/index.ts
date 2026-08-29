@@ -7,6 +7,7 @@ export type {
   JsonRpcSuccessResponse,
   JsonRpcErrorResponse,
   JsonRpcResponse,
+  SerialisedBody,
   SerialisedRequest,
   SerialisedResponse,
   FileResponse,
