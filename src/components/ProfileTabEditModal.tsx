@@ -21,15 +21,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import { buildKindOptions, parseSelectedKinds } from '@/lib/feedFilterUtils';
 import {
-  TAB_MEDIA_TYPES,
+  TAB_MEDIA_CATEGORIES,
   TAB_MEDIA_LABELS,
   TAB_MEDIA_ICONS,
   parseMediaSearch,
   buildTabSearch,
-  type TabMediaType,
+  type TabMediaCategory,
 } from '@/lib/tabMediaFilter';
 import {
   MultiKindPicker,
@@ -134,7 +134,7 @@ export function ProfileTabEditModal({
 
   const [label, setLabel] = useState(tab?.label ?? '');
   const [query, setQuery] = useState(initialMedia.query);
-  const [mediaType, setMediaType] = useState<TabMediaType>(initialMedia.mediaType);
+  const [mediaCategories, setMediaCategories] = useState<Set<TabMediaCategory>>(initialMedia.categories);
   const [authorScope, setAuthorScope] = useState<ProfileAuthorScope>(
     filterToScope(initialFilter, ownerPubkey),
   );
@@ -168,6 +168,24 @@ export function ProfileTabEditModal({
     }
   }, []);
 
+  // Toggle a media category. Images/Videos combine (inclusive OR); "No media"
+  // is the opposite of having media, so it's mutually exclusive with them.
+  const toggleMediaCategory = useCallback((category: TabMediaCategory) => {
+    setMediaCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else if (category === 'none') {
+        next.clear();
+        next.add('none');
+      } else {
+        next.delete('none');
+        next.add(category);
+      }
+      return next;
+    });
+  }, []);
+
   // Reset form state whenever the modal opens or the tab being edited changes.
   // This runs as an effect rather than inside onOpenChange because the Dialog
   // does not fire onOpenChange when opened programmatically via the `open` prop.
@@ -177,7 +195,7 @@ export function ProfileTabEditModal({
       const media = parseMediaSearch(typeof f.search === 'string' ? f.search : '');
       setLabel(tab?.label ?? '');
       setQuery(media.query);
-      setMediaType(media.mediaType);
+      setMediaCategories(media.categories);
       setAuthorScope(filterToScope(f, ownerPubkey));
       setPeoplePubkeys(filterToPeoplePubkeys(f, ownerPubkey));
       setSelectedKinds(parseSelectedKinds(f));
@@ -191,7 +209,7 @@ export function ProfileTabEditModal({
       ...scopeToFilter(authorScope, ownerPubkey, peoplePubkeys),
     };
 
-    const search = buildTabSearch(query, mediaType);
+    const search = buildTabSearch(query, mediaCategories);
     if (search) {
       filter.search = search;
     }
@@ -241,27 +259,43 @@ export function ProfileTabEditModal({
 
           <Separator />
 
-          {/* Media content type */}
+          {/* Media content type — Images/Videos combine; "No media" is exclusive */}
           <div className="space-y-2">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Media</span>
-            <Select value={mediaType} onValueChange={(v) => setMediaType(v as TabMediaType)}>
-              <SelectTrigger className="w-full bg-secondary/50 h-9 text-base md:text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TAB_MEDIA_TYPES.map((value) => {
-                  const Icon = TAB_MEDIA_ICONS[value];
-                  return (
-                    <SelectItem key={value} value={value}>
-                      <span className="flex items-center gap-2">
-                        {Icon && <Icon className="size-3.5 shrink-0" />}
-                        {TAB_MEDIA_LABELS[value]}
-                      </span>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
+            <div className="rounded-lg border border-border overflow-hidden flex">
+              {TAB_MEDIA_CATEGORIES.map((value) => {
+                const Icon = TAB_MEDIA_ICONS[value];
+                const active = mediaCategories.has(value);
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => toggleMediaCategory(value)}
+                    className={cn(
+                      'flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors',
+                      active
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
+                    )}
+                  >
+                    <Icon className="size-3.5 shrink-0" />
+                    {TAB_MEDIA_LABELS[value]}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {mediaCategories.has('none')
+                ? 'Only show posts without media.'
+                : mediaCategories.has('images') && mediaCategories.has('videos')
+                  ? 'Only show posts with media (images or videos).'
+                  : mediaCategories.has('images')
+                    ? 'Only show posts with images.'
+                    : mediaCategories.has('videos')
+                      ? 'Only show posts with videos.'
+                      : 'Show all posts, with or without media.'}
+            </p>
           </div>
 
           <Separator />
