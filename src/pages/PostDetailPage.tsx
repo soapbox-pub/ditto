@@ -106,7 +106,7 @@ import { ReactionButton } from "@/components/ReactionButton";
 import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
-import { ThreadedReplyList, FlatThreadedReplyList, type ReplyNode } from "@/components/ThreadedReplyList";
+import { ThreadedReplyList, FlatThreadedReplyList, CollapsedFloodReplies, type ReplyNode } from "@/components/ThreadedReplyList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PartyHat } from "@/components/BirthdayRain";
 import { isBirthdayToday, parseBirthdayFromContent } from "@/lib/birthday";
@@ -224,6 +224,7 @@ import { extractOnchainZapClaimedAmount, extractOnchainZapRecipients, useOnchain
 import { useMuteFilter } from "@/hooks/useMuteFilter";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useReplies } from "@/hooks/useReplies";
+import { useReplyFlood } from "@/hooks/useReplyFlood";
 import { useZapReplies } from "@/hooks/useZapReplies";
 import { useShareOrigin } from "@/hooks/useShareOrigin";
 import { toast } from "@/hooks/useToast";
@@ -1204,6 +1205,7 @@ function BookReviewRating({ event }: { event: NostrEvent }) {
 
 function PostDetailContent({ event }: { event: NostrEvent }) {
   const { isMuted } = useMuteFilter();
+  const { floodIds } = useReplyFlood();
   const queryClient = useQueryClient();
   const shareOrigin = useShareOrigin();
   const location = useLocation();
@@ -1546,6 +1548,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     return source.filter((r) => !isMuted(r));
   }, [isKind1, rawReplies, commentsData?.allComments, isMuted]);
 
+  // Reply-flood detection over the whole (mute-filtered) reply batch: a
+  // near-duplicate pitch echoed across a crowd of pubkeys, or hammered by one.
+  // A DISPLAY hint only — the flagged replies collapse into one expandable row
+  // (below), nothing is dropped. Self and follows are never flagged.
+  const floodedIds = useMemo(
+    () => (replies ? floodIds(replies) : new Set<string>()),
+    [replies, floodIds],
+  );
+
   // Build the text-reply roots (NIP-10 for kind 1, NIP-22 comments otherwise).
   const buildTextReplyRoots = useCallback((): ReplyNode[] => {
     if (!replies || replies.length === 0) return [];
@@ -1623,6 +1634,20 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       (a, b) => a.event.created_at - b.event.created_at,
     );
   }, [buildTextReplyRoots, zapReplyNodes]);
+
+  // Split off the flood-flagged top-level replies so they render as one
+  // collapsed, expandable row beneath the clean thread instead of filling it.
+  const { visibleRoots, floodedRoots } = useMemo(() => {
+    if (floodedIds.size === 0) {
+      return { visibleRoots: replyTree, floodedRoots: [] as ReplyNode[] };
+    }
+    const visible: ReplyNode[] = [];
+    const flooded: ReplyNode[] = [];
+    for (const node of replyTree) {
+      (floodedIds.has(node.event.id) ? flooded : visible).push(node);
+    }
+    return { visibleRoots: visible, floodedRoots: flooded };
+  }, [replyTree, floodedIds]);
 
   // Seed the NIP-85 stats cache with client-side reply counts for each comment
   // in the thread. NIP-85 may not have stats for kind 1111 events, so this
@@ -2827,7 +2852,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             ))}
           </div>
         ) : replyTree.length > 0 ? (
-          <ThreadedReplyList roots={replyTree} />
+          <>
+            <ThreadedReplyList roots={visibleRoots} />
+            <CollapsedFloodReplies roots={floodedRoots} />
+          </>
         ) : !parentEventId ? (
           <div className="py-12 text-center text-muted-foreground text-sm">
             No replies yet. Be the first to reply!
