@@ -58,7 +58,7 @@ deploy-nsite:
       --skip-secrets-scan
       --name ditto
       --relays "wss://relay.ditto.pub,wss://relay.nsite.lol,wss://relay.dreamith.to,wss://relay.primal.net"
-      --servers "https://blossom.ditto.pub,https://blossom.dreamith.to"
+      --servers "https://blossom.primal.net,https://blossom.ditto.pub,https://blossom.dreamith.to"
       --fallback "/index.html"
       --use-fallback-relays
       --use-fallback-servers
