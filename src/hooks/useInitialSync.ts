@@ -250,6 +250,9 @@ export function useInitialSync() {
               if (parsed.exemptFollowsFromFilters !== undefined) {
                 updates.exemptFollowsFromFilters = parsed.exemptFollowsFromFilters;
               }
+              if (parsed.hideMediaFromStrangers !== undefined) {
+                updates.hideMediaFromStrangers = parsed.hideMediaFromStrangers;
+              }
               if (parsed.sidebarOrder && parsed.sidebarOrder.length > 0) {
                 updates.sidebarOrder = parsed.sidebarOrder;
               }

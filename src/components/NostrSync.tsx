@@ -384,6 +384,16 @@ export function NostrSync() {
       }
 
       if (
+        encryptedSettings.hideMediaFromStrangers !== undefined &&
+        encryptedSettings.hideMediaFromStrangers !==
+          current.hideMediaFromStrangers
+      ) {
+        updates.hideMediaFromStrangers =
+          encryptedSettings.hideMediaFromStrangers;
+        changed = true;
+      }
+
+      if (
         encryptedSettings.sidebarOrder &&
         JSON.stringify(encryptedSettings.sidebarOrder) !==
           JSON.stringify(current.sidebarOrder)

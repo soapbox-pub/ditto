@@ -67,6 +67,36 @@ function extractMediaUrls(content: string): string[] {
   return content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|qt|mp3|mpga|ogg|flac|wav|aac|opus)(\?[^\s]*)?/gi) ?? [];
 }
 
+/** Event kinds that are inherently image content (NIP-68 picture posts). */
+const IMAGE_KINDS = new Set([20]);
+
+/**
+ * Returns true if the event carries renderable media (image, video, or audio):
+ * an `imeta` tag, an inline media URL, a BUD-10 `blossom:` media URI, or an
+ * inherently-media event kind. Detection only — no Blossom resolution — so it's
+ * cheap enough to call per feed card. Used to decide whether to gate a post
+ * behind the "hide media from strangers" overlay.
+ */
+export function eventHasMedia(event: NostrEvent): boolean {
+  // Any imeta tag declares an attached media file.
+  if (event.tags.some((tag) => tag[0] === 'imeta')) return true;
+  // Inherently media kinds (photos, video, audio) even without an imeta tag.
+  if (
+    IMAGE_KINDS.has(event.kind) ||
+    VIDEO_KINDS.has(event.kind) ||
+    AUDIO_KINDS.has(event.kind)
+  ) {
+    return true;
+  }
+  // Inline media URLs in text content.
+  if (extractMediaUrls(event.content).length > 0) return true;
+  // BUD-10 `blossom:` media URIs in text content.
+  for (const { uri } of extractBlossomUris(event.content)) {
+    if (/^(image|video|audio)\//.test(mimeFromExt(uri.ext))) return true;
+  }
+  return false;
+}
+
 /**
  * Extract BUD-10 `blossom:` media URIs from content and resolve them to
  * fetchable HTTPS blob URLs. Non-media extensions (pdf, bin, ...) are skipped.
