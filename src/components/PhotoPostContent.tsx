@@ -9,6 +9,7 @@ import { isValidBlurhash } from '@/lib/blurhash';
 import { parseImetaEntries, type ImetaEntry } from '@/lib/imeta';
 import { Lightbox, type LightboxMediaMeta } from '@/components/ImageGallery';
 import { NoteContent } from '@/components/NoteContent';
+import { MediaGate } from '@/components/MediaGate';
 import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -135,6 +136,7 @@ export function PhotoPostContent({ event, variant = 'feed', fullBleed = false }:
 
   return (
     <div className={cn('mt-2', fullBleed && '-mx-4')}>
+      <MediaGate className={cn('mt-0', fullBleed && 'mx-4')}>
       {/* Media */}
       <div className="relative bg-muted/30">
         {media}
@@ -202,6 +204,7 @@ export function PhotoPostContent({ event, variant = 'feed', fullBleed = false }:
           ))}
         </div>
       )}
+      </MediaGate>
 
       {/* Caption block — title, linkified description, remaining hashtags */}
       {(title || description || hashtags.length > 0) && (

@@ -79,7 +79,7 @@ import { BrokenEventFallback } from "@/components/BrokenEventFallback";
 import { CommentContext } from "@/components/CommentContext";
 import { LiveChatContext } from "@/components/LiveChatContext";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
-import { StrangerMediaGuard } from "@/components/StrangerMediaGuard";
+import { MediaGate, MediaGateProvider } from "@/components/MediaGate";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EmojifiedText, ReactionEmoji } from "@/components/CustomEmoji";
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
@@ -810,7 +810,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         resetKeys={[event.id]}
       >
         <ContentWarningGuard event={event}>
-        <StrangerMediaGuard event={event}>
+        <MediaGateProvider pubkey={event.pubkey}>
         {isPhoto ? (
           <PhotoPostContent event={event} fullBleed={!threaded && !threadedLast} />
         ) : isVideo ? (
@@ -969,7 +969,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
             event={event}
           />
         )}
-        </StrangerMediaGuard>
+        </MediaGateProvider>
       </ContentWarningGuard>
       </ErrorBoundary>
     </>
@@ -1924,14 +1924,16 @@ function VideoContent({ event }: { event: NostrEvent }) {
   return (
     <div className="mt-2 space-y-2">
       {title && <p className="font-semibold text-[15px]">{title}</p>}
-      <div className="relative rounded-xl overflow-hidden bg-muted">
-        <VideoPlayer src={url} poster={thumbnail} encryption={encryption} title={title ?? undefined} />
-        {formattedDuration && (
-          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-medium pointer-events-none">
-            {formattedDuration}
-          </div>
-        )}
-      </div>
+      <MediaGate className="mt-0">
+        <div className="relative rounded-xl overflow-hidden bg-muted">
+          <VideoPlayer src={url} poster={thumbnail} encryption={encryption} title={title ?? undefined} />
+          {formattedDuration && (
+            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-medium pointer-events-none">
+              {formattedDuration}
+            </div>
+          )}
+        </div>
+      </MediaGate>
       {description && (
         <p className="text-[15px] leading-relaxed text-muted-foreground">
           {description}
@@ -2042,6 +2044,7 @@ function VineMedia({
   return (
     <>
       {imeta?.url && (
+        <MediaGate className="mt-3">
         <div
           ref={containerRef}
           className={cn(
@@ -2105,6 +2108,7 @@ function VineMedia({
             </button>
           )}
         </div>
+        </MediaGate>
       )}
 
       {hashtags.length > 0 && (

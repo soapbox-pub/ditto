@@ -15,6 +15,7 @@ import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { Lightbox, ImageGallery } from '@/components/ImageGallery';
 import { NostrMention } from '@/components/NostrMention';
+import { MediaGate } from '@/components/MediaGate';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { buildEmojiMap } from '@/lib/customEmoji';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
@@ -803,12 +804,13 @@ export function NoteContent({
             }
             const imgIndex = tokenImageIndex.get(i) ?? 0;
             return (
-              <InlineImage
-                key={i}
-                url={token.url}
-                encryption={imetaMap.get(token.url)?.encryption}
-                onClick={(e) => { e.stopPropagation(); setLightboxIndex(imgIndex); }}
-              />
+              <MediaGate key={i}>
+                <InlineImage
+                  url={token.url}
+                  encryption={imetaMap.get(token.url)?.encryption}
+                  onClick={(e) => { e.stopPropagation(); setLightboxIndex(imgIndex); }}
+                />
+              </MediaGate>
             );
           }
           case 'image-gallery': {
@@ -823,16 +825,17 @@ export function NoteContent({
                 ? lightboxIndex - galleryStartIndex
                 : null;
             return (
-              <ImageGallery
-                key={i}
-                images={token.urls}
-                maxVisible={4}
-                maxGridHeight="480px"
-                imetaMap={imetaMap}
-                lightboxIndex={galleryLightboxIndex}
-                onLightboxOpen={(idx) => { setLightboxIndex(galleryStartIndex + idx); }}
-                onLightboxClose={closeLightbox}
-              />
+              <MediaGate key={i}>
+                <ImageGallery
+                  images={token.urls}
+                  maxVisible={4}
+                  maxGridHeight="480px"
+                  imetaMap={imetaMap}
+                  lightboxIndex={galleryLightboxIndex}
+                  onLightboxOpen={(idx) => { setLightboxIndex(galleryStartIndex + idx); }}
+                  onLightboxClose={closeLightbox}
+                />
+              </MediaGate>
             );
           }
           case 'link-embed':
@@ -874,25 +877,27 @@ export function NoteContent({
             const isAudio = mime.startsWith('audio/') || /\.(mp3|mpga|wav|ogg|flac|m4a|aac|opus)(\?[^\s]*)?$/i.test(token.url);
             if (isWebxdc && imeta) {
               return (
-                <WebxdcEmbed
-                  key={i}
-                  url={token.url}
-                  uuid={imeta.webxdc}
-                  name={imeta.summary}
-                  icon={imeta.thumbnail}
-                  encryption={imeta.encryption}
-                />
+                <MediaGate key={i}>
+                  <WebxdcEmbed
+                    url={token.url}
+                    uuid={imeta.webxdc}
+                    name={imeta.summary}
+                    icon={imeta.thumbnail}
+                    encryption={imeta.encryption}
+                  />
+                </MediaGate>
               );
             }
             return (
-              <MediaEmbed
-                key={i}
-                url={token.url}
-                imeta={imeta}
-                isAudio={isAudio}
-                authorMetadata={authorMetadata}
-                authorDisplayName={authorDisplayName}
-              />
+              <MediaGate key={i}>
+                <MediaEmbed
+                  url={token.url}
+                  imeta={imeta}
+                  isAudio={isAudio}
+                  authorMetadata={authorMetadata}
+                  authorDisplayName={authorDisplayName}
+                />
+              </MediaGate>
             );
           }
           case 'nevent-embed':
@@ -977,15 +982,16 @@ export function NoteContent({
               return null;
             }
             return (
-              <BlossomEmbed
-                key={i}
-                uri={token.uri}
-                raw={token.raw}
-                artist={authorDisplayName}
-                avatarUrl={authorMetadata?.picture}
-                avatarFallback={authorDisplayName[0]?.toUpperCase() ?? '?'}
-                avatarShape={getAvatarShape(authorMetadata)}
-              />
+              <MediaGate key={i}>
+                <BlossomEmbed
+                  uri={token.uri}
+                  raw={token.raw}
+                  artist={authorDisplayName}
+                  avatarUrl={authorMetadata?.picture}
+                  avatarFallback={authorDisplayName[0]?.toUpperCase() ?? '?'}
+                  avatarShape={getAvatarShape(authorMetadata)}
+                />
+              </MediaGate>
             );
         }
       })}
