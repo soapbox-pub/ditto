@@ -7,6 +7,13 @@
  * Media tab use), so a media filter is expressed purely as extra search terms
  * appended to the tab's `search` string.
  *
+ * Unlike the Search page's single-select media filter, a profile tab lets the
+ * user combine Images and Videos (an inclusive OR): selecting both means "any
+ * media" (`media:true`) — i.e. show only media, of any kind. The relay ANDs
+ * multiple search extensions together, so this is the one media combination
+ * that's expressible server-side. "No media" is the logical opposite of having
+ * media, so it stays mutually exclusive with Images/Videos.
+ *
  * `vines` is intentionally omitted from this enum: on the Search page it maps
  * to dedicated kinds (22 / 34236), which a profile tab already handles through
  * its explicit "Content Kinds" picker.
@@ -14,22 +21,19 @@
 import { Image, Type, Video } from 'lucide-react';
 import type { ComponentType } from 'react';
 
-export const TAB_MEDIA_TYPES = ['all', 'images', 'videos', 'none'] as const;
-export type TabMediaType = typeof TAB_MEDIA_TYPES[number];
+/** Selectable media categories. Images/Videos combine; `none` is exclusive. */
+export const TAB_MEDIA_CATEGORIES = ['images', 'videos', 'none'] as const;
+export type TabMediaCategory = typeof TAB_MEDIA_CATEGORIES[number];
 
-/** Human-readable labels for the media-type select. */
-export const TAB_MEDIA_LABELS: Record<TabMediaType, string> = {
-  all: 'All',
+/** Human-readable labels for the media-category toggles. */
+export const TAB_MEDIA_LABELS: Record<TabMediaCategory, string> = {
   images: 'Images',
   videos: 'Videos',
   none: 'No media',
 };
 
-/**
- * Icons for the media-type select, echoing the app's content-type vocabulary.
- * `all` is intentionally iconless — it's the neutral "no filter" default.
- */
-export const TAB_MEDIA_ICONS: Partial<Record<TabMediaType, ComponentType<{ className?: string }>>> = {
+/** Icons for the media-category toggles, echoing the app's content vocabulary. */
+export const TAB_MEDIA_ICONS: Record<TabMediaCategory, ComponentType<{ className?: string }>> = {
   images: Image,
   videos: Video,
   none: Type,
@@ -39,27 +43,36 @@ export const TAB_MEDIA_ICONS: Partial<Record<TabMediaType, ComponentType<{ class
 const MEDIA_TERM_RE = /\b(?:media|video):(?:true|false)\b/gi;
 
 /**
- * NIP-50 search terms for a given media type. Empty for `all`.
- * Mirrors the terms in `useStreamPosts` so the two stay consistent.
+ * NIP-50 search terms for a set of media categories. Empty when nothing (or
+ * everything) is selected — both mean "no media constraint".
+ *
+ * The relay ANDs search extensions, so only these combinations are
+ * expressible; the UI enforces that `none` never co-occurs with Images/Videos,
+ * but this function stays total and falls back to "no constraint" for any
+ * combination that can't be expressed server-side.
  */
-export function mediaTypeToSearchTerms(mediaType: TabMediaType): string[] {
-  switch (mediaType) {
-    case 'images':
-      return ['media:true', 'video:false'];
-    case 'videos':
-      return ['video:true'];
-    case 'none':
-      return ['media:false'];
-    case 'all':
-      return [];
-  }
+export function mediaCategoriesToSearchTerms(categories: Set<TabMediaCategory>): string[] {
+  const images = categories.has('images');
+  const videos = categories.has('videos');
+  const none = categories.has('none');
+
+  // "No media" is exclusive; if it slips in alongside media, media wins only
+  // when it can be expressed, otherwise fall through to no constraint.
+  if (none && !images && !videos) return ['media:false'];
+
+  if (images && videos) return ['media:true']; // any media — "show only media"
+  if (images && !videos) return ['media:true', 'video:false']; // images, no video
+  if (videos && !images) return ['video:true'];
+
+  return []; // nothing selected, or an inexpressible mix → show everything
 }
 
 /**
- * Split a tab's `search` string into its media-type filter and the remaining
- * free-text query. The inverse of appending `mediaTypeToSearchTerms`.
+ * Split a tab's `search` string into its selected media categories and the
+ * remaining free-text query. The inverse of appending
+ * `mediaCategoriesToSearchTerms`.
  */
-export function parseMediaSearch(search: string): { mediaType: TabMediaType; query: string } {
+export function parseMediaSearch(search: string): { categories: Set<TabMediaCategory>; query: string } {
   const terms = new Set<string>();
   const query = search
     .replace(MEDIA_TERM_RE, (m) => {
@@ -69,23 +82,29 @@ export function parseMediaSearch(search: string): { mediaType: TabMediaType; que
     .replace(/\s+/g, ' ')
     .trim();
 
-  let mediaType: TabMediaType = 'all';
-  if (terms.has('video:true')) mediaType = 'videos';
-  else if (terms.has('media:false')) mediaType = 'none';
-  else if (terms.has('media:true')) mediaType = 'images';
+  const categories = new Set<TabMediaCategory>();
+  if (terms.has('media:false')) {
+    categories.add('none');
+  } else if (terms.has('media:true')) {
+    // `media:true video:false` = images only; `media:true` alone = any media.
+    categories.add('images');
+    if (!terms.has('video:false')) categories.add('videos');
+  } else if (terms.has('video:true')) {
+    categories.add('videos');
+  }
 
-  return { mediaType, query };
+  return { categories, query };
 }
 
 /**
- * Build a tab `search` string from a free-text query plus a media type.
- * Returns `undefined` when neither contributes any terms, so callers can omit
- * the `search` field entirely.
+ * Build a tab `search` string from a free-text query plus a set of media
+ * categories. Returns `undefined` when neither contributes any terms, so
+ * callers can omit the `search` field entirely.
  */
-export function buildTabSearch(query: string, mediaType: TabMediaType): string | undefined {
+export function buildTabSearch(query: string, categories: Set<TabMediaCategory>): string | undefined {
   const parts: string[] = [];
   const trimmed = query.trim();
   if (trimmed) parts.push(trimmed);
-  parts.push(...mediaTypeToSearchTerms(mediaType));
+  parts.push(...mediaCategoriesToSearchTerms(categories));
   return parts.length > 0 ? parts.join(' ') : undefined;
 }
