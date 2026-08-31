@@ -202,6 +202,7 @@ import { CommentContext } from "@/components/CommentContext";
 import { LiveChatContext } from "@/components/LiveChatContext";
 import { CommunityContent } from "@/components/CommunityContent";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
+import { StrangerMediaGuard } from "@/components/StrangerMediaGuard";
 import { BrokenEventFallback } from "@/components/BrokenEventFallback";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EmojiPackContent } from "@/components/EmojiPackContent";
@@ -2619,6 +2620,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             resetKeys={[event.id]}
           >
             <ContentWarningGuard event={event}>
+            <StrangerMediaGuard event={event}>
             {isPhoto ? (
               <PhotoPostContent event={event} variant="detail" fullBleed />
             ) : isVideo ? (
@@ -2771,6 +2773,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 />
               </div>
             )}
+            </StrangerMediaGuard>
           </ContentWarningGuard>
           </ErrorBoundary>
 

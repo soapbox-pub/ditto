@@ -62,6 +62,8 @@ export interface EncryptedSettings {
   contentWarningPolicy?: ContentWarningPolicy;
   /** Exempt followed accounts from muted hashtags and words */
   exemptFollowsFromFilters?: boolean;
+  /** Hide media from accounts you don't follow behind a click-to-reveal overlay */
+  hideMediaFromStrangers?: boolean;
   /** Whether the user has enabled push notifications */
   notificationsEnabled?: boolean;
   /** Notification delivery style on native: 'push' (default) or 'persistent' (foreground service) */

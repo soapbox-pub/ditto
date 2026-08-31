@@ -79,6 +79,7 @@ import { BrokenEventFallback } from "@/components/BrokenEventFallback";
 import { CommentContext } from "@/components/CommentContext";
 import { LiveChatContext } from "@/components/LiveChatContext";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
+import { StrangerMediaGuard } from "@/components/StrangerMediaGuard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EmojifiedText, ReactionEmoji } from "@/components/CustomEmoji";
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
@@ -809,6 +810,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         resetKeys={[event.id]}
       >
         <ContentWarningGuard event={event}>
+        <StrangerMediaGuard event={event}>
         {isPhoto ? (
           <PhotoPostContent event={event} fullBleed={!threaded && !threadedLast} />
         ) : isVideo ? (
@@ -967,6 +969,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
             event={event}
           />
         )}
+        </StrangerMediaGuard>
       </ContentWarningGuard>
       </ErrorBoundary>
     </>

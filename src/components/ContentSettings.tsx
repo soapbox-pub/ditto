@@ -985,6 +985,41 @@ export function MuteFollowExemptionSection() {
   );
 }
 
+/**
+ * Toggle for hiding media from accounts the user doesn't follow behind a
+ * click-to-reveal overlay. Text still shows; only posts with media are gated,
+ * and only when logged in.
+ */
+export function HideStrangerMediaSection() {
+  const { config, updateConfig } = useAppContext();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
+
+  const enabled = config.hideMediaFromStrangers === true;
+
+  const handleToggle = async (value: boolean) => {
+    updateConfig((current) => ({ ...current, hideMediaFromStrangers: value }));
+    if (user) {
+      await updateSettings.mutateAsync({ hideMediaFromStrangers: value });
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="space-y-0.5">
+        <Label className="text-sm font-medium"><FormattedMessage id="settings.content.hideStrangerMedia" defaultMessage={"Hide media from people you don't follow"} /></Label>
+        <p className="text-xs text-muted-foreground">
+          <FormattedMessage id="settings.content.hideStrangerMediaDescription" defaultMessage={"Images, video, and audio from accounts you don't follow stay hidden behind a tap-to-reveal overlay. Text still shows."} />
+        </p>
+      </div>
+      <Switch
+        checked={enabled}
+        onCheckedChange={handleToggle}
+      />
+    </div>
+  );
+}
+
 interface MuteTypeConfig {
   icon: ReactNode;
   label: string;

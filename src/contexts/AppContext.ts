@@ -343,6 +343,13 @@ export interface AppConfig {
    * devices via encrypted settings. Default: false.
    */
   exemptFollowsFromFilters: boolean;
+  /**
+   * Hide media (images, video, audio) from accounts you don't follow behind a
+   * click-to-reveal overlay. Text still shows; only posts with media are
+   * gated, and only when you're logged in. Synced across devices via encrypted
+   * settings. Default: false.
+   */
+  hideMediaFromStrangers: boolean;
   /** Sentry DSN for error reporting (empty string = disabled). */
   sentryDsn: string;
   /** Whether the user has enabled Sentry error reporting. */
