@@ -691,9 +691,37 @@ export function ProfileSettings() {
         const nonEmpty = customFields.filter((f) => f.label.trim() && f.value.trim());
         if (nonEmpty.length > 0) data.fields = nonEmpty.map((f) => [f.label, f.value]);
       }
-      await publishEvent({ kind: 0, content: JSON.stringify(data) });
-      queryClient.invalidateQueries({ queryKey: ['logins'] });
-      queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
+
+      // Skip re-publishing kind 0 when nothing changed — otherwise every save
+      // (e.g. saving only to update payment targets) mints a redundant profile
+      // event. Compare against the stored content with an order-insensitive
+      // canonicalization: object keys are sorted, but array order — which is
+      // meaningful for custom `fields` — is preserved.
+      const canonical = (value: unknown): string => {
+        if (Array.isArray(value)) {
+          return `[${value.map(canonical).join(',')}]`;
+        }
+        if (value && typeof value === 'object') {
+          const obj = value as Record<string, unknown>;
+          return `{${Object.keys(obj)
+            .sort()
+            .map((k) => `${JSON.stringify(k)}:${canonical(obj[k])}`)
+            .join(',')}}`;
+        }
+        return JSON.stringify(value ?? null);
+      };
+      let previous: unknown;
+      try {
+        previous = event ? JSON.parse(event.content) : undefined;
+      } catch {
+        previous = undefined;
+      }
+
+      if (previous === undefined || canonical(data) !== canonical(previous)) {
+        await publishEvent({ kind: 0, content: JSON.stringify(data) });
+        queryClient.invalidateQueries({ queryKey: ['logins'] });
+        queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
+      }
 
       // Persist payment targets (kind 10133) alongside the profile. If it
       // fails or doesn't validate, the editor surfaces its own error toast;
