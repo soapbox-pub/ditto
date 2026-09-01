@@ -117,8 +117,6 @@ export function ShovelButton({ drag, guideActionGlow }: ShovelButtonProps) {
       }}
       onMouseDown={drag.anyPoop ? drag.onMouseDown : undefined}
       onTouchStart={drag.anyPoop ? drag.onTouchStart : undefined}
-      onTouchMove={drag.anyPoop ? drag.onTouchMove : undefined}
-      onTouchEnd={drag.anyPoop ? drag.onTouchEnd : undefined}
       className={cn(drag.anyPoop && 'touch-none', drag.isDragging && 'opacity-30')}
       glow={drag.anyPoop && guideActionGlow === 'clean'}
     />
