@@ -1,17 +1,10 @@
-import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
-import {
-  missionDevRejectsWrites,
-  readMissionDevState,
-  subscribeMissionDev,
-  writeMissionDevState,
-} from '@/dev/missionHarness';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import {
   type AutoWriteName,
   claimAutoWrite,
   releaseAutoWrite,
-  resetAutoWrites,
   settleAutoWrite,
 } from '@/lib/missionAutoWrites';
 import type { PostInteractionKind } from '@/lib/postInteraction';
@@ -76,20 +69,10 @@ export function usePostOnboardingGuide() {
   const pubkeyRef = useRef(pubkey);
   pubkeyRef.current = pubkey;
 
-  // Localhost-only inspection state. `readMissionDevState()` returns undefined
-  // in every production build and on every non-localhost host, so this collapses
-  // to the real state path. When active it substitutes the state for reading and
-  // absorbs writes into a shared store — nothing is published, and no policy is
-  // bypassed. Shared (rather than per-hook) so every mission surface sees a
-  // transition at once, exactly as they would through the real query cache.
-  const devState = useSyncExternalStore(subscribeMissionDev, readMissionDevState);
-  const devStateRef = useRef(devState);
-  devStateRef.current = devState;
-
   // Read straight through, with no per-render transformation. Identity must
   // stay stable across renders: a fresh object each time is exactly what
   // re-armed the effects behind the mission write loop.
-  const state = devState ?? settings?.postOnboardingGuide;
+  const state = settings?.postOnboardingGuide;
 
   // Tracks the freshest state we've written this session so rapid successive
   // transitions in the same tab compose instead of clobbering each other (the
@@ -132,20 +115,6 @@ export function usePostOnboardingGuide() {
     (
       reduce: (current: PostOnboardingGuideState) => PostOnboardingGuideState | null,
     ): Promise<void> => {
-      // Harness: apply locally so the surfaces are genuinely interactive to
-      // inspect, without a relay write.
-      if (devStateRef.current) {
-        // Persistence-failure scenario: compute the transition, then throw it
-        // away exactly as a rejected relay write would. Detection stays true,
-        // so this is precisely the shape a write loop would emerge from.
-        if (missionDevRejectsWrites()) {
-          console.error('Mission harness: simulated persistence failure');
-          return Promise.resolve();
-        }
-        const devNext = reduce(devStateRef.current);
-        if (devNext) writeMissionDevState(devNext);
-        return Promise.resolve();
-      }
       const current = latestRef.current;
       if (!current) return Promise.resolve();
       const next = reduce(current);
@@ -191,9 +160,6 @@ export function usePostOnboardingGuide() {
       name: AutoWriteName,
       reduce: (current: PostOnboardingGuideState) => PostOnboardingGuideState | null,
     ): Promise<void> => {
-      // The harness owns its own state and never persists, so it is exempt.
-      if (devStateRef.current) return update(reduce);
-
       const key = pubkeyRef.current;
       if (!claimAutoWrite(key, name)) return Promise.resolve();
 
@@ -234,7 +200,6 @@ export function usePostOnboardingGuide() {
    * encrypt).
    */
   const initializeGuide = useCallback((): Promise<void> => {
-    if (devStateRef.current) return Promise.resolve(); // harness owns the state
     if (latestRef.current) return Promise.resolve();
 
     // Guarded exactly like `markIntroPresented`, and for the same reason: the
@@ -609,33 +574,6 @@ export function usePostOnboardingGuide() {
     [update],
   );
 
-  /**
-   * DEV-ONLY: reset the mission to a fresh, active state for the current
-   * account — including clearing any `badgeClaim` and baselines — so the whole
-   * flow can be re-run without creating a new account. `import.meta.env.DEV` is
-   * statically false in production builds, so this returns immediately there
-   * and the body is dropped by the bundler. It only touches the
-   * `postOnboardingGuide` key; every other setting is untouched.
-   */
-  const resetGuideDev = useCallback((): Promise<void> => {
-    if (!import.meta.env.DEV) return Promise.resolve();
-    if (devStateRef.current) {
-      writeMissionDevState(createInitialGuideState());
-      return Promise.resolve();
-    }
-    const fresh = createInitialGuideState();
-    latestRef.current = fresh;
-    // A deliberate developer action: clear the session guards so the automatic
-    // writes can run again against the fresh state.
-    resetAutoWrites();
-    return mutateRef
-      .current({ postOnboardingGuide: fresh })
-      .then(() => undefined)
-      .catch((error) => {
-        console.error('Failed to reset mission state:', error);
-      });
-  }, []);
-
   const completedCount = useMemo(
     () => (state ? countCompletedPaths(state) : 0),
     [state],
@@ -683,7 +621,5 @@ export function usePostOnboardingGuide() {
     completeBadgeClaim,
     failBadgeClaim,
     markRewardRevealed,
-    /** DEV-only: reset the mission to a fresh active state (no-op in prod). */
-    resetGuideDev,
   };
 }

@@ -2,7 +2,6 @@ import { useFollowList } from '@/hooks/useFollowActions';
 import { useMissionCelebration } from '@/hooks/useMissionCelebration';
 import { useMissionFlowEntry } from '@/hooks/useMissionFlowEntry';
 import { usePostOnboardingGuide } from '@/hooks/usePostOnboardingGuide';
-import { missionDevForcesEmptyFeed } from '@/dev/missionHarness';
 import type { MissionInteraction } from '@/lib/postOnboardingGuide';
 
 /**
@@ -51,8 +50,7 @@ export function useInteractMissionFlow(): {
   // Zero follows is the one reliably-knowable "your feed has nothing in it"
   // signal available without reaching into the feed's own query state. It is
   // also the only case with a genuinely useful next step to offer.
-  const emptyFeed =
-    missionDevForcesEmptyFeed() || (followList !== undefined && followList.pubkeys.length === 0);
+  const emptyFeed = followList !== undefined && followList.pubkeys.length === 0;
 
   return {
     flowActive: !!inProgress || justCompleted,

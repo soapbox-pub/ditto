@@ -4,25 +4,15 @@ import { useLoginActions } from '@/hooks/useLoginActions';
 
 import { saveNsec } from '@/lib/credentialManager';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { useDevSignupServices } from '@/dev/devSignupServices';
-import { devSignupServicesActive } from '@/dev/devSignupArrival';
 
 /**
  * The external effects of signup, behind one narrow seam.
  *
- * Signup's *screens* are worth exercising repeatedly — pacing, validation,
- * responsive behaviour, the order of steps, and the handoff to the arrival at
- * the end. Its *effects* are not: each rehearsal generates a real key, adds a
- * real account, and publishes a real kind 0 and kind 3 to public relays.
- *
- * So the UI and the state machine stay exactly as they are, shared with
- * production, and only these operations are swapped. The localhost dev tool
- * injects an implementation that does none of them; production is unchanged and
- * is the default everywhere else.
- *
- * Deliberately not a `devMode` flag threaded through the signup components:
- * the components ask for the services and do not know or care which
- * implementation they got.
+ * Signup's screens are one thing and its *effects* — generating a key, adding
+ * the account, publishing a kind 0 and a kind 3 — are another. Collecting them
+ * behind this interface keeps the components free of that machinery: they ask
+ * for the services and call them, and the screens can be exercised against a
+ * stand-in without a `devMode` flag threaded through the component tree.
  *
  * ### Why the pending flags are part of the interface
  *
@@ -31,10 +21,10 @@ import { devSignupServicesActive } from '@/dev/devSignupArrival';
  * separately-constructed `useNostrPublish()` does not do that — it reports on a
  * mutation nobody called, so it is permanently false and the button stays live
  * through the whole round-trip. The flags below therefore come from the exact
- * mutation the matching method runs, in whichever implementation is active.
+ * mutation the matching method runs.
  */
 export interface SignupAccount {
-  /** What the key screen should display. Never a usable secret in dev. */
+  /** What the key screen should display. */
   secretDisplay: string;
   /** The nsec to persist, or `undefined` when there is nothing real to save. */
   nsec?: string;
@@ -75,14 +65,14 @@ export interface SignupServices {
 }
 
 /**
- * Production: real keys, real login, real publishes.
+ * The services signup uses: real keys, real login, real publishes.
  *
  * Two separate publish mutations rather than one shared instance, so
  * `isPublishingProfile` cannot be set by a follow-list publish and vice versa.
  * The steps are sequential today, but a flag that reports on the wrong
  * operation is precisely the defect this interface exists to prevent.
  */
-function useRealSignupServices(): SignupServices {
+export function useSignupServices(): SignupServices {
   const login = useLoginActions();
   const profilePublish = useNostrPublish();
   const followsPublish = useNostrPublish();
@@ -122,23 +112,4 @@ function useRealSignupServices(): SignupServices {
     () => ({ ...operations, isPublishingProfile }),
     [operations, isPublishingProfile],
   );
-}
-
-/**
- * The services signup should use right now.
- *
- * Both implementations are constructed (hooks cannot be conditional) but only
- * one is returned. Constructing the real one publishes nothing — it only builds
- * two idle mutations — so this costs nothing in the dev case.
- *
- * `import.meta.env.DEV` is statically false in a production build and
- * `devSignupServicesActive()` is additionally false off localhost, so a
- * deployed build always resolves to the real implementation. Note that this
- * gates *behaviour*, not bundling: the dev module is still imported here, so it
- * is still emitted into the bundle — it is simply unreachable at runtime.
- */
-export function useSignupServices(): SignupServices {
-  const real = useRealSignupServices();
-  const dev = useDevSignupServices();
-  return import.meta.env.DEV && devSignupServicesActive() ? dev : real;
 }

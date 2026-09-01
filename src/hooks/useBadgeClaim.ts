@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
 
-import { missionDevFakePublish } from '@/dev/missionHarness';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { usePostOnboardingGuide } from '@/hooks/usePostOnboardingGuide';
@@ -121,11 +120,7 @@ export function useBadgeClaim() {
 
   const claim = useCallback(
     async (options?: { revealedAt?: number }): Promise<BadgeClaimOutcome> => {
-      // Localhost harness only: stands in for the signer and the relay so the
-      // success path can be exercised without an account. `undefined` in every
-      // production build and off localhost, so this collapses to the real guard.
-      const fakePublish = missionDevFakePublish();
-      if ((!user && !fakePublish) || !state) return { status: 'ineligible', rewardView };
+      if (!user || !state) return { status: 'ineligible', rewardView };
       // A second call before the first has reached any await. Not a failure —
       // the first one is still going to produce the real outcome.
       if (inFlightRef.current) return { status: 'in-flight' };
@@ -170,9 +165,7 @@ export function useBadgeClaim() {
         }
 
         const template = buildExplorerClaimTemplate(completedPaths(latest));
-        const event = fakePublish
-          ? await fakePublish(template)
-          : await publishEvent(template);
+        const event = await publishEvent(template);
 
         // One write, carrying both facts. A reveal in progress must not be able
         // to persist "claimed" and "revealed" as two separate settings writes.

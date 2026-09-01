@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 
-import { missionDevArrivalEntry } from '@/dev/missionHarness';
 import { DittoLogo } from '@/components/DittoLogo';
 import { ExplorerArrivalCard } from '@/components/ExplorerArrivalCard';
 import { ExplorerArrivalIntro } from '@/components/ExplorerArrivalIntro';
@@ -94,11 +93,7 @@ export function FirstArrivalExperience() {
   const skipRef = useRef<HTMLButtonElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const stage = useArrivalStage({
-    phase,
-    reducedMotion,
-    entry: missionDevArrivalEntry(),
-  });
+  const stage = useArrivalStage({ phase, reducedMotion });
 
   // Take ownership of the Explorer surface for as long as the overlay is up, so
   // the destination stays laid out (measurable, no shift at handoff) but

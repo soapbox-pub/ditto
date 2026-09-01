@@ -36,7 +36,6 @@ vi.mock('@/contexts/ExplorerArrivalContext', () => ({
 vi.mock('@/hooks/useExplorerArrivalTransition', () => ({
   useExplorerArrivalTransition: () => {},
 }));
-vi.mock('@/dev/missionHarness', () => ({ missionDevArrivalEntry: () => undefined }));
 // The logo reads the current account for its themed variant; irrelevant here
 // and it would drag the whole Nostr provider stack into these tests.
 vi.mock('@/components/DittoLogo', () => ({

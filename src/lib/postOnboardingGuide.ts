@@ -28,8 +28,7 @@
  * `useMissionFlowEntry` · `useFindPeopleMissionFlow` · `useInteractMissionFlow` ·
  * `useCustomizeMissionFlow` · `useBadgeClaim` · `useRewardCeremony` ·
  * `Mission*` components · `RewardCeremony` · `DittoExplorer*` ·
- * `FindPeopleMissionTip` · `InteractMissionTip` · `MissionsPage` ·
- * `dev/missionHarness`.
+ * `FindPeopleMissionTip` · `InteractMissionTip` · `MissionsPage`.
  *
  * **Integration** (revert a few lines):
  *  1. `AppRouter` — the `/missions` route.
@@ -67,20 +66,22 @@
  * **Adjacent, not owned**: the first-arrival experience is a *signup*
  * transition, with its own seams — `App.tsx` mounts `ExplorerArrivalProvider`
  * and `FirstArrivalExperience`, and `InitialSyncGate` calls `markFirstArrival`
- * at the signup completion boundary and resolves `useSignupServices`. It
+ * at the signup completion boundary and resolves `useSignupServices`
+ * (`lib/signupServices`, which collects signup's external effects behind one
+ * interface and belongs to signup rather than to this feature). It
  * introduces this journey and hands its card to `MissionsWidget` /
  * `MobileMissionTeaser` via `ExplorerTransitionTarget`, but it reads no mission
  * state and would need only a new destination — or removing in its own right.
  * The general `/badges` feature is likewise independent: this feature publishes
  * a *claim* (kind 30637) and never awards, accepts or equips anything.
  *
- * **Development only**: `AppRouter` also registers `/dev` and
- * `/dev/signup-arrival` behind `isLocalhostDev()`, and `App.tsx`-level
- * `DevSignupArrivalReturn` renders during a simulated signup. Those, `src/dev/`
- * and the harness seams inside `useMissionEngine`, `usePostOnboardingGuide`,
- * `useBadgeClaim`, `useCurrentUser`, `useEncryptedSettings`, `signupServices`
- * and `InitialSyncGate` are inert in every production build — see
- * `dev/isLocalhostDev`.
+ * **No development surfaces**: this feature ships no dev routes, scenario
+ * switchers, reset controls or stand-in publishers. Every path below — the
+ * arrival, the four tasks, the claim and the ceremony — is reached the way a
+ * user reaches it, and the claim is published by `useNostrPublish` through the
+ * real signer. Tests substitute at the ordinary module boundaries
+ * (`useNostrPublish`, `useEncryptedSettings`) rather than through any seam
+ * compiled into the app.
  */
 
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';

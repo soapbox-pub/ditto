@@ -38,7 +38,6 @@ import { useEncryptedSettings, getLocalSettingsSync } from "@/hooks/useEncrypted
 import { type SyncPhase, useInitialSync } from "@/hooks/useInitialSync";
 import { OnboardingContext } from "@/hooks/useOnboarding";
 import { markFirstArrival } from "@/lib/firstArrival";
-import { devSignupActive } from "@/dev/devSignupArrival";
 import { type SignupAccount, useSignupServices } from "@/lib/signupServices";
 import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
@@ -128,22 +127,6 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
   // Localhost-only, and checked *after* `signupActive` on purpose: during an
   // interactive simulated signup the account becomes available at the key step,
   // and taking this branch then would unmount the questionnaire mid-flow.
-  //
-  // The simulation shadows the account with a
-  // fake pubkey that has no signer and no settings event. Without this the gate
-  // would treat it as a brand-new login, sit on "Syncing your settings...", and
-  // then launch the real settings questionnaire on top of the tool. There is
-  // nothing to sync for an account that does not exist, so pass straight
-  // through. `devSignupActive()` is false in production builds and off
-  // localhost, so this branch is never taken there.
-  if (devSignupActive()) {
-    return (
-      <OnboardingContext.Provider value={contextValue}>
-        {children}
-      </OnboardingContext.Provider>
-    );
-  }
-
   // Don't show sync/onboarding when logged out — just show the app.
   // Reset hasShownApp so that re-login shows the spinner until settings load.
   if (!user) {

@@ -1,12 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { Award, Check, Lock, Sparkles } from 'lucide-react';
 
-import { missionDevCeremonyEntry } from '@/dev/missionHarness';
 import { ExplorerRewardArt } from '@/components/MissionArt';
 import { RewardCeremony } from '@/components/RewardCeremony';
 import { Button } from '@/components/ui/button';
 import { useBadgeClaim } from '@/hooks/useBadgeClaim';
-import { useRewardCeremony, type RewardCeremonyPhase } from '@/hooks/useRewardCeremony';
+import { useRewardCeremony } from '@/hooks/useRewardCeremony';
 import { DITTO_EXPLORER_BADGES_DESTINATION } from '@/lib/badgesTabs';
 import { rewardPresentation } from '@/lib/postOnboardingGuide';
 import { cn } from '@/lib/utils';
@@ -71,23 +70,6 @@ import { cn } from '@/lib/utils';
 const REWARD_ART_SIZE = 112;
 
 /**
- * Localhost harness entries, mapped to the phase each one renders. `undefined`
- * means "use the ordinary entrance", which is what the two opening entries want.
- */
-const DEV_CEREMONY_PHASE: Record<
-  NonNullable<ReturnType<typeof missionDevCeremonyEntry>>,
-  RewardCeremonyPhase | undefined
-> = {
-  opening: undefined,
-  sealed: undefined,
-  acting: 'acting',
-  slow: 'acting',
-  failed: 'failed',
-  revealing: 'revealing',
-  revealed: 'settled',
-};
-
-/**
  * The panel's single call to action, in whichever state it is offering one.
  *
  * It shipped as `size="sm"` inside a `rounded-full` pill capped at `max-w-56`:
@@ -144,22 +126,6 @@ export function MissionReward({
 
   const view = rewardPresentation(rewardView, celebrating);
 
-  // Localhost-only: enter the ceremony straight from the URL, so its frames can
-  // be inspected without clicking through 4/4 first. `missionDevCeremonyEntry`
-  // returns `undefined` in every production build and off localhost, so this
-  // collapses to nothing there — and it can still only *open* the stage.
-  const { open: openCeremony } = ceremony;
-  useEffect(() => {
-    const entry = missionDevCeremonyEntry();
-    if (!entry || !ceremonyOpenable) return;
-    openCeremony(artRef.current, {
-      immediate: entry !== 'opening',
-      // Every entry but the two entrance ones is a phase rendered directly. No
-      // claim runs to reach them: the harness shows the stage, it does not act.
-      phase: DEV_CEREMONY_PHASE[entry],
-      slow: entry === 'slow',
-    });
-  }, [ceremonyOpenable, openCeremony]);
   const remaining = Math.max(0, totalCount - completedCount);
   const sealed = view === 'locked' || view === 'settling' || view === 'dismissed';
 
@@ -286,8 +252,8 @@ export function MissionReward({
           There used to be a "Claim reward" button here too, calling `claim()`
           directly. It had no success feedback of any kind — the only reward
           animation is bound to `ready`, so a successful claim *removed* the one
-          thing moving on screen — and in the dev harness, where there is no
-          signer, it silently returned `ineligible` and did nothing at all. Two
+          thing moving on screen — and with no signer it silently returned
+          `ineligible` and did nothing at all. Two
           entry points to one irreversible act, one of them mute, is worse than
           one that narrates itself.
 

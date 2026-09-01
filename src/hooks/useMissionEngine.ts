@@ -2,7 +2,6 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 
-import { armMissionDevInteraction } from '@/dev/missionHarness';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -243,15 +242,4 @@ export function useMissionEngine(): void {
     if (!qualifying) return;
     void completeInteractPath(qualifying.type, qualifying.targetEventId);
   }, [detectionEnabled, interactDone, pubkey, interactions, startedAt, completeInteractPath]);
-
-  // DEV-only: let the localhost harness stand in for a real interaction, so the
-  // guidance → completion → celebration sequence can be inspected without
-  // publishing anything. `import.meta.env.DEV` is statically false in
-  // production, so this effect body is dropped by the bundler;
-  // `armMissionDevInteraction` is additionally a no-op off localhost and
-  // without a `?missionDev=` scenario.
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    return armMissionDevInteraction(pubkey);
-  }, [pubkey]);
 }

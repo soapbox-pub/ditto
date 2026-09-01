@@ -12,7 +12,6 @@ import type { ContentFilter } from './useContentFilters';
 import type { LetterPreferences } from '@/lib/letterTypes';
 import type { PostOnboardingGuideState } from '@/lib/postOnboardingGuide';
 import { EncryptedSettingsSchema } from '@/lib/schemas';
-import { devSignupActive, recordDevSignupViolation } from '@/dev/devSignupArrival';
 
 /**
  * Timestamp (ms) of last local encrypted-settings write this session.
@@ -202,21 +201,6 @@ export function useEncryptedSettings() {
   // Update settings
   const updateSettings = useMutation({
     mutationFn: async (patch: Partial<EncryptedSettings>) => {
-      // Localhost-only guard for the signup→arrival simulation. A settings
-      // write means a NIP-44 encrypt and a published kind 30078 — exactly what
-      // the simulation exists to avoid. Fail loudly rather than let it through:
-      // a silent write would make the tool's "0 writes" readout a lie.
-      // `devSignupActive()` is false in production builds and off localhost,
-      // so no deployed session can reach the throw.
-      if (devSignupActive()) {
-        recordDevSignupViolation(
-          'settingsWrites',
-          `updateSettings(${Object.keys(patch).join(', ') || 'empty'})`,
-        );
-        throw new Error(
-          '[dev-signup-arrival] encrypted-settings writes are blocked during the simulation.',
-        );
-      }
       if (!user) throw new Error('User not logged in');
       if (!user.signer.nip44) throw new Error('NIP-44 encryption not supported by signer');
 

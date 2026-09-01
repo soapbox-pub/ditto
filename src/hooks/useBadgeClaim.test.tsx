@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useSyncExternalStore } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -96,12 +96,6 @@ beforeEach(() => {
   toast.mockClear();
   publish = async () => claimEvent();
   vi.spyOn(console, 'error').mockImplementation(() => {});
-});
-
-afterEach(() => {
-  // The harness suite stubs `location`; without this the next suite inherits a
-  // localhost query string and quietly takes the fake-publisher path.
-  vi.unstubAllGlobals();
 });
 
 describe('useBadgeClaim', () => {
@@ -290,91 +284,6 @@ describe('useBadgeClaim — what success is allowed to say', () => {
       const words = `${payload.title ?? ''} ${payload.description ?? ''}`;
       for (const forbidden of FORBIDDEN) expect(words).not.toMatch(forbidden);
     }
-  });
-});
-
-/**
- * The harness's fake publisher. It exists so the success path can be exercised
- * without an account, and its whole value depends on it being unable to reach a
- * signer, a relay, or the user's real settings.
- */
-describe('useBadgeClaim — the harness stands in for the signer', () => {
-  function harness(search: string) {
-    vi.stubGlobal('location', { ...window.location, search, hostname: 'localhost' } as Location);
-  }
-
-  it('claims with no account at all, and signs and sends nothing', async () => {
-    harness('?missionDev=ready');
-    seed(COMPLETED);
-    const { result } = renderHook(() => useBadgeClaim());
-
-    let outcome: Awaited<ReturnType<typeof result.current.claim>> | undefined;
-    await act(async () => {
-      outcome = await result.current.claim({ revealedAt: 4_000 });
-    });
-
-    expect(outcome?.status).toBe('claimed');
-    // The real publisher — the one with a signer and a relay behind it — is
-    // never reached.
-    expect(publishSpy).not.toHaveBeenCalled();
-    expect(outcome).toMatchObject({ claimEventId: expect.stringMatching(/^dev0/) });
-  });
-
-  it('writes nothing to the user\u2019s real settings', async () => {
-    // The claim persists — into the harness's own in-memory store, which
-    // `usePostOnboardingGuide` substitutes for the real one. The encrypted
-    // settings mutation is never called, so a morning of testing the ceremony
-    // leaves the account exactly as it was.
-    harness('?missionDev=ready');
-    seed(COMPLETED);
-    const { result } = renderHook(() => useBadgeClaim());
-
-    await act(async () => {
-      await result.current.claim({ revealedAt: 4_000 });
-    });
-
-    expect(mutateAsync).not.toHaveBeenCalled();
-    expect(stored()?.badgeClaim).toBeUndefined();
-  });
-
-  it('keeps the production guards, so the fake claim cannot be doubled', async () => {
-    // The seam is one step wide. Eligibility, the three layers of idempotency
-    // and the atomic claim+reveal write are all the code that ships.
-    harness('?missionDev=ready');
-    seed(COMPLETED);
-    const { result } = renderHook(() => useBadgeClaim());
-
-    await act(async () => {
-      await result.current.claim({ revealedAt: 4_000 });
-    });
-    await waitFor(() => expect(result.current.rewardView).toBe('revealed'));
-
-    let second: Awaited<ReturnType<typeof result.current.claim>> | undefined;
-    await act(async () => {
-      second = await result.current.claim();
-    });
-    expect(second?.status).toBe('already-claimed');
-    expect(publishSpy).not.toHaveBeenCalled();
-  });
-
-  it('is not available off localhost', async () => {
-    vi.stubGlobal('location', {
-      ...window.location,
-      search: '?missionDev=ready',
-      hostname: 'ditto.pub',
-    } as Location);
-    seed(COMPLETED);
-    const { result } = renderHook(() => useBadgeClaim());
-
-    let outcome: Awaited<ReturnType<typeof result.current.claim>> | undefined;
-    await act(async () => {
-      outcome = await result.current.claim();
-    });
-
-    // A production build has a user, so this reaches the real publisher. The
-    // point is that the fake one is simply absent.
-    expect(outcome?.status).toBe('claimed');
-    expect(publishSpy).toHaveBeenCalledTimes(1);
   });
 });
 

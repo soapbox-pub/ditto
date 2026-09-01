@@ -135,42 +135,6 @@ export const REDUCED_STAGE_TIMINGS = {
 /** When the welcome is stable under reduced motion. */
 export const REDUCED_WELCOME_ENTERED_AT_MS = 200;
 
-/** Development harness entry points, mapped to the act they start on. */
-export type ArrivalStageEntry =
-  | 'welcome'
-  | 'welcome-reading'
-  | 'presenting'
-  | 'reading'
-  | 'copy-out'
-  | 'revealing'
-  | 'content-out'
-  | 'content-in'
-  | 'handoff';
-
-function entryStage(entry: ArrivalStageEntry | undefined): ArrivalStage | undefined {
-  switch (entry) {
-    case 'welcome':
-    case 'welcome-reading':
-      return 'welcome';
-    case 'presenting':
-      return 'presenting';
-    case 'reading':
-      return 'reading';
-    case 'copy-out':
-      return 'copy-out';
-    case 'revealing':
-      return 'revealing';
-    case 'content-out':
-      return 'content-out';
-    case 'content-in':
-      return 'content-in';
-    case 'handoff':
-      return 'travelling';
-    default:
-      return undefined;
-  }
-}
-
 /**
  * Derive the current visual act from the lifecycle phase.
  *
@@ -181,17 +145,14 @@ function entryStage(entry: ArrivalStageEntry | undefined): ArrivalStage | undefi
 export function useArrivalStage({
   phase,
   reducedMotion,
-  entry,
 }: {
   phase: ArrivalPhase;
   reducedMotion: boolean;
-  entry?: ArrivalStageEntry;
 }): ArrivalStage {
   const timings = reducedMotion ? REDUCED_STAGE_TIMINGS : STAGE_TIMINGS;
-  const forced = entryStage(entry);
 
   const [playStage, setPlayStage] = useState<ArrivalStage>(
-    () => forced ?? (reducedMotion ? 'welcome' : 'signal'),
+    () => (reducedMotion ? 'welcome' : 'signal'),
   );
   const [revealStage, setRevealStage] = useState<ArrivalStage>('revealing');
 
@@ -200,7 +161,6 @@ export function useArrivalStage({
   // apart from the lifecycle's own `PLAY_MS`.
   useEffect(() => {
     if (phase !== 'playing') return;
-    if (forced) return;
 
     const timers = [
       setTimeout(() => setPlayStage('welcome'), timings.signal),
@@ -211,7 +171,7 @@ export function useArrivalStage({
       setTimeout(() => setPlayStage('copy-out'), timings.presentationOut),
     ];
     return () => timers.forEach(clearTimeout);
-  }, [phase, forced, timings]);
+  }, [phase, timings]);
 
   // The content transformation, inside the reveal window. The card empties and
   // refills *before* it moves, so the travel carries an object that already
@@ -221,19 +181,18 @@ export function useArrivalStage({
       setRevealStage('revealing');
       return;
     }
-    if (forced) return;
     const timers = [
       setTimeout(() => setRevealStage('content-out'), timings.contentOutAfterReveal),
       setTimeout(() => setRevealStage('content-in'), timings.contentInAfterReveal),
     ];
     return () => timers.forEach(clearTimeout);
-  }, [phase, forced, timings]);
+  }, [phase, timings]);
 
   switch (phase) {
     case 'playing':
-      return forced ?? playStage;
+      return playStage;
     case 'revealing':
-      return forced ?? revealStage;
+      return revealStage;
     case 'travelling':
       return 'travelling';
     default:

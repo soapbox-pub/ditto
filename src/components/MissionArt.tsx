@@ -70,7 +70,7 @@ export function ExplorerJourneyMark({ className }: { className?: string }) {
   return (
     <span
       aria-hidden
-      // Stable hook for tests and the development harness: the class list
+      // Stable hook for tests: the class list
       // carries per-surface sizing, so it is not selectable.
       data-explorer-journey-mark=""
       className={cn(

@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
-import {
-  missionDevArrivalEntry,
-  missionDevForcesArrival,
-  missionDevHoldsArrival,
-} from '@/dev/missionHarness';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
@@ -134,22 +129,7 @@ export function useFirstArrivalExperience(): FirstArrivalExperience {
   const { user } = useCurrentUser();
   const pubkey = user?.pubkey;
 
-  // Localhost-only: force the sequence so it can be inspected without a real
-  // signup, optionally starting at a later beat. Undefined in every production
-  // build. It drives presentation only — no marker is written or consumed, so it
-  // cannot affect a real account.
-  const devEntry = missionDevArrivalEntry();
-  const forced = missionDevForcesArrival();
-  // The harness can freeze the sequence on its entry act for review.
-  const held = missionDevHoldsArrival();
-
-  const [phase, setPhase] = useState<ArrivalPhase>(() => {
-    if (devEntry === 'handoff') return 'travelling';
-    if (devEntry === 'revealing' || devEntry === 'content-out' || devEntry === 'content-in') {
-      return 'revealing';
-    }
-    return forced ? 'playing' : 'waiting';
-  });
+  const [phase, setPhase] = useState<ArrivalPhase>('waiting');
   // A skip jumps straight to the hand-off: the user asked for the application,
   // so flying a card across it would be ignoring them.
   const skippedRef = useRef(false);
@@ -178,17 +158,15 @@ export function useFirstArrivalExperience(): FirstArrivalExperience {
   // visitor would otherwise sit in `waiting` forever (harmless, but it would
   // make the state machine untestable and hide bugs).
   useEffect(() => {
-    if (forced) return;
     if (phase !== 'waiting') return;
     const timer = setTimeout(() => setPhase('idle'), ACCOUNT_WAIT_MS);
     return () => clearTimeout(timer);
-  }, [phase, forced]);
+  }, [phase]);
 
   // Decide whether an arrival is owed. Re-runs when the account changes *or*
   // when the intent itself changes, which is what lets signup arm the marker
   // after the account has already resolved.
   useEffect(() => {
-    if (forced) return;
     if (!pubkey) return;
     // A run for this account has already started — never restart it.
     if (playingForRef.current === pubkey) return;
@@ -209,38 +187,36 @@ export function useFirstArrivalExperience(): FirstArrivalExperience {
     evaluatedForRef.current = pubkey;
     playingForRef.current = pubkey;
     setPhase('playing');
-  }, [pubkey, config.appId, forced, intentVersion]);
+  }, [pubkey, config.appId, intentVersion]);
 
   // A different account became active: reset so the new account is evaluated
   // on its own terms rather than inheriting the previous one's phase.
   useEffect(() => {
-    if (forced) return;
     if (!pubkey && playingForRef.current) {
       playingForRef.current = undefined;
       setPhase('idle');
     }
-  }, [pubkey, forced]);
+  }, [pubkey]);
 
   const finish = useCallback(
     (from: 'played' | 'skipped') => {
       // Consumed here and only here: the experience has been presented.
-      if (pubkey && !forced) consumeFirstArrival(config.appId, pubkey);
+      if (pubkey) consumeFirstArrival(config.appId, pubkey);
       setPhase('revealing');
       void from;
     },
-    [config.appId, pubkey, forced],
+    [config.appId, pubkey],
   );
 
   // Act 1 + 2 → Act 3.
   useEffect(() => {
     if (phase !== 'playing') return;
-    if (held) return;
     const timer = setTimeout(
       () => finish('played'),
       reducedMotion ? REDUCED_PLAY_MS : PLAY_MS,
     );
     return () => clearTimeout(timer);
-  }, [phase, reducedMotion, finish, held]);
+  }, [phase, reducedMotion, finish]);
 
   // Backdrop dissolved → travel, unless motion is unwanted or unhelpful.
   //
@@ -248,15 +224,12 @@ export function useFirstArrivalExperience(): FirstArrivalExperience {
   // to the application. Both still reach exactly the same end state.
   useEffect(() => {
     if (phase !== 'revealing') return;
-    // A hold freezes the sequence for review, but it must never freeze a skip:
-    // the user asked for the application, and no development flag outranks that.
-    if (held && !skippedRef.current) return;
     const timer = setTimeout(
       () => setPhase(reducedMotion || skippedRef.current ? 'done' : 'travelling'),
       reducedMotion ? REDUCED_REVEAL_MS : REVEAL_MS,
     );
     return () => clearTimeout(timer);
-  }, [phase, reducedMotion, held]);
+  }, [phase, reducedMotion]);
 
   // Travel is ended by the FLIP runner; this only catches an animation that
   // never reports back.

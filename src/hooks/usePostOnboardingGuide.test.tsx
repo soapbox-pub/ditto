@@ -44,25 +44,6 @@ const mutateAsync = vi.fn(async (patch: Partial<EncryptedSettings>) => {
 });
 
 /**
- * The localhost harness, controllable from tests. When it owns the state the
- * hook must never touch the real persistence path at all.
- */
-let devState: PostOnboardingGuideState | undefined;
-const devListeners = new Set<() => void>();
-vi.mock('@/dev/missionHarness', () => ({
-  readMissionDevState: () => devState,
-  subscribeMissionDev: (listener: () => void) => {
-    devListeners.add(listener);
-    return () => devListeners.delete(listener);
-  },
-  writeMissionDevState: (next: PostOnboardingGuideState) => {
-    devState = next;
-    for (const l of devListeners) l();
-  },
-  missionDevRejectsWrites: () => false,
-}));
-
-/**
  * The active account, and every other account's settings.
  *
  * The real `useEncryptedSettings` query is keyed by pubkey, so switching
@@ -92,8 +73,6 @@ function switchAccount(next: string | undefined) {
 
 function reset() {
   resetAutoWrites();
-  devState = undefined;
-  devListeners.clear();
   settings = undefined;
   isLoading = false;
   writeCount = 0;
@@ -1132,22 +1111,6 @@ describe('usePostOnboardingGuide — automatic writes are bounded', () => {
     expect(stored()?.intro?.acknowledgedAt).toBeGreaterThan(0);
   });
 
-  it('performs zero real writes while the harness owns the state', async () => {
-    devState = createInitialGuideState(5_000);
-    const { result, rerender } = renderHook(() => usePostOnboardingGuide());
-    await waitFor(() => expect(result.current.state).toBeDefined());
-
-    for (let i = 0; i < 20; i++) {
-      rerender();
-      await act(async () => {
-        await result.current.markIntroPresented();
-        await result.current.initializeGuide();
-      });
-    }
-    expect(writeCount).toBe(0);
-    expect(mutateAsync).not.toHaveBeenCalled();
-    devState = undefined;
-  });
 });
 
 /**

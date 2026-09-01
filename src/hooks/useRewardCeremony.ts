@@ -146,16 +146,6 @@ export function useRewardCeremony({
       source: HTMLElement | null,
       options?: {
         trigger?: HTMLElement | null;
-        /** Land on the settled stage without playing the entrance. */
-        immediate?: boolean;
-        /**
-         * Localhost harness only: open directly on a phase, purely as a
-         * presentation. Nothing is signed, published or persisted to get here —
-         * the claim is only ever reachable through the real gesture.
-         */
-        phase?: RewardCeremonyPhase;
-        /** Harness only: start already showing the slow-signer explanation. */
-        slow?: boolean;
       },
     ) => {
       // Rapid double-open, a double-tap, or Strict Mode's double invocation:
@@ -168,11 +158,8 @@ export function useRewardCeremony({
 
       // Reduced motion has nothing to travel, so it starts settled rather than
       // spending a phase animating to where it already is.
-      setSlow(options?.slow === true);
-      setPhase(
-        options?.phase ??
-          (options?.immediate || prefersReducedMotion() ? 'sealed' : 'opening'),
-      );
+      setSlow(false);
+      setPhase(prefersReducedMotion() ? 'sealed' : 'opening');
 
       // The whole current URL, hash included. Dropping the hash would silently
       // move the user off an anchor when the ceremony opened, and again when it
@@ -451,7 +438,7 @@ export function useRewardCeremony({
     reveal,
     /** Open from the element the user clicked, remembering where it was. */
     open,
-    /** Escape, backdrop, Close, or the dev harness. */
+    /** Escape, backdrop, or Close. */
     requestClose,
     settle,
     finishClose,

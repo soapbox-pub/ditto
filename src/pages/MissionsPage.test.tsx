@@ -50,7 +50,6 @@ vi.mock('@/hooks/usePostOnboardingGuide', () => ({
     nextPath: nextRecommendedPath(state),
     interaction: state?.interact,
     resumeGuide: vi.fn(),
-    resetGuideDev: vi.fn(),
     acknowledgeIntro: vi.fn(),
     postponeIntro: vi.fn(),
     markIntroPresented: vi.fn(),
@@ -401,8 +400,8 @@ describe('/missions — the reward stays sealed', () => {
  * It used to have a "Claim reward" button that called `claim()` from here. That
  * button had no success feedback of any kind — the only reward animation is
  * bound to `ready`, so a claim that worked *removed* the one thing moving — and
- * with no signer (the dev harness, a logged-out render) it returned `ineligible`
- * and did nothing at all, silently. These pin that it is gone.
+ * with no signer (a logged-out render) it returned `ineligible` and did nothing
+ * at all, silently. These pin that it is gone.
  */
 describe('/missions — claim lifecycle', () => {
   it('reads as ready, distinctly from locked, at 4/4', () => {
@@ -634,9 +633,9 @@ describe('/missions — the journey mark', () => {
 /**
  * A reviewer opening `/missions` on a dev build must see what a user sees.
  *
- * The scenario switcher and the journey reset used to live at the bottom of
- * this page. They still exist — at `/dev` — but nothing of ours belongs in the
- * frame of the thing being reviewed.
+ * A scenario switcher and a journey reset used to live at the bottom of this
+ * page. Nothing of ours belongs in the frame of the thing being reviewed, so
+ * they are gone; these pin that they stay gone.
  */
 describe('/missions — no development controls', () => {
   it('carries no scenario switcher, in any state', () => {
@@ -655,7 +654,8 @@ describe('/missions — no development controls', () => {
   });
 
   it('offers no journey reset', () => {
-    // `import.meta.env.DEV` is true under vitest, so this would have rendered.
+    // `import.meta.env.DEV` is true under vitest, so a dev-gated control would
+    // have rendered here.
     seed({ paths: { ...ALL_DONE }, status: 'completed' });
     render(<MissionsPage />);
 

@@ -2,7 +2,6 @@ import { FormattedMessage } from 'react-intl';
 import { Play, Target } from 'lucide-react';
 
 import { DittoExplorerIntroduction } from '@/components/DittoExplorerIntroduction';
-import { missionDevActive } from '@/dev/missionHarness';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { ExplorerJourneyMark } from '@/components/MissionArt';
 import { MissionJourney } from '@/components/MissionJourney';
@@ -45,13 +44,8 @@ import {
  *
  * ### No development controls
  *
- * A scenario switcher and a journey reset used to sit at the bottom of this
- * page under a dev-build check. They were useful and they are not gone — they
- * live at `/dev`, which is the one entrance to the first-session harnesses. The
- * reason to move them is that a reviewer opening `/missions` on a dev build
- * should be looking at exactly what a user sees, with nothing of ours in the
- * frame. The harness *seams* remain: `missionDevActive()` below still lets the
- * page render signed-out, which is what makes the scenarios inspectable at all.
+ * The page carries no dev-build affordances: a reviewer opening `/missions`
+ * sees exactly what a user sees, with nothing of ours in the frame.
  */
 
 /**
@@ -124,7 +118,7 @@ export function MissionsPage() {
       <PageHeader title="Missions" icon={<Target className="size-5" />} />
 
       <div className="mx-auto w-full max-w-5xl px-4 pb-12 pt-2">
-        {!user && !missionDevActive() ? (
+        {!user ? (
           <div className="flex flex-col items-center gap-6 px-4 py-20 text-center">
             <ExplorerJourneyMark className="size-16" />
             <div className="max-w-sm space-y-2">

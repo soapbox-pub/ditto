@@ -209,32 +209,6 @@ describe('useArrivalStage — reduced motion', () => {
   });
 });
 
-describe('useArrivalStage — development harness entries', () => {
-  beforeEach(() => vi.useFakeTimers());
-  afterEach(() => vi.useRealTimers());
-
-  it.each([
-    ['welcome', 'welcome'],
-    ['presenting', 'presenting'],
-  ] as const)('starts directly on the %s act', (entry, expected) => {
-    const { result } = renderHook(() =>
-      useArrivalStage({ phase: 'playing', reducedMotion: false, entry }),
-    );
-    expect(result.current).toBe(expected);
-
-    // …and holds there rather than being pushed on by the act timers.
-    act(() => void vi.advanceTimersByTime(5_000));
-    expect(result.current).toBe(expected);
-  });
-
-  it('enters the travel directly for the handoff scenario', () => {
-    const { result } = renderHook(() =>
-      useArrivalStage({ phase: 'travelling', reducedMotion: false, entry: 'handoff' }),
-    );
-    expect(result.current).toBe('travelling');
-  });
-});
-
 describe('useArrivalStage — the reading beat', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());

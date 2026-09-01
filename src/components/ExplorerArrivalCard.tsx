@@ -71,7 +71,7 @@ export const ExplorerArrivalCard = forwardRef<
   return (
     <div
       ref={ref}
-      // Stable hook for tests and the development harness. Class names change
+      // Stable hook for tests. Class names change
       // during the travel (the radius tightens), so they are not selectable.
       data-explorer-arrival-card=""
       aria-hidden={travelling || undefined}
