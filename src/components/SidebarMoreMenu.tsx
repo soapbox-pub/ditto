@@ -198,8 +198,11 @@ export function SidebarMoreMenu({
     if (raw.startsWith('nsite://')) {
       const subdomain = raw.slice('nsite://'.length);
       const parsed = parseNsiteSubdomain(subdomain);
-      if (!parsed || parsed.kind !== 35128) {
-        setLinkError(intl.formatMessage({ id: 'sidebar.invalidNsite', defaultMessage: "Invalid nsite identifier (only named sites are supported)" }));
+      if (!parsed) {
+        // New id, not a reworded `sidebar.invalidNsite`: that string asserted
+        // "only named sites are supported", which is no longer true, and its
+        // de/ja translations still say so. A fresh id drops them cleanly.
+        setLinkError(intl.formatMessage({ id: 'sidebar.invalidNsiteId', defaultMessage: "Invalid nsite identifier" }));
         return;
       }
       onAdd(raw);

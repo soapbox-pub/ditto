@@ -1,5 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 
+import { fetchDecryptedFile, type FileEncryption } from '@/lib/encryptedFile';
+
 /**
  * Download a text file to the user's device.
  *
@@ -75,6 +77,40 @@ export async function downloadBinaryFile(filename: string, bytes: Uint8Array): P
     globalThis.URL.revokeObjectURL(url);
     document.body.removeChild(a);
   }
+}
+
+/** Common file extensions, so a decrypted blob saves under a usable name. */
+const EXT_BY_MIME: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/svg+xml': 'svg',
+  'video/mp4': 'mp4',
+  'video/webm': 'webm',
+  'audio/mpeg': 'mp3',
+  'audio/ogg': 'ogg',
+  'audio/wav': 'wav',
+  'application/pdf': 'pdf',
+};
+
+/**
+ * Decrypt an encrypted attachment and save the plaintext.
+ *
+ * {@link downloadUrl} would save the ciphertext, which is useless to the user.
+ * The URL is content-addressed by the *encrypted* bytes and so carries no
+ * extension, so one is derived from the decrypted MIME type.
+ */
+export async function downloadDecryptedUrl(
+  url: string,
+  encryption: FileEncryption,
+  filename?: string,
+): Promise<'downloaded'> {
+  const { bytes, mime } = await fetchDecryptedFile(url, encryption);
+  const base = filename ?? filenameFromUrl(url);
+  const ext = EXT_BY_MIME[mime];
+  await downloadBinaryFile(ext && !base.includes('.') ? `${base}.${ext}` : base, bytes);
+  return 'downloaded';
 }
 
 /**

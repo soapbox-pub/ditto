@@ -55,6 +55,9 @@ import { getDisplayName } from "@/lib/getDisplayName";
 import { impactLight } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
 import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
+import { parseFirstImeta } from '@/lib/imeta';
+import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
+import { useDecryptedFile } from '@/hooks/useDecryptedFile';
 
 const VINE_KIND = 34236;
 
@@ -64,17 +67,9 @@ type FeedTab = "follows" | "global";
 function parseVineImeta(tags: string[][]): {
 	url?: string;
 	thumbnail?: string;
+	encryption?: FileEncryption;
 } {
-	const tag = tags.find(([n]) => n === "imeta");
-	if (!tag) return {};
-	const result: Record<string, string> = {};
-	for (let i = 1; i < tag.length; i++) {
-		const part = tag[i];
-		const sp = part.indexOf(" ");
-		if (sp === -1) continue;
-		result[part.slice(0, sp)] = part.slice(sp + 1);
-	}
-	return { url: result.url, thumbnail: result.image };
+	return parseFirstImeta(tags) ?? {};
 }
 
 function getTag(tags: string[][], name: string): string | undefined {
@@ -370,7 +365,17 @@ export function VineCard({
 	const title = getTag(event.tags, "title");
 	const hashtags = event.tags.filter(([n]) => n === "t").map(([, v]) => v);
 
-	const { src, onError: onBlossomError } = useBlossomFallback(imeta.url ?? "");
+	const fallback = useBlossomFallback(imeta.url ?? "");
+	// The vine and its thumbnail are separate blobs under one key, so the
+	// thumbnail can't be checked against the vine's `ox` hash or MIME type.
+	const decrypted = useDecryptedFile(imeta.url ?? "", imeta.encryption);
+	const decryptedThumb = useDecryptedFile(
+		imeta.thumbnail ?? "",
+		imeta.thumbnail && imeta.encryption ? companionEncryption(imeta.encryption) : undefined,
+	);
+	const src = decrypted.encrypted ? (decrypted.src ?? "") : fallback.src;
+	const thumbnailUrl = imeta.thumbnail ? decryptedThumb.src : undefined;
+	const onBlossomError = decrypted.encrypted ? undefined : fallback.onError;
 
 	// Reset ready/buffering state when the active vine changes (new src loaded)
 	useEffect(() => {
@@ -501,10 +506,11 @@ export function VineCard({
 					{/* Thumbnail — shown until the first frame is decoded and ready */}
 					{!isVideoReady && imeta.thumbnail && (
 						<img
-							src={imeta.thumbnail}
+							src={thumbnailUrl}
 							alt=""
 							aria-hidden
 							className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+							decoding="async"
 						/>
 					)}
 

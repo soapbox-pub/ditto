@@ -105,7 +105,7 @@ function BlueskyPostCard({ post }: { post: BlueskyPost }) {
       {/* Author line */}
       <div className="flex items-center gap-1.5 mb-0.5">
         {post.author.avatar ? (
-          <img src={post.author.avatar} alt="" className="size-4 rounded-full object-cover" loading="lazy" />
+          <img src={post.author.avatar} alt="" className="size-4 rounded-full object-cover" loading="lazy" decoding="async" />
         ) : (
           <div className="size-4 rounded-full bg-sky-500 flex items-center justify-center text-white text-[8px] font-bold">
             {(post.author.displayName ?? post.author.handle).charAt(0).toUpperCase()}

@@ -68,8 +68,12 @@ export interface FeedSettings {
   feedIncludeHighlights: boolean;
   /** Include Agora Fundraisers (kind 33863) in the follows/global feed */
   feedIncludeCampaigns: boolean;
+  /** Include NIP-99 classified listings (kind 30402) in the follows/global feed */
+  feedIncludeClassifiedListings: boolean;
   /** Include Attestations (kind 31871) in the follows/global feed */
   feedIncludeAttestations: boolean;
+  /** Include NIP-56 Reports (kind 1984) in the follows/global feed */
+  feedIncludeReports: boolean;
   /** Show Events (kind 31922/31923) link in sidebar */
   showEvents: boolean;
   /** Include calendar events in the follows/global feed */
@@ -196,6 +200,8 @@ export interface FeedSettings {
   feedIncludeNsiteRoots: boolean;
   /** Include named nsite deployments (kind 35128) in the follows/global feed */
   feedIncludeNsiteNamed: boolean;
+  /** Include NIP-5A nsite manifest snapshots (kind 5128) in the follows/global feed */
+  feedIncludeNsiteSnapshots: boolean;
   /** Include Zapstore app listings (kind 32267) in the follows/global feed */
   feedIncludeZapstoreApps: boolean;
   /** Include Zapstore release announcements (kind 30063) in the follows/global feed */
@@ -218,6 +224,10 @@ export interface FeedSettings {
   feedIncludeBadgeAwards: boolean;
   /** Include Request to Vanish events (kind 62) in the follows/global feed */
   feedIncludeVanish: boolean;
+  /** Include NIP-65 relay list updates (kind 10002) in the follows/global feed */
+  feedIncludeRelayLists: boolean;
+  /** Include profile metadata updates (kind 0) in the follows/global feed */
+  feedIncludeProfileUpdates: boolean;
   /** Include Love List updates (kind 15683, see NIP.md) in the follows/global feed */
   feedIncludeLoveLists: boolean;
   /** Include Blobbi pet updates (kind 31124) in the follows/global feed */
@@ -335,6 +345,13 @@ export interface AppConfig {
    * devices via encrypted settings. Default: false.
    */
   exemptFollowsFromFilters: boolean;
+  /**
+   * Hide media (images, video, audio) from accounts you don't follow behind a
+   * click-to-reveal overlay. Text still shows; only posts with media are
+   * gated, and only when you're logged in. Synced across devices via encrypted
+   * settings. Default: false.
+   */
+  hideMediaFromStrangers: boolean;
   /** Sentry DSN for error reporting (empty string = disabled). */
   sentryDsn: string;
   /** Whether the user has enabled Sentry error reporting. */
@@ -347,6 +364,18 @@ export interface AppConfig {
   savedFeeds: SavedFeed[];
   /** Autoplay videos in feeds and previews (muted). Default: false. */
   autoplayVideos: boolean;
+  /**
+   * Whether tracking parameters are stripped from links — both from what this
+   * client PUBLISHES and from what it renders and fetches. Default: true.
+   *
+   * A share sheet's URL usually carries a per-share identifier (YouTube's
+   * `si=`), a click id (`fbclid`, `gclid`) or a campaign tag (`utm_*`), which
+   * on a note published to a relay is forwarded to every reader and to
+   * everything that follows the link on their behalf, the link-preview
+   * unfurler included. Only named parameters are removed, so the link still
+   * resolves to the same page — see `lib/trackingParams.ts`.
+   */
+  stripTrackingParams: boolean;
   /** Image upload quality: "compressed" resizes/optimizes, "original" uploads as-is. Default: "compressed". */
   imageQuality: 'compressed' | 'original';
   /** Hex pubkey of the curator whose follow list defines the Ditto feed. */

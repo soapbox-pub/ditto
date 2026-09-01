@@ -84,6 +84,7 @@ export function AndroidSignerOptions({ onLogin }: AndroidSignerOptionsProps) {
                   src={app.iconUrl}
                   alt=""
                   className="w-8 h-8 rounded-md flex-shrink-0"
+                  decoding="async"
                 />
               ) : (
                 <div className="w-8 h-8 rounded-md bg-muted flex-shrink-0" />

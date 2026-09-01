@@ -75,6 +75,31 @@ export interface SandboxFrameHandle {
 // ---------------------------------------------------------------------------
 
 /**
+ * Highest iframe.diy protocol version this parent supports.
+ * v2 = fetch bodies may be raw binary instead of base64 strings.
+ */
+const PROTOCOL_VERSION = 2;
+
+/**
+ * Serialise raw bytes for transport: passed through as-is for v2 frames,
+ * base64-encoded for v1 frames (e.g. a stale cached Service Worker).
+ */
+function toBody(bytes: Uint8Array, binary: boolean): string | Uint8Array {
+  if (!binary) return bytesToBase64(bytes);
+  // Structured clone copies a view's *entire* underlying buffer, so send a
+  // compact copy when the view doesn't span its buffer (e.g. a file inside
+  // an unpacked archive).
+  return bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
+    ? bytes
+    : bytes.slice();
+}
+
+/** Serialise a UTF-8 string for transport (see `toBody`). */
+function textToBody(str: string, binary: boolean): string | Uint8Array {
+  return binary ? new TextEncoder().encode(str) : utf8ToBase64(str);
+}
+
+/**
  * Build a serialised HTTP response and call `respond` with it.
  */
 async function handleFetchRequest(
@@ -82,6 +107,7 @@ async function handleFetchRequest(
   resolveFile: (pathname: string) => Promise<FileResponse | null>,
   scripts: InjectedScript[],
   activeCsp: string | undefined,
+  binaryBodies: boolean,
   respond: (result: Record<string, unknown>) => void,
   respondError: (code: number, message: string) => void,
 ): Promise<void> {
@@ -100,7 +126,7 @@ async function handleFetchRequest(
       status: 200,
       statusText: 'OK',
       headers,
-      body: utf8ToBase64(virtualScript.content),
+      body: textToBody(virtualScript.content, binaryBodies),
     });
     return;
   }
@@ -117,22 +143,22 @@ async function handleFetchRequest(
         status: 404,
         statusText: 'Not Found',
         headers,
-        body: utf8ToBase64('Not Found'),
+        body: textToBody('Not Found', binaryBodies),
       });
       return;
     }
 
     // For HTML responses, inject script tags.
-    let bodyBase64: string;
+    let body: string | Uint8Array;
     if (file.contentType === 'text/html' && scripts.length > 0) {
       const html = new TextDecoder().decode(file.body);
       const injected = injectScriptTags(
         html,
         scripts.map((s) => `/${s.path}`),
       );
-      bodyBase64 = utf8ToBase64(injected);
+      body = textToBody(injected, binaryBodies);
     } else {
-      bodyBase64 = bytesToBase64(file.body);
+      body = toBody(file.body, binaryBodies);
     }
 
     const headers: Record<string, string> = {
@@ -149,7 +175,7 @@ async function handleFetchRequest(
       status: file.status,
       statusText: 'OK',
       headers,
-      body: bodyBase64,
+      body,
     });
   } catch (err) {
     respondError(-32002, String(err));
@@ -234,6 +260,11 @@ export const SandboxFrame = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const { config } = useAppContext();
 
+    // Protocol version announced by the frame in `ready`. Raw binary
+    // bodies are only sent when the frame supports v2; a stale cached
+    // v1 Service Worker still gets base64.
+    const frameVersionRef = useRef(1);
+
     const origin = useMemo(
       () => `https://${id}.${config.sandboxDomain}`,
       [id, config.sandboxDomain],
@@ -288,6 +319,8 @@ export const SandboxFrame = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
 
         // Notification: ready -> await onReady, then respond with init
         if (msg.method === 'ready' && msg.id === undefined) {
+          const version = (msg.params as { version?: number } | undefined)?.version;
+          frameVersionRef.current = typeof version === 'number' ? version : 1;
           handleReady();
           return;
         }
@@ -312,7 +345,7 @@ export const SandboxFrame = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
         } catch (err) {
           console.error('[SandboxFrame] onReady failed:', err);
         }
-        post({ jsonrpc: '2.0', method: 'init', params: { version: 1 } });
+        post({ jsonrpc: '2.0', method: 'init', params: { version: PROTOCOL_VERSION } });
       }
 
       // ---------------------------------------------------------------
@@ -348,6 +381,7 @@ export const SandboxFrame = forwardRef<SandboxFrameHandle, SandboxFrameProps>(
           resolveFileRef.current,
           injectedScriptsRef.current ?? [],
           cspRef.current,
+          frameVersionRef.current >= 2,
           (result) => post({ jsonrpc: '2.0', id, result }),
           (code, message) => post({ jsonrpc: '2.0', id, error: { code, message } }),
         );

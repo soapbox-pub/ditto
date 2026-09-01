@@ -218,6 +218,7 @@ export function RoomFurnitureEditor({
                         alt={def.label}
                         className="size-8 object-contain"
                         draggable={false}
+                        decoding="async"
                       />
                       <span className="text-[9px] text-muted-foreground leading-tight text-center truncate w-full">
                         {def.label}
@@ -288,7 +289,7 @@ export function RoomFurnitureEditor({
                       )}
                     >
                       {asset ? (
-                        <img src={asset} alt={label} className="size-6 object-contain" draggable={false} />
+                        <img src={asset} alt={label} className="size-6 object-contain" draggable={false} decoding="async" />
                       ) : (
                         <span className="text-[10px] text-muted-foreground">?</span>
                       )}
@@ -518,6 +519,7 @@ function FrameImageControls({ imageUrl, onImageChange }: FrameImageControlsProps
                 src={imageUrl}
                 alt=""
                 className="size-6 rounded-sm object-cover border border-border/60"
+                decoding="async"
               />
               <button
                 type="button"

@@ -59,29 +59,29 @@ Object.defineProperty(window, 'scrollTo', {
   value: vi.fn(),
 });
 
-// Mock IntersectionObserver. Must be a real class: production code calls it
-// with `new`, and a `vi.fn()` mock is not constructible under Vitest 4 — any
-// test rendering a component that observes visibility would throw
-// "is not a constructor". The callback is never invoked; tests that need to
-// simulate intersection install their own observer.
-global.IntersectionObserver = class {
-  root = null;
-  rootMargin = '';
-  thresholds: number[] = [];
-  constructor(_callback?: IntersectionObserverCallback) {}
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-  takeRecords(): IntersectionObserverEntry[] { return []; }
-} as unknown as typeof IntersectionObserver;
+// Mock IntersectionObserver and ResizeObserver.
+//
+// These are classes rather than `vi.fn().mockImplementation(() => ({...}))`:
+// an arrow function can't be called with `new`, so components that actually
+// construct an observer would throw ("is not a constructor") and take their
+// whole subtree down with them.
+class MockIntersectionObserver implements IntersectionObserver {
+  readonly root = null;
+  readonly rootMargin = '';
+  readonly thresholds: number[] = [];
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  takeRecords = vi.fn(() => []);
+}
+global.IntersectionObserver = MockIntersectionObserver;
 
-// Mock ResizeObserver — a real class, for the same reason as above.
-global.ResizeObserver = class {
-  constructor(_callback?: ResizeObserverCallback) {}
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-} as unknown as typeof ResizeObserver;
+class MockResizeObserver implements ResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+global.ResizeObserver = MockResizeObserver;
 
 // jsdom's TextEncoder returns a Uint8Array from a different realm, which fails
 // `@noble/hashes`'s `instanceof Uint8Array` check ("expected Uint8Array, got

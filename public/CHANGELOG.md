@@ -1,5 +1,119 @@
 # Changelog
 
+## [2.36.0] - 2026-08-23
+
+Take your account with you. A new Import & Export screen in Settings pulls everything you've ever posted off your relays into a file that's yours to keep, then pushes your history back to any relay that's missing it — one relay at a time, with progress for each, picking up where it left off. Replies got reworked too: every reply now records the post and the thread it belongs to, so reply labels and notifications land right. And muting a conversation finally silences the whole thing.
+
+### Added
+- Import & Export in Settings: download everything you've posted as a file you can keep, and push your history back to relays that don't have it, with per-relay progress and transfers that resume where they left off
+
+### Changed
+- Replies are published in the newer comment format, which names the post and thread they belong to — so "Replying to @user" and reply notifications show up on every reply, whichever app it came from
+- Apps that only understand the older reply format won't show replies posted from Ditto
+
+### Fixed
+- Muting a conversation now hides every reply in it, instead of only the ones sitting directly under the post you muted
+
+## [2.35.3] - 2026-08-23
+
+Classified listings join the party. Items for sale now land in your feed as rich cards — price, photos, and details — with a toggle to browse just the listings, and they render inline when quoted too. Also patched: a booby-trapped profile theme can no longer break out of its styling to deface the page or sneak out hidden network requests.
+
+### Added
+- Classified listings appear in the feed as rich cards with price and photos, complete with a toggle to browse just the listings and inline previews when they're quoted
+
+### Fixed
+- A maliciously crafted profile theme can no longer escape its styling to deface a page you're viewing or trigger hidden outbound requests
+
+## [2.35.2] - 2026-08-23
+
+This release smooths out the rough edges. Opening a post from your feed is snappy again — no more freeze before it loads. Animated avatars and banners keep their motion when you crop them instead of getting flattened. Your themes and settings stay put when you switch or add accounts, the theme you pick during signup lands on the right account, and custom profile tabs can now filter down to just their media.
+
+### Added
+- Custom profile tabs can filter to show only media
+
+### Fixed
+- Opening a post from the feed is instant again, instead of freezing for a beat before it loads
+- Animated avatars and banners keep their animation when you crop them, instead of being flattened to a still image
+- Your theme and settings no longer get overwritten with another account's when you switch accounts or log out
+- Returning users are no longer shown the setup questionnaire again after logging in
+- The theme you choose while signing up now applies to the new account instead of the one you were already using
+
+## [2.35.1] - 2026-08-19
+
+A security release for the mobile apps. Notification taps and content shared into Ditto from another app now arrive as plain data instead of being assembled into code, so a hostile app on your phone can't use them to steer Ditto somewhere you never tapped. Links that try to bounce you off ditto.pub to another site are turned away too. Nothing else about the app changes.
+
+### Fixed
+- Notification taps and shares from other apps are handled as data, closing off a path a malicious app on your device could have used to take Ditto somewhere you didn't ask for
+- Links dressed up to look like ditto.pub addresses but pointing at another site are now rejected instead of followed
+
+## [2.35.0] - 2026-08-19
+
+Links now shed their tracking junk. The utm tags, share ids, and click ids that follow you around get stripped from the links you post and the links you read, with a switch in Settings if you'd rather keep them. Search puts the people you follow first and turns up sites and apps, not just articles. Profile glow-ups and relay lists land in your feed as real cards, videos play right inside quotes, and profiles load from their author's own relays. Plus security fixes for zaps and Bitcoin sends.
+
+### Added
+- Clean up links: tracking parameters are stripped from links you post and links you view, with a toggle under Settings → Content
+- Profile updates appear in the feed as cards, so you see it when someone changes their banner or bio
+- Relay lists render as cards — a stack of relay icons in the feed, and a full list with read/write markers on the detail page
+- Search now finds sites and apps alongside articles, lists, emoji packs, and follow packs
+- Site snapshots render as their own cards, capturing a site at a point in time
+
+### Changed
+- Search results are ranked follow-first, and each result shows who published it
+- Videos and vines now play inline when quoted, instead of falling back to a text card
+- Profiles load posts, likes, and metadata from the author's own relays, so nothing goes missing when it doesn't live on yours
+- Opening an event your relays don't have now falls back to the author's relays and hints mined from other posts
+- Root sites can be pinned to the sidebar, navigated, and auto-played like named ones
+- The share-a-QR dialog now links to the profile instead of a follow link
+
+### Fixed
+- A key buried inside a file path or command no longer turns into a mention and mangles the text
+- Zaps now verify the invoice charges exactly the amount you approved before paying it
+- On-chain sends now derive silent payments from every input, so recipients actually receive them
+- A broken or hostile fee endpoint can no longer turn your entire wallet balance into a miner fee
+- Reposts are verified before they're trusted, so one can't wear another person's name and avatar
+- Notification taps and universal links now validate the path before navigating
+- Signing in with a remote signer now requires the signer to prove it holds the connection secret
+- Hatching a Blobbi no longer risks overwriting your existing Blobbonaut profile
+
+### Removed
+- The one-tap follow link, which published a follow just from visiting the URL, with no confirmation
+
+## [2.34.9] - 2026-08-14
+
+Web bookmarks and photo posts now strut into your feed as full cards. Encrypted files and audio decrypt right before your eyes. Unknown events show up as mystery encounters — poke one and see what happens. Plus: per-account settings, snappier relays, and copy-link buttons on nsite previews.
+
+### Added
+- Web bookmarks render as rich link-preview cards in feeds, detail pages, and quote embeds
+- Picture posts display Instagram-style with edge-to-edge photo carousels and swipeable galleries
+- Encrypted files and audio now decrypt and display inline, with a size guard for large attachments
+- Unknown event kinds appear as a mystery encounter with an expandable raw-event viewer
+
+### Changed
+- App config is now scoped per account so switching logins can't clobber your theme and feed settings
+- nsite preview dialog gains copy-link and open-in-browser buttons
+- Relay messages are no longer re-verified and re-wrapped on every receipt, improving feed performance
+- Wikimedia images now request only thumbnail widths instead of decoding full-resolution originals
+
+### Fixed
+- Editing advanced settings fields no longer overwrites the rest of your config
+
+## [2.34.8] - 2026-08-08
+
+A quiet maintenance release. We updated the plumbing under the hood and patched a security advisory in one of Ditto's dependencies. Nothing to see here — everything works exactly like it did yesterday, just on fresher parts.
+
+## [2.34.7] - 2026-08-07
+
+This release squashes a bug that could hatch a duplicate Blobbi behind your back, makes sure your own mute list never hides your own posts, and speeds up swiping through photo galleries. We also stripped Google's proprietary bits out of the Android build, so your pocket doesn't have to answer to Mountain View.
+
+### Changed
+- Lightbox galleries now preload nearby images so swiping through a photo set feels instant instead of stalling
+- Android app no longer bundles Google Play Services, so any password manager — including FOSS options on de-Googled phones — works with autofill
+
+### Fixed
+- A Blobbi could occasionally hatch a duplicate egg on page load, including when one was already adopted from Blobbi Island
+- Muted words and hashtags no longer hide your own posts
+- Stopped fetching the Bitcoin price on pages that never actually show a dollar amount
+
 ## [2.34.6] - 2026-08-01
 
 Sidebar got a makeover with clearer sections and easier access. Add comments to your zaps, manage your emoji packs, and enjoy better login flows. UI polish across search fields and feeds with full internationalization support.

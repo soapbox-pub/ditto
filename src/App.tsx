@@ -3,6 +3,7 @@
 
 import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ActiveAccountSync } from "@/components/ActiveAccountSync";
 import { AppProvider } from "@/components/AppProvider";
 import { I18nProvider } from "@/components/I18nProvider";
 import { ExplorerArrivalProvider } from "@/components/ExplorerArrivalProvider";
@@ -22,6 +23,7 @@ import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
 import { DittoConfigSchema, type DittoConfig } from "@/lib/schemas";
 import { secureStorage } from "@/lib/secureStorage";
+import { APP_CONFIG_STORAGE_KEY } from "@/lib/activeAccount";
 import { DEFAULT_ESPLORA_APIS } from "@/lib/esplora";
 import { DEFAULT_SIDEBAR_WIDGETS } from "@/lib/sidebarWidgets";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
@@ -65,7 +67,9 @@ const hardcodedConfig: AppConfig = {
     showHighlights: true,
     feedIncludeHighlights: true,
     feedIncludeCampaigns: true,
+    feedIncludeClassifiedListings: true,
     feedIncludeAttestations: false,
+    feedIncludeReports: false,
     showEvents: true,
     feedIncludeEvents: true,
     showVines: true,
@@ -131,6 +135,9 @@ const hardcodedConfig: AppConfig = {
     feedIncludeCustomNips: true,
     feedIncludeNsiteRoots: true,
     feedIncludeNsiteNamed: true,
+    // Note: authors who snapshot every deploy put two cards in the feed for
+    // each one — the site and its snapshot. Toggleable in Content Settings.
+    feedIncludeNsiteSnapshots: true,
     feedIncludeZapstoreApps: true,
     feedIncludeZapstoreReleases: true,
     feedIncludeAppHandlers: true,
@@ -142,6 +149,8 @@ const hardcodedConfig: AppConfig = {
     feedIncludeProfileBadges: true,
     feedIncludeBadgeAwards: true,
     feedIncludeVanish: true,
+    feedIncludeRelayLists: true,
+    feedIncludeProfileUpdates: true,
     feedIncludeLoveLists: true,
     feedIncludeBlobbi: true,
     showBirdstar: true,
@@ -174,12 +183,14 @@ const hardcodedConfig: AppConfig = {
   corsProxy: "https://proxy.shakespeare.diy/?url={href}",
   contentWarningPolicy: "blur",
   exemptFollowsFromFilters: false,
+  hideMediaFromStrangers: false,
   sentryDsn: import.meta.env.VITE_SENTRY_DSN || "",
   sentryEnabled: true,
   plausibleDomain: import.meta.env.VITE_PLAUSIBLE_DOMAIN || "",
   plausibleEndpoint: import.meta.env.VITE_PLAUSIBLE_ENDPOINT || "",
   savedFeeds: [],
   autoplayVideos: false,
+  stripTrackingParams: true,
   imageQuality: 'compressed',
   curatorPubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d',
   sandboxDomain: 'iframe.diy',
@@ -220,12 +231,13 @@ export function App() {
 
 
   return (
-    <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
+    <AppProvider storageKey={APP_CONFIG_STORAGE_KEY} defaultConfig={defaultConfig}>
       <I18nProvider>
         <SentryProvider>
           <PlausibleProvider>
             <QueryClientProvider client={queryClient}>
               <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
+                <ActiveAccountSync />
                 <NostrProvider>
                   <NostrSync />
                   <NativeNotifications />

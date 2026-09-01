@@ -33,10 +33,21 @@ interface BlobbiOnboardingFlowProps {
   /** If provided, skip egg creation and use this existing egg for the ceremony. */
   existingCompanion?: BlobbiCompanion | null;
   /**
+   * Called when the hard preflight guard discovers the user already owns a
+   * Blobbi right before a new egg would be created (e.g. one created by Blobbi
+   * Island). The parent should select the existing Blobbi and dismiss the flow.
+   */
+  onExistingBlobbiFound?: (companion: BlobbiCompanion) => void;
+  /**
    * Accepted for API compatibility. Every new egg goes through the ceremony.
    * @deprecated No longer changes the flow.
    */
   adoptionOnly?: boolean;
+  /**
+   * True when the user explicitly chose to get this Blobbi. Exempts the flow from
+   * the duplicate guard that protects the silent auto-start path.
+   */
+  userInitiated?: boolean;
 }
 
 export function BlobbiOnboardingFlow({
@@ -48,7 +59,9 @@ export function BlobbiOnboardingFlow({
   setStoredSelectedD,
   onComplete,
   existingCompanion,
+  onExistingBlobbiFound,
   adoptionOnly,
+  userInitiated,
 }: BlobbiOnboardingFlowProps) {
   return (
     <BlobbiHatchingCeremony
@@ -60,7 +73,9 @@ export function BlobbiOnboardingFlow({
       setStoredSelectedD={setStoredSelectedD}
       onComplete={onComplete}
       existingCompanion={existingCompanion}
+      onExistingBlobbiFound={onExistingBlobbiFound}
       eggOnly={adoptionOnly}
+      userInitiated={userInitiated}
     />
   );
 }

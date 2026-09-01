@@ -384,6 +384,16 @@ export function NostrSync() {
       }
 
       if (
+        encryptedSettings.hideMediaFromStrangers !== undefined &&
+        encryptedSettings.hideMediaFromStrangers !==
+          current.hideMediaFromStrangers
+      ) {
+        updates.hideMediaFromStrangers =
+          encryptedSettings.hideMediaFromStrangers;
+        changed = true;
+      }
+
+      if (
         encryptedSettings.sidebarOrder &&
         JSON.stringify(encryptedSettings.sidebarOrder) !==
           JSON.stringify(current.sidebarOrder)
@@ -448,6 +458,14 @@ export function NostrSync() {
         encryptedSettings.currencyDisplay !== current.currencyDisplay
       ) {
         updates.currencyDisplay = encryptedSettings.currencyDisplay;
+        changed = true;
+      }
+
+      if (
+        encryptedSettings.stripTrackingParams !== undefined &&
+        encryptedSettings.stripTrackingParams !== current.stripTrackingParams
+      ) {
+        updates.stripTrackingParams = encryptedSettings.stripTrackingParams;
         changed = true;
       }
 

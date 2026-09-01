@@ -152,6 +152,7 @@ export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps)
               src={thumbnailSrc}
               alt=""
               className="absolute inset-0 w-full h-full object-contain"
+              decoding="async"
             />
 
             {/* Play button */}

@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useIntl } from 'react-intl';
-import { Search, UserRoundCheck, MessageSquare, FileText, Hash, Archive, Newspaper, List as ListIcon, Users, SmilePlus } from 'lucide-react';
+import { Search, UserRoundCheck, MessageSquare, FileText, Hash, Archive } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { EmojifiedText } from '@/components/CustomEmoji';
-import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
+import { type SearchProfile } from '@/hooks/useSearchProfiles';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { isFullUrl, detectIdentifier, type IdentifierMatch } from '@/lib/nostrIdentifier';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -21,10 +21,11 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useWikipediaSearch, type WikipediaSearchResult } from '@/hooks/useWikipediaSearch';
 import { useArchiveSearch, type ArchiveSearchResult } from '@/hooks/useArchiveSearch';
-import { useSearchEvents, type SearchEventResult } from '@/hooks/useSearchEvents';
+import { type SearchEventResult } from '@/hooks/useSearchEvents';
+import { useSearchResults } from '@/hooks/useSearchResults';
+import { SearchEventResultItem } from '@/components/SearchEventResultItem';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
 import { searchSidebarItems, type SidebarItemDef } from '@/lib/sidebarItems';
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
 interface ProfileSearchDropdownProps {
@@ -57,15 +58,9 @@ export function ProfileSearchDropdown({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const { data: rawProfiles, isFetching, followedPubkeys } = useSearchProfiles(query);
-
   // Wikipedia & Archive search (async, debounced by their hooks at >=2 chars)
   const { data: wikipediaResults } = useWikipediaSearch(query);
   const { data: archiveResults } = useArchiveSearch(query);
-
-  // Nostr event search — articles, lists, and follow packs (debounced internally)
-  const { data: eventResultsRaw } = useSearchEvents(query);
-  const eventResults = useMemo(() => (eventResultsRaw ?? []).slice(0, 5), [eventResultsRaw]);
 
   // Take at most 1 result from each external source
   const wikipediaResult: WikipediaSearchResult | null = wikipediaResults?.[0] ?? null;
@@ -96,29 +91,30 @@ export function ProfileSearchDropdown({
     return undefined;
   }, [identifierMatch, nip05Pubkey]);
 
-  // Filter out the identifier-resolved profile from search results to avoid duplication
-  const profiles = useMemo(() => {
-    if (!rawProfiles || !identifierPubkey) return rawProfiles;
-    return rawProfiles.filter((p) => p.pubkey !== identifierPubkey);
-  }, [rawProfiles, identifierPubkey]);
+  // Nostr results — profiles and events (articles, lists, packs, nsites, apps)
+  // in one list ranked follow-first, then kind 0 first. The identifier-resolved
+  // profile is excluded so the same person isn't listed twice.
+  const { results, profileCount, isFetching } = useSearchResults(query, {
+    excludePubkey: identifierPubkey,
+  });
+  const resultCount = results.length;
 
-  const profileCount = profiles?.length ?? 0;
   // Show country at top only for exact matches; otherwise at bottom (after profiles)
   const countryAtTop = !!countryMatch && (countryMatch.exact || profileCount === 0);
 
   // Show dropdown when we have results, or when text search is enabled and there's a query
   useEffect(() => {
     if (query.trim().length > 0) {
-      if (enableTextSearch || (profiles && profiles.length > 0) || countryMatch || navItems.length > 0 || wikipediaResult || archiveResult || eventResults.length > 0) {
+      if (enableTextSearch || resultCount > 0 || countryMatch || navItems.length > 0 || wikipediaResult || archiveResult) {
         setOpen(true);
       }
     }
-  }, [profiles, query, enableTextSearch, countryMatch, navItems, wikipediaResult, archiveResult, eventResults]);
+  }, [resultCount, query, enableTextSearch, countryMatch, navItems, wikipediaResult, archiveResult]);
 
   // Reset selected index when results change
   useEffect(() => {
     setSelectedIndex(-1);
-  }, [profiles, eventResults]);
+  }, [results]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -151,30 +147,27 @@ export function ProfileSearchDropdown({
     navigate(`/search?q=${encodeURIComponent(query.trim())}`);
   }, [enableTextSearch, query, navigate]);
 
-  // Total selectable items: navItems + identifier? + URL comment? + country?(top) + profiles + country?(bottom) + events + wikipedia? + archive?
+  // Total selectable items: navItems + identifier? + URL comment? + country?(top) + results + country?(bottom) + wikipedia? + archive?
   const hasCountry = !!countryMatch;
   const hasUrlComment = queryIsUrl && enableTextSearch;
   const hasIdentifier = !!identifierMatch;
   const hasWikipedia = !!wikipediaResult;
   const hasArchive = !!archiveResult;
   const navItemCount = navItems.length;
-  const eventCount = eventResults.length;
-  const totalItems = navItemCount + profileCount + eventCount + (hasCountry ? 1 : 0) + (hasUrlComment ? 1 : 0) + (hasIdentifier ? 1 : 0) + (hasWikipedia ? 1 : 0) + (hasArchive ? 1 : 0);
+  const totalItems = navItemCount + resultCount + (hasCountry ? 1 : 0) + (hasUrlComment ? 1 : 0) + (hasIdentifier ? 1 : 0) + (hasWikipedia ? 1 : 0) + (hasArchive ? 1 : 0);
 
   // Map selectedIndex to what it refers to.
-  // Order: [...navItems, identifier?, commentUrl?, country?(top), ...profiles, country?(bottom), ...events, wikipedia?, archive?]
+  // Order: [...navItems, identifier?, commentUrl?, country?(top), ...results, country?(bottom), wikipedia?, archive?]
   let nextIdx = 0;
   const navItemStartIndex = nextIdx;
   nextIdx += navItemCount;
   const identifierIndex = hasIdentifier ? nextIdx++ : -1;
   const urlCommentIndex = hasUrlComment ? nextIdx++ : -1;
   const countryTopIndex = (hasCountry && countryAtTop) ? nextIdx++ : -1;
-  const profileStartIndex = nextIdx;
-  nextIdx += profileCount;
+  const resultStartIndex = nextIdx;
+  nextIdx += resultCount;
   const countryBottomIndex = (hasCountry && !countryAtTop) ? nextIdx++ : -1;
   const countryIndex = countryAtTop ? countryTopIndex : countryBottomIndex;
-  const eventStartIndex = nextIdx;
-  nextIdx += eventCount;
   const wikipediaIndex = hasWikipedia ? nextIdx++ : -1;
   const archiveIndex = hasArchive ? nextIdx++ : -1;
 
@@ -253,14 +246,16 @@ export function ProfileSearchDropdown({
           handleSelectWikipedia(wikipediaResult!);
         } else if (hasArchive && selectedIndex === archiveIndex) {
           handleSelectArchive(archiveResult!);
-        } else if (eventCount > 0 && selectedIndex >= eventStartIndex && selectedIndex < eventStartIndex + eventCount) {
-          handleSelectEvent(eventResults[selectedIndex - eventStartIndex]);
-        } else {
-          const profileIdx = selectedIndex - profileStartIndex;
-          const profile = profiles![profileIdx];
-          const nip05 = profile.metadata.nip05;
-          const nip05Verified = !!nip05 && queryClient.getQueryData<boolean>(['nip05-verify', nip05, profile.pubkey]) === true;
-          handleSelect(profile, getProfileUrl(profile.pubkey, profile.metadata, nip05Verified));
+        } else if (resultCount > 0 && selectedIndex >= resultStartIndex && selectedIndex < resultStartIndex + resultCount) {
+          const result = results[selectedIndex - resultStartIndex];
+          if (result.type === 'event') {
+            handleSelectEvent(result.event);
+          } else {
+            const { profile } = result;
+            const nip05 = profile.metadata.nip05;
+            const nip05Verified = !!nip05 && queryClient.getQueryData<boolean>(['nip05-verify', nip05, profile.pubkey]) === true;
+            handleSelect(profile, getProfileUrl(profile.pubkey, profile.metadata, nip05Verified));
+          }
         }
       } else {
         handleTextSearch();
@@ -317,7 +312,7 @@ export function ProfileSearchDropdown({
             }
           }}
           onFocus={() => {
-            if (query.trim().length > 0 && (enableTextSearch || (profiles && profiles.length > 0))) {
+            if (query.trim().length > 0 && (enableTextSearch || resultCount > 0)) {
               setOpen(true);
             }
           }}
@@ -337,7 +332,7 @@ export function ProfileSearchDropdown({
       </div>
 
       {/* Dropdown results — only when text search is not enabled */}
-      {!enableTextSearch && open && (navItemCount > 0 || hasIdentifier || hasCountry || hasWikipedia || hasArchive || eventCount > 0 || (profiles && profiles.length > 0)) && (
+      {!enableTextSearch && open && (navItemCount > 0 || hasIdentifier || hasCountry || hasWikipedia || hasArchive || resultCount > 0) && (
         <div
           ref={listRef}
           role="listbox"
@@ -366,14 +361,24 @@ export function ProfileSearchDropdown({
                 onClick={handleSelectCountry}
               />
             )}
-            {profiles && profiles.map((profile, index) => (
-              <ProfileItem
-                key={profile.pubkey}
-                profile={profile}
-                isSelected={index + profileStartIndex === selectedIndex}
-                isFollowed={followedPubkeys.has(profile.pubkey)}
-                onClick={handleSelect}
-              />
+            {results.map((result, index) => (
+              result.type === 'profile' ? (
+                <ProfileItem
+                  key={result.key}
+                  profile={result.profile}
+                  isSelected={index + resultStartIndex === selectedIndex}
+                  isFollowed={result.followed}
+                  onClick={handleSelect}
+                />
+              ) : (
+                <SearchEventResultItem
+                  key={result.key}
+                  result={result.event}
+                  isSelected={index + resultStartIndex === selectedIndex}
+                  isFollowed={result.followed}
+                  onClick={handleSelectEvent}
+                />
+              )
             ))}
             {hasCountry && !countryAtTop && (
               <CountryItem
@@ -382,14 +387,6 @@ export function ProfileSearchDropdown({
                 onClick={handleSelectCountry}
               />
             )}
-            {eventResults.map((result, index) => (
-              <EventResultItem
-                key={result.path}
-                result={result}
-                isSelected={index + eventStartIndex === selectedIndex}
-                onClick={handleSelectEvent}
-              />
-            ))}
             {hasWikipedia && (
               <WikipediaItem
                 result={wikipediaResult!}
@@ -476,15 +473,25 @@ export function ProfileSearchDropdown({
               />
             )}
 
-            {/* Profile results */}
-            {profiles && profiles.length > 0 && profiles.map((profile, index) => (
-              <ProfileItem
-                key={profile.pubkey}
-                profile={profile}
-                isSelected={index + profileStartIndex === selectedIndex}
-                isFollowed={followedPubkeys.has(profile.pubkey)}
-                onClick={handleSelect}
-              />
+            {/* Nostr results — profiles, then articles, lists, packs, nsites, apps */}
+            {results.map((result, index) => (
+              result.type === 'profile' ? (
+                <ProfileItem
+                  key={result.key}
+                  profile={result.profile}
+                  isSelected={index + resultStartIndex === selectedIndex}
+                  isFollowed={result.followed}
+                  onClick={handleSelect}
+                />
+              ) : (
+                <SearchEventResultItem
+                  key={result.key}
+                  result={result.event}
+                  isSelected={index + resultStartIndex === selectedIndex}
+                  isFollowed={result.followed}
+                  onClick={handleSelectEvent}
+                />
+              )
             ))}
 
             {/* Country result (bottom — prefix match with profiles present) */}
@@ -495,16 +502,6 @@ export function ProfileSearchDropdown({
                 onClick={handleSelectCountry}
               />
             )}
-
-            {/* Nostr event results — articles, lists, follow packs */}
-            {eventResults.map((result, index) => (
-              <EventResultItem
-                key={result.path}
-                result={result}
-                isSelected={index + eventStartIndex === selectedIndex}
-                onClick={handleSelectEvent}
-              />
-            ))}
 
             {/* Wikipedia result — always after profiles */}
             {hasWikipedia && (
@@ -528,7 +525,7 @@ export function ProfileSearchDropdown({
       )}
 
       {/* Empty state — only when text search is not enabled */}
-      {!enableTextSearch && open && query.trim().length > 0 && !isFetching && !hasIdentifier && !hasCountry && !hasWikipedia && !hasArchive && eventCount === 0 && navItemCount === 0 && profiles && profiles.length === 0 && (
+      {!enableTextSearch && open && query.trim().length > 0 && !isFetching && !hasIdentifier && !hasCountry && !hasWikipedia && !hasArchive && resultCount === 0 && navItemCount === 0 && (
         <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
           <div className="py-6 text-center text-sm text-muted-foreground">
             No results found
@@ -931,6 +928,7 @@ function CommentOnUrlItem({
               e.currentTarget.style.display = 'none';
               (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
             }}
+            decoding="async"
           />
         ) : null}
         <div
@@ -1057,6 +1055,7 @@ function WikipediaItem({
               e.currentTarget.style.display = 'none';
               (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
             }}
+            decoding="async"
           />
         ) : null}
         <div className={cn('items-center justify-center size-10', result.thumbnail ? 'hidden' : 'flex')}>
@@ -1103,6 +1102,7 @@ function ArchiveItem({
             e.currentTarget.style.display = 'none';
             (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
           }}
+          decoding="async"
         />
         <div className="hidden items-center justify-center size-10">
           <Archive className="size-4 text-muted-foreground" />
@@ -1111,62 +1111,6 @@ function ArchiveItem({
       <div className="flex-1 min-w-0">
         <span className="font-semibold text-sm truncate block">{result.title}</span>
         <div className="text-xs text-muted-foreground truncate">Internet Archive</div>
-      </div>
-    </button>
-  );
-}
-
-const EVENT_TYPE_META: Record<SearchEventResult['type'], { icon: typeof Newspaper; label: string }> = {
-  'article': { icon: Newspaper, label: 'Article' },
-  'list': { icon: ListIcon, label: 'List' },
-  'follow-pack': { icon: Users, label: 'Follow pack' },
-  'emoji-pack': { icon: SmilePlus, label: 'Emoji pack' },
-};
-
-function EventResultItem({
-  result,
-  isSelected,
-  onClick,
-}: {
-  result: SearchEventResult;
-  isSelected: boolean;
-  onClick: (result: SearchEventResult) => void;
-}) {
-  const { icon: Icon, label } = EVENT_TYPE_META[result.type];
-  // Image comes from untrusted event tags — sanitize before it lands in `src`.
-  const image = sanitizeUrl(result.image);
-
-  return (
-    <button
-      data-search-item
-      role="option"
-      aria-selected={isSelected}
-      className={cn(
-        'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer',
-        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
-      )}
-      onClick={() => onClick(result)}
-      onMouseDown={(e) => e.preventDefault()}
-    >
-      <div className="size-10 shrink-0 rounded-lg overflow-hidden bg-primary/10 flex items-center justify-center">
-        {image ? (
-          <img
-            src={image}
-            alt=""
-            className="size-10 object-cover"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
-            }}
-          />
-        ) : null}
-        <div className={cn('items-center justify-center size-10', image ? 'hidden' : 'flex')}>
-          <Icon className="size-4 text-primary" />
-        </div>
-      </div>
-      <div className="flex-1 min-w-0">
-        <span className="font-semibold text-sm truncate block">{result.title}</span>
-        <div className="text-xs text-muted-foreground truncate">{label}</div>
       </div>
     </button>
   );

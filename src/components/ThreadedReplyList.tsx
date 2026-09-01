@@ -1,5 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useState } from 'react';
+import { FormattedMessage } from 'react-intl';
+import { ShieldAlert } from 'lucide-react';
 import { NoteCard } from '@/components/NoteCard';
 import { ZAP_KINDS } from '@/lib/feedUtils';
 import { cn } from '@/lib/utils';
@@ -21,6 +23,45 @@ export function ThreadedReplyList({ roots }: { roots: ReplyNode[] }) {
       {roots.map((node) => (
         <ReplyThread key={node.event.id} node={node} depth={0} />
       ))}
+    </div>
+  );
+}
+
+/**
+ * Renders flood-flagged replies (`src/lib/replyFlood.ts`) as one quiet inline
+ * line — "…and N other replies marked as spam" — that reveals the replies as a
+ * normal threaded list on click. A DISPLAY fold only: nothing is dropped, and
+ * one click shows every flagged reply.
+ */
+export function CollapsedFloodReplies({ roots }: { roots: ReplyNode[] }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (roots.length === 0) return null;
+
+  return (
+    <div>
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-2 px-4 py-3 w-full text-left text-sm text-muted-foreground hover:text-foreground transition-colors group border-b border-border"
+      >
+        <ShieldAlert className="size-4 shrink-0" />
+        <span className="group-hover:underline">
+          {expanded ? (
+            <FormattedMessage
+              id="thread.floodHide"
+              defaultMessage="Hide {count} {count, plural, one {reply} other {replies}} marked as spam"
+              values={{ count: roots.length }}
+            />
+          ) : (
+            <FormattedMessage
+              id="thread.floodShow"
+              defaultMessage="…and {count} other {count, plural, one {reply} other {replies}} marked as spam"
+              values={{ count: roots.length }}
+            />
+          )}
+        </span>
+      </button>
+      {expanded && <ThreadedReplyList roots={roots} />}
     </div>
   );
 }

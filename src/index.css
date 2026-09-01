@@ -1502,3 +1502,119 @@ video[data-no-native-poster]::-internal-media-controls-overlay-cast-button {
   appearance: none !important;
   opacity: 0 !important;
 }
+
+/* ── Unknown-kind mystery encounter ───────────────────────────────────────────
+   Earthbound-battle-style backdrop for UnknownKindContent: crossing gradient
+   bands are warped through an SVG feTurbulence displacement filter (defined
+   inline in the component as #mystery-warp) and slowly sway and hue-shift.
+   The sway alternates instead of scrolling so the repeating gradients never
+   visibly seam. Animations only run when the user allows motion; without it
+   the warped bands render as a static psychedelic texture. */
+.mystery-waves {
+  background-image:
+    repeating-linear-gradient(
+      115deg,
+      hsl(285 75% 62% / 0.18) 0 14px,
+      transparent 14px 36px
+    ),
+    repeating-linear-gradient(
+      245deg,
+      hsl(195 85% 55% / 0.16) 0 18px,
+      transparent 18px 44px
+    );
+  filter: url(#mystery-warp);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mystery-waves {
+    animation:
+      mystery-sway 9s ease-in-out infinite alternate,
+      mystery-hue 26s linear infinite;
+  }
+}
+
+@keyframes mystery-sway {
+  from { background-position: 0 0, 0 0; }
+  to   { background-position: 70px 40px, -80px 30px; }
+}
+
+@keyframes mystery-hue {
+  from { filter: url(#mystery-warp) hue-rotate(0deg); }
+  to   { filter: url(#mystery-warp) hue-rotate(360deg); }
+}
+
+/* ── Unknown-kind PK attack ───────────────────────────────────────────────────
+   One-shot Earthbound-style barrage when the mystery encounter is clicked: the
+   frame shakes hard for ~1.7s while a dense chromatic volley of beam streaks
+   and star bursts rolls diagonally across it, over a color-cycling bloom.
+   Per-projectile position/delay/color/duration come from inline styles set in
+   the component. Gated behind motion preference; with reduced motion the click
+   is a visual no-op. */
+@media (prefers-reduced-motion: no-preference) {
+  .mystery-attack {
+    animation: mystery-shake 1.7s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  }
+  .mystery-storm .mystery-beam {
+    animation-name: mystery-beam;
+    animation-timing-function: ease-in;
+    animation-fill-mode: both;
+  }
+  .mystery-storm .mystery-star {
+    animation: mystery-starburst 0.7s ease-out both;
+  }
+  .mystery-storm .mystery-bloom {
+    animation: mystery-bloom 1.7s ease-out both;
+  }
+}
+
+/* Projectiles sit dormant/hidden until an attack plays. */
+.mystery-beam,
+.mystery-star { opacity: 0; }
+
+.mystery-beam {
+  height: 3px;
+  transform-origin: left center;
+  rotate: 45deg;
+}
+
+@keyframes mystery-shake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  5%, 25%, 45%, 65%, 85% { transform: translate3d(-7px, 2px, 0) rotate(-0.4deg); }
+  15%, 35%, 55%, 75%, 95% { transform: translate3d(7px, -2px, 0) rotate(0.4deg); }
+}
+
+/* A beam streaks in from the upper-left, overshoots to the lower-right. */
+@keyframes mystery-beam {
+  0% { opacity: 0; transform: translate(-260%, -260%) scaleX(0.2); }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(260%, 260%) scaleX(1.2); }
+}
+
+/* Stars pop in with a spin and fade, staggered across the volley. */
+@keyframes mystery-starburst {
+  0% { opacity: 0; transform: scale(0.2) rotate(0deg); }
+  35% { opacity: 1; transform: scale(1.25) rotate(90deg); }
+  70% { opacity: 1; transform: scale(1) rotate(160deg); }
+  100% { opacity: 0; transform: scale(0.4) rotate(220deg); }
+}
+
+/* Full-frame chromatic bloom that hue-shifts through the barrage. */
+@keyframes mystery-bloom {
+  0% { opacity: 0; }
+  12% { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+.mystery-bloom {
+  opacity: 0;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(240, 171, 252, 0.7), transparent 55%),
+    radial-gradient(circle at 70% 60%, rgba(56, 189, 248, 0.6), transparent 55%),
+    radial-gradient(circle at 50% 80%, rgba(52, 211, 153, 0.6), transparent 55%);
+  mix-blend-mode: screen;
+  animation: mystery-bloom-hue 1.7s linear both;
+}
+@keyframes mystery-bloom-hue {
+  from { filter: hue-rotate(0deg); }
+  to { filter: hue-rotate(300deg); }
+}

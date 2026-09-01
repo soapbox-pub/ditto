@@ -1021,6 +1021,7 @@ function EditBadgeForm({
               src={imagePreview}
               alt=""
               className="w-full h-full object-cover"
+              decoding="async"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-secondary/20">

@@ -7,7 +7,9 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
 import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { GIT_ACTIVITY_KINDS } from '@/lib/gitActivity';
+import { NSITE_KINDS } from '@/lib/nsiteSubdomain';
 import { AppPool } from '@/lib/AppPool';
+import { EventVerifier } from '@/lib/EventVerifier';
 import { NIndexedDB } from '@nostrify/indexeddb';
 import { NostrStorageContext } from '@/contexts/NostrStorageContext';
 
@@ -53,6 +55,11 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   const eventStore = useRef<NIndexedDB | undefined>(undefined);
   eventStore.current ??= new NIndexedDB(EVENTS_DB_NAME);
 
+  // One signature-verification cache shared by every relay connection the pool
+  // opens. The same event arrives once per read relay, so the cache only pays
+  // off if the instance outlives an individual connection.
+  const verifier = useRef<EventVerifier | undefined>(undefined);
+  verifier.current ??= new EventVerifier();
 
   // Use refs so the pool always has the latest data
   const effectiveRelays = useRef(getEffectiveRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays));
@@ -116,6 +123,9 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
       open(relayUrl: string) {
         const url = new URL(relayUrl);
         return new NRelay1(url.href, {
+          // Every read relay receives the same REQ, so a popular event is
+          // verified once per connection. Cache by id to pay for it once.
+          verifyEvent: verifier.current!.verify,
           // NIP-42: Respond to relay AUTH challenges by signing a kind
           // 22242 ephemeral event with the current user's signer.
           auth: async (challenge: string) => {
@@ -161,7 +171,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         // relays in addition to the read relays. Mixed feeds that include
         // kind 1 etc. never match, so ordinary traffic doesn't hit them.
         const ZAPSTORE_KINDS = [32267, 30063, 3063];
-        const DEV_KINDS = [...ZAPSTORE_KINDS, ...GIT_ACTIVITY_KINDS, 30817, 15128, 35128, 31990];
+        const DEV_KINDS = [...ZAPSTORE_KINDS, ...GIT_ACTIVITY_KINDS, 30817, ...NSITE_KINDS, 31990];
         if (filters.every((f) => f?.kinds?.length && f.kinds.every((k) => DEV_KINDS.includes(k)))) {
           const urls = new Set<string>();
           if (filters.some((f) => f.kinds?.some((k) => ZAPSTORE_KINDS.includes(k)))) urls.add(ZAPSTORE_RELAY);

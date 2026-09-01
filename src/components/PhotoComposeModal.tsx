@@ -327,6 +327,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
                         src={img.url}
                         alt={img.alt || `Photo ${index + 1}`}
                         className="w-full aspect-square object-cover"
+                        decoding="async"
                       />
                       {/* Remove button */}
                       <button

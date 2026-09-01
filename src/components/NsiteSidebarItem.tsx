@@ -6,7 +6,7 @@ import { useCallback, useMemo } from 'react';
 
 import { cn } from '@/lib/utils';
 import { nsiteUriToSubdomain } from '@/lib/sidebarItems';
-import { parseNsiteSubdomain } from '@/lib/nsiteSubdomain';
+import { NSITE_SNAPSHOT_KIND, type ParsedNsiteSubdomain, parseNsiteSubdomain } from '@/lib/nsiteSubdomain';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { useNsitePlayer } from '@/contexts/NsitePlayerContext';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
@@ -29,15 +29,19 @@ export interface NsiteSidebarItemProps {
 
 // ── Label sub-component ───────────────────────────────────────────────────────
 
-function NsiteSidebarLabel({ subdomain, parsed }: { subdomain: string; parsed: ReturnType<typeof parseNsiteSubdomain> }) {
+function NsiteSidebarLabel({ subdomain, parsed }: { subdomain: string; parsed: ParsedNsiteSubdomain }) {
   const siteUrl = `https://${subdomain}.nsite.lol`;
   const { data: preview } = useLinkPreview(siteUrl);
 
-  const addr = parsed && parsed.kind === 35128
-    ? { kind: parsed.kind, pubkey: parsed.pubkey, identifier: parsed.identifier }
-    : undefined;
+  // Snapshots are regular events looked up by id; root and named sites are
+  // located by their (kind, pubkey, identifier) coordinate.
+  const isSnapshot = parsed.kind === NSITE_SNAPSHOT_KIND;
 
-  const { data: eventData, isLoading } = useNostrEventSidebar({ addr });
+  const { data: eventData, isLoading } = useNostrEventSidebar(
+    isSnapshot
+      ? { eventId: parsed.id }
+      : { addr: { kind: parsed.kind, pubkey: parsed.pubkey, identifier: parsed.identifier } },
+  );
 
   if (isLoading && !eventData && !preview) {
     return <Skeleton className="h-4 w-20" />;
@@ -69,33 +73,32 @@ export function NsiteSidebarItem({
   const { activeSubdomain } = useNsitePlayer();
   const active = activeSubdomain === subdomain;
 
-  // Build the naddr path for navigation. For named sites (35128), encode as naddr.
-  // For root sites (15128), we'd need a nevent which requires the event ID — fall back to null.
-  const naddrPath = useMemo(() => {
+  // Build the detail-page path. Root sites are replaceable, so like named
+  // sites they address as an naddr — with an empty identifier, since they
+  // carry no `d` tag. Snapshots are regular events, so they address by id.
+  const eventPath = useMemo(() => {
     if (!parsed) return null;
-    if (parsed.kind === 35128) {
-      const naddr = nip19.naddrEncode({
-        kind: parsed.kind,
-        pubkey: parsed.pubkey,
-        identifier: parsed.identifier,
-      });
-      return `/${naddr}`;
+    if (parsed.kind === NSITE_SNAPSHOT_KIND) {
+      return `/${nip19.neventEncode({ id: parsed.id })}`;
     }
-    // Root site (15128) — we can't construct an naddr without a d-tag,
-    // and nevent requires event ID. For now, root site nsite:// URIs are not supported.
-    return null;
+    const naddr = nip19.naddrEncode({
+      kind: parsed.kind,
+      pubkey: parsed.pubkey,
+      identifier: parsed.identifier,
+    });
+    return `/${naddr}`;
   }, [parsed]);
 
   // Navigate with a fresh timestamp on every click so the detail page
   // can detect repeated clicks and re-open the player.
   const handleClick = useCallback((e: React.MouseEvent) => {
     onClick?.(e);
-    if (e.defaultPrevented || !naddrPath) return;
+    if (e.defaultPrevented || !eventPath) return;
     e.preventDefault();
-    navigate(naddrPath, { state: { nsiteAutoPlay: true, nsiteAutoPlayTs: Date.now() } });
-  }, [naddrPath, navigate, onClick]);
+    navigate(eventPath, { state: { nsiteAutoPlay: true, nsiteAutoPlayTs: Date.now() } });
+  }, [eventPath, navigate, onClick]);
 
-  if (!parsed || !naddrPath) {
+  if (!parsed || !eventPath) {
     // Invalid or unsupported nsite URI — render nothing
     return null;
   }
@@ -117,7 +120,7 @@ export function NsiteSidebarItem({
       )}
 
       <a
-        href={naddrPath}
+        href={eventPath}
         onClick={handleClick}
         className={cn(
           'flex items-center gap-4 py-3 rounded-full transition-colors hover:bg-secondary/60 flex-1 min-w-0',

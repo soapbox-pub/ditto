@@ -68,6 +68,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 							className="size-5 rounded object-cover shrink-0"
 							loading="lazy"
 							onError={() => setFaviconError(true)}
+							decoding="async"
 						/>
 					) : (
 						<BookMarked className="size-4 text-muted-foreground shrink-0" />

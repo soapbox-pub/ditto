@@ -33,18 +33,24 @@ export type JsonRpcResponse = JsonRpcSuccessResponse | JsonRpcErrorResponse;
 // Serialised HTTP request/response shapes exchanged via the fetch RPC.
 // ---------------------------------------------------------------------------
 
+/**
+ * A fetch body on the wire: base64 string (protocol v1), raw binary
+ * (protocol v2, structured-cloned by postMessage), or null if no body.
+ */
+export type SerialisedBody = string | Uint8Array | ArrayBuffer | null;
+
 export interface SerialisedRequest {
   url: string;
   method: string;
   headers: Record<string, string>;
-  body: string | null;
+  body: SerialisedBody;
 }
 
 export interface SerialisedResponse {
   status: number;
   statusText: string;
   headers: Record<string, string>;
-  body: string | null;
+  body: SerialisedBody;
 }
 
 // ---------------------------------------------------------------------------

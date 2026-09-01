@@ -328,6 +328,7 @@ export function ZapstoreReleaseContent({ event, compact }: ZapstoreReleaseConten
               className="size-10 rounded-xl object-cover shrink-0 shadow-sm"
               loading="lazy"
               onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+              decoding="async"
             />
           ) : (
             <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -396,6 +397,7 @@ export function ZapstoreReleaseContent({ event, compact }: ZapstoreReleaseConten
             className="size-14 rounded-2xl object-cover shrink-0 shadow-md"
             loading="lazy"
             onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+            decoding="async"
           />
         ) : (
           <div className="size-14 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">

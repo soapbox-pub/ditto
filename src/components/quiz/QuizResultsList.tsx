@@ -146,6 +146,7 @@ function ResultRow({ event }: { event: NostrEvent }) {
           alt=""
           loading="lazy"
           className="size-10 shrink-0 rounded-lg border object-cover"
+          decoding="async"
         />
       )}
       <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(event.created_at)}</span>

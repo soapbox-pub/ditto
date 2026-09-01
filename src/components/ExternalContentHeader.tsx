@@ -18,6 +18,7 @@ import { extractYouTubeId, extractWikipediaTitle, extractWikidataId, extractBlue
 import { GathererCardHeader } from '@/components/GathererCardHeader';
 import { useScryfallCard } from '@/hooks/useScryfallCard';
 import { cardPrimaryImage } from '@/lib/scryfall';
+import { wikimediaImageUrl } from '@/lib/wikimedia';
 import { parseExternalUri, formatIsbn } from '@/lib/externalContent';
 import { shareOrCopy } from '@/lib/share';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
@@ -37,6 +38,9 @@ import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { getKindLabel } from '@/lib/kindLabels';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
+import { parseFirstImeta } from '@/lib/imeta';
+import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
+import { DecryptedImage } from '@/components/DecryptedImage';
 
 // ---------------------------------------------------------------------------
 // Full-size content headers (used on /i/ page)
@@ -196,6 +200,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
                 className="size-11 rounded-full object-cover"
                 loading="lazy"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                decoding="async"
               />
             ) : (
               <div className="size-11 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold">
@@ -253,6 +258,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
                       loading="lazy"
                       className="absolute inset-0 w-full h-full object-cover"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      decoding="async"
                     />
                   </div>
                 ))}
@@ -269,6 +275,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
                     loading="lazy"
                     className="w-full h-full object-cover"
                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    decoding="async"
                   />
                 </div>
                 {post.external.title && (
@@ -402,7 +409,9 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
     return <LinkEmbed url={url} showActions={false} />;
   }
 
-  const heroImage = wiki.originalImage?.source ?? wiki.thumbnail?.source;
+  // `originalImage` can be tens of megapixels; ask the thumbnailer for
+  // something close to the rendered size instead.
+  const heroImage = wikimediaImageUrl(wiki.thumbnail?.source, 960, wiki.originalImage?.width);
 
   return (
     <div className="rounded-2xl border border-border overflow-hidden">
@@ -414,6 +423,7 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
             alt={wiki.title}
             className="w-full max-h-[320px] object-cover"
             loading="eager"
+            decoding="async"
             onError={(e) => {
               (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
             }}
@@ -563,6 +573,7 @@ export function BookContentHeader({ isbn }: { isbn: string }) {
                 onError={(e) => {
                   (e.currentTarget as HTMLElement).style.display = 'none';
                 }}
+                decoding="async"
               />
             </div>
           ) : (
@@ -781,6 +792,7 @@ export function CountryContentHeader({ code }: { code: string }) {
               src={wiki.thumbnail.source}
               alt={info.subdivisionName ?? info.subdivision}
               className="size-16 sm:size-20 rounded-md object-cover shadow-sm border border-border"
+              decoding="async"
             />
           ) : (
             <span className="text-6xl sm:text-7xl leading-none" role="img" aria-label={`Flag of ${info.name}`}>
@@ -913,6 +925,7 @@ function UrlPreview({ url, link }: { url: string; link: string }) {
           onError={(e) => {
             (e.currentTarget as HTMLElement).style.display = 'none';
           }}
+          decoding="async"
         />
       ) : (
         <div className="size-12 rounded-lg bg-secondary flex items-center justify-center shrink-0">
@@ -967,6 +980,7 @@ function BookPreview({ isbn, link }: { isbn: string; link: string }) {
           alt={book?.title || 'Book cover'}
           className="w-9 h-12 rounded object-cover shrink-0"
           loading="lazy"
+          decoding="async"
         />
       ) : (
         <div className="w-9 h-12 rounded bg-secondary flex items-center justify-center shrink-0">
@@ -1041,6 +1055,7 @@ function GathererCardPreview({ card, url, link }: { card: GathererCard; url: str
           alt={scryCard?.name ?? 'Magic card'}
           className="w-9 h-12 rounded-md object-cover shrink-0 shadow-sm"
           loading="lazy"
+          decoding="async"
         />
       ) : (
         <div className="w-9 h-12 rounded-md bg-secondary flex items-center justify-center shrink-0">
@@ -1144,6 +1159,7 @@ export function CommunityPreview({ addr }: { addr: { kind: number; pubkey: strin
           alt={communityName}
           className="size-12 rounded-lg object-cover shrink-0"
           loading="lazy"
+          decoding="async"
         />
       ) : (
         <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -1228,25 +1244,24 @@ export function ProfilePreview({ pubkey }: { pubkey: string }) {
 // ---------------------------------------------------------------------------
 
 /** Extract a thumbnail URL from an addressable event's tags. */
-function extractThumbnail(tags: string[][]): string | undefined {
+function extractThumbnail(tags: string[][]): { url: string; encryption?: FileEncryption } | undefined {
   // 1. Explicit icon tag (used by zapstore kind 32267)
   const iconTag = tags.find(([n]) => n === 'icon')?.[1];
-  if (iconTag) return iconTag;
+  if (iconTag) return { url: iconTag };
 
   // 2. Explicit image/thumb tag
   const imageTag = tags.find(([n]) => n === 'image' || n === 'thumb')?.[1];
-  if (imageTag) return imageTag;
+  if (imageTag) return { url: imageTag };
 
-  // 3. imeta tag (used by vines / kind 34236)
-  const imetaTag = tags.find(([n]) => n === 'imeta');
-  if (imetaTag) {
-    for (let i = 1; i < imetaTag.length; i++) {
-      const part = imetaTag[i];
-      if (part.startsWith('image ')) return part.slice(6);
-    }
-  }
-
-  return undefined;
+  // 3. imeta tag (used by vines / kind 34236). A thumbnail here shares the
+  // file's key and nonce but is its own blob, so it can't be checked against
+  // the file's `ox` hash or MIME type.
+  const entry = parseFirstImeta(tags);
+  if (!entry?.thumbnail) return undefined;
+  return {
+    url: entry.thumbnail,
+    encryption: entry.encryption ? companionEncryption(entry.encryption) : undefined,
+  };
 }
 
 /** Check if an event has video content (imeta with url containing video indicators). */
@@ -1322,11 +1337,14 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
     >
       {thumbnail ? (
         <div className="relative size-12 rounded-lg overflow-hidden shrink-0">
-          <img
-            src={thumbnail}
+          <DecryptedImage
+            url={thumbnail.url}
+            encryption={thumbnail.encryption}
             alt={title}
             className="size-full object-cover"
+            noticeFill
             loading="lazy"
+            decoding="async"
           />
           {isVideo && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/20">

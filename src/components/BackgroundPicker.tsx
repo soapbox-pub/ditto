@@ -114,6 +114,7 @@ export function BackgroundPicker({ value, onChange }: {
               src={currentBg.url}
               alt="Theme background"
               className="w-full h-24 object-cover"
+              decoding="async"
             />
             <Button
               variant="secondary"

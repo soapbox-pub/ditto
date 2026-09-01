@@ -53,6 +53,14 @@ const settingsSections: SettingsSection[] = [
     requiresAuth: true,
   },
   {
+    id: 'data',
+    label: defineMessage({ id: 'settings.sections.data.label', defaultMessage: 'Import & Export' }),
+    description: defineMessage({ id: 'settings.sections.data.description', defaultMessage: 'Back up your events, or restore them to the network' }),
+    illustration: '/data-intro.png',
+    path: '/settings/data',
+    requiresAuth: true,
+  },
+  {
     id: 'notifications',
     label: defineMessage({ id: 'settings.sections.notifications.label', defaultMessage: 'Notifications' }),
     description: defineMessage({ id: 'settings.sections.notifications.description', defaultMessage: 'Configure push notification preferences' }),

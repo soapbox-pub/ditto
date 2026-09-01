@@ -590,6 +590,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                     src={article.image}
                     alt="Header"
                     className="w-full h-48 sm:h-64 object-cover"
+                    decoding="async"
                   />
                   {/* Desktop: centered overlay on hover */}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors hidden sm:flex items-center justify-center opacity-0 group-hover:opacity-100">

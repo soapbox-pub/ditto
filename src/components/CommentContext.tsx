@@ -1,13 +1,16 @@
 import type React from 'react';
 import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { FormattedMessage } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import {
-  Award, BarChart3, Bird, Bitcoin, BookOpen, CalendarClock, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Egg, FileText, Film,
-  GitBranch, GitPullRequest, HandHeart, Heart, Mail, MapPin, MessageSquare, Mic, Music, Newspaper,
+  Award, BarChart3, Bird, Bitcoin, Bookmark, BookOpen, CalendarClock, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Egg, FileText, Film,
+  Flag,
+  GitBranch, GitPullRequest, HandHeart, Heart, History, Mail, MapPin, MessageSquare, Mic, Music, Newspaper,
   Video,
   Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, ShieldCheck, SmilePlus, Sparkles,
-  Stars, UserCheck, Users, Vote, Zap,
+  Server, Stars, UserCheck, Users, Vote, Zap,
+  Tag,
 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -19,6 +22,7 @@ import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { LinkPreview } from '@/components/LinkPreview';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import { ReplyContext } from '@/components/ReplyContext';
 import { ReactionEmoji, EmojifiedText } from '@/components/CustomEmoji';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
@@ -34,6 +38,7 @@ import { getDisplayName } from '@/lib/getDisplayName';
 import { getCountryInfo } from '@/lib/countries';
 import { extractGathererCard, type GathererCard } from '@/lib/linkEmbed';
 import { isNostrId } from '@/lib/nostrId';
+import { isNsiteKind, NSITE_SNAPSHOT_KIND } from '@/lib/nsiteSubdomain';
 import { parseAddr } from '@/lib/parseAddr';
 import { cardPrimaryImage } from '@/lib/scryfall';
 import { getZapAmountSats, getZapSenderPubkey } from '@/lib/zapHelpers';
@@ -121,6 +126,7 @@ const KIND_LABELS: Record<number, string> = {
   7: 'a reaction',
   8: 'a badge award',
   16: 'a repost',
+  10002: 'a relay list',
   20: 'a photo',
   21: 'a video',
   22: 'a short video',
@@ -145,6 +151,7 @@ const KIND_LABELS: Record<number, string> = {
   12473: 'a Birdex',
   3367: 'a color moment',
   7516: 'a found log',
+  5128: 'an nsite snapshot',
   15128: 'an nsite',
   16767: 'a theme',
   10008: 'profile badges',
@@ -165,6 +172,7 @@ const KIND_LABELS: Record<number, string> = {
   30312: 'a room',
   30313: 'a meeting',
   30315: 'a status',
+  30402: 'a listing',
   30617: 'a repository',
   30618: 'a repository update',
   30817: 'a custom NIP',
@@ -185,8 +193,10 @@ const KIND_LABELS: Record<number, string> = {
   39089: 'a follow pack',
   9735: 'a zap',
   9802: 'a highlight',
+  39701: 'a web bookmark',
   8333: 'a zap',
   31124: 'a Blobbi',
+  1984: 'a report',
   31871: 'an attestation',
   33863: 'a fundraiser',
   37849: 'a quiz',
@@ -219,12 +229,14 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   1631: CircleCheck,
   1632: CircleX,
   1633: CircleDashed,
+  5128: History,
   15128: Rocket,
   35128: Rocket,
   10008: Award,
   30008: Award,
   30009: Award,
   30023: BookOpen,
+  39701: Bookmark,
   33953: BookOpen,
   34609: Newspaper,
   39731: Newspaper,
@@ -236,6 +248,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   30311: Radio,
   30312: Video,
   30313: CalendarClock,
+  30402: Tag,
   30617: GitBranch,
   30618: GitBranch,
   31990: Package,
@@ -249,6 +262,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   37516: ChestIcon,
   7516: ChestIcon,
   3: UserCheck,
+  10002: Server,
   30000: Users,
   39089: PartyPopper,
   3367: Palette,
@@ -259,6 +273,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   2473: Bird,
   12473: Bird,
   30621: Stars,
+  1984: Flag,
   31871: ShieldCheck,
   33863: HandHeart,
   37849: ClipboardList,
@@ -309,6 +324,7 @@ const KIND_SUFFIXES: Partial<Record<number, string>> = {
   30054: 'episode',
   30055: 'trailer',
   34139: 'playlist',
+  39701: 'bookmark',
 };
 
 /** Postfix that replaces the default pattern (e.g. "Ditto on Zapstore" instead of "Ditto Zapstore app"). */
@@ -322,12 +338,15 @@ const KIND_POSTFIXES: Partial<Record<number, string>> = {
 function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.ComponentType<{ className?: string }> } {
   const icon = KIND_ICONS[event.kind];
 
-  // Nsite deployments: "{siteName} nsite" with rocket icon
-  if (event.kind === 15128 || event.kind === 35128) {
+  // Nsite deployments: "{siteName} nsite" with rocket icon. Snapshots read
+  // as "{siteName} nsite snapshot" so the version is distinguishable from the
+  // living site it was taken from.
+  if (isNsiteKind(event.kind)) {
+    const noun = event.kind === NSITE_SNAPSHOT_KIND ? 'nsite snapshot' : 'nsite';
     const title = event.tags.find(([name]) => name === 'title')?.[1];
     const dTag = event.tags.find(([name]) => name === 'd')?.[1];
     const siteName = title || dTag;
-    return { text: siteName ? `${siteName} nsite` : 'an nsite', icon };
+    return { text: siteName ? `${siteName} ${noun}` : `an ${noun}`, icon };
   }
 
   // NIP-89 apps: name lives in JSON content, not in tags
@@ -447,19 +466,64 @@ interface CommentContextProps {
 }
 
 /**
+ * Parent kinds that read as a conversation rather than a comment on some other
+ * object: text notes, NIP-22 comments, and voice messages. A comment whose
+ * parent is one of these shows "Replying to @user" instead of "Commenting on".
+ */
+const REPLY_PARENT_KINDS = new Set(['1', '11', '1111', '1222', '1244']);
+
+/** One of a comment's two scopes: the item it replies to, or the thread root. */
+interface CommentScope {
+  /** Kind of the referenced item, as written in the `k`/`K` tag. */
+  kind?: string;
+  /** Author of the referenced item, validated as hex. */
+  pubkey?: string;
+  /** Id of the referenced event, validated as hex. */
+  eventId?: string;
+  relayHint?: string;
+}
+
+/**
+ * Read one of a comment's scopes: `parent` from the lowercase tags, `root`
+ * from the uppercase ones.
+ *
+ * NIP-22 records the author both at position [3] of the `e` tag and in a `p`
+ * tag — but `p` tags also carry NIP-21 mentions, so prefer the unambiguous `e`
+ * hint and fall back to the FIRST `p` tag, since the reply scope is tagged
+ * ahead of any mentions.
+ */
+function readCommentScope(event: NostrEvent, scope: 'parent' | 'root'): CommentScope | undefined {
+  const [eName, kName, pName] = scope === 'root' ? ['E', 'K', 'P'] : ['e', 'k', 'p'];
+
+  const eTag = event.tags.find(([name]) => name === eName);
+  const kind = event.tags.find(([name]) => name === kName)?.[1];
+  if (!eTag && !kind) return undefined;
+
+  const hinted = eTag?.[3];
+  const tagged = event.tags.find(([name]) => name === pName)?.[1];
+  const id = eTag?.[1];
+
+  return {
+    kind,
+    pubkey: isNostrId(hinted) ? hinted : isNostrId(tagged) ? tagged : undefined,
+    eventId: isNostrId(id) ? id : undefined,
+    relayHint: eTag?.[2] || undefined,
+  };
+}
+
+/**
  * Displays "Replying to @user" or "Commenting on [name]" context for kind 1111 comments.
- * When the parent item (lowercase k tag) is another kind 1111 comment, shows "Replying to @user"
- * using the lowercase p tag (parent author). Otherwise shows "Commenting on [root]".
+ * When the parent item (lowercase k tag) is a note, comment, or voice message, shows
+ * the same "Replying to @user" row a kind 1 reply gets. Otherwise shows
+ * "Commenting on [root]".
  */
 export function CommentContext({ event, className }: CommentContextProps) {
-  // If the direct parent is another comment (k="1111"), show "Replying to @user"
-  const parentKind = event.tags.find(([name]) => name === 'k')?.[1];
-  const parentAuthorPubkey = event.tags.findLast(([name]) => name === 'p')?.[1];
+  // Some clients write only the uppercase scope on a top-level comment. It
+  // names the same item as the missing lowercase one, so read it instead.
+  const parent = readCommentScope(event, 'parent') ?? readCommentScope(event, 'root');
 
-  if (parentKind === '1111' && isNostrId(parentAuthorPubkey)) {
-    const rawParentEventId = event.tags.findLast(([name]) => name === 'e')?.[1];
-    const parentEventId = isNostrId(rawParentEventId) ? rawParentEventId : undefined;
-    return <ReplyToCommentContext pubkey={parentAuthorPubkey} eventId={parentEventId} className={className} />;
+  if (parent?.kind && REPLY_PARENT_KINDS.has(parent.kind)) {
+    return <ConversationReplyContext event={event} parent={parent} className={className} />;
   }
 
   const root = parseCommentRoot(event);
@@ -480,29 +544,44 @@ export function CommentContext({ event, className }: CommentContextProps) {
 
 // ─── Sub-components ────────────────────────────────────────────
 
-/** Comment context when replying directly to another kind 1111 comment — shows "Replying to @user". */
-function ReplyToCommentContext({ pubkey, eventId, className }: { pubkey: string; eventId?: string; className?: string }) {
-  const author = useAuthor(pubkey);
-  const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
-  const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
-  const parentLink = useMemo(() => {
-    if (!eventId) return undefined;
-    try { return `/${nip19.neventEncode({ id: eventId, author: pubkey })}`; } catch { return undefined; }
-  }, [eventId, pubkey]);
+/**
+ * Context row for a comment whose parent is part of a conversation — a note,
+ * another comment, or a voice message.
+ *
+ * Renders the very same `ReplyContext` that kind 1 replies use, so a reply
+ * reads identically whichever protocol carried it: the "Replying to" label
+ * previews the parent post on hover, and each author is a profile link with a
+ * profile hover card. The authors are the parent's and, when the thread runs
+ * deeper, the root's — the NIP-22 counterpart of the participant `p` tags a
+ * NIP-10 reply lists.
+ */
+function ConversationReplyContext({ event, parent, className }: {
+  event: NostrEvent;
+  parent: CommentScope;
+  className?: string;
+}) {
+  // Some clients tag neither the author nor a pubkey hint. Rather than drop
+  // the names, fetch the parent and read its author — the comment is already
+  // rendered, so this only fills in the row.
+  const { data: parentEvent } = useEvent(
+    parent.pubkey ? undefined : parent.eventId,
+    parent.relayHint ? [parent.relayHint] : undefined,
+  );
+  const parentPubkey = parent.pubkey ?? parentEvent?.pubkey;
+
+  const root = readCommentScope(event, 'root');
+  const pubkeys = [parentPubkey, root?.pubkey]
+    .filter((pubkey): pubkey is string => !!pubkey)
+    .filter((pubkey, index, all) => all.indexOf(pubkey) === index);
 
   return (
-    <CommentContextRow prefix="Replying to" className={className} loading={author.isLoading}>
-      <ProfileHoverCard pubkey={pubkey} asChild>
-        <Link
-          to={parentLink ?? `/${npubEncoded}`}
-          className="text-primary hover:underline truncate"
-          onClick={(e) => e.stopPropagation()}
-        >
-          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
-        </Link>
-      </ProfileHoverCard>
-    </CommentContextRow>
+    <ReplyContext
+      pubkeys={pubkeys}
+      parentEventId={parent.eventId}
+      parentRelayHint={parent.relayHint}
+      parentAuthorHint={parentPubkey}
+      className={className}
+    />
   );
 }
 
@@ -525,7 +604,28 @@ function AddrCommentContext({ root, className }: { root: CommentRoot; className?
 
   // Kind 3 follow lists have no title of their own — synthesize one from the author's name
   if (root.addr?.kind === 3) {
-    return <FollowListCommentContext pubkey={root.addr.pubkey} className={className} />;
+    return (
+      <AuthorListCommentContext
+        pubkey={root.addr.pubkey}
+        kind={3}
+        icon={UserCheck}
+        noun="follow list"
+        className={className}
+      />
+    );
+  }
+
+  // Kind 10002 relay lists likewise carry no title — only `r` tags.
+  if (root.addr?.kind === 10002) {
+    return (
+      <AuthorListCommentContext
+        pubkey={root.addr.pubkey}
+        kind={10002}
+        icon={Server}
+        noun={<FormattedMessage id="relayList.commentContextNoun" defaultMessage="relay list" />}
+        className={className}
+      />
+    );
   }
 
   // Kind 33863 fundraisers: attribute to the campaign owner so the row
@@ -538,15 +638,26 @@ function AddrCommentContext({ root, className }: { root: CommentRoot; className?
   return <GenericAddrCommentContext root={root} className={className} />;
 }
 
-/** Comment context for kind 3 (follow list) roots — shows "Commenting on @Name's follow list". */
-function FollowListCommentContext({ pubkey, className }: { pubkey: string; className?: string }) {
+/**
+ * Comment context for replaceable list kinds that carry no title of their own —
+ * kind 3 follow lists and kind 10002 relay lists. Shows "Commenting on
+ * @Name's follow list", attributing the list to its author instead of falling
+ * through to the generic title path (which would find nothing to show).
+ */
+function AuthorListCommentContext({ pubkey, kind, icon: Icon, noun, className }: {
+  pubkey: string;
+  kind: number;
+  icon: React.ComponentType<{ className?: string }>;
+  noun: React.ReactNode;
+  className?: string;
+}) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const listLink = useMemo(
-    () => `/${nip19.naddrEncode({ kind: 3, pubkey, identifier: '' })}`,
-    [pubkey],
+    () => `/${nip19.naddrEncode({ kind, pubkey, identifier: '' })}`,
+    [kind, pubkey],
   );
 
   return (
@@ -565,8 +676,8 @@ function FollowListCommentContext({ pubkey, className }: { pubkey: string; class
         className="inline-flex items-center gap-1 text-primary hover:underline shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <UserCheck className="size-3.5 shrink-0" />
-        follow list
+        <Icon className="size-3.5 shrink-0" />
+        {noun}
       </Link>
     </CommentContextRow>
   );
@@ -1167,6 +1278,7 @@ function IsbnCommentContext({ identifier, className }: { identifier: string; cla
                 alt={bookInfo?.title || 'Book cover'}
                 className="w-9 h-12 rounded object-cover shrink-0"
                 loading="lazy"
+                decoding="async"
               />
             ) : (
               <div className="w-9 h-12 rounded bg-secondary flex items-center justify-center shrink-0">
@@ -1246,6 +1358,7 @@ function GathererCardCommentContext({
                 alt={scryCard?.name ?? 'Magic card'}
                 className="w-9 h-12 rounded object-cover shrink-0"
                 loading="lazy"
+                decoding="async"
               />
             ) : (
               <div className="w-9 h-12 rounded bg-secondary flex items-center justify-center shrink-0">

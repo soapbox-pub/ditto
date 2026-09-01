@@ -22,6 +22,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { DittoLogo } from "@/components/DittoLogo";
 import { IntroImage } from "@/components/IntroImage";
@@ -43,6 +44,13 @@ import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
+import { isAnimatedImage, METADATA_SCAN_BYTES } from "@/lib/imageMetadata";
+import { getActivePubkey, subscribeActivePubkey } from "@/lib/activeAccount";
+import {
+  beginSignupThemeCapture,
+  endSignupThemeCapture,
+  takeSignupThemeDraft,
+} from "@/lib/signupTheme";
 import { resolveTheme, resolveThemeConfig } from "@/themes";
 import { cn } from "@/lib/utils";
 
@@ -296,10 +304,11 @@ function SetupQuestionnaire({
   const { nostr } = useNostr();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  // Key generation, login and publishing go through this seam so the localhost
-  // dev tool can run these exact screens with no network behind them. In
-  // production it is the real implementation.
+  // Key generation, login and publishing all go through this one seam, so the
+  // screens stay free of that machinery and it stays testable in one place.
+  // `persistAccount` is what logs in, so there is no separate login action here.
   const signupServices = useSignupServices();
+  const { setTheme, applyCustomTheme } = useTheme();
 
   const steps = isSignup ? SIGNUP_STEPS : SETTINGS_STEPS;
 
@@ -318,8 +327,8 @@ function SetupQuestionnaire({
   // auto-switch (or any future re-ordering of logins) could overwrite the
   // previous user's kind 0 metadata / kind 3 follow list during onboarding.
   const expectedPubkey = useMemo(() => {
-    // The services already know the pubkey, and the dev identity has no
-    // decodable nsec, so prefer the authoritative value.
+    // The services already know the pubkey, so prefer that authoritative value
+    // over decoding the displayed key again.
     if (account) return account.pubkey;
     if (!nsec) return undefined;
     try {
@@ -330,6 +339,50 @@ function SetupQuestionnaire({
       return undefined;
     }
   }, [account, nsec]);
+
+  // The signup theme step renders before the new key exists, and (in the "add
+  // another account" flow) while a prior account is still the active signer.
+  // Buffer theme picks for the duration of signup so they never persist to — or
+  // prompt the extension of — that account. See lib/signupTheme.ts.
+  useEffect(() => {
+    if (!isSignup) return;
+    beginSignupThemeCapture();
+    return () => endSignupThemeCapture();
+  }, [isSignup]);
+
+  // Flush the buffered theme onto the new account once it's the active user AND
+  // AppProvider has swapped its per-account config scope to it. Applying the
+  // moment `user` flips isn't enough: the active-account marker (which drives
+  // AppProvider's scoped storage key) resolves a beat later, so an immediate
+  // write would land in the previously-active account's config and be discarded
+  // when the scope catches up — leaving the new user themeless until a reload.
+  //
+  // `activePubkey` is that marker. Gating the apply on it — and flipping a state
+  // flag first so the write happens in a LATER commit, after useLocalStorage has
+  // re-read the new account's config — guarantees setTheme/applyCustomTheme
+  // (local config + kind 30078 + kind 16767) target the new account and stick.
+  const activePubkey = useSyncExternalStore(subscribeActivePubkey, getActivePubkey);
+  const themeDraftApplied = useRef(false);
+  const [newAccountScopeReady, setNewAccountScopeReady] = useState(false);
+
+  useEffect(() => {
+    if (!isSignup || themeDraftApplied.current || newAccountScopeReady) return;
+    if (!expectedPubkey) return;
+    if (user?.pubkey !== expectedPubkey || activePubkey !== expectedPubkey) return;
+    setNewAccountScopeReady(true);
+  }, [isSignup, expectedPubkey, user?.pubkey, activePubkey, newAccountScopeReady]);
+
+  useEffect(() => {
+    if (!newAccountScopeReady || themeDraftApplied.current) return;
+    themeDraftApplied.current = true;
+    endSignupThemeCapture();
+    const draft = takeSignupThemeDraft();
+    if (draft?.customTheme) {
+      applyCustomTheme(draft.customTheme);
+    } else if (draft?.theme) {
+      setTheme(draft.theme);
+    }
+  }, [newAccountScopeReady, applyCustomTheme, setTheme]);
 
   const stepIndex = steps.indexOf(step);
   const progress = (stepIndex / (steps.length - 1)) * 100;
@@ -682,29 +735,9 @@ function ProfileStep({
     pickInputRef.current?.click();
   }, []);
 
-  const handleFileChosen = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      e.target.value = "";
-      const field = pendingField.current;
-      setCropState({
-        imageSrc: URL.createObjectURL(file),
-        aspect: field === "picture" ? 1 : 3,
-        field,
-      });
-    },
-    [],
-  );
-
-  const handleCropConfirm = useCallback(
-    async (blob: Blob) => {
-      if (!cropState) return;
-      const { field, imageSrc } = cropState;
-      URL.revokeObjectURL(imageSrc);
-      setCropState(null);
+  const uploadImage = useCallback(
+    async (file: File, field: "picture" | "banner") => {
       try {
-        const file = new File([blob], `${field}.jpg`, { type: "image/jpeg" });
         const [[, url]] = await uploadFile(file);
         setProfileData((prev) => ({ ...prev, [field]: url }));
       } catch {
@@ -715,7 +748,44 @@ function ProfileStep({
         });
       }
     },
-    [cropState, uploadFile],
+    [uploadFile],
+  );
+
+  const handleFileChosen = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      e.target.value = "";
+      const field = pendingField.current;
+
+      // Animated images (GIF, APNG, animated WebP) can't survive the crop
+      // dialog's canvas round-trip, which flattens them to a single frame.
+      // Upload them byte-for-byte instead of silently killing the animation.
+      const head = new Uint8Array(await file.slice(0, METADATA_SCAN_BYTES).arrayBuffer());
+      if (isAnimatedImage(file.type, head)) {
+        await uploadImage(file, field);
+        return;
+      }
+
+      setCropState({
+        imageSrc: URL.createObjectURL(file),
+        aspect: field === "picture" ? 1 : 3,
+        field,
+      });
+    },
+    [uploadImage],
+  );
+
+  const handleCropConfirm = useCallback(
+    async (blob: Blob) => {
+      if (!cropState) return;
+      const { field, imageSrc } = cropState;
+      URL.revokeObjectURL(imageSrc);
+      setCropState(null);
+      const file = new File([blob], `${field}.jpg`, { type: "image/jpeg" });
+      await uploadImage(file, field);
+    },
+    [cropState, uploadImage],
   );
 
   const handleCropCancel = useCallback(() => {

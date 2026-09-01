@@ -1,6 +1,9 @@
 import type { NostrEvent, NPool } from '@nostrify/nostrify';
 import type { InfiniteData, QueryClient } from '@tanstack/react-query';
+import { EventVerifier } from '@/lib/EventVerifier';
 import { getGitRootRef } from '@/lib/gitActivity';
+import { isNostrId } from '@/lib/nostrId';
+import { isNsiteKind } from '@/lib/nsiteSubdomain';
 import { getZapAmountSats, getZapSenderPubkey, getTargetEventId } from '@/lib/zapHelpers';
 
 /**
@@ -205,6 +208,35 @@ function isDeprecatedFollowSet(event: NostrEvent): boolean {
   return false;
 }
 
+/** Kind 0 fields that make a profile update worth rendering as a feed card. */
+const RENDERABLE_METADATA_FIELDS = [
+  'name',
+  'display_name',
+  'about',
+  'picture',
+  'banner',
+  'website',
+  'nip05',
+  'lud06',
+  'lud16',
+] as const;
+
+/** Returns true if a kind 0 event carries at least one non-empty display field. */
+function hasRenderableMetadata(event: NostrEvent): boolean {
+  let metadata: unknown;
+  try {
+    metadata = JSON.parse(event.content);
+  } catch {
+    return false;
+  }
+  if (typeof metadata !== 'object' || metadata === null) return false;
+  const record = metadata as Record<string, unknown>;
+  return RENDERABLE_METADATA_FIELDS.some((field) => {
+    const value = record[field];
+    return typeof value === 'string' && value.trim().length > 0;
+  });
+}
+
 /**
  * Returns true if a feed event should be hidden at the feed level.
  * This pre-filters events BEFORE they are rendered as NoteCards,
@@ -245,6 +277,22 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
     const hasSource = event.tags.some(([n]) => n === 'a' || n === 'e' || n === 'r');
     if (!hasContent && !hasSource) return true;
   }
+  // NIP-99 classified listings (kind 30402) without a title have nothing to
+  // render. Listings marked `visibility: hidden` (GammaMarkets e-commerce
+  // extension) asked not to appear in public browsing — honor that in feeds.
+  if (event.kind === 30402) {
+    const hasTitle = event.tags.some(([n, v]) => n === 'title' && typeof v === 'string' && v.trim().length > 0);
+    if (!hasTitle) return true;
+    const visibility = event.tags.find(([n]) => n === 'visibility')?.[1]?.trim().toLowerCase();
+    if (visibility === 'hidden') return true;
+  }
+  // NIP-B0 web bookmarks (kind 39701) with no bookmarked URL — an `r` (or a
+  // scheme-less `d`) is the whole point of the card. Without one there's
+  // nothing to link to.
+  if (event.kind === 39701) {
+    const hasUrl = event.tags.some(([n, v]) => (n === 'r' || n === 'd') && typeof v === 'string' && v.trim().length > 0);
+    if (!hasUrl) return true;
+  }
   // Attestations (kind 31871) without a valid `s` state tag have nothing
   // trustworthy to render — the state pill is the whole point of the card.
   if (event.kind === 31871) {
@@ -262,9 +310,30 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
     const hasWallet = event.tags.some(([n, v]) => n === 'w' && typeof v === 'string' && v.length > 0);
     if (!hasTitle || !hasD || !hasWallet) return true;
   }
+  // NIP-56 reports (kind 1984) that name no target. At least one of `p`,
+  // `e`, or `x` is required; without one there is nothing being reported.
+  if (event.kind === 1984) {
+    const hasTarget = event.tags.some(([n, v]) => (n === 'p' || n === 'e' || n === 'x') && v);
+    if (!hasTarget) return true;
+  }
   // Love Lists (kind 15683, see NIP.md) with no `p` tags — an emptied list
   // has no hearts to show on its paper card.
   if (event.kind === 15683 && !event.tags.some(([n, v]) => n === 'p' && v)) return true;
+
+  // NIP-65 relay lists (kind 10002) with no `r` tags. Clients publish empty
+  // ones during onboarding, and there is nothing to render for them.
+  if (event.kind === 10002 && !event.tags.some(([n, v]) => n === 'r' && v)) return true;
+
+  // NIP-5A manifests (root sites, named sites, and snapshots) with no `path`
+  // tags. The spec requires at least one, and without any there are no files
+  // to serve — the card would offer a "Run" button for an empty site.
+  if (isNsiteKind(event.kind) && !event.tags.some(([n, path, hash]) => n === 'path' && path && hash)) return true;
+
+  // Profile metadata (kind 0) whose content isn't a JSON object with at least
+  // one field worth looking at. Onboarding flows and account deletions both
+  // publish `{}`, and a card showing "Anonymous" over a blank banner is not a
+  // profile update anyone wants in their feed.
+  if (event.kind === 0 && !hasRenderableMetadata(event)) return true;
   // Quizzes (kind 37849, see NIP.md) that don't have the minimum viable
   // structure: a title, at least one question, and at least one option.
   // (Full parse validation happens at the render site.)
@@ -494,18 +563,68 @@ export function dedupeFeedItems(items: FeedItem[]): FeedItem[] {
 }
 
 /**
+ * Verifies embedded repost payloads. Module-level so a given event id costs
+ * one Schnorr verification across every feed rebuild, and only a SHA-256
+ * re-hash afterwards.
+ */
+const repostVerifier = new EventVerifier();
+
+/** Runtime shape check for an object claiming to be a Nostr event. */
+function isWellFormedEvent(value: unknown): value is NostrEvent {
+  if (typeof value !== 'object' || value === null) return false;
+  const event = value as Record<string, unknown>;
+
+  return (
+    isNostrId(event.id) &&
+    isNostrId(event.pubkey) &&
+    typeof event.sig === 'string' &&
+    /^[0-9a-f]{128}$/.test(event.sig) &&
+    typeof event.kind === 'number' &&
+    Number.isInteger(event.kind) &&
+    typeof event.content === 'string' &&
+    typeof event.created_at === 'number' &&
+    Number.isInteger(event.created_at) &&
+    Array.isArray(event.tags) &&
+    event.tags.every(
+      (tag) => Array.isArray(tag) && tag.every((value) => typeof value === 'string'),
+    )
+  );
+}
+
+/**
  * Tries to parse the original event from a kind 6 or kind 16 repost's content.
- * Returns undefined if the content is empty or not valid JSON.
+ * Returns undefined if the content is empty, not valid JSON, malformed, or not
+ * genuinely signed by the pubkey it claims.
+ *
+ * The signature check is the point of this function. The app's only other
+ * signature gate sits on the relay socket, and it sees the *outer* repost —
+ * which an attacker signs honestly. Nothing recurses into `content`, so
+ * without a check here a validly-signed kind 6 can carry any JSON at all and
+ * the feed renders it under the impersonated author's name, avatar and NIP-05
+ * badge. Setting the embedded `id` to a real note's id additionally shadows
+ * that note in the `['event', id]` query cache for the rest of the session.
+ *
+ * On failure the caller falls back to resolving the `e` tag, which goes
+ * through the verified relay path.
  */
 export function parseRepostContent(repost: NostrEvent): NostrEvent | undefined {
   if (!repost.content || repost.content.trim() === '') return undefined;
+
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(repost.content);
-    if (parsed && typeof parsed === 'object' && parsed.id && parsed.pubkey && parsed.kind !== undefined) {
-      return parsed as NostrEvent;
-    }
+    parsed = JSON.parse(repost.content);
   } catch {
-    // invalid JSON
+    return undefined;
   }
-  return undefined;
+
+  // Shape first: `verifyEvent` throws on missing or wrong-typed fields, and a
+  // non-array `tags` would otherwise crash the feed's own useMemo — above
+  // NoteCard's error boundary, blanking the whole route.
+  if (!isWellFormedEvent(parsed)) return undefined;
+
+  // `verify` re-hashes on a cache hit, so an object that merely claims a
+  // known id is still rejected.
+  if (!repostVerifier.verify(parsed)) return undefined;
+
+  return parsed;
 }

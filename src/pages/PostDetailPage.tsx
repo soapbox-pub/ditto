@@ -26,6 +26,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useLocation, useNavigate } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
+const ClassifiedListingContent = lazy(() => import("@/components/ClassifiedListingContent").then(m => ({ default: m.ClassifiedListingContent })));
 import { BadgeAwardCard } from "@/components/BadgeAwardCard";
 import { BadgeDetailContent } from "@/components/BadgeDetailContent";
 import { CalendarEventDetailPage } from "@/components/CalendarEventDetailPage";
@@ -49,15 +50,20 @@ import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { HighlightContent } from "@/components/HighlightContent";
+import { WebBookmarkContent } from "@/components/WebBookmarkContent";
 import { StatusContent } from "@/components/StatusContent";
 import { InteractiveRoomContent } from "@/components/InteractiveRoomContent";
 import { QuizContent } from "@/components/quiz/QuizContent";
 import { QuizResultContent } from "@/components/quiz/QuizResultContent";
 import { QUIZ_KIND, QUIZ_RESULT_KIND } from "@/lib/quiz";
 import { AttestationContent } from "@/components/AttestationContent";
+import { ReportContent } from "@/components/ReportContent";
+import { REPORT_KIND } from "@/lib/report";
 import { ATTESTATION_KIND } from "@/lib/attestation";
+import { CLASSIFIED_LISTING_KIND } from "@/lib/classifiedListing";
 import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
+import { RelayListContent } from "@/components/RelayListContent";
 import { PeopleListDetailContent } from "@/components/PeopleListDetailContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
@@ -72,7 +78,7 @@ const GitStatusCard = lazy(() => import("@/components/GitStatusCard").then(m => 
 const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ default: m.IssueCard })));
 import { PrUpdateCard } from "@/components/PrUpdateCard";
 import { RepoStateCard } from "@/components/RepoStateCard";
-import { ImageGallery } from "@/components/ImageGallery";
+import { PhotoPostContent } from "@/components/PhotoPostContent";
 import {
   InteractionsModal,
   type InteractionTab,
@@ -100,7 +106,7 @@ import { ReactionButton } from "@/components/ReactionButton";
 import { ReplyComposeModal } from "@/components/ReplyComposeModal";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
-import { ThreadedReplyList, FlatThreadedReplyList, type ReplyNode } from "@/components/ThreadedReplyList";
+import { ThreadedReplyList, FlatThreadedReplyList, CollapsedFloodReplies, type ReplyNode } from "@/components/ThreadedReplyList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PartyHat } from "@/components/BirthdayRain";
 import { isBirthdayToday, parseBirthdayFromContent } from "@/lib/birthday";
@@ -118,6 +124,8 @@ import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
 import { LoveListContent } from "@/components/LoveListContent";
 import { LOVE_LIST_KIND } from "@/hooks/useLoveList";
 import { VanishEventContent } from "@/components/VanishEventContent";
+import { parseFirstImeta } from '@/lib/imeta';
+import { type FileEncryption } from '@/lib/encryptedFile';
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { ProfileCard } from "@/components/ProfileCard";
@@ -196,6 +204,7 @@ import { CommentContext } from "@/components/CommentContext";
 import { LiveChatContext } from "@/components/LiveChatContext";
 import { CommunityContent } from "@/components/CommunityContent";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
+import { MediaGateProvider } from "@/components/MediaGate";
 import { BrokenEventFallback } from "@/components/BrokenEventFallback";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EmojiPackContent } from "@/components/EmojiPackContent";
@@ -215,6 +224,7 @@ import { extractOnchainZapClaimedAmount, extractOnchainZapRecipients, useOnchain
 import { useMuteFilter } from "@/hooks/useMuteFilter";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useReplies } from "@/hooks/useReplies";
+import { useReplyFlood } from "@/hooks/useReplyFlood";
 import { useZapReplies } from "@/hooks/useZapReplies";
 import { useShareOrigin } from "@/hooks/useShareOrigin";
 import { toast } from "@/hooks/useToast";
@@ -226,6 +236,7 @@ import { isBadgeSetEvent, isProfileBadgesEvent } from "@/lib/badgeUtils";
 import { detectCelebration, markCelebrated } from "@/lib/celebrations";
 import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
 import { encodeEventAddress } from "@/lib/encodeEvent";
+import { isNsiteKind } from "@/lib/nsiteSubdomain";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { parseAddr } from "@/lib/parseAddr";
 import { getParentEventId, getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
@@ -254,22 +265,9 @@ function parseImeta(tags: string[][]): {
   thumbnail?: string;
   dim?: string;
   blurhash?: string;
+  encryption?: FileEncryption;
 } {
-  const imetaTag = tags.find(([name]) => name === "imeta");
-  if (!imetaTag) return {};
-  const result: Record<string, string> = {};
-  for (let i = 1; i < imetaTag.length; i++) {
-    const part = imetaTag[i];
-    const spaceIdx = part.indexOf(" ");
-    if (spaceIdx === -1) continue;
-    const key = part.slice(0, spaceIdx);
-    const value = part.slice(spaceIdx + 1);
-    if (key === "url") result.url = value;
-    else if (key === "image") result.thumbnail = value;
-    else if (key === "dim") result.dim = value;
-    else if (key === "blurhash") result.blurhash = value;
-  }
-  return result;
+  return parseFirstImeta(tags) ?? {};
 }
 
 /** Formats a timestamp into a full date string like "Feb 16, 2026, 2:53 PM". */
@@ -310,6 +308,7 @@ export function PostDetailPage({
   authorHint,
 }: PostDetailPageProps) {
   const { config } = useAppContext();
+  const queryClient = useQueryClient();
   const {
     data: event,
     isLoading,
@@ -318,6 +317,14 @@ export function PostDetailPage({
     isFetching,
   } = useEvent(eventId, relays, authorHint);
   const [retryEvent, setRetryEvent] = useState<NostrEvent | null>(null);
+
+  // "Try again" must do a genuinely fresh lookup. useEvent short-circuits on
+  // the hint-less ['event', id] seed cache, so a stale miss there would make
+  // refetch a no-op — drop it first, then refetch.
+  const handleRetry = useCallback(() => {
+    if (eventId) queryClient.removeQueries({ queryKey: ["event", eventId], exact: true });
+    return refetch();
+  }, [queryClient, eventId, refetch]);
 
   useSeoMeta({
     title:
@@ -343,7 +350,7 @@ export function PostDetailPage({
         <EventNotFound
           context={{ type: "event", eventId, relays, authorHint }}
           onEventFound={setRetryEvent}
-          onRetry={() => refetch()}
+          onRetry={handleRetry}
           isRetrying={isFetching}
         />
       </PostDetailShell>
@@ -1082,78 +1089,6 @@ function EventNotFound({
   );
 }
 
-/** NIP-68 Photo detail content (kind 20). */
-function PhotoDetailContent({ event }: { event: NostrEvent }) {
-  const photos = useMemo(() => parsePhotoUrls(event.tags), [event.tags]);
-  const title = getTag(event.tags, "title");
-  const description = event.content;
-  const hashtags = event.tags.filter(([n]) => n === "t").map(([, v]) => v);
-
-  // Build imetaMap with blurhash so ImageGallery can show blurhash placeholders
-  const imetaMap = useMemo(() => {
-    const map = new Map<string, { dim?: string; blurhash?: string }>();
-    for (const photo of photos) {
-      map.set(photo.url, { blurhash: photo.blurhash });
-    }
-    return map;
-  }, [photos]);
-
-  if (photos.length === 0) return null;
-
-  return (
-    <div className="mt-3 space-y-3">
-      {title && <p className="text-[15px] font-semibold leading-snug break-words">{title}</p>}
-      <ImageGallery
-        images={photos.map((p) => p.url)}
-        maxVisible={4}
-        maxGridHeight="600px"
-        imetaMap={imetaMap}
-      />
-      {description && (
-        <p className="text-sm text-muted-foreground leading-relaxed break-words">
-          {description}
-        </p>
-      )}
-      {hashtags.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {hashtags.slice(0, 8).map((tag) => (
-            <Link
-              key={tag}
-              to={`/t/${encodeURIComponent(tag)}`}
-              className="text-sm text-primary hover:underline"
-            >
-              #{tag}
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Parse all imeta image URLs from NIP-68 photo events. */
-function parsePhotoUrls(
-  tags: string[][],
-): Array<{ url: string; alt?: string; blurhash?: string }> {
-  const results: Array<{ url: string; alt?: string; blurhash?: string }> = [];
-  for (const tag of tags) {
-    if (tag[0] !== "imeta") continue;
-    const parts: Record<string, string> = {};
-    for (let i = 1; i < tag.length; i++) {
-      const p = tag[i];
-      const sp = p.indexOf(" ");
-      if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
-    }
-    if (parts.url)
-      results.push({
-        url: parts.url,
-        alt: parts.alt,
-        blurhash: parts.blurhash,
-      });
-  }
-  return results;
-}
-
 /** Video + title + hashtags for a kind 34236 vine on the detail page. */
 function VideoDetailContent({ event }: { event: NostrEvent }) {
   const imeta = useMemo(() => parseImeta(event.tags), [event.tags]);
@@ -1167,6 +1102,7 @@ function VideoDetailContent({ event }: { event: NostrEvent }) {
         <VideoPlayer
           src={imeta.url}
           poster={imeta.thumbnail}
+          encryption={imeta.encryption}
           dim={imeta.dim}
           blurhash={imeta.blurhash}
           title={title ?? undefined}
@@ -1215,6 +1151,7 @@ function VineDetailContent({ event }: { event: NostrEvent }) {
         <VideoPlayer
           src={imeta.url}
           poster={imeta.thumbnail}
+          encryption={imeta.encryption}
           title={vineTitle ?? undefined}
         />
       )}
@@ -1268,6 +1205,7 @@ function BookReviewRating({ event }: { event: NostrEvent }) {
 
 function PostDetailContent({ event }: { event: NostrEvent }) {
   const { isMuted } = useMuteFilter();
+  const { floodIds } = useReplyFlood();
   const queryClient = useQueryClient();
   const shareOrigin = useShareOrigin();
   const location = useLocation();
@@ -1365,8 +1303,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isBirdex = event.kind === 12473;
   const isConstellation = event.kind === 30621;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
+  const isRelayList = event.kind === 10002;
   const isEmojiPack = event.kind === 30030;
   const isArticle = event.kind === 30023;
+  const isClassifiedListing = event.kind === CLASSIFIED_LISTING_KIND;
   const isPublication = PUBLICATION_KINDS.has(event.kind);
   const isMagicDeck = event.kind === 37381;
   const isFileMetadata = event.kind === 1063;
@@ -1385,7 +1325,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isIssue = event.kind === 1621;
   const isGitStatus = event.kind >= 1630 && event.kind <= 1633;
   const isCustomNip = event.kind === 30817;
-  const isNsite = event.kind === 15128 || event.kind === 35128;
+  const isNsite = isNsiteKind(event.kind);
   const isZapstoreApp = event.kind === 32267;
   const isZapstoreRelease = event.kind === 30063;
   const isZapstoreAsset = event.kind === 3063;
@@ -1394,9 +1334,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isLetter = event.kind === 8211;
   const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
+  const isWebBookmark = event.kind === 39701;
   const isStatus = event.kind === 30315;
   const isRoom = event.kind === 30312 || event.kind === 30313;
   const isAttestation = event.kind === ATTESTATION_KIND;
+  const isReport = event.kind === REPORT_KIND;
   const isCampaign = event.kind === 33863;
   const isQuiz = event.kind === QUIZ_KIND;
   const isQuizResult = event.kind === QUIZ_RESULT_KIND;
@@ -1417,8 +1359,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isBirdDetection &&
     !isConstellation &&
     !isPeopleList &&
+    !isRelayList &&
     !isEmojiPack &&
     !isArticle &&
+    !isClassifiedListing &&
     !isPublication &&
     !isMagicDeck &&
     !isFileMetadata &&
@@ -1438,9 +1382,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isLetter &&
     !isLoveList &&
     !isHighlight &&
+    !isWebBookmark &&
     !isStatus &&
     !isRoom &&
     !isAttestation &&
+    !isReport &&
     !isCampaign &&
     !isQuiz &&
     !isQuizResult &&
@@ -1602,6 +1548,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     return source.filter((r) => !isMuted(r));
   }, [isKind1, rawReplies, commentsData?.allComments, isMuted]);
 
+  // Reply-flood detection over the whole (mute-filtered) reply batch: a
+  // near-duplicate pitch echoed across a crowd of pubkeys, or hammered by one.
+  // A DISPLAY hint only — the flagged replies collapse into one expandable row
+  // (below), nothing is dropped. Self and follows are never flagged.
+  const floodedIds = useMemo(
+    () => (replies ? floodIds(replies) : new Set<string>()),
+    [replies, floodIds],
+  );
+
   // Build the text-reply roots (NIP-10 for kind 1, NIP-22 comments otherwise).
   const buildTextReplyRoots = useCallback((): ReplyNode[] => {
     if (!replies || replies.length === 0) return [];
@@ -1679,6 +1634,20 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       (a, b) => a.event.created_at - b.event.created_at,
     );
   }, [buildTextReplyRoots, zapReplyNodes]);
+
+  // Split off the flood-flagged top-level replies so they render as one
+  // collapsed, expandable row beneath the clean thread instead of filling it.
+  const { visibleRoots, floodedRoots } = useMemo(() => {
+    if (floodedIds.size === 0) {
+      return { visibleRoots: replyTree, floodedRoots: [] as ReplyNode[] };
+    }
+    const visible: ReplyNode[] = [];
+    const flooded: ReplyNode[] = [];
+    for (const node of replyTree) {
+      (floodedIds.has(node.event.id) ? flooded : visible).push(node);
+    }
+    return { visibleRoots: visible, floodedRoots: flooded };
+  }, [replyTree, floodedIds]);
 
   // Seed the NIP-85 stats cache with client-side reply counts for each comment
   // in the thread. NIP-85 may not have stats for kind 1111 events, so this
@@ -2680,13 +2649,18 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             resetKeys={[event.id]}
           >
             <ContentWarningGuard event={event}>
+            <MediaGateProvider pubkey={event.pubkey}>
             {isPhoto ? (
-              <PhotoDetailContent event={event} />
+              <PhotoPostContent event={event} variant="detail" fullBleed />
             ) : isVideo ? (
               <VideoDetailContent event={event} />
             ) : isArticle ? (
               <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
                 <ArticleContent event={event} className="mt-3" />
+              </Suspense>
+            ) : isClassifiedListing ? (
+              <Suspense fallback={<Skeleton className="h-32 w-full rounded-lg" />}>
+                <ClassifiedListingContent event={event} expanded />
               </Suspense>
             ) : isPublication ? (
               <PublicationContent event={event} />
@@ -2770,6 +2744,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <LoveListContent event={event} />
             ) : isHighlight ? (
               <HighlightContent event={event} expanded />
+            ) : isWebBookmark ? (
+              <WebBookmarkContent event={event} expanded />
             ) : isStatus ? (
               <StatusContent event={event} expanded />
             ) : isRoom ? (
@@ -2778,6 +2754,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </div>
             ) : isAttestation ? (
               <AttestationContent event={event} expanded />
+            ) : isReport ? (
+              <ReportContent event={event} expanded />
             ) : isCampaign ? (
               <CampaignContent event={event} expanded />
             ) : isQuiz ? (
@@ -2799,6 +2777,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               isBirdex ||
               isConstellation ||
               isPeopleList ||
+              isRelayList ||
               isEmojiPack ? (
               <>
                 {isVine && <VineDetailContent event={event} />}
@@ -2810,6 +2789,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 {isBirdex && <BirdexContent event={event} expanded />}
                 {isConstellation && <ConstellationContent event={event} />}
                 {isPeopleList && <PeopleListContent event={event} />}
+                {isRelayList && <RelayListContent event={event} expanded />}
                 {isEmojiPack && <EmojiPackContent event={event} />}
               </>
             ) : isUnknownKind ? (
@@ -2824,6 +2804,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 />
               </div>
             )}
+            </MediaGateProvider>
           </ContentWarningGuard>
           </ErrorBoundary>
 
@@ -2871,7 +2852,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             ))}
           </div>
         ) : replyTree.length > 0 ? (
-          <ThreadedReplyList roots={replyTree} />
+          <>
+            <ThreadedReplyList roots={visibleRoots} />
+            <CollapsedFloodReplies roots={floodedRoots} />
+          </>
         ) : !parentEventId ? (
           <div className="py-12 text-center text-muted-foreground text-sm">
             No replies yet. Be the first to reply!

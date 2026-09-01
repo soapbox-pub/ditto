@@ -411,6 +411,7 @@ function ArchiveCard({ item }: { item: ArchiveItem }) {
           onError={(e) => {
             e.currentTarget.style.display = 'none';
           }}
+          decoding="async"
         />
 
         {/* Hover play overlay */}
@@ -620,6 +621,7 @@ function ArchiveSearchResultItem({ result, onSelect }: { result: ArchiveSearchRe
         className="w-10 h-10 rounded object-cover bg-secondary shrink-0"
         loading="lazy"
         onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+        decoding="async"
       />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{result.title}</p>

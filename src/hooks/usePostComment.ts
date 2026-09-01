@@ -5,28 +5,49 @@ import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
 import { insertReplyIntoThreads } from '@/lib/insertReply';
 import { NKinds, type NostrEvent } from '@nostrify/nostrify';
 import { isNostrId } from '@/lib/nostrId';
+import { nip22RefTag } from '@/lib/nostrEvents';
 
 interface PostCommentParams {
   root: NostrEvent | URL | `#${string}`; // The root event to comment on
   reply?: NostrEvent | URL | `#${string}`; // Optional reply to another comment
   content: string;
   tags?: string[][]; // Additional tags (hashtags, mentions, imeta, etc.)
+  /** Comment kind: 1111 (text, the default) or 1244 for a NIP-A0 voice comment. */
+  kind?: number;
+  /**
+   * Pre-built uppercase root-scope tags, used verbatim instead of deriving them
+   * from `root`. Set when replying to a NIP-22 comment: the parent already
+   * carries the thread root, so its root scope is copied forward unchanged
+   * rather than reconstructed. `root` is still used for cache/rebroadcast
+   * bookkeeping.
+   */
+  rootTags?: string[][];
 }
 
-/** Post a NIP-22 (kind 1111) comment on an event. */
+/**
+ * Post a NIP-22 comment (kind 1111, or 1244 for voice) on an event.
+ *
+ * Ditto publishes every reply this way, kind 1 notes included — see the NIP-22
+ * section of NIP.md for why it diverges from NIP-10 there.
+ */
 export function usePostComment() {
   const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ root, reply, content, tags: extraTags }: PostCommentParams) => {
+    mutationFn: async ({ root, reply, content, tags: extraTags, rootTags, kind = 1111 }: PostCommentParams) => {
       // Extract hint maps from the reply event's existing tags, if available.
       const hints = extractHints(reply);
       const tags: string[][] = [];
 
-      // Root event tags
-      tags.push(...makeCommentTags('root', root, hints));
+      // Root event tags: copy the parent comment's root scope forward verbatim
+      // when provided (see PostCommentParams.rootTags), otherwise derive it.
+      if (rootTags?.length) {
+        tags.push(...rootTags);
+      } else {
+        tags.push(...makeCommentTags('root', root, hints));
+      }
 
       // Reply event tags
       if (reply) {
@@ -36,13 +57,20 @@ export function usePostComment() {
         tags.push(...makeCommentTags('reply', root, hints));
       }
 
-      // Append any extra tags (hashtags, mentions, imeta, CW, etc.)
+      // Append any extra tags (hashtags, mentions, imeta, CW, etc.), skipping
+      // NIP-21 mention `p` tags for pubkeys the reply scope already tags —
+      // a duplicate `p` would make the parent author ambiguous to readers
+      // that pick the tag by position.
       if (extraTags) {
-        tags.push(...extraTags);
+        const tagged = new Set(tags.filter(([name]) => name === 'p').map(([, value]) => value));
+        for (const tag of extraTags) {
+          if (tag[0] === 'p' && tagged.has(tag[1])) continue;
+          tags.push(tag);
+        }
       }
 
       const event = await publishEvent({
-        kind: 1111,
+        kind,
         content,
         tags,
       });
@@ -75,12 +103,20 @@ function makeCommentTags(scope: 'root' | 'reply', target: NostrEvent | URL | `#$
     tags.push(['I', target]);
   } else if (target instanceof URL) {
     tags.push(['I', target.toString()]);
-  } else if (NKinds.replaceable(target.kind) || NKinds.addressable(target.kind)) {
+  } else if ((NKinds.replaceable(target.kind) || NKinds.addressable(target.kind)) && isNostrId(target.pubkey)) {
+    // Only emit an addressable coordinate when the pubkey is a valid hex id.
+    // A blank/invalid pubkey would produce a malformed `A` like "0::"; in that
+    // case fall through to referencing the root by its event id instead.
     const d = target.tags.find(([name]) => name === 'd')?.[1] ?? '';
     const addr = `${target.kind}:${target.pubkey}:${NKinds.addressable(target.kind) ? d : ''}`;
-    tags.push(['A', addr, ...aHints.get(addr) ?? []]);
+    tags.push(nip22RefTag('A', addr, aHints.get(addr)?.[0]));
   } else {
-    tags.push(['E', target.id, ...eHints.get(target.id) ?? []]);
+    // NIP-22 puts the referenced event's author at position [3]. We know it
+    // first-hand from the target itself; the hint map only fills in the relay
+    // (and the author for targets the parent event referenced by id alone).
+    const [relayHint, authorHint] = eHints.get(target.id) ?? [];
+    const pubkey = isNostrId(target.pubkey) ? target.pubkey : authorHint;
+    tags.push(nip22RefTag('E', target.id, relayHint, pubkey));
   }
   if (typeof target === 'string') {
     tags.push(['K', '#']);
@@ -96,7 +132,10 @@ function makeCommentTags(scope: 'root' | 'reply', target: NostrEvent | URL | `#$
     }
   } else {
     tags.push(['K', target.kind.toString()]);
-    tags.push(['P', target.pubkey, ...pHints.get(target.pubkey) ?? []]);
+    // Skip a blank/invalid pubkey rather than emitting an empty `P` tag.
+    if (isNostrId(target.pubkey)) {
+      tags.push(['P', target.pubkey, ...pHints.get(target.pubkey) ?? []]);
+    }
   }
 
   // Lowercase all tag names for reply scope

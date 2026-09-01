@@ -265,6 +265,7 @@ function ResultSummary({
                   src={outcome.image}
                   alt={outcome.label}
                   className="mb-2 max-h-56 w-full rounded-xl border object-cover"
+                  decoding="async"
                 />
               )}
               <p className="text-xl font-bold text-foreground">{outcome.label}</p>

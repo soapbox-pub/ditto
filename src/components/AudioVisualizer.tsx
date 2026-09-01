@@ -4,11 +4,19 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import type { AvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
+import { useDecryptedFile } from '@/hooks/useDecryptedFile';
+import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
+import type { FileEncryption } from '@/lib/encryptedFile';
 import { formatTime } from '@/lib/formatTime';
 
 interface AudioVisualizerProps {
   src: string;
   mime?: string;
+  /**
+   * Present when `src` serves ciphertext. The player fetches and decrypts it to
+   * an object URL before playback.
+   */
+  encryption?: FileEncryption;
   /** Avatar image URL for the circle in the centre */
   avatarUrl?: string;
   /** Fallback display letter for the avatar */
@@ -25,13 +33,20 @@ interface AudioVisualizerProps {
  * a canvas showing an animated sinewave with the author's avatar centred.
  */
 export function AudioVisualizer({
-  src,
-  mime,
+  src: originalSrc,
+  mime: declaredMime,
+  encryption,
   avatarUrl,
   avatarFallback = '?',
   avatarShape,
   className,
 }: AudioVisualizerProps) {
+  const decrypted = useDecryptedFile(originalSrc, encryption);
+  const src = decrypted.src ?? '';
+  // Once decrypted the object URL carries the plaintext type, which is what
+  // <source type> needs — the `m` tag describes the plaintext too.
+  const mime = decrypted.mime ?? declaredMime;
+
   const audioRef = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -54,10 +69,20 @@ export function AudioVisualizer({
     isPlaying,
   });
 
+  // Nothing to play yet: still decrypting, or undecryptable. Pointing <audio>
+  // at the original URL would only hand it ciphertext.
+  const unplayable = decrypted.encrypted && !decrypted.src;
+
   // ── Canvas: sinewave drawing ───────────────────────────────────────────
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      // The canvas is unmounted while an encrypted file decrypts. Keep the
+      // loop alive rather than returning, or it would never resume once the
+      // canvas appears.
+      animFrameRef.current = requestAnimationFrame(draw);
+      return;
+    }
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -243,121 +268,141 @@ export function AudioVisualizer({
       onMouseLeave={() => { if (isPlaying) scheduleHide(); }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Hidden audio element */}
+      {/*
+        Hidden audio element. It stays mounted while an encrypted file
+        decrypts, even though it has no source yet: the listeners below and
+        usePlayerControls both bind to it once, on mount, so unmounting it
+        here would leave playback with no listeners at all.
+      */}
       <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" className="hidden">
-        {mime ? <source src={src} type={mime} /> : <source src={src} />}
+        {src ? (mime ? <source src={src} type={mime} /> : <source src={src} />) : null}
       </audio>
 
-      {/* Sinewave canvas — fills the entire box */}
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 w-full h-full"
-        onClick={handleCanvasClick}
-        style={{ cursor: 'pointer' }}
-      />
-
-      {/* Avatar — centred over the canvas */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div
-          className={cn(
-            'rounded-full ring-4 transition-all duration-300',
-            isPlaying
-              ? 'ring-primary/40 shadow-[0_0_28px_8px_hsl(var(--primary)/0.4)]'
-              : 'ring-border',
-          )}
-        >
-          <Avatar className="size-20 border-2 border-white/20" shape={avatarShape}>
-            <AvatarImage src={avatarUrl} alt={avatarFallback} />
-            <AvatarFallback className="bg-primary/20 text-primary text-2xl font-semibold">
-              {avatarFallback}
-            </AvatarFallback>
-          </Avatar>
-        </div>
-      </div>
-
-      {/* Big centred play button before first play — identical to VideoPlayer */}
-      {!hasStarted && (
-        <div
-          className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer"
-          onClick={handleCanvasClick}
-        >
-          <div className="size-16 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm">
-            <Play className="size-8 text-white ml-1" fill="white" />
-          </div>
-        </div>
+      {unplayable && (
+        <EncryptedFileNotice
+          fill
+          loading={decrypted.loading}
+          unsupported={decrypted.unsupported}
+          tooLarge={decrypted.tooLarge}
+          byteSize={decrypted.byteSize}
+          onDecryptAnyway={decrypted.decryptAnyway}
+        />
       )}
 
-      {/* Bottom control bar — identical markup to VideoPlayer */}
-      {hasStarted && (
-        <div
-          className={cn(
-            'absolute bottom-0 left-0 right-0 transition-opacity duration-200',
-            'bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-8 pb-2 px-3',
-            showControls ? 'opacity-100' : 'opacity-0 pointer-events-none',
-          )}
-        >
-          {/* Progress bar */}
+      {!unplayable && (
+        <>
+        {/* Sinewave canvas — fills the entire box */}
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full"
+          onClick={handleCanvasClick}
+          style={{ cursor: 'pointer' }}
+        />
+
+        {/* Avatar — centred over the canvas */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div
-            ref={progressRef}
-            className="w-full h-1 bg-white/30 rounded-full cursor-pointer mb-2 group/progress"
-            onClick={handleSeek}
+            className={cn(
+              'rounded-full ring-4 transition-all duration-300',
+              isPlaying
+                ? 'ring-primary/40 shadow-[0_0_28px_8px_hsl(var(--primary)/0.4)]'
+                : 'ring-border',
+            )}
           >
-            <div
-              className="h-full bg-primary rounded-full relative"
-              style={{ width: `${progress}%` }}
-            >
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 size-3 bg-primary rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
-            </div>
-          </div>
-
-          {/* Controls row */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={togglePlay}
-              className="text-white hover:text-white/80 transition-colors"
-              aria-label={isPlaying ? 'Pause' : 'Play'}
-            >
-              {isPlaying
-                ? <Pause className="size-5" fill="white" />
-                : <Play className="size-5 ml-0.5" fill="white" />}
-            </button>
-
-            {/* Volume: icon toggles mute, slider sets level */}
-            <div className="flex items-center gap-1.5 group/vol">
-              <button
-                onClick={toggleMute}
-                className="text-white hover:text-white/80 transition-colors shrink-0"
-                aria-label={isMuted ? 'Unmute' : 'Mute'}
-              >
-                {isMuted || volume === 0
-                  ? <VolumeX className="size-5" />
-                  : volume < 0.5
-                    ? <Volume1 className="size-5" />
-                    : <Volume2 className="size-5" />}
-              </button>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.02}
-                value={isMuted ? 0 : volume}
-                onChange={handleVolumeChange}
-                onClick={(e) => e.stopPropagation()}
-                aria-label="Volume"
-                className={cn(
-                  'w-0 opacity-0 group-hover/vol:w-16 group-hover/vol:opacity-100',
-                  'transition-all duration-200 cursor-pointer accent-white h-1',
-                )}
-              />
-            </div>
-
-            <span className="text-white text-xs tabular-nums min-w-0">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
-
-            <div className="flex-1" />
+            <Avatar className="size-20 border-2 border-white/20" shape={avatarShape}>
+              <AvatarImage src={avatarUrl} alt={avatarFallback} />
+              <AvatarFallback className="bg-primary/20 text-primary text-2xl font-semibold">
+                {avatarFallback}
+              </AvatarFallback>
+            </Avatar>
           </div>
         </div>
+
+        {/* Big centred play button before first play — identical to VideoPlayer */}
+        {!hasStarted && (
+          <div
+            className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer"
+            onClick={handleCanvasClick}
+          >
+            <div className="size-16 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm">
+              <Play className="size-8 text-white ml-1" fill="white" />
+            </div>
+          </div>
+        )}
+
+        {/* Bottom control bar — identical markup to VideoPlayer */}
+        {hasStarted && (
+          <div
+            className={cn(
+              'absolute bottom-0 left-0 right-0 transition-opacity duration-200',
+              'bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-8 pb-2 px-3',
+              showControls ? 'opacity-100' : 'opacity-0 pointer-events-none',
+            )}
+          >
+            {/* Progress bar */}
+            <div
+              ref={progressRef}
+              className="w-full h-1 bg-white/30 rounded-full cursor-pointer mb-2 group/progress"
+              onClick={handleSeek}
+            >
+              <div
+                className="h-full bg-primary rounded-full relative"
+                style={{ width: `${progress}%` }}
+              >
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 size-3 bg-primary rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
+              </div>
+            </div>
+
+            {/* Controls row */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={togglePlay}
+                className="text-white hover:text-white/80 transition-colors"
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+              >
+                {isPlaying
+                  ? <Pause className="size-5" fill="white" />
+                  : <Play className="size-5 ml-0.5" fill="white" />}
+              </button>
+
+              {/* Volume: icon toggles mute, slider sets level */}
+              <div className="flex items-center gap-1.5 group/vol">
+                <button
+                  onClick={toggleMute}
+                  className="text-white hover:text-white/80 transition-colors shrink-0"
+                  aria-label={isMuted ? 'Unmute' : 'Mute'}
+                >
+                  {isMuted || volume === 0
+                    ? <VolumeX className="size-5" />
+                    : volume < 0.5
+                      ? <Volume1 className="size-5" />
+                      : <Volume2 className="size-5" />}
+                </button>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.02}
+                  value={isMuted ? 0 : volume}
+                  onChange={handleVolumeChange}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Volume"
+                  className={cn(
+                    'w-0 opacity-0 group-hover/vol:w-16 group-hover/vol:opacity-100',
+                    'transition-all duration-200 cursor-pointer accent-white h-1',
+                  )}
+                />
+              </div>
+
+              <span className="text-white text-xs tabular-nums min-w-0">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </span>
+
+              <div className="flex-1" />
+            </div>
+          </div>
+        )}
+        </>
       )}
     </div>
   );

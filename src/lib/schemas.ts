@@ -144,7 +144,9 @@ export const FeedSettingsSchema = z.looseObject({
   showHighlights: z.boolean().optional(),
   feedIncludeHighlights: z.boolean().optional(),
   feedIncludeCampaigns: z.boolean().optional(),
+  feedIncludeClassifiedListings: z.boolean().optional(),
   feedIncludeAttestations: z.boolean().optional(),
+  feedIncludeReports: z.boolean().optional(),
   showEvents: z.boolean().optional(),
   feedIncludeEvents: z.boolean().optional(),
   showVines: z.boolean().optional(),
@@ -205,6 +207,7 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeCustomNips: z.boolean().optional(),
   feedIncludeNsiteRoots: z.boolean().optional(),
   feedIncludeNsiteNamed: z.boolean().optional(),
+  feedIncludeNsiteSnapshots: z.boolean().optional(),
   feedIncludeZapstoreApps: z.boolean().optional(),
   feedIncludeZapstoreReleases: z.boolean().optional(),
   feedIncludeAppHandlers: z.boolean().optional(),
@@ -216,6 +219,8 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeBirdex: z.boolean().optional(),
   feedIncludeConstellations: z.boolean().optional(),
   feedIncludeLoveLists: z.boolean().optional(),
+  feedIncludeRelayLists: z.boolean().optional(),
+  feedIncludeProfileUpdates: z.boolean().optional(),
 });
 
 /** Schema for a NIP-01 filter object (lenient — allows variable placeholder strings). */
@@ -274,6 +279,7 @@ export const AppConfigSchema = z.object({
   corsProxy: z.string(),
   contentWarningPolicy: ContentWarningPolicySchema,
   exemptFollowsFromFilters: z.boolean().optional(),
+  hideMediaFromStrangers: z.boolean().optional(),
   sentryDsn: z.string(),
   sentryEnabled: z.boolean(),
   plausibleDomain: z.string(),
@@ -287,6 +293,7 @@ export const AppConfigSchema = z.object({
     })
   ).optional().default([]),
   autoplayVideos: z.boolean(),
+  stripTrackingParams: z.boolean().optional(),
   imageQuality: z.enum(['compressed', 'original']),
   curatorPubkey: z.string().regex(/^[0-9a-f]{64}$/).optional(),
   sandboxDomain: z.string().optional(),
@@ -439,6 +446,7 @@ export const EncryptedSettingsSchema = z.looseObject({
   contentFilters: z.array(ContentFilterSchema).optional(),
   contentWarningPolicy: ContentWarningPolicySchema.optional(),
   exemptFollowsFromFilters: z.boolean().optional(),
+  hideMediaFromStrangers: z.boolean().optional(),
   notificationsEnabled: z.boolean().optional(),
   notificationStyle: z.enum(['push', 'persistent']).optional(),
   notificationsCursor: z.number().optional(),
@@ -468,6 +476,7 @@ export const EncryptedSettingsSchema = z.looseObject({
     nip05: z.record(z.string(), z.unknown()),
   }).optional(),
   autoplayVideos: z.boolean().optional(),
+  stripTrackingParams: z.boolean().optional(),
   corsProxy: z.string().optional(),
   faviconUrl: z.string().optional(),
   linkPreviewUrl: z.string().optional(),

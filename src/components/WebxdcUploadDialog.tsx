@@ -165,6 +165,7 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
                     src={iconUrl}
                     alt={appName ?? 'App icon'}
                     className="size-10 rounded-xl object-cover"
+                    decoding="async"
                   />
                 ) : (
                   <div className="flex items-center justify-center size-10 rounded-xl bg-primary/10">

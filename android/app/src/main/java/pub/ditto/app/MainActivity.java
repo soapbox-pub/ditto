@@ -4,7 +4,6 @@ import android.app.ForegroundServiceStartNotAllowedException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -60,46 +59,33 @@ public class MainActivity extends BridgeActivity {
             }
         }
 
-        // Handle notification tap deep link
-        handleNotificationIntent(getIntent());
-        // Handle content shared from another app's Share button
+        // Handle content shared from another app's Share button.
+        // Notification taps are ACTION_VIEW intents with a ditto.pub data URI;
+        // those are handled by Capacitor's App plugin (appUrlOpen) and routed
+        // by DeepLinkHandler.tsx, so no native handler is needed for them.
         handleSendIntent(getIntent());
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        // Handle notification tap when the activity is already running (singleTask)
-        handleNotificationIntent(intent);
         // Handle a share that arrives while the app is already running
         handleSendIntent(intent);
-    }
-
-    /**
-     * If the intent has a data URI from a notification tap, navigate the
-     * WebView to the corresponding path (e.g., /notifications).
-     */
-    private void handleNotificationIntent(Intent intent) {
-        if (intent == null) return;
-        Uri data = intent.getData();
-        if (data != null && "ditto.pub".equals(data.getHost())) {
-            String path = data.getPath();
-            if (path != null && !path.isEmpty()) {
-                navigateWebView(path);
-            }
-        }
     }
 
     /**
      * Handle content shared into Ditto from another app's Share button.
      *
      * Two share targets are registered as activity-aliases in the manifest:
-     *   - {@code .ShareViewAlias}  → "View in Ditto"  → /share?mode=view
-     *   - {@code .SharePostAlias}  → "Post on Ditto"  → /share?mode=post
+     *   - {@code .ShareViewAlias}  → "View in Ditto"  → mode "view"
+     *   - {@code .SharePostAlias}  → "Post on Ditto"  → mode "post"
      *
-     * We forward the raw shared text to the web app's /share route, which
-     * extracts a URL (view) or prefills the composer (post). URL extraction
-     * is deliberately left to the TypeScript handler so it stays testable.
+     * The mode and the raw shared text are handed to the JS layer as
+     * structured data via {@link DittoNotificationPlugin#emitShare} — never
+     * concatenated into a navigation string — and the web app's /share route
+     * extracts a URL (view) or prefills the composer (post). Passing the text
+     * as a JSON value across the bridge means there is no {@code evaluateJavascript}
+     * sink for a hostile share payload to break out of.
      */
     private void handleSendIntent(Intent intent) {
         if (intent == null) return;
@@ -117,21 +103,6 @@ public class MainActivity extends BridgeActivity {
             }
         }
 
-        String encoded = Uri.encode(text);
-        navigateWebView("/share?mode=" + mode + "&text=" + encoded);
-    }
-
-    /**
-     * Navigate the in-app WebView to the given path once it is ready. Uses a
-     * full-document navigation so it works on cold start (the SPA boots at the
-     * target route) and while the app is already running.
-     */
-    private void navigateWebView(String path) {
-        getBridge().getWebView().post(() -> {
-            getBridge().getWebView().evaluateJavascript(
-                "window.location.href = '" + path.replace("'", "\\'") + "';",
-                null
-            );
-        });
+        DittoNotificationPlugin.emitShare(mode, text);
     }
 }

@@ -60,6 +60,7 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
             alt=""
             className="w-full h-full object-cover"
             loading="lazy"
+            decoding="async"
           />
         )}
         {/* Follow button over the banner */}

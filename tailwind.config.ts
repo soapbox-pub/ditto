@@ -109,6 +109,14 @@ export default {
 				from: { transform: 'rotate(0deg)' },
 				to: { transform: 'rotate(360deg)' }
 			},
+			'progress-sweep': {
+				// Indeterminate progress bar: a short segment sweeping across
+				// the track. Used when a relay can't tell us a total up front
+				// (no NIP-45 COUNT), so there's no percentage to show but work
+				// is still happening.
+				'0%': { transform: 'translateX(-100%)' },
+				'100%': { transform: 'translateX(400%)' }
+			},
 			'highlight-fade': {
 				from: { backgroundColor: 'hsl(var(--primary) / 0.10)' },
 				to: { backgroundColor: 'transparent' }
@@ -265,6 +273,7 @@ export default {
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'pending-glow': 'pending-glow 2.5s ease-in-out infinite',
 				'badge-spotlight': 'badge-spotlight 8s linear infinite',
+				'progress-sweep': 'progress-sweep 1.2s ease-in-out infinite',
 				'highlight-fade': 'highlight-fade 1.5s ease-out forwards',
 				'collapsible-down': 'collapsible-down 0.2s ease-out',
 				'collapsible-up': 'collapsible-up 0.2s ease-out',

@@ -30,7 +30,7 @@ These event kinds were created by community contributors and are supported by Di
 | 8211  | Encrypted Letter       | Encrypted personal letter with visual stationery                 | [NIP](https://gitlab.com/chad.curtis/lief/-/blob/main/NIP.md)                            |
 | 1124  | Blobbi Social Interaction | Immutable interaction log for Blobbi social interactions       | See [Blobbi Social Interaction](#kind-1124-blobbi-social-interaction) below                |
 | 10133 | Payment Targets        | Donation endpoints (Bitcoin, Lightning, Monero, …) per RFC-8905 | [NIP-A3](https://github.com/ATXMJ/nips/blob/main/A3.md); see [Kind 10133](#kind-10133-payment-targets-nip-a3) below |
-| 11125 | Blobbonaut Profile     | Owner profile with coins, achievements, and progression          | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
+| 11125 | Blobbonaut Profile     | Owner profile with achievements, owned Blobbis, and progression  | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14919 | Blobbi Interaction     | Individual pet interaction (feed, play, clean, etc.)             | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14920 | Blobbi Breeding        | Breeding event between two adult Blobbis                         | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
 | 14921 | Blobbi Record          | Immutable lifecycle record (birth, evolution, adoption)          | [NIP-BB](https://github.com/Danidfra/nostr-pet/blob/production/NIP.md)                   |
@@ -731,15 +731,15 @@ Kind 16158 (replaceable) describes a weather station's configuration: name, geoh
 **App:** https://nostr-pet.vercel.app
 **See also:** [Blobbi tag schema](docs/blobbi/blobbi-tag-schema.md) (Ditto-specific integration details)
 
-NIP-BB defines a virtual pet lifecycle on Nostr. Kind 31124 (addressable) holds the current pet state across three stages (egg, baby, adult) with stats, appearance, and personality traits. Kind 14919 logs individual interactions, kind 14920 records breeding events, kind 14921 stores immutable lifecycle records, and kind 11125 (replaceable) holds the owner's profile with coins, achievements, and progression.
+NIP-BB defines a virtual pet lifecycle on Nostr. Kind 31124 (addressable) holds the current pet state across three stages (egg, baby, adult) with stats, appearance, and personality traits. Kind 14919 logs individual interactions, kind 14920 records breeding events, kind 14921 stores immutable lifecycle records, and kind 11125 (replaceable) holds the owner's profile with achievements, owned Blobbis, and progression. Ditto neither grants, spends, nor reads Blobbi Coins on this event — the active Coin balance lives in Blobbi Island's economy, outside Ditto.
 
-#### Consumable inventory is not part of Ditto's kind 11125 model
+#### Consumable inventory and Blobbi Coins are not part of Ditto's kind 11125 model
 
-Kind 11125 stores Blobbi owner profile data such as coins, achievements, XP, level, owned Blobbis, and room selection. **Ditto does not read or write consumable inventory on this event.** Care items are free and infinitely available, so there is no quantity, stock, or consumption model: nothing decrements on use and nothing is written on purchase.
+Kind 11125 stores Blobbi owner profile data such as achievements, XP, level, owned Blobbis, and room selection. **Ditto does not read or write consumable inventory or Blobbi Coins on this event.** Care items are free and infinitely available, so there is no quantity, stock, or consumption model: nothing decrements on use and nothing is written on purchase.
 
-Pre-existing `storage` tags, written by earlier Ditto versions, are **preserved opaquely as unknown extension tags**. They are not in the managed tag set, so profile republishes carry them through tag-for-tag, in order, without parsing, normalizing, or deleting them — and a republish can never create or mutate them. Consumable inventory is no longer part of Ditto's active kind 11125 model.
+Pre-existing `storage` tags (written by earlier Ditto versions) and legacy `coins` tags (from the pre-reset onboarding economy) are **preserved opaquely as unknown extension tags**. They are not in the managed tag set, so profile republishes carry them through tag-for-tag, in order, without parsing, normalizing, or deleting them — and a republish can never create or mutate them. Consumable inventory and the Coin balance are no longer part of Ditto's active kind 11125 model.
 
-This is scoped to *consumable* inventory only. Other item-like concepts are unaffected and live elsewhere: room customization (`room_layouts`, `room_furniture` in `content`, documented below), owned Blobbis (`has` tags), and any host-specific cosmetic or accessory extension tags — such as Blobbi Island's `inv` tag, which Ditto neither writes nor interprets — remain independent of this event's consumable-inventory semantics.
+This is scoped to *consumable* inventory and the Coin balance only. Other item-like concepts are unaffected and live elsewhere: room customization (`room_layouts`, `room_furniture` in `content`, documented below), owned Blobbis (`has` tags), and any host-specific cosmetic or accessory extension tags — such as Blobbi Island's `inv` tag, which Ditto neither writes nor interprets — remain independent of this event's consumable-inventory semantics.
 
 #### Kind 11125 `content` JSON — `missions` field
 
@@ -753,7 +753,7 @@ The `content` of kind 11125 is a JSON object. Ditto extends it with a `missions`
     "evolution": [ /* Mission[] — active hatch/evolve tasks, cleared on stage transition */ ],
     "rerolls": 2                // remaining daily mission rerolls
   }
-  // ...other profile fields (coins, achievements, room customization, etc.)
+  // ...other profile fields (achievements, room customization, etc.)
 }
 ```
 
@@ -1227,4 +1227,85 @@ A regular event recording the publisher's own result for a quiz. `content` is an
     ["alt", "Quiz result: Fire on \"Which Element Are You?\""]
   ]
 }
+```
+
+---
+
+## Replies: NIP-22 Everywhere
+
+Ditto publishes **every** reply as a NIP-22 comment — kind 1111 for text, kind
+1244 for voice — including replies to kind 1 notes, where NIP-22 currently says
+"Comments MUST NOT be used to reply to kind 1 notes. NIP-10 should instead be
+followed."
+
+This is a deliberate divergence. NIP-10's positional/marked `e` tags are
+ambiguous and give a thread no stable root, and maintaining two threading models
+side by side means every reply-aware surface has to implement both. Amethyst has
+made kind 1111 its default reply kind, and Ditto follows: the network migrates
+by clients producing the new form, not by amending the spec first. Clients that
+only understand NIP-10 (e.g. Primal) will not show these replies.
+
+Top-level posts remain **kind 1**. Only replies change.
+
+### What Ditto Produces
+
+Replying to a top-level kind 1 note — root scope and parent are the same item:
+
+```json
+{
+  "kind": 1111,
+  "content": "Great post!",
+  "tags": [
+    ["E", "<note-id>", "", "<note-author>"],
+    ["K", "1"],
+    ["P", "<note-author>"],
+    ["e", "<note-id>", "", "<note-author>"],
+    ["k", "1"],
+    ["p", "<note-author>"]
+  ]
+}
+```
+
+Replying to a **NIP-10 kind 1 reply** — the new comment inherits the parent's
+thread root rather than starting a new thread at the parent. The root reference
+is read from the parent's marked `e`/`a` root tag (falling back to the
+deprecated positional scheme, where the first `e` tag is the root), and `K` is
+the parent's own kind, since NIP-10 threads are homogeneous:
+
+```json
+{
+  "kind": 1111,
+  "content": "Agreed.",
+  "tags": [
+    ["E", "<thread-root-id>", "<relay-hint>", "<root-author>"],
+    ["K", "1"],
+    ["P", "<root-author>"],
+    ["e", "<parent-reply-id>", "", "<parent-author>"],
+    ["k", "1"],
+    ["p", "<parent-author>"]
+  ]
+}
+```
+
+`P` is omitted when the parent's NIP-10 `e` tag carries no pubkey hint — NIP-22
+only requires it "when one is available".
+
+Replying to a kind 1111 comment copies the parent's uppercase root scope forward
+verbatim, hints included; the root of a NIP-22 thread is stable at every depth.
+
+Unlike Ditto's old NIP-10 replies, a reply does **not** `p`-tag every
+participant in the thread — only the parent author (`p`) and the root author
+(`P`), per NIP-22, plus any NIP-21 mentions in the content.
+
+### What Ditto Consumes
+
+Reading is unchanged and remains permissive: kind 1 NIP-10 replies still render,
+thread, and count as replies everywhere they did before. Thread queries for a
+kind 1 root ask for both forms:
+
+```json
+[
+  { "kinds": [1, 1111], "#e": ["<root-id>"] },
+  { "kinds": [1111], "#E": ["<root-id>"] }
+]
 ```

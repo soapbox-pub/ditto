@@ -1,7 +1,7 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
-import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, Stars, UserCheck, Users } from 'lucide-react';
+import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, History, Server, Stars, UserCheck, UserRoundPen, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -399,6 +399,30 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedOnly: true,
     blurb: 'When someone permanently leaves Nostr, their Request to Vanish event signals the end of their identity on the network.',
   },
+  // Profile updates (feed-only — NIP-01 kind 0 metadata)
+  {
+    kind: 0,
+    id: 'profiles',
+    feedKey: 'feedIncludeProfileUpdates',
+    label: 'Profile Updates',
+    description: 'Kind 0 metadata updates — new names, avatars, and bios',
+    addressable: false,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'When someone changes their name, avatar, banner, or bio, the new profile shows up in the feed as a card — a lightweight way to notice that a person you follow has a new look.',
+  },
+  // Relay lists (feed-only — NIP-65 kind 10002)
+  {
+    kind: 10002,
+    id: 'relay-lists',
+    feedKey: 'feedIncludeRelayLists',
+    label: 'Relay Lists',
+    description: 'NIP-65 relay list updates',
+    addressable: false,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'A relay list announces where someone reads and writes on Nostr. Updates render as a stack of relay icons in the feed, and opening one shows each relay\'s name, capabilities, and read/write markers.',
+  },
   // Love Lists (feed-only — Ditto custom kind 15683, see NIP.md)
   {
     kind: 15683,
@@ -600,11 +624,40 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedOnly: true,
     blurb: 'Attestations are signed truthfulness claims about other Nostr events — an attestor verifies a claim and publishes whether it is valid, invalid, still being verified, or revoked. They enable a web of trust for notes.',
   },
+  // Reports — kind 1984 (regular, NIP-56). Feed-only: opening a report's
+  // nevent lands on PostDetailPage, which renders it via ReportContent.
+  // Default off — reports are moderation signals about content, not content.
+  {
+    kind: 1984,
+    id: 'reports',
+    feedKey: 'feedIncludeReports',
+    label: 'Reports',
+    description: 'Moderation reports about users, posts, and files (NIP-56)',
+    addressable: false,
+    section: 'social',
+    feedOnly: true,
+    blurb: "Reports are what people flag as objectionable — spam, impersonation, malware, and worse. Nobody's report carries authority on its own; seeing them is a way to watch the network moderate itself.",
+  },
   // Fundraisers — kind 33863 (addressable). Feed-only: opening a
   // campaign's naddr lands on PostDetailPage, which knows how to render
   // kind 33863 via CampaignContent. We don't host campaign creation or
   // donation flows in Ditto — those belong to Agora — but we surface
   // campaigns in feeds and threads.
+  // Classified listings — kind 30402 (addressable, NIP-99). Feed-only:
+  // opening a listing's naddr lands on PostDetailPage, which renders it via
+  // ClassifiedListingContent. No dedicated page or sidebar entry — the kind
+  // is surfaced in feeds and threads only.
+  {
+    kind: 30402,
+    id: 'classified-listings',
+    feedKey: 'feedIncludeClassifiedListings',
+    label: 'Listings',
+    description: 'Products, services, and offers for sale (NIP-99)',
+    addressable: true,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'Classified listings — anything for sale on Nostr. Products, services, rentals, and giveaways, each with a price, photos, and a description.',
+  },
   {
     kind: 33863,
     id: 'campaigns',
@@ -787,6 +840,14 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
         description: 'Additional named nsite deployments',
         addressable: true,
       },
+      {
+        kind: 5128,
+        showKey: 'showDevelopment',
+        feedKey: 'feedIncludeNsiteSnapshots',
+        label: 'Snapshots',
+        description: 'Immutable versions of a site, captured at a point in time',
+        addressable: false,
+      },
     ],
   },
   {
@@ -907,10 +968,12 @@ export function getSectionKinds(section: ExtraKindSection): number[] {
  * a label more specific than their parent category.
  */
 const KIND_SPECIFIC_LABELS: Record<number, string> = {
+  0: 'profile update',
   3: 'follow list',
   6: 'repost',
   7: 'reaction',
   16: 'repost',
+  10002: 'relay list',
   30000: 'follow set',
   1617: 'patch',
   1618: 'pull request',
@@ -921,11 +984,14 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   1632: 'status update',
   1633: 'status update',
   30618: 'repository update',
+  5128: 'nsite snapshot',
   15128: 'nsite',
   35128: 'nsite',
   30008: 'badge set',
   30817: 'custom NIP',
   31871: 'attestation',
+  1984: 'report',
+  30402: 'listing',
   32267: 'Zapstore app',
   31990: 'app',
   30063: 'Zapstore release',
@@ -936,9 +1002,11 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
  * Specific icons for kinds that need a different icon than their parent category.
  */
 const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: string }>>> = {
+  0: UserRoundPen,
   3: UserCheck,
   6: RepostIcon,
   16: RepostIcon,
+  10002: Server,
   30000: Users,
   1617: GitPullRequestArrow,
   1618: GitPullRequest,
@@ -949,6 +1017,7 @@ const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: st
   1632: CircleX,
   1633: CircleDashed,
   30618: GitBranch,
+  5128: History,
   15128: Globe,
   15683: Heart,
   35128: Globe,

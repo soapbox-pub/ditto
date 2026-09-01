@@ -44,6 +44,7 @@ function StickerMedia({ sticker, sizeCqw, className }: { sticker: LetterSticker;
       style={{ width: sizeCqw, height: sizeCqw, maxWidth: 'none' }}
       className={className}
       draggable={false}
+      decoding="async"
     />
   );
 }

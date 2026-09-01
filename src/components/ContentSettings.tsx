@@ -985,6 +985,41 @@ export function MuteFollowExemptionSection() {
   );
 }
 
+/**
+ * Toggle for hiding media from accounts the user doesn't follow behind a
+ * click-to-reveal overlay. Text still shows; only posts with media are gated,
+ * and only when logged in.
+ */
+export function HideStrangerMediaSection() {
+  const { config, updateConfig } = useAppContext();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
+
+  const enabled = config.hideMediaFromStrangers === true;
+
+  const handleToggle = async (value: boolean) => {
+    updateConfig((current) => ({ ...current, hideMediaFromStrangers: value }));
+    if (user) {
+      await updateSettings.mutateAsync({ hideMediaFromStrangers: value });
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="space-y-0.5">
+        <Label className="text-sm font-medium"><FormattedMessage id="settings.content.hideStrangerMedia" defaultMessage={"Hide media from people you don't follow"} /></Label>
+        <p className="text-xs text-muted-foreground">
+          <FormattedMessage id="settings.content.hideStrangerMediaDescription" defaultMessage={"Images, video, and audio from accounts you don't follow stay hidden behind a tap-to-reveal overlay. Text still shows."} />
+        </p>
+      </div>
+      <Switch
+        checked={enabled}
+        onCheckedChange={handleToggle}
+      />
+    </div>
+  );
+}
+
 interface MuteTypeConfig {
   icon: ReactNode;
   label: string;
@@ -1299,6 +1334,38 @@ export function VideoAutoplaySection() {
       </div>
       <Switch
         checked={autoplay}
+        onCheckedChange={handleToggle}
+      />
+    </div>
+  );
+}
+
+/**
+ * Tracking-parameter stripping. Publishes nothing of its own; it affects both
+ * what this client posts and how it renders and fetches links it receives.
+ */
+export function LinkPrivacySection() {
+  const { config, updateConfig } = useAppContext();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
+
+  const cleanLinks = config.stripTrackingParams !== false;
+
+  const handleToggle = async (value: boolean) => {
+    updateConfig((current) => ({ ...current, stripTrackingParams: value }));
+    if (user) {
+      await updateSettings.mutateAsync({ stripTrackingParams: value });
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between">
+      <div className="space-y-0.5">
+        <Label className="text-sm font-medium"><FormattedMessage id="settings.content.stripTrackingParams" defaultMessage={"Clean up links"} /></Label>
+        <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.content.stripTrackingParamsDescription" defaultMessage={"Remove tracking parameters from links — YouTube's ?si=, utm_ campaign tags, and the click ids ad networks add. Applied to links you post, so they're clean for everyone who reads them, and to links you view, so nothing they carry reaches the sites your app loads previews from. Only known tracking parameters are removed; the link still goes to the same page."} /></p>
+      </div>
+      <Switch
+        checked={cleanLinks}
         onCheckedChange={handleToggle}
       />
     </div>

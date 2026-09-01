@@ -22,6 +22,21 @@ allprojects {
         google()
         mavenCentral()
     }
+
+    // Ditto ships FOSS-only builds. `androidx.credentials:credentials-play-services-auth`
+    // (pulled in by @capgo/capacitor-autofill-save-password) is Apache-2.0 itself, but it
+    // exists solely to bridge Credential Manager to Google Play Services, and drags the
+    // proprietary `com.google.android.gms:play-services-auth` binary into the APK.
+    //
+    // Excluding it leaves the base `androidx.credentials` API, which talks to the
+    // Credential Manager built into the OS on Android 14+ (API 34+) and therefore works
+    // with any provider, including FOSS password managers. On older devices there is no
+    // provider, the call throws, and `src/lib/credentialManager.ts` falls back to writing
+    // the key to a file — the same path already used for de-Googled devices.
+    configurations.configureEach {
+        exclude group: 'androidx.credentials', module: 'credentials-play-services-auth'
+        exclude group: 'com.google.android.gms'
+    }
 }
 
 task clean(type: Delete) {

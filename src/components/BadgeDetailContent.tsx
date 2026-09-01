@@ -641,6 +641,7 @@ function BadgeHero({ heroImage, badgeName }: { heroImage: string; badgeName: str
           className="size-36 object-cover drop-shadow-lg"
           loading="lazy"
           draggable={false}
+          decoding="async"
         />
         {/* Specular glare overlay — masked to the image's alpha channel */}
         <div

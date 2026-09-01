@@ -120,6 +120,19 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
           cleaned.push({ type: d.type, authority });
         }
 
+        // Skip publishing when nothing changed — otherwise every profile save
+        // re-publishes a kind 10133 event. There's at most one target per type
+        // (dedup guarantees it), so a per-type signature is an order-insensitive
+        // equality check.
+        const signature = (list: PaymentTarget[]) =>
+          list
+            .map((t) => `${t.type}:${t.authority}`)
+            .sort()
+            .join('\n');
+        if (signature(cleaned) === signature(targets)) {
+          return true;
+        }
+
         try {
           await updateTargets(cleaned);
           return true;
@@ -133,7 +146,7 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
           return false;
         }
       },
-    }), [user, drafts, updateTargets, toast, intl]);
+    }), [user, drafts, targets, updateTargets, toast, intl]);
 
     if (!user) return null;
 

@@ -132,6 +132,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
                 alt=""
                 className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
                 loading="lazy"
+                decoding="async"
               />
             </div>
           )}
@@ -149,6 +150,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
                   onError={(e) => {
                     (e.currentTarget as HTMLElement).style.display = 'none';
                   }}
+                  decoding="async"
                 />
               ) : (
                 <div className="size-14 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border-3 border-background shadow-sm">
@@ -248,6 +250,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
               alt=""
               className="size-full object-cover"
               loading="lazy"
+              decoding="async"
             />
           </div>
         )}
@@ -268,6 +271,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
                 onError={(e) => {
                   (e.currentTarget as HTMLElement).style.display = 'none';
                 }}
+                decoding="async"
               />
             ) : (
               <div className="size-20 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 border-4 border-background shadow-sm">

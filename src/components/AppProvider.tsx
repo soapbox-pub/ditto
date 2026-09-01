@@ -1,6 +1,12 @@
-import { ReactNode, useLayoutEffect, useEffect, useMemo, useRef } from 'react';
+import { ReactNode, useCallback, useLayoutEffect, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme } from '@/contexts/AppContext';
+import {
+  accountScopedKey,
+  adoptLegacyConfig,
+  getActivePubkey,
+  subscribeActivePubkey,
+} from '@/lib/activeAccount';
 import { builtinThemes, buildThemeCssFromCore, resolveTheme, resolveThemeConfig, type ThemeConfig, type ThemesConfig } from '@/themes';
 import { AppConfigSchema } from '@/lib/schemas';
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
@@ -22,12 +28,31 @@ export function AppProvider(props: AppProviderProps) {
     defaultConfig,
   } = props;
 
+  // The config blob is PER ACCOUNT. It carries the theme, custom themes, the
+  // NIP-65 relay list, feed settings, and the sidebar arrangement, so one
+  // shared blob meant switching accounts and editing any of these (e.g. the
+  // theme) overwrote the previous account's stored copy.
+  //
+  // The pubkey can't come from the login context: `AppProvider` is mounted
+  // ABOVE `NostrLoginProvider` (whose storage is an async keychain read on
+  // native), and this hook has to pick a key on its first render. It reads the
+  // synchronous marker instead — see `lib/activeAccount.ts`.
+  const pubkey = useSyncExternalStore(subscribeActivePubkey, getActivePubkey);
+
+  // `adoptLegacyConfig` is idempotent and synchronous, and has to run before
+  // the scoped key is read: on upgrade the one pre-scoping blob is handed to
+  // whichever account is active first, and to that account only.
+  const scopedKey = useMemo(() => {
+    if (pubkey) adoptLegacyConfig(storageKey, pubkey);
+    return accountScopedKey(storageKey, pubkey);
+  }, [storageKey, pubkey]);
+
   // App configuration state with localStorage persistence.
   // The deserializer uses safeParse per top-level field so that a single
   // invalid/incomplete field (e.g. feedSettings missing a new key) doesn't
   // nuke the entire config back to defaults. Valid fields are preserved.
   const [rawConfig, setConfig] = useLocalStorage<Partial<AppConfig>>(
-    storageKey,
+    scopedKey,
     {},
     {
       serialize: JSON.stringify,
@@ -66,10 +91,22 @@ export function AppProvider(props: AppProviderProps) {
     }
   );
 
-  // Generic config updater with callback pattern. `setConfig` is referentially
-  // stable (useCallback inside useLocalStorage), so this doesn't churn the
-  // context value below.
-  const updateConfig = setConfig;
+  // Generic config updater with callback pattern.
+  //
+  // Guards against cross-account writes during a switch/logout. `logins[0]`
+  // (and every writer keyed on the active user, chiefly NostrSync applying that
+  // account's synced settings) flips a commit before this provider re-scopes
+  // its storage key. A writer that captured an earlier `updateConfig` would
+  // otherwise persist the new account's theme/relays/etc. into the PREVIOUS
+  // account's stored blob — the corruption behind "the other account's theme
+  // sticks until reload". Each `updateConfig` closes over the pubkey it is
+  // scoped to; if the marker has since moved on, the write belonged to an
+  // account that is no longer active, so drop it. The now-active account's own
+  // writer re-applies the correct values against the correctly-scoped setter.
+  const updateConfig = useCallback<typeof setConfig>((value) => {
+    if (getActivePubkey() !== pubkey) return;
+    setConfig(value);
+  }, [setConfig, pubkey]);
 
   // Memoize the merged config and the context value itself. The context is
   // consumed by every card in the feed — an unstable value identity here

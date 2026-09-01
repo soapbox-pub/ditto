@@ -302,6 +302,7 @@ function FurnitureItem({
             isDragging && 'opacity-80 scale-105 transition-transform duration-100',
             isHolding && 'scale-[1.02] transition-transform duration-100',
           )}
+          decoding="async"
         />
       )}
       {/* Hold progress bar — shown during long-press */}
@@ -362,6 +363,7 @@ function FrameWithImage({
           isDragging && 'opacity-80 scale-105 transition-transform duration-100',
           isHolding && 'scale-[1.02] transition-transform duration-100',
         )}
+        decoding="async"
       />
     );
   }
@@ -382,6 +384,7 @@ function FrameWithImage({
           draggable={false}
           className="w-full h-full object-cover"
           onError={() => setImgError(true)}
+          decoding="async"
         />
       </div>
       {/* Frame overlay on top */}
@@ -390,6 +393,7 @@ function FrameWithImage({
         alt=""
         draggable={false}
         className="absolute inset-0 w-full h-full object-contain"
+        decoding="async"
       />
     </div>
   );

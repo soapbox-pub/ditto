@@ -180,6 +180,7 @@ export function EditPeopleListDialog({ event, open, onOpenChange }: EditPeopleLi
                   onError={(e) => {
                     (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
                   }}
+                  decoding="async"
                 />
               </div>
             ) : image.trim() ? (

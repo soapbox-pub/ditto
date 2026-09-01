@@ -243,7 +243,7 @@ export function ColorMomentEyeButton({ event }: { event: NostrEvent }) {
       <span className="text-[11px] font-medium text-muted-foreground">Set as theme</span>
       {/* Eye container — overflow-hidden clips the eyelid, doesn't touch siblings */}
       <div className="relative size-9 rounded-full overflow-hidden" id={uid}>
-        <img src={eyeUrl} alt="" className="w-9 h-9" />
+        <img src={eyeUrl} alt="" className="w-9 h-9" decoding="async" />
         {isBlinking && (
           <div className="absolute inset-0 animate-eyelid-blink">
             <div className="absolute rounded-full bg-background w-full h-full bottom-0 left-0" />

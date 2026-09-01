@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
-import { Award, CalendarClock, ClipboardList, HandHeart, MessageSquareOff, Music, SmilePlus, Video } from 'lucide-react';
+import { Award, Bookmark, CalendarClock, ClipboardList, HandHeart, MessageSquareOff, Music, SmilePlus, Video } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const BlobbiStateCard = lazy(() => import('@/components/BlobbiStateCard').then(m => ({ default: m.BlobbiStateCard })));
@@ -18,6 +18,8 @@ import { parseBadgeDefinition, type BadgeData } from '@/lib/parseBadgeDefinition
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { parseProfileBadges } from '@/lib/parseProfileBadges';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
+import { EmbeddedRelayListCard } from '@/components/EmbeddedRelayListCard';
+import { EmbeddedProfileCard } from '@/components/EmbeddedProfileCard';
 import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
 import { MEMORY_CARD_KIND } from '@/lib/memorycard';
 import { isPeopleListKind } from '@/lib/packUtils';
@@ -25,6 +27,8 @@ import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
 import { EmbeddedPublicationCard } from '@/components/EmbeddedPublicationCard';
 import { EmbeddedAttestationCard } from '@/components/EmbeddedAttestationCard';
 import { ATTESTATION_KIND } from '@/lib/attestation';
+import { EmbeddedClassifiedListingCard } from '@/components/EmbeddedClassifiedListingCard';
+import { CLASSIFIED_LISTING_KIND, parseClassifiedListing } from '@/lib/classifiedListing';
 import { ExternalSourceLink } from '@/components/ExternalSourceLink';
 import { ARTICLE_KINDS } from '@/lib/articleHelpers';
 import { PUBLICATION_KINDS } from '@/lib/publications';
@@ -184,6 +188,18 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
     return <EmbeddedPeopleListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
+  // NIP-65 relay lists (kind 10002) are replaceable, so they're addressed by
+  // naddr with an empty identifier and land here rather than in EmbeddedNote.
+  if (event.kind === 10002) {
+    return <EmbeddedRelayListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Profile metadata (kind 0) is legacy-replaceable, so it too is addressed by
+  // naddr with an empty identifier. Its `content` is JSON, not prose.
+  if (event.kind === 0) {
+    return <EmbeddedProfileCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   // Kind 31871 attestations get a compact status card showing the state
   // pill + description instead of the generic title/description fallback.
   if (event.kind === ATTESTATION_KIND) {
@@ -211,6 +227,20 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
   // surface the status or the room/meeting affordance.
   if (event.kind === 30312 || event.kind === 30313) {
     return <EmbeddedRoomCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-B0 web bookmarks (kind 39701) get a compact link-preview card with a
+  // "Bookmark" pill, thumbnail, title, and description drawn from the event's
+  // own metadata tags.
+  if (event.kind === 39701) {
+    return <EmbeddedWebBookmarkCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-99 classified listings (kind 30402) get a compact product card:
+  // photo, "Listing" pill with price, title. Malformed listings (no title)
+  // fall through to the generic naddr card, which renders the NIP-31 `alt`.
+  if (event.kind === CLASSIFIED_LISTING_KIND && parseClassifiedListing(event)) {
+    return <EmbeddedClassifiedListingCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Long-form articles (NIP-23) get a rich link-preview-style card: cover
@@ -795,6 +825,74 @@ function EmbeddedStatusCard({
         <p dir="auto" className="text-sm font-medium leading-snug break-words line-clamp-3 text-foreground">
           <EmojifiedText tags={event.tags}>{text}</EmojifiedText>
         </p>
+      )}
+    </EmbeddedCardShell>
+  );
+}
+
+/**
+ * Compact inline card for NIP-B0 web bookmarks (kind 39701). Shows a "Bookmark"
+ * pill, a thumbnail (from the `image` tag), the page title, and the description
+ * — all drawn from the event's own metadata tags. The generic
+ * {@link EmbeddedNaddrCard} would render title/description but drop the image
+ * and the host affordance.
+ */
+function EmbeddedWebBookmarkCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
+  const url = sanitizeUrl(getTag('r'));
+  const title = getTag('title')?.trim();
+  const description = getTag('description')?.trim();
+  const image = sanitizeUrl(getTag('image'));
+  const host = url ? new URL(url).hostname.replace(/^www\./, '') : getTag('d');
+
+  const naddrId = useMemo(() => {
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+    return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
+  }, [event]);
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={naddrId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      {image && (
+        <div className="relative w-full overflow-hidden rounded-lg bg-muted/30" style={{ aspectRatio: '1.91' }}>
+          <img
+            src={image}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="absolute inset-0 size-full object-cover"
+          />
+        </div>
+      )}
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-primary">
+        <Bookmark className="size-3" />
+        Bookmark
+      </div>
+      {title && (
+        <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
+          {title}
+        </p>
+      )}
+      {description && (
+        <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words">
+          {description}
+        </p>
+      )}
+      {host && (
+        <p className="truncate text-[11px] text-muted-foreground">{host}</p>
       )}
     </EmbeddedCardShell>
   );

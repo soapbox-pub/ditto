@@ -34,6 +34,7 @@ import { z } from 'zod';
 import { IntroImage } from '@/components/IntroImage';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { isValidAvatarShape } from '@/lib/avatarShape';
+import { isAnimatedImage, METADATA_SCAN_BYTES } from '@/lib/imageMetadata';
 
 // Extended form schema that includes custom fields and avatar shape
 const formSchema = n.metadata().extend({
@@ -160,8 +161,37 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
     return () => sub.unsubscribe();
   }, [form, notifyChange]);
 
+  // Upload an image file and record its URL on the form.
+  const uploadImage = async (file: File, field: 'picture' | 'banner') => {
+    try {
+      const [[, url]] = await uploadFile(file);
+      form.setValue(field, url);
+      notifyChange();
+      toast({
+        title: intl.formatMessage({ id: 'editProfile.toast.success', defaultMessage: "Success" }),
+        description: field === 'picture' ? intl.formatMessage({ id: 'editProfile.toast.pictureUploaded', defaultMessage: "Profile picture uploaded successfully" }) : intl.formatMessage({ id: 'editProfile.toast.bannerUploaded', defaultMessage: "Banner uploaded successfully" }),
+      });
+    } catch (error) {
+      console.error(`Failed to upload ${field}:`, error);
+      toast({
+        title: intl.formatMessage({ id: 'editProfile.toast.error', defaultMessage: "Error" }),
+        description: field === 'picture' ? intl.formatMessage({ id: 'editProfile.toast.pictureUploadFailed', defaultMessage: "Failed to upload profile picture. Please try again." }) : intl.formatMessage({ id: 'editProfile.toast.bannerUploadFailed', defaultMessage: "Failed to upload banner. Please try again." }),
+        variant: 'destructive',
+      });
+    }
+  };
+
   // Open crop dialog when user picks a file
-  const openCropDialog = (file: File, field: 'picture' | 'banner') => {
+  const openCropDialog = async (file: File, field: 'picture' | 'banner') => {
+    // Animated images (GIF, APNG, animated WebP) can't survive the crop
+    // dialog's canvas round-trip, which flattens them to a single frame. Upload
+    // them byte-for-byte instead of silently killing the animation.
+    const head = new Uint8Array(await file.slice(0, METADATA_SCAN_BYTES).arrayBuffer());
+    if (isAnimatedImage(file.type, head)) {
+      await uploadImage(file, field);
+      return;
+    }
+
     const objectUrl = URL.createObjectURL(file);
     setCropState({
       open: true,
@@ -180,22 +210,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
     URL.revokeObjectURL(imageSrc);
 
     const file = new File([blob], `${field}.jpg`, { type: 'image/jpeg' });
-    try {
-      const [[, url]] = await uploadFile(file);
-      form.setValue(field, url);
-      notifyChange();
-      toast({
-        title: intl.formatMessage({ id: 'editProfile.toast.success', defaultMessage: "Success" }),
-        description: field === 'picture' ? intl.formatMessage({ id: 'editProfile.toast.pictureUploaded', defaultMessage: "Profile picture uploaded successfully" }) : intl.formatMessage({ id: 'editProfile.toast.bannerUploaded', defaultMessage: "Banner uploaded successfully" }),
-      });
-    } catch (error) {
-      console.error(`Failed to upload ${field}:`, error);
-      toast({
-        title: intl.formatMessage({ id: 'editProfile.toast.error', defaultMessage: "Error" }),
-        description: field === 'picture' ? intl.formatMessage({ id: 'editProfile.toast.pictureUploadFailed', defaultMessage: "Failed to upload profile picture. Please try again." }) : intl.formatMessage({ id: 'editProfile.toast.bannerUploadFailed', defaultMessage: "Failed to upload banner. Please try again." }),
-        variant: 'destructive',
-      });
-    }
+    await uploadImage(file, field);
   };
 
   const handleCropCancel = () => {
@@ -354,7 +369,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                     placeholder="https://example.com/profile.jpg"
                     description={intl.formatMessage({ id: 'editProfile.picture.description', defaultMessage: "Upload an image or provide a URL" })}
                     previewType="square"
-                    onPickFile={(file) => openCropDialog(file, 'picture')}
+                    onPickFile={(file) => { void openCropDialog(file, 'picture'); }}
                   />
                 )}
               />
@@ -369,7 +384,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                     placeholder="https://example.com/banner.jpg"
                     description={intl.formatMessage({ id: 'editProfile.banner.description', defaultMessage: "Wide banner image for your profile" })}
                     previewType="wide"
-                    onPickFile={(file) => openCropDialog(file, 'banner')}
+                    onPickFile={(file) => { void openCropDialog(file, 'banner'); }}
                   />
                 )}
               />
@@ -638,6 +653,7 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
                 src={field.value}
                 alt={intl.formatMessage({ id: 'editProfile.previewAlt', defaultMessage: "{label} preview" }, { label })}
                 className="h-full w-full object-cover"
+                decoding="async"
               />
             </div>
           )}

@@ -16,12 +16,16 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Lightbox, LOADING_SENTINEL } from '@/components/ImageGallery';
 import { PhotoBottomBar } from '@/components/PhotoBottomBar';
+import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
+import { useDecryptedFile } from '@/hooks/useDecryptedFile';
+import { type FileEncryption } from '@/lib/encryptedFile';
 import { getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useInView } from '@/hooks/useInView';
 import { parseDimToAspectRatio, eventToMediaItem, type MediaType, type MediaItem } from '@/lib/mediaUtils';
 
 /** A row of items in the justified layout. */
@@ -97,6 +101,8 @@ interface FlatEntry {
   mime?: string;
   dim?: string;
   blurhash?: string;
+  /** Present when `url` serves ciphertext that must be decrypted before display. */
+  encryption?: FileEncryption;
   pubkey: string;
   event: NostrEvent;
   indexInEvent: number;
@@ -132,7 +138,15 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
   const [loaded, setLoaded] = useState(false);
   const { config } = useAppContext();
   // Content-addressed Blossom URLs get automatic fallback across servers.
-  const { src, onError } = useBlossomFallback(item.url);
+  const fallback = useBlossomFallback(item.url);
+  // Encrypted blobs are fetched and decrypted to an object URL instead, since
+  // pointing an <img>/<video> at the ciphertext would only render garbage.
+  // Only decrypt tiles the user can see — a collage would otherwise pull every
+  // attachment on screen into memory at once.
+  const { ref: inViewRef, inView } = useInView({ rootMargin: '400px', skip: !item.encryption });
+  const decrypted = useDecryptedFile(item.url, item.encryption, { enabled: inView });
+  const src = decrypted.encrypted ? decrypted.src : fallback.src;
+  const onError = decrypted.encrypted ? undefined : fallback.onError;
   const hasCW = item.contentWarning !== undefined;
   const policy = config.contentWarningPolicy;
   const [cwRevealed, setCwRevealed] = useState(false);
@@ -140,6 +154,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
 
   return (
     <button
+      ref={inViewRef}
       className="relative overflow-hidden rounded-lg bg-muted group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary w-full h-full"
       onClick={showBlur ? (e) => { e.stopPropagation(); setCwRevealed(true); } : onClick}
       aria-label={showBlur ? 'Reveal sensitive content' : 'View media'}
@@ -183,10 +198,22 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
           loading="lazy"
           onLoad={() => setLoaded(true)}
           onError={onError}
+          decoding="async"
         />
       )}
       {item.type === 'audio' && !showBlur && (
         <AudioThumb pubkey={item.event.pubkey} />
+      )}
+
+      {decrypted.encrypted && !decrypted.src && !showBlur && (
+        <EncryptedFileNotice
+          fill
+          loading={decrypted.loading}
+          unsupported={decrypted.unsupported}
+          tooLarge={decrypted.tooLarge}
+          byteSize={decrypted.byteSize}
+          onDecryptAnyway={decrypted.decryptAnyway}
+        />
       )}
 
       {/* Content warning overlay — matches sidebar presentation */}
@@ -318,6 +345,7 @@ export function MediaCollage({ events, className, initialOpenUrl, onInitialOpenC
         mime: item.mime,
         dim: item.allDims[indexInEvent] ?? item.dim,
         blurhash: item.blurhash,
+        encryption: item.allEncryption[indexInEvent] ?? item.encryption,
         pubkey: item.event.pubkey,
         event: item.event,
         indexInEvent,
@@ -380,7 +408,10 @@ export function MediaCollage({ events, className, initialOpenUrl, onInitialOpenC
   }, [flat, hasNextPage]);
 
   const mediaTypes = useMemo(() => flat.map((e) => e.type as 'image' | 'video' | 'audio'), [flat]);
-  const mediaMeta = useMemo(() => flat.map((e) => ({ mime: e.mime, dim: e.dim, blurhash: e.blurhash, pubkey: e.pubkey })), [flat]);
+  const mediaMeta = useMemo(
+    () => flat.map((e) => ({ mime: e.mime, dim: e.dim, blurhash: e.blurhash, pubkey: e.pubkey, encryption: e.encryption })),
+    [flat],
+  );
 
   // When flat grows (new page loaded) while parked on the sentinel, auto-advance.
   const waitingForMore = useRef(false);

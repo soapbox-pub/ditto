@@ -370,12 +370,40 @@ export async function getFeeRates(baseUrls: string[], signal?: AbortSignal): Pro
   const data = await response.json();
 
   return {
-    fastestFee: Math.ceil(data['1'] || 1),
-    halfHourFee: Math.ceil(data['3'] || 1),
-    hourFee: Math.ceil(data['6'] || 1),
-    economyFee: Math.ceil(data['144'] || 1),
-    minimumFee: Math.ceil(data['504'] || 1),
+    fastestFee: sanitizeFeeRate(data?.['1']),
+    halfHourFee: sanitizeFeeRate(data?.['3']),
+    hourFee: sanitizeFeeRate(data?.['6']),
+    economyFee: sanitizeFeeRate(data?.['144']),
+    minimumFee: sanitizeFeeRate(data?.['504']),
   };
+}
+
+/**
+ * Highest fee rate we will accept from a remote endpoint, in sat/vB. Well
+ * above any real congestion (mainnet peaks have not passed ~2000 sat/vB) and
+ * far below anything that could quietly consume a wallet.
+ */
+const MAX_PLAUSIBLE_FEE_RATE = 5_000;
+
+/**
+ * Coerce a fee rate from an Esplora `/fee-estimates` response to a usable
+ * sat/vB number, falling back to 1 for anything implausible.
+ *
+ * The endpoint is operator-chosen and user-editable, and this used to be
+ * `Math.ceil(data['1'] || 1)`. `||` only catches *falsy* values, so a missing
+ * key was safe but a truthy non-number — `{"1": "5"}`, `{"1": {"fee": 5}}`,
+ * the sort of thing an API-version mismatch produces — yielded `NaN`. NaN then
+ * passed every downstream guard, because they are all `<` / `>=` comparisons
+ * and every comparison with NaN is false: no change output was added, nothing
+ * threw, the balance check passed, and the UI rendered "Fee 0" because `!NaN`
+ * is true. The result was a valid, broadcastable transaction that paid the
+ * wallet's entire remaining balance to miners.
+ */
+function sanitizeFeeRate(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 1;
+  if (value < 1) return 1;
+  if (value > MAX_PLAUSIBLE_FEE_RATE) return MAX_PLAUSIBLE_FEE_RATE;
+  return Math.ceil(value);
 }
 
 /**
@@ -386,6 +414,13 @@ export async function getFeeRates(baseUrls: string[], signal?: AbortSignal): Pro
  * @param feeRate    Fee rate in sat/vB.
  */
 export function estimateFee(numInputs: number, numOutputs: number, feeRate: number): number {
+  // Assert rather than infer. A non-finite rate produces a NaN fee, and every
+  // guard downstream of this is a `<` or `>=` comparison, all of which are
+  // false for NaN — so the failure surfaces as a transaction that hands the
+  // wallet's balance to miners rather than as an error.
+  if (!Number.isFinite(feeRate) || feeRate < 1) {
+    throw new Error(`Invalid fee rate: ${feeRate} sat/vB.`);
+  }
   const vBytes = numInputs * VBYTES_PER_INPUT + numOutputs * VBYTES_PER_OUTPUT + VBYTES_OVERHEAD;
   return Math.ceil(vBytes * feeRate);
 }

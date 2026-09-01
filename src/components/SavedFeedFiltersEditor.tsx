@@ -521,7 +521,7 @@ export function AuthorChip({ pubkey, onRemove }: { pubkey: string; onRemove: () 
   return (
     <span className="inline-flex items-center gap-1.5 pl-1.5 pr-1 py-0.5 rounded-full bg-secondary border border-border text-xs max-w-[160px]">
       {picture
-        ? <img src={picture} alt="" className="size-4 rounded-full shrink-0 object-cover" />
+        ? <img src={picture} alt="" className="size-4 rounded-full shrink-0 object-cover" decoding="async" />
         : <User className="size-3 shrink-0 text-muted-foreground" />}
       <span className="truncate">{name}</span>
       <button onClick={onRemove} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors" aria-label="Remove">

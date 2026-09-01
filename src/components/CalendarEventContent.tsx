@@ -169,6 +169,7 @@ export function CalendarEventContent({ event, compact, className }: CalendarEven
                 alt={title ?? 'Calendar event'}
                 className="h-full w-full object-cover"
                 loading="lazy"
+                decoding="async"
               />
               {/* Participant avatars overlaid on the image */}
               {participantPubkeys.length > 0 && (
@@ -245,6 +246,7 @@ export function CalendarEventContent({ event, compact, className }: CalendarEven
                 alt={title ?? 'Calendar event'}
                 className="h-full w-full object-cover"
                 loading="lazy"
+                decoding="async"
               />
             </div>
           ) : (

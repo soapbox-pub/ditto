@@ -69,6 +69,7 @@ export function LinkPreview({ url, className, hideImage, navigateToComments, sho
               // Hide broken images
               (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
             }}
+            decoding="async"
           />
         </div>
       )}

@@ -232,4 +232,51 @@ describe('NoteContent', () => {
     expect(linkText).not.toMatch(/^@npub1/); // Should not be a truncated npub
     expect(linkText).toEqual("@Anonymous");
   });
+
+  it('leaves an npub embedded in a larger token as plain text', async () => {
+    const npub = 'npub1zg69v7ys40x77y352eufp27daufrg4ncjz4ummcjx3t83y9tehhsqepuh0';
+    const content = `➜  ~ docker run ncontainer.io/${npub}/alpine:latest whoami\nroot`;
+    const event: NostrEvent = {
+      id: 'test-id',
+      pubkey: 'test-pubkey',
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 1,
+      tags: [],
+      content,
+      sig: 'test-sig',
+    };
+
+    const { container } = render(
+      <TestApp>
+        <NoteContent event={event} />
+      </TestApp>
+    );
+
+    // The image path is not a mention — the shell command survives verbatim.
+    await waitFor(() => expect(container.textContent).toBe(content));
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('still renders a bare npub that starts a token as a mention', async () => {
+    const event: NostrEvent = {
+      id: 'test-id',
+      pubkey: 'test-pubkey',
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 1,
+      tags: [],
+      content: 'hey (npub1zg69v7ys40x77y352eufp27daufrg4ncjz4ummcjx3t83y9tehhsqepuh0)',
+      sig: 'test-sig',
+    };
+
+    const { container } = render(
+      <TestApp>
+        <NoteContent event={event} />
+      </TestApp>
+    );
+
+    const mention = await screen.findByRole('link');
+    expect(mention.textContent).toEqual('@Anonymous');
+    // The parenthesis consumed as a token boundary is handed back to the text.
+    expect(container.textContent).toBe('hey (@Anonymous)');
+  });
 });

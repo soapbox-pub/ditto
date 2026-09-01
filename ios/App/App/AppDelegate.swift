@@ -66,7 +66,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         completionHandler([.banner, .sound])
     }
 
-    /// Handle notification tap: navigate the Capacitor WebView to /notifications.
+    /// Handle notification tap: hand the target path to the JS layer, which
+    /// navigates via React Router.
+    ///
+    /// The path crosses the Capacitor bridge as structured data through
+    /// `DittoNotificationPlugin.emitNotificationTap` — it is never concatenated
+    /// into a JavaScript string here, so a hostile `userInfo["url"]` (were one
+    /// ever to reach this dictionary) has no `evaluateJavaScript` sink to break
+    /// out of. Path validation and routing live in the JS listener
+    /// (`NativeNavHandler`), the single place native navigation is handled.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
@@ -74,17 +82,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     ) {
         let userInfo = response.notification.request.content.userInfo
         let path = userInfo["url"] as? String ?? "/notifications"
-
-        // Navigate the Capacitor WebView to the notifications page.
-        DispatchQueue.main.async { [weak self] in
-            guard let rootVC = self?.window?.rootViewController as? DittoBridgeViewController else {
-                completionHandler()
-                return
-            }
-            let js = "window.location.pathname !== '\(path)' && (window.location.pathname = '\(path)');"
-            rootVC.webView?.evaluateJavaScript(js) { _, _ in }
-        }
-
+        DittoNotificationPlugin.emitNotificationTap(path: path)
         completionHandler()
     }
 

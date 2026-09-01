@@ -219,13 +219,14 @@ export function EnvelopeCard({ letter, mode, index, onClick, minimal }: Envelope
             }}
           >
             {avatar ? (
-              <img src={avatar} alt="" className="w-full h-full object-cover" loading="lazy" />
+              <img src={avatar} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <img
                   src="/logo.svg"
                   alt=""
                   style={{ width: 22, height: 22, filter: 'brightness(0) invert(1) opacity(0.85)' }}
+                  decoding="async"
                 />
               </div>
             )}

@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
-import { Play, Pause, Music } from 'lucide-react';
+import { Play, Pause, Music, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
 import { useAuthor } from '@/hooks/useAuthor';
+import { DecryptedImage } from '@/components/DecryptedImage';
+import { TrackLoadNotice } from '@/components/AudioTrackStatus';
+import { useTrackLoadState } from '@/hooks/useTrackLoadState';
 import { parseMusicTrack, toAudioTrack } from '@/lib/musicHelpers';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { formatTime } from '@/lib/formatTime';
@@ -34,6 +37,7 @@ export function MusicTrackRow({ event, index }: MusicTrackRowProps) {
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
   const author = useAuthor(event.pubkey);
   const [imgError, setImgError] = useState(false);
+  const loadState = useTrackLoadState(event.id);
 
   const naddrPath = useMemo(() => {
     const d = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
@@ -70,10 +74,13 @@ export function MusicTrackRow({ event, index }: MusicTrackRowProps) {
       {/* Index / Play button */}
       <button
         onClick={handlePlay}
-        className="size-8 flex items-center justify-center shrink-0"
+        disabled={loadState.status === 'decrypting'}
+        className="size-8 flex items-center justify-center shrink-0 disabled:cursor-progress"
         aria-label={isNowPlaying && player.isPlaying ? 'Pause' : 'Play'}
       >
-        {isNowPlaying && player.isPlaying ? (
+        {loadState.status === 'decrypting' ? (
+          <Loader2 className="size-4 text-primary animate-spin" />
+        ) : isNowPlaying && player.isPlaying ? (
           <Pause className="size-4 text-primary" fill="currentColor" />
         ) : (
           <>
@@ -86,9 +93,18 @@ export function MusicTrackRow({ event, index }: MusicTrackRowProps) {
       </button>
 
       {/* Artwork */}
-      <div className="size-12 rounded-lg overflow-hidden shrink-0 bg-muted">
+      <div className="relative size-12 rounded-lg overflow-hidden shrink-0 bg-muted">
         {parsed.artwork && !imgError ? (
-          <img src={parsed.artwork} alt={parsed.title} className="size-full object-cover" loading="lazy" onError={() => setImgError(true)} />
+          <DecryptedImage
+            url={parsed.artwork}
+            encryption={parsed.artworkEncryption}
+            alt={parsed.title}
+            className="size-full object-cover"
+            loading="lazy"
+            onError={() => setImgError(true)}
+            decoding="async"
+            noticeFill
+          />
         ) : (
           <div className="size-full flex items-center justify-center bg-primary/10">
             <Music className="size-5 text-primary/30" />
@@ -104,7 +120,9 @@ export function MusicTrackRow({ event, index }: MusicTrackRowProps) {
         )}>
           {parsed.title}
         </p>
-        <p className="text-xs text-muted-foreground truncate">{parsed.artist}</p>
+        {loadState.status === 'ready'
+          ? <p className="text-xs text-muted-foreground truncate">{parsed.artist}</p>
+          : <TrackLoadNotice trackId={event.id} />}
       </div>
 
       {/* Duration */}

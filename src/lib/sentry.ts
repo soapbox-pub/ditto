@@ -56,12 +56,18 @@ export async function initializeSentry(dsn: string): Promise<void> {
     // Initialize Sentry
     init({
       dsn,
-      integrations: [
+      // `BrowserApiErrors` monkey-patches setTimeout, setInterval,
+      // requestAnimationFrame and addEventListener so it can attach better
+      // stack traces to errors thrown inside them. That wrapper is expensive
+      // at Ditto's callback volume: a production trace of one navigation
+      // showed 5113 wrapped invocations costing 1043ms, most of it relay
+      // WebSocket messages. Uncaught errors from those callbacks still reach
+      // Sentry through `globalHandlers`, so we give up some stack context
+      // rather than a second of main thread per navigation.
+      integrations: (defaults) => [
+        ...defaults.filter((integration) => integration.name !== 'BrowserApiErrors'),
         browserTracingIntegration(),
       ],
-      // Disable default integrations that pull in large optional dependencies.
-      // Replay and feedback are re-exported by @sentry/browser but we don't use them.
-      defaultIntegrations: undefined,
       // Performance Monitoring
       tracesSampleRate: 0.1, // Capture 10% of transactions for performance monitoring
       // Environment

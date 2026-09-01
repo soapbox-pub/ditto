@@ -425,6 +425,7 @@ function InlineBookCard({ isbn }: { isbn: string }) {
           onError={(e) => {
             (e.currentTarget as HTMLElement).style.display = 'none';
           }}
+          decoding="async"
         />
       ) : (
         <div className="w-10 h-14 rounded bg-muted flex items-center justify-center shrink-0">

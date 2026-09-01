@@ -42,10 +42,10 @@ export function AdvancedSettings() {
   const handleStatsPubkeyChange = (value: string) => {
     setStatsPubkey(value);
     if (value.length === 64 && /^[0-9a-f]{64}$/i.test(value)) {
-      updateConfig(() => ({ nip85StatsPubkey: value.toLowerCase() }));
+      updateConfig((current) => ({ ...current, nip85StatsPubkey: value.toLowerCase() }));
       toast({ title: intl.formatMessage({ id: 'settings.advanced.statsSourceUpdated', defaultMessage: "Stats source updated" }), description: intl.formatMessage({ id: 'settings.advanced.statsSourceUpdatedDescription', defaultMessage: "Using NIP-85 stats from this pubkey." }) });
     } else if (value.length === 0) {
-      updateConfig(() => ({ nip85StatsPubkey: '' }));
+      updateConfig((current) => ({ ...current, nip85StatsPubkey: '' }));
       toast({ title: intl.formatMessage({ id: 'settings.advanced.statsSourceCleared', defaultMessage: "Stats source cleared" }) });
     }
   };
@@ -54,7 +54,7 @@ export function AdvancedSettings() {
 
   const handleCurrencyChange = async (value: string) => {
     if (value !== 'usd' && value !== 'sats') return;
-    updateConfig(() => ({ currencyDisplay: value }));
+    updateConfig((current) => ({ ...current, currencyDisplay: value }));
     if (user) await updateSettings.mutateAsync({ currencyDisplay: value });
     toast({
       title: intl.formatMessage({ id: 'settings.advanced.currencyUpdated', defaultMessage: "Currency display updated" }),
@@ -130,7 +130,7 @@ export function AdvancedSettings() {
                   onBlur={async () => {
                     const trimmed = faviconUrl.trim();
                     if (trimmed && trimmed !== config.faviconUrl) {
-                      updateConfig(() => ({ faviconUrl: trimmed }));
+                      updateConfig((current) => ({ ...current, faviconUrl: trimmed }));
                       if (user) await updateSettings.mutateAsync({ faviconUrl: trimmed });
                       toast({ title: intl.formatMessage({ id: 'settings.advanced.faviconUrlUpdated', defaultMessage: "Favicon URL updated" }) });
                     }
@@ -163,7 +163,7 @@ export function AdvancedSettings() {
                   onBlur={async () => {
                     const trimmed = linkPreviewUrl.trim();
                     if (trimmed && trimmed !== config.linkPreviewUrl) {
-                      updateConfig(() => ({ linkPreviewUrl: trimmed }));
+                      updateConfig((current) => ({ ...current, linkPreviewUrl: trimmed }));
                       if (user) await updateSettings.mutateAsync({ linkPreviewUrl: trimmed });
                       toast({ title: intl.formatMessage({ id: 'settings.advanced.linkPreviewUrlUpdated', defaultMessage: "Link preview URL updated" }) });
                     }
@@ -196,7 +196,7 @@ export function AdvancedSettings() {
                   onBlur={async () => {
                     const trimmed = corsProxy.trim();
                     if (trimmed && trimmed !== config.corsProxy) {
-                      updateConfig(() => ({ corsProxy: trimmed }));
+                      updateConfig((current) => ({ ...current, corsProxy: trimmed }));
                       if (user) await updateSettings.mutateAsync({ corsProxy: trimmed });
                       toast({ title: intl.formatMessage({ id: 'settings.advanced.corsProxyUpdated', defaultMessage: "CORS proxy updated" }) });
                     }

@@ -32,8 +32,15 @@ export function isEventMuted(
     .filter((item) => item.type === 'thread')
     .map((item) => item.value);
 
-  const replyToEventId = event.tags.find(([name]) => name === 'e')?.[1];
-  if (replyToEventId && mutedThreads.includes(replyToEventId)) {
+  // A NIP-10 reply names the thread in its `e` tags; a NIP-22 comment names
+  // the parent in `e` and the thread root in `E`, so both have to be checked
+  // or muting a thread would miss every reply below the first level.
+  // NIP-10 `mention` e-tags are inline quotes, not thread references.
+  const threadRefs = event.tags
+    .filter(([name, , , marker]) => (name === 'e' && marker !== 'mention') || name === 'E')
+    .map(([, value]) => value);
+
+  if (threadRefs.some((id) => id && mutedThreads.includes(id))) {
     return true;
   }
 

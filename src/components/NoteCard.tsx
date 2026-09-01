@@ -12,6 +12,7 @@ import {
   Egg,
   FileCode,
   FileText,
+  Flag,
   GitBranch,
   GitPullRequest,
   GitPullRequestArrow,
@@ -34,13 +35,18 @@ import {
   PartyPopper,
   Sparkles,
   Stars,
+  History,
   UserCheck,
+  UserRoundPen,
   Users,
   Volume2,
   VolumeX,
   Zap,
   Newspaper,
   BookOpen,
+  Bookmark,
+  Server,
+  Tag,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import { type ReactNode, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -48,6 +54,7 @@ import { useInView } from "@/hooks/useInView";
 import { Link } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
 const EmbeddedArticleCard = lazy(() => import("@/components/EmbeddedArticleCard").then(m => ({ default: m.EmbeddedArticleCard })));
+const ClassifiedListingContent = lazy(() => import("@/components/ClassifiedListingContent").then(m => ({ default: m.ClassifiedListingContent })));
 const EmbeddedPublicationCard = lazy(() => import("@/components/EmbeddedPublicationCard").then(m => ({ default: m.EmbeddedPublicationCard })));const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const BlobbiSocialActions = lazy(() => import("@/components/BlobbiSocialActions").then(m => ({ default: m.BlobbiSocialActions })));
 import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
@@ -73,12 +80,14 @@ import { BrokenEventFallback } from "@/components/BrokenEventFallback";
 import { CommentContext } from "@/components/CommentContext";
 import { LiveChatContext } from "@/components/LiveChatContext";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
+import { MediaGate, MediaGateProvider } from "@/components/MediaGate";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EmojifiedText, ReactionEmoji } from "@/components/CustomEmoji";
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { EmojiPackContent } from "@/components/EmojiPackContent";
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
+import { RelayListContent } from "@/components/RelayListContent";
 import { PeopleAvatarStack } from "@/components/PeopleAvatarStack";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
@@ -91,17 +100,21 @@ const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ defau
 import { PrUpdateCard } from "@/components/PrUpdateCard";
 import { RepoStateCard } from "@/components/RepoStateCard";
 import { HighlightContent } from "@/components/HighlightContent";
+import { WebBookmarkContent } from "@/components/WebBookmarkContent";
 import { StatusContent } from "@/components/StatusContent";
 import { InteractiveRoomContent } from "@/components/InteractiveRoomContent";
 import { QuizContent } from "@/components/quiz/QuizContent";
 import { QuizResultContent } from "@/components/quiz/QuizResultContent";
 import { QUIZ_KIND, QUIZ_RESULT_KIND } from "@/lib/quiz";
 import { AttestationContent } from "@/components/AttestationContent";
+import { ReportContent } from "@/components/ReportContent";
 import { ATTESTATION_KIND } from "@/lib/attestation";
+import { REPORT_KIND, reportTargetNoun } from "@/lib/report";
+import { CLASSIFIED_LISTING_KIND } from "@/lib/classifiedListing";
 import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { ZapContent } from "@/components/ZapContent";
 import { NsiteCard } from "@/components/NsiteCard";
-import { ImageGallery } from "@/components/ImageGallery";
+import { PhotoPostContent } from "@/components/PhotoPostContent";
 import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
 import { RepostIcon } from "@/components/icons/RepostIcon";
@@ -118,6 +131,9 @@ import { ProfileHoverCard } from "@/components/ProfileHoverCard";
 const PullRequestCard = lazy(() => import("@/components/PullRequestCard").then(m => ({ default: m.PullRequestCard })));
 import { ReactionButton } from "@/components/ReactionButton";
 import { ReplyComposeModal } from "@/components/ReplyComposeModal";
+import { parseFirstImeta } from '@/lib/imeta';
+import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
+import { useDecryptedFile } from '@/hooks/useDecryptedFile';
 import { ReplyContext } from "@/components/ReplyContext";
 import { RepostMenu } from "@/components/RepostMenu";
 import { ThemeContent } from "@/components/ThemeContent";
@@ -168,6 +184,7 @@ import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
 import { BLANK_POSTER } from "@/lib/blankPoster";
 import { encodeEventAddress } from "@/lib/encodeEvent";
+import { isNsiteKind } from "@/lib/nsiteSubdomain";
 import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
 
 
@@ -553,7 +570,9 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isBirdex = event.kind === 12473;
   const isConstellation = event.kind === 30621;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
+  const isRelayList = event.kind === 10002;
   const isArticle = event.kind === 30023;
+  const isClassifiedListing = event.kind === CLASSIFIED_LISTING_KIND;
   const isPublication = PUBLICATION_KINDS.has(event.kind);
   const isMagicDeck = event.kind === 37381;
   const isStream = event.kind === 30311;
@@ -589,7 +608,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isIssue = event.kind === 1621;
   const isGitStatus = event.kind >= 1630 && event.kind <= 1633;
   const isCustomNip = event.kind === 30817;
-  const isNsite = event.kind === 15128 || event.kind === 35128;
+  const isNsite = isNsiteKind(event.kind);
   const isZapstoreApp = event.kind === 32267;
   const isZapstoreRelease = event.kind === 30063;
   const isZapstoreAsset = event.kind === 3063;
@@ -598,8 +617,10 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isLetter = event.kind === 8211;
   const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
+  const isWebBookmark = event.kind === 39701;
   const isStatus = event.kind === 30315;
   const isAttestation = event.kind === ATTESTATION_KIND;
+  const isReport = event.kind === REPORT_KIND;
   const isCampaign = event.kind === 33863;
   const isQuiz = event.kind === QUIZ_KIND;
   const isQuizResult = event.kind === QUIZ_RESULT_KIND;
@@ -635,7 +656,9 @@ const NoteCardImpl = memo(function NoteCardImpl({
     !isBirdex &&
     !isConstellation &&
     !isPeopleList &&
+    !isRelayList &&
     !isArticle &&
+    !isClassifiedListing &&
     !isPublication &&
     !isMagicDeck &&
     !isStream &&
@@ -661,8 +684,10 @@ const NoteCardImpl = memo(function NoteCardImpl({
     !isLetter &&
     !isLoveList &&
     !isHighlight &&
+    !isWebBookmark &&
     !isStatus &&
     !isAttestation &&
+    !isReport &&
     !isCampaign &&
     !isQuiz &&
     !isQuizResult &&
@@ -790,8 +815,9 @@ const NoteCardImpl = memo(function NoteCardImpl({
         resetKeys={[event.id]}
       >
         <ContentWarningGuard event={event}>
+        <MediaGateProvider pubkey={event.pubkey}>
         {isPhoto ? (
-          <PhotoContent event={event} />
+          <PhotoPostContent event={event} fullBleed={!threaded && !threadedLast} />
         ) : isVideo ? (
           <VideoContent event={event} />
         ) : isVine ? (
@@ -821,9 +847,15 @@ const NoteCardImpl = memo(function NoteCardImpl({
           <ConstellationContent event={event} />
         ) : isPeopleList ? (
           <PeopleListContent event={event} />
+        ) : isRelayList ? (
+          <RelayListContent event={event} />
         ) : isArticle ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <EmbeddedArticleCard event={event} className="mt-2" />
+          </Suspense>
+        ) : isClassifiedListing ? (
+          <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
+            <ClassifiedListingContent event={event} />
           </Suspense>
         ) : isPublication ? (
           <Suspense fallback={<Skeleton className="h-28 w-full rounded-lg" />}>
@@ -913,12 +945,16 @@ const NoteCardImpl = memo(function NoteCardImpl({
           <LoveListContent event={event} compact />
         ) : isHighlight ? (
           <HighlightContent event={event} />
+        ) : isWebBookmark ? (
+          <WebBookmarkContent event={event} />
         ) : isStatus ? (
           <StatusContent event={event} />
         ) : isRoom ? (
           <InteractiveRoomContent event={event} />
         ) : isAttestation ? (
           <AttestationContent event={event} />
+        ) : isReport ? (
+          <ReportContent event={event} />
         ) : isCampaign ? (
           <CampaignContent event={event} />
         ) : isQuiz ? (
@@ -940,6 +976,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
             event={event}
           />
         )}
+        </MediaGateProvider>
       </ContentWarningGuard>
       </ErrorBoundary>
     </>
@@ -1839,81 +1876,6 @@ function TruncatedNoteContent({
   );
 }
 
-// ── NIP-68 Photo content (kind 20) ────────────────────────────────────────────
-
-/** Parse all imeta image URLs from NIP-68 photo events. */
-function parsePhotoUrls(
-  tags: string[][],
-): Array<{ url: string; alt?: string; blurhash?: string }> {
-  const results: Array<{ url: string; alt?: string; blurhash?: string }> = [];
-  for (const tag of tags) {
-    if (tag[0] !== "imeta") continue;
-    const parts: Record<string, string> = {};
-    for (let i = 1; i < tag.length; i++) {
-      const p = tag[i];
-      const sp = p.indexOf(" ");
-      if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
-    }
-    if (parts.url)
-      results.push({
-        url: parts.url,
-        alt: parts.alt,
-        blurhash: parts.blurhash,
-      });
-  }
-  return results;
-}
-
-/** Inline photo gallery for NIP-68 kind 20 events. */
-function PhotoContent({ event }: { event: NostrEvent }) {
-  const photos = useMemo(() => parsePhotoUrls(event.tags), [event.tags]);
-  const title = getTag(event.tags, "title");
-  const description = event.content;
-  const hashtags = event.tags.filter(([n]) => n === "t").map(([, v]) => v);
-
-  // Build imetaMap with dim + blurhash so ImageGallery can show blurhash placeholders
-  const imetaMap = useMemo(() => {
-    const map = new Map<string, { dim?: string; blurhash?: string }>();
-    for (const photo of photos) {
-      map.set(photo.url, { blurhash: photo.blurhash });
-    }
-    return map;
-  }, [photos]);
-
-  if (photos.length === 0) return null;
-
-  return (
-    <div className="mt-2 space-y-2">
-      {title && <p className="font-semibold text-[15px]">{title}</p>}
-      <ImageGallery
-        images={photos.map((p) => p.url)}
-        maxVisible={4}
-        maxGridHeight="480px"
-        imetaMap={imetaMap}
-      />
-      {description && (
-        <p className="text-[15px] leading-relaxed text-muted-foreground">
-          {description}
-        </p>
-      )}
-      {hashtags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {hashtags.slice(0, 5).map((tag) => (
-            <Link
-              key={tag}
-              to={`/t/${encodeURIComponent(tag)}`}
-              className="text-xs text-primary hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              #{tag}
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── NIP-71 Video content (kinds 21 & 22) ──────────────────────────────────────
 
 /** Parse the primary video url and thumbnail from NIP-71 imeta tags. */
@@ -1921,21 +1883,16 @@ function parseVideoImeta(tags: string[][]): {
   url?: string;
   thumbnail?: string;
   duration?: string;
+  encryption?: FileEncryption;
 } {
-  for (const tag of tags) {
-    if (tag[0] !== "imeta") continue;
-    const parts: Record<string, string> = {};
-    for (let i = 1; i < tag.length; i++) {
-      const p = tag[i];
-      const sp = p.indexOf(" ");
-      if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
-    }
-    if (parts.url)
-      return {
-        url: parts.url,
-        thumbnail: parts.image,
-        duration: parts.duration,
-      };
+  const entry = parseFirstImeta(tags);
+  if (entry) {
+    return {
+      url: entry.url,
+      thumbnail: entry.thumbnail,
+      duration: entry.duration,
+      encryption: entry.encryption,
+    };
   }
   // Fallback to plain url/thumb tags
   return {
@@ -1960,7 +1917,7 @@ function fmtDuration(seconds: string | undefined): string | undefined {
 
 /** Inline video player for NIP-71 kind 21 events. */
 function VideoContent({ event }: { event: NostrEvent }) {
-  const { url, thumbnail, duration } = useMemo(
+  const { url, thumbnail, duration, encryption } = useMemo(
     () => parseVideoImeta(event.tags),
     [event.tags],
   );
@@ -1974,14 +1931,16 @@ function VideoContent({ event }: { event: NostrEvent }) {
   return (
     <div className="mt-2 space-y-2">
       {title && <p className="font-semibold text-[15px]">{title}</p>}
-      <div className="relative rounded-xl overflow-hidden bg-muted">
-        <VideoPlayer src={url} poster={thumbnail} title={title ?? undefined} />
-        {formattedDuration && (
-          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-medium pointer-events-none">
-            {formattedDuration}
-          </div>
-        )}
-      </div>
+      <MediaGate className="mt-0">
+        <div className="relative rounded-xl overflow-hidden bg-muted">
+          <VideoPlayer src={url} poster={thumbnail} encryption={encryption} title={title ?? undefined} />
+          {formattedDuration && (
+            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-medium pointer-events-none">
+              {formattedDuration}
+            </div>
+          )}
+        </div>
+      </MediaGate>
       {description && (
         <p className="text-[15px] leading-relaxed text-muted-foreground">
           {description}
@@ -2010,10 +1969,19 @@ function VineMedia({
   imeta,
   hashtags,
 }: {
-  imeta?: { url?: string; thumbnail?: string };
+  imeta?: { url?: string; thumbnail?: string; encryption?: FileEncryption };
   hashtags: string[];
 }) {
   const { config } = useAppContext();
+  // The vine and its thumbnail are separate blobs under one key, so the
+  // thumbnail can't be checked against the vine's `ox` hash or MIME type.
+  const decrypted = useDecryptedFile(imeta?.url ?? '', imeta?.encryption);
+  const decryptedThumb = useDecryptedFile(
+    imeta?.thumbnail ?? '',
+    imeta?.thumbnail && imeta.encryption ? companionEncryption(imeta.encryption) : undefined,
+  );
+  const videoUrl = decrypted.src;
+  const thumbnailUrl = imeta?.thumbnail ? decryptedThumb.src : undefined;
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -2083,6 +2051,7 @@ function VineMedia({
   return (
     <>
       {imeta?.url && (
+        <MediaGate className="mt-3">
         <div
           ref={containerRef}
           className={cn(
@@ -2099,15 +2068,16 @@ function VineMedia({
               native gray play-circle that a poster-bearing <video> would draw. */}
           {imeta.thumbnail && !isPlaying && (
             <img
-              src={imeta.thumbnail}
+              src={thumbnailUrl}
               alt=""
               aria-hidden
               className="w-full max-h-[70vh] object-cover"
+              decoding="async"
             />
           )}
           <video
             ref={videoRef}
-            src={imeta.url}
+            src={videoUrl}
             data-no-native-poster=""
             poster={BLANK_POSTER}
             className={cn(
@@ -2145,6 +2115,7 @@ function VineMedia({
             </button>
           )}
         </div>
+        </MediaGate>
       )}
 
       {hashtags.length > 0 && (
@@ -2255,6 +2226,7 @@ function StreamContent({ event }: { event: NostrEvent }) {
                 (e.currentTarget.parentElement as HTMLElement).style.display =
                   "none";
               }}
+              decoding="async"
             />
             <div className="absolute top-2 left-2">
               <Badge
@@ -2445,6 +2417,11 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: "updated their",
     noun: "status",
   },
+  39701: {
+    icon: Bookmark,
+    action: (event) => publishedAtAction(event, { created: "bookmarked a", updated: "updated a", fallback: "bookmarked a" }),
+    noun: "web page",
+  },
   8: {
     icon: Award,
     action: "awarded a",
@@ -2578,6 +2555,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     noun: "nsite",
     nounRoute: "/development",
   },
+  5128: {
+    icon: History,
+    action: "snapshotted an",
+    noun: "nsite",
+    nounRoute: "/development",
+  },
   9735: {
     icon: Zap,
     action: "zapped",
@@ -2605,10 +2588,21 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: (event) => publishedAtAction(event, { created: "published an", updated: "updated an", fallback: "published an" }),
     noun: "attestation",
   },
+  [REPORT_KIND]: {
+    icon: Flag,
+    // The whole phrase lives in `action` because the noun varies with the
+    // target ("a post" / "a user" / "a file") and links nowhere.
+    action: (event) => `reported a ${reportTargetNoun(event)}`,
+  },
   33863: {
     icon: HandHeart,
     action: (event) => publishedAtAction(event, { created: "started a", updated: "updated their", fallback: "shared a" }),
     noun: "fundraiser",
+  },
+  [CLASSIFIED_LISTING_KIND]: {
+    icon: Tag,
+    action: (event) => publishedAtAction(event, { created: "listed a", updated: "updated a", fallback: "listed a" }),
+    noun: "listing",
   },
   8333: {
     icon: Zap,
@@ -2658,6 +2652,16 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     icon: UserCheck,
     action: "updated their",
     noun: "follow list",
+  },
+  10002: {
+    icon: Server,
+    action: "updated their",
+    noun: "relay list",
+  },
+  0: {
+    icon: UserRoundPen,
+    action: "updated their",
+    noun: "profile",
   },
 };
 

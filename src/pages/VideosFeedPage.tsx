@@ -59,6 +59,9 @@ import { cn } from "@/lib/utils";
 
 // Reuse the real VineCard — no re-implementation
 import { VineCard } from "@/pages/VinesFeedPage";
+import { parseFirstImeta } from '@/lib/imeta';
+import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
+import { useDecryptedFile } from '@/hooks/useDecryptedFile';
 
 const videosDef = getExtraKindDef("videos")!;
 
@@ -78,27 +81,20 @@ function parseVideoImeta(tags: string[][]): {
   thumbnail?: string;
   duration?: string;
   blurhash?: string;
+  encryption?: FileEncryption;
 } {
   // Standalone fallback tags (checked after imeta)
   const standaloneThumb = getTag(tags, "thumb") ?? getTag(tags, "image");
 
-  for (const tag of tags) {
-    if (tag[0] !== "imeta") continue;
-    const parts: Record<string, string> = {};
-    for (let i = 1; i < tag.length; i++) {
-      const p = tag[i];
-      const sp = p.indexOf(" ");
-      if (sp !== -1) parts[p.slice(0, sp)] = p.slice(sp + 1);
-    }
-    if (parts.url) {
-      return {
-        url: parts.url,
-        // imeta uses "image" key for thumbnail; fall back to standalone tags
-        thumbnail: parts.image ?? parts.thumb ?? standaloneThumb,
-        duration: parts.duration,
-        blurhash: parts.blurhash,
-      };
-    }
+  const entry = parseFirstImeta(tags);
+  if (entry) {
+    return {
+      url: entry.url,
+      thumbnail: entry.thumbnail ?? standaloneThumb,
+      duration: entry.duration,
+      blurhash: entry.blurhash,
+      encryption: entry.encryption,
+    };
   }
   return { url: getTag(tags, "url"), thumbnail: standaloneThumb };
 }
@@ -223,12 +219,22 @@ function VideoGridCard({ event }: { event: NostrEvent }) {
     thumbnail: imetaThumb,
     duration,
     blurhash,
+    encryption,
   } = parseVideoImeta(event.tags);
   const title =
     getTag(event.tags, "title") ?? (event.content.slice(0, 120) || "Untitled");
   const dur = fmtDuration(duration);
-  const generatedThumb = useVideoThumbnail(url ?? "", imetaThumb);
-  const thumbnail = imetaThumb ?? generatedThumb;
+  // The thumbnail shares the video's key but is its own blob, so the video's
+  // `ox` hash and MIME type don't describe it.
+  const decryptedThumb = useDecryptedFile(
+    imetaThumb ?? "",
+    imetaThumb && encryption ? companionEncryption(encryption) : undefined,
+  );
+  const resolvedThumb = imetaThumb ? decryptedThumb.src : undefined;
+  // Generating a thumbnail decodes video frames — never possible against
+  // ciphertext, so don't try for encrypted sources.
+  const generatedThumb = useVideoThumbnail(encryption ? "" : (url ?? ""), imetaThumb);
+  const thumbnail = resolvedThumb ?? (encryption ? undefined : generatedThumb);
 
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
@@ -269,6 +275,7 @@ function VideoGridCard({ event }: { event: NostrEvent }) {
               alt={title}
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
               loading="lazy"
+              decoding="async"
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
@@ -503,6 +510,7 @@ function LiveStreamCard({ event }: { event: NostrEvent }) {
             alt={title}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             loading="lazy"
+            decoding="async"
           />
         ) : (
           <div
@@ -639,11 +647,15 @@ function ShortThumb({
   event: NostrEvent;
   onClick: () => void;
 }) {
-  const { url, thumbnail: imetaThumb, blurhash } = parseVideoImeta(event.tags);
+  const { url, thumbnail: imetaThumb, blurhash, encryption } = parseVideoImeta(event.tags);
   const title =
     getTag(event.tags, "title") ?? (event.content.slice(0, 60) || "Short");
-  const generatedThumb = useVideoThumbnail(url ?? "", imetaThumb);
-  const thumbnail = imetaThumb ?? generatedThumb;
+  const decryptedThumb = useDecryptedFile(
+    imetaThumb ?? "",
+    imetaThumb && encryption ? companionEncryption(encryption) : undefined,
+  );
+  const generatedThumb = useVideoThumbnail(encryption ? "" : (url ?? ""), imetaThumb);
+  const thumbnail = (imetaThumb ? decryptedThumb.src : undefined) ?? (encryption ? undefined : generatedThumb);
 
   return (
     <button
@@ -671,6 +683,7 @@ function ShortThumb({
               alt={title}
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
               loading="lazy"
+              decoding="async"
             />
           ) : !blurhash ? (
             <div className="absolute inset-0 flex items-center justify-center">

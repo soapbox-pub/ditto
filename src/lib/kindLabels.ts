@@ -245,6 +245,7 @@ export const KIND_LABELS: Record<number, string> = {
   14921: 'Blobbi record',
 
   // NIP-5A nsites
+  5128: 'Nsite snapshot',
   15128: 'Nsite',
   // Ditto custom — Love List ("1·LOVE" on a phone keypad)
   15683: 'Love list',

@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback, type ReactNode } from 'react';
-import { type NostrEvent } from '@nostrify/nostrify';
+import { type NostrEvent, type NostrMetadata } from '@nostrify/nostrify';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -15,20 +15,25 @@ import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { Lightbox, ImageGallery } from '@/components/ImageGallery';
 import { NostrMention } from '@/components/NostrMention';
+import { MediaGate } from '@/components/MediaGate';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { buildEmojiMap } from '@/lib/customEmoji';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
+import { useDecryptedFile } from '@/hooks/useDecryptedFile';
+import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
+import { type FileEncryption } from '@/lib/encryptedFile';
 import { COUNTRIES } from '@/lib/countries';
 import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
 import { parseBlossomUri, resolveBlossomUri, type BlossomUri } from '@/lib/blossomUri';
 import { useBlossomUri } from '@/hooks/useBlossomUri';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveBlossomServers } from '@/lib/appBlossom';
-import { parseImetaMap } from '@/lib/imeta';
+import { parseImetaEntries, parseImetaMap, type ImetaEntry } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { parseArmadaInvite, type ArmadaInvite } from '@/lib/armadaInvite';
 import { HASHTAG_PATTERN } from '@/lib/hashtag';
+import { stripTrackingParams } from '@/lib/trackingParams';
 import { highlightSourceAttrs } from '@/lib/highlightSource';
 import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
@@ -174,6 +179,21 @@ const BECH32_CHARS = '023456789acdefghjklmnpqrstuvwxyz';
 
 /** Regex to extract an naddr1 identifier from a URL path. */
 const NADDR_IN_URL_REGEX = new RegExp(`naddr1[${BECH32_CHARS}]{10,}`, 'i');
+
+/**
+ * Character class matching what may immediately precede a bare (non-`nostr:`-prefixed)
+ * NIP-19 identifier. Without this guard, an npub buried inside a larger token —
+ * `ncontainer.io/npub1…/alpine:latest`, `npub1….txt` — is mistaken for a mention.
+ * Path separators, dots, colons, and URL punctuation are excluded along with word
+ * characters; `@` is excluded too, since the pattern consumes an optional `@`
+ * prefix of its own.
+ *
+ * Written as a negated class rather than a lookbehind: iOS 15 WKWebView (the
+ * app's deployment target) predates lookbehind support and would throw on the
+ * `new RegExp` call. The matched character is captured so callers can re-emit it
+ * as text.
+ */
+const BARE_NIP19_BOUNDARY = '[^\\p{L}\\p{N}_/:.@+=?&%#~\\\\-]';
 
 /** Try to extract naddr coordinates from a URL containing an naddr1 identifier. */
 function extractNaddrFromUrl(url: string): AddrCoords | null {
@@ -340,16 +360,30 @@ export function NoteContent({
     [config.blossomServerMetadata, config.useAppBlossomServers],
   );
 
+  // Canonicalize links on the way in as well as on the way out: a URL that
+  // arrived from another client, a repost, or a note predating the setting
+  // still carries its share/click ids, and rendering it hands them to whatever
+  // fetches the link — the link-preview unfurler included, which runs before
+  // any click.
+  const cleanLinks = config.stripTrackingParams !== false;
+
   const tokens = useMemo(() => {
     const text = event.content;
+
+    // URLs declared in an imeta tag are matched to their metadata by exact
+    // string, so rewriting one would orphan its dimensions, blurhash and
+    // decryption key. An uploaded attachment has no tracking to strip anyway.
+    const imetaUrls = new Set(parseImetaEntries(event.tags).map((entry) => entry.url));
     // Match: BOLT11 invoices | URLs | nostr:-prefixed NIP-19 ids | @-prefixed or bare NIP-19 ids | hashtags
     // BOLT11: optional "lightning:" prefix + lnbc/lntb/lnbcrt/lntbs + bech32 data (case-insensitive)
-    // NIP-19 ids can appear anywhere (with optional @ prefix that gets consumed)
+    // A `nostr:` id can appear anywhere, but a bare one must start at a token
+    // boundary (with optional @ prefix that gets consumed) so identifiers
+    // embedded in paths and other compound tokens stay plain text.
     const regex = new RegExp(
       '(?:lightning:)?(ln(?:bc|tb|bcrt|tbs)\\d*[munp]?1[023456789acdefghjklmnpqrstuvwxyz]+)'
       + '|((?:https?|wss?):\\/\\/[^\\s]+)'
       + '|nostr:(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)'
-      + '|@?(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)'
+      + `|(^|${BARE_NIP19_BOUNDARY})@?(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)`
       + `|(${HASHTAG_PATTERN})`
       + '|(blossom:[a-f0-9]{64}\\.[a-z0-9]+(?:\\?[^\\s]*)?)',
       'giu',
@@ -364,11 +398,18 @@ export function NoteContent({
       let [fullMatch] = match;
       const bolt11 = match[1];
       let url = match[2];
-      const hashtag = match[7];
-      const blossom = match[8];
-      const { 3: nostrPrefix, 4: nostrData, 5: barePrefix, 6: bareData } = match;
-      const index = match.index;
+      const hashtag = match[8];
+      const blossom = match[9];
+      const { 3: nostrPrefix, 4: nostrData, 5: bareBoundary, 6: barePrefix, 7: bareData } = match;
+      let index = match.index;
       hadMatches = true;
+
+      // The character preceding a bare NIP-19 id was consumed to prove the id
+      // starts a token. It belongs to the text before the match, so hand it back.
+      if (bareBoundary) {
+        index += bareBoundary.length;
+        fullMatch = fullMatch.slice(bareBoundary.length);
+      }
 
       // Add text before this match
       if (index > lastIndex) {
@@ -389,6 +430,13 @@ export function NoteContent({
             fullMatch = urlWithoutPunct;
             // The punctuation will be part of the next text token
           }
+        }
+
+        // Canonicalize before anything classifies, renders or fetches the
+        // link. `fullMatch` is deliberately left alone — it measures how much
+        // of the original text this token consumed.
+        if (cleanLinks && !imetaUrls.has(url)) {
+          url = stripTrackingParams(url);
         }
 
         // WebSocket relay URLs → link to internal relay page
@@ -588,17 +636,7 @@ export function NoteContent({
       const contentMediaUrls = new Set(
         result.filter((t): t is { type: 'media-embed'; url: string } => t.type === 'media-embed').map((t) => t.url),
       );
-      for (const tag of event.tags) {
-        if (tag[0] !== 'imeta') continue;
-        let rawUrl: string | undefined;
-        let mime: string | undefined;
-        for (let j = 1; j < tag.length; j++) {
-          const sp = tag[j].indexOf(' ');
-          if (sp === -1) continue;
-          const key = tag[j].slice(0, sp);
-          if (key === 'url') rawUrl = tag[j].slice(sp + 1);
-          else if (key === 'm') mime = tag[j].slice(sp + 1);
-        }
+      for (const { url: rawUrl, mime } of parseImetaEntries(event.tags)) {
         const url = sanitizeUrl(rawUrl);
         if (!url || contentMediaUrls.has(url)) continue;
         const isEmbeddableMedia = mime?.startsWith('audio/') || mime?.startsWith('video/')
@@ -653,7 +691,7 @@ export function NoteContent({
 
     // Filter out empty text tokens
     return result.filter((t) => !(t.type === 'text' && t.value === ''));
-  }, [event, preserveEdgeWhitespace, blossomServers]);
+  }, [event, preserveEdgeWhitespace, blossomServers, cleanLinks]);
 
   // Build emoji map for NIP-30 custom emoji rendering.
   // Merge the event's own emoji tags with the viewer's custom emoji collection
@@ -720,6 +758,12 @@ export function NoteContent({
     [groupedTokens],
   );
 
+  // Per-slot metadata for the shared lightbox — chiefly the decryption key.
+  const lightboxMeta = useMemo(
+    () => allImages.map((url) => imetaMap.get(url) ?? {}),
+    [allImages, imetaMap],
+  );
+
   // Shared lightbox state for inline images
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const closeLightbox = useCallback(() => setLightboxIndex(null), []);
@@ -760,11 +804,13 @@ export function NoteContent({
             }
             const imgIndex = tokenImageIndex.get(i) ?? 0;
             return (
-              <InlineImage
-                key={i}
-                url={token.url}
-                onClick={(e) => { e.stopPropagation(); setLightboxIndex(imgIndex); }}
-              />
+              <MediaGate key={i}>
+                <InlineImage
+                  url={token.url}
+                  encryption={imetaMap.get(token.url)?.encryption}
+                  onClick={(e) => { e.stopPropagation(); setLightboxIndex(imgIndex); }}
+                />
+              </MediaGate>
             );
           }
           case 'image-gallery': {
@@ -779,16 +825,17 @@ export function NoteContent({
                 ? lightboxIndex - galleryStartIndex
                 : null;
             return (
-              <ImageGallery
-                key={i}
-                images={token.urls}
-                maxVisible={4}
-                maxGridHeight="480px"
-                imetaMap={imetaMap}
-                lightboxIndex={galleryLightboxIndex}
-                onLightboxOpen={(idx) => { setLightboxIndex(galleryStartIndex + idx); }}
-                onLightboxClose={closeLightbox}
-              />
+              <MediaGate key={i}>
+                <ImageGallery
+                  images={token.urls}
+                  maxVisible={4}
+                  maxGridHeight="480px"
+                  imetaMap={imetaMap}
+                  lightboxIndex={galleryLightboxIndex}
+                  onLightboxOpen={(idx) => { setLightboxIndex(galleryStartIndex + idx); }}
+                  onLightboxClose={closeLightbox}
+                />
+              </MediaGate>
             );
           }
           case 'link-embed':
@@ -829,30 +876,28 @@ export function NoteContent({
             const isWebxdc = mime === 'application/x-webxdc' || mime === 'application/vnd.webxdc+zip' || token.url.endsWith('.xdc');
             const isAudio = mime.startsWith('audio/') || /\.(mp3|mpga|wav|ogg|flac|m4a|aac|opus)(\?[^\s]*)?$/i.test(token.url);
             if (isWebxdc && imeta) {
-              return <WebxdcEmbed key={i} url={token.url} uuid={imeta.webxdc} name={imeta.summary} icon={imeta.thumbnail} />;
-            }
-            if (isAudio) {
               return (
-                <AudioVisualizer
-                  key={i}
-                  src={token.url}
-                  mime={imeta?.mime}
-                  avatarUrl={authorMetadata?.picture}
-                  avatarFallback={authorDisplayName[0]?.toUpperCase() ?? '?'}
-                  avatarShape={getAvatarShape(authorMetadata)}
-                />
+                <MediaGate key={i}>
+                  <WebxdcEmbed
+                    url={token.url}
+                    uuid={imeta.webxdc}
+                    name={imeta.summary}
+                    icon={imeta.thumbnail}
+                    encryption={imeta.encryption}
+                  />
+                </MediaGate>
               );
             }
-            // Default: video
             return (
-              <VideoPlayer
-                key={i}
-                src={token.url}
-                poster={imeta?.thumbnail}
-                dim={imeta?.dim}
-                blurhash={imeta?.blurhash}
-                artist={authorDisplayName}
-              />
+              <MediaGate key={i}>
+                <MediaEmbed
+                  url={token.url}
+                  imeta={imeta}
+                  isAudio={isAudio}
+                  authorMetadata={authorMetadata}
+                  authorDisplayName={authorDisplayName}
+                />
+              </MediaGate>
             );
           }
           case 'nevent-embed':
@@ -869,7 +914,7 @@ export function NoteContent({
                 </Link>
               );
             }
-            return <EmbeddedNote key={i} eventId={token.eventId} relays={token.relays} authorHint={token.author} className="my-2.5" />;
+            return <EmbeddedNote key={i} eventId={token.eventId} relays={token.relays} authorHint={token.author} fallbackAuthorHint={event.pubkey} className="my-2.5" />;
           case 'naddr-embed':
             if (disableNoteEmbeds) {
               const naddrId = nip19.naddrEncode({ kind: token.addr.kind, pubkey: token.addr.pubkey, identifier: token.addr.identifier });
@@ -937,15 +982,16 @@ export function NoteContent({
               return null;
             }
             return (
-              <BlossomEmbed
-                key={i}
-                uri={token.uri}
-                raw={token.raw}
-                artist={authorDisplayName}
-                avatarUrl={authorMetadata?.picture}
-                avatarFallback={authorDisplayName[0]?.toUpperCase() ?? '?'}
-                avatarShape={getAvatarShape(authorMetadata)}
-              />
+              <MediaGate key={i}>
+                <BlossomEmbed
+                  uri={token.uri}
+                  raw={token.raw}
+                  artist={authorDisplayName}
+                  avatarUrl={authorMetadata?.picture}
+                  avatarFallback={authorDisplayName[0]?.toUpperCase() ?? '?'}
+                  avatarShape={getAvatarShape(authorMetadata)}
+                />
+              </MediaGate>
             );
         }
       })}
@@ -963,6 +1009,7 @@ export function NoteContent({
           onClose={closeLightbox}
           onNext={goNext}
           onPrev={goPrev}
+          mediaMeta={lightboxMeta}
         />
       )}
     </Wrapper>
@@ -971,9 +1018,27 @@ export function NoteContent({
 
 /** Inline image thumbnail that opens the shared lightbox on click.
  *  Uses a min-height placeholder to prevent layout shifts while loading. */
-function InlineImage({ url, onClick }: { url: string; onClick: (e: React.MouseEvent) => void }) {
-  const { src, onError } = useBlossomFallback(url);
+function InlineImage({ url, encryption, onClick }: {
+  url: string;
+  /** Present when `url` serves ciphertext that must be decrypted before display. */
+  encryption?: FileEncryption;
+  onClick: (e: React.MouseEvent) => void;
+}) {
+  const fallback = useBlossomFallback(url);
+  const decrypted = useDecryptedFile(url, encryption);
   const [loaded, setLoaded] = useState(false);
+
+  if (decrypted.encrypted && !decrypted.src) {
+    return (
+      <EncryptedFileNotice
+        loading={decrypted.loading}
+        unsupported={decrypted.unsupported}
+        tooLarge={decrypted.tooLarge}
+        byteSize={decrypted.byteSize}
+        onDecryptAnyway={decrypted.decryptAnyway}
+      />
+    );
+  }
 
   return (
     <button
@@ -983,15 +1048,53 @@ function InlineImage({ url, onClick }: { url: string; onClick: (e: React.MouseEv
     >
       <div className={cn('relative w-full rounded-lg overflow-hidden', !loaded && 'bg-muted')} style={!loaded ? { minHeight: 200 } : undefined}>
         <img
-          src={src}
+          src={decrypted.encrypted ? decrypted.src : fallback.src}
           alt=""
           className="block w-full h-auto rounded-lg hover:opacity-90 transition-opacity"
           loading="lazy"
           onLoad={() => setLoaded(true)}
-          onError={() => { setLoaded(true); onError(); }}
+          onError={() => { setLoaded(true); if (!decrypted.encrypted) fallback.onError(); }}
+          decoding="async"
         />
       </div>
     </button>
+  );
+}
+
+/**
+ * Inline video or audio attachment. Encrypted sources are decrypted to an
+ * object URL first — including the poster, which the sender encrypts under the
+ * same key as the file itself.
+ */
+function MediaEmbed({ url, imeta, isAudio, authorMetadata, authorDisplayName }: {
+  url: string;
+  imeta?: ImetaEntry;
+  isAudio: boolean;
+  authorMetadata?: NostrMetadata;
+  authorDisplayName: string;
+}) {
+  if (isAudio) {
+    return (
+      <AudioVisualizer
+        src={url}
+        mime={imeta?.mime}
+        encryption={imeta?.encryption}
+        avatarUrl={authorMetadata?.picture}
+        avatarFallback={authorDisplayName[0]?.toUpperCase() ?? '?'}
+        avatarShape={getAvatarShape(authorMetadata)}
+      />
+    );
+  }
+
+  return (
+    <VideoPlayer
+      src={url}
+      poster={imeta?.thumbnail}
+      encryption={imeta?.encryption}
+      dim={imeta?.dim}
+      blurhash={imeta?.blurhash}
+      artist={authorDisplayName}
+    />
   );
 }
 
@@ -1057,6 +1160,7 @@ function BlossomEmbed({ uri, raw, artist, avatarUrl, avatarFallback, avatarShape
               loading="lazy"
               onLoad={() => setLoaded(true)}
               onError={() => { setLoaded(true); onError(); }}
+              decoding="async"
             />
           </div>
         </button>

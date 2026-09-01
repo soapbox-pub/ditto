@@ -18,12 +18,18 @@ import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
 import { EmbeddedProfileBadgesCard } from '@/components/EmbeddedNaddr';
 import { EmbeddedAttestationCard } from '@/components/EmbeddedAttestationCard';
 import { ATTESTATION_KIND } from '@/lib/attestation';
+import { EmbeddedReportCard } from '@/components/EmbeddedReportCard';
+import { REPORT_KIND } from '@/lib/report';
 import { QUIZ_RESULT_KIND, parseQuizResult } from '@/lib/quiz';
 import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
+import { EmbeddedClassifiedListingCard } from '@/components/EmbeddedClassifiedListingCard';
+import { CLASSIFIED_LISTING_KIND, parseClassifiedListing } from '@/lib/classifiedListing';
 import { EmbeddedPublicationCard } from '@/components/EmbeddedPublicationCard';
 import { ARTICLE_KINDS } from '@/lib/articleHelpers';
 import { PUBLICATION_KINDS } from '@/lib/publications';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
+import { EmbeddedRelayListCard } from '@/components/EmbeddedRelayListCard';
+import { EmbeddedProfileCard } from '@/components/EmbeddedProfileCard';
 import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
 import { MEMORY_CARD_KIND } from '@/lib/memorycard';
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
@@ -46,7 +52,7 @@ import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
 import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
-import { parseImetaMap } from '@/lib/imeta';
+import { parseImetaEntries, parseImetaMap } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { ImageGallery } from '@/components/ImageGallery';
 import { VideoPlayer } from '@/components/VideoPlayer';
@@ -68,6 +74,13 @@ interface EmbeddedNoteProps {
   relays?: string[];
   /** Optional author pubkey hint from the nevent1 identifier. */
   authorHint?: string;
+  /**
+   * Author of the *embedding* event, used as a lookup hint of last resort when
+   * the identifier carries neither relays nor an author (bare nevent/note with
+   * a bare `q` tag). The quoting author's NIP-65 outbox is the best available
+   * place to find an event they quoted. Never used for link encoding.
+   */
+  fallbackAuthorHint?: string;
   className?: string;
   /** When true, ProfileHoverCards inside the card are disabled to prevent nested hover cards. */
   disableHoverCards?: boolean;
@@ -90,15 +103,16 @@ export function EmbeddedNote(props: EmbeddedNoteProps) {
   );
 }
 
-function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHoverCards, highlightText }: EmbeddedNoteProps) {
-  const { data: event, isLoading, isError } = useEvent(eventId, relays, authorHint);
+function EmbeddedNoteInner({ eventId, relays, authorHint, fallbackAuthorHint, className, disableHoverCards, highlightText }: EmbeddedNoteProps) {
+  const effectiveAuthorHint = authorHint ?? fallbackAuthorHint;
+  const { data: event, isLoading, isError } = useEvent(eventId, relays, effectiveAuthorHint);
 
   if (isLoading) {
     return <EmbeddedNoteSkeleton className={className} />;
   }
 
   if (isError || !event) {
-    return <EmbeddedNoteTombstone eventId={eventId} relays={relays} authorHint={authorHint} className={className} />;
+    return <EmbeddedNoteTombstone eventId={eventId} relays={relays} authorHint={effectiveAuthorHint} className={className} />;
   }
 
   // NIP-62 vanish events get their own dramatic inline card
@@ -169,6 +183,13 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
     return <EmbeddedAttestationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
+  // Kind 1984 NIP-56 reports get a compact card showing the report type and
+  // reason. The generic fallback would render the reason through the kind-1
+  // tokenizer — and reports routinely link the material being reported.
+  if (event.kind === REPORT_KIND) {
+    return <EmbeddedReportCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
   // Kind 7849 quiz results (see NIP.md) get a compact card showing the
   // taker's outcome. The generic fallback would render only the comment
   // (or the `alt` tag) with no result — and feed it through the kind-1
@@ -212,6 +233,25 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, className, disableHove
   // because all the data lives in `p` tags, not content or title tags.
   if (isPeopleListKind(event.kind)) {
     return <EmbeddedPeopleListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-65 relay lists (kind 10002) have empty content — everything lives in
+  // `r` tags — so the generic fallback would render an empty shell.
+  if (event.kind === 10002) {
+    return <EmbeddedRelayListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Profile metadata (kind 0) carries JSON in `content`. The generic fallback
+  // would tokenize it as a text note, linkifying the URLs inside the blob.
+  if (event.kind === 0) {
+    return <EmbeddedProfileCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-99 classified listings (kind 30402) quoted via nevent get the same
+  // compact product card as naddr embeds. Their content is Markdown, so the
+  // generic fallback would tokenize it as a kind-1 note.
+  if (event.kind === CLASSIFIED_LISTING_KIND && parseClassifiedListing(event)) {
+    return <EmbeddedClassifiedListingCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Long-form articles (NIP-23) quoted via nevent get the same rich
@@ -856,6 +896,9 @@ function EmbeddedNoteCard({
 
   const isBlobbiState = event.kind === 31124;
   const isPhoto = event.kind === 20;
+  // NIP-71 videos (21 normal, 22 short) and kind 34236 vines carry their
+  // video in imeta tags — render the actual player, not an alt-text card.
+  const isVideoKind = event.kind === 21 || event.kind === 22 || event.kind === 34236;
   // Kinds whose `content` is a human-readable body/caption and can safely
   // be fed through the kind-1 tokenizer for preview. Everything else
   // (articles, streams, videos, calendar events, themes, polls, voice
@@ -890,14 +933,16 @@ function EmbeddedNoteCard({
     if (isBlobbiState) return { images: [] };
     // Collect ordered image + first video URLs.
     if (isPhoto) {
-      const images: string[] = [];
-      for (const tag of event.tags) {
-        if (tag[0] !== 'imeta') continue;
-        const urlPart = tag.find((p) => p.startsWith('url '));
-        const url = urlPart ? sanitizeUrl(urlPart.slice(4)) : undefined;
-        if (url) images.push(url);
-      }
+      const images = parseImetaEntries(event.tags)
+        .map((entry) => sanitizeUrl(entry.url))
+        .filter((url): url is string => !!url);
       return { images };
+    }
+    if (isVideoKind) {
+      const video = parseImetaEntries(event.tags)
+        .map((entry) => sanitizeUrl(entry.url))
+        .find((url): url is string => !!url);
+      return { images: [], video };
     }
     const imageMatches = event.content.match(new RegExp(IMAGE_URL_REGEX.source, 'gi')) || [];
     const images = imageMatches
@@ -909,7 +954,7 @@ function EmbeddedNoteCard({
       .filter((u): u is string => !!u);
     const video = images.length === 0 ? videoUrls[0] : undefined;
     return { images, video };
-  }, [event.content, event.tags, isPhoto, isBlobbiState]);
+  }, [event.content, event.tags, isPhoto, isBlobbiState, isVideoKind]);
 
   const hasMediaPreview = previewMedia.images.length > 0 || !!previewMedia.video;
 
@@ -927,15 +972,16 @@ function EmbeddedNoteCard({
   const tagMeta = useMemo(() => {
     // Content kinds with real content always render that content below.
     if (isContentKind && hasContent) return undefined;
-    // Photo events render their images inline — never fall back to alt text.
-    if (isPhoto && hasMediaPreview) return undefined;
+    // Photo and video events render their media inline — never fall back to
+    // alt text when we actually have something to play.
+    if ((isPhoto || isVideoKind) && hasMediaPreview) return undefined;
     // NIP-31 `alt` is the author's own fallback for clients that can't
     // render the kind. Other tags (title, name, d, …) have kind-specific
     // semantics and are not reliably safe as user-facing preview text.
     const altText = getEventFallbackText(event);
     if (!altText) return undefined;
     return { title: altText, description: undefined as string | undefined };
-  }, [isContentKind, hasContent, isPhoto, hasMediaPreview, event]);
+  }, [isContentKind, hasContent, isPhoto, isVideoKind, hasMediaPreview, event]);
 
   // Truly unknown kind: not a content kind, no Blobbi inline visual, no `alt`
   // fallback text, AND we don't recognize the kind via `getKindLabel`. Only
@@ -943,8 +989,11 @@ function EmbeddedNoteCard({
   // knows about (via `EXTRA_KINDS`) but that the author authored without an
   // `alt` tag get a kind-labeled card showing the icon + label centrally,
   // so the embed at least communicates what type of content it points to.
-  const isUnknownKind = !isContentKind && !isBlobbiState && !tagMeta && !kindMeta;
-  const isKnownKindWithoutPreview = !isContentKind && !isBlobbiState && !tagMeta && !!kindMeta;
+  // A video kind with a playable imeta URL renders its player below and never
+  // counts as preview-less, whatever the label registry knows about it.
+  const videoWithMedia = isVideoKind && hasMediaPreview;
+  const isUnknownKind = !isContentKind && !isBlobbiState && !tagMeta && !kindMeta && !videoWithMedia;
+  const isKnownKindWithoutPreview = !isContentKind && !isBlobbiState && !tagMeta && !!kindMeta && !videoWithMedia;
 
   // NIP-36 content-warning check
   const cwTag = event.tags.find(([name]) => name === 'content-warning');
@@ -1000,10 +1049,18 @@ function EmbeddedNoteCard({
         </div>
       ) : isUnknownKind ? (
         <p className="text-sm italic text-muted-foreground">
-          This event kind is not supported
+          Kind {event.kind} &middot; not supported
         </p>
       ) : (
         <>
+          {/* Video kinds title their event via a `title` tag — show it as the
+              card's headline above the description and player. */}
+          {isVideoKind && (() => {
+            const title = event.tags.find(([n]) => n === 'title')?.[1];
+            return title
+              ? <p className="text-sm font-semibold leading-snug line-clamp-2">{title}</p>
+              : null;
+          })()}
           {/* Text body (media URLs are stripped here and rendered as a
               gallery/player below). Empty content renders nothing. */}
           <EmbedTruncatedContent event={event} expanded={contentExpanded} onOverflowChange={setContentOverflows} highlightText={highlightText} />
@@ -1022,6 +1079,7 @@ function EmbeddedNoteCard({
                   <VideoPlayer
                     src={previewMedia.video}
                     poster={imetaMap.get(previewMedia.video)?.thumbnail}
+                    encryption={imetaMap.get(previewMedia.video)?.encryption}
                     dim={imetaMap.get(previewMedia.video)?.dim}
                     blurhash={imetaMap.get(previewMedia.video)?.blurhash}
                   />

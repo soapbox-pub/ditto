@@ -445,6 +445,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
             onError={(e) => {
               (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
             }}
+            decoding="async"
           />
         </div>
       )}

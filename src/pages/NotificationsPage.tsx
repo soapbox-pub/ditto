@@ -69,8 +69,10 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   62: 'request to vanish',
   1063: 'file',
   1068: 'poll',
+  11: 'post',
   1111: 'comment',
   1222: 'voice message',
+  1244: 'voice message',
   1311: 'live chat message',
   1617: 'patch',
   1618: 'pull request',
@@ -81,12 +83,16 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   1632: 'status update',
   1633: 'status update',
   9802: 'highlight',
+  10002: 'relay list',
+  39701: 'web bookmark',
   15683: 'Love List',
   31871: 'attestation',
+  1984: 'report',
   2473: 'bird detection',
   12473: 'Birdex',
   3367: 'color moment',
   7516: 'found log',
+  5128: 'nsite snapshot',
   15128: 'nsite',
   16767: 'theme',
   10008: 'profile badges',
@@ -110,6 +116,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   30312: 'room',
   30313: 'meeting',
   30315: 'status',
+  30402: 'listing',
   30617: 'repository',
   30618: 'repository update',
   30817: 'custom NIP',
@@ -129,6 +136,12 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   30621: 'constellation',
   39089: 'follow pack',
 };
+
+/**
+ * Parent kinds (lowercase `k` on a NIP-22 comment) that make the comment a
+ * reply in a conversation rather than a comment on some other object.
+ */
+const REPLY_PARENT_KINDS = new Set(['1', '11', '1111', '1222', '1244']);
 
 /** Get a bare noun label for a kind number, defaulting to "post". */
 function getNotificationKindNoun(kind: number | undefined): string {
@@ -812,12 +825,15 @@ function MentionNotification({ item, isNew }: { item: NotificationItem; isNew: b
 // Comment Notification (kind 1111, always standalone)
 // ──────────────────────────────────────
 function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
-  // If the parent kind tag is "1111", this is a reply to a comment; otherwise it's a
-  // top-level comment on a piece of content the user authored.
+  // The lowercase k tag names the kind of the item being replied to. A comment
+  // or a note reads as a reply ("replied to your post"); anything else reads as
+  // a comment on a piece of content the user authored.
   const parentKind = item.event.tags.find(([name]) => name === 'k')?.[1];
   const parentKindNum = parentKind ? parseInt(parentKind, 10) : undefined;
   const noun = getNotificationKindNoun(isNaN(parentKindNum as number) ? undefined : parentKindNum);
-  const action = parentKind === '1111' ? 'replied to your comment' : `commented on your ${noun}`;
+  const action = REPLY_PARENT_KINDS.has(parentKind ?? '')
+    ? `replied to your ${noun}`
+    : `commented on your ${noun}`;
 
   return (
     <NotificationWrapper isNew={isNew}>

@@ -29,6 +29,7 @@ import { IntroImage } from '@/components/IntroImage';
 import { MissionHelperCard } from '@/components/MissionHelperCard';
 import { HelpTip } from '@/components/HelpTip';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
+import { isAnimatedImage, METADATA_SCAN_BYTES } from '@/lib/imageMetadata';
 import { SortableList, SortableItem } from '@/components/SortableList';
 import { PaymentTargetsEditor, type PaymentTargetsEditorHandle } from '@/components/PaymentTargetsEditor';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -621,11 +622,34 @@ export function ProfileSettings() {
     pickInputRef.current?.click();
   };
 
-  const handleFileChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadImage = async (file: File, field: 'picture' | 'banner') => {
+    try {
+      const [[, url]] = await uploadFile(file);
+      form.setValue(field, url, { shouldDirty: true });
+      toast({
+        title: intl.formatMessage({ id: 'settings.profile.uploaded', defaultMessage: "Uploaded" }),
+        description: field === 'picture' ? intl.formatMessage({ id: 'settings.profile.pictureUpdated', defaultMessage: "Profile picture updated" }) : intl.formatMessage({ id: 'settings.profile.bannerUpdated', defaultMessage: "Banner updated" }),
+      });
+    } catch {
+      toast({ title: intl.formatMessage({ id: 'settings.profile.uploadFailed', defaultMessage: "Upload failed" }), description: intl.formatMessage({ id: 'settings.profile.uploadFailedDescription', defaultMessage: "Please try again." }), variant: 'destructive' });
+    }
+  };
+
+  const handleFileChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
     const field = pendingField.current;
+
+    // Animated images (GIF, APNG, animated WebP) can't survive the crop
+    // dialog's canvas round-trip, which flattens them to a single frame. Upload
+    // them byte-for-byte instead of silently killing the animation.
+    const head = new Uint8Array(await file.slice(0, METADATA_SCAN_BYTES).arrayBuffer());
+    if (isAnimatedImage(file.type, head)) {
+      await uploadImage(file, field);
+      return;
+    }
+
     setCropState({
       imageSrc: URL.createObjectURL(file),
       aspect: field === 'picture' ? 1 : 3,
@@ -639,17 +663,8 @@ export function ProfileSettings() {
     const { field, imageSrc } = cropState;
     URL.revokeObjectURL(imageSrc);
     setCropState(null);
-    try {
-      const file = new File([blob], `${field}.jpg`, { type: 'image/jpeg' });
-      const [[, url]] = await uploadFile(file);
-      form.setValue(field, url, { shouldDirty: true });
-      toast({
-        title: intl.formatMessage({ id: 'settings.profile.uploaded', defaultMessage: "Uploaded" }),
-        description: field === 'picture' ? intl.formatMessage({ id: 'settings.profile.pictureUpdated', defaultMessage: "Profile picture updated" }) : intl.formatMessage({ id: 'settings.profile.bannerUpdated', defaultMessage: "Banner updated" }),
-      });
-    } catch {
-      toast({ title: intl.formatMessage({ id: 'settings.profile.uploadFailed', defaultMessage: "Upload failed" }), description: intl.formatMessage({ id: 'settings.profile.uploadFailedDescription', defaultMessage: "Please try again." }), variant: 'destructive' });
-    }
+    const file = new File([blob], `${field}.jpg`, { type: 'image/jpeg' });
+    await uploadImage(file, field);
   };
 
   const handleCropCancel = () => {
@@ -688,9 +703,37 @@ export function ProfileSettings() {
         const nonEmpty = customFields.filter((f) => f.label.trim() && f.value.trim());
         if (nonEmpty.length > 0) data.fields = nonEmpty.map((f) => [f.label, f.value]);
       }
-      await publishEvent({ kind: 0, content: JSON.stringify(data) });
-      queryClient.invalidateQueries({ queryKey: ['logins'] });
-      queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
+
+      // Skip re-publishing kind 0 when nothing changed — otherwise every save
+      // (e.g. saving only to update payment targets) mints a redundant profile
+      // event. Compare against the stored content with an order-insensitive
+      // canonicalization: object keys are sorted, but array order — which is
+      // meaningful for custom `fields` — is preserved.
+      const canonical = (value: unknown): string => {
+        if (Array.isArray(value)) {
+          return `[${value.map(canonical).join(',')}]`;
+        }
+        if (value && typeof value === 'object') {
+          const obj = value as Record<string, unknown>;
+          return `{${Object.keys(obj)
+            .sort()
+            .map((k) => `${JSON.stringify(k)}:${canonical(obj[k])}`)
+            .join(',')}}`;
+        }
+        return JSON.stringify(value ?? null);
+      };
+      let previous: unknown;
+      try {
+        previous = event ? JSON.parse(event.content) : undefined;
+      } catch {
+        previous = undefined;
+      }
+
+      if (previous === undefined || canonical(data) !== canonical(previous)) {
+        await publishEvent({ kind: 0, content: JSON.stringify(data) });
+        queryClient.invalidateQueries({ queryKey: ['logins'] });
+        queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
+      }
 
       // Persist payment targets (kind 10133) alongside the profile. If it
       // fails or doesn't validate, the editor surfaces its own error toast;

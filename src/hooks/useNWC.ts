@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useSecureLocalStorage } from '@/hooks/useSecureLocalStorage';
 import { useToast } from '@/hooks/useToast';
 import { LN } from '@getalby/sdk';
+import { assertInvoiceAmount } from '@/lib/bolt11';
 
 export interface NWCConnection {
   connectionString: string;
@@ -168,11 +169,20 @@ export function useNWCInternal(userPubkey?: string) {
   // Send payment using the SDK
   const sendPayment = useCallback(async (
     connection: NWCConnection,
-    invoice: string
+    invoice: string,
+    /**
+     * Amount in millisatoshis the user approved. The wallet is handed only the
+     * invoice, so this is the last point at which the sum the user agreed to
+     * and the sum the invoice charges can be compared — without it, whoever
+     * issued the invoice decides how much leaves the wallet.
+     */
+    expectedAmountMsat: number,
   ): Promise<{ preimage: string }> => {
     if (!connection.connectionString) {
       throw new Error('Invalid connection: missing connection string');
     }
+
+    assertInvoiceAmount(invoice, expectedAmountMsat);
 
     let client: LN;
     try {

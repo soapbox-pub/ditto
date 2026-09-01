@@ -43,6 +43,11 @@ function copyDirSync(src: string, dest: string): void {
   if (!fs.existsSync(src)) return;
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    // A symlink-to-file reports isDirectory() === false, so it would otherwise
+    // fall through to copyFileSync — which copies the *target's* contents into
+    // dist/ as a real file. One planted link and the build bakes an arbitrary
+    // host file into the artifact CI then publishes.
+    if (entry.isSymbolicLink()) continue;
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) {
@@ -51,6 +56,29 @@ function copyDirSync(src: string, dest: string): void {
       fs.copyFileSync(srcPath, destPath);
     }
   }
+}
+
+/**
+ * Resolve a request path inside `root`, or return `null` if it escapes.
+ *
+ * Decode *then* normalise, and assert containment afterwards. Doing it the
+ * other way round is what made this a traversal: `new URL()` collapses `../`
+ * and `%2e%2e` segments, but it does not decode `%2f`, so running
+ * `decodeURIComponent` afterwards turned `/..%2fsecret` back into `/../secret`
+ * — reconstituting the escape after the only thing that looked like a check.
+ */
+function resolveWithinDir(root: string, urlPath: string): string | null {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(urlPath);
+  } catch {
+    return null; // malformed percent-encoding
+  }
+  if (decoded.includes("\0")) return null;
+
+  const resolved = path.resolve(root, "." + path.posix.normalize(decoded));
+  if (resolved !== root && !resolved.startsWith(root + path.sep)) return null;
+  return resolved;
 }
 
 /**
@@ -72,13 +100,19 @@ function mergePublicDir(externalDir: string): Plugin {
       server.middlewares.use((req, res, next) => {
         if (!req.url) return next();
 
-        const urlPath = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
-        const filePath = path.join(resolved, urlPath);
+        const { pathname } = new URL(req.url, "http://localhost");
+        const filePath = resolveWithinDir(resolved, pathname);
+        if (!filePath) return next();
 
         try {
-          const stat = fs.statSync(filePath);
+          // lstat, not stat: a symlink planted in the public dir would
+          // otherwise be followed straight back out of it at serve time. This
+          // middleware runs ahead of Vite's own server.fs deny-list, so
+          // nothing downstream would catch it.
+          const stat = fs.lstatSync(filePath);
           if (stat.isFile()) {
             // Let Vite's static middleware handle it by pointing to the file.
+            res.setHeader("X-Content-Type-Options", "nosniff");
             const stream = fs.createReadStream(filePath);
             stream.pipe(res);
             return;
@@ -160,15 +194,6 @@ function stripWoffFallbacks(): Plugin {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
-  // The nsite build (`vite build --mode nsite`) emits a minimal number of files.
-  // nsite is published by signing a site *manifest* (the list of every file in
-  // dist/) through a NIP-46 bunker, which NIP-44-encrypts the whole sign_event
-  // request — and that must stay under 65535 bytes. The normal ~470-chunk build
-  // overflows it ("invalid plaintext size"). In nsite mode we disable code
-  // splitting so the app ships as one app.js + one app.css, dropping dist/ to
-  // ~one-third the files. Every other build keeps fine-grained lazy loading.
-  const isNsite = mode === 'nsite';
-
   return {
   server: {
     host: "::",
@@ -218,27 +243,14 @@ export default defineConfig(({ mode }) => {
   build: {
     target: 'esnext',
     rollupOptions: {
-      output: isNsite
-        ? {
-            // Disable code splitting so every dynamic import folds into the single
-            // entry chunk: the build emits exactly one JS file, and Vite emits one
-            // CSS file alongside it.
-            codeSplitting: false,
-            entryFileNames: 'assets/app-[hash].js',
-            assetFileNames: (assetInfo: { names?: string[] }) => {
-              const name = assetInfo.names?.[0] ?? '';
-              if (name.endsWith('.css')) return 'assets/app-[hash].css';
-              return 'assets/[name]-[hash][extname]';
-            },
+      output: {
+        manualChunks(id: string) {
+          // Consolidate lucide icons into a single chunk instead of 60+ micro-chunks.
+          if (id.includes('node_modules/lucide-react')) {
+            return 'lucide-icons';
           }
-        : {
-            manualChunks(id: string) {
-              // Consolidate lucide icons into a single chunk instead of 60+ micro-chunks.
-              if (id.includes('node_modules/lucide-react')) {
-                return 'lucide-icons';
-              }
-            },
-          },
+        },
+      },
     },
   },
   optimizeDeps: {
@@ -248,7 +260,7 @@ export default defineConfig(({ mode }) => {
     alias: [
       // @blobbi-kit/core and @blobbi-kit/react resolve through their installed
       // package exports in node_modules (published npm packages), not source aliases.
-      { find: "@", replacement: path.resolve(__dirname, "./src") },
+      { find: "@", replacement: path.resolve(import.meta.dirname, "./src") },
     ],
     // Dedupe the React-context-bearing singletons so a dependency can't pull in a
     // second copy of them (which breaks useContext).

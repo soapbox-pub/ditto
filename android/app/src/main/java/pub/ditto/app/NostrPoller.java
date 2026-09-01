@@ -571,8 +571,11 @@ public class NostrPoller {
 
     /** Tap intent deep-linking to the in-app notifications page. */
     private PendingIntent notificationsIntent() {
-        Intent intent = new Intent(context, MainActivity.class);
-        intent.setData(Uri.parse("https://ditto.pub/notifications"));
+        // ACTION_VIEW (not just a component target) so Capacitor's App plugin
+        // recognises the tap as a URL open and fires `appUrlOpen` — the tap is
+        // then routed to /notifications by DeepLinkHandler.tsx, the same path
+        // as a real deep link. Without the action the App plugin ignores it.
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://ditto.pub/notifications"), context, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         return PendingIntent.getActivity(
                 context, EVENTS_NOTIFICATION_ID, intent,

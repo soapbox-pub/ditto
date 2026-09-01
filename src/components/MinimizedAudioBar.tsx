@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Pause, SkipBack, SkipForward, Maximize2, X, GripVertical } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Maximize2, X, GripVertical, Loader2 } from 'lucide-react';
 import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
+import { TrackLoadNotice } from '@/components/AudioTrackStatus';
 import { cn } from '@/lib/utils';
 
 const POSITION_KEY = 'audio-minibar-position';
@@ -37,7 +38,7 @@ function clampToViewport(x: number, y: number, w: number, h: number) {
  */
 export function MinimizedAudioBar() {
   const player = useAudioPlayer();
-  const { currentTrack, minimized, isPlaying, currentTime, duration, playlist, currentIndex } = player;
+  const { currentTrack, minimized, isPlaying, currentTime, duration, playlist, currentIndex, loadState, artworkSrc } = player;
 
   const navigate = useNavigate();
   const barRef = useRef<HTMLDivElement>(null);
@@ -128,19 +129,21 @@ export function MinimizedAudioBar() {
           <GripVertical className="size-4" />
         </div>
 
-        {/* Artwork thumbnail */}
-        {currentTrack.artwork ? (
-          <img src={currentTrack.artwork} alt="" className="size-10 rounded-lg object-cover shrink-0" />
+        {/* Artwork thumbnail — an object URL when the cover is encrypted */}
+        {artworkSrc ? (
+          <img src={artworkSrc} alt="" className="size-10 rounded-lg object-cover shrink-0" decoding="async" />
         ) : (
           <div className="size-10 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
             <Play className="size-4 text-primary" />
           </div>
         )}
 
-        {/* Title + Artist */}
+        {/* Title + Artist, or why the track isn't playing */}
         <div className="flex-1 min-w-0 px-1">
           <p className="text-sm font-medium truncate leading-tight">{currentTrack.title}</p>
-          <p className="text-xs text-muted-foreground truncate">{currentTrack.artist}</p>
+          {loadState.status === 'ready'
+            ? <p className="text-xs text-muted-foreground truncate">{currentTrack.artist}</p>
+            : <TrackLoadNotice trackId={currentTrack.id} className="mt-0.5" />}
         </div>
 
         {/* Controls */}
@@ -158,10 +161,15 @@ export function MinimizedAudioBar() {
 
           <button
             onClick={() => isPlaying ? player.pause() : player.resume()}
-            className="p-1.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            disabled={loadState.status === 'decrypting'}
+            className="p-1.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:cursor-progress"
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
-            {isPlaying ? <Pause className="size-3.5" fill="currentColor" /> : <Play className="size-3.5 ml-0.5" fill="currentColor" />}
+            {loadState.status === 'decrypting'
+              ? <Loader2 className="size-3.5 animate-spin" />
+              : isPlaying
+                ? <Pause className="size-3.5" fill="currentColor" />
+                : <Play className="size-3.5 ml-0.5" fill="currentColor" />}
           </button>
 
           {hasPlaylist && (

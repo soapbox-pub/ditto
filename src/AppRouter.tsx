@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
 import { BackButtonHandler } from "@/components/BackButtonHandler";
 import { DeepLinkHandler } from "@/components/DeepLinkHandler";
+import { NativeNavHandler } from "@/components/NativeNavHandler";
 import { HighlightSelectionButton } from "@/components/HighlightSelectionButton";
 import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
@@ -46,6 +47,7 @@ const ClientFeedPage = lazy(() => import("./pages/ClientFeedPage").then(m => ({ 
 const ContentPage = lazy(() => import("./pages/ContentPage").then(m => ({ default: m.ContentPage })));
 const ContentSettingsPage = lazy(() => import("./pages/ContentSettingsPage").then(m => ({ default: m.ContentSettingsPage })));
 const CSAEPolicyPage = lazy(() => import("./pages/CSAEPolicyPage").then(m => ({ default: m.CSAEPolicyPage })));
+const DataSettingsPage = lazy(() => import("./pages/DataSettingsPage").then(m => ({ default: m.DataSettingsPage })));
 const DomainFeedPage = lazy(() => import("./pages/DomainFeedPage").then(m => ({ default: m.DomainFeedPage })));
 const EventsFeedPage = lazy(() => import("./pages/EventsFeedPage").then(m => ({ default: m.EventsFeedPage })));
 const ExternalContentPage = lazy(() => import("./pages/ExternalContentPage").then(m => ({ default: m.ExternalContentPage })));
@@ -85,7 +87,6 @@ const WalletSettingsPage = lazy(() => import("./pages/WalletSettingsPage").then(
 const WebxdcFeedPage = lazy(() => import("./pages/WebxdcFeedPage").then(m => ({ default: m.WebxdcFeedPage })));
 const WikipediaPage = lazy(() => import("./pages/WikipediaPage").then(m => ({ default: m.WikipediaPage })));
 const WorldPage = lazy(() => import("./pages/WorldPage").then(m => ({ default: m.WorldPage })));
-const FollowPage = lazy(() => import("./pages/FollowPage").then(m => ({ default: m.FollowPage })));
 const RemoteLoginSuccessPage = lazy(() => import("./pages/RemoteLoginSuccessPage").then(m => ({ default: m.RemoteLoginSuccessPage })));
 
 const pollsDef = getExtraKindDef("polls")!;
@@ -126,21 +127,28 @@ function ProfileRedirect() {
 export function AppRouter() {
   return (
     <AudioPlayerProvider>
-      <BrowserRouter>
+      {/* useTransitions={false} restores react-router v6's synchronous
+          navigation. v7 defaults to wrapping every navigation in
+          React.startTransition, which keeps the *previous* page on screen
+          until the next route's render commits — so clicking a note left the
+          feed frozen for the duration of PostDetailPage's render instead of
+          swapping immediately. That regressed when react-router was bumped
+          6 → 7 (npm audit fix). Opting out makes location updates a plain
+          synchronous setState again: the route swaps on click, showing the
+          detail route (or its Suspense skeleton) immediately. */}
+      <BrowserRouter useTransitions={false}>
         <Toaster />
         <VersionCheck />
         <MinimizedAudioBar />
         <AudioNavigationGuard />
         <DeepLinkHandler />
+        <NativeNavHandler />
         <BackButtonHandler />
         <ScrollToTop />
         <HighlightSelectionButton />
         <BlobbiActionsProvider>
           <BlobbiCompanionGate />
           <Routes>
-          {/* Auto-follow deep link: fullscreen immersive (no sidebars/nav) */}
-          <Route path="/follow/:npub" element={<FollowPage />} />
-
           {/* All routes share the persistent MainLayout (sidebar + nav) */}
           <Route element={<MainLayout />}>
             <Route path="/" element={<HomePage />} />
@@ -168,6 +176,7 @@ export function AppRouter() {
             />
             <Route path="/settings/magic" element={<MagicSettingsPage />} />
             <Route path="/settings/network" element={<NetworkSettingsPage />} />
+            <Route path="/settings/data" element={<DataSettingsPage />} />
             <Route path="/lists" element={<UserListsPage />} />
             <Route path="/events" element={<EventsFeedPage />} />
             <Route path="/photos" element={<PhotosFeedPage />} />
@@ -289,6 +298,9 @@ export function AppRouter() {
 
             {/* Callback target for remote signers (e.g. Amber, Primal) after NIP-46 approval */}
             <Route path="/remoteloginsuccess" element={<RemoteLoginSuccessPage />} />
+            {/* Deprecated auto-follow deep link: redirect home (route removed
+                in 6e43342f because it published a kind 3 follow on mount). */}
+            <Route path="/follow/:npub" element={<Navigate to="/" replace />} />
             {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
             <Route path="/:nip19" element={<NIP19Page />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

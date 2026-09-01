@@ -58,6 +58,7 @@ function ThemeSwatch({
             alt=""
             loading="lazy"
             className="absolute inset-0 w-full h-full object-cover opacity-40"
+            decoding="async"
           />
         )}
         {/* Content area */}

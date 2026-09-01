@@ -45,6 +45,7 @@ import {
   Wallet,
   Sparkles,
   Stars,
+  Tag,
   Target,
   TrendingUp,
   User,
@@ -282,6 +283,7 @@ export const CONTENT_KIND_ICONS: Record<string, IconComponent> = {
   "love-lists": Heart,
   campaigns: HandHeart,
   attestations: ShieldCheck,
+  "classified-listings": Tag,
   ...Object.fromEntries(
     SIDEBAR_ITEMS.filter((s) => s.icon).map((s) => [s.id, s.icon]),
   ),

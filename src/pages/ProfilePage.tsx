@@ -560,7 +560,7 @@ function BitcoinQRModal({ address }: { address: string }) {
         <div className="flex justify-center my-5">
           <div className="bg-white p-3 rounded-xl">
             {qrUrl ? (
-              <img src={qrUrl} alt="Bitcoin QR" className="size-[220px]" />
+              <img src={qrUrl} alt="Bitcoin QR" className="size-[220px]" decoding="async" />
             ) : (
               <div className="size-[220px] bg-muted animate-pulse rounded" />
             )}
@@ -728,6 +728,7 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
             alt={field.label || 'Profile image'}
             className="w-full max-w-sm rounded-lg object-cover"
             loading="lazy"
+            decoding="async"
           />
         </a>
       </div>
@@ -955,6 +956,7 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
             )}
             onLoad={() => setIsLoaded(true)}
             draggable={false}
+            decoding="async"
           />
         </div>
       </div>
@@ -2128,6 +2130,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 alt=""
                 className="w-full h-full object-cover cursor-pointer"
                 onClick={() => setLightboxImage(metadata.banner!)}
+                decoding="async"
               />
             ) : (
               <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />

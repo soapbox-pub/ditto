@@ -18,6 +18,7 @@ import {
 
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { wikimediaImageUrl } from '@/lib/wikimedia';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useLanguage } from '@/hooks/useLanguage';
 import {
@@ -197,6 +198,7 @@ function ArticleCard({ page, badge, badgeIcon }: {
             loading="lazy"
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            decoding="async"
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -240,9 +242,10 @@ function FeaturedArticleCard({ page }: { page: WikiPage }) {
       <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-amber-500/10 to-orange-500/10">
         {page.thumbnail ? (
           <img
-            src={page.originalimage?.source ?? page.thumbnail.source}
+            src={wikimediaImageUrl(page.thumbnail.source, 960, page.originalimage?.width)}
             alt={page.normalizedtitle}
             loading="lazy"
+            decoding="async"
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             onError={(e) => { e.currentTarget.style.display = 'none'; }}
           />
@@ -302,6 +305,7 @@ function OnThisDayCard({ event }: { event: OnThisDayEvent }) {
               className="w-14 h-14 rounded-lg object-cover"
               loading="lazy"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              decoding="async"
             />
           </Link>
         )}
@@ -352,6 +356,7 @@ function NewsCard({ item }: { item: NewsItem }) {
               className="w-14 h-14 rounded-lg object-cover"
               loading="lazy"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              decoding="async"
             />
           </Link>
         )}
@@ -490,6 +495,7 @@ function WikipediaSearchBar() {
                       alt=""
                       className="w-10 h-10 rounded object-cover bg-secondary shrink-0"
                       loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <div className="w-10 h-10 rounded bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center shrink-0">

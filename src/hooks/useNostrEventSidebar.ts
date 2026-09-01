@@ -2,6 +2,8 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
+import { isAddressableKind } from '@/lib/eventKinds';
+
 /** Minimal data needed to render a non-profile event in the sidebar. */
 export interface NostrEventSidebarData {
   /** Display label for the sidebar item. */
@@ -43,12 +45,12 @@ export function useNostrEventSidebar(params: EventSidebarParams) {
       if (eventId) {
         filter = { ids: [eventId], limit: 1 };
       } else if (addr) {
-        filter = {
-          kinds: [addr.kind],
-          authors: [addr.pubkey],
-          '#d': [addr.identifier],
-          limit: 1,
-        };
+        // Only addressable kinds (30000-39999) are identified by their `d`
+        // tag. Replaceable kinds — NIP-5A root sites among them — carry no
+        // `d` tag at all, so filtering on `#d: [""]` would match nothing.
+        filter = isAddressableKind(addr.kind)
+          ? { kinds: [addr.kind], authors: [addr.pubkey], '#d': [addr.identifier], limit: 1 }
+          : { kinds: [addr.kind], authors: [addr.pubkey], limit: 1 };
       } else {
         return null;
       }

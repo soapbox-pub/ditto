@@ -245,7 +245,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
       {/* ── Cover image ── */}
       {image ? (
         <div className="aspect-[2/1] w-full overflow-hidden">
-          <img src={image} alt={title} className="w-full h-full object-cover" />
+          <img src={image} alt={title} className="w-full h-full object-cover" decoding="async" />
         </div>
       ) : (
         <div className="aspect-[3/1] w-full bg-gradient-to-br from-primary/15 via-primary/5 to-transparent flex items-center justify-center">

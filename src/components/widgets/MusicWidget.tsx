@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
-import { Play, Pause, Music, Clock } from 'lucide-react';
+import { Play, Pause, Music, Clock, Loader2 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -11,6 +11,9 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
+import { DecryptedImage } from '@/components/DecryptedImage';
+import { TrackLoadNotice } from '@/components/AudioTrackStatus';
+import { useTrackLoadState } from '@/hooks/useTrackLoadState';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
@@ -72,6 +75,7 @@ function MusicCard({ event }: { event: NostrEvent }) {
   const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
 
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
+  const loadState = useTrackLoadState(event.id);
   const encodedId = useMemo(() => {
     const d = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
     return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: d });
@@ -80,6 +84,7 @@ function MusicCard({ event }: { event: NostrEvent }) {
   if (!parsed) return null;
 
   const isNowPlaying = player.currentTrack?.id === event.id;
+  const decrypting = loadState.status === 'decrypting';
   const dur = parsed.duration ? formatTime(parsed.duration) : undefined;
 
   const handlePlay = (e: React.MouseEvent) => {
@@ -107,11 +112,14 @@ function MusicCard({ event }: { event: NostrEvent }) {
         onClick={handlePlay}
       >
         {parsed.artwork ? (
-          <img
-            src={parsed.artwork}
+          <DecryptedImage
+            url={parsed.artwork}
+            encryption={parsed.artworkEncryption}
             alt={parsed.title}
             className="w-full aspect-square object-cover"
             loading="lazy"
+            decoding="async"
+            noticeClassName="aspect-square"
           />
         ) : (
           <div className="w-full aspect-square bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
@@ -122,14 +130,16 @@ function MusicCard({ event }: { event: NostrEvent }) {
           <div
             className={cn(
               'size-12 rounded-full flex items-center justify-center transition-colors',
-              isNowPlaying && player.isPlaying
+              (isNowPlaying && player.isPlaying) || decrypting
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-primary/15 text-primary hover:bg-primary/25 backdrop-blur-sm',
             )}
           >
-            {isNowPlaying && player.isPlaying
-              ? <Pause className="size-5" fill="currentColor" />
-              : <Play className="size-5 ml-0.5" fill="currentColor" />}
+            {decrypting
+              ? <Loader2 className="size-5 animate-spin" />
+              : isNowPlaying && player.isPlaying
+                ? <Pause className="size-5" fill="currentColor" />
+                : <Play className="size-5 ml-0.5" fill="currentColor" />}
           </div>
         </div>
       </div>
@@ -142,6 +152,7 @@ function MusicCard({ event }: { event: NostrEvent }) {
         {parsed.artist && (
           <p className="text-xs text-muted-foreground truncate">{parsed.artist}</p>
         )}
+        <TrackLoadNotice trackId={event.id} />
         {dur && (
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="size-3 shrink-0" />

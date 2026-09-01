@@ -5,9 +5,12 @@
  */
 
 import { useMemo } from 'react';
-import { Play, Pause, Music, ListMusic, Podcast, Clock } from 'lucide-react';
+import { Play, Pause, Music, ListMusic, Podcast, Clock, Loader2 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
+import { DecryptedImage } from '@/components/DecryptedImage';
+import { TrackLoadNotice } from '@/components/AudioTrackStatus';
+import { useTrackLoadState } from '@/hooks/useTrackLoadState';
 import { parseMusicTrack, parseMusicPlaylist, toAudioTrack } from '@/lib/musicHelpers';
 import { parsePodcastEpisode, parsePodcastTrailer, episodeToAudioTrack, trailerToAudioTrack } from '@/lib/podcastHelpers';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -16,11 +19,13 @@ import { formatTime } from '@/lib/formatTime';
 import { cn } from '@/lib/utils';
 
 /** Shared play/pause button used across all audio cards. */
-function PlayButton({ isPlaying, isActive, onClick, size = 'lg' }: {
+function PlayButton({ isPlaying, isActive, onClick, size = 'lg', loading }: {
   isPlaying: boolean;
   isActive: boolean;
   onClick: (e: React.MouseEvent) => void;
   size?: 'sm' | 'lg';
+  /** The track is being decrypted and can't start yet. */
+  loading?: boolean;
 }) {
   const sizeCls = size === 'lg' ? 'size-12' : 'size-10';
   const iconCls = size === 'lg' ? 'size-5' : 'size-4';
@@ -28,18 +33,22 @@ function PlayButton({ isPlaying, isActive, onClick, size = 'lg' }: {
   return (
     <button
       onClick={onClick}
+      disabled={loading}
       className={cn(
         'shrink-0 rounded-full flex items-center justify-center transition-colors',
         sizeCls,
         isActive && isPlaying
           ? 'bg-primary text-primary-foreground'
           : 'bg-primary/15 text-primary hover:bg-primary/25',
+        loading && 'cursor-progress',
       )}
       aria-label={isActive && isPlaying ? 'Pause' : 'Play'}
     >
-      {isActive && isPlaying
-        ? <Pause className={iconCls} fill="currentColor" />
-        : <Play className={cn(iconCls, 'ml-0.5')} fill="currentColor" />}
+      {loading
+        ? <Loader2 className={cn(iconCls, 'animate-spin')} />
+        : isActive && isPlaying
+          ? <Pause className={iconCls} fill="currentColor" />
+          : <Play className={cn(iconCls, 'ml-0.5')} fill="currentColor" />}
     </button>
   );
 }
@@ -50,10 +59,12 @@ export function MusicTrackContent({ event }: { event: NostrEvent }) {
   const player = useAudioPlayer();
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
   const author = useAuthor(event.pubkey);
+  const loadState = useTrackLoadState(event.id);
 
   if (!parsed) return null;
 
   const isNowPlaying = player.currentTrack?.id === event.id;
+  const decrypting = loadState.status === 'decrypting';
   const dur = parsed.duration ? formatTime(parsed.duration) : undefined;
 
   const handlePlay = (e: React.MouseEvent) => {
@@ -79,16 +90,24 @@ export function MusicTrackContent({ event }: { event: NostrEvent }) {
       {/* Cover artwork — clicking anywhere here plays/pauses */}
       {parsed.artwork ? (
         <div className="relative aspect-square max-h-[280px] w-full overflow-hidden cursor-pointer" onClick={handlePlay}>
-          <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" loading="lazy" />
+          <DecryptedImage
+            url={parsed.artwork}
+            encryption={parsed.artworkEncryption}
+            alt={parsed.title}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+            noticeFill
+          />
           <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/10 transition-colors">
-            <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" />
+            <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" loading={decrypting} />
           </div>
         </div>
       ) : (
         <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[140px] cursor-pointer" onClick={handlePlay}>
           <Music className="size-10 text-primary/20" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" />
+            <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" loading={decrypting} />
           </div>
         </div>
       )}
@@ -103,6 +122,7 @@ export function MusicTrackContent({ event }: { event: NostrEvent }) {
             <span>{dur}</span>
           </div>
         )}
+        <TrackLoadNotice trackId={event.id} />
       </div>
     </div>
   );
@@ -122,7 +142,7 @@ export function MusicPlaylistContent({ event }: { event: NostrEvent }) {
       {/* Cover artwork — clicks bubble up to NoteCard for navigation */}
       {parsed.artwork ? (
         <div className="aspect-video max-h-[200px] w-full overflow-hidden">
-          <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" loading="lazy" />
+          <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
         </div>
       ) : (
         <div className="flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[100px]">
@@ -152,10 +172,12 @@ export function PodcastEpisodeContent({ event }: { event: NostrEvent }) {
   const parsed = useMemo(() => parsePodcastEpisode(event), [event]);
   const author = useAuthor(event.pubkey);
   const displayName = getDisplayName(author.data?.metadata, event.pubkey);
+  const loadState = useTrackLoadState(event.id);
 
   if (!parsed) return null;
 
   const isNowPlaying = player.currentTrack?.id === event.id;
+  const decrypting = loadState.status === 'decrypting';
   const dur = parsed.duration ? formatTime(parsed.duration) : undefined;
 
   const handlePlay = (e: React.MouseEvent) => {
@@ -182,16 +204,24 @@ export function PodcastEpisodeContent({ event }: { event: NostrEvent }) {
       {/* Cover artwork — clicking anywhere here plays/pauses */}
       {parsed.artwork ? (
         <div className="relative aspect-square max-h-[280px] w-full overflow-hidden cursor-pointer" onClick={handlePlay}>
-          <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" loading="lazy" />
+          <DecryptedImage
+            url={parsed.artwork}
+            encryption={parsed.artworkEncryption}
+            alt={parsed.title}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+            noticeFill
+          />
           <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/10 transition-colors">
-            <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" />
+            <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" loading={decrypting} />
           </div>
         </div>
       ) : (
         <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[140px] cursor-pointer" onClick={handlePlay}>
           <Podcast className="size-10 text-primary/20" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" />
+            <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" loading={decrypting} />
           </div>
         </div>
       )}
@@ -208,6 +238,7 @@ export function PodcastEpisodeContent({ event }: { event: NostrEvent }) {
             <span>{dur}</span>
           </div>
         )}
+        <TrackLoadNotice trackId={event.id} />
       </div>
     </div>
   );
@@ -220,10 +251,12 @@ export function PodcastTrailerContent({ event }: { event: NostrEvent }) {
   const parsed = useMemo(() => parsePodcastTrailer(event), [event]);
   const author = useAuthor(event.pubkey);
   const displayName = getDisplayName(author.data?.metadata, event.pubkey);
+  const loadState = useTrackLoadState(event.id);
 
   if (!parsed) return null;
 
   const isNowPlaying = player.currentTrack?.id === event.id;
+  const decrypting = loadState.status === 'decrypting';
 
   const handlePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -250,7 +283,7 @@ export function PodcastTrailerContent({ event }: { event: NostrEvent }) {
       <div className="flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[100px] relative cursor-pointer" onClick={handlePlay}>
         <Podcast className="size-8 text-primary/20" />
         <div className="absolute inset-0 flex items-center justify-center">
-          <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" />
+          <PlayButton isPlaying={player.isPlaying} isActive={isNowPlaying} onClick={handlePlay} size="lg" loading={decrypting} />
         </div>
       </div>
 
@@ -258,6 +291,7 @@ export function PodcastTrailerContent({ event }: { event: NostrEvent }) {
       <div className="p-3.5 space-y-1 cursor-pointer">
         <p className="text-[15px] font-semibold leading-snug truncate">{parsed.title}</p>
         <p className="text-xs text-muted-foreground">Trailer</p>
+        <TrackLoadNotice trackId={event.id} />
       </div>
     </div>
   );

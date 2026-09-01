@@ -53,9 +53,11 @@
         </activity>
 
         <!-- Share target: "View in Ditto" — comment on a shared link (NIP-22).
-             Launches MainActivity, which forwards the shared text to
-             /share?mode=view so the web app can extract the URL and open the
-             external-content comment page (/i/<url>). -->
+             Launches MainActivity, which hands the shared text to the JS layer
+             as a "share" event on the DittoNotification plugin with mode
+             "view". NativeNavHandler routes it to /share, where the web app
+             extracts the URL and opens the external-content comment page
+             (/i/<url>). -->
         <activity-alias
             android:name=".ShareViewAlias"
             android:targetActivity=".MainActivity"
@@ -69,7 +71,7 @@
         </activity-alias>
 
         <!-- Share target: "Post on Ditto" — create a new note prefilled with
-             the shared text. Forwards to /share?mode=post. -->
+             the shared text. Same path, with mode "post". -->
         <activity-alias
             android:name=".SharePostAlias"
             android:targetActivity=".MainActivity"

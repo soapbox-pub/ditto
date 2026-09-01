@@ -16,16 +16,12 @@ import {
   StickyNote,
   ListPlus,
   PanelLeft,
-  Copy,
-  Check,
-  Radio,
   RotateCcw,
 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogTitle,
-  DialogHeader,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -44,7 +40,7 @@ import { EventRecoveryDialog } from '@/components/EventRecoveryDialog';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ReportDialog } from '@/components/ReportDialog';
 import { AddToListDialog } from '@/components/AddToListDialog';
-import { useNostr } from '@nostrify/react';
+import { EventJsonDialog } from '@/components/EventJsonDialog';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -55,7 +51,7 @@ import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { encodeEventAddress } from '@/lib/encodeEvent';
 import { isReplaceableLikeKind } from '@/lib/eventKinds';
-import { getNsiteSubdomain } from '@/lib/nsiteSubdomain';
+import { getNsiteSubdomain, isNsiteKind } from '@/lib/nsiteSubdomain';
 import { toast } from '@/hooks/useToast';
 import { impactLight } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -97,98 +93,6 @@ function encodeEventNip19(event: NostrEvent): string {
   return encodeEventAddress(event);
 }
 
-interface EventJsonDialogProps {
-  event: NostrEvent;
-  nip19Id: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-function CopyButton({ text, label }: { text: string; label: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    toast({ title: `${label} copied to clipboard` });
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={handleCopy}
-      className="size-6 shrink-0 text-muted-foreground hover:text-foreground"
-    >
-      {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
-    </Button>
-  );
-}
-
-function EventJsonDialog({ event, nip19Id, open, onOpenChange }: EventJsonDialogProps) {
-  const { nostr } = useNostr();
-  const [broadcasting, setBroadcasting] = useState(false);
-
-  const jsonText = JSON.stringify(event, null, 2);
-
-  const handleBroadcast = async () => {
-    setBroadcasting(true);
-    try {
-      await nostr.event(event, { signal: AbortSignal.timeout(5000) });
-      toast({ title: 'Event broadcast to relays' });
-    } catch {
-      toast({ title: 'Failed to broadcast event', variant: 'destructive' });
-    } finally {
-      setBroadcasting(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85dvh] flex flex-col gap-0 p-0 rounded-2xl overflow-hidden">
-        <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
-          <DialogTitle className="text-base font-semibold">Event Details</DialogTitle>
-        </DialogHeader>
-
-        <div className="px-5 pb-3 shrink-0">
-          <p className="text-xs font-medium text-muted-foreground mb-1">Event ID</p>
-          <div className="relative flex items-center bg-muted rounded-lg px-3 py-2">
-            <p className="font-mono text-xs break-all text-foreground/80 flex-1 pr-2 select-all">
-              {nip19Id}
-            </p>
-            <CopyButton text={nip19Id} label="Event ID" />
-          </div>
-        </div>
-
-        <div className="px-5 pb-5 flex flex-col flex-1 min-h-0">
-          <p className="text-xs font-medium text-muted-foreground mb-1">Raw JSON</p>
-          <div className="relative flex-1 min-h-0 overflow-auto rounded-lg bg-muted border border-border">
-            <div className="sticky top-2 right-2 float-right mr-2">
-              <CopyButton text={jsonText} label="Event JSON" />
-            </div>
-            <pre className="p-4 text-xs font-mono text-foreground/80 whitespace-pre leading-relaxed">
-              {jsonText}
-            </pre>
-          </div>
-        </div>
-
-        <div className="px-5 pb-5 shrink-0">
-          <Button
-            variant="outline"
-            className="w-full gap-2"
-            onClick={handleBroadcast}
-            disabled={broadcasting}
-          >
-            <Radio className="size-4" />
-            {broadcasting ? 'Broadcasting...' : 'Broadcast Event'}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   // These states live here (not in NoteMoreMenuContent) so they persist after the menu closes
   const [reportOpen, setReportOpen] = useState(false);
@@ -214,9 +118,12 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const bookmarked = isBookmarked(event.id);
   const pinned = isPinned(event.id);
   const userMuted = isMuted('pubkey', event.pubkey);
-  // Conversation = the thread root (NIP-10 root marker), falling back to this
-  // event's own id when it is itself a root. Muting stores an 'e' thread entry.
-  const rootTag = event.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
+  // Conversation = the thread root: a NIP-22 comment names it with the
+  // uppercase `E` tag, a NIP-10 reply with an `e` tag marked "root". Falls
+  // back to this event's own id when it is itself a root. Muting stores an
+  // 'e' thread entry.
+  const rootTag = event.tags.find(([name]) => name === 'E')
+    ?? event.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
   const threadId = rootTag?.[1] ?? event.id;
   const conversationMuted = isMuted('thread', threadId);
   const author = useAuthor(event.pubkey);
@@ -430,10 +337,9 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
   const nip19Id = encodeEventNip19(event);
   const nostrUri = `nostr:${nip19Id}`;
 
-  // Named nsite events (35128) use the nsite:// scheme in the sidebar for auto-play behavior.
-  // Root sites (15128) can't be rendered as sidebar items (no naddr), so they use the normal nostr: URI.
-  const isNamedNsite = event.kind === 35128;
-  const nsiteUri = isNamedNsite ? `nsite://${getNsiteSubdomain(event)}` : undefined;
+  // Nsite events (root sites, named sites, and snapshots) use the nsite://
+  // scheme in the sidebar for auto-play behavior.
+  const nsiteUri = isNsiteKind(event.kind) ? `nsite://${getNsiteSubdomain(event)}` : undefined;
   const sidebarUri = nsiteUri ?? nostrUri;
   const isInSidebar = orderedItems.includes(sidebarUri);
 

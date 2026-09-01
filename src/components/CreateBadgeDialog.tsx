@@ -206,7 +206,7 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
 
                 {imageUrl && (
                   <div className="mx-auto w-20 h-20 rounded-xl overflow-hidden">
-                    <img src={imageUrl} alt={badgeName} className="w-full h-full object-cover" />
+                    <img src={imageUrl} alt={badgeName} className="w-full h-full object-cover" decoding="async" />
                   </div>
                 )}
 
@@ -271,7 +271,7 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
                       className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-xl bg-secondary/5 hover:bg-secondary/10 transition-colors cursor-pointer overflow-hidden"
                     >
                       {imagePreview ? (
-                        <img src={imagePreview} alt="Badge preview" className="w-full h-full object-contain" />
+                        <img src={imagePreview} alt="Badge preview" className="w-full h-full object-contain" decoding="async" />
                       ) : isUploading ? (
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
                           <Loader2 className="size-6 animate-spin" />

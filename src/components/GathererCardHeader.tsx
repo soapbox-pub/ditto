@@ -270,6 +270,7 @@ function CardImageTilt({
             'w-full aspect-[5/7] object-cover shadow-[0_14px_40px_-12px_rgba(0,0,0,0.45)]',
             CARD_CORNER_RADIUS,
           )}
+          decoding="async"
         />
       </button>
       {/* Specular glare overlay, clipped to the card's rounded corners */}

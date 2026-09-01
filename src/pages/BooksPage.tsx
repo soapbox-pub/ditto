@@ -324,6 +324,7 @@ function BookSearchResultItem({
           onError={(e) => {
             (e.currentTarget as HTMLElement).style.display = "none";
           }}
+          decoding="async"
         />
       ) : (
         <div className="w-8 h-11 rounded bg-secondary flex items-center justify-center shrink-0">

@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Play, Pause, Music } from 'lucide-react';
+import { Play, Pause, Music, Loader2 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
 import { useAuthor } from '@/hooks/useAuthor';
+import { DecryptedImage } from '@/components/DecryptedImage';
+import { useTrackLoadState } from '@/hooks/useTrackLoadState';
 import { parseMusicTrack, toAudioTrack } from '@/lib/musicHelpers';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { formatTime } from '@/lib/formatTime';
@@ -31,10 +33,12 @@ export function MusicHeroCard({ event }: MusicHeroCardProps) {
   const author = useAuthor(event.pubkey);
 
   const [imgError, setImgError] = useState(false);
+  const loadState = useTrackLoadState(event.id);
 
   if (!parsed) return null;
 
   const isNowPlaying = player.currentTrack?.id === event.id;
+  const decrypting = loadState.status === 'decrypting';
   const dur = parsed.duration ? formatTime(parsed.duration) : undefined;
 
   const handlePlay = (e: React.MouseEvent) => {
@@ -60,12 +64,15 @@ export function MusicHeroCard({ event }: MusicHeroCardProps) {
     >
       {/* Artwork */}
       {parsed.artwork && !imgError ? (
-        <img
-          src={parsed.artwork}
+        <DecryptedImage
+          url={parsed.artwork}
+          encryption={parsed.artworkEncryption}
           alt={parsed.title}
           className="w-full aspect-[16/10] object-cover"
           loading="eager"
           onError={() => setImgError(true)}
+          decoding="async"
+          noticeClassName="aspect-[16/10]"
         />
       ) : (
         <div className="w-full aspect-[16/10] bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 flex items-center justify-center">
@@ -88,17 +95,20 @@ export function MusicHeroCard({ event }: MusicHeroCardProps) {
         <div className="flex items-center gap-3 mt-3">
           <button
             onClick={handlePlay}
+            disabled={decrypting}
             className={cn(
-              'size-12 rounded-full flex items-center justify-center transition-all hover:scale-105',
-              isNowPlaying && player.isPlaying
+              'size-12 rounded-full flex items-center justify-center transition-all hover:scale-105 disabled:cursor-progress',
+              (isNowPlaying && player.isPlaying) || decrypting
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-white/90 text-black hover:bg-white',
             )}
             aria-label={isNowPlaying && player.isPlaying ? 'Pause' : 'Play'}
           >
-            {isNowPlaying && player.isPlaying
-              ? <Pause className="size-5" fill="currentColor" />
-              : <Play className="size-5 ml-0.5" fill="currentColor" />}
+            {decrypting
+              ? <Loader2 className="size-5 animate-spin" />
+              : isNowPlaying && player.isPlaying
+                ? <Pause className="size-5" fill="currentColor" />
+                : <Play className="size-5 ml-0.5" fill="currentColor" />}
           </button>
           {dur && (
             <span className="text-sm text-white/60">{dur}</span>
