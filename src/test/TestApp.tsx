@@ -168,7 +168,11 @@ export function TestApp({ children }: TestAppProps) {
           <NostrLoginProvider storageKey="test-login">
             <NostrProvider>
               <NWCProvider>
-                <BrowserRouter>{children}</BrowserRouter>
+                {/* Matches AppRouter: react-router v7 wraps every navigation
+                    in startTransition by default, so a bare BrowserRouter here
+                    would give tests different navigation timing than the app
+                    actually ships with. */}
+                <BrowserRouter useTransitions={false}>{children}</BrowserRouter>
               </NWCProvider>
             </NostrProvider>
           </NostrLoginProvider>
