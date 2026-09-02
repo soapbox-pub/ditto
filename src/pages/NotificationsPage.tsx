@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { useInView } from '@/hooks/useInView';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, ClipboardCheck, MessageCircle, Quote, Loader2, Award, Mail } from 'lucide-react';
+import { Zap, AtSign, ClipboardCheck, MessageCircle, Quote, Loader2, Award, Mail, ShieldAlert } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link, useNavigate } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -19,6 +20,7 @@ import { useEvent } from '@/hooks/useEvent';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNotifications, type GroupedNotificationItem, type NotificationItem } from '@/hooks/useNotifications';
 import { useMuteFilter } from '@/hooks/useMuteFilter';
+import { useReplyFlood } from '@/hooks/useReplyFlood';
 import { nip19 } from 'nostr-tools';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { getAvatarShape, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -142,6 +144,27 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
  */
 const REPLY_PARENT_KINDS = new Set(['1', '11', '1111', '1222', '1244']);
 
+/**
+ * Notification kinds whose events are text the actor wrote, and so can be
+ * judged by flood detection (`src/lib/replyFlood.ts`).
+ *
+ * Deliberately just mentions/replies (1) and comments (1111) — the shapes a
+ * spam campaign actually takes in an inbox. Reactions and reposts carry no
+ * prose for a template to repeat, and a kind 9735 zap receipt is signed by the
+ * LNURL provider rather than the sender, so the density rule would read a whole
+ * relay's zaps as one pubkey hammering. Feeding those in could only produce
+ * false folds.
+ */
+const FLOOD_KINDS = new Set([1, 1111]);
+
+/**
+ * One rendered row of the notification list: either a normal group, or a run of
+ * flood-flagged groups folded behind a single expandable line.
+ */
+type NotificationRow =
+  | { type: 'group'; key: string; group: GroupedNotificationItem }
+  | { type: 'flood'; key: string; groups: GroupedNotificationItem[] };
+
 /** Get a bare noun label for a kind number, defaulting to "post". */
 function getNotificationKindNoun(kind: number | undefined): string {
   if (kind === undefined) return 'post';
@@ -198,6 +221,7 @@ export function NotificationsPage() {
     fetchNextPage,
   } = useNotifications();
   const { isMuted } = useMuteFilter();
+  const { floodIds } = useReplyFlood();
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['notifications', user?.pubkey ?? ''] });
@@ -252,6 +276,47 @@ export function NotificationsPage() {
     return filtered;
   }, [groupedItems, activeTab, isMuted, user]);
 
+  // Flood detection over every text notification currently loaded: the same
+  // near-duplicate pitch echoed by a crowd of pubkeys, or hammered by one. An
+  // inbox is exactly the batch this reads best — a reply-spam campaign against
+  // a popular note lands in it wholesale. A DISPLAY hint only: flagged rows
+  // collapse into an expandable line (below), nothing is dropped, and the
+  // reader's own posts and their follows are never flagged.
+  const floodedIds = useMemo(() => {
+    const events: NostrEvent[] = [];
+    for (const group of filteredGroups) {
+      if (!FLOOD_KINDS.has(group.kind)) continue;
+      for (const actor of group.actors) events.push(actor.event);
+    }
+    return events.length > 0 ? floodIds(events) : new Set<string>();
+  }, [filteredGroups, floodIds]);
+
+  // Fold each contiguous run of flagged groups into one collapsed row, in
+  // place. A thread can push its flood to the bottom because it has a fixed
+  // root; an inbox is a chronology that keeps growing as pages load, so folding
+  // where the run happens is the only placement that leaves the surrounding
+  // notifications where the reader last saw them.
+  const rows = useMemo<NotificationRow[]>(() => {
+    if (floodedIds.size === 0) {
+      return filteredGroups.map((group) => ({ type: 'group', key: group.key, group }));
+    }
+    const out: NotificationRow[] = [];
+    for (const group of filteredGroups) {
+      // Every actor must be flagged: a group holding even one unflagged actor
+      // is a conversation the reader should see, not a wall.
+      const flooded = group.actors.every((actor) => floodedIds.has(actor.event.id));
+      const last = out[out.length - 1];
+      if (!flooded) {
+        out.push({ type: 'group', key: group.key, group });
+      } else if (last?.type === 'flood') {
+        last.groups.push(group);
+      } else {
+        out.push({ type: 'flood', key: `flood:${group.key}`, groups: [group] });
+      }
+    }
+    return out;
+  }, [filteredGroups, floodedIds]);
+
   const tabs: { key: NotificationTab; label: string }[] = [
     { key: 'all', label: 'All' },
     { key: 'mentions', label: 'Mentions' },
@@ -285,13 +350,12 @@ export function NotificationsPage() {
               <NotificationSkeleton key={i} />
             ))}
           </div>
-        ) : filteredGroups.length > 0 ? (
+        ) : rows.length > 0 ? (
           <div>
-            {filteredGroups.map((group) => (
-              <GroupedNotificationView
-                key={group.key}
-                group={group}
-              />
+            {rows.map((row) => (
+              row.type === 'flood'
+                ? <CollapsedFloodNotifications key={row.key} groups={row.groups} />
+                : <GroupedNotificationView key={row.key} group={row.group} />
             ))}
             {hasNextPage && (
               <div ref={scrollRef} className="py-4">
@@ -353,6 +417,50 @@ function GroupedNotificationView({ group }: { group: GroupedNotificationItem }) 
     default:
       return null;
   }
+}
+
+/**
+ * Renders a run of flood-flagged notifications (`src/lib/replyFlood.ts`) as one
+ * quiet inline line — "N notifications marked as spam" — that reveals them as
+ * ordinary notification rows on click. A DISPLAY fold only: nothing is dropped,
+ * and a false positive costs one click.
+ *
+ * The unread stripe stays inside the folded rows rather than on the line: a
+ * flood being new is not news, and the read cursor advances either way.
+ */
+function CollapsedFloodNotifications({ groups }: { groups: GroupedNotificationItem[] }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (groups.length === 0) return null;
+
+  return (
+    <div>
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-2 px-4 py-3 w-full text-left text-sm text-muted-foreground hover:text-foreground transition-colors group border-b border-border"
+      >
+        <ShieldAlert className="size-4 shrink-0" />
+        <span className="group-hover:underline">
+          {expanded ? (
+            <FormattedMessage
+              id="notifications.floodHide"
+              defaultMessage="Hide {count} {count, plural, one {notification} other {notifications}} marked as spam"
+              values={{ count: groups.length }}
+            />
+          ) : (
+            <FormattedMessage
+              id="notifications.floodShow"
+              defaultMessage="{count} {count, plural, one {notification} other {notifications}} marked as spam"
+              values={{ count: groups.length }}
+            />
+          )}
+        </span>
+      </button>
+      {expanded && groups.map((group) => (
+        <GroupedNotificationView key={group.key} group={group} />
+      ))}
+    </div>
+  );
 }
 
 /** Wrapper that adds the new-notification indicator. */
