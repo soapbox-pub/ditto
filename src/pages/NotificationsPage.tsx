@@ -20,7 +20,7 @@ import { useEvent } from '@/hooks/useEvent';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNotifications, type GroupedNotificationItem, type NotificationItem } from '@/hooks/useNotifications';
 import { useMuteFilter } from '@/hooks/useMuteFilter';
-import { useReplyFlood } from '@/hooks/useReplyFlood';
+import { useNotificationFlood } from '@/hooks/useNotificationFlood';
 import { nip19 } from 'nostr-tools';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { getAvatarShape, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -145,15 +145,19 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
 const REPLY_PARENT_KINDS = new Set(['1', '11', '1111', '1222', '1244']);
 
 /**
- * Notification kinds whose events are text the actor wrote, and so can be
- * judged by flood detection (`src/lib/replyFlood.ts`).
+ * Notification kinds a flood rule is allowed to judge (`useNotificationFlood`).
  *
  * Deliberately just mentions/replies (1) and comments (1111) — the shapes a
- * spam campaign actually takes in an inbox. Reactions and reposts carry no
- * prose for a template to repeat, and a kind 9735 zap receipt is signed by the
- * LNURL provider rather than the sender, so the density rule would read a whole
- * relay's zaps as one pubkey hammering. Feeding those in could only produce
- * false folds.
+ * spam campaign actually takes in an inbox, and the only ones where both rules
+ * read something real. Reactions and reposts carry no prose for the content
+ * rule to match, and a kind 9735 zap receipt is signed by the LNURL provider
+ * rather than the sender, so the density rule would read a whole relay's zaps
+ * as one pubkey hammering.
+ *
+ * The gate matters just as much to the swarm rule: a post going viral produces
+ * a burst of one-shot strangers reacting within seconds, which is the exact
+ * arrival shape a swarm has and the exact moment the reader wants to see every
+ * row. Judging only what someone wrote to them keeps that out of reach.
  */
 const FLOOD_KINDS = new Set([1, 1111]);
 
@@ -221,7 +225,7 @@ export function NotificationsPage() {
     fetchNextPage,
   } = useNotifications();
   const { isMuted } = useMuteFilter();
-  const { floodIds } = useReplyFlood();
+  const { floodIds } = useNotificationFlood();
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['notifications', user?.pubkey ?? ''] });
@@ -276,12 +280,14 @@ export function NotificationsPage() {
     return filtered;
   }, [groupedItems, activeTab, isMuted, user]);
 
-  // Flood detection over every text notification currently loaded: the same
-  // near-duplicate pitch echoed by a crowd of pubkeys, or hammered by one. An
-  // inbox is exactly the batch this reads best — a reply-spam campaign against
-  // a popular note lands in it wholesale. A DISPLAY hint only: flagged rows
-  // collapse into an expandable line (below), nothing is dropped, and the
-  // reader's own posts and their follows are never flagged.
+  // Flood detection over every text notification currently loaded — one pitch
+  // echoed by a crowd of pubkeys, and (the shape built to defeat that) a burst
+  // of one-shot strangers all naming the same co-victims. A DISPLAY hint only:
+  // flagged rows collapse into an expandable line (below), nothing is dropped,
+  // and the reader's own posts and their follows are never flagged.
+  //
+  // The batch is what's loaded, so a swarm folds once enough of it is in view;
+  // the page auto-fetches a second page, and each page re-runs both rules.
   const floodedIds = useMemo(() => {
     const events: NostrEvent[] = [];
     for (const group of filteredGroups) {
