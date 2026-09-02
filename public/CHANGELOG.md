@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.37.0] - 2026-09-02
+
+Spam folds itself out of your way. Runs of junk replies under a post, and floods of junk mentions in your notifications, collapse into a single line you can expand — including the swarms that blast a slightly different message at everyone on a victim list. Nothing is deleted, people you follow are never folded, and a mistake costs one tap. There's also a new setting to keep media from strangers behind a tap to reveal, and moderation reports now show up as real cards instead of blank ones.
+
+### Added
+- Spam replies under a post collapse into one expandable line, so a flood can't bury the real conversation
+- Notifications fold runs of likely-spam mentions and replies the same way, including swarms that hit a whole list of accounts with a differently-worded message each time
+- New setting under Settings → Content keeps images, video, and audio from accounts you don't follow behind a tap-to-reveal overlay — text still shows
+- Moderation reports render as their own cards in the feed and on the detail page, with the reported post held behind a "Show reported post" button, plus a Reports toggle in Other Stuff to browse them
+
+### Changed
+- The Media filter on profile tabs uses independent Images and Videos toggles, so a tab can show any media instead of only one kind at a time
+- Site snapshots appear in feeds by default, with a toggle in Content Settings for anyone who finds them noisy
+- The new-post box asks "What's on your mind?"
+
+### Fixed
+- Some fonts were silently blocked and fell back to a substitute — they now render as intended
+- Saving your profile no longer republishes your profile or your payment addresses when nothing about them changed
+
 ## [2.36.0] - 2026-08-23
 
 Take your account with you. A new Import & Export screen in Settings pulls everything you've ever posted off your relays into a file that's yours to keep, then pushes your history back to any relay that's missing it — one relay at a time, with progress for each, picking up where it left off. Replies got reworked too: every reply now records the post and the thread it belongs to, so reply labels and notifications land right. And muting a conversation finally silences the whole thing.
