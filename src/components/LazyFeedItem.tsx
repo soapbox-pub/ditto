@@ -26,6 +26,13 @@ const MAX_CACHED_HEIGHTS = 2000;
  * and the page reflows as the observer swaps placeholders for real cards.
  * Seeding placeholders from their previous height makes the remounted list
  * match the one the user left.
+ *
+ * The cached height must also feed `contain-intrinsic-size` on the wrapper.
+ * `content-visibility: auto` sizes a skipped (off-screen) element from that
+ * property alone and ignores its children, so a placeholder div of the right
+ * height inside a skipped wrapper still lays out at the 300px class default.
+ * The `auto` keyword's remembered size lives on the DOM node and is lost on
+ * remount, so the inline value is the only thing that survives.
  */
 const heightCache = new Map<string, number>();
 
@@ -86,7 +93,9 @@ interface LazyFeedItemProps {
   /**
    * Stable identity for this item across remounts (e.g. `feedItemKey(item)`).
    * When set, the measured height is remembered so the placeholder starts at
-   * the right size the next time this item is rendered.
+   * the right size the next time this item is rendered, and the wrapper is
+   * tagged `data-scroll-key` so `ScrollToTop` can restore scroll position
+   * relative to this item after a back navigation.
    */
   cacheKey?: string;
 }
@@ -145,7 +154,12 @@ export function LazyFeedItem({ children, initialInView = false, className, cache
   }, []);
 
   return (
-    <div ref={ref} className={className}>
+    <div
+      ref={ref}
+      className={className}
+      data-scroll-key={cacheKey}
+      style={{ containIntrinsicSize: `auto ${heightRef.current}px` }}
+    >
       {inView ? children : <div style={{ height: heightRef.current }} aria-hidden="true" />}
     </div>
   );
