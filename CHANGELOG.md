@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.37.1] - 2026-09-03
+
+Spam folding follows you to your phone. The same collapse-the-junk treatment your notifications page already gives reply floods and mention swarms now runs on native and push notifications, so a burst of throwaway accounts can't light up your lock screen. Search results fold spam runs in place too, and a broken link in a thread now leaves a marker you can tap to retry instead of vanishing.
+
+### Added
+- Press "n" anywhere to start a new post
+
+### Changed
+- Spam floods now fold out of your phone's notifications the way they already do on the notifications page — bursts of junk replies and mention swarms collapse instead of blowing up your lock screen
+- Search results fold runs of likely-spam posts into a single expandable line, right where they sit in the feed
+
+### Fixed
+- A reply whose parent post can't be loaded now shows a tappable marker to retry on another relay, instead of the thread silently cutting off
+
 ## [2.37.0] - 2026-09-02
 
 Spam folds itself out of your way. Runs of junk replies under a post, and floods of junk mentions in your notifications, collapse into a single line you can expand — including the swarms that blast a slightly different message at everyone on a victim list. Nothing is deleted, people you follow are never folded, and a mistake costs one tap. There's also a new setting to keep media from strangers behind a tap to reveal, and moderation reports now show up as real cards instead of blank ones.
