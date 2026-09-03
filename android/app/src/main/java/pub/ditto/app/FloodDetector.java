@@ -30,6 +30,10 @@ import java.util.regex.Pattern;
  *  - ECHO: one near-duplicate template posted across {@link #ECHO_MIN_AUTHORS}+
  *    distinct pubkeys.
  *  - DENSITY: one pubkey repeating the same template {@link #DENSITY_MIN}+ times.
+ *  - SALAD: a crowd of throwaway pubkeys each posting a uniquely-shaped word
+ *    salad drawn from one shared vocabulary pool — the campaign that defeats
+ *    shape clustering on purpose. Keys off the crowd (many authors, one shared
+ *    word pool), not shape.
  *  - A CONTAINMENT sweep that only WIDENS an already-confirmed flood.
  *
  * Because notifications arrive one at a time on the live socket, the caller
@@ -57,6 +61,14 @@ public final class FloodDetector {
     public static final double CONTAINMENT = 0.8;
     /** Words the SMALLER of two templates needs before the containment sweep will judge them. */
     public static final int CONTAINMENT_MIN_WORDS = 6;
+    /** Distinct authors a shared word pool must span before SALAD reads as a campaign. */
+    public static final int SALAD_MIN_AUTHORS = 5;
+    /** Distinct words a reply needs before SALAD will judge it. */
+    public static final int SALAD_MIN_WORDS = 6;
+    /** Document frequency (over the distinct-author corpus) at/above which a word is "pool". */
+    public static final int SALAD_POOL_DF = 3;
+    /** Fraction of a reply's distinct words that must be pool words to read as salad. */
+    public static final double SALAD_POOL_FRACTION = 0.6;
     /** Document frequency above which a word is skipped when generating merge candidates. */
     private static final int DF_CAP = 64;
     /** Most candidate templates one template is compared against. */
@@ -258,6 +270,44 @@ public final class FloodDetector {
             boolean echo = c.authors.size() >= ECHO_MIN_AUTHORS && c.ids.size() >= ECHO_MIN_COPIES;
             boolean density = c.authors.size() == 1 && c.ids.size() >= DENSITY_MIN;
             if (echo || density) flagged.addAll(c.ids);
+        }
+
+        // SALAD: a crowd of throwaway pubkeys each posting a uniquely-shaped word
+        // salad drawn from one shared vocabulary pool. Shape-based ECHO/DENSITY
+        // are blind to it, so this reads the crowd instead: build a corpus of
+        // substantial replies (one per pubkey), take the pool to be the words
+        // recurring across SALAD_POOL_DF+ distinct authors, and flag replies
+        // mostly built from that pool — but only when they span a big enough crowd.
+        Map<String, Set<String>> perAuthor = new HashMap<>();
+        for (Event ev : replies) {
+            if (perAuthor.containsKey(ev.pubkey)) continue;
+            List<String> words = normalizeTokens(shapeKey(ev.content));
+            if (words.size() < SALAD_MIN_WORDS) continue;
+            perAuthor.put(ev.pubkey, new HashSet<>(words));
+        }
+        if (perAuthor.size() >= SALAD_MIN_AUTHORS) {
+            Map<String, Integer> poolDf = new HashMap<>();
+            for (Set<String> set : perAuthor.values()) {
+                for (String w : set) poolDf.merge(w, 1, Integer::sum);
+            }
+            List<String> memberIds = new ArrayList<>();
+            Set<String> memberAuthors = new HashSet<>();
+            for (Event ev : replies) {
+                List<String> words = normalizeTokens(shapeKey(ev.content));
+                if (words.size() < SALAD_MIN_WORDS) continue;
+                Set<String> distinct = new HashSet<>(words);
+                int pool = 0;
+                for (String w : distinct) {
+                    if (poolDf.getOrDefault(w, 0) >= SALAD_POOL_DF) pool++;
+                }
+                if ((double) pool / distinct.size() >= SALAD_POOL_FRACTION) {
+                    memberIds.add(ev.id);
+                    memberAuthors.add(ev.pubkey);
+                }
+            }
+            if (memberAuthors.size() >= SALAD_MIN_AUTHORS) {
+                flagged.addAll(memberIds);
+            }
         }
 
         // Containment sweep: only WIDENS an already-confirmed flood, never forms one.

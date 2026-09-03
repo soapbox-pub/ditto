@@ -33,10 +33,21 @@ import type { NostrEvent } from '@nostrify/nostrify';
  *    the shape honest repetition never takes.
  *  - DENSITY: one pubkey repeating the same template {@link DENSITY_MIN}+ times.
  *    The lone-hammer case.
+ *  - SALAD: a crowd of throwaway pubkeys each posting a UNIQUE random word-salad
+ *    drawn from one shared vocabulary pool (observed live: 41 keys replying to
+ *    one note, each a distinct permutation of `feed`/`slow`/`af` + filler +
+ *    a rotated payload URL). Every message has a different shape, so ECHO and
+ *    DENSITY — both shape-clustering rules — never fire: each salad lands in its
+ *    own singleton bucket and no two clear the Jaccard merge bar. SALAD ignores
+ *    shape entirely and keys off the crowd-level tell instead: many distinct
+ *    authors whose replies are built mostly from the SAME recurring word pool.
+ *    Honest conversation doesn't look like uniform draws from a fixed bag.
  *
- * Both cluster near-duplicates first (`shapeKey` normalization + Jaccard
- * similarity), so rotating the pitch's name or trailing nonce doesn't split one
- * campaign into a dozen innocent-looking singletons.
+ * ECHO and DENSITY cluster near-duplicates first (`shapeKey` normalization +
+ * Jaccard similarity), so rotating the pitch's name or trailing nonce doesn't
+ * split one campaign into a dozen innocent-looking singletons. SALAD is the
+ * complement: it catches the campaign that defeats clustering ON PURPOSE by
+ * making every copy uniquely shaped.
  *
  * A CONTAINMENT sweep runs after a campaign is confirmed. A salad reply that
  * pads a campaign's template with unique filler engulfs the template's whole
@@ -83,6 +94,36 @@ export const CONTAINMENT = 0.8;
  * the covered template is itself substantial.
  */
 export const CONTAINMENT_MIN_WORDS = 6;
+/**
+ * SALAD rule — distinct authors a shared word pool must span before a crowd of
+ * uniquely-shaped word-salads reads as one campaign. Deliberately HIGHER than
+ * {@link ECHO_MIN_AUTHORS}: ECHO already has the near-duplicate template as
+ * corroboration, whereas SALAD keys off vocabulary overlap alone, so it needs a
+ * bigger crowd before that overlap stops being coincidence. A handful of people
+ * genuinely reusing a thread's topic words never reaches this.
+ */
+export const SALAD_MIN_AUTHORS = 5;
+/**
+ * Distinct words a reply needs before SALAD will judge it. Matches
+ * {@link CONTAINMENT_MIN_WORDS}: a short reply drawn from common words is just
+ * ordinary speech (`slow feed today huh`), and the pool-fraction test is only
+ * meaningful once there's enough vocabulary for "mostly pool" to mean something.
+ */
+export const SALAD_MIN_WORDS = 6;
+/**
+ * Document frequency (over the distinct-author corpus) at or above which a word
+ * counts as part of the shared "pool". A word two throwaway keys happen to share
+ * proves nothing; a word recurring across three-plus distinct authors is the bag
+ * the generator is sampling from.
+ */
+export const SALAD_POOL_DF = 3;
+/**
+ * Fraction of a reply's distinct words that must be pool words for it to read as
+ * salad. At 0.6 a genuine reply that merely mentions the thread's topic (a few
+ * shared words wrapped in original prose) stays well clear, while a permutation
+ * of the shared bag — observed at a 0.82 mean pool fraction — is caught.
+ */
+export const SALAD_POOL_FRACTION = 0.6;
 /**
  * Document frequency above which a word is skipped when generating merge
  * candidates. A word in nearly every template (`the`, or the campaign's own
@@ -306,6 +347,50 @@ export function replyFloodIds(
     // Density: a single pubkey carrying the whole campaign at DENSITY_MIN+.
     const density = c.authors.size === 1 && c.ids.length >= DENSITY_MIN;
     if (echo || density) for (const id of c.ids) flagged.add(id);
+  }
+
+  // SALAD: a crowd of throwaway pubkeys each posting a uniquely-shaped word
+  // salad drawn from one shared vocabulary pool. Shape-based ECHO/DENSITY are
+  // blind to it — every salad is its own singleton bucket and no pair clears the
+  // Jaccard merge — so this rule ignores shape and reads the crowd instead.
+  //
+  // Build a corpus of substantial replies, ONE PER PUBKEY (so a lone hammer
+  // can't manufacture a pool — that's DENSITY's job), and take the pool to be
+  // the words recurring across SALAD_POOL_DF+ of those distinct authors. A
+  // reply is a salad member when most of its distinct words come from that pool.
+  // Fires only when the members span a large enough crowd to rule out a few
+  // people genuinely echoing the thread's topic words.
+  const perAuthor = new Map<string, Set<string>>();
+  for (const ev of replies) {
+    if (perAuthor.has(ev.pubkey)) continue; // first substantial reply per author
+    const words = normalizeTokens(shapeKey(ev.content));
+    if (words.length < SALAD_MIN_WORDS) continue;
+    perAuthor.set(ev.pubkey, new Set(words));
+  }
+  if (perAuthor.size >= SALAD_MIN_AUTHORS) {
+    const poolDf = new Map<string, number>();
+    for (const set of perAuthor.values()) {
+      for (const w of set) poolDf.set(w, (poolDf.get(w) ?? 0) + 1);
+    }
+    // Score every substantial reply (not just the per-author corpus) against the
+    // pool, so all copies from a repeat author fold too — but require the member
+    // set to itself span SALAD_MIN_AUTHORS distinct pubkeys before flagging.
+    const members: { id: string; pubkey: string }[] = [];
+    const memberAuthors = new Set<string>();
+    for (const ev of replies) {
+      const words = normalizeTokens(shapeKey(ev.content));
+      if (words.length < SALAD_MIN_WORDS) continue;
+      const distinct = new Set(words);
+      let pool = 0;
+      for (const w of distinct) if ((poolDf.get(w) ?? 0) >= SALAD_POOL_DF) pool++;
+      if (pool / distinct.size >= SALAD_POOL_FRACTION) {
+        members.push({ id: ev.id, pubkey: ev.pubkey });
+        memberAuthors.add(ev.pubkey);
+      }
+    }
+    if (memberAuthors.size >= SALAD_MIN_AUTHORS) {
+      for (const m of members) flagged.add(m.id);
+    }
   }
 
   // Containment sweep: only WIDENS an already-confirmed flood, never forms one.

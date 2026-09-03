@@ -20,6 +20,10 @@ import Foundation
 /// What survives from the port:
 ///  - ECHO: one near-duplicate template posted across `echoMinAuthors`+ pubkeys.
 ///  - DENSITY: one pubkey repeating the same template `densityMin`+ times.
+///  - SALAD: a crowd of throwaway pubkeys each posting a uniquely-shaped word
+///    salad drawn from one shared vocabulary pool — the campaign that defeats
+///    shape clustering on purpose. Keys off the crowd (many authors, one shared
+///    word pool), not shape.
 ///  - A CONTAINMENT sweep that only WIDENS an already-confirmed flood.
 ///
 /// The caller feeds a batch (a poll cycle's worth of events) so the crowd
@@ -45,6 +49,14 @@ enum FloodDetector {
     static let containmentThreshold = 0.8
     /// Words the SMALLER of two templates needs before the containment sweep will judge them.
     static let containmentMinWords = 6
+    /// Distinct authors a shared word pool must span before SALAD reads as a campaign.
+    static let saladMinAuthors = 5
+    /// Distinct words a reply needs before SALAD will judge it.
+    static let saladMinWords = 6
+    /// Document frequency (over the distinct-author corpus) at/above which a word is "pool".
+    static let saladPoolDf = 3
+    /// Fraction of a reply's distinct words that must be pool words to read as salad.
+    static let saladPoolFraction = 0.6
     /// Document frequency above which a word is skipped when generating merge candidates.
     static let dfCap = 64
     /// Most candidate templates one template is compared against.
@@ -268,6 +280,42 @@ enum FloodDetector {
             let echo = c.authors.count >= echoMinAuthors && c.ids.count >= echoMinCopies
             let density = c.authors.count == 1 && c.ids.count >= densityMin
             if echo || density { flagged.formUnion(c.ids) }
+        }
+
+        // SALAD: a crowd of throwaway pubkeys each posting a uniquely-shaped word
+        // salad drawn from one shared vocabulary pool. Shape-based ECHO/DENSITY
+        // are blind to it, so this reads the crowd instead: build a corpus of
+        // substantial replies (one per pubkey), take the pool to be the words
+        // recurring across saladPoolDf+ distinct authors, and flag replies mostly
+        // built from that pool — but only when they span a large enough crowd.
+        var perAuthor = [String: Set<String>]()
+        for ev in replies {
+            if perAuthor[ev.pubkey] != nil { continue }
+            let words = normalizeTokens(shapeKey(ev.content))
+            if words.count < saladMinWords { continue }
+            perAuthor[ev.pubkey] = Set(words)
+        }
+        if perAuthor.count >= saladMinAuthors {
+            var poolDf = [String: Int]()
+            for set in perAuthor.values {
+                for w in set { poolDf[w, default: 0] += 1 }
+            }
+            var memberIds: [String] = []
+            var memberAuthors = Set<String>()
+            for ev in replies {
+                let words = normalizeTokens(shapeKey(ev.content))
+                if words.count < saladMinWords { continue }
+                let distinct = Set(words)
+                var pool = 0
+                for w in distinct where (poolDf[w] ?? 0) >= saladPoolDf { pool += 1 }
+                if Double(pool) / Double(distinct.count) >= saladPoolFraction {
+                    memberIds.append(ev.id)
+                    memberAuthors.insert(ev.pubkey)
+                }
+            }
+            if memberAuthors.count >= saladMinAuthors {
+                flagged.formUnion(memberIds)
+            }
         }
 
         // Containment sweep: only WIDENS an already-confirmed flood, never forms one.
