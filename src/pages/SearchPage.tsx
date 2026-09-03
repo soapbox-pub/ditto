@@ -441,11 +441,17 @@ export function SearchPage() {
   });
 
   // Fold likely-spam floods into a single expandable row, the same display
-  // heuristic the thread view uses. Runs over the raw stream events (`posts`),
-  // whose ids match `item.event.id` for direct posts — the shape a flood takes.
-  // The reader's own posts and posts from anyone they follow are never folded.
+  // heuristic the thread view uses. Detection runs over the exact events that
+  // back the rendered feed items — NOT the raw `posts` — so the flagged id space
+  // lines up with `item.event.id` and newly streamed-in events fold the moment
+  // they appear. The raw-`posts` set drifts from what's shown: `feedItems` lags
+  // it through the query's `placeholderData`, and for reposts / reactions / zaps
+  // the wrapper event in `posts` carries a different id than the target the card
+  // renders. The reader's own posts and posts from anyone they follow are never
+  // folded (the exemption lives in `useReplyFlood`).
   const { floodIds } = useReplyFlood();
-  const floodedIds = useMemo(() => floodIds(posts), [floodIds, posts]);
+  const floodEvents = useMemo(() => feedItems.map((item) => item.event), [feedItems]);
+  const floodedIds = useMemo(() => floodIds(floodEvents), [floodIds, floodEvents]);
   const visibleFeedItems = useMemo(
     () => feedItems.filter((item) => !floodedIds.has(item.event.id)),
     [feedItems, floodedIds],
@@ -454,6 +460,12 @@ export function SearchPage() {
     () => feedItems.filter((item) => floodedIds.has(item.event.id)),
     [feedItems, floodedIds],
   );
+  // Expanded state lives here, not inside CollapsedFloodPosts, so it survives the
+  // row unmounting whenever the flooded set momentarily empties — the stream
+  // commits new `posts` on a timer and rebuilds `feedItems`, and the flood set
+  // churns as more copies cross the echo threshold. A locally-stateful row would
+  // reset itself to collapsed on every such update.
+  const [floodExpanded, setFloodExpanded] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     flushStreamBuffer();
@@ -825,7 +837,11 @@ export function SearchPage() {
                   );
                 })}
                 {/* Likely-spam floods, folded into one expandable row. */}
-                <CollapsedFloodPosts items={floodedFeedItems} />
+                <CollapsedFloodPosts
+                  items={floodedFeedItems}
+                  expanded={floodExpanded}
+                  onToggle={() => setFloodExpanded((v) => !v)}
+                />
                 {/* Infinite scroll sentinel */}
                 {hasNextPage && (
                   <div ref={postsScrollRef} className="py-4">
@@ -1068,15 +1084,13 @@ function EmptyState({
  * NoteCards on click. A DISPLAY fold only: nothing is dropped, and one click
  * shows every flagged post.
  */
-function CollapsedFloodPosts({ items }: { items: FeedItem[] }) {
-  const [expanded, setExpanded] = useState(false);
-
+function CollapsedFloodPosts({ items, expanded, onToggle }: { items: FeedItem[]; expanded: boolean; onToggle: () => void }) {
   if (items.length === 0) return null;
 
   return (
     <div>
       <button
-        onClick={() => setExpanded((v) => !v)}
+        onClick={onToggle}
         className="flex items-center gap-2 px-4 py-3 w-full text-left text-sm text-muted-foreground hover:text-foreground transition-colors group border-b border-border"
       >
         <ShieldAlert className="size-4 shrink-0" />
