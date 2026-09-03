@@ -236,6 +236,7 @@ import { isBadgeSetEvent, isProfileBadgesEvent } from "@/lib/badgeUtils";
 import { detectCelebration, markCelebrated } from "@/lib/celebrations";
 import { isCustomEmoji, type ResolvedEmoji } from "@/lib/customEmoji";
 import { encodeEventAddress } from "@/lib/encodeEvent";
+import { tryNeventEncode, tryNaddrEncode } from "@/lib/safeNip19";
 import { isNsiteKind } from "@/lib/nsiteSubdomain";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { parseAddr } from "@/lib/parseAddr";
@@ -2867,6 +2868,47 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 }
 
 /**
+ * Threaded placeholder for an ancestor that couldn't be fetched, so the chain
+ * doesn't silently cut off with no marker. Links to the event's own detail
+ * page (which offers the "try another relay" retry) when we can build one.
+ */
+function MissingAncestor({ to }: { to?: string }) {
+  const body = (
+    <div className="px-4 pt-3 pb-0">
+      <div className="flex gap-3">
+        <div className="flex flex-col items-center">
+          <div className="inline-flex items-center justify-center size-10 rounded-full bg-muted/60 shrink-0">
+            <AlertCircle className="size-5 text-muted-foreground" />
+          </div>
+          <div className="w-0.5 flex-1 mt-2 bg-foreground/20" />
+        </div>
+        <div className="flex-1 min-w-0 pb-4">
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            This post couldn't be loaded. It may be on a relay you're not
+            connected to.
+            {to && (
+              <>
+                {" "}
+                <span className="text-primary font-medium">View post</span>
+              </>
+            )}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (to) {
+    return (
+      <Link to={to} className="block hover:bg-secondary/30 transition-colors">
+        {body}
+      </Link>
+    );
+  }
+  return body;
+}
+
+/**
  * Renders a parent event fetched by addr coordinates as a threaded NoteCard.
  * Used when a kind 1111 comment references its root via an `a` tag (no event ID).
  */
@@ -2896,7 +2938,15 @@ function AddrAncestor({ addr, relays }: { addr: { kind: number; pubkey: string; 
     );
   }
 
-  if (!event) return null;
+  if (!event) {
+    const naddr = tryNaddrEncode({
+      identifier: addr.identifier,
+      pubkey: addr.pubkey,
+      kind: addr.kind,
+      relays,
+    });
+    return <MissingAncestor to={naddr ? `/${naddr}` : undefined} />;
+  }
 
   return <NoteCard event={event} threaded />;
 }
@@ -2977,7 +3027,14 @@ function AncestorThread({
     );
   }
 
-  if (!event) return null;
+  if (!event) {
+    const nevent = tryNeventEncode({
+      id: eventId,
+      relays,
+      author: authorHint,
+    });
+    return <MissingAncestor to={nevent ? `/${nevent}` : undefined} />;
+  }
 
   return (
     <>

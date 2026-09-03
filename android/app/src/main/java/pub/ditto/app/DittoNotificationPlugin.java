@@ -109,6 +109,7 @@ public class DittoNotificationPlugin extends Plugin {
         String relayUrlsRaw = null;
         String enabledKindsRaw = null;
         String authorsRaw = null;
+        String followsRaw = null;
 
         try {
             JSONArray relayUrls = call.getArray("relayUrls");
@@ -137,6 +138,15 @@ public class DittoNotificationPlugin extends Plugin {
             Log.w(TAG, "Failed to read authors", e);
         }
 
+        try {
+            JSONArray follows = call.getArray("follows");
+            if (follows != null) {
+                followsRaw = follows.toString();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to read follows", e);
+        }
+
         SharedPreferences prefs = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
 
         if (userPubkey != null && relayUrlsRaw != null) {
@@ -151,6 +161,11 @@ public class DittoNotificationPlugin extends Plugin {
                 editor.putString("authors", authorsRaw);
             } else {
                 editor.remove("authors");
+            }
+            if (followsRaw != null) {
+                editor.putString("follows", followsRaw);
+            } else {
+                editor.remove("follows");
             }
             editor.apply();
             Log.d(TAG, "Configured: pubkey=" + userPubkey.substring(0, 8) + "..., style=" + notificationStyle + ", relays=" + relayUrlsRaw + ", kinds=" + enabledKindsRaw + ", authors=" + (authorsRaw != null ? authorsRaw.length() + " chars" : "all"));

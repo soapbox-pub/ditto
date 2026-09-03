@@ -140,6 +140,8 @@ public class NostrPoller {
      * @param authorName      resolved display name of the acting user (may be null)
      * @param authorPicture   resolved profile picture URL (may be null)
      * @param referencedEvent the user's own post being acted on (may be null)
+     * @param mentionResolver resolves a mentioned pubkey to {@code @name} from the
+     *                        service's memory cache (never the network); may be null
      * @param httpClient      client used to fetch the avatar bitmap
      */
     public void showEventNotification(
@@ -147,10 +149,11 @@ public class NostrPoller {
             String authorName,
             String authorPicture,
             JSONObject referencedEvent,
+            NotificationContent.MentionResolver mentionResolver,
             OkHttpClient httpClient
     ) {
         String title = (authorName != null && !authorName.isEmpty()) ? authorName : "Someone";
-        String body = buildBody(event, referencedEvent);
+        String body = buildBody(event, referencedEvent, mentionResolver);
         String senderKey = getSenderPubkey(event);
         long createdAt = event.optLong("created_at", 0);
         long whenMs = createdAt > 0 ? createdAt * 1000L : System.currentTimeMillis();
@@ -196,11 +199,22 @@ public class NostrPoller {
     // Text generation
     // -------------------------------------------------------------------------
 
-    /** Build the descriptive body line for an event. */
-    private String buildBody(JSONObject event, JSONObject referencedEvent) {
+    /**
+     * Build the descriptive body line for an event. Content is run through
+     * {@link NotificationContent#clean} first, so inline media URLs are stripped
+     * and {@code nostr:npub…} mentions become {@code @name} (resolved from the
+     * service's memory cache; unknown mentions keep their raw token). When
+     * stripping media leaves nothing quotable, a media label ("an image", "a
+     * voice message", …) stands in so the body isn't empty.
+     */
+    private String buildBody(
+            JSONObject event,
+            JSONObject referencedEvent,
+            NotificationContent.MentionResolver resolver
+    ) {
         int kind = event.optInt("kind");
         String refSnippet = referencedEvent != null
-                ? snippet(referencedEvent.optString("content"))
+                ? snippet(NotificationContent.clean(referencedEvent.optString("content"), resolver))
                 : null;
         String refNoun = kindNoun(referencedEvent);
 
@@ -222,21 +236,26 @@ public class NostrPoller {
                 return appendQuote(base, refSnippet);
             }
             case 1: {
-                String content = snippet(event.optString("content"));
+                String content = cleanSnippet(event, resolver);
+                String media = content == null ? mediaWord(event) : null;
                 if (hasTag(event, "e")) {
-                    return content != null ? "Replied: “" + content + "”" : "Replied to your post";
+                    if (content != null) return "Replied: “" + content + "”";
+                    return media != null ? "Replied with " + media : "Replied to your post";
                 }
-                return content != null ? "Mentioned you: “" + content + "”" : "Mentioned you";
+                if (content != null) return "Mentioned you: “" + content + "”";
+                return media != null ? "Mentioned you with " + media : "Mentioned you";
             }
             case 1111: {
-                String content = snippet(event.optString("content"));
+                String content = cleanSnippet(event, resolver);
                 boolean isCommentReply = "1111".equals(tagValue(event, "k"));
                 String base = isCommentReply ? "Replied to your comment" : "Commented on your " + refNoun;
-                return content != null ? base + ": “" + content + "”" : base;
+                if (content != null) return base + ": “" + content + "”";
+                String media = mediaWord(event);
+                return media != null ? base + " with " + media : base;
             }
             case 9802: {
                 // The highlight's own content IS the excerpt of the user's post.
-                String excerpt = snippet(event.optString("content"));
+                String excerpt = cleanSnippet(event, resolver);
                 String base = "Highlighted your " + refNoun;
                 return excerpt != null ? base + ": “" + excerpt + "”" : base;
             }
@@ -249,10 +268,47 @@ public class NostrPoller {
             case 8211:
                 return "Sent you a letter";
             default: {
-                String content = snippet(event.optString("content"));
-                return content != null ? "Mentioned you: “" + content + "”" : "Mentioned you";
+                String content = cleanSnippet(event, resolver);
+                if (content != null) return "Mentioned you: “" + content + "”";
+                String media = mediaWord(event);
+                return media != null ? "Mentioned you with " + media : "Mentioned you";
             }
         }
+    }
+
+    /**
+     * The event's own content, cleaned (media URLs stripped, mentions resolved),
+     * collapsed and capped for inline quoting. Null when nothing quotable remains.
+     */
+    private static String cleanSnippet(JSONObject event, NotificationContent.MentionResolver resolver) {
+        return snippet(NotificationContent.clean(event.optString("content"), resolver));
+    }
+
+    /**
+     * A media label ("an image", "a GIF", "a video", "a voice message", "a game")
+     * for a media-only event, from the first imeta {@code m} MIME or a media URL
+     * in the content. Null when the event carries no recognizable media.
+     */
+    private static String mediaWord(JSONObject event) {
+        return NotificationContent.mediaLabel(firstImetaMime(event), event.optString("content"));
+    }
+
+    /** The {@code m <mime>} field of the event's first imeta tag carrying one, or null. */
+    private static String firstImetaMime(JSONObject event) {
+        JSONArray tags = event.optJSONArray("tags");
+        if (tags == null) return null;
+        for (int i = 0; i < tags.length(); i++) {
+            JSONArray tag = tags.optJSONArray(i);
+            if (tag == null || tag.length() < 2 || !"imeta".equals(tag.optString(0))) continue;
+            for (int j = 1; j < tag.length(); j++) {
+                String field = tag.optString(j, "");
+                if (field.startsWith("m ")) {
+                    String mime = field.substring(2).trim();
+                    if (!mime.isEmpty()) return mime;
+                }
+            }
+        }
+        return null;
     }
 
     private static String appendQuote(String base, String snippet) {

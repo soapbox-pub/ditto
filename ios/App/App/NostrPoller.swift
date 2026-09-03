@@ -20,7 +20,10 @@ final class NostrPoller {
     private static let metadataCacheKey = "nostr:author-metadata-cache"
     private static let metadataTTL: TimeInterval = 24 * 60 * 60 // 24 hours
 
-    private static let fetchLimit = 5
+    // Fetch a batch rather than a handful, so the crowd-based flood detector
+    // can see a spam wall (ECHO needs 3+ copies across 3+ authors) and fold it
+    // out before any notification fires. Mirrors Android's BACKFILL_LIMIT.
+    private static let fetchLimit = 50
     private static let wsTimeout: TimeInterval = 10
     private static let metadataFetchTimeout: TimeInterval = 5
 
@@ -75,7 +78,8 @@ final class NostrPoller {
         userPubkey: String,
         relayUrls: [String],
         enabledKinds: [Int],
-        authors: [String]?
+        authors: [String]?,
+        follows: Set<String>? = nil
     ) async -> Int {
         guard !relayUrls.isEmpty, !enabledKinds.isEmpty else { return 0 }
 
@@ -111,15 +115,51 @@ final class NostrPoller {
                 return 0
             }
 
+            // Flood suppression: fold out likely-spam floods before doing any
+            // further work, so a wall of throwaway-key spam never fires a
+            // notification. Two orthogonal detectors run and their verdicts are
+            // unioned, mirroring the web client's useNotificationFlood and the
+            // Android service:
+            //   - FloodDetector (reply flood) reads CONTENT — one pitch echoed
+            //     across a crowd, or hammered by a single key.
+            //   - MentionSwarmDetector reads the ENVELOPE — a burst of one-shot
+            //     strangers all naming the same co-victims, which catches a
+            //     mad-libs generator that writes a unique message every time
+            //     (content clustering has nothing to hold onto).
+            // The reader's own events and events from people they follow are
+            // never suppressed by either. Last-seen still advances over the
+            // flooded events below so they aren't re-fetched.
+            let floodInput = filtered.map {
+                FloodDetector.Event(id: $0.id, pubkey: $0.pubkey, content: $0.content)
+            }
+            var flooded = FloodDetector.floodIds(
+                floodInput, selfPubkey: userPubkey, follows: follows
+            )
+            let swarmInput = filtered.map {
+                MentionSwarmDetector.Event(
+                    id: $0.id,
+                    pubkey: $0.pubkey,
+                    createdAt: $0.createdAt,
+                    pTags: $0.tags.filter { $0.first == "p" && $0.count > 1 }.map { $0[1] }
+                )
+            }
+            flooded.formUnion(MentionSwarmDetector.swarmIds(
+                swarmInput, selfPubkey: userPubkey, follows: follows
+            ))
+            let deflooded = flooded.isEmpty
+                ? filtered
+                : filtered.filter { !flooded.contains($0.id) }
+
             // Verify referenced events for reactions/reposts/zaps.
             let notifiable = await verifyReferencedEvents(
-                events: filtered,
+                events: deflooded,
                 userPubkey: userPubkey,
                 relayUrl: relayUrl
             )
 
             // Update last-seen to newest event in the full filtered set (not
-            // just notifiable) so we don't re-fetch already-seen events.
+            // just notifiable, and including flooded events) so we don't
+            // re-fetch already-seen events.
             let newestTs = filtered.map(\.createdAt).max() ?? effectiveSince
             if newestTs > lastSeenTimestamp {
                 setLastSeenTimestamp(newestTs)

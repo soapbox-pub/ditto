@@ -5,15 +5,26 @@ import { useQuery } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
 import { useFollowList } from './useFollowActions';
+import { useReplyFlood } from './useReplyFlood';
 import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
+
+/** Unread events to sample per check — enough to let flood detection see the crowd. */
+const UNREAD_BATCH = 100;
 
 /**
  * Lightweight hook that checks whether the user has any unread notifications.
- * Fetches at most 1 event (using `since` to filter at the relay level),
- * making it much cheaper than loading the full notification list.
+ * Fetches a small batch of events newer than the read cursor (using `since` to
+ * filter at the relay level) — cheaper than the full notification list, but a
+ * batch rather than a single event so likely-spam floods can be detected.
  *
  * Respects the user's per-type notification preferences so that disabled
  * types (e.g. reactions) don't trigger the unread dot.
+ *
+ * Reply-flood detection (`useReplyFlood`) runs over the batch and the dot only
+ * lights if an unread event SURVIVES the filter — the same "fold likely spam"
+ * heuristic the thread view uses, extended so a wall of throwaway-key spam
+ * mentions never lights the dot. The reader's own events and events from people
+ * they follow are never treated as spam.
  *
  * Real-time updates are handled by the always-mounted NotificationStream
  * component, which holds a persistent relay subscription and invalidates the
@@ -26,6 +37,7 @@ export function useHasUnreadNotifications(): boolean {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { settings } = useEncryptedSettings();
+  const { floodIds } = useReplyFlood();
 
   // Only use cursor if settings have actually loaded, otherwise null
   const notificationsCursor = settings !== undefined && settings !== null
@@ -63,7 +75,7 @@ export function useHasUnreadNotifications(): boolean {
         kinds: enabledKinds,
         '#p': [user.pubkey],
         since: notificationsCursor + 1,
-        limit: 1,
+        limit: UNREAD_BATCH,
         ...(authorsFilter ? { authors: authorsFilter } : {}),
       };
 
@@ -72,8 +84,12 @@ export function useHasUnreadNotifications(): boolean {
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
-      // Check that the returned event isn't from the user themselves
-      return events.some((e) => e.pubkey !== user.pubkey);
+      // Drop the user's own events, then fold out likely-spam floods so a wall
+      // of throwaway-key spam never lights the dot. The dot lights only when an
+      // unread event survives — a real interaction, or spam too sparse to flag.
+      const unread = events.filter((e) => e.pubkey !== user.pubkey);
+      const flooded = floodIds(unread);
+      return unread.some((e) => !flooded.has(e.id));
     },
     enabled: !!user && notificationsCursor !== null,
     // No polling — the NotificationStream subscription invalidates this query

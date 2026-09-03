@@ -88,6 +88,7 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
         let relayUrls = call.getArray("relayUrls")?.compactMap { $0 as? String }
         let enabledKinds = call.getArray("enabledKinds")?.compactMap { $0 as? Int }
         let authors = call.getArray("authors")?.compactMap { $0 as? String }
+        let follows = call.getArray("follows")?.compactMap { $0 as? String }
 
         let defaults = UserDefaults.standard
 
@@ -104,6 +105,15 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
             } else {
                 defaults.removeObject(forKey: "\(Self.prefsKey).authors")
             }
+            // The full follow set feeds the flood detector's trust exemption
+            // (a followed author's copy of a pitch is never suppressed).
+            // Separate from `authors`, which only narrows the REQ under
+            // "only from people I follow".
+            if let follows, !follows.isEmpty {
+                defaults.set(follows, forKey: "\(Self.prefsKey).follows")
+            } else {
+                defaults.removeObject(forKey: "\(Self.prefsKey).follows")
+            }
 
             let kindsStr = enabledKinds?.map(String.init).joined(separator: ",") ?? "none"
             NSLog("[DittoNotification] Configured: pubkey=%@..., style=%@, relays=%d, kinds=%@",
@@ -112,7 +122,7 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
                   kindsStr)
         } else {
             // Clear configuration (user logged out).
-            for suffix in ["userPubkey", "relayUrls", "notificationStyle", "enabledKinds", "authors"] {
+            for suffix in ["userPubkey", "relayUrls", "notificationStyle", "enabledKinds", "authors", "follows"] {
                 defaults.removeObject(forKey: "\(Self.prefsKey).\(suffix)")
             }
             NSLog("[DittoNotification] Config cleared (user logged out)")
@@ -192,6 +202,7 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
 
         let enabledKinds = defaults.array(forKey: "\(prefsKey).enabledKinds") as? [Int] ?? []
         let authors = defaults.stringArray(forKey: "\(prefsKey).authors")
+        let follows = defaults.stringArray(forKey: "\(prefsKey).follows").map(Set.init)
 
         guard !enabledKinds.isEmpty else {
             NSLog("[DittoNotification] No enabled kinds, completing task")
@@ -210,7 +221,8 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
                 userPubkey: userPubkey,
                 relayUrls: relayUrls,
                 enabledKinds: enabledKinds,
-                authors: authors
+                authors: authors,
+                follows: follows
             )
             NSLog("[DittoNotification] Background poll complete: %d notifications", count)
             task.setTaskCompleted(success: true)
@@ -236,6 +248,7 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
 
         let enabledKinds = defaults.array(forKey: "\(prefsKey).enabledKinds") as? [Int] ?? []
         let authors = defaults.stringArray(forKey: "\(prefsKey).authors")
+        let follows = defaults.stringArray(forKey: "\(prefsKey).follows").map(Set.init)
 
         guard !enabledKinds.isEmpty else { return }
 
@@ -245,7 +258,8 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
                 userPubkey: userPubkey,
                 relayUrls: relayUrls,
                 enabledKinds: enabledKinds,
-                authors: authors
+                authors: authors,
+                follows: follows
             )
         }
     }

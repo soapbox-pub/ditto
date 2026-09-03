@@ -10,7 +10,7 @@ import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
 
 /** Interface for the native DittoNotification Capacitor plugin. */
 interface DittoNotificationPlugin {
-  configure(options: { userPubkey?: string; relayUrls?: string[]; enabledKinds?: number[]; authors?: string[]; notificationStyle?: string }): Promise<void>;
+  configure(options: { userPubkey?: string; relayUrls?: string[]; enabledKinds?: number[]; authors?: string[]; follows?: string[]; notificationStyle?: string }): Promise<void>;
   /** Android: whether the app is exempt from battery optimizations (Doze). */
   isIgnoringBatteryOptimizations(): Promise<{ ignoring: boolean }>;
   /**
@@ -99,6 +99,15 @@ export function useNativeNotifications(): void {
     ? followedPubkeys
     : undefined;
 
+  // The full follow set is passed separately from `authors` (which only
+  // restricts the REQ under "only from people I follow"). The native flood
+  // detector uses it for the trust exemption — a followed author's copy of a
+  // pitch is never folded — mirroring `useReplyFlood` on the web. Stable-keyed
+  // so the effect doesn't reconfigure on every referentially-new array.
+  const followsKey = followedPubkeys.length > 0
+    ? followedPubkeys.slice().sort().join(',')
+    : '';
+
   // The OS notification permission is no longer requested here. Firing it
   // silently right after login threw a context-free system dialog at the user
   // (and raced the battery toast). The ask now lives in the post-login setup
@@ -127,6 +136,10 @@ export function useNativeNotifications(): void {
       enabledKinds,
       notificationStyle,
       ...(authorsFilter ? { authors: authorsFilter } : {}),
+      ...(followedPubkeys.length > 0 ? { follows: followedPubkeys } : {}),
     });
-  }, [user, config.relayMetadata, config.useAppRelays, config.useUserRelays, notificationsEnabled, notificationStyle, enabledKinds, authorsFilter]);
+    // followedPubkeys is referentially unstable across renders; followsKey is
+    // its stable content hash, so the effect reruns only when it truly changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, config.relayMetadata, config.useAppRelays, config.useUserRelays, notificationsEnabled, notificationStyle, enabledKinds, authorsFilter, followsKey]);
 }

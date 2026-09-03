@@ -101,6 +101,24 @@ public class NotificationRelayService extends Service {
     private static final int MAX_NOTIFIED_IDS = 2_000;
     private static final int MAX_CACHED_EVENTS = 500;
 
+    // Rolling window of recent events fed to the flood detector. Big enough to
+    // hold a burst's worth of copies (ECHO needs 3+, DENSITY 4+) so a live
+    // singleton is judged against the crowd it arrived with, small enough that
+    // the O(n) shape/merge pass stays cheap on every event.
+    private static final int FLOOD_WINDOW = 300;
+
+    // Live events arrive one at a time, so a crowd-based detector can only
+    // confirm a flood retrospectively — by which point the burst's leading edge
+    // (the first SWARM_MIN_AUTHORS-1 events, before the crowd is visible) has
+    // already fired, and a native notification can't be un-fired. So candidate
+    // events from senders the reader does NOT follow are held this long before
+    // firing; as the rest of the burst arrives the buffer is re-checked (and
+    // again at flush), so the whole wall folds before any of it alerts. Followed
+    // senders skip the hold and fire instantly — they're trust-exempt anyway. A
+    // backfill batch (reconnect) already arrives as a crowd, so it skips the
+    // hold; iOS polls a batch and has no leading edge, so this is Android-only.
+    private static final long STASIS_MS = 12_000;
+
     private OkHttpClient httpClient;
     private NostrPoller poller;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -112,9 +130,37 @@ public class NotificationRelayService extends Service {
     private final List<String> relayUrls = new ArrayList<>();
     private final List<Integer> enabledKinds = new ArrayList<>();
     private final List<String> authors = new ArrayList<>();
+    // Full follow set — the flood detector's trust exemption (a followed
+    // author's copy of a pitch is never folded). Separate from `authors`,
+    // which only narrows the REQ under "only from people I follow".
+    private final Set<String> follows = new HashSet<>();
 
     // Event ids already notified — dedupes across relays and reconnects.
-    private final Set<String> notifiedIds = new HashSet<>();
+    // Insertion-ordered so that at the cap the OLDEST ids are evicted one at a
+    // time (rememberBoundedId), rather than the whole set being flushed — a
+    // wholesale clear briefly reopens the door to re-notifying anything still
+    // inside the `since` window whose id was just dropped.
+    private final LinkedHashSet<String> notifiedIds = new LinkedHashSet<>();
+
+    // Rolling window of recent events (any kind, pre-notification) so the
+    // crowd-based flood detectors can see a burst even though live events
+    // arrive one at a time. Raw events are kept so both detectors can read the
+    // fields they need (reply flood reads content; mention swarm reads
+    // created_at + p tags). Newest-appended; capped at FLOOD_WINDOW.
+    private final java.util.ArrayDeque<JSONObject> recentEvents = new java.util.ArrayDeque<>();
+
+    // Live candidate events from non-followed senders, held for STASIS_MS so the
+    // crowd forms before any of them fires (see STASIS_MS). Flushed as one batch
+    // through processBatch on a fixed cadence: the timer is armed by the FIRST
+    // held event and NOT reset by later ones, so an unbroken stream still flushes
+    // (and folds) instead of deferring forever, and any held event alerts within
+    // STASIS_MS of arriving.
+    private final List<JSONObject> stasisBuffer = new ArrayList<>();
+    // Ids currently staged in stasisBuffer, so a duplicate cross-relay delivery
+    // is dropped before it splits one burst across two flush windows.
+    private final Set<String> stasisBufferIds = new HashSet<>();
+    private boolean stasisScheduled = false;
+    private final Runnable flushStasisRunnable = this::flushStasis;
 
     // Referenced-event cache: id → event (the user's own posts, typically).
     private final Map<String, JSONObject> eventCache = new HashMap<>();
@@ -258,6 +304,9 @@ public class NotificationRelayService extends Service {
         authors.clear();
         authors.addAll(parseStringArray(prefs.getString("authors", null)));
 
+        follows.clear();
+        follows.addAll(parseStringArray(prefs.getString("follows", null)));
+
         if (userPubkey == null || relayUrls.isEmpty() || enabledKinds.isEmpty()) {
             Log.d(TAG, "No config (pubkey/relays/kinds); disconnecting.");
             closeAllConnections();
@@ -278,6 +327,13 @@ public class NotificationRelayService extends Service {
             rc.close();
         }
         connections.clear();
+        // Drop any held events: their cursor never advanced (they're only added
+        // to the window at flush), so a fresh connection re-fetches them. This
+        // also prevents a held event from a prior account firing after a switch.
+        handler.removeCallbacks(flushStasisRunnable);
+        stasisScheduled = false;
+        stasisBuffer.clear();
+        stasisBufferIds.clear();
         // Fail any in-flight lookups so their notifications still fire.
         for (EventLookup lookup : new ArrayList<>(pendingEventLookups)) {
             completeEventLookup(lookup);
@@ -361,7 +417,13 @@ public class NotificationRelayService extends Service {
             try {
                 long lastSeen = poller.getLastSeenTimestamp();
                 if (lastSeen == 0) {
-                    lastSeen = (System.currentTimeMillis() / 1000) - 300; // 5 min ago on first run
+                    // Cold start seeds the cursor to NOW, not a rewind: a fresh
+                    // service (first launch, or after the persisted timestamp is
+                    // lost) must never dump pre-launch history the user has
+                    // already seen in-app. History is the WebView's job; this
+                    // service only announces what arrives from now forward.
+                    // Mirrors Armada's cold-start cursor (no backlog request).
+                    lastSeen = System.currentTimeMillis() / 1000;
                     poller.setLastSeenTimestamp(lastSeen);
                 }
 
@@ -523,7 +585,10 @@ public class NotificationRelayService extends Service {
 
             if (rc.subMain.equals(sub)) {
                 if (rc.mainEosed) {
-                    processBatch(java.util.Collections.singletonList(event));
+                    // Live singleton: hold non-followed senders in stasis so the
+                    // crowd forms before any of the burst fires. Backfill (below)
+                    // already arrives as a crowd, so it skips the hold.
+                    enqueueLiveEvent(event);
                 } else {
                     rc.backfill.add(event);
                 }
@@ -536,28 +601,72 @@ public class NotificationRelayService extends Service {
     // ── Event processing ──────────────────────────────────────────────────────
 
     /**
-     * Process a batch of notification events (a single live event, or the
-     * buffered backfill after EOSE). Resolves referenced events first (for
-     * ownership checks + body snippets), then either shows one summary (large
-     * backfill) or per-event rich notifications with resolved author profiles.
+     * Route one live event. A followed (or self) sender is trust-exempt — never
+     * folded — so it fires immediately with no delay. Every other sender is held
+     * in the stasis buffer for {@link #STASIS_MS} so the crowd forms before any
+     * of the burst fires; the timer is armed by the FIRST held event and not
+     * reset by later ones, so an unbroken stream still flushes on cadence.
+     */
+    private void enqueueLiveEvent(JSONObject event) {
+        String sender = NostrPoller.getSenderPubkey(event);
+        if (sender.equals(userPubkey) || follows.contains(sender)) {
+            processBatch(java.util.Collections.singletonList(event));
+            return;
+        }
+        String id = event.optString("id");
+        // Dedup before buffering: the same event is redelivered across relay
+        // sockets, and holding N copies both wastes the flush and — worse — lets
+        // a burst's copies straddle the flush boundary, splitting one crowd into
+        // two sub-threshold windows that each fire unfolded. `notifiedIds` only
+        // dedups at processBatch (too late), so guard on both it and the buffer.
+        if (id.isEmpty() || notifiedIds.contains(id) || stasisBufferIds.contains(id)) return;
+        stasisBuffer.add(event);
+        stasisBufferIds.add(id);
+        if (!stasisScheduled) {
+            stasisScheduled = true;
+            handler.postDelayed(flushStasisRunnable, STASIS_MS);
+        }
+    }
+
+    /** Flush all held events through {@link #processBatch} as one crowd. */
+    private void flushStasis() {
+        stasisScheduled = false;
+        if (stasisBuffer.isEmpty()) return;
+        List<JSONObject> batch = new ArrayList<>(stasisBuffer);
+        stasisBuffer.clear();
+        stasisBufferIds.clear();
+        processBatch(batch);
+    }
+
+    /**
+     * Process a batch of notification events (held live events flushed from the
+     * stasis buffer, or the buffered backfill after EOSE). Resolves referenced
+     * events first (for ownership checks + body snippets), then either shows one
+     * summary (large batch) or per-event rich notifications with resolved author
+     * profiles.
      */
     private void processBatch(List<JSONObject> events) {
         if (userPubkey == null) return;
 
-        if (notifiedIds.size() > MAX_NOTIFIED_IDS) notifiedIds.clear();
         if (eventCache.size() > MAX_CACHED_EVENTS) eventCache.clear();
 
         List<JSONObject> candidates = new ArrayList<>();
         long newestTs = poller.getLastSeenTimestamp();
+        long nowSec = System.currentTimeMillis() / 1000;
 
         for (JSONObject event : events) {
             String id = event.optString("id");
             if (id.isEmpty() || notifiedIds.contains(id)) continue;
             String sender = NostrPoller.getSenderPubkey(event);
             long ts = event.optLong("created_at", 0);
-            if (ts > newestTs) newestTs = ts;
+            // Clamp the cursor to `now` so a validly signed event carrying a
+            // far-future created_at can't jump last-seen forward and silently
+            // skip everything until then. Mirrors Armada's advanceInclusiveSince.
+            newestTs = advanceInclusiveSince(newestTs, ts, nowSec);
             if (sender.equals(userPubkey)) continue; // skip self-interactions
-            notifiedIds.add(id);
+            // Bounded LRU insert: at the cap the oldest id is evicted, never the
+            // whole set. `id` is known-new here (contains() rejected dupes above).
+            rememberBoundedId(notifiedIds, id, MAX_NOTIFIED_IDS);
             candidates.add(event);
         }
 
@@ -566,6 +675,41 @@ public class NotificationRelayService extends Service {
         poller.setLastSeenTimestamp(newestTs);
 
         if (candidates.isEmpty()) return;
+
+        // Flood suppression: fold this batch into a rolling window of recent
+        // events so the crowd-based detectors can see a burst even though live
+        // events arrive one at a time, then drop any candidate that belongs to
+        // a likely-spam flood. Two orthogonal detectors run and their verdicts
+        // are unioned, mirroring the web client's useNotificationFlood:
+        //   - FloodDetector (reply flood) reads CONTENT — one pitch echoed
+        //     across a crowd, or hammered by a single key.
+        //   - MentionSwarmDetector reads the ENVELOPE — a burst of one-shot
+        //     strangers all naming the same co-victims, which catches a
+        //     mad-libs generator that writes a unique message every time
+        //     (content clustering has nothing to hold onto).
+        // The reader's own events and events from people they follow are never
+        // suppressed by either.
+        for (JSONObject event : candidates) {
+            recentEvents.addLast(event);
+            while (recentEvents.size() > FLOOD_WINDOW) recentEvents.removeFirst();
+        }
+        List<FloodDetector.Event> floodWindow = new ArrayList<>();
+        List<MentionSwarmDetector.Event> swarmWindow = new ArrayList<>();
+        for (JSONObject event : recentEvents) {
+            String windowId = event.optString("id");
+            String windowSender = NostrPoller.getSenderPubkey(event);
+            floodWindow.add(new FloodDetector.Event(
+                    windowId, windowSender, event.optString("content")));
+            swarmWindow.add(new MentionSwarmDetector.Event(
+                    windowId, windowSender, event.optLong("created_at", 0), pTagsOf(event)));
+        }
+        // floodIds returns a fresh set, so the swarm ids can merge into it.
+        Set<String> flooded = FloodDetector.floodIds(floodWindow, userPubkey, follows);
+        flooded.addAll(MentionSwarmDetector.swarmIds(swarmWindow, userPubkey, follows));
+        if (!flooded.isEmpty()) {
+            candidates.removeIf(event -> flooded.contains(event.optString("id")));
+            if (candidates.isEmpty()) return;
+        }
 
         // Collect referenced-event ids for kinds whose notification depends on
         // the user's own post (ownership check + snippet).
@@ -611,6 +755,7 @@ public class NotificationRelayService extends Service {
                         profile != null ? profile.name : null,
                         profile != null ? profile.picture : null,
                         ref,
+                        this::mentionName,
                         httpClient
                 ));
             }
@@ -629,6 +774,24 @@ public class NotificationRelayService extends Service {
             return NostrPoller.getReferencedEventId(event);
         }
         return null;
+    }
+
+    /**
+     * Every {@code p} tag value on an event, for mention-swarm cohorts. The
+     * reader is kept in the list here; {@link MentionSwarmDetector} strips it.
+     */
+    private static List<String> pTagsOf(JSONObject event) {
+        List<String> pTags = new ArrayList<>();
+        JSONArray tags = event.optJSONArray("tags");
+        if (tags == null) return pTags;
+        for (int i = 0; i < tags.length(); i++) {
+            JSONArray tag = tags.optJSONArray(i);
+            if (tag != null && tag.length() >= 2 && "p".equals(tag.optString(0))) {
+                String value = tag.optString(1);
+                if (!value.isEmpty()) pTags.add(value);
+            }
+        }
+        return pTags;
     }
 
     // ── Referenced-event resolution ───────────────────────────────────────────
@@ -691,6 +854,21 @@ public class NotificationRelayService extends Service {
     }
 
     // ── Profile (kind 0) resolution ───────────────────────────────────────────
+
+    /**
+     * Display name for a MENTIONED pubkey, resolved best-effort from the
+     * in-memory profile cache ONLY — never the network, so resolving a mention
+     * in a notification body can't delay or block the notification. Returns null
+     * when the author isn't cached, so {@link NotificationContent} keeps the raw
+     * {@code nostr:npub…} token rather than inventing a wrong name.
+     */
+    private String mentionName(String pubkeyHex) {
+        Profile held = profileCache.get(pubkeyHex);
+        if (held != null && held.name != null && !held.name.isEmpty()) {
+            return held.name;
+        }
+        return null;
+    }
 
     /**
      * Resolve {@code pubkey} to a profile, then invoke {@code cb}. Serves from
@@ -838,6 +1016,42 @@ public class NotificationRelayService extends Service {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Advance the last-seen cursor to the newest observed second without
+     * letting a far-future timestamp move it past `now`. `since` is inclusive,
+     * so the maximum observed second (not +1) is kept to preserve later
+     * same-second / out-of-order delivery; notifiedIds absorbs the overlap.
+     * Pure and Android-free for JVM regression coverage. Ported from Armada.
+     */
+    static long advanceInclusiveSince(long currentSinceSec, long eventCreatedAtSec, long nowSec) {
+        if (nowSec < 0L) return currentSinceSec;
+        // Recover too if the wall clock moved backwards after a prior sample:
+        // replaying a little is safe, a cursor stuck in the future is not.
+        long safeCurrent = Math.min(currentSinceSec, nowSec);
+        if (eventCreatedAtSec < 0L) return safeCurrent;
+        long safeEvent = Math.min(eventCreatedAtSec, nowSec);
+        return Math.max(safeCurrent, safeEvent);
+    }
+
+    /**
+     * Bounded insertion-order set update: append `id`, evicting the OLDEST ids
+     * one at a time once the set exceeds `maximum` — never a wholesale flush.
+     * Pure and Android-free for JVM regression coverage. Ported from Armada.
+     */
+    static void rememberBoundedId(LinkedHashSet<String> ids, String id, int maximum) {
+        if (ids == null || id == null || id.isEmpty() || maximum <= 0) return;
+        // Refresh an explicitly re-added id to the newest end. Ordinary relay
+        // duplicates are rejected by contains() before here and stay cheap.
+        ids.remove(id);
+        ids.add(id);
+        while (ids.size() > maximum) {
+            java.util.Iterator<String> iterator = ids.iterator();
+            if (!iterator.hasNext()) break;
+            iterator.next();
+            iterator.remove();
+        }
+    }
 
     private List<String> parseStringArray(String json) {
         List<String> values = new ArrayList<>();
