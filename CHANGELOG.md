@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.37.2] - 2026-09-03
+
+Pay and zap in your own denomination. Every payment and zap screen now honors your sats-or-dollars preference — the amount you type, the presets, fees, balances, and the confirmation, not just the totals in your feed. Spam folding gets sharper too, collapsing word-salad flood campaigns that slip a different random message past every filter, and the shovel now drags properly on touch screens.
+
+### Changed
+- Payment and zap dialogs show every amount in your preferred currency — the amount you enter, presets, fees, balances, and confirmation screens all follow your sats-or-dollars setting instead of always showing dollars
+- Spam folding now catches word-salad campaigns: bursts of throwaway accounts each posting a different random jumble drawn from the same word pool collapse into one expandable line
+
+### Fixed
+- The shovel now drags correctly on touch devices
+
 ## [2.37.1] - 2026-09-03
 
 Spam folding follows you to your phone. The same collapse-the-junk treatment your notifications page already gives reply floods and mention swarms now runs on native and push notifications, so a burst of throwaway accounts can't light up your lock screen. Search results fold spam runs in place too, and a broken link in a thread now leaves a marker you can tap to retry instead of vanishing.
