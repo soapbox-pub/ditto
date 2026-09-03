@@ -139,6 +139,14 @@ export function useOpenDrawer(): () => void {
   return useContext(DrawerContext);
 }
 
+/** Context for opening the "New post" compose modal from anywhere in the app. */
+export const ComposeContext = createContext<() => void>(() => {});
+
+/** Hook to get a function that opens the global compose modal. */
+export function useOpenCompose(): () => void {
+  return useContext(ComposeContext);
+}
+
 function useLayoutStore(): LayoutStore {
   const store = useContext(LayoutStoreContext);
   if (!store) throw new Error('useLayoutOptions must be used within LayoutStoreContext');

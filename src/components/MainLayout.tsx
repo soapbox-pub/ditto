@@ -1,4 +1,4 @@
-import { Suspense, useState, useMemo, useCallback, useRef, lazy } from 'react';
+import { Suspense, useState, useMemo, useCallback, useRef, useEffect, lazy } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { MobileTopBar } from '@/components/MobileTopBar';
@@ -7,14 +7,17 @@ import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 import { CursorFireEffect } from '@/components/CursorFireEffect';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { CenterColumnContext, DrawerContext, LayoutStore, LayoutStoreContext, NavHiddenContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
+import { CenterColumnContext, ComposeContext, DrawerContext, LayoutStore, LayoutStoreContext, NavHiddenContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { NsitePlayerContext, type NsitePlayerState } from '@/contexts/NsitePlayerContext';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { cn } from '@/lib/utils';
 
 const WidgetSidebar = lazy(() => import('@/components/WidgetSidebar').then((m) => ({ default: m.WidgetSidebar })));
+// Lazy-load the compose modal (pulls in emoji-mart ~620K) — only mounted while open.
+const ReplyComposeModal = lazy(() => import('@/components/ReplyComposeModal').then((m) => ({ default: m.ReplyComposeModal })));
 
 /** Neutral fallback shown in the content area while a lazy page chunk is loading. */
 function PageSkeleton() {
@@ -36,17 +39,47 @@ function MainLayoutInner() {
   const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth, scrollContainer, hasSubHeader, hideTopBar, hideBottomNav } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const openCompose = useCallback(() => setComposeOpen(true), []);
   const centerColumnRef = useRef<HTMLDivElement>(null);
   const [centerColumnEl, setCenterColumnEl] = useState<HTMLElement | null>(null);
   const { config } = useAppContext();
+  const { user } = useCurrentUser();
   const { hidden: navHidden } = useScrollDirection(scrollContainer);
   const location = useLocation();
   // WidgetSidebar hides itself with CSS below Tailwind's `lg` breakpoint
   // (1024px, see WidgetSidebar.tsx). Skip *mounting* it entirely there so
   // phones don't pay for its lazy chunks, relay queries, and render work.
   const showWidgetSidebar = useMediaQuery('(min-width: 1024px)');
+
+  // Global "n" hotkey opens the compose modal from anywhere. Ignored while the
+  // user is typing in an input/textarea/contenteditable, or when a modifier is
+  // held (so it doesn't hijack browser/OS shortcuts). Requires a logged-in user
+  // since the composer can't publish otherwise.
+  useEffect(() => {
+    if (!user) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'n' && e.key !== 'N') return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.isContentEditable ||
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.tagName === 'SELECT'
+      ) {
+        return;
+      }
+      e.preventDefault();
+      setComposeOpen(true);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [user]);
+
   return (
     <CenterColumnContext.Provider value={centerColumnEl}>
+    <ComposeContext.Provider value={openCompose}>
     <DrawerContext.Provider value={openDrawer}>
     <NavHiddenContext.Provider value={navHidden}>
       {/* Magic Mouse fire particle overlay */}
@@ -124,8 +157,17 @@ function MainLayoutInner() {
           </div>
         </div>
       )}
+
+      {/* Global compose modal — opened via the `n` hotkey or useOpenCompose().
+          Lazy-loaded and only mounted while open (pulls in emoji-mart ~620K). */}
+      {composeOpen && (
+        <Suspense fallback={null}>
+          <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} />
+        </Suspense>
+      )}
     </NavHiddenContext.Provider>
     </DrawerContext.Provider>
+    </ComposeContext.Provider>
     </CenterColumnContext.Provider>
   );
 }
