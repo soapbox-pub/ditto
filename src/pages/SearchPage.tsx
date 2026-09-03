@@ -61,9 +61,18 @@ import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { PageHeader } from '@/components/PageHeader';
 import { DittoLogo } from '@/components/DittoLogo';
 import { buildFeedItems, dedupeFeedItems, feedItemKey, type FeedItem } from '@/lib/feedUtils';
+import { LazyFeedItem } from '@/components/LazyFeedItem';
 import { nip19 } from 'nostr-tools';
 
 type TabType = 'posts' | 'accounts';
+
+/**
+ * A rendered posts-tab row: either a single feed item, or a collapsed run of
+ * consecutive likely-spam items folded in place (see `feedRows`).
+ */
+type FeedRow =
+  | { type: 'item'; item: FeedItem }
+  | { type: 'flood'; key: string; items: FeedItem[] };
 
 const VALID_TABS: TabType[] = ['posts', 'accounts'];
 
@@ -440,32 +449,45 @@ export function SearchPage() {
     placeholderData: (prev) => prev,
   });
 
-  // Fold likely-spam floods into a single expandable row, the same display
-  // heuristic the thread view uses. Detection runs over the exact events that
-  // back the rendered feed items — NOT the raw `posts` — so the flagged id space
-  // lines up with `item.event.id` and newly streamed-in events fold the moment
-  // they appear. The raw-`posts` set drifts from what's shown: `feedItems` lags
-  // it through the query's `placeholderData`, and for reposts / reactions / zaps
-  // the wrapper event in `posts` carries a different id than the target the card
-  // renders. The reader's own posts and posts from anyone they follow are never
-  // folded (the exemption lives in `useReplyFlood`).
+  // Fold likely-spam floods, the same display heuristic the thread view uses.
+  // Detection runs over the exact events that back the rendered feed items — NOT
+  // the raw `posts` — so the flagged id space lines up with `item.event.id` and
+  // newly streamed-in events fold the moment they appear. The raw-`posts` set
+  // drifts from what's shown: `feedItems` lags it through the query's
+  // `placeholderData`, and for reposts / reactions / zaps the wrapper event in
+  // `posts` carries a different id than the target the card renders. The reader's
+  // own posts and posts from anyone they follow are never folded (the exemption
+  // lives in `useReplyFlood`).
   const { floodIds } = useReplyFlood();
   const floodEvents = useMemo(() => feedItems.map((item) => item.event), [feedItems]);
   const floodedIds = useMemo(() => floodIds(floodEvents), [floodIds, floodEvents]);
-  const visibleFeedItems = useMemo(
-    () => feedItems.filter((item) => !floodedIds.has(item.event.id)),
-    [feedItems, floodedIds],
-  );
-  const floodedFeedItems = useMemo(
-    () => feedItems.filter((item) => floodedIds.has(item.event.id)),
-    [feedItems, floodedIds],
-  );
-  // Expanded state lives here, not inside CollapsedFloodPosts, so it survives the
-  // row unmounting whenever the flooded set momentarily empties — the stream
-  // commits new `posts` on a timer and rebuilds `feedItems`, and the flood set
-  // churns as more copies cross the echo threshold. A locally-stateful row would
-  // reset itself to collapsed on every such update.
-  const [floodExpanded, setFloodExpanded] = useState(false);
+
+  // Fold CONTIGUOUS runs of flagged items in place, the way NotificationsPage
+  // does — not into one banner at the end of the list. A search feed is
+  // chronological and streams new events in at the top, so a single trailing
+  // banner gets buried the moment anything arrives and new spam silently jumps
+  // past the fold to the bottom. Collapsing each run where it actually sits
+  // keeps the banner next to the posts it represents, and a spam burst that
+  // streams in at the top folds into a banner at the top. Each run is keyed by
+  // its first item's id, which is stable across the stream's rebuilds, so the
+  // collapsed row keeps its own expanded state (like the notification rows).
+  const feedRows = useMemo<FeedRow[]>(() => {
+    if (floodedIds.size === 0) return feedItems.map((item) => ({ type: 'item', item }));
+    const rows: FeedRow[] = [];
+    for (const item of feedItems) {
+      if (!floodedIds.has(item.event.id)) {
+        rows.push({ type: 'item', item });
+        continue;
+      }
+      const last = rows[rows.length - 1];
+      if (last?.type === 'flood') {
+        last.items.push(item);
+      } else {
+        rows.push({ type: 'flood', key: `flood:${item.event.id}`, items: [item] });
+      }
+    }
+    return rows;
+  }, [feedItems, floodedIds]);
 
   const handleRefresh = useCallback(async () => {
     flushStreamBuffer();
@@ -821,27 +843,26 @@ export function SearchPage() {
               </div>
             ) : feedItems.length > 0 ? (
               <div>
-                {visibleFeedItems.map((item) => {
+                {feedRows.map((row, index) => {
+                  if (row.type === 'flood') {
+                    return <CollapsedFloodPosts key={row.key} items={row.items} />;
+                  }
+                  const { item } = row;
                   const isNew = flushedIds.has(item.event.id);
                   return (
-                    <NoteCard
-                      key={feedItemKey(item)}
-                      event={item.event}
-                      repostedBy={item.repostedBy}
-                      repostEvent={item.repostEvent}
-                      reactedBy={item.reactedBy}
-                      zappedBy={item.zappedBy}
-                      profileZapRecipient={item.profileZapRecipient}
-                      highlight={isNew}
-                    />
+                    <LazyFeedItem key={feedItemKey(item)} className="cv-feed-item" initialInView={index < 10}>
+                      <NoteCard
+                        event={item.event}
+                        repostedBy={item.repostedBy}
+                        repostEvent={item.repostEvent}
+                        reactedBy={item.reactedBy}
+                        zappedBy={item.zappedBy}
+                        profileZapRecipient={item.profileZapRecipient}
+                        highlight={isNew}
+                      />
+                    </LazyFeedItem>
                   );
                 })}
-                {/* Likely-spam floods, folded into one expandable row. */}
-                <CollapsedFloodPosts
-                  items={floodedFeedItems}
-                  expanded={floodExpanded}
-                  onToggle={() => setFloodExpanded((v) => !v)}
-                />
                 {/* Infinite scroll sentinel */}
                 {hasNextPage && (
                   <div ref={postsScrollRef} className="py-4">
@@ -1084,13 +1105,15 @@ function EmptyState({
  * NoteCards on click. A DISPLAY fold only: nothing is dropped, and one click
  * shows every flagged post.
  */
-function CollapsedFloodPosts({ items, expanded, onToggle }: { items: FeedItem[]; expanded: boolean; onToggle: () => void }) {
+function CollapsedFloodPosts({ items }: { items: FeedItem[] }) {
+  const [expanded, setExpanded] = useState(false);
+
   if (items.length === 0) return null;
 
   return (
     <div>
       <button
-        onClick={onToggle}
+        onClick={() => setExpanded((v) => !v)}
         className="flex items-center gap-2 px-4 py-3 w-full text-left text-sm text-muted-foreground hover:text-foreground transition-colors group border-b border-border"
       >
         <ShieldAlert className="size-4 shrink-0" />
