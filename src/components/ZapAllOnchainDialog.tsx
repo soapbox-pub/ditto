@@ -10,12 +10,12 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { AmountField } from '@/components/AmountField';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
@@ -30,16 +30,29 @@ import {
   getFeeRates,
   estimateFee,
   isLargeAmount,
-  satsToUSD,
+  amountInputToSats,
+  formatMoneyAmount,
+  formatAmountInput,
+  type AmountPresetSet,
   type FeeRates,
 } from '@/lib/bitcoin';
+import type { CurrencyDisplay } from '@/contexts/AppContext';
 
 /**
- * Total USD presets — the user picks how much they want to spend in total
- * across all recipients, and we divide by recipient count to get the
- * per-person amount.
+ * Total presets, one row per display currency — the user picks how much they
+ * want to spend in total across all recipients, and we divide by recipient
+ * count to get the per-person amount. The sats row is hand-picked round numbers
+ * rather than a live conversion of the USD row.
  */
-const USD_TOTAL_PRESETS = [5, 10, 20, 50, 100];
+const TOTAL_PRESETS: AmountPresetSet = {
+  usd: [5, 10, 20, 50, 100],
+  sats: [5_000, 10_000, 20_000, 50_000, 100_000],
+};
+
+/** Opening total for a fresh dialog, in the user's display currency. */
+function defaultAmount(currency: CurrencyDisplay): number {
+  return currency === 'sats' ? 10_000 : 10;
+}
 
 const FEE_SPEED_LABELS: Record<OnchainFeeSpeed, string> = {
   fastest: '~10 min',
@@ -109,7 +122,10 @@ export function ZapAllOnchainDialog({
   const { config } = useAppContext();
   const { esploraApis } = config;
 
-  const [usdTotal, setUsdTotal] = useState<number | string>(10);
+  // The total is denominated in the user's display-currency preference. In USD
+  // mode it's converted to sats via the BTC price; in sats mode it *is* sats.
+  const currency: CurrencyDisplay = config.currencyDisplay ?? 'usd';
+  const [amountTotal, setAmountTotal] = useState<number | string>(() => defaultAmount(currency));
   const [feeSpeed, setFeeSpeed] = useState<OnchainFeeSpeed>('halfHour');
   const [error, setError] = useState('');
   const [feePopoverOpen, setFeePopoverOpen] = useState(false);
@@ -121,7 +137,6 @@ export function ZapAllOnchainDialog({
     totalAmountSats: number;
     amountPerRecipientSats: number;
   } | null>(null);
-  const amountInputRef = useRef<HTMLInputElement>(null);
   const feeSpeedUserChanged = useRef(false);
 
   // De-duplicate and remove self, preserving order. Memoize so the recipient
@@ -169,16 +184,13 @@ export function ZapAllOnchainDialog({
 
   const recipientCount = recipients.length;
 
-  // Convert the requested USD total to sats. The per-recipient amount is
+  // Convert the requested total to sats. The per-recipient amount is
   // floor(totalSats / N) so we never overshoot the sender's budget. Any
   // residual (≤ N-1 sats) is absorbed as extra change.
-  const requestedTotalSats = useMemo(() => {
-    if (!btcPrice) return 0;
-    const usd = typeof usdTotal === 'string' ? parseFloat(usdTotal) : usdTotal;
-    if (!Number.isFinite(usd) || usd <= 0) return 0;
-    const btc = usd / btcPrice;
-    return Math.round(btc * 100_000_000);
-  }, [usdTotal, btcPrice]);
+  const requestedTotalSats = useMemo(
+    () => amountInputToSats(amountTotal, currency, btcPrice),
+    [amountTotal, currency, btcPrice],
+  );
 
   const amountPerRecipientSats = useMemo(() => {
     if (recipientCount === 0 || requestedTotalSats <= 0) return 0;
@@ -261,13 +273,14 @@ export function ZapAllOnchainDialog({
       setError("Your signer can't sign Bitcoin transactions.");
       return;
     }
-    if (!btcPrice) { setError('Waiting for BTC price…'); return; }
+    // Only USD input needs a price to become sats; a sats total is payable as-is.
+    if (currency === 'usd' && !btcPrice) { setError('Waiting for BTC price…'); return; }
     if (recipientCount === 0) { setError('No recipients to zap.'); return; }
     if (requestedTotalSats <= 0) { setError('Enter an amount.'); return; }
     if (belowDust) {
       const minTotalSats = DUST_LIMIT_SATS * recipientCount;
-      const minTotalUsd = btcPrice ? satsToUSD(minTotalSats, btcPrice) : `${minTotalSats.toLocaleString()} sats`;
-      setError(`Total too small to divide across ${recipientCount} ${recipientCount === 1 ? 'recipient' : 'recipients'}. Minimum is ${minTotalUsd}.`);
+      const minTotal = formatMoneyAmount(minTotalSats, currency, btcPrice);
+      setError(`Total too small to divide across ${recipientCount} ${recipientCount === 1 ? 'recipient' : 'recipients'}. Minimum is ${minTotal}.`);
       return;
     }
     if (!utxos?.length) { setError("You don't have any Bitcoin yet. Receive some first."); return; }
@@ -307,6 +320,7 @@ export function ZapAllOnchainDialog({
     recipients,
     target,
     feeSpeed,
+    currency,
   ]);
 
   // Reset state when dialog opens/closes.
@@ -316,40 +330,26 @@ export function ZapAllOnchainDialog({
       setConfirmArmed(false);
       setSuccess(null);
     } else {
-      setUsdTotal(10);
+      setAmountTotal(defaultAmount(currency));
       setError('');
       setConfirmArmed(false);
       setSuccess(null);
       setEditingAmount(false);
       feeSpeedUserChanged.current = false;
     }
-  }, [open]);
+  }, [open, currency]);
 
-  // Auto-focus the amount input when entering edit mode.
-  useEffect(() => {
-    if (editingAmount) {
-      amountInputRef.current?.focus();
-      amountInputRef.current?.select();
-    }
-  }, [editingAmount]);
-
-  const commitAmountEdit = useCallback(() => {
-    setEditingAmount(false);
-    if (typeof usdTotal === 'string' && usdTotal.trim() === '') {
-      setUsdTotal(0);
-    }
-  }, [usdTotal]);
-
-  const currentUsd = typeof usdTotal === 'string' ? parseFloat(usdTotal) : usdTotal;
-  const hasValidAmount = Number.isFinite(currentUsd) && currentUsd > 0;
+  const numericTotal = typeof amountTotal === 'string' ? parseFloat(amountTotal) : amountTotal;
+  const hasValidAmount = Number.isFinite(numericTotal) && numericTotal > 0;
   // Display the actual sats-paid total (after floor-rounding per recipient),
-  // not the requested USD — these can differ by a few cents and showing the
-  // rounded value avoids "Total: $10 (12 × $0.83 = $9.96)" surprises.
-  const totalUsdString = btcPrice && totalRecipientSats > 0
-    ? satsToUSD(totalRecipientSats, btcPrice)
-    : '';
-  const perRecipientUsdString = btcPrice && amountPerRecipientSats > 0
-    ? satsToUSD(amountPerRecipientSats, btcPrice)
+  // not the requested amount — these can differ by a few sats and showing the
+  // rounded value avoids "Total: $10 (12 × $0.83 = $9.96)" surprises. Falls
+  // back to the raw input while a USD price is still loading.
+  const totalDisplay = totalRecipientSats > 0
+    ? formatMoneyAmount(totalRecipientSats, currency, btcPrice)
+    : formatAmountInput(amountTotal, currency);
+  const perRecipientDisplay = amountPerRecipientSats > 0
+    ? formatMoneyAmount(amountPerRecipientSats, currency, btcPrice)
     : '';
   const uniqueFeeSpeeds = useMemo(() => getUniqueFeeSpeeds(feeRates), [feeRates]);
 
@@ -381,6 +381,7 @@ export function ZapAllOnchainDialog({
               recipientCount={success.recipientCount}
               totalAmountSats={success.totalAmountSats}
               amountPerRecipientSats={success.amountPerRecipientSats}
+              currency={currency}
               btcPrice={btcPrice}
               onClose={() => onOpenChange(false)}
             />
@@ -396,80 +397,33 @@ export function ZapAllOnchainDialog({
             </div>
           ) : (
             <div className="grid gap-4 px-4 py-4 w-full overflow-hidden">
-              {/* Big amount (total) */}
-              <div className="flex flex-col items-center">
-                {editingAmount ? (
-                  <div className="flex items-baseline justify-center">
-                    <span className={`text-4xl font-semibold ${insufficient || belowDust ? 'text-destructive' : 'text-muted-foreground'}`}>$</span>
-                    <input
-                      ref={amountInputRef}
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      step="0.01"
-                      value={usdTotal}
-                      onChange={(e) => { setUsdTotal(e.target.value); setError(''); }}
-                      onBlur={commitAmountEdit}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          commitAmountEdit();
-                        }
-                      }}
-                      aria-label="Total amount in USD"
-                      className={`bg-transparent border-0 outline-none text-4xl font-semibold text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${insufficient || belowDust ? 'text-destructive' : ''}`}
-                      style={{ width: `${Math.max(2, String(usdTotal).length + 1)}ch` }}
-                    />
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setEditingAmount(true)}
-                    aria-label="Edit total amount"
-                    className="flex items-baseline justify-center rounded-md px-2 -mx-2 hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
-                  >
-                    <span className={`text-4xl font-semibold ${insufficient || belowDust ? 'text-destructive' : 'text-muted-foreground'}`}>$</span>
-                    <span className={`text-4xl font-semibold tabular-nums ${insufficient || belowDust ? 'text-destructive' : ''}`}>
-                      {hasValidAmount ? (currentUsd < 1 ? currentUsd.toFixed(2) : currentUsd) : 0}
-                    </span>
-                  </button>
-                )}
-              </div>
-
-              {/* Total USD presets */}
-              <ToggleGroup
-                type="single"
-                value={USD_TOTAL_PRESETS.includes(Number(usdTotal)) ? String(usdTotal) : ''}
-                onValueChange={(v) => { if (v) { setUsdTotal(Number(v)); setError(''); setEditingAmount(false); } }}
-                className="grid grid-cols-5 gap-1 w-full"
-              >
-                {USD_TOTAL_PRESETS.map((v) => (
-                  <ToggleGroupItem
-                    key={v}
-                    value={String(v)}
-                    className="h-8 min-w-0 text-xs font-semibold px-1"
-                  >
-                    ${v}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
+              {/* Big amount (total) + preset chips, in the display currency. */}
+              <AmountField
+                value={amountTotal}
+                onValueChange={(v) => { setAmountTotal(v); setError(''); }}
+                currency={currency}
+                editing={editingAmount}
+                setEditing={setEditingAmount}
+                presets={TOTAL_PRESETS}
+                invalid={insufficient || belowDust}
+                label="Total amount"
+              />
 
               {/* Per-recipient breakdown */}
-              {hasValidAmount && recipientCount > 0 && amountPerRecipientSats > 0 && !belowDust && (
+              {hasValidAmount && recipientCount > 0 && amountPerRecipientSats > 0 && !belowDust && perRecipientDisplay && (
                 <div className="text-center text-xs text-muted-foreground">
-                  {perRecipientUsdString || `~$${(currentUsd / recipientCount).toFixed(2)}`}
-                  {' '}per person
-                  {totalUsdString && totalUsdString !== `$${currentUsd}` && (
-                    <> · {recipientCount} × {perRecipientUsdString} = {totalUsdString}</>
+                  {perRecipientDisplay} per person
+                  {totalDisplay && (
+                    <> · {recipientCount} × {perRecipientDisplay} = {totalDisplay}</>
                   )}
                 </div>
               )}
 
               {/* Dust warning — shown inline before the user clicks send, so
                   they can adjust before the error appears. */}
-              {hasValidAmount && belowDust && btcPrice && (
+              {hasValidAmount && belowDust && (currency === 'sats' || btcPrice) && (
                 <div className="text-center text-xs text-destructive">
-                  Total too small — needs at least {satsToUSD(DUST_LIMIT_SATS * recipientCount, btcPrice)} to give every recipient a non-dust output.
+                  Total too small — needs at least {formatMoneyAmount(DUST_LIMIT_SATS * recipientCount, currency, btcPrice)} to give every recipient a non-dust output.
                 </div>
               )}
 
@@ -480,8 +434,7 @@ export function ZapAllOnchainDialog({
               <Button
                 onClick={handleZap}
                 disabled={
-                  !btcPrice
-                  || requestedTotalSats <= 0
+                  requestedTotalSats <= 0
                   || isZapping
                   || insufficient
                   || belowDust
@@ -502,11 +455,11 @@ export function ZapAllOnchainDialog({
                 ) : recipientCount === 0 ? (
                   <>No recipients</>
                 ) : isLarge && confirmArmed ? (
-                  <>Tap again to send {totalUsdString}</>
+                  <>Tap again to send {totalDisplay}</>
                 ) : (
                   <>
                     Zap {recipientCount} {recipientCount === 1 ? 'person' : 'people'}
-                    {totalUsdString ? ` · ${totalUsdString}` : ''}
+                    {totalDisplay ? ` · ${totalDisplay}` : ''}
                   </>
                 )}
               </Button>
@@ -522,8 +475,8 @@ export function ZapAllOnchainDialog({
                       >
                         <span>
                           Fee{' '}
-                          {estimatedFeeSats > 0 && btcPrice
-                            ? `≈ ${satsToUSD(estimatedFeeSats, btcPrice)}`
+                          {estimatedFeeSats > 0 && (currency === 'sats' || btcPrice)
+                            ? `≈ ${formatMoneyAmount(estimatedFeeSats, currency, btcPrice)}`
                             : '…'}
                           <span className="opacity-60"> · {FEE_SPEED_LABELS[feeSpeed]}</span>
                         </span>
@@ -550,9 +503,9 @@ export function ZapAllOnchainDialog({
                     </PopoverContent>
                   </Popover>
 
-                  {showBalance && !insufficient && btcPrice && (
+                  {showBalance && !insufficient && (currency === 'sats' || btcPrice) && (
                     <span className="text-muted-foreground">
-                      Balance: {satsToUSD(totalBalance, btcPrice)}
+                      Balance: {formatMoneyAmount(totalBalance, currency, btcPrice)}
                     </span>
                   )}
                 </div>
@@ -580,6 +533,8 @@ interface ZapAllSuccessViewProps {
   recipientCount: number;
   totalAmountSats: number;
   amountPerRecipientSats: number;
+  /** The user's display-currency preference. */
+  currency: CurrencyDisplay;
   btcPrice: number | undefined;
   onClose: () => void;
 }
@@ -589,11 +544,12 @@ function ZapAllSuccessView({
   recipientCount,
   totalAmountSats,
   amountPerRecipientSats,
+  currency,
   btcPrice,
   onClose,
 }: ZapAllSuccessViewProps) {
-  const totalUsd = btcPrice ? satsToUSD(totalAmountSats, btcPrice) : '';
-  const perRecipientUsd = btcPrice ? satsToUSD(amountPerRecipientSats, btcPrice) : '';
+  const totalDisplay = formatMoneyAmount(totalAmountSats, currency, btcPrice);
+  const perRecipientDisplay = formatMoneyAmount(amountPerRecipientSats, currency, btcPrice);
 
   return (
     <div className="grid gap-4 px-4 py-6 text-center">
@@ -603,10 +559,10 @@ function ZapAllSuccessView({
 
       <div className="space-y-1">
         <p className="text-2xl font-semibold tabular-nums">
-          {totalUsd || `${totalAmountSats.toLocaleString()} sats`}
+          {totalDisplay}
         </p>
         <p className="text-sm text-muted-foreground">
-          Sent {perRecipientUsd || `${amountPerRecipientSats.toLocaleString()} sats`} to {recipientCount} {recipientCount === 1 ? 'account' : 'accounts'}
+          Sent {perRecipientDisplay} to {recipientCount} {recipientCount === 1 ? 'account' : 'accounts'}
         </p>
       </div>
 

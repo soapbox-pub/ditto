@@ -21,7 +21,6 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Popover,
   PopoverAnchor,
@@ -30,6 +29,7 @@ import {
 } from '@/components/ui/popover';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { AmountField } from '@/components/AmountField';
 import { ZapSuccessScreen } from '@/components/ZapSuccessScreen';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { QrScannerDialog } from '@/components/QrScannerDialog';
@@ -58,20 +58,36 @@ import {
   finalizePsbt,
   broadcastTransaction,
   estimateFee,
-  satsToUSD,
   isLargeAmount,
+  amountInputToSats,
+  formatMoneyAmount,
+  formatAmountInput,
   looksLikeSilentPaymentAddress,
   parseBitcoinUri,
   validateSilentPaymentAddress,
+  type AmountPresetSet,
   type FeeRates,
 } from '@/lib/bitcoin';
 import { extractTxFromSignedPsbtV2 } from '@/lib/psbtV2';
+import type { CurrencyDisplay } from '@/contexts/AppContext';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const USD_PRESETS = [1, 5, 20, 50, 100];
+/**
+ * Amount presets, one row per display currency. The sats row is hand-picked
+ * round numbers rather than a live conversion of the USD row.
+ */
+const PRESETS: AmountPresetSet = {
+  usd: [1, 5, 20, 50, 100],
+  sats: [1_000, 5_000, 20_000, 50_000, 100_000],
+};
+
+/** Opening amount for a fresh form, in the user's display currency. */
+function defaultAmount(currency: CurrencyDisplay): number {
+  return currency === 'sats' ? 5_000 : 5;
+}
 
 /** Preset confirmation-speed tiers, plus a user-entered `'custom'` rate. */
 type FeeSpeed = 'fastest' | 'halfHour' | 'hour' | 'economy' | 'custom';
@@ -209,9 +225,13 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
   const { esploraApis } = config;
   const queryClient = useQueryClient();
 
+  // The amount is denominated in the user's display-currency preference. In USD
+  // mode it's converted to sats via the BTC price; in sats mode it *is* sats.
+  const currency: CurrencyDisplay = config.currencyDisplay ?? 'usd';
+
   // ── Form state ───────────────────────────────────────────────
   const [recipient, setRecipient] = useState<ResolvedRecipient | null>(null);
-  const [usdAmount, setUsdAmount] = useState<number | string>(5);
+  const [amount, setAmount] = useState<number | string>(() => defaultAmount(currency));
   const [feeSpeed, setFeeSpeed] = useState<FeeSpeed>('halfHour');
   /** Raw text for the custom sat/vB rate input (only used when feeSpeed === 'custom'). */
   const [customFeeRate, setCustomFeeRate] = useState('');
@@ -220,7 +240,6 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
   const [feePopoverOpen, setFeePopoverOpen] = useState(false);
   const [success, setSuccess] = useState<SendResult | null>(null);
 
-  const amountInputRef = useRef<HTMLInputElement>(null);
   const feeSpeedUserChanged = useRef(false);
   const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
   const dialogContentRef = useCallback((node: HTMLElement | null) => {
@@ -283,21 +302,29 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
     initialUriHandled.current = true;
   }, [isOpen, initialUri]);
 
-  // Apply the pending amount once `btcPrice` is available. The form stores
-  // a USD value; we round to cents for a clean display, but the actual send
-  // amount comes from `amountSats` recomputed from the USD value, so tiny
-  // rounding differences (< $0.005) get smoothed out at send time.
+  // Apply the pending amount (in sats, from the URI) once we can express it in
+  // the form's display currency. In sats mode the input *is* sats, so we seed
+  // it directly. In USD mode we wait for `btcPrice`, convert, and round to
+  // cents for a clean display; the actual send amount is recomputed from the
+  // input, so tiny rounding differences (< $0.005) get smoothed out at send time.
   useEffect(() => {
     if (!isOpen) return;
     const sats = pendingAmountSats.current;
-    if (sats == null || !btcPrice) return;
+    if (sats == null) return;
 
+    if (currency === 'sats') {
+      setAmount(sats);
+      pendingAmountSats.current = null;
+      return;
+    }
+
+    if (!btcPrice) return;
     const usd = (sats / 100_000_000) * btcPrice;
     if (Number.isFinite(usd) && usd > 0) {
-      setUsdAmount(Math.round(usd * 100) / 100);
+      setAmount(Math.round(usd * 100) / 100);
     }
     pendingAmountSats.current = null;
-  }, [isOpen, btcPrice]);
+  }, [isOpen, btcPrice, currency]);
 
   const senderAddress = user ? nostrPubkeyToBitcoinAddress(user.pubkey) : '';
 
@@ -329,15 +356,12 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
     [feeSpeed, feeRates, customFeeRate],
   );
 
-  // ── USD → sats conversion ────────────────────────────────────
+  // ── Amount → sats conversion ─────────────────────────────────
 
-  const amountSats = useMemo(() => {
-    if (!btcPrice) return 0;
-    const usd = typeof usdAmount === 'string' ? parseFloat(usdAmount) : usdAmount;
-    if (!Number.isFinite(usd) || usd <= 0) return 0;
-    const btc = usd / btcPrice;
-    return Math.round(btc * 100_000_000);
-  }, [usdAmount, btcPrice]);
+  const amountSats = useMemo(
+    () => amountInputToSats(amount, currency, btcPrice),
+    [amount, currency, btcPrice],
+  );
 
   const estimatedFeeSats = useMemo(() => {
     if (!utxos?.length || !currentFeeRate || !amountSats) return 0;
@@ -411,22 +435,6 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
   // The two-tap arm is reserved for large amounts; raw on-chain sends no
   // longer trigger it on their own.
   const requiresArm = isLarge;
-
-  // ── Big amount focus management ──────────────────────────────
-
-  useEffect(() => {
-    if (editingAmount) {
-      amountInputRef.current?.focus();
-      amountInputRef.current?.select();
-    }
-  }, [editingAmount]);
-
-  const commitAmountEdit = useCallback(() => {
-    setEditingAmount(false);
-    if (typeof usdAmount === 'string' && usdAmount.trim() === '') {
-      setUsdAmount(0);
-    }
-  }, [usdAmount]);
 
   // ── Send mutation ────────────────────────────────────────────
 
@@ -569,7 +577,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
 
   const handleClose = useCallback(() => {
     setRecipient(null);
-    setUsdAmount(5);
+    setAmount(defaultAmount(currency));
     setError('');
     setFeeSpeed('halfHour');
     setCustomFeeRate('');
@@ -581,13 +589,15 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
     pendingAmountSats.current = null;
     setPickerInitialQuery(undefined);
     onClose();
-  }, [onClose]);
+  }, [onClose, currency]);
 
   // ── Render ───────────────────────────────────────────────────
 
-  const currentUsd = typeof usdAmount === 'string' ? parseFloat(usdAmount) : usdAmount;
-  const hasValidAmount = Number.isFinite(currentUsd) && currentUsd > 0;
-  const totalUsdString = btcPrice ? satsToUSD(totalSats, btcPrice) : '';
+  // Total (amount + fee) in the user's display currency for the send button and
+  // confirmation label. Falls back to the raw input while a USD price loads.
+  const totalDisplay = totalSats > 0
+    ? formatMoneyAmount(totalSats, currency, btcPrice)
+    : formatAmountInput(amount, currency);
   const uniqueFeeSpeeds = useMemo(() => getUniqueFeeSpeeds(feeRates), [feeRates]);
   const isPending = sendMutation.isPending;
 
@@ -647,66 +657,25 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
               <RawAddressSuccess
                 txid={success.txid}
                 amountSats={success.amountSats}
+                currency={currency}
                 btcPrice={btcPrice}
                 onClose={handleClose}
               />
             )
           ) : (
             <div className="grid gap-4 px-4 py-4 w-full overflow-hidden">
-              {/* Big editable USD amount */}
-              <div className="flex flex-col items-center pt-2">
-                {editingAmount ? (
-                  <div className="flex items-baseline justify-center">
-                    <span className={`text-4xl font-semibold ${insufficient ? 'text-destructive' : 'text-muted-foreground'}`}>$</span>
-                    <input
-                      ref={amountInputRef}
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      step="0.01"
-                      value={usdAmount}
-                      onChange={(e) => { setUsdAmount(e.target.value); setError(''); }}
-                      onBlur={commitAmountEdit}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') { e.preventDefault(); commitAmountEdit(); }
-                      }}
-                      aria-label="Amount in USD"
-                      className={`bg-transparent border-0 outline-none text-4xl font-semibold text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${insufficient ? 'text-destructive' : ''}`}
-                      style={{ width: `${Math.max(2, String(usdAmount).length + 1)}ch` }}
-                    />
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setEditingAmount(true)}
-                    aria-label="Edit amount"
-                    className="flex items-baseline justify-center rounded-md px-2 -mx-2 hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
-                  >
-                    <span className={`text-4xl font-semibold ${insufficient ? 'text-destructive' : 'text-muted-foreground'}`}>$</span>
-                    <span className={`text-4xl font-semibold tabular-nums ${insufficient ? 'text-destructive' : ''}`}>
-                      {hasValidAmount ? currentUsd : 0}
-                    </span>
-                  </button>
-                )}
+              {/* Big editable amount + preset chips, in the display currency. */}
+              <div className="grid gap-4 pt-2">
+                <AmountField
+                  value={amount}
+                  onValueChange={(v) => { setAmount(v); setError(''); }}
+                  currency={currency}
+                  editing={editingAmount}
+                  setEditing={setEditingAmount}
+                  presets={PRESETS}
+                  invalid={insufficient}
+                />
               </div>
-
-              {/* Preset chips */}
-              <ToggleGroup
-                type="single"
-                value={USD_PRESETS.includes(Number(usdAmount)) ? String(usdAmount) : ''}
-                onValueChange={(v) => { if (v) { setUsdAmount(Number(v)); setError(''); setEditingAmount(false); } }}
-                className="grid grid-cols-5 gap-1 w-full"
-              >
-                {USD_PRESETS.map((v) => (
-                  <ToggleGroupItem
-                    key={v}
-                    value={String(v)}
-                    className="h-8 min-w-0 text-xs font-semibold px-1"
-                  >
-                    ${v}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
 
               {/* Recipient picker */}
               <RecipientPicker
@@ -753,8 +722,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
               <Button
                 onClick={handleSend}
                 disabled={
-                  !btcPrice
-                  || amountSats <= 0
+                  amountSats <= 0
                   || isPending
                   || insufficient
                   || !recipient
@@ -771,9 +739,9 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                 ) : insufficient ? (
                   <>Not enough Bitcoin</>
                 ) : requiresArm && confirmArmed ? (
-                  <>Tap again to send {totalUsdString}</>
+                  <>Tap again to send {totalDisplay}</>
                 ) : (
-                  <>Send {totalUsdString || (hasValidAmount ? `$${currentUsd}` : '')}</>
+                  <>Send {totalDisplay}</>
                 )}
               </Button>
 
@@ -788,8 +756,8 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                       >
                         <span>
                           Fee{' '}
-                          {estimatedFeeSats > 0 && btcPrice
-                            ? `≈ ${satsToUSD(estimatedFeeSats, btcPrice)}`
+                          {estimatedFeeSats > 0 && (currency === 'sats' || btcPrice)
+                            ? `≈ ${formatMoneyAmount(estimatedFeeSats, currency, btcPrice)}`
                             : feeRatesLoading && feeSpeed !== 'custom'
                               ? 'loading…'
                               : feeRatesError && feeSpeed !== 'custom'
@@ -875,9 +843,9 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                     </PopoverContent>
                   </Popover>
 
-                  {showBalance && !insufficient && btcPrice && (
+                  {showBalance && !insufficient && (currency === 'sats' || btcPrice) && (
                     <span className="text-muted-foreground">
-                      Balance: {satsToUSD(totalBalance, btcPrice)}
+                      Balance: {formatMoneyAmount(totalBalance, currency, btcPrice)}
                     </span>
                   )}
                 </div>
@@ -1665,6 +1633,8 @@ function SpAddressRow({
 interface RawAddressSuccessProps {
   txid: string;
   amountSats: number;
+  /** The user's display-currency preference. */
+  currency: CurrencyDisplay;
   btcPrice: number | undefined;
   onClose: () => void;
 }
@@ -1674,8 +1644,8 @@ interface RawAddressSuccessProps {
  * card because the user typed a bare Bitcoin address — we have no Nostr
  * identity to attribute the send to.
  */
-function RawAddressSuccess({ txid, amountSats, btcPrice, onClose }: RawAddressSuccessProps) {
-  const usdDisplay = btcPrice ? satsToUSD(amountSats, btcPrice) : '';
+function RawAddressSuccess({ txid, amountSats, currency, btcPrice, onClose }: RawAddressSuccessProps) {
+  const amountDisplay = formatMoneyAmount(amountSats, currency, btcPrice);
 
   return (
     <div
@@ -1707,7 +1677,7 @@ function RawAddressSuccess({ txid, amountSats, btcPrice, onClose }: RawAddressSu
       <div className="grid gap-1">
         <h2 className="text-lg font-semibold tracking-tight">Bitcoin sent</h2>
         <div className="text-4xl font-bold tabular-nums bg-gradient-to-br from-amber-500 to-orange-600 bg-clip-text text-transparent">
-          {usdDisplay || `${amountSats.toLocaleString()} sats`}
+          {amountDisplay}
         </div>
       </div>
 

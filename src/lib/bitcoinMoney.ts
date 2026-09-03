@@ -10,6 +10,7 @@
  * can keep importing from one place.
  */
 import { esploraFetch } from './esplora';
+import type { CurrencyDisplay } from '@/contexts/AppContext';
 
 /** Convert satoshis to a BTC string with up to 8 decimal places. */
 export function satsToBTC(sats: number): string {
@@ -90,4 +91,85 @@ export function satsToUSD(sats: number, btcPrice: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+/** Convert a USD amount to satoshis at the given BTC price. */
+export function usdToSats(usd: number, btcPrice: number): number {
+  return Math.round((usd / btcPrice) * 100_000_000);
+}
+
+/**
+ * Format an exact satoshi amount with its unit — `"5,000 sats"`, `"1 sat"`.
+ *
+ * Unlike the `formatNumber`-based rendering in `useFormatMoney`, this never
+ * abbreviates. Payment surfaces show the precise amount being spent, so
+ * `"21k sats"` would be the wrong level of detail on a send button.
+ */
+export function formatSatsAmount(sats: number): string {
+  return `${formatSats(sats)} ${sats === 1 ? 'sat' : 'sats'}`;
+}
+
+/**
+ * Format a satoshi amount in the user's preferred display currency, exactly
+ * (no abbreviation). Falls back to sats when USD is preferred but no BTC
+ * price is available, so a dead price endpoint never blanks out an amount.
+ */
+export function formatMoneyAmount(
+  sats: number,
+  currency: CurrencyDisplay,
+  btcPrice: number | undefined,
+): string {
+  if (currency === 'usd' && btcPrice && Number.isFinite(btcPrice) && btcPrice > 0) {
+    return satsToUSD(sats, btcPrice);
+  }
+  return formatSatsAmount(sats);
+}
+
+/**
+ * Convert a raw amount-input value — a string while the user is typing, a
+ * number once committed — into satoshis. The value is denominated in the
+ * user's display currency, so USD needs a BTC price while sats is the
+ * identity (rounded, since fractional sats aren't payable).
+ *
+ * Returns 0 for blank, negative, non-numeric, and (in USD mode) unpriced
+ * input, which every caller already treats as "no amount entered".
+ */
+export function amountInputToSats(
+  value: number | string,
+  currency: CurrencyDisplay,
+  btcPrice: number | undefined,
+): number {
+  const amount = typeof value === 'string' ? parseFloat(value) : value;
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  if (currency === 'sats') return Math.round(amount);
+  if (!btcPrice || !Number.isFinite(btcPrice) || btcPrice <= 0) return 0;
+  return usdToSats(amount, btcPrice);
+}
+
+/**
+ * Format a raw amount-input value in its own units, without needing a BTC
+ * price. Used for the brief window in USD mode where the price hasn't loaded
+ * and `amountInputToSats` still returns 0 — the send button can echo what the
+ * user typed instead of going blank. Returns `""` for a blank or invalid value.
+ */
+export function formatAmountInput(value: number | string, currency: CurrencyDisplay): string {
+  const amount = typeof value === 'string' ? parseFloat(value) : value;
+  if (!Number.isFinite(amount) || amount <= 0) return '';
+  if (currency === 'sats') return formatSatsAmount(Math.round(amount));
+  return amount < 1 ? `$${amount.toFixed(2)}` : `$${amount}`;
+}
+
+/**
+ * A pair of preset amount chips — one set per display currency. Sats presets
+ * are hand-picked round numbers rather than conversions of the USD ones, so
+ * sats users get `1,000` instead of `947`.
+ */
+export interface AmountPresetSet {
+  usd: number[];
+  sats: number[];
+}
+
+/** The preset list for the active display currency. */
+export function presetsFor(presets: AmountPresetSet, currency: CurrencyDisplay): number[] {
+  return currency === 'sats' ? presets.sats : presets.usd;
 }

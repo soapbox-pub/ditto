@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, forwardRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, forwardRef } from 'react';
 import { Copy, Check, ExternalLink, X, Loader2, ChevronDown, MessageCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { openUrl } from '@/lib/downloadFile';
@@ -18,8 +18,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { QRCodeCanvas } from '@/components/ui/qrcode';
+import { AmountField } from '@/components/AmountField';
 import { OnchainZapContent } from '@/components/OnchainZapContent';
 import { GenericPaymentContent } from '@/components/GenericPaymentContent';
 import { PaymentMethodIcon } from '@/components/PaymentMethodIcon';
@@ -44,10 +44,14 @@ import {
 } from '@/lib/paymentTargets';
 import type { BitcoinRecipientOverride } from '@/hooks/useOnchainZap';
 import {
+  amountInputToSats,
   fetchBtcPrice,
+  formatAmountInput,
+  formatMoneyAmount,
   isLargeAmount,
-  satsToUSD,
+  type AmountPresetSet,
 } from '@/lib/bitcoinMoney';
+import type { CurrencyDisplay } from '@/contexts/AppContext';
 import type { Event } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { WebLNProvider } from '@webbtc/webln-types';
@@ -71,10 +75,19 @@ export interface ZapDialogProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-// USD presets for the Lightning tab. Lightning zaps are expected to be
+// Amount presets for the Lightning tab. Lightning zaps are expected to be
 // much smaller than on-chain sends (which have a fixed per-tx fee floor),
-// so the presets stay in tip-jar territory.
-const LIGHTNING_USD_PRESETS = [0.1, 0.5, 1, 2, 5];
+// so the presets stay in tip-jar territory. The sats row is hand-picked
+// round numbers rather than a conversion of the USD row.
+const LIGHTNING_PRESETS: AmountPresetSet = {
+  usd: [0.1, 0.5, 1, 2, 5],
+  sats: [100, 500, 1_000, 2_100, 5_000],
+};
+
+/** Opening amount for a fresh dialog, in the user's display currency. */
+function defaultAmount(currency: CurrencyDisplay): number {
+  return currency === 'sats' ? 500 : 0.5;
+}
 
 /**
  * Identifier for a selectable payment method in the dialog. Native methods use
@@ -90,14 +103,12 @@ interface DialogMethod {
   target?: PaymentTarget;
 }
 
-/** Format a preset button label without trailing zeros ($0.10 → $0.10, $1 → $1). */
-function formatPresetLabel(usd: number): string {
-  return usd < 1 ? `$${usd.toFixed(2)}` : `$${usd}`;
-}
-
 interface LightningZapContentProps {
   invoice: string | null;
-  usdAmount: number | string;
+  /** Raw amount input, denominated in `currency`. */
+  amount: number | string;
+  /** The user's display-currency preference. */
+  currency: CurrencyDisplay;
   comment: string;
   setComment: (v: string) => void;
   amountSats: number;
@@ -112,27 +123,26 @@ interface LightningZapContentProps {
   handleZap: () => void;
   handleCopy: () => void;
   openInWallet: () => void;
-  setUsdAmount: (amount: number | string) => void;
+  setAmount: (amount: number | string) => void;
   setError: (msg: string) => void;
   editingAmount: boolean;
   setEditingAmount: (v: boolean) => void;
-  amountInputRef: React.RefObject<HTMLInputElement | null>;
-  commitAmountEdit: () => void;
   payWithWebLN: () => void;
 }
 
 /**
  * Lightning zap flow. Mirrors the onchain tab: one screen, one button, and an
- * optional comment carried into the NIP-57 zap request. Amount is denominated
- * in USD and converted to sats at payment time using the same BTC price query
- * the onchain tab uses.
+ * optional comment carried into the NIP-57 zap request. The amount is
+ * denominated in the user's display currency (`currencyDisplay`) and converted
+ * to sats at payment time using the same BTC price query the onchain tab uses.
  *
  * Defined outside `ZapDialog` as a `forwardRef` to keep the amount input
  * from losing focus on parent re-renders.
  */
 const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>(({
   invoice,
-  usdAmount,
+  amount,
+  currency,
   comment,
   setComment,
   amountSats,
@@ -147,32 +157,26 @@ const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>
   handleZap,
   handleCopy,
   openInWallet,
-  setUsdAmount,
+  setAmount,
   setError,
   editingAmount,
   setEditingAmount,
-  amountInputRef,
-  commitAmountEdit,
   payWithWebLN,
 }, ref) => {
   const [showComment, setShowComment] = useState(false);
-  const currentUsd = typeof usdAmount === 'string' ? parseFloat(usdAmount) : usdAmount;
-  const hasValidAmount = Number.isFinite(currentUsd) && currentUsd > 0;
-  const usdString = btcPrice && amountSats > 0 ? satsToUSD(amountSats, btcPrice) : '';
-  // When btcPrice hasn't loaded yet, fall back to formatting the raw USD
-  // input so small values like 0.1 still render as "$0.10".
-  const fallbackUsd = hasValidAmount
-    ? (currentUsd < 1 ? `$${currentUsd.toFixed(2)}` : `$${currentUsd}`)
-    : '';
-  const usdDisplay = usdString || fallbackUsd;
+  // In USD mode `amountSats` is 0 until the BTC price lands, so fall back to
+  // echoing the raw input ("$0.10") rather than rendering an empty label.
+  const amountDisplay = amountSats > 0
+    ? formatMoneyAmount(amountSats, currency, btcPrice)
+    : formatAmountInput(amount, currency);
 
   if (invoice) {
     return (
       <div ref={ref} className="grid gap-3 px-4 py-4 w-full overflow-hidden">
-        {/* Amount header — USD only; sats are an implementation detail. */}
+        {/* Amount header, in the user's preferred display currency. */}
         <div className="flex flex-col items-center pt-1">
           <div className="text-3xl font-semibold tabular-nums">
-            {usdDisplay}
+            {amountDisplay}
           </div>
         </div>
 
@@ -248,64 +252,19 @@ const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>
 
   return (
     <div ref={ref} className="grid gap-3 px-4 py-4 w-full overflow-hidden">
-      {/* Amount — big number on top, editable by clicking. Matches OnchainZapContent. */}
-      <div className="flex flex-col items-center pt-2">
-        {editingAmount ? (
-          <div className="flex items-baseline justify-center">
-            <span className={`text-4xl font-semibold ${insufficient ? 'text-destructive' : 'text-muted-foreground'}`}>$</span>
-            <input
-              ref={amountInputRef}
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step="0.01"
-              value={usdAmount}
-              onChange={(e) => { setUsdAmount(e.target.value); setError(''); }}
-              onBlur={commitAmountEdit}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  commitAmountEdit();
-                }
-              }}
-              aria-label="Amount in USD"
-              className={`bg-transparent border-0 outline-none text-4xl font-semibold text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${insufficient ? 'text-destructive' : ''}`}
-              style={{ width: `${Math.max(2, String(usdAmount).length + 1)}ch` }}
-            />
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setEditingAmount(true)}
-            aria-label="Edit amount"
-            className="flex items-baseline justify-center rounded-md px-2 -mx-2 hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
-          >
-            <span className={`text-4xl font-semibold ${insufficient ? 'text-destructive' : 'text-muted-foreground'}`}>$</span>
-            <span className={`text-4xl font-semibold tabular-nums ${insufficient ? 'text-destructive' : ''}`}>
-              {hasValidAmount ? (currentUsd < 1 ? currentUsd.toFixed(2) : currentUsd) : 0}
-            </span>
-          </button>
-        )}
+      {/* Amount — big number on top, editable by clicking, plus preset chips.
+          Lightning zaps lean small, so the defaults stay in tip-jar territory. */}
+      <div className="grid gap-3 pt-2">
+        <AmountField
+          value={amount}
+          onValueChange={(v) => { setAmount(v); setError(''); }}
+          currency={currency}
+          editing={editingAmount}
+          setEditing={setEditingAmount}
+          presets={LIGHTNING_PRESETS}
+          invalid={insufficient}
+        />
       </div>
-
-      {/* Presets — compact. Lightning zaps lean small, so the defaults stay
-          in tip-jar territory. */}
-      <ToggleGroup
-        type="single"
-        value={LIGHTNING_USD_PRESETS.includes(Number(usdAmount)) ? String(usdAmount) : ''}
-        onValueChange={(v) => { if (v) { setUsdAmount(Number(v)); setError(''); setEditingAmount(false); } }}
-        className="grid grid-cols-5 gap-1 w-full"
-      >
-        {LIGHTNING_USD_PRESETS.map((v) => (
-          <ToggleGroupItem
-            key={v}
-            value={String(v)}
-            className="h-8 min-w-0 rounded-full text-xs font-semibold px-1"
-          >
-            {formatPresetLabel(v)}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
 
       {error && (
         <p className="text-xs text-destructive">{error}</p>
@@ -330,7 +289,7 @@ const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>
         <Button
           type="button"
           onClick={handleZap}
-          disabled={!btcPrice || amountSats <= 0 || isZapping}
+          disabled={amountSats <= 0 || isZapping}
           variant={isLarge && !isZapping ? 'destructive' : 'default'}
           className="flex-1 rounded-full"
         >
@@ -340,9 +299,9 @@ const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>
               Creating invoice…
             </>
           ) : isLarge && confirmArmed ? (
-            <>Tap again to send {usdDisplay}</>
+            <>Tap again to send {amountDisplay}</>
           ) : (
-            <>Send {usdDisplay}</>
+            <>Send {amountDisplay}</>
           )}
         </Button>
         <Button
@@ -433,15 +392,17 @@ export function ZapDialogImpl({
     lightningTarget?.authority,
   );
 
-  // USD-denominated state (matches OnchainZapContent). The sats amount is
-  // derived just before we hit the LNURL endpoint.
-  const [usdAmount, setUsdAmount] = useState<number | string>(0.5);
+  // The amount input is denominated in the user's display currency (matches
+  // OnchainZapContent). In USD mode the sats amount is derived just before we
+  // hit the LNURL endpoint; in sats mode the input already *is* sats, so no
+  // BTC price is needed to send.
+  const currency: CurrencyDisplay = config.currencyDisplay ?? 'usd';
+  const [amount, setAmount] = useState<number | string>(() => defaultAmount(currency));
   const [comment, setComment] = useState('');
   const [copied, setCopied] = useState(false);
   const [editingAmount, setEditingAmount] = useState(false);
   const [error, setError] = useState('');
   const [confirmArmed, setConfirmArmed] = useState(false);
-  const amountInputRef = useRef<HTMLInputElement>(null);
 
   const { data: btcPrice } = useQuery({
     queryKey: ['btc-price', esploraApis],
@@ -449,14 +410,10 @@ export function ZapDialogImpl({
     staleTime: 30_000,
   });
 
-  // Convert the USD amount to sats for the actual Lightning payment.
-  const amountSats = useMemo(() => {
-    if (!btcPrice) return 0;
-    const usd = typeof usdAmount === 'string' ? parseFloat(usdAmount) : usdAmount;
-    if (!Number.isFinite(usd) || usd <= 0) return 0;
-    const btc = usd / btcPrice;
-    return Math.round(btc * 100_000_000);
-  }, [usdAmount, btcPrice]);
+  const amountSats = useMemo(
+    () => amountInputToSats(amount, currency, btcPrice),
+    [amount, currency, btcPrice],
+  );
 
   const isLarge = isLargeAmount(amountSats, btcPrice);
   // Lightning has no local balance concept (the wallet / LNURL handles that),
@@ -522,21 +479,6 @@ export function ZapDialogImpl({
     setConfirmArmed(false);
   }, [amountSats]);
 
-  // Focus + select-all when the amount is clicked into edit mode.
-  useEffect(() => {
-    if (editingAmount) {
-      amountInputRef.current?.focus();
-      amountInputRef.current?.select();
-    }
-  }, [editingAmount]);
-
-  const commitAmountEdit = useCallback(() => {
-    setEditingAmount(false);
-    if (typeof usdAmount === 'string' && usdAmount.trim() === '') {
-      setUsdAmount(0);
-    }
-  }, [usdAmount]);
-
   const handleCopy = async () => {
     if (invoice) {
       await navigator.clipboard.writeText(invoice);
@@ -564,30 +506,21 @@ export function ZapDialogImpl({
   };
 
   useEffect(() => {
+    setAmount(defaultAmount(currency));
+    setComment('');
+    setInvoice(null);
+    setCopied(false);
+    setEditingAmount(false);
+    setError('');
+    setConfirmArmed(false);
+    setSuccess(null);
     if (open) {
-      setUsdAmount(0.5);
-      setComment('');
-      setInvoice(null);
-      setCopied(false);
-      setEditingAmount(false);
-      setError('');
-      setConfirmArmed(false);
-      setSuccess(null);
       setActiveMethod(defaultMethodId);
-    } else {
-      setUsdAmount(0.5);
-      setComment('');
-      setInvoice(null);
-      setCopied(false);
-      setEditingAmount(false);
-      setError('');
-      setConfirmArmed(false);
-      setSuccess(null);
     }
     // `defaultMethodId` deliberately excluded — we only want to reset the
     // active method on open/close, not on every capability re-render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, setInvoice]);
+  }, [open, currency, setInvoice]);
 
   // Previously, if Bitcoin capability flipped to `unsupported` mid-session we
   // auto-switched to Lightning because the Bitcoin pane was a dead-end. The
@@ -598,7 +531,9 @@ export function ZapDialogImpl({
 
   const handleZap = () => {
     setError('');
-    if (!btcPrice) { setError('Waiting for BTC price…'); return; }
+    // Only USD input needs a price to become sats; a sats amount is payable
+    // as-is even when the price endpoint is down.
+    if (currency === 'usd' && !btcPrice) { setError('Waiting for BTC price…'); return; }
     if (amountSats <= 0) { setError('Enter an amount.'); return; }
 
     // Two-tap safety for large amounts: first click arms, second click sends.
@@ -619,7 +554,8 @@ export function ZapDialogImpl({
 
   const lightningContentProps: LightningZapContentProps = {
     invoice,
-    usdAmount,
+    amount,
+    currency,
     comment,
     setComment,
     amountSats,
@@ -634,12 +570,10 @@ export function ZapDialogImpl({
     handleZap,
     handleCopy,
     openInWallet,
-    setUsdAmount,
+    setAmount,
     setError,
     editingAmount,
     setEditingAmount,
-    amountInputRef,
-    commitAmountEdit,
     payWithWebLN,
   };
 
