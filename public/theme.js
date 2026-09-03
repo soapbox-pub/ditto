@@ -1,6 +1,14 @@
+// @license magnet:?xt=urn:btih:0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt AGPL-3.0-or-later
+// @source: https://gitlab.com/soapbox-pub/ditto
+//
 // Reads the saved theme from localStorage and applies it to <html> and the
 // preloader background before first paint. Runs as a blocking <script> so
 // there's no flash of the wrong theme.
+//
+// The @license/@license-end pair is for GNU LibreJS. This file is copied
+// verbatim from public/, so the vite.config.ts plugin that banners the bundled
+// chunks never sees it — the tags have to live in the source. Nothing but
+// whitespace may follow @license-end.
 (function () {
   // Builtin themes — must match builtinThemes in src/themes.ts
   var builtins = {
@@ -68,3 +76,4 @@
     }
   }
 })();
+// @license-end

@@ -1,3 +1,12 @@
+// @license magnet:?xt=urn:btih:0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt AGPL-3.0-or-later
+// @source: https://gitlab.com/soapbox-pub/ditto
+//
+// The @license/@license-end pair is for GNU LibreJS. This file is copied
+// verbatim from public/, so the vite.config.ts plugin that banners the bundled
+// chunks never sees it. Nothing but whitespace may follow @license-end. Note
+// that LibreJS's own manual acknowledges service workers as a source of false
+// positives and negatives, so the tags here are best-effort.
+
 /**
  * Ditto Service Worker
  *
@@ -203,3 +212,4 @@ self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
+// @license-end

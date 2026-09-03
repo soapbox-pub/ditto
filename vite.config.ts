@@ -190,6 +190,177 @@ function stripWoffFallbacks(): Plugin {
   };
 }
 
+/**
+ * GNU LibreJS support. LibreJS blocks every *external* script that doesn't
+ * carry a machine-readable free-license declaration — for external scripts it
+ * skips the triviality heuristic entirely, so there is no "too small to
+ * matter" escape hatch. Firefox types both `<script type="module">` and
+ * dynamic `import()` subresources as `script`, so every one of the ~330 chunks
+ * is checked individually. A blocked chunk isn't cancelled, it's replaced with
+ * a comment, which means the importing module dies on a missing export: one
+ * unlabelled chunk breaks the whole app.
+ *
+ * Two mechanisms, deliberately both:
+ *
+ *  - The per-chunk `@license` comment is the reliable one, and it survives a
+ *    file being copied somewhere else.
+ *  - The Web Labels table lets LibreJS accept a chunk from its `onHeadersReceived`
+ *    handler without buffering and regex-scanning the response body, which it
+ *    otherwise does for all ~12 MB of output.
+ *
+ * `scripts/check-librejs.mjs` verifies the result against LibreJS's own
+ * regexes; run it after touching anything here.
+ */
+const LIBREJS_MAGNET =
+  "magnet:?xt=urn:btih:0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt";
+/** Must match a `canonicalUrl` in LibreJS's license_definitions.json verbatim — http, not https. */
+const LIBREJS_LICENSE_URL = "http://www.gnu.org/licenses/agpl-3.0.html";
+const LIBREJS_LICENSE_LABEL = "AGPL-3.0-or-later";
+
+/**
+ * Corresponding-source URL for this exact build, per AGPL-3.0 section 7.
+ * Memoized: it appears once per Web Labels row, and each call would otherwise
+ * shell out to git twice (`git describe` throws when HEAD is untagged, which
+ * is the common case, so the fallback to `rev-parse` always runs too).
+ */
+let cachedSourceUrl: string | undefined;
+function sourceUrl(): string {
+  if (cachedSourceUrl === undefined) {
+    const ref = getCommitTag() || getCommitSha() || "main";
+    cachedSourceUrl = `https://gitlab.com/soapbox-pub/ditto/-/tree/${ref}`;
+  }
+  return cachedSourceUrl;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/** `.js` files copied verbatim from a public dir, which never pass through the bundler. */
+function publicScripts(): string[] {
+  const dirs = [path.resolve("public"), ...(publicDir ? [path.resolve(publicDir)] : [])];
+  const names = new Set<string>();
+  for (const dir of dirs) {
+    if (!fs.existsSync(dir)) continue;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isFile() && entry.name.endsWith(".js")) names.add(entry.name);
+    }
+  }
+  return [...names].sort();
+}
+
+/** Public path of the Web Labels page. Referenced by the link in index.html. */
+const JSLICENSE_PAGE = "jslicense.html";
+
+/**
+ * Render the Web Labels page.
+ *
+ * `scripts` are paths relative to the site root. The href in the first cell has
+ * to resolve to the exact URL of the script request: LibreJS keys the table on
+ * the absolute `a.href` and looks each script up by URL. The row selector is
+ * `table#jslicense-labels1 > tbody > tr`, so the <tbody> must be explicit.
+ */
+function renderJsLicensePage(scripts: string[], { dev }: { dev: boolean }): string {
+  const rows = scripts.map((name) =>
+    [
+      "        <tr>",
+      `          <td><a href="/${escapeHtml(name)}">${escapeHtml(name)}</a></td>`,
+      `          <td><a href="${escapeHtml(LIBREJS_LICENSE_URL)}">${LIBREJS_LICENSE_LABEL}</a></td>`,
+      `          <td><a href="${escapeHtml(sourceUrl())}">Ditto source</a></td>`,
+      "        </tr>",
+    ].join("\n"),
+  );
+
+  const scope = dev
+    ? `<p><strong>This is a development server.</strong> Vite serves unbundled ES
+      modules straight from <code>src/</code> and pre-bundled dependencies from
+      <code>node_modules/.vite/deps/</code>. Those are not passed through the
+      bundler, carry no <code>@license</code> tags, and are <em>not</em> listed
+      below — LibreJS will block them. Only a production build is compliant.
+      The table below covers the static scripts served verbatim from
+      <code>public/</code>.</p>`
+    : `<p>Each file below is a bundled, minified combined work. Alongside Ditto's
+      own code it contains dependencies under the Expat (MIT), ISC, Apache-2.0,
+      BSD-2-Clause, BSD-3-Clause and MPL-2.0 licenses, all of which are
+      GPL-compatible; the combined work is distributed under the AGPL. Their
+      individual copyright notices are in the source tree linked above.</p>`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JavaScript License Information — Ditto</title>
+  </head>
+  <body>
+    <h1>JavaScript License Information</h1>
+    <p>
+      Ditto is free software, licensed under the
+      <a href="${escapeHtml(LIBREJS_LICENSE_URL)}">GNU Affero General Public License</a>,
+      version 3 or later. The complete corresponding source for this build is at
+      <a href="${escapeHtml(sourceUrl())}">${escapeHtml(sourceUrl())}</a>.
+    </p>
+    ${scope}
+    <table id="jslicense-labels1">
+      <tbody>
+${rows.join("\n")}
+      </tbody>
+    </table>
+  </body>
+</html>
+`;
+}
+
+function librejsLicense(): Plugin {
+  return {
+    name: "ditto:librejs-license",
+
+    // generateBundle is build-only, so without this the page 404s in dev (and
+    // the SPA fallback serves index.html for it, which is worse than a 404).
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (!req.url) return next();
+        const { pathname } = new URL(req.url, "http://localhost");
+        if (pathname !== `/${JSLICENSE_PAGE}`) return next();
+
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        res.end(renderJsLicensePage(publicScripts(), { dev: true }));
+      });
+    },
+
+    generateBundle: {
+      // Rolldown's minifier runs during the renderChunk stage, so a banner added
+      // there gets stripped. generateBundle is after all of it.
+      order: "post",
+      handler(_options, bundle) {
+        const banner =
+          `// @license ${LIBREJS_MAGNET} ${LIBREJS_LICENSE_LABEL}\n` +
+          `// @source: ${sourceUrl()}\n`;
+
+        const chunks: string[] = [];
+        for (const [fileName, output] of Object.entries(bundle)) {
+          if (output.type !== "chunk") continue;
+          chunks.push(fileName);
+          // Nothing but whitespace may follow @license-end, and both tags must
+          // start their own line (LibreJS matches /^\s*\/\/\s*@license.../m).
+          output.code = `${banner}${output.code}\n// @license-end\n`;
+        }
+
+        // Chunk fileNames are already `assets/…`; public scripts sit at the root.
+        this.emitFile({
+          type: "asset",
+          fileName: JSLICENSE_PAGE,
+          source: renderJsLicensePage(
+            [...chunks.sort(), ...publicScripts()],
+            { dev: false },
+          ),
+        });
+      },
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -203,6 +374,7 @@ export default defineConfig(({ mode }) => {
   plugins: [
     react(),
     stripWoffFallbacks(),
+    librejsLicense(),
     visualizer({
       filename: "dist/bundle.html",
       template: "treemap",
