@@ -11,7 +11,9 @@ import {
   Loader2,
   Globe, Users, UserSearch,
   Clock, Flame, TrendingUp,
+  ShieldAlert,
 } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useInView } from '@/hooks/useInView';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -43,6 +45,7 @@ import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
+import { useReplyFlood } from '@/hooks/useReplyFlood';
 import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
 import { useFollowPacks } from '@/hooks/useFollowPacks';
 
@@ -437,6 +440,21 @@ export function SearchPage() {
     placeholderData: (prev) => prev,
   });
 
+  // Fold likely-spam floods into a single expandable row, the same display
+  // heuristic the thread view uses. Runs over the raw stream events (`posts`),
+  // whose ids match `item.event.id` for direct posts — the shape a flood takes.
+  // The reader's own posts and posts from anyone they follow are never folded.
+  const { floodIds } = useReplyFlood();
+  const floodedIds = useMemo(() => floodIds(posts), [floodIds, posts]);
+  const visibleFeedItems = useMemo(
+    () => feedItems.filter((item) => !floodedIds.has(item.event.id)),
+    [feedItems, floodedIds],
+  );
+  const floodedFeedItems = useMemo(
+    () => feedItems.filter((item) => floodedIds.has(item.event.id)),
+    [feedItems, floodedIds],
+  );
+
   const handleRefresh = useCallback(async () => {
     flushStreamBuffer();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -791,7 +809,7 @@ export function SearchPage() {
               </div>
             ) : feedItems.length > 0 ? (
               <div>
-                {feedItems.map((item) => {
+                {visibleFeedItems.map((item) => {
                   const isNew = flushedIds.has(item.event.id);
                   return (
                     <NoteCard
@@ -806,6 +824,8 @@ export function SearchPage() {
                     />
                   );
                 })}
+                {/* Likely-spam floods, folded into one expandable row. */}
+                <CollapsedFloodPosts items={floodedFeedItems} />
                 {/* Infinite scroll sentinel */}
                 {hasNextPage && (
                   <div ref={postsScrollRef} className="py-4">
@@ -1036,6 +1056,59 @@ function EmptyState({
               Clear all filters
             </button>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Renders flood-flagged search results (`src/lib/replyFlood.ts`) as one quiet
+ * inline line — "N posts marked as spam" — that reveals them as normal
+ * NoteCards on click. A DISPLAY fold only: nothing is dropped, and one click
+ * shows every flagged post.
+ */
+function CollapsedFloodPosts({ items }: { items: FeedItem[] }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div>
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-2 px-4 py-3 w-full text-left text-sm text-muted-foreground hover:text-foreground transition-colors group border-b border-border"
+      >
+        <ShieldAlert className="size-4 shrink-0" />
+        <span className="group-hover:underline">
+          {expanded ? (
+            <FormattedMessage
+              id="search.floodHide"
+              defaultMessage="Hide {count} {count, plural, one {post} other {posts}} marked as spam"
+              values={{ count: items.length }}
+            />
+          ) : (
+            <FormattedMessage
+              id="search.floodShow"
+              defaultMessage="{count} {count, plural, one {post} other {posts}} marked as spam"
+              values={{ count: items.length }}
+            />
+          )}
+        </span>
+      </button>
+      {expanded && (
+        <div>
+          {items.map((item) => (
+            <NoteCard
+              key={feedItemKey(item)}
+              event={item.event}
+              repostedBy={item.repostedBy}
+              repostEvent={item.repostEvent}
+              reactedBy={item.reactedBy}
+              zappedBy={item.zappedBy}
+              profileZapRecipient={item.profileZapRecipient}
+            />
+          ))}
         </div>
       )}
     </div>
