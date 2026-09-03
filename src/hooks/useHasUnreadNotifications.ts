@@ -9,7 +9,7 @@ import { useReplyFlood } from './useReplyFlood';
 import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
 
 /** Unread events to sample per check — enough to let flood detection see the crowd. */
-const UNREAD_BATCH = 100;
+const UNREAD_BATCH = 10;
 
 /**
  * Lightweight hook that checks whether the user has any unread notifications.
