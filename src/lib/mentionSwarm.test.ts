@@ -68,6 +68,32 @@ function swarm(count: number, { start = 1_000_000, gap = 2, victims = [VICTIM] }
   });
 }
 
+/**
+ * A swarm like {@link swarm}, but every author draws from a PRIVATE vocabulary,
+ * so no word recurs across the crowd. The {@link swarm} fixture shares one word
+ * pool, which `replyFlood.ts`'s SALAD rule now reads as a campaign (it keys off
+ * words recurring across many authors) — so that shape is no longer something
+ * content analysis "cannot cluster". With no shared pool at all, content
+ * analysis has nothing to hold, while the envelope — one-shot burner keys, a
+ * shared co-victim, a tight burst — still betrays the swarm. This is the
+ * residual coverage that only a mention-envelope rule provides.
+ */
+function disjointSwarm(
+  count: number,
+  { start = 1_000_000, gap = 2, victims = [VICTIM] } = {},
+): NostrEvent[] {
+  // Letters-only tokens (nothing masked as a URL or number), with 'q' reserved
+  // as a neutral joiner so no token ever repeats a letter three times (which
+  // shapeKey would collapse). The leading letter is unique per author, so no
+  // word is shared between two authors and no cross-author pool can form.
+  const ALPHA = 'abcdefghijklmnoprstuvwxyz';
+  return Array.from({ length: count }, (_, i) => {
+    const length = 8 + (i % 11); // 8..18 words, matching swarm()
+    const words = Array.from({ length }, (_, j) => `${ALPHA[i]}q${ALPHA[j]}`);
+    return event({ author: key(i + 1), at: start + i * gap, victims, content: words.join(' ') });
+  });
+}
+
 describe('mentionSwarmIds', () => {
   it('flags a burst of one-shot strangers sharing a co-victim', () => {
     const events = swarm(12);
@@ -78,8 +104,11 @@ describe('mentionSwarmIds', () => {
 
   it('flags a swarm whose messages are all unique, which content rules cannot cluster', async () => {
     const { replyFloodIds } = await import('./replyFlood');
-    const events = swarm(12);
-    // The premise of this module: the content detector sees nothing here.
+    // A shared word pool is now content-detectable (replyFlood's SALAD rule reads
+    // the crowd's recurring vocabulary), so this case gives every author a PRIVATE
+    // vocabulary: no shared pool forms, the content detector has nothing to hold,
+    // and only the envelope betrays the swarm.
+    const events = disjointSwarm(12);
     expect(replyFloodIds(events, { self: SELF }).size).toBe(0);
     expect(mentionSwarmIds(events, { self: SELF }).size).toBe(12);
   });
