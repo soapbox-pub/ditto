@@ -5,7 +5,9 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { useAuthor } from '@/hooks/useAuthor';
-import { satsToUSD } from '@/lib/bitcoinMoney';
+import { useAppContext } from '@/hooks/useAppContext';
+import { formatMoneyAmount } from '@/lib/bitcoinMoney';
+import type { CurrencyDisplay } from '@/contexts/AppContext';
 
 interface ZapSuccessScreenProps {
   /** Recipient pubkey (hex). Used to resolve the author avatar + name
@@ -47,14 +49,18 @@ export function ZapSuccessScreen({
   onClose,
 }: ZapSuccessScreenProps) {
   const { data: author } = useAuthor(recipientPubkey);
+  const { config } = useAppContext();
+  const currency: CurrencyDisplay = config.currencyDisplay ?? 'usd';
   const metadata = author?.metadata;
   const fallbackName = metadata?.name || metadata?.display_name || 'Anonymous';
   const displayName = recipientLabel ?? fallbackName;
   const avatarShape = getAvatarShape(metadata);
 
-  const usdDisplay = useMemo(
-    () => (btcPrice ? satsToUSD(amountSats, btcPrice) : ''),
-    [amountSats, btcPrice],
+  // Amount in the user's preferred display currency, falling back to sats
+  // when USD is preferred but the price is unavailable.
+  const amountDisplay = useMemo(
+    () => formatMoneyAmount(amountSats, currency, btcPrice),
+    [amountSats, currency, btcPrice],
   );
 
   // Sparkle burst positions: 8 particles radiating outward from the
@@ -133,7 +139,7 @@ export function ZapSuccessScreen({
           {recipientLabel ? 'Donation sent' : 'Bitcoin sent'}
         </h2>
         <div className="text-4xl font-bold tabular-nums bg-gradient-to-br from-amber-500 to-orange-600 bg-clip-text text-transparent">
-          {usdDisplay || `${amountSats.toLocaleString()} sats`}
+          {amountDisplay}
         </div>
       </div>
 

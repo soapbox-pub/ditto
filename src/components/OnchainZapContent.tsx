@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/popover';
 import { QRCodeCanvas } from '@/components/ui/qrcode';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AmountField, formatPresetLabel } from '@/components/AmountField';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBitcoinSigner } from '@/hooks/useBitcoinSigner';
@@ -27,14 +28,32 @@ import {
   getFeeRates,
   estimateFee,
   isLargeAmount,
-  satsToUSD,
   formatSats,
+  amountInputToSats,
+  formatAmountInput,
+  formatMoneyAmount,
+  presetsFor,
+  type AmountPresetSet,
 } from '@/lib/bitcoin';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ParsedCampaign } from '@/lib/campaign';
 import type { BitcoinRecipientOverride } from '@/hooks/useOnchainZap';
+import type { CurrencyDisplay } from '@/contexts/AppContext';
 
-const USD_PRESETS = [1, 5, 20, 50, 100];
+/**
+ * Amount presets, one row per display currency. The sats row is hand-picked
+ * round numbers rather than a live conversion of the USD row, so sats users
+ * get "5k" instead of "4,731".
+ */
+const PRESETS: AmountPresetSet = {
+  usd: [1, 5, 20, 50, 100],
+  sats: [1_000, 5_000, 20_000, 50_000, 100_000],
+};
+
+/** Opening amount for a fresh form, in the user's display currency. */
+function defaultAmount(currency: CurrencyDisplay): number {
+  return currency === 'sats' ? 5_000 : 5;
+}
 
 const FEE_SPEED_LABELS: Record<OnchainFeeSpeed, string> = {
   fastest: '~10 min',
@@ -124,14 +143,16 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
   const { esploraApis } = config;
   const loginType = logins[0]?.type;
 
-  const [usdAmount, setUsdAmount] = useState<number | string>(5);
+  // Amount is denominated in the user's display-currency preference. In USD
+  // mode it's converted to sats via the BTC price; in sats mode it *is* sats.
+  const currency: CurrencyDisplay = config.currencyDisplay ?? 'usd';
+  const [amount, setAmount] = useState<number | string>(() => defaultAmount(currency));
   const [comment, setComment] = useState('');
   const [showComment, setShowComment] = useState(false);
   const [feeSpeed, setFeeSpeed] = useState<OnchainFeeSpeed>('halfHour');
   const [error, setError] = useState('');
   const [feePopoverOpen, setFeePopoverOpen] = useState(false);
   const [editingAmount, setEditingAmount] = useState(false);
-  const amountInputRef = useRef<HTMLInputElement>(null);
 
   // Tracks whether the user has manually picked a fee speed. Once true, we
   // stop auto-adjusting the fee in response to amount changes.
@@ -183,14 +204,11 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
     return getRateForSpeed(feeRates, feeSpeed);
   }, [feeRates, feeSpeed]);
 
-  // Convert the USD amount to sats
-  const amountSats = useMemo(() => {
-    if (!btcPrice) return 0;
-    const usd = typeof usdAmount === 'string' ? parseFloat(usdAmount) : usdAmount;
-    if (!Number.isFinite(usd) || usd <= 0) return 0;
-    const btc = usd / btcPrice;
-    return Math.round(btc * 100_000_000);
-  }, [usdAmount, btcPrice]);
+  // Convert the display-currency amount to sats.
+  const amountSats = useMemo(
+    () => amountInputToSats(amount, currency, btcPrice),
+    [amount, currency, btcPrice],
+  );
 
   const estimatedFeeSats = useMemo(() => {
     if (!utxos?.length || !currentFeeRate || !amountSats) return 0;
@@ -304,27 +322,13 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
   // resulting txid, so we don't publish a kind 8333 — the user is warned
   // that the zap won't be attributed to them on Nostr.
 
-  const currentUsd = typeof usdAmount === 'string' ? parseFloat(usdAmount) : usdAmount;
-  const hasValidAmount = Number.isFinite(currentUsd) && currentUsd > 0;
-  const totalUsdString = btcPrice ? satsToUSD(totalSats, btcPrice) : '';
+  // Total (amount + fee) rendered in the user's display currency for the
+  // send button and confirmation label. Falls back to the raw input while the
+  // price is still loading in USD mode.
+  const totalDisplay = totalSats > 0
+    ? formatMoneyAmount(totalSats, currency, btcPrice)
+    : formatAmountInput(amount, currency);
   const uniqueFeeSpeeds = useMemo(() => getUniqueFeeSpeeds(feeRates), [feeRates]);
-
-  // Clicking the big amount flips it into edit mode. Auto-focus and
-  // select-all so typing overwrites the current value.
-  useEffect(() => {
-    if (editingAmount) {
-      amountInputRef.current?.focus();
-      amountInputRef.current?.select();
-    }
-  }, [editingAmount]);
-
-  const commitAmountEdit = useCallback(() => {
-    setEditingAmount(false);
-    // Normalize empty string to 0 so the display doesn't show "$" alone.
-    if (typeof usdAmount === 'string' && usdAmount.trim() === '') {
-      setUsdAmount(0);
-    }
-  }, [usdAmount]);
 
   if (user && capability === 'unsupported') {
     return (
@@ -334,8 +338,9 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
         isSilentPayment={bitcoinTarget?.mode === 'sp'}
         amountSats={amountSats}
         btcPrice={btcPrice}
-        usdAmount={usdAmount}
-        setUsdAmount={setUsdAmount}
+        amount={amount}
+        setAmount={setAmount}
+        currency={currency}
         loginType={loginType}
         onClose={onClose}
       />
@@ -344,63 +349,18 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
 
   return (
     <div className="grid gap-4 px-4 py-4 w-full overflow-hidden">
-      {/* Amount — big number on top, editable by clicking. */}
-      <div className="flex flex-col items-center pt-2">
-        {editingAmount ? (
-          <div className="flex items-baseline justify-center">
-            <span className={`text-4xl font-semibold ${insufficient ? 'text-destructive' : 'text-muted-foreground'}`}>$</span>
-            <input
-              ref={amountInputRef}
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step="0.01"
-              value={usdAmount}
-              onChange={(e) => { setUsdAmount(e.target.value); setError(''); }}
-              onBlur={commitAmountEdit}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  commitAmountEdit();
-                }
-              }}
-              aria-label="Amount in USD"
-              className={`bg-transparent border-0 outline-none text-4xl font-semibold text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${insufficient ? 'text-destructive' : ''}`}
-              style={{ width: `${Math.max(2, String(usdAmount).length + 1)}ch` }}
-            />
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setEditingAmount(true)}
-            aria-label="Edit amount"
-            className="flex items-baseline justify-center rounded-md px-2 -mx-2 hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
-          >
-            <span className={`text-4xl font-semibold ${insufficient ? 'text-destructive' : 'text-muted-foreground'}`}>$</span>
-            <span className={`text-4xl font-semibold tabular-nums ${insufficient ? 'text-destructive' : ''}`}>
-              {hasValidAmount ? currentUsd : 0}
-            </span>
-          </button>
-        )}
+      {/* Amount — big number on top, editable by clicking, plus preset chips. */}
+      <div className="grid gap-4 pt-2">
+        <AmountField
+          value={amount}
+          onValueChange={(v) => { setAmount(v); setError(''); }}
+          currency={currency}
+          editing={editingAmount}
+          setEditing={setEditingAmount}
+          presets={PRESETS}
+          invalid={insufficient}
+        />
       </div>
-
-      {/* Preset buttons sit under the big number. */}
-      <ToggleGroup
-        type="single"
-        value={USD_PRESETS.includes(Number(usdAmount)) ? String(usdAmount) : ''}
-        onValueChange={(v) => { if (v) { setUsdAmount(Number(v)); setError(''); setEditingAmount(false); } }}
-        className="grid grid-cols-5 gap-1 w-full"
-      >
-        {USD_PRESETS.map((v) => (
-          <ToggleGroupItem
-            key={v}
-            value={String(v)}
-            className="h-8 min-w-0 rounded-full text-xs font-semibold px-1"
-          >
-            ${v}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
 
       {/* Error */}
       {error && (
@@ -425,7 +385,7 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
       <div className="flex items-center gap-2">
         <Button
           onClick={handleZap}
-          disabled={!btcPrice || amountSats <= 0 || isZapping || insufficient}
+          disabled={amountSats <= 0 || isZapping || insufficient}
           variant={(insufficient || isLarge) && !isZapping ? 'destructive' : 'default'}
           className="flex-1 rounded-full"
         >
@@ -437,9 +397,9 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
           ) : insufficient ? (
             <>Not enough Bitcoin</>
           ) : isLarge && confirmArmed ? (
-            <>Tap again to send {totalUsdString}</>
+            <>Tap again to send {totalDisplay}</>
           ) : (
-            <>Send {totalUsdString || (hasValidAmount ? `$${currentUsd}` : '')}</>
+            <>Send {totalDisplay}</>
           )}
         </Button>
         <Button
@@ -466,8 +426,8 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
               >
                 <span>
                   Fee{' '}
-                  {estimatedFeeSats > 0 && btcPrice
-                    ? `≈ ${satsToUSD(estimatedFeeSats, btcPrice)}`
+                  {estimatedFeeSats > 0 && (currency === 'sats' || btcPrice)
+                    ? `≈ ${formatMoneyAmount(estimatedFeeSats, currency, btcPrice)}`
                     : '…'}
                   <span className="opacity-60"> · {FEE_SPEED_LABELS[feeSpeed]}</span>
                 </span>
@@ -494,9 +454,9 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
             </PopoverContent>
           </Popover>
 
-          {showBalance && !insufficient && btcPrice && (
+          {showBalance && !insufficient && (currency === 'sats' || btcPrice) && (
             <span className="text-muted-foreground">
-              Balance: {satsToUSD(totalBalance, btcPrice)}
+              Balance: {formatMoneyAmount(totalBalance, currency, btcPrice)}
             </span>
           )}
         </div>
@@ -526,8 +486,11 @@ interface UnsupportedSignerQRProps {
   isSilentPayment?: boolean;
   amountSats: number;
   btcPrice: number | undefined;
-  usdAmount: number | string;
-  setUsdAmount: (v: number | string) => void;
+  /** Raw amount input, denominated in `currency`. */
+  amount: number | string;
+  setAmount: (v: number | string) => void;
+  /** The user's display-currency preference. */
+  currency: CurrencyDisplay;
   loginType: string | undefined;
   onClose?: () => void;
 }
@@ -544,8 +507,9 @@ function UnsupportedSignerQR({
   isSilentPayment,
   amountSats,
   btcPrice,
-  usdAmount,
-  setUsdAmount,
+  amount,
+  setAmount,
+  currency,
   loginType,
   onClose,
 }: UnsupportedSignerQRProps) {
@@ -592,7 +556,8 @@ function UnsupportedSignerQR({
     [toast],
   );
 
-  const currentUsd = typeof usdAmount === 'string' ? parseFloat(usdAmount) : usdAmount;
+  const isSats = currency === 'sats';
+  const activePresets = presetsFor(PRESETS, currency);
   const hasAmount = amountSats > 0;
 
   return (
@@ -601,20 +566,20 @@ function UnsupportedSignerQR({
         {explanation} You can still zap by scanning this QR from any Bitcoin wallet.
       </p>
 
-      {/* Amount presets (USD) */}
+      {/* Amount presets, in the user's display currency */}
       <ToggleGroup
         type="single"
-        value={USD_PRESETS.includes(Number(usdAmount)) ? String(usdAmount) : ''}
-        onValueChange={(v) => { if (v) setUsdAmount(Number(v)); }}
+        value={activePresets.includes(Number(amount)) ? String(amount) : ''}
+        onValueChange={(v) => { if (v) setAmount(Number(v)); }}
         className="grid grid-cols-5 gap-1 w-full"
       >
-        {USD_PRESETS.map((v) => (
+        {activePresets.map((v) => (
           <ToggleGroupItem
             key={v}
             value={String(v)}
             className="h-8 min-w-0 rounded-full text-xs font-semibold px-1"
           >
-            ${v}
+            {formatPresetLabel(v, currency)}
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
@@ -626,16 +591,18 @@ function UnsupportedSignerQR({
       </div>
 
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+        {!isSats && (
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+        )}
         <Input
           type="number"
           inputMode="decimal"
           min={0}
-          step="0.01"
-          placeholder="Custom amount (USD)"
-          value={usdAmount}
-          onChange={(e) => setUsdAmount(e.target.value)}
-          className="pl-6"
+          step={isSats ? '1' : '0.01'}
+          placeholder={isSats ? 'Custom amount (sats)' : 'Custom amount (USD)'}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className={isSats ? undefined : 'pl-6'}
         />
       </div>
 
@@ -654,14 +621,17 @@ function UnsupportedSignerQR({
         )}
       </div>
 
-      {/* Amount summary */}
-      {hasAmount && btcPrice && (
+      {/* Amount summary. In USD mode show the dollar value alongside the exact
+          sats; in sats mode the big sats figure already says it all. */}
+      {hasAmount && (
         <div className="text-center text-sm">
-          <span className="font-medium">
-            {currentUsd > 0 ? `$${currentUsd}` : ''}
-          </span>
+          {!isSats && btcPrice && (
+            <span className="font-medium">
+              {formatMoneyAmount(amountSats, 'usd', btcPrice)}
+            </span>
+          )}
           <span className="text-muted-foreground">
-            {' · '}{formatSats(amountSats)} sats
+            {!isSats && btcPrice ? ' · ' : ''}{formatSats(amountSats)} sats
           </span>
         </div>
       )}
