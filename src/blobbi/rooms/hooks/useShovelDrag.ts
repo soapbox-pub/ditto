@@ -52,15 +52,20 @@ export function useShovelDrag(poopState: PoopState | null) {
     setHoveredPoopId(found);
   }, [isDragging]);
 
+  /** Abort the drag without cleaning (e.g. browser-cancelled touch). */
+  const cancelDrag = useCallback(() => {
+    setIsDragging(false);
+    setDragPos(null);
+    setHoveredPoopId(null);
+  }, []);
+
   const endDrag = useCallback(() => {
     if (!isDragging) return;
     if (hoveredPoopId && poopState) {
       poopState.onRemovePoop(hoveredPoopId);
     }
-    setIsDragging(false);
-    setDragPos(null);
-    setHoveredPoopId(null);
-  }, [isDragging, hoveredPoopId, poopState]);
+    cancelDrag();
+  }, [isDragging, hoveredPoopId, poopState, cancelDrag]);
 
   // Mouse: global listeners while dragging
   const onMouseDown = useCallback((e: React.MouseEvent) => {
@@ -68,33 +73,37 @@ export function useShovelDrag(poopState: PoopState | null) {
     startDrag(e.clientX, e.clientY);
   }, [startDrag]);
 
+  // Global listeners own the drag once started. They must live on `window`
+  // (not as React props on the shovel button): the button sits in the shell's
+  // `children`, which React bails out of re-rendering when drag state changes
+  // in the shell, so button-bound move/end handlers would keep stale closures
+  // where `isDragging` is still false and the drag would never track or finish.
   useEffect(() => {
     if (!isDragging) return;
-    const onMove = (e: MouseEvent) => moveDrag(e.clientX, e.clientY);
-    const onUp = () => endDrag();
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    const onMouseMove = (e: MouseEvent) => moveDrag(e.clientX, e.clientY);
+    const onMouseUp = () => endDrag();
+    const onTouchMove = (e: TouchEvent) => moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+    const onTouchEnd = () => endDrag();
+    const onTouchCancel = () => cancelDrag();
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('touchmove', onTouchMove);
+    window.addEventListener('touchend', onTouchEnd);
+    window.addEventListener('touchcancel', onTouchCancel);
     return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('touchcancel', onTouchCancel);
     };
-  }, [isDragging, moveDrag, endDrag]);
+  }, [isDragging, moveDrag, endDrag, cancelDrag]);
 
   // Touch: stopPropagation prevents BlobbiRoomShell swipe navigation
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     e.stopPropagation();
     startDrag(e.touches[0].clientX, e.touches[0].clientY);
   }, [startDrag]);
-
-  const onTouchMove = useCallback((e: React.TouchEvent) => {
-    e.stopPropagation();
-    moveDrag(e.touches[0].clientX, e.touches[0].clientY);
-  }, [moveDrag]);
-
-  const onTouchEnd = useCallback((e: React.TouchEvent) => {
-    e.stopPropagation();
-    endDrag();
-  }, [endDrag]);
 
   return {
     anyPoop,
@@ -105,8 +114,6 @@ export function useShovelDrag(poopState: PoopState | null) {
     poopRefs,
     onMouseDown,
     onTouchStart,
-    onTouchMove,
-    onTouchEnd,
   };
 }
 

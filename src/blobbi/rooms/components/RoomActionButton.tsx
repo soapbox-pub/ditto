@@ -25,8 +25,6 @@ interface RoomActionButtonProps {
   /** Pointer/touch event passthrough for drag interactions. */
   onMouseDown?: React.MouseEventHandler<HTMLButtonElement>;
   onTouchStart?: React.TouchEventHandler<HTMLButtonElement>;
-  onTouchMove?: React.TouchEventHandler<HTMLButtonElement>;
-  onTouchEnd?: React.TouchEventHandler<HTMLButtonElement>;
 }
 
 export const RoomActionButton = forwardRef<HTMLButtonElement, RoomActionButtonProps>(function RoomActionButton({
@@ -42,8 +40,6 @@ export const RoomActionButton = forwardRef<HTMLButtonElement, RoomActionButtonPr
   className,
   onMouseDown,
   onTouchStart,
-  onTouchMove,
-  onTouchEnd,
 }, ref) {
   return (
     <button
@@ -52,8 +48,6 @@ export const RoomActionButton = forwardRef<HTMLButtonElement, RoomActionButtonPr
       disabled={disabled}
       onMouseDown={onMouseDown}
       onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
       className={cn(
         'flex flex-col items-center gap-1 transition-all duration-300 ease-out shrink-0 translate-y-1',
         'active:scale-95',
