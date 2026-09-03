@@ -850,7 +850,7 @@ export function SearchPage() {
                   const { item } = row;
                   const isNew = flushedIds.has(item.event.id);
                   return (
-                    <LazyFeedItem key={feedItemKey(item)} className="cv-feed-item" initialInView={index < 10}>
+                    <LazyFeedItem key={feedItemKey(item)} cacheKey={feedItemKey(item)} className="cv-feed-item" initialInView={index < 10}>
                       <NoteCard
                         event={item.event}
                         repostedBy={item.repostedBy}

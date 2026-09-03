@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 /**
  * How far beyond the viewport (px, each direction) items stay mounted.
@@ -13,6 +13,31 @@ const MOUNT_MARGIN_PX = 2000;
  * `cv-feed-item` content-visibility rule in index.css.
  */
 const ESTIMATED_HEIGHT_PX = 300;
+
+/** Upper bound on remembered heights so a long session can't grow unbounded. */
+const MAX_CACHED_HEIGHTS = 2000;
+
+/**
+ * Last measured height per `cacheKey`, surviving component remounts.
+ *
+ * A feed unmounts entirely when the user opens a post, so without this every
+ * item past the initial batch comes back as a 300px placeholder. The list is
+ * then the wrong height, a restored scroll offset lands on the wrong card,
+ * and the page reflows as the observer swaps placeholders for real cards.
+ * Seeding placeholders from their previous height makes the remounted list
+ * match the one the user left.
+ */
+const heightCache = new Map<string, number>();
+
+function rememberHeight(key: string | undefined, height: number): void {
+  if (!key || height <= 0) return;
+  heightCache.delete(key);
+  heightCache.set(key, height);
+  if (heightCache.size > MAX_CACHED_HEIGHTS) {
+    const oldest = heightCache.keys().next().value;
+    if (oldest !== undefined) heightCache.delete(oldest);
+  }
+}
 
 type VisibilityCallback = (entry: IntersectionObserverEntry) => void;
 
@@ -58,6 +83,12 @@ interface LazyFeedItemProps {
   initialInView?: boolean;
   /** Class applied to the wrapper div (e.g. `cv-feed-item`). */
   className?: string;
+  /**
+   * Stable identity for this item across remounts (e.g. `feedItemKey(item)`).
+   * When set, the measured height is remembered so the placeholder starts at
+   * the right size the next time this item is rendered.
+   */
+  cacheKey?: string;
 }
 
 /**
@@ -77,24 +108,40 @@ interface LazyFeedItemProps {
  * at the moment it leaves the mount margin, so unmounting never shifts layout
  * or the scroll position.
  */
-export function LazyFeedItem({ children, initialInView = false, className }: LazyFeedItemProps) {
+export function LazyFeedItem({ children, initialInView = false, className, cacheKey }: LazyFeedItemProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(initialInView);
-  const heightRef = useRef<number>(ESTIMATED_HEIGHT_PX);
+  const heightRef = useRef<number>((cacheKey && heightCache.get(cacheKey)) || ESTIMATED_HEIGHT_PX);
+
+  const cacheKeyRef = useRef(cacheKey);
+  cacheKeyRef.current = cacheKey;
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
     return observe(el, (entry) => {
-      if (!entry.isIntersecting) {
-        // Capture the real rendered height before unmounting so the
-        // placeholder occupies exactly the same space.
-        const height = entry.boundingClientRect.height;
-        if (height > 0) heightRef.current = height;
+      // Remember the rendered height on every visibility change. When the
+      // item is leaving the mount margin, this is also what sizes the
+      // placeholder so unmounting occupies exactly the same space.
+      const height = entry.boundingClientRect.height;
+      if (height > 0) {
+        if (!entry.isIntersecting) heightRef.current = height;
+        rememberHeight(cacheKeyRef.current, height);
       }
       setInView(entry.isIntersecting);
     });
+  }, []);
+
+  // Items on screen when the whole feed unmounts (e.g. the user tapped a
+  // post) never get an observer callback, so measure them on the way out.
+  // Must be a layout effect: passive cleanup runs after the node is detached
+  // and would measure zero.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    return () => {
+      if (el) rememberHeight(cacheKeyRef.current, el.offsetHeight);
+    };
   }, []);
 
   return (

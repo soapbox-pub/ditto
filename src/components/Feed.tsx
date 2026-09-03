@@ -453,7 +453,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
           {feedItems.length > 0 ? (
             <div>
               {feedItems.map((item: FeedItem, index: number) => (
-                <LazyFeedItem key={feedItemKey(item)} className="cv-feed-item" initialInView={index < 10}>
+                <LazyFeedItem key={feedItemKey(item)} cacheKey={feedItemKey(item)} className="cv-feed-item" initialInView={index < 10}>
                   <NoteCard
                     event={item.event}
                     repostedBy={item.repostedBy}
@@ -594,7 +594,7 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
         {feedItems.map((item, index) => (
-          <LazyFeedItem key={feedItemKey(item)} className="cv-feed-item" initialInView={index < 10}>
+          <LazyFeedItem key={feedItemKey(item)} cacheKey={feedItemKey(item)} className="cv-feed-item" initialInView={index < 10}>
             <NoteCard
               event={item.event}
               repostedBy={item.repostedBy}
@@ -673,7 +673,7 @@ function HashtagFeedContent({ tag }: { tag: string }) {
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
         {filteredEvents.map((event, index) => (
-          <LazyFeedItem key={event.id} className="cv-feed-item" initialInView={index < 10}>
+          <LazyFeedItem key={event.id} cacheKey={event.id} className="cv-feed-item" initialInView={index < 10}>
             <NoteCard event={event} />
           </LazyFeedItem>
         ))}
@@ -736,7 +736,7 @@ function GeotagFeedContent({ tag }: { tag: string }) {
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
         {filteredEvents.map((event, index) => (
-          <LazyFeedItem key={event.id} className="cv-feed-item" initialInView={index < 10}>
+          <LazyFeedItem key={event.id} cacheKey={event.id} className="cv-feed-item" initialInView={index < 10}>
             <NoteCard event={event} />
           </LazyFeedItem>
         ))}

@@ -9,6 +9,7 @@ import { useLoveList } from './useLoveList';
 import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { parseAuthorEvent } from './useAuthor';
 import { useNostrStorage } from './useNostrStorage';
+import { useIsScrollRestore } from './useIsScrollRestore';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import {
   getPaginationCursor,
@@ -87,6 +88,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
   const { excludeMuted, mutedKey } = useMutedAuthorFilter();
   const { feedSettings } = useFeedSettings();
   const { store } = useNostrStorage();
+  const isScrollRestore = useIsScrollRestore();
 
   // Build the full kinds list from user settings, or use the override.
   // When replies are hidden, NIP-22 comment kinds (1111 / 1244) are dropped
@@ -387,6 +389,10 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
     // No refetchInterval — automatic background refetches cause the entire
     // feed to re-sort and jump.  Users can pull-to-refresh for fresh content.
     refetchOnWindowFocus: false,
+    // Coming back from a post restores the scroll offset; refetching every
+    // page underneath it would prepend new posts and shift the card the user
+    // was reading. Fresh visits (Home tap, reload) still refetch when stale.
+    refetchOnMount: !isScrollRestore,
     gcTime: 30 * 60 * 1000, // 30 min — don't GC feed data while the app is open
     placeholderData: (prev) => prev, // keep showing previous data during refetches
   });

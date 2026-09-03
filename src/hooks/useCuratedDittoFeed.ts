@@ -3,6 +3,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { DITTO_RELAYS } from '@/lib/appRelays';
+import { useIsScrollRestore } from '@/hooks/useIsScrollRestore';
 
 /** Curated kinds for the Ditto feed: unique Ditto content types. */
 const CURATED_KINDS = [
@@ -53,6 +54,7 @@ function fingerprint(items: string[]): string {
 export function useCuratedDittoFeed(authors: string[] | undefined, enabled: boolean) {
   const { nostr } = useNostr();
   const authorsKey = authors ? fingerprint(authors) : '';
+  const isScrollRestore = useIsScrollRestore();
 
   return useInfiniteQuery<NostrEvent[], Error>({
     queryKey: ['ditto-curated-feed', authorsKey],
@@ -87,6 +89,8 @@ export function useCuratedDittoFeed(authors: string[] | undefined, enabled: bool
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     placeholderData: (prev) => prev,
+    // See useFeed: don't refetch under a restored scroll offset.
+    refetchOnMount: !isScrollRestore,
   });
 }
 
