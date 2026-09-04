@@ -368,7 +368,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[85dvh] p-0 gap-0 rounded-2xl overflow-y-auto [&>button]:hidden">
+      <DialogContent className="max-w-md max-h-[85dvh] p-0 gap-0 grid-cols-[minmax(0,1fr)] rounded-2xl overflow-y-auto [&>button]:hidden">
         <DialogTitle className="sr-only">Post options</DialogTitle>
 
         {/* Post preview — delegates to the shared EmbeddedPost used by quote
