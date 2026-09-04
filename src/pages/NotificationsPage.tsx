@@ -601,7 +601,7 @@ function GroupHeader({
       <ActorAvatars actors={actors} />
       <div className="flex items-center gap-1.5 text-sm flex-wrap">
         <span className="shrink-0 text-muted-foreground">{icon}</span>
-        <span className="font-medium">{subject}</span>
+        <span className="font-medium min-w-0 break-words">{subject}</span>
         <span className="text-muted-foreground">{action}</span>
       </div>
     </div>
@@ -1314,7 +1314,7 @@ function NotificationHeader({
     <div className="flex items-center gap-2 text-sm mb-2">
       <span className="shrink-0">{icon}</span>
       <ProfileHoverCard pubkey={actorPubkey} asChild>
-        <Link to={profileUrl} className="font-bold hover:underline truncate">
+        <Link to={profileUrl} className="font-bold hover:underline truncate min-w-0">
           {author.data?.event ? (
             <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
           ) : displayName}
