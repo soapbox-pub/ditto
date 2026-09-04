@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.37.3] - 2026-09-04
+
+Back means back. Tap a post, hit back, and the feed puts you right where you left off — on the card you tapped. Post timestamps are real links now, so middle-click and "open in new tab" work the way they do everywhere else on the web. Live streams quoted inside a post show their thumbnail, status, and viewer count instead of a bare line of text. Long usernames stop spilling out of notifications and menus, and Ditto now runs in fully free browsers like GNU IceCat and Abrowser.
+
+### Added
+- Ditto runs in fully free browsers that block unlabelled JavaScript, such as GNU IceCat and Abrowser, and lists its licenses at /jslicense.html
+
+### Changed
+- A live stream quoted inside a post shows its thumbnail, live or ended badge, and viewer count, matching how streams look in the feed
+- A post's timestamp is a real link, so middle-click, right-click "Open in new tab", and Ctrl/Cmd-click open the post in a new tab — and it works with scripted popups blocked
+
+### Fixed
+- Going back from a post returns you to your place in the feed, anchored to the card you tapped
+- Long usernames no longer spill out of notification headers, the post actions menu, or embedded post cards
+
 ## [2.37.2] - 2026-09-03
 
 Pay and zap in your own denomination. Every payment and zap screen now honors your sats-or-dollars preference — the amount you type, the presets, fees, balances, and the confirmation, not just the totals in your feed. Spam folding gets sharper too, collapsing word-salad flood campaigns that slip a different random message past every filter, and the shovel now drags properly on touch screens.
