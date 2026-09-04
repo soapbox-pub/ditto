@@ -599,10 +599,10 @@ function GroupHeader({
   return (
     <div className="flex flex-col gap-2 px-4 pt-3 pb-2">
       <ActorAvatars actors={actors} />
-      <div className="flex items-center gap-1.5 text-sm flex-wrap">
+      <div className="flex items-center gap-1.5 text-sm">
         <span className="shrink-0 text-muted-foreground">{icon}</span>
-        <span className="font-medium min-w-0 break-words">{subject}</span>
-        <span className="text-muted-foreground">{action}</span>
+        <span className="font-medium min-w-0 truncate">{subject}</span>
+        <span className="text-muted-foreground shrink-0">{action}</span>
       </div>
     </div>
   );
