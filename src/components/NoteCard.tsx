@@ -180,7 +180,7 @@ import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
 import { publishedAtAction } from "@/lib/publishedAtAction";
 import { parseBadgeSet } from "@/lib/parseBadgeSet";
-import { getEffectiveStreamStatus } from "@/lib/streamStatus";
+import { getEffectiveStreamStatus, getStreamStatusConfig } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
 import { BLANK_POSTER } from "@/lib/blankPoster";
 import { encodeEventAddress } from "@/lib/encodeEvent";
@@ -2146,33 +2146,6 @@ function VineMedia({
       )}
     </>
   );
-}
-
-/** Stream status badge config. */
-function getStreamStatusConfig(status: string | undefined) {
-  switch (status) {
-    case "live":
-      return {
-        label: "LIVE",
-        className: "bg-red-600 hover:bg-red-600 text-white border-red-600",
-      };
-    case "ended":
-      return {
-        label: "ENDED",
-        className: "bg-muted text-muted-foreground border-border",
-      };
-    case "planned":
-      return {
-        label: "PLANNED",
-        className:
-          "bg-blue-600/90 hover:bg-blue-600/90 text-white border-blue-600",
-      };
-    default:
-      return {
-        label: status?.toUpperCase() || "UNKNOWN",
-        className: "bg-muted text-muted-foreground border-border",
-      };
-  }
 }
 
 /** Inline content for kind 30311 live stream events. */

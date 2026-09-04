@@ -31,4 +31,33 @@ export function getEffectiveStreamStatus(event: NostrEvent): string {
   return status;
 }
 
+/** Badge label + Tailwind classes for a live-stream status. */
+export function getStreamStatusConfig(status: string | undefined): {
+  label: string;
+  className: string;
+} {
+  switch (status) {
+    case 'live':
+      return {
+        label: 'LIVE',
+        className: 'bg-red-600 hover:bg-red-600 text-white border-red-600',
+      };
+    case 'ended':
+      return {
+        label: 'ENDED',
+        className: 'bg-muted text-muted-foreground border-border',
+      };
+    case 'planned':
+      return {
+        label: 'PLANNED',
+        className: 'bg-blue-600/90 hover:bg-blue-600/90 text-white border-blue-600',
+      };
+    default:
+      return {
+        label: status?.toUpperCase() || 'UNKNOWN',
+        className: 'bg-muted text-muted-foreground border-border',
+      };
+  }
+}
+
 

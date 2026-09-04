@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
-import { Award, Bookmark, CalendarClock, ClipboardList, HandHeart, MessageSquareOff, Music, SmilePlus, Video } from 'lucide-react';
+import { Award, Bookmark, CalendarClock, ClipboardList, HandHeart, MessageSquareOff, Music, Radio, SmilePlus, Users, Video } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const BlobbiStateCard = lazy(() => import('@/components/BlobbiStateCard').then(m => ({ default: m.BlobbiStateCard })));
@@ -45,6 +45,8 @@ import { getKindLabel, getKindIcon } from '@/lib/extraKinds';
 import { UnknownKindContent } from '@/components/UnknownKindContent';
 import { ArmadaInviteEmbed } from '@/components/ArmadaInviteEmbed';
 import { INVITE_BUNDLE_KIND, parseArmadaInvite, type ArmadaInvite } from '@/lib/armadaInvite';
+import { Badge } from '@/components/ui/badge';
+import { getEffectiveStreamStatus, getStreamStatusConfig } from '@/lib/streamStatus';
 
 interface EmbeddedNaddrProps {
   /** The decoded naddr coordinates. */
@@ -227,6 +229,14 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
   // surface the status or the room/meeting affordance.
   if (event.kind === 30312 || event.kind === 30313) {
     return <EmbeddedRoomCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-53 Live Activities (kind 30311) get a compact card with the stream
+  // thumbnail, a LIVE/ENDED/PLANNED status badge, title, and summary. The
+  // generic naddr card would render title/summary from tags but drop the
+  // thumbnail and the status affordance that make a stream recognizable.
+  if (event.kind === 30311) {
+    return <EmbeddedStreamCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // NIP-B0 web bookmarks (kind 39701) get a compact link-preview card with a
@@ -767,6 +777,95 @@ function EmbeddedRoomCard({
           {summary}
         </p>
       )}
+    </EmbeddedCardShell>
+  );
+}
+
+/**
+ * Compact inline card for NIP-53 Live Activities (kind 30311).
+ *
+ * Shows the stream thumbnail (from the `image` tag) with a status badge
+ * (LIVE / ENDED / PLANNED) and viewer count overlaid, plus the title and
+ * summary below. The generic {@link EmbeddedNaddrCard} would render the
+ * title/summary text but drop the thumbnail and the status pill that make
+ * a stream recognizable at a glance. Unlike the feed card, embeds never
+ * play the stream inline — clicking opens the detail page.
+ */
+function EmbeddedStreamCard({
+  event,
+  className,
+  disableHoverCards,
+}: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+}) {
+  const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
+  const title = getTag('title') || 'Untitled Stream';
+  const summary = getTag('summary');
+  const imageUrl = sanitizeUrl(getTag('image'));
+  const currentParticipants = getTag('current_participants');
+  const status = getEffectiveStreamStatus(event);
+  const statusConfig = getStreamStatusConfig(status);
+
+  const naddrId = useMemo(() => {
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+    return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
+  }, [event]);
+
+  return (
+    <EmbeddedCardShell
+      pubkey={event.pubkey}
+      createdAt={event.created_at}
+      navigateTo={naddrId}
+      className={className}
+      disableHoverCards={disableHoverCards}
+    >
+      {/* Thumbnail with status + viewer overlay */}
+      <div className="relative w-full overflow-hidden rounded-lg aspect-video bg-muted">
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="absolute inset-0 size-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/15 via-primary/5 to-secondary">
+            <Radio className="size-10 text-primary/40" />
+          </div>
+        )}
+        <div className="absolute top-2 left-2">
+          <Badge variant="outline" className={cn('text-[10px]', statusConfig.className)}>
+            {status === 'live' && (
+              <div className="size-1.5 bg-white rounded-full animate-pulse mr-1" />
+            )}
+            {statusConfig.label}
+          </Badge>
+        </div>
+        {currentParticipants && (
+          <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
+            <Users className="size-3" />
+            {currentParticipants}
+          </div>
+        )}
+      </div>
+
+      {/* Title + summary */}
+      <div className="flex items-start gap-2">
+        <Radio className="size-4 text-primary shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
+            {title}
+          </p>
+          {summary && (
+            <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words mt-0.5">
+              {summary}
+            </p>
+          )}
+        </div>
+      </div>
     </EmbeddedCardShell>
   );
 }
