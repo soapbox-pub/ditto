@@ -1027,9 +1027,21 @@ const NoteCardImpl = memo(function NoteCardImpl({
           <Nip05Badge nip05={nip05} pubkey={event.pubkey} />
         )}
         {nip05 && nip05Verified && <span className="shrink-0">·</span>}
-        <span className="shrink-0 hover:underline whitespace-nowrap">
+        {/* Real permalink: native middle-click / "open in new tab" work without
+            a scripted popup (NoScript blocks window.open even for allowed
+            origins). Left-click routes through openPost() to keep the
+            event-cache seeding that plain <Link> navigation would skip. */}
+        <Link
+          to={`/${encodedId}`}
+          className="shrink-0 hover:underline whitespace-nowrap"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openPost();
+          }}
+        >
           {timeAgo(event.created_at)}
-        </span>
+        </Link>
       </div>
     </div>
   );
