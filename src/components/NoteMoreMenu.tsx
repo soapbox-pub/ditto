@@ -83,7 +83,7 @@ function MenuItem({ icon, label, onClick, destructive }: MenuItemProps) {
       )}
     >
       <span className="shrink-0">{icon}</span>
-      <span>{label}</span>
+      <span className="min-w-0 truncate">{label}</span>
     </button>
   );
 }

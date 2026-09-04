@@ -95,7 +95,7 @@ export function EmbeddedCardShell({
               <MaybeProfileHoverCard pubkey={pubkey} disabled={disableHoverCards}>
                 <Link
                   to={profileUrl}
-                  className="text-sm font-semibold truncate hover:underline"
+                  className="text-sm font-semibold truncate hover:underline min-w-0"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {author.data?.event ? (
