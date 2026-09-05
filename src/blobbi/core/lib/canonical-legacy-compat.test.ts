@@ -15,11 +15,15 @@ import {
   BLOBBI_ECOSYSTEM_NAMESPACE,
   getCanonicalBlobbiD,
   deriveBlobbiSeedV1,
+  classifyBlobbiEvent,
   isLegacyBlobbiEvent,
+  isModernBlobbiEvent,
   isValidBlobbiEvent,
   parseBlobbiEvent,
+  parseModernBlobbiEvent,
   type NostrEvent,
 } from '@blobbi-kit/core';
+import { generateEggPreview, previewToEventTags } from '@/blobbi/onboarding/lib/blobbi-preview';
 
 const PUBKEY = 'a'.repeat(64);
 
@@ -117,5 +121,85 @@ describe('the host-side recovery workaround is gone', () => {
     const { resolve } = await import('node:path');
     expect(existsSync(resolve(process.cwd(), 'src/blobbi/onboarding/lib/interop-recovery.ts'))).toBe(false);
     expect(existsSync(resolve(process.cwd(), 'src/blobbi/onboarding/hooks/useRecoveredBlobbis.ts'))).toBe(false);
+  });
+});
+
+// ─── @blobbi-kit/core 0.5.2: one modern contract, strict activity state ───────
+//
+// 0.5.2 wrote the modern kind 31124 contract down and made `state` strict: the
+// historical schema that stored progression in `state` (incubating/evolving)
+// is now unsupported instead of being silently reinterpreted. Ditto's own
+// flows moved to `progression_state` long ago; these cases prove the events
+// Ditto publishes today are modern under the stricter contract, and that the
+// new one-call classification agrees with the collection predicate Ditto
+// already relied on.
+
+describe('Ditto-produced events are modern under the 0.5.2 contract', () => {
+  const asEvent = (tags: string[][], content = ''): NostrEvent => ({
+    id: 'e'.repeat(64),
+    pubkey: PUBKEY,
+    created_at: 1_700_000_000,
+    kind: KIND_BLOBBI_STATE,
+    content,
+    sig: 'f'.repeat(128),
+    tags,
+  });
+  const tagValue = (tags: string[][], name: string) => tags.find(([n]) => n === name)?.[1];
+
+  it('a freshly adopted egg: stage egg, state active, progression_state incubating', () => {
+    const tags = previewToEventTags(generateEggPreview(PUBKEY, 'Sparky'));
+    expect(tagValue(tags, 'stage')).toBe('egg');
+    expect(tagValue(tags, 'state')).toBe('active');
+    expect(tagValue(tags, 'progression_state')).toBe('incubating');
+    const event = asEvent(tags);
+    expect(classifyBlobbiEvent(event)).toBe('modern');
+    const companion = parseModernBlobbiEvent(event)!;
+    expect(companion.stage).toBe('egg');
+    expect(companion.state).toBe('active');
+    expect(companion.progressionState).toBe('incubating');
+    expect(companion.visualGeneration).toBe('v1');
+  });
+
+  it('the hatched shape: stage baby, state active, progression_state evolving', () => {
+    const tags = previewToEventTags(generateEggPreview(PUBKEY, 'Sparky'))
+      .map((t) => (t[0] === 'stage' ? ['stage', 'baby'] : t[0] === 'progression_state' ? ['progression_state', 'evolving'] : t));
+    const event = asEvent(tags, JSON.stringify({ evolution: [{ id: 'feed', target: 5, count: 0 }] }));
+    expect(classifyBlobbiEvent(event)).toBe('modern');
+    const companion = parseModernBlobbiEvent(event)!;
+    expect(companion.stage).toBe('baby');
+    expect(companion.progressionState).toBe('evolving');
+    expect(companion.evolution).toHaveLength(1);
+  });
+
+  it('the historical progression-in-state schema is unsupported, never reinterpreted', () => {
+    const tags = previewToEventTags(generateEggPreview(PUBKEY, 'Old'))
+      .filter(([n]) => n !== 'progression_state')
+      .map((t) => (t[0] === 'state' ? ['state', 'incubating'] : t));
+    const event = asEvent(tags);
+    expect(classifyBlobbiEvent(event)).toBe('legacy');
+    expect(collectionKeeps(event)).toBe(false);
+    expect(parseModernBlobbiEvent(event)).toBeUndefined();
+    expect(parseBlobbiEvent(event)).toBeUndefined();
+  });
+
+  it('isModernBlobbiEvent is the predicate the collection keeps events with', () => {
+    const cases = [
+      makeIslandEvent(),
+      makeIslandEvent({ branding: [['t', 'blobbi']] }),
+      makeIslandEvent({ extraTags: [['incubation_time', '3600']] }),
+      makeIslandEvent({ extraTags: [['visual_generation', 'v2']] }),
+      asEvent(previewToEventTags(generateEggPreview(PUBKEY, 'Sparky'))),
+    ];
+    for (const event of cases) {
+      expect(isModernBlobbiEvent(event)).toBe(collectionKeeps(event));
+      expect(parseModernBlobbiEvent(event) !== undefined).toBe(collectionKeeps(event));
+    }
+  });
+
+  it('visual_generation comes from the parsed companion: missing v1, v1, v2, invalid v1', () => {
+    for (const [value, expected] of [[undefined, 'v1'], ['v1', 'v1'], ['v2', 'v2'], ['v9', 'v1']] as const) {
+      const event = makeIslandEvent({ extraTags: value === undefined ? [] : [['visual_generation', value]] });
+      expect(parseModernBlobbiEvent(event)?.visualGeneration).toBe(expected);
+    }
   });
 });

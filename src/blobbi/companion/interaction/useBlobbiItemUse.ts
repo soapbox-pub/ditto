@@ -31,8 +31,8 @@ import type { BlobbiCompanion, BlobbonautProfile } from '@blobbi-kit/core/blobbi
 import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
-  parseBlobbiEvent,
-  isValidBlobbiEvent,
+  parseModernBlobbiEvent,
+  isModernBlobbiEvent,
   buildBlobbiAddress,
 } from '@blobbi-kit/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi-kit/core/blobbi-decay';
@@ -174,25 +174,27 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       '#d': [profile.currentCompanion],
     }]);
     
+    // Modern events only: the fresh base for an action is never a historical
+    // event (core's canonical classification, same gate as the collection).
     const validEvents = events
-      .filter(isValidBlobbiEvent)
+      .filter(isModernBlobbiEvent)
       .sort((a, b) => b.created_at - a.created_at);
     
     if (validEvents.length === 0) return null;
     
-    return parseBlobbiEvent(validEvents[0]) ?? null;
+    return parseModernBlobbiEvent(validEvents[0]) ?? null;
   }, [nostr, user?.pubkey, profile?.currentCompanion, options.companion]);
   
   // Update companion in query cache - optimistic update for immediate UI refresh
   const updateCompanionInCache = useCallback((event: NostrEvent) => {
     if (!user?.pubkey || !profile?.currentCompanion) return;
     
-    // Parse the new event to get the updated companion
-    const parsed = parseBlobbiEvent(event);
-    if (!parsed || parsed.isLegacy) {
-      // Fallback to invalidation if parsing fails. Defense-in-depth: also bail
-      // for old-format / unsupported Blobbis so they never enter companionsByD,
-      // mirroring the guard in useBlobbisCollection.updateCompanionEvent.
+    // Parse the new event to get the updated companion. parseModernBlobbiEvent
+    // is undefined for legacy AND invalid input, so an old-format Blobbi never
+    // enters companionsByD, mirroring useBlobbisCollection.updateCompanionEvent.
+    const parsed = parseModernBlobbiEvent(event);
+    if (!parsed) {
+      // Fallback to invalidation if parsing fails.
       queryClient.invalidateQueries({ 
         queryKey: ['blobbi-collection', user.pubkey] 
       });

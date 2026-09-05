@@ -22,8 +22,8 @@ import type { BlobbiCompanion } from '@blobbi-kit/core/blobbi';
 import {
   KIND_BLOBBI_STATE,
   updateBlobbiTags,
-  parseBlobbiEvent,
-  isValidBlobbiEvent,
+  parseModernBlobbiEvent,
+  isModernBlobbiEvent,
 } from '@blobbi-kit/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi-kit/core/blobbi-decay';
 import { getStreakTagUpdates } from '@blobbi-kit/react/lib/blobbi-streak';
@@ -58,21 +58,23 @@ export function useBlobbiSleepToggle(): UseBlobbiSleepToggleResult {
       '#d': [dTag],
     }]);
 
+    // Modern events only: the fresh base for a toggle is never a historical
+    // event (core's canonical classification, same gate as the collection).
     const validEvents = events
-      .filter(isValidBlobbiEvent)
+      .filter(isModernBlobbiEvent)
       .sort((a, b) => b.created_at - a.created_at);
 
     if (validEvents.length === 0) return null;
-    return parseBlobbiEvent(validEvents[0]) ?? null;
+    return parseModernBlobbiEvent(validEvents[0]) ?? null;
   }, [nostr]);
 
   /** Optimistically update the TanStack cache so the companion reacts immediately. */
   const updateCache = useCallback((event: import('@nostrify/nostrify').NostrEvent, pubkey: string) => {
-    const parsed = parseBlobbiEvent(event);
-    // Defense-in-depth: never let an old-format / unsupported Blobbi enter
-    // companionsByD via the optimistic cache path, mirroring the guard in
-    // useBlobbisCollection.updateCompanionEvent. Canonical events are unaffected.
-    if (!parsed || parsed.isLegacy) return;
+    // parseModernBlobbiEvent is undefined for legacy AND invalid input, so an
+    // old-format Blobbi never enters companionsByD via the optimistic path,
+    // mirroring useBlobbisCollection.updateCompanionEvent.
+    const parsed = parseModernBlobbiEvent(event);
+    if (!parsed) return;
 
     // Optimistically update ALL blobbi-collection queries for this user.
     // The cache key is ['blobbi-collection', pubkey, dListArray], so we use

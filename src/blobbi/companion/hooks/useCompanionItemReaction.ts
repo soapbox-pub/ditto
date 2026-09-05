@@ -21,8 +21,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
 import {
   KIND_BLOBBI_STATE,
-  isValidBlobbiEvent,
-  parseBlobbiEvent,
+  isModernBlobbiEvent,
+  parseModernBlobbiEvent,
   type BlobbiStats,
 } from '@blobbi-kit/core/blobbi';
 import { checkItemCategoryNeed, type NeedCheckResult } from '../interaction/needDetection';
@@ -98,13 +98,15 @@ export function useCompanionItemReaction({
         '#d': [currentCompanionD],
       }], { signal });
       
+      // Modern events only (core's canonical classification): a historical
+      // event is ignored here exactly as the collection ignores it.
       const validEvents = events
-        .filter(isValidBlobbiEvent)
+        .filter(isModernBlobbiEvent)
         .sort((a, b) => b.created_at - a.created_at);
       
       if (validEvents.length === 0) return null;
       
-      const companion = parseBlobbiEvent(validEvents[0]);
+      const companion = parseModernBlobbiEvent(validEvents[0]);
       return companion?.stats ?? null;
     },
     enabled: isActive && !!user?.pubkey && !!currentCompanionD,

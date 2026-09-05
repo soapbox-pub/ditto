@@ -27,8 +27,8 @@ const installed = (name: string) => join(ROOT, 'node_modules', name);
 const manifestOf = (name: string) => JSON.parse(readFileSync(join(installed(name), 'package.json'), 'utf8'));
 
 const CANONICAL = {
-  '@blobbi-kit/core': { range: '^0.5.1', version: '0.5.1' },
-  '@blobbi-kit/react': { range: '^0.5.1', version: '0.5.1' },
+  '@blobbi-kit/core': { range: '^0.5.2', version: '0.5.2' },
+  '@blobbi-kit/react': { range: '^0.5.2', version: '0.5.2' },
   '@blobbi-kit/renderer': { range: '^0.1.0', version: '0.1.0' },
 } as const;
 
@@ -106,7 +106,7 @@ describe('package boundaries hold in the installed artifacts', () => {
         e,
       ).toBe(true);
     }
-    expect(manifestOf('@blobbi-kit/react').peerDependencies['@blobbi-kit/core']).toBe('^0.5.1');
+    expect(manifestOf('@blobbi-kit/react').peerDependencies['@blobbi-kit/core']).toBe('^0.5.2');
   });
 });
 

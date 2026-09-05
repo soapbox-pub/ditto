@@ -100,7 +100,7 @@ event handler and filter primitive stays blocked.
 ## Dependencies
 
 The three packages are ordinary registry dependencies: `@blobbi-kit/core`
-`^0.5.1`, `@blobbi-kit/react` `^0.5.1` and `@blobbi-kit/renderer` `^0.1.0`,
+`^0.5.2`, `@blobbi-kit/react` `^0.5.2` and `@blobbi-kit/renderer` `^0.1.0`,
 all published from the blobbi-kit repository. The renderer's only peer is
 React; core's only runtime dependency is `@noble/hashes`; the react package
 peers on core, `@nostrify/react`, `@tanstack/react-query` and React. Vite
