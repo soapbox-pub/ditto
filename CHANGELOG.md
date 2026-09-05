@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.38.0] - 2026-09-05
+
+The cards are calling. Draw your daily three-card tarot spread — past, present, and future — flip them one by one, and seal your fate for the day. Feeling patient? A weekly reading goes deeper. Share your spread to your feed and let your followers read the stars with you, where every reading unfolds as its own little starlit scene.
+
+### Added
+- Tarot readings: draw a daily or weekly three-card spread, reveal the cards one at a time, and share your fortune to your feed
+
 ## [2.37.3] - 2026-09-04
 
 Back means back. Tap a post, hit back, and the feed puts you right where you left off — on the card you tapped. Post timestamps are real links now, so middle-click and "open in new tab" work the way they do everywhere else on the web. Live streams quoted inside a post show their thumbnail, status, and viewer count instead of a bare line of text. Long usernames stop spilling out of notifications and menus, and Ditto now runs in fully free browsers like GNU IceCat and Abrowser.
