@@ -52,11 +52,32 @@ const blobbiPurify = DOMPurify();
  * reads and acts on them. Our eye animation code only reads numeric values
  * and element IDs from these attributes.
  */
-blobbiPurify.addHook('uponSanitizeAttribute', (_node, data) => {
+blobbiPurify.addHook('uponSanitizeAttribute', (node, data) => {
   if (data.attrName.startsWith('data-')) {
     data.allowedAttributes[data.attrName] = true;
+    return;
+  }
+
+  // Gradient inheritance. The canonical Adult V2 artwork (from
+  // @blobbi/renderer) declares its limb/foot gradients once and derives the
+  // positioned copies with `<linearGradient xlink:href="#footGradient" ...>`.
+  // `href`/`xlink:href` stay FORBIDDEN everywhere else (links, <use>, <image>
+  // are how an SVG reaches out); the single exception is a gradient element
+  // whose reference is a bare in-document fragment id, which can only point
+  // at another gradient in this same drawing and can load nothing.
+  if (
+    (data.attrName === 'href' || data.attrName === 'xlink:href') &&
+    GRADIENT_ELEMENTS.has(node.nodeName.toLowerCase()) &&
+    FRAGMENT_REF.test(data.attrValue)
+  ) {
+    data.forceKeepAttr = true;
   }
 });
+
+/** Elements allowed to carry a fragment-only `href` (gradient inheritance). */
+const GRADIENT_ELEMENTS = new Set(['lineargradient', 'radialgradient']);
+/** `#id` and nothing else: no scheme, no path, no query. */
+const FRAGMENT_REF = /^#[A-Za-z0-9_:.-]+$/;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ALLOWED TAGS
@@ -86,6 +107,13 @@ const BLOBBI_ALLOWED_TAGS = [
   // Clipping and masking - used for eye blink animation
   'clipPath',
   'mask',
+
+  // Filter with a Gaussian blur ONLY - the canonical Adult V2 artwork draws
+  // its soft body/ground shadows with `<filter><feGaussianBlur/></filter>`.
+  // No other filter primitive is allowed: feImage can load external content
+  // and the rest are not used by any Blobbi artwork.
+  'filter',
+  'feGaussianBlur',
 
   // SMIL Animation elements - used for:
   // - Eye blink clip-path animation (animate on rect y/height)
@@ -172,6 +200,13 @@ const BLOBBI_ALLOWED_ATTRS = [
   'clip-path',
   'clip-rule',
   'mask',
+
+  // Filter references and the blur primitive's inputs (Adult V2 shadows)
+  'filter',
+  'filterUnits',
+  'stdDeviation',
+  'in',
+  'result',
 
   // Geometry attributes for shapes
   'cx',
@@ -307,7 +342,9 @@ const BLOBBI_FORBIDDEN_ATTRS = [
   'ontouchmove',
   'ontouchcancel',
 
-  // Link attributes - Blobbi uses url(#id) for internal refs, not href
+  // Link attributes - Blobbi uses url(#id) for internal refs, not href.
+  // The one exception, a fragment-only href on a gradient element, is
+  // re-admitted by the uponSanitizeAttribute hook above.
   'href',
   'xlink:href',
 ];

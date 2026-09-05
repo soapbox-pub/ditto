@@ -2,8 +2,9 @@
  * BlobbiAdultSvgRenderer — Pure SVG rendering component for adult Blobbi.
  *
  * This component is the leaf node of the visual pipeline. It:
- *   1. Resolves the base SVG for the adult form
- *   2. Customizes colors and unique IDs
+ *   1. Draws the canonical body through `@blobbi/renderer` (form, colours,
+ *      per-instance ids; see lib/canonical-base.ts)
+ *   2. (colours and ids are part of step 1)
  *   3. Adds eye animation infrastructure (blink clip-paths, gaze groups)
  *   4. Applies visual recipe or emotion preset
  *   5. Applies manual body effects (when no recipe is provided)
@@ -23,8 +24,8 @@
 
 import { useMemo } from 'react';
 
-import { resolveAdultSvgWithForm, customizeAdultSvgFromBlobbi } from '@/blobbi/adult-blobbi';
 import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
+import type { BlobbiFacing } from '@blobbi/renderer';
 
 import { addEyeAnimation } from './lib/eye-animation';
 import { resolveVisualRecipe, applyVisualRecipe, type BlobbiVisualRecipe } from './lib/recipe';
@@ -33,11 +34,17 @@ import { applyBodyEffects, type BodyEffectsSpec } from './lib/bodyEffects';
 import { debugBlobbi } from './lib/debug';
 import { useRecipeFingerprint } from './hooks/useFillLevelUpdate';
 import { useBlobbiInstanceId } from './hooks/useBlobbiInstanceId';
-import type { Blobbi } from '@blobbi-kit/core/types/blobbi';
+import { renderCanonicalBaseSvg, type RenderableBlobbi } from './lib/canonical-base';
 
 export interface BlobbiAdultSvgRendererProps {
   /** The Blobbi data */
-  blobbi: Blobbi;
+  blobbi: RenderableBlobbi;
+  /**
+   * Which way the body is turned (default `'front'`, the only facing Ditto
+   * draws today). Passed through to the canonical renderer; V2 artwork has
+   * authored views for every facing.
+   */
+  facing?: BlobbiFacing;
   /** Whether the Blobbi is sleeping */
   isSleeping: boolean;
   /** Pre-resolved visual recipe. Takes precedence over `emotion`. */
@@ -70,6 +77,7 @@ export function BlobbiAdultSvgRenderer({
   recipeLabel,
   emotion = 'neutral',
   bodyEffects,
+  facing = 'front',
   className,
 }: BlobbiAdultSvgRendererProps) {
   const recipeFingerprint = useRecipeFingerprint(recipeProp);
@@ -79,11 +87,12 @@ export function BlobbiAdultSvgRenderer({
   const customizedSvg = useMemo(() => {
     debugBlobbi('svg-rebuild', 'adult customizedSvg rebuild');
 
-    // Always use the base (awake) SVG — sleeping is a recipe overlay, not an asset swap
-    const { form, svg } = resolveAdultSvgWithForm(blobbi, { isSleeping: false });
-    const colorizedSvg = customizeAdultSvgFromBlobbi(svg, form, blobbi, false);
+    // The canonical body: always the awake drawing (sleeping is a recipe
+    // overlay, not an artwork swap), renderer gaze off (Ditto's eye system
+    // owns tracking and blinking). The form is resolved by the domain kit.
+    const { svg: baseSvg, form } = renderCanonicalBaseSvg(blobbi, { stage: 'adult', instanceId, facing });
 
-    let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId });
+    let animatedSvg = addEyeAnimation(baseSvg, { baseColor: blobbi.baseColor, instanceId });
 
     if (recipeProp) {
       animatedSvg = applyVisualRecipe(animatedSvg, recipeProp, recipeLabel ?? 'status', 'adult', form, instanceId);
@@ -102,7 +111,7 @@ export function BlobbiAdultSvgRenderer({
   // upstream reference churn do NOT trigger full SVG rebuilds. The closure
   // captures the current blobbi/recipeProp for the rare structural rebuilds.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blobbi.id, blobbi.baseColor, blobbi.secondaryColor, blobbi.eyeColor, blobbi.adult?.evolutionForm, blobbi.seed, instanceId, recipeFingerprint, recipeLabel, emotion, bodyEffects]);
+  }, [blobbi.id, blobbi.baseColor, blobbi.secondaryColor, blobbi.eyeColor, blobbi.adult?.evolutionForm, blobbi.seed, blobbi.visualGeneration, facing, instanceId, recipeFingerprint, recipeLabel, emotion, bodyEffects]);
 
   const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
 

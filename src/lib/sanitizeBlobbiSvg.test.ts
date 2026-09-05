@@ -202,6 +202,61 @@ describe('sanitizeBlobbiSvg', () => {
     expect(sanitized).toContain('mask="url(#test-mask)"');
   });
 
+  it('keeps a fragment-only href on a gradient element (V2 gradient inheritance)', () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 100">
+      <defs>
+        <linearGradient id="footGradient"><stop offset="0" stop-color="#8248e8" /></linearGradient>
+        <linearGradient xlink:href="#footGradient" id="linearGradient13" x1="1" y1="2" x2="3" y2="4" gradientUnits="userSpaceOnUse" />
+        <radialGradient href="#footGradient" id="r2" />
+      </defs>
+      <ellipse fill="url(#linearGradient13)" cx="50" cy="50" rx="10" ry="15" />
+    </svg>`;
+    const sanitized = sanitizeBlobbiSvg(svg);
+    expect(sanitized).toContain('xlink:href="#footGradient"');
+    expect(sanitized).toContain('href="#footGradient" id="r2"');
+  });
+
+  it('still strips any href that is not a bare fragment, on gradients and everywhere else', () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 100">
+      <defs>
+        <linearGradient xlink:href="https://evil.example/g.svg#x" id="g1" />
+        <linearGradient href="javascript:alert(1)" id="g2" />
+        <linearGradient href="#ok but not a fragment" id="g3" />
+      </defs>
+      <use href="#g1" />
+      <image href="https://evil.example/a.png" />
+      <a href="#g1"><circle cx="50" cy="50" r="10" /></a>
+      <circle cx="1" cy="1" r="1" href="#g1" />
+    </svg>`;
+    const sanitized = sanitizeBlobbiSvg(svg);
+    expect(sanitized).not.toContain('href');
+    expect(sanitized).not.toContain('evil.example');
+    expect(sanitized).not.toContain('javascript');
+    expect(sanitized).not.toContain('<use');
+    expect(sanitized).not.toContain('<image');
+    expect(sanitized).not.toContain('<a');
+  });
+
+  it('keeps a Gaussian-blur filter and nothing else from the filter family (V2 shadows)', () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <defs>
+        <filter id="blur10" x="-0.1" y="-0.2" width="1.3" height="1.4" filterUnits="objectBoundingBox">
+          <feGaussianBlur stdDeviation="10" in="SourceGraphic" result="b" />
+          <feImage href="https://evil.example/a.png" />
+          <feColorMatrix values="1 0 0 0 0" />
+        </filter>
+      </defs>
+      <ellipse cx="50" cy="80" rx="30" ry="5" fill="#2f183f" filter="url(#blur10)" />
+    </svg>`;
+    const sanitized = sanitizeBlobbiSvg(svg);
+    expect(sanitized).toContain('<filter id="blur10"');
+    expect(sanitized).toContain('<feGaussianBlur stdDeviation="10"');
+    expect(sanitized).toContain('filter="url(#blur10)"');
+    expect(sanitized).not.toContain('feImage');
+    expect(sanitized).not.toContain('feColorMatrix');
+    expect(sanitized).not.toContain('evil.example');
+  });
+
   it('rejects SVGs exceeding max length', () => {
     const largeSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
       <text>${'x'.repeat(600 * 1024)}</text>

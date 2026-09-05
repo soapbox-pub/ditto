@@ -2,8 +2,9 @@
  * BlobbiBabySvgRenderer — Pure SVG rendering component for baby Blobbi.
  *
  * This component is the leaf node of the visual pipeline. It:
- *   1. Resolves the base SVG for the baby
- *   2. Customizes colors and unique IDs
+ *   1. Draws the canonical baby body through `@blobbi/renderer` (colours,
+ *      per-instance ids; see lib/canonical-base.ts)
+ *   2. (colours and ids are part of step 1)
  *   3. Adds eye animation infrastructure (blink clip-paths, gaze groups)
  *   4. Applies visual recipe or emotion preset
  *   5. Applies manual body effects (when no recipe is provided)
@@ -19,7 +20,6 @@
 
 import { useMemo } from 'react';
 
-import { resolveBabySvg, customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi';
 import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
 
 import { addEyeAnimation } from './lib/eye-animation';
@@ -29,11 +29,11 @@ import { applyBodyEffects, type BodyEffectsSpec } from './lib/bodyEffects';
 import { debugBlobbi } from './lib/debug';
 import { useRecipeFingerprint } from './hooks/useFillLevelUpdate';
 import { useBlobbiInstanceId } from './hooks/useBlobbiInstanceId';
-import type { Blobbi } from '@blobbi-kit/core/types/blobbi';
+import { renderCanonicalBaseSvg, type RenderableBlobbi } from './lib/canonical-base';
 
 export interface BlobbiBabySvgRendererProps {
   /** The Blobbi data */
-  blobbi: Blobbi;
+  blobbi: RenderableBlobbi;
   /** Whether the Blobbi is sleeping */
   isSleeping: boolean;
   /** Pre-resolved visual recipe. Takes precedence over `emotion`. */
@@ -75,11 +75,12 @@ export function BlobbiBabySvgRenderer({
   const customizedSvg = useMemo(() => {
     debugBlobbi('svg-rebuild', 'baby customizedSvg rebuild');
 
-    // Always use the base (awake) SVG — sleeping is a recipe overlay, not an asset swap
-    const baseSvg = resolveBabySvg(blobbi, { isSleeping: false });
-    const colorizedSvg = customizeBabySvgFromBlobbi(baseSvg, blobbi, false);
+    // The canonical body: always the awake drawing (sleeping is a recipe
+    // overlay, not an artwork swap), renderer gaze off (Ditto's eye system
+    // owns tracking and blinking).
+    const { svg: baseSvg } = renderCanonicalBaseSvg(blobbi, { stage: 'baby', instanceId });
 
-    let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId });
+    let animatedSvg = addEyeAnimation(baseSvg, { baseColor: blobbi.baseColor, instanceId });
 
     if (recipeProp) {
       animatedSvg = applyVisualRecipe(animatedSvg, recipeProp, recipeLabel ?? 'status', 'baby', undefined, instanceId);
@@ -98,7 +99,7 @@ export function BlobbiBabySvgRenderer({
   // upstream reference churn do NOT trigger full SVG rebuilds. The closure
   // captures the current blobbi/recipeProp for the rare structural rebuilds.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blobbi.id, blobbi.baseColor, blobbi.secondaryColor, blobbi.eyeColor, blobbi.seed, instanceId, recipeFingerprint, recipeLabel, emotion, bodyEffects]);
+  }, [blobbi.id, blobbi.baseColor, blobbi.secondaryColor, blobbi.eyeColor, blobbi.seed, blobbi.visualGeneration, instanceId, recipeFingerprint, recipeLabel, emotion, bodyEffects]);
 
   const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
 

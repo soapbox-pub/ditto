@@ -5,7 +5,7 @@
  * decoupled from app-specific concerns.
  */
 
-import type { BlobbiVisualTraits, BlobbiStats } from '@blobbi-kit/core';
+import type { BlobbiVisualTraits, BlobbiStats, BlobbiVisualGeneration } from '@blobbi-kit/core';
 import type { BlobbiState } from '@blobbi-kit/core/types/blobbi';
 
 // ─── Companion State Machine ──────────────────────────────────────────────────
@@ -185,6 +185,12 @@ export interface CompanionData {
   adultType?: string;
   /** Deterministic seed for deriving traits */
   seed?: string;
+  /**
+   * Artwork generation from the Blobbi's identity (`visual_generation` tag);
+   * absent means V1. Carried so the companion body is drawn from the same
+   * identity as every other surface; it changes no companion behaviour.
+   */
+  visualGeneration?: BlobbiVisualGeneration;
 }
 
 // ─── Companion Config ─────────────────────────────────────────────────────────

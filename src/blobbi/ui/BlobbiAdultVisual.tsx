@@ -28,13 +28,13 @@ import type { ExternalEyeOffset, BlobbiReactionState, BlobbiRenderMode } from '.
 import type { BlobbiVisualRecipe } from './lib/recipe';
 import type { BlobbiEmotion } from './lib/emotion-types';
 import type { BodyEffectsSpec } from './lib/bodyEffects';
-import type { Blobbi } from '@blobbi-kit/core/types/blobbi';
 import { isBlobbiSleeping } from '@blobbi-kit/core/types/blobbi';
+import type { RenderableBlobbi } from './lib/canonical-base';
 import { BlobbiAdultSvgRenderer } from './BlobbiAdultSvgRenderer';
 
 export interface BlobbiAdultVisualProps {
   /** The Blobbi data */
-  blobbi: Blobbi;
+  blobbi: RenderableBlobbi;
   /** Reaction state for music/sing animations */
   reaction?: BlobbiReactionState;
   /** Controls eye tracking behavior (default: 'follow-pointer') */

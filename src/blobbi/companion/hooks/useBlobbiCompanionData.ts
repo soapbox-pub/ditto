@@ -102,6 +102,7 @@ export function useBlobbiCompanionData(): UseBlobbiCompanionDataResult {
       // Include adult form info for proper rendering
       adultType: blobbi.adultType,
       seed: blobbi.seed,
+      visualGeneration: blobbi.visualGeneration,
     };
   }, [currentCompanionD, blobbi, projectedState?.stats]);
   
