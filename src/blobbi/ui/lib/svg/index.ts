@@ -1,14 +1,10 @@
 /**
  * SVG Utilities for Blobbi Visual System
  *
- * Centralized exports for all SVG manipulation utilities.
- *
- * This module provides:
- * - Color manipulation (lighten/darken)
- * - ID uniquification (prevent gradient collisions)
- * - Container sizing adjustments
+ * Colour manipulation shared by Ditto's own SVG layers (eye animation,
+ * emotion overlays). Base-artwork concerns that used to live here (per-instance
+ * id namespacing, container fitting) are the canonical renderer's job now:
+ * see `../canonical-base.ts`.
  */
 
 export { lightenColor, darkenColor } from './colors';
-export { uniquifySvgIds } from './ids';
-export { ensureSvgFillsContainer } from './container';

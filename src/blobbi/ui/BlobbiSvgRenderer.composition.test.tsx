@@ -55,7 +55,7 @@ describe('event → identity → canonical body → Ditto layers', () => {
     // Body: the seed-derived form's gradients, namespaced per instance, in the
     // colours the domain resolved for this event (the parser applies its own
     // colour guardrails to the tags, so read the resolved traits, not the tag).
-    const form = deriveAdultFormFromSeed(companion.seed);
+    const form = deriveAdultFormFromSeed(companion.seed ?? '');
     expect(svg.innerHTML).toContain(form);
     expect(svg.innerHTML.toLowerCase()).toContain(companion.visualTraits.baseColor.toLowerCase());
     // Canonical ids are namespaced `b_<instance>_…`; Ditto's own additions
