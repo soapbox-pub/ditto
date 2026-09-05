@@ -5,6 +5,7 @@ import { getGitRootRef } from '@/lib/gitActivity';
 import { isNostrId } from '@/lib/nostrId';
 import { isNsiteKind } from '@/lib/nsiteSubdomain';
 import { getZapAmountSats, getZapSenderPubkey, getTargetEventId } from '@/lib/zapHelpers';
+import { parseCardsFromEvent } from '@/lib/tarot/cards';
 
 /**
  * Minimum gap (in seconds) between consecutive events to be considered an
@@ -276,6 +277,14 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
     const hasContent = event.content.trim().length > 0;
     const hasSource = event.tags.some(([n]) => n === 'a' || n === 'e' || n === 'r');
     if (!hasContent && !hasSource) return true;
+  }
+  // NIP-TR tarot readings (kind 2256) whose `c` tags don't resolve to any
+  // known card — the draw is the reading, so one with no renderable cards has
+  // nothing to show. Uses the same resolver as the renderer so the pre-filter
+  // can't disagree with it (a reading of only out-of-vocabulary identifiers
+  // would otherwise slip through and render as a blank feed slot).
+  if (event.kind === 2256 && !parseCardsFromEvent(event)) {
+    return true;
   }
   // NIP-99 classified listings (kind 30402) without a title have nothing to
   // render. Listings marked `visibility: hidden` (GammaMarkets e-commerce

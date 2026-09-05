@@ -564,6 +564,18 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedOnly: true,
     blurb: 'Virtual pet companions living on Nostr. Care for them, watch them grow, and share their journey.',
   },
+  // Tarot (feed-only — dedicated page at /tarot).
+  {
+    kind: 2256,
+    id: 'tarot',
+    feedKey: 'feedIncludeTarot',
+    label: 'Tarot Readings',
+    description: 'Daily and weekly tarot readings',
+    addressable: false,
+    section: 'whimsy',
+    feedOnly: true,
+    blurb: 'Three-card tarot readings for past, present, and future, drawn and shared on Nostr. Each reading is the draw itself; the cards and their meanings render straight from the event.',
+  },
   // Quizzes — kind 37849 quiz definitions (addressable) + kind 7849 quiz
   // results (regular). See NIP.md.
   {

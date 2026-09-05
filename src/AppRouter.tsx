@@ -72,6 +72,7 @@ const RelayPage = lazy(() => import("./pages/RelayPage").then(m => ({ default: m
 const SearchPage = lazy(() => import("./pages/SearchPage").then(m => ({ default: m.SearchPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const SharePage = lazy(() => import("./pages/SharePage").then(m => ({ default: m.SharePage })));
+const TarotPage = lazy(() => import("./pages/TarotPage").then(m => ({ default: m.TarotPage })));
 const ThemesPage = lazy(() => import("./pages/ThemesPage").then(m => ({ default: m.ThemesPage })));
 const TreasuresPage = lazy(() => import("./pages/TreasuresPage").then(m => ({ default: m.TreasuresPage })));
 const QuizzesPage = lazy(() => import("./pages/QuizzesPage").then(m => ({ default: m.QuizzesPage })));
@@ -191,6 +192,7 @@ export function AppRouter() {
             <Route path="/music" element={<MusicPage />} />
             <Route path="/podcasts" element={<PodcastsFeedPage />} />
             <Route path="/polls" element={<PollsFeedPage />} />
+            <Route path="/tarot" element={<TarotPage />} />
             <Route path="/treasures" element={<TreasuresPage />} />
             <Route path="/quizzes" element={<QuizzesPage />} />
             <Route path="/quizzes/new" element={<CreateQuizPage />} />

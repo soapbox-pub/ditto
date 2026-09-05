@@ -1,0 +1,1010 @@
+[
+ {
+  "name": "Ace of Wands",
+  "suit": "wands",
+  "icon": "wand",
+  "meaning_up": "Inspiration, new opportunities, growth, potential",
+  "meaning_rev": "An emerging idea, lack of direction, distractions, delays",
+  "desc": "The Ace of Wands represents a new spark of inspiration and a surge of creative energy. It's a sign of new beginnings and the potential for growth. This card encourages you to follow your passions and seize the opportunities that come your way.",
+  "fortune_telling": [
+   "A spark of inspiration set your whole path burning.",
+   "That idea flickering right now is live. Strike while it's hot.",
+   "A jolt of creative fire is coming. Have kindling ready."
+  ],
+  "fortune_telling_rev": [
+   "A promising spark fizzled for lack of air. It taught you how to tend the next one.",
+   "The idea is real; the direction is fuzzy. Aim before you ignite.",
+   "Delays will test a new venture. Keep the ember covered, not abandoned."
+  ]
+ },
+ {
+  "name": "Two of Wands",
+  "suit": "wands",
+  "icon": "sprout",
+  "meaning_up": "Future-planning, progress, decisions, discovery",
+  "meaning_rev": "Fear of unknown, lack of planning",
+  "desc": "The Two of Wands signifies a moment of planning and decision-making. You have a choice to make that will shape your future. This card encourages you to explore your options and make a bold move.",
+  "fortune_telling": [
+   "You once stood at the map and dared to plan bigger. That vision got you moving.",
+   "The world is wider than your current view. Plan the bolder route.",
+   "A choice between safe and vast is coming. Pack for vast."
+  ],
+  "fortune_telling_rev": [
+   "You drew the map but never took the trip. The lesson traveled anyway.",
+   "Fear of the unknown is dressed up as prudence. Which is it, really?",
+   "You'll be tempted to settle for the smaller plan. Don't shrink the map."
+  ]
+ },
+ {
+  "name": "Three of Wands",
+  "suit": "wands",
+  "icon": "flame",
+  "meaning_up": "Progress, expansion, foresight, overseas opportunities",
+  "meaning_rev": "Playing small, lack of foresight, unexpected delays",
+  "desc": "The Three of Wands represents progress and expansion. Your plans are in motion, and you are starting to see the results of your efforts. This card encourages you to look to the future with optimism and to be open to new opportunities.",
+  "fortune_telling": [
+   "You sent your ships out early, and they've been coming back ever since.",
+   "Your efforts are already in motion. Watch the horizon, not your feet.",
+   "Returns on work already done are sailing in. Expansion follows."
+  ],
+  "fortune_telling_rev": [
+   "You waited on returns that came late or small. Patience got a workout.",
+   "Progress is slower than the plan. Adjust the timeline, not the goal.",
+   "Obstacles may delay what you're owed. It still arrives; keep building the dock."
+  ]
+ },
+ {
+  "name": "Four of Wands",
+  "suit": "wands",
+  "icon": "sparkles",
+  "meaning_up": "Celebration, joy, harmony, homecoming, milestones",
+  "meaning_rev": "Instability at home, transitions, a canceled celebration",
+  "desc": "The Four of Wands is a card of celebration and homecoming. A foundation has been laid and it's holding. This card encourages you to mark the milestone with the people who helped you build it.",
+  "fortune_telling": [
+   "You built something worth coming home to, and the welcome still stands.",
+   "A milestone deserves marking. Hang the garland today, not someday.",
+   "A homecoming or celebration is on its way. Sweep the porch."
+  ],
+  "fortune_telling_rev": [
+   "A home that wobbled taught you what foundations are for.",
+   "The party feels premature because the base needs one more beam. Set it.",
+   "Plans for a gathering may shift. The people matter more than the date."
+  ]
+ },
+ {
+  "name": "Five of Wands",
+  "suit": "wands",
+  "icon": "flame",
+  "meaning_up": "Competition, conflict, rivalry, tension, disagreement",
+  "meaning_rev": "Avoiding conflict, tension release, finding common ground",
+  "desc": "The Five of Wands represents friction and competition. Everyone is swinging, nobody is aiming. This card encourages you to turn the scuffle into sparring — the energy is useful once it has rules.",
+  "fortune_telling": [
+   "A rivalry sharpened you more than any easy win could have.",
+   "The chaos around you is mostly energy without rules. Give it rules.",
+   "A contest is coming. Practice like the others already are."
+  ],
+  "fortune_telling_rev": [
+   "A fight you walked away from settled itself. You chose well.",
+   "The tension is ready to drain if someone lowers a stick first. Be someone.",
+   "A brewing clash can still become a collaboration. Offer the truce early."
+  ]
+ },
+ {
+  "name": "Six of Wands",
+  "suit": "wands",
+  "icon": "crown",
+  "meaning_up": "Victory, success, public recognition, progress, confidence",
+  "meaning_rev": "Private achievement, fall from grace, egotism, doubt",
+  "desc": "The Six of Wands is the victory lap. Your effort has been seen and named. This card encourages you to accept the recognition without apologizing for it — and to remember who rode beside you.",
+  "fortune_telling": [
+   "You earned a win in front of witnesses, and it changed how you carry yourself.",
+   "The recognition is deserved. Wave back.",
+   "Applause is coming for work you've already done. Stand where they can see you."
+  ],
+  "fortune_telling_rev": [
+   "A triumph nobody clapped for still counts. You know what it cost.",
+   "Doubt is crashing the parade. The win is real even if the crowd is quiet.",
+   "Recognition may arrive late or lopsided. Do the work for the work."
+  ]
+ },
+ {
+  "name": "Seven of Wands",
+  "suit": "wands",
+  "icon": "shield",
+  "meaning_up": "Challenge, protection, perseverance, defending your position",
+  "meaning_rev": "Exhaustion, giving up, overwhelm, yielding ground",
+  "desc": "The Seven of Wands shows you holding the high ground while challengers climb. This card encourages you to defend what you've built — you have the advantage, even if it doesn't feel like it.",
+  "fortune_telling": [
+   "You held a position everyone said you'd lose. That's why you still have it.",
+   "You're above the fray, not beneath it. Hold the hill.",
+   "Challengers to something you built are coming. The high ground is yours; use it."
+  ],
+  "fortune_telling_rev": [
+   "You yielded ground once and learned which hills are worth the fight.",
+   "Exhaustion is making surrender look like strategy. Rest first, decide after.",
+   "The pressure ahead will tempt you to drop the staff. Set it down deliberately or not at all."
+  ]
+ },
+ {
+  "name": "Eight of Wands",
+  "suit": "wands",
+  "icon": "wand-sparkles",
+  "meaning_up": "Speed, swift action, movement, news arriving, momentum",
+  "meaning_rev": "Delays, frustration, scattered energy, resisting change",
+  "desc": "The Eight of Wands is all momentum: messages landing, plans accelerating, everything in flight at once. This card encourages you to move with the speed instead of bracing against it.",
+  "fortune_telling": [
+   "Everything happened at once, and you caught most of it. That was the skill.",
+   "The air is full of arrows. Loose yours while the wind holds.",
+   "News and movement are inbound fast. Clear the runway."
+  ],
+  "fortune_telling_rev": [
+   "A delay that infuriated you turned out to be aim.",
+   "Your energy is scattered across too many targets. Choose three, then one.",
+   "Things may stall just before takeoff. Check the fletching, not your worth."
+  ]
+ },
+ {
+  "name": "Nine of Wands",
+  "suit": "wands",
+  "icon": "dumbbell",
+  "meaning_up": "Resilience, persistence, last stand, boundaries, grit",
+  "meaning_rev": "Fatigue, paranoia, struggling on when rest is due",
+  "desc": "The Nine of Wands is the second wind you didn't know you had. Battered but standing, this card encourages you to hold on — the last stretch is shorter than it looks from here.",
+  "fortune_telling": [
+   "You've been knocked down before and got up anyway. That's your whole résumé.",
+   "You're more durable than today feels. One more hold.",
+   "A final push will ask for everything you have left. You have enough."
+  ],
+  "fortune_telling_rev": [
+   "You mistook exhaustion for weakness once. It was just exhaustion.",
+   "Not everyone approaching is an enemy. Lower the guard an inch.",
+   "You may be tempted to quit a step from the finish. Sit down after the line, not before."
+  ]
+ },
+ {
+  "name": "Ten of Wands",
+  "suit": "wands",
+  "icon": "dumbbell",
+  "meaning_up": "Burden, responsibility, hard work, completion in sight",
+  "meaning_rev": "Carrying too much, burnout, delegating, release",
+  "desc": "The Ten of Wands shows a full armload and a destination in view. The load is real and so is the finish. This card encourages you to carry only what's actually yours — and to put the rest down.",
+  "fortune_telling": [
+   "You carried more than your share and it built the strength you use now.",
+   "Some of that armload isn't yours. Do an audit before you take another step.",
+   "The load gets heavier right before it's delivered. The door is close."
+  ],
+  "fortune_telling_rev": [
+   "You finally put something down, and nothing collapsed. Remember that.",
+   "Burnout is a bill that always gets paid. Delegate before it's due.",
+   "Someone will offer to carry a bundle. For once, let them."
+  ]
+ },
+ {
+  "name": "Page of Wands",
+  "suit": "wands",
+  "icon": "sprout",
+  "meaning_up": "Enthusiasm, exploration, free spirit, a spark of news",
+  "meaning_rev": "Hesitation, false starts, undirected passion",
+  "desc": "The Page of Wands is pure beginner's fire — curious, restless, and unafraid of looking new at something. This card encourages you to chase the interesting thing before the interesting thing cools.",
+  "fortune_telling": [
+   "Your beginner's enthusiasm once opened doors expertise couldn't.",
+   "Curiosity is knocking. Answer it before it wanders off.",
+   "An exciting message or invitation is coming. Say yes first, plan second."
+  ],
+  "fortune_telling_rev": [
+   "A false start embarrassed you into caution. The start was still right.",
+   "The passion is real but it's pacing in circles. Point it at something.",
+   "You'll hesitate at an open door. Hesitate walking through it instead."
+  ]
+ },
+ {
+  "name": "Knight of Wands",
+  "suit": "wands",
+  "icon": "flame",
+  "meaning_up": "Energy, passion, adventure, impulsive action, charisma",
+  "meaning_rev": "Recklessness, haste, scattered force, a stalled charge",
+  "desc": "The Knight of Wands charges first and reads the terrain later. Magnetic and fearless, this card encourages bold motion — with just enough rein to keep the horse pointed somewhere.",
+  "fortune_telling": [
+   "A leap you took without looking landed better than the careful plans did.",
+   "The fire is up and the horse is saddled. Ride, but hold the reins.",
+   "An adventure will arrive with no itinerary. Go anyway."
+  ],
+  "fortune_telling_rev": [
+   "A reckless charge cost you once. You kept the courage and lost the carelessness.",
+   "Speed without direction is just noise. Slow to a gallop.",
+   "You'll want to charge before scouting. Scout for one day, then charge."
+  ]
+ },
+ {
+  "name": "Queen of Wands",
+  "suit": "wands",
+  "icon": "sun",
+  "meaning_up": "Confidence, warmth, determination, magnetism, courage",
+  "meaning_rev": "Self-doubt, jealousy, a dimmed flame, demanding moods",
+  "desc": "The Queen of Wands runs warm: confident, generous with her fire, impossible to ignore. This card encourages you to take up your full space — your light doesn't dim anyone else's.",
+  "fortune_telling": [
+   "Someone's belief in you lit a torch you still carry.",
+   "You are at your most magnetic when you stop performing. Just burn.",
+   "A role that needs your particular warmth is coming. Accept it out loud."
+  ],
+  "fortune_telling_rev": [
+   "A season of dimmed light taught you your flame was never the problem.",
+   "Comparison is stealing your heat. Close the window.",
+   "Doubt will whisper before your moment. Let it whisper to your back."
+  ]
+ },
+ {
+  "name": "King of Wands",
+  "suit": "wands",
+  "icon": "crown",
+  "meaning_up": "Vision, leadership, boldness, honor, entrepreneurship",
+  "meaning_rev": "Impulsiveness, domineering, a vision without follow-through",
+  "desc": "The King of Wands turns fire into direction. He doesn't just have the vision — he gets other people to see it too. This card encourages you to lead from conviction and let the details catch up.",
+  "fortune_telling": [
+   "You once turned a wild idea into a working thing. People noticed.",
+   "The room is waiting for someone to decide. It's allowed to be you.",
+   "A leadership seat is opening. Take it before the committee forms."
+  ],
+  "fortune_telling_rev": [
+   "A vision you couldn't land taught you that leading is mostly landing.",
+   "Conviction is tipping into steamrolling. Ask one real question today.",
+   "Follow-through will matter more than fireworks ahead. Finish something first."
+  ]
+ },
+ {
+  "name": "Ace of Cups",
+  "suit": "cups",
+  "icon": "wine",
+  "meaning_up": "Love, new relationships, compassion, creativity",
+  "meaning_rev": "Self-love, intuition, repressed emotions",
+  "desc": "The Ace of Cups represents new beginnings in the realm of emotions. It's a symbol of love, compassion, and creativity. This card encourages you to open your heart and embrace the flow of feelings.",
+  "fortune_telling": [
+   "A love or friendship arrived like weather and changed your whole climate.",
+   "Your cup is filling. Don't overthink it; drink.",
+   "New love, new warmth, or new compassion is heading your way. Leave the door unlatched."
+  ],
+  "fortune_telling_rev": [
+   "You kept your cup covered while something real was pouring.",
+   "Feelings are backing up behind the dam. Let one out and see what happens.",
+   "An emotional opening will arrive disguised as an inconvenience. Open anyway."
+  ]
+ },
+ {
+  "name": "Two of Cups",
+  "suit": "cups",
+  "icon": "wineGlassBottle",
+  "meaning_up": "Unified love, partnership, mutual attraction",
+  "meaning_rev": "Self-love, break-ups, disharmony, distrust",
+  "desc": "The Two of Cups represents a deep connection between two people. It's a symbol of partnership, mutual respect, and love. This card encourages you to nurture your relationships and celebrate the bonds you share.",
+  "fortune_telling": [
+   "A true partnership doubled what you could carry.",
+   "This connection is mutual. Meet it halfway, exactly halfway.",
+   "A meaningful bond is forming. What you give it, it gives back."
+  ],
+  "fortune_telling_rev": [
+   "A bond fell out of balance, one cup always emptier than the other.",
+   "Someone is pouring more than the other. Level it or name it.",
+   "A small rift is ahead. Mend it while it's still small."
+  ]
+ },
+ {
+  "name": "Three of Cups",
+  "suit": "cups",
+  "icon": "cauldron",
+  "meaning_up": "Celebration, friendship, creativity, collaborations",
+  "meaning_rev": "Independence, alone time, hardcore partying, 'three's a crowd'",
+  "desc": "The Three of Cups is a card of celebration and friendship. It represents a time of joy, creativity, and collaboration. This card encourages you to connect with others and share in the happiness of the moment.",
+  "fortune_telling": [
+   "Your people showed up for you once, glasses raised. They made the hard parts lighter.",
+   "This calls for company. Gather your people and celebrate something minor on purpose.",
+   "A reunion or celebration is coming. Say yes and bring the good snacks."
+  ],
+  "fortune_telling_rev": [
+   "The party ran long, or the circle ran shallow. You learned who stays for cleanup.",
+   "Too much noise, not enough nourishment. Trade the crowd for the two who matter.",
+   "Watch for a third wheel or an overbooked calendar. Guard the inner circle."
+  ]
+ },
+ {
+  "name": "Four of Cups",
+  "suit": "cups",
+  "icon": "goblet",
+  "meaning_up": "Contemplation, apathy, reevaluation, a missed offer",
+  "meaning_rev": "Renewed motivation, acceptance, choosing to engage",
+  "desc": "The Four of Cups shows three cups you're tired of and a fourth you haven't noticed. This card encourages honest contemplation — but with your eyes open, because something is being offered right now.",
+  "fortune_telling": [
+   "An offer you waved off came back around. Some cups are patient.",
+   "You're staring at what bores you while something new is held out. Look left.",
+   "A quiet offer is coming, easy to miss mid-sulk. Miss nothing this week."
+  ],
+  "fortune_telling_rev": [
+   "The fog of apathy lifted once before, and the world was still there.",
+   "Your appetite for life is returning. Feed it something real.",
+   "Re-engagement is close. When the invitation lands, you'll actually want it."
+  ]
+ },
+ {
+  "name": "Five of Cups",
+  "suit": "cups",
+  "icon": "wine",
+  "meaning_up": "Loss, grief, regret, disappointment, dwelling on the spill",
+  "meaning_rev": "Acceptance, moving on, forgiveness, finding what remains",
+  "desc": "The Five of Cups grieves three spilled cups while two stand full behind it. The loss is real and so is the remainder. This card encourages mourning what's gone without forgetting what isn't.",
+  "fortune_telling": [
+   "You lost something that mattered, and you survived the losing. Both are true.",
+   "Three cups are spilled; two are standing. You've counted the spill enough.",
+   "A disappointment may land soon. It will not be the whole table."
+  ],
+  "fortune_telling_rev": [
+   "You finally turned around and found two full cups waiting. They'd been there the whole time.",
+   "Acceptance is arriving in pieces. Take each piece as it comes.",
+   "Forgiveness — of them or of yourself — is nearer than the grief admits."
+  ]
+ },
+ {
+  "name": "Six of Cups",
+  "suit": "cups",
+  "icon": "hand-heart",
+  "meaning_up": "Nostalgia, childhood memories, innocence, reunion, gifts",
+  "meaning_rev": "Living in the past, rose-tinted glasses, moving forward",
+  "desc": "The Six of Cups is sweetness remembered: old friends, old places, the person you were before you got complicated. This card encourages you to visit the past like a garden — enjoy it, then come home.",
+  "fortune_telling": [
+   "Something from childhood still steers you, gently and mostly well.",
+   "An old joy would fit in your life today. Reintroduce yourself to it.",
+   "Someone from your past is circling back. Greet them as who you both are now."
+  ],
+  "fortune_telling_rev": [
+   "The good old days were also just days. Realizing that freed you.",
+   "Nostalgia is renting too much of your present. Give it a smaller room.",
+   "The past will call with a flattering offer. Check it against the present first."
+  ]
+ },
+ {
+  "name": "Seven of Cups",
+  "suit": "cups",
+  "icon": "ghost",
+  "meaning_up": "Choices, fantasy, illusion, wishful thinking, options",
+  "meaning_rev": "Clarity, decision, cutting through the mirage",
+  "desc": "The Seven of Cups floats a banquet of options, and at least half are mirage. This card encourages you to want one thing on purpose — a chosen cup beats a cloud of maybes.",
+  "fortune_telling": [
+   "Too many options once paralyzed you until choosing badly taught you to choose.",
+   "Half those glittering cups are smoke. Pick by weight, not shine.",
+   "A buffet of possibilities is coming. Decide your criteria before you see the spread."
+  ],
+  "fortune_telling_rev": [
+   "The fog of maybes finally cleared, and one real cup remained.",
+   "Clarity is cutting in. Let it finish the job before you re-complicate things.",
+   "A decision you've been dreaming around will simplify itself soon. Ratify it."
+  ]
+ },
+ {
+  "name": "Eight of Cups",
+  "suit": "cups",
+  "icon": "moon-star",
+  "meaning_up": "Walking away, seeking deeper meaning, departure, letting go",
+  "meaning_rev": "Fear of leaving, drifting back, one more try, avoidance",
+  "desc": "The Eight of Cups leaves a full table by moonlight, not because it was bad but because it wasn't it. This card encourages the brave exit — some searches only start when you stand up.",
+  "fortune_telling": [
+   "You once walked away from something fine to look for something true. It was the right walk.",
+   "The table is set and your heart isn't at it. You already know.",
+   "A departure is approaching — yours or someone's. Pack light and bless the table."
+  ],
+  "fortune_telling_rev": [
+   "You went back for one more try, and it answered the question for good.",
+   "Fear of leaving is not the same as a reason to stay. Sort the pile.",
+   "You may drift back toward an old door. Touch the handle and remember why you left."
+  ]
+ },
+ {
+  "name": "Nine of Cups",
+  "suit": "cups",
+  "icon": "goblet",
+  "meaning_up": "Contentment, satisfaction, wishes fulfilled, gratitude",
+  "meaning_rev": "Smugness, inner emptiness behind the feast, unmet wishes",
+  "desc": "The Nine of Cups is the wish card — the feast laid out and actually enjoyed. This card encourages you to notice satisfaction while it's happening instead of only in retrospect.",
+  "fortune_telling": [
+   "A wish came true and you almost forgot to notice. You noticed just in time.",
+   "This is the good part. Sit in it for a full minute.",
+   "A wish is lining up to be granted. Be specific now, grateful later."
+  ],
+  "fortune_telling_rev": [
+   "The feast that left you hungry taught you what you actually crave.",
+   "The display is impressive; the appetite is missing. Feed the inside first.",
+   "A wish may arrive in a plainer wrapper than you ordered. Open it anyway."
+  ]
+ },
+ {
+  "name": "Ten of Cups",
+  "suit": "cups",
+  "icon": "hand-heart",
+  "meaning_up": "Harmony, family, lasting happiness, emotional fulfillment",
+  "meaning_rev": "Strained bonds, an ideal cracking, misaligned homes",
+  "desc": "The Ten of Cups is the rainbow over the household — connection that holds on ordinary days, not just good ones. This card encourages you to tend the people who feel like home.",
+  "fortune_telling": [
+   "The people who feel like home didn't happen by accident. You built that.",
+   "The harmony around you is real. Stop auditing it for cracks.",
+   "A season of genuine contentment is forming. Let it be uncomplicated."
+  ],
+  "fortune_telling_rev": [
+   "A picture-perfect ideal cracked, and something realer grew in the gap.",
+   "The postcard and the household disagree. Tend the household.",
+   "Small strains at home want attention before they want apologies. Attend early."
+  ]
+ },
+ {
+  "name": "Page of Cups",
+  "suit": "cups",
+  "icon": "goblet",
+  "meaning_up": "Creative beginnings, intuitive messages, sensitivity, whimsy",
+  "meaning_rev": "Emotional immaturity, blocked creativity, moodiness",
+  "desc": "The Page of Cups finds a fish in the goblet and says hello. Openhearted and a little strange, this card encourages you to take the whimsical impulse seriously — wonder is a skill.",
+  "fortune_telling": [
+   "A soft, odd impulse you followed once became something you love.",
+   "There's a fish in your cup. Say hello instead of sending it back.",
+   "A tender, unexpected message is coming. Receive it without irony."
+  ],
+  "fortune_telling_rev": [
+   "A mood you outgrew used to make your decisions. It doesn't anymore.",
+   "The creative pipe is clogged with self-consciousness. Make something bad on purpose.",
+   "Feelings may run ahead of facts soon. Let them run; just don't hand them the wheel."
+  ]
+ },
+ {
+  "name": "Knight of Cups",
+  "suit": "cups",
+  "icon": "wine",
+  "meaning_up": "Romance, charm, an offer arriving, following the heart",
+  "meaning_rev": "Moodiness, unrealistic promises, a proposal delayed",
+  "desc": "The Knight of Cups rides in slowly, cup extended, meaning every word of it — today. This card encourages grand gestures given and received, with one eye gently open.",
+  "fortune_telling": [
+   "An offer once arrived on a white horse, and accepting it changed things.",
+   "Lead with the heart today; it's better informed than usual.",
+   "An invitation or romantic overture approaches. Hear it out fully."
+  ],
+  "fortune_telling_rev": [
+   "A beautiful promise that evaporated taught you to check for saddlebags.",
+   "The gesture is lovely; the logistics are missing. Ask about the logistics.",
+   "A charming offer ahead may be more mood than plan. Enjoy it; verify it."
+  ]
+ },
+ {
+  "name": "Queen of Cups",
+  "suit": "cups",
+  "icon": "cauldron",
+  "meaning_up": "Compassion, emotional depth, intuition, calm care",
+  "meaning_rev": "Emotional overwhelm, martyrdom, blurred boundaries",
+  "desc": "The Queen of Cups holds everyone's feelings without spilling her own. Deeply intuitive, this card encourages compassion that includes yourself in its circle.",
+  "fortune_telling": [
+   "Someone held your feelings once without flinching. You learned the trick from them.",
+   "Your intuition is running clean today. Trust the read.",
+   "Someone will need your particular calm soon. You'll have enough to share."
+  ],
+  "fortune_telling_rev": [
+   "You drowned in feelings that weren't yours and learned to check the label.",
+   "You're absorbing the room again. Wring yourself out.",
+   "Caring ahead may tip into carrying. Hand back what isn't yours."
+  ]
+ },
+ {
+  "name": "King of Cups",
+  "suit": "cups",
+  "icon": "crown",
+  "meaning_up": "Emotional maturity, diplomacy, balance, steady counsel",
+  "meaning_rev": "Repression, manipulation, a storm behind the calm",
+  "desc": "The King of Cups keeps his throne steady on open water. Feeling everything and capsizing nothing, this card encourages mastery of emotion that doesn't require its denial.",
+  "fortune_telling": [
+   "You stayed steady through someone else's storm once, and it mattered more than you know.",
+   "The waters are choppy and you are the keel. Steer gently.",
+   "You'll be asked to mediate soon. Your calm will be the deciding vote."
+  ],
+  "fortune_telling_rev": [
+   "The calm you performed while sinking taught you to signal earlier.",
+   "Composure has quietly become suppression. Tell one person the truth.",
+   "A held-back feeling will want out at a bad moment. Schedule it a good one."
+  ]
+ },
+ {
+  "name": "Ace of Swords",
+  "suit": "swords",
+  "icon": "sword",
+  "meaning_up": "Breakthroughs, new ideas, mental clarity, success",
+  "meaning_rev": "Inner clarity, re-thinking an idea, clouded judgement",
+  "desc": "The Ace of Swords represents a moment of breakthrough and mental clarity. It's a symbol of new ideas, truth, and success. This card encourages you to think clearly and cut through the confusion to find the truth.",
+  "fortune_telling": [
+   "One clear realization cut through years of fog.",
+   "The truth is sharp today. Use it precisely, not casually.",
+   "A breakthrough insight is coming. When it lands, act on it cleanly."
+  ],
+  "fortune_telling_rev": [
+   "A half-truth or a muddled call left a mark.",
+   "Your thinking is cloudy. Don't swing the blade until it clears.",
+   "Beware a clever argument that cuts the wrong way. Sharpen first, then decide."
+  ]
+ },
+ {
+  "name": "Two of Swords",
+  "suit": "swords",
+  "icon": "swords",
+  "meaning_up": "Difficult decisions, weighing up options, an impasse, avoidance",
+  "meaning_rev": "Indecision, confusion, information overload, stalemate",
+  "desc": "The Two of Swords represents a difficult decision or an impasse. You are faced with a choice, but you may be feeling stuck or unable to see the way forward. This card encourages you to seek balance and make a decision with a clear mind.",
+  "fortune_telling": [
+   "You once refused to choose, and the standoff held. Some peace is just a truce.",
+   "The blindfold is self-tied. Both options cost something; pick one and untie it.",
+   "A decision you've been dodging will circle back. Meet it with eyes open."
+  ],
+  "fortune_telling_rev": [
+   "A dam of indecision finally broke, and the flood sorted out the truth.",
+   "The stalemate is cracking. Let it. Motion beats deadlock.",
+   "Delay is about to stop working. Choose before the choice is made for you."
+  ]
+ },
+ {
+  "name": "Three of Swords",
+  "suit": "swords",
+  "icon": "sword",
+  "meaning_up": "Heartbreak, emotional pain, sorrow, grief, hurt",
+  "meaning_rev": "Negative self-talk, releasing pain, optimism, forgiveness",
+  "desc": "The Three of Swords is a card of heartbreak and emotional pain. It represents a time of sorrow, grief, and hurt. This card encourages you to acknowledge your pain and allow yourself to heal.",
+  "fortune_telling": [
+   "A heartbreak went clean through, and you healed around it. It's part of your architecture now.",
+   "This hurts because it mattered. Feel it properly; shortcuts scar worse.",
+   "A painful truth may land soon. It will hurt less than the not-knowing did."
+  ],
+  "fortune_telling_rev": [
+   "An old wound finally started closing. You stopped re-reading the ending.",
+   "You're healing. Stop picking at the seam to check.",
+   "Forgiveness, given or received, is closer than it looks. Let the swords fall out."
+  ]
+ },
+ {
+  "name": "Four of Swords",
+  "suit": "swords",
+  "icon": "shield",
+  "meaning_up": "Rest, recovery, contemplation, a strategic pause",
+  "meaning_rev": "Restlessness, burnout, refusing to recover, stagnation",
+  "desc": "The Four of Swords lays the blades down and closes its eyes on purpose. Rest here is strategy, not surrender. This card encourages the deliberate pause that makes the next move possible.",
+  "fortune_telling": [
+   "A rest you finally allowed yourself repaired more than you expected.",
+   "The pause is the strategy. Take it fully or not at all.",
+   "A quiet interval is coming. Bank the sleep; you'll spend it later."
+  ],
+  "fortune_telling_rev": [
+   "Running on empty taught you the price of skipping the pit stop.",
+   "You're calling restlessness productivity again. Lie down.",
+   "Refusing to rest will soon make the decision for you. Choose it first."
+  ]
+ },
+ {
+  "name": "Five of Swords",
+  "suit": "swords",
+  "icon": "swords",
+  "meaning_up": "Conflict, a hollow victory, winning at a cost, discord",
+  "meaning_rev": "Reconciliation, making amends, ending the feud",
+  "desc": "The Five of Swords wins the argument and empties the field. Somebody collected all the swords and lost all the company. This card encourages you to count the full cost before claiming the victory.",
+  "fortune_telling": [
+   "You won a fight once and stood alone on the field after. You remember the quiet.",
+   "You can win this exchange and lose the room. Price it out first.",
+   "A conflict ahead offers a trophy made of tin. Consider not collecting it."
+  ],
+  "fortune_telling_rev": [
+   "An apology — given or received — ended a war nobody remembered starting.",
+   "The feud is running on momentum, not merit. Someone can stop; be someone.",
+   "A chance to make amends is approaching. Take it before pride reprices it."
+  ]
+ },
+ {
+  "name": "Six of Swords",
+  "suit": "swords",
+  "icon": "globe",
+  "meaning_up": "Transition, moving on, calmer waters ahead, passage",
+  "meaning_rev": "Resisting the move, unfinished business, rough crossing",
+  "desc": "The Six of Swords is the low ferry ride away from turbulence — not triumphant, just necessary. This card encourages the quiet crossing: the far shore really is calmer.",
+  "fortune_telling": [
+   "You've made a hard crossing before. The water behind you proves it.",
+   "The boat is loaded and pointed at calmer water. Stay in the boat.",
+   "A transition is coming — unglamorous, necessary, and better on the other side."
+  ],
+  "fortune_telling_rev": [
+   "The move you resisted for a year took an afternoon once you allowed it.",
+   "You're rowing back toward what you left. Turn the boat around.",
+   "Unfinished business will tug at the oars. Settle it before you cross, or release it."
+  ]
+ },
+ {
+  "name": "Seven of Swords",
+  "suit": "swords",
+  "icon": "ghost",
+  "meaning_up": "Deception, strategy, acting alone, getting away with it",
+  "meaning_rev": "Confession, conscience, coming clean, a plan exposed",
+  "desc": "The Seven of Swords tiptoes off with an armload of blades and a backwards glance. Sometimes it's cunning, sometimes it's cutting corners. This card encourages you to ask which one you're doing.",
+  "fortune_telling": [
+   "A corner you cut once still squeaks. You've cut fewer since.",
+   "Someone's strategy — maybe yours — has a hidden compartment. Check the luggage.",
+   "A sneaky maneuver is forming nearby. Count your swords before and after."
+  ],
+  "fortune_telling_rev": [
+   "Coming clean once cost you less than carrying it did.",
+   "The conscience is louder than the plan. That's your answer.",
+   "A hidden thing is about to surface on its own. Beat it to the announcement."
+  ]
+ },
+ {
+  "name": "Eight of Swords",
+  "suit": "swords",
+  "icon": "swords",
+  "meaning_up": "Restriction, feeling trapped, self-imposed limits, victim mindset",
+  "meaning_rev": "Freedom, new perspective, releasing the binds",
+  "desc": "The Eight of Swords stands bound and blindfolded in a cage with no lock. The trap is real; the bars are mostly belief. This card encourages you to test the restraints — they're looser than they feel.",
+  "fortune_telling": [
+   "A cage you finally tested turned out to be unlocked the whole time.",
+   "The binds are looser than they feel. Wiggle before you resign yourself.",
+   "You may feel cornered soon. Before panicking, inventory the actual walls."
+  ],
+  "fortune_telling_rev": [
+   "The blindfold came off and the prison was a field. You walked.",
+   "Your perspective is widening. Let it finish before you redecide anything.",
+   "A release is coming — mostly because you'll stop renewing the lease on the cage."
+  ]
+ },
+ {
+  "name": "Nine of Swords",
+  "suit": "swords",
+  "icon": "moon-star",
+  "meaning_up": "Anxiety, sleepless nights, worry, dread, rumination",
+  "meaning_rev": "Easing fear, perspective at dawn, asking for help",
+  "desc": "The Nine of Swords is 3 a.m. with the whole catalogue of worries playing on loop. The swords are on the wall, not in you. This card encourages daylight math: most of tonight's dread won't survive breakfast.",
+  "fortune_telling": [
+   "The disaster you lost sleep over mostly never came. Note the pattern.",
+   "It's 3 a.m. somewhere in your head. No verdicts until morning.",
+   "A worry spiral may visit soon. Book it a short stay, not a residency."
+  ],
+  "fortune_telling_rev": [
+   "Saying the fear out loud once shrank it to carrying size.",
+   "Dawn is doing its work; the dread is losing altitude. Help it descend.",
+   "Relief is coming — faster if you tell one person what's circling."
+  ]
+ },
+ {
+  "name": "Ten of Swords",
+  "suit": "swords",
+  "icon": "skull",
+  "meaning_up": "Painful ending, rock bottom, betrayal, a chapter closed",
+  "meaning_rev": "Recovery, regeneration, the worst is over, rising",
+  "desc": "The Ten of Swords is overkill by design — ten blades where one would do, under a sky that's already brightening. This card encourages you to notice it's over. Endings this complete only point one direction: up.",
+  "fortune_telling": [
+   "Something ended completely, and the completeness was the mercy.",
+   "It's done. Fully, dramatically done. Stop checking for an eleventh sword.",
+   "A hard ending approaches — final, and finally final. The sunrise behind it is included."
+  ],
+  "fortune_telling_rev": [
+   "You already survived your worst day. It's back there, still ended.",
+   "You're getting up. Swords don't come with you; leave them in the ground.",
+   "Recovery is scheduled and gaining speed. The next chapter has no sequel hooks to this one."
+  ]
+ },
+ {
+  "name": "Page of Swords",
+  "suit": "swords",
+  "icon": "sword",
+  "meaning_up": "Curiosity, vigilance, new ideas, questions, mental energy",
+  "meaning_rev": "Gossip, scattered thoughts, all talk, hasty conclusions",
+  "desc": "The Page of Swords is up on the hill, blade drawn at every rustle, bursting with questions. This card encourages the sharp curiosity — pointed at facts, not at neighbors.",
+  "fortune_telling": [
+   "A question you wouldn't stop asking eventually cracked something open.",
+   "Your curiosity is armed today. Point it at problems, not people.",
+   "New information is incoming. Verify it once, then wield it."
+  ],
+  "fortune_telling_rev": [
+   "A rumor you repeated once came back wearing your name. Lesson kept.",
+   "The thoughts are scattering like startled birds. Pick one and follow it.",
+   "You'll be tempted to conclude early. Gather two more facts first."
+  ]
+ },
+ {
+  "name": "Knight of Swords",
+  "suit": "swords",
+  "icon": "tornado",
+  "meaning_up": "Ambition, decisive action, speed, championing a cause",
+  "meaning_rev": "Ruthlessness, charging unprepared, burnout by velocity",
+  "desc": "The Knight of Swords rides at full gallop into the headwind, argument first. Unstoppable and occasionally unsteerable, this card encourages full commitment — after aiming.",
+  "fortune_telling": [
+   "A cause you charged for at full speed actually moved because you did.",
+   "The wind is against you and you're galloping anyway. Just confirm the destination.",
+   "A moment demanding decisive speed is coming. Decide now what's worth the sprint."
+  ],
+  "fortune_telling_rev": [
+   "A charge that flattened bystanders taught you to look down from the horse.",
+   "Velocity is masquerading as strategy. Pull up and read the map.",
+   "You'll want to bulldoze an obstacle that's actually a person. Dismount and talk."
+  ]
+ },
+ {
+  "name": "Queen of Swords",
+  "suit": "swords",
+  "icon": "scale",
+  "meaning_up": "Clear boundaries, honest perception, independence, wit",
+  "meaning_rev": "Coldness, bitterness, cutting words, walls too high",
+  "desc": "The Queen of Swords sees through everything and says so, kindly when possible. Her honesty is a public service. This card encourages clear eyes and clean boundaries — warmth optional, truth not.",
+  "fortune_telling": [
+   "A boundary you finally drew is the reason things work now.",
+   "You can see exactly what's happening here. Say it plainly and kindly, in that order.",
+   "A situation will need your unsentimental read. Deliver it; sugarcoat only the edges."
+  ],
+  "fortune_telling_rev": [
+   "The wall that kept out the bad weather kept out the good too. You added a gate.",
+   "The wit is drifting toward the wound. Sheathe it for a day.",
+   "Bitterness will offer you its microphone soon. Decline politely."
+  ]
+ },
+ {
+  "name": "King of Swords",
+  "suit": "swords",
+  "icon": "gavel",
+  "meaning_up": "Intellectual authority, truth, fairness, discipline, judgement",
+  "meaning_rev": "Cold logic, misuse of power, rigidity, a biased ruling",
+  "desc": "The King of Swords rules by principle and cuts by precedent. Feelings inform; they don't preside. This card encourages fair judgement — the kind you'd accept if it went against you.",
+  "fortune_telling": [
+   "A fair call you made under pressure became someone's example of fairness.",
+   "You're the clearest head in the room. Rule accordingly, and rule yourself first.",
+   "A judgement call is coming to your desk. Decide it as if it will be quoted."
+  ],
+  "fortune_telling_rev": [
+   "A ruling made without the heart's testimony had to be appealed. You reheard it.",
+   "The logic is airtight and the room is suffocating. Open a window.",
+   "Rigidity ahead will masquerade as principle. Check which one it is before enforcing."
+  ]
+ },
+ {
+  "name": "Ace of Pentacles",
+  "suit": "pentacles",
+  "icon": "circle-dollar-sign",
+  "meaning_up": "A new opportunity, manifestation, prosperity",
+  "meaning_rev": "Lost opportunity, lack of planning, poor financial control",
+  "desc": "The Ace of Pentacles represents a new opportunity for prosperity and abundance. It's a symbol of manifestation, wealth, and security. This card encourages you to seize the opportunities that come your way and build a solid foundation for your future.",
+  "fortune_telling": [
+   "A seed of real opportunity took root and held.",
+   "Something tangible is being offered. Take it with both hands.",
+   "A concrete opportunity is coming: money, work, or ground to build on. Plant it, don't pocket it."
+  ],
+  "fortune_telling_rev": [
+   "An opportunity slipped through your fingers, and the lesson stayed.",
+   "Don't grip the coin so hard you can't catch the next one.",
+   "A shaky offer will glitter soon. Test the soil before you plant."
+  ]
+ },
+ {
+  "name": "Two of Pentacles",
+  "suit": "pentacles",
+  "icon": "coins",
+  "meaning_up": "Multiple priorities, time management, prioritisation, adaptability",
+  "meaning_rev": "Over-committed, disorganisation, re-prioritisation",
+  "desc": "The Two of Pentacles represents the need to balance multiple priorities and manage your time effectively. It's a symbol of adaptability and flexibility. This card encourages you to be organized and find a healthy work-life balance.",
+  "fortune_telling": [
+   "You kept everything in the air when dropping something wasn't an option. That was skill, not luck.",
+   "You're juggling well, but juggle on purpose. Priorities are the actual trick.",
+   "More balls are incoming. Decide now which ones are allowed to bounce."
+  ],
+  "fortune_telling_rev": [
+   "You dropped something because you were carrying too much. It happens to every juggler.",
+   "Overcommitment is coming due. Put one thing down gracefully.",
+   "The load ahead won't fit in two hands. Simplify before it decides for you."
+  ]
+ },
+ {
+  "name": "Three of Pentacles",
+  "suit": "pentacles",
+  "icon": "gem",
+  "meaning_up": "Teamwork, collaboration, learning, implementation",
+  "meaning_rev": "Disharmony, misalignment, working alone",
+  "desc": "The Three of Pentacles is a card of teamwork and collaboration. It represents a time of learning, skill-building, and successful implementation of plans. This card encourages you to work with others and learn from their expertise.",
+  "fortune_telling": [
+   "Working with others, and being valued for your craft, built something that lasted.",
+   "This is collaboration weather. Show your work and let others make it better.",
+   "A team effort will showcase your skill. Bring your best stone to the cathedral."
+  ],
+  "fortune_telling_rev": [
+   "A team pulling in three directions taught you what alignment is worth.",
+   "Everyone is building a different building. Compare blueprints today.",
+   "Credit or coordination may wobble ahead. Put the agreements in writing."
+  ]
+ },
+ {
+  "name": "Four of Pentacles",
+  "suit": "pentacles",
+  "icon": "coins",
+  "meaning_up": "Security, saving, control, holding on, conservatism",
+  "meaning_rev": "Greed, hoarding, letting go, loosening the grip",
+  "desc": "The Four of Pentacles clutches its coins so tightly it can't shake hands. Security matters; circulation matters more. This card encourages you to hold what's yours without becoming the vault.",
+  "fortune_telling": [
+   "The saving you did when it was hard is the floor you stand on now.",
+   "You're holding tight to something that would grow if it circulated. Loosen one finger.",
+   "A chance to secure your position is coming. Secure it — then keep your hands usable."
+  ],
+  "fortune_telling_rev": [
+   "You finally let go of something clenched, and your hand worked again.",
+   "The grip has become the burden. Release is a form of wealth too.",
+   "You'll be asked to share or spend soon. The right amount will feel slightly brave."
+  ]
+ },
+ {
+  "name": "Five of Pentacles",
+  "suit": "pentacles",
+  "icon": "coins",
+  "meaning_up": "Hardship, scarcity, feeling left out in the cold, worry",
+  "meaning_rev": "Recovery, aid accepted, the door was open, improvement",
+  "desc": "The Five of Pentacles trudges past a lit window, convinced it isn't invited. The hard season is real; so is the warm room. This card encourages you to knock — help counts double when you accept it.",
+  "fortune_telling": [
+   "A lean season taught you exactly what you can live without. Short list, wasn't it?",
+   "The window you're trudging past is lit for you. Knock.",
+   "A cold stretch may come. It has an end date and an open door halfway through."
+  ],
+  "fortune_telling_rev": [
+   "Help you finally accepted turned out to be the whole turning point.",
+   "The thaw has started. Let people see you're still cold anyway.",
+   "Recovery is close, and it arrives faster with company. Accept the next hand offered."
+  ]
+ },
+ {
+  "name": "Six of Pentacles",
+  "suit": "pentacles",
+  "icon": "hand-heart",
+  "meaning_up": "Generosity, charity, giving and receiving, fair exchange",
+  "meaning_rev": "Strings attached, one-sided giving, debts of gratitude",
+  "desc": "The Six of Pentacles weighs generosity on honest scales — giving that dignifies, receiving that doesn't shrink. This card encourages you to keep the exchange flowing in both directions.",
+  "fortune_telling": [
+   "Generosity you gave freely came back by a route you never predicted.",
+   "You're positioned to give or due to receive. Either way, keep the scales visible.",
+   "An exchange of help is coming. Give without ceremony; receive without apology."
+  ],
+  "fortune_telling_rev": [
+   "A gift with strings taught you to read the packaging.",
+   "The giving has gone one-directional. Rebalance before resentment does the math.",
+   "An offer ahead may include invisible interest. Ask about the terms out loud."
+  ]
+ },
+ {
+  "name": "Seven of Pentacles",
+  "suit": "pentacles",
+  "icon": "sprout",
+  "meaning_up": "Patience, long-term view, assessment, waiting for harvest",
+  "meaning_rev": "Impatience, sunk costs, misdirected effort, giving up early",
+  "desc": "The Seven of Pentacles leans on the hoe and eyes the vine: growing, but slowly. This card encourages the honest assessment — is it ripening or just rooted? Then wait, or replant, on purpose.",
+  "fortune_telling": [
+   "Something you planted long ago is the thing quietly feeding you now.",
+   "The vine is growing at vine speed. Assess honestly, then let it grow.",
+   "A harvest is maturing. The worst move now is digging it up to check."
+  ],
+  "fortune_telling_rev": [
+   "You once watered a dead plant out of stubbornness. You compost faster now.",
+   "Sunk cost is doing your gardening. Evaluate the vine, not the hours.",
+   "You'll itch to abandon something one season early. Get one more opinion first."
+  ]
+ },
+ {
+  "name": "Eight of Pentacles",
+  "suit": "pentacles",
+  "icon": "gem",
+  "meaning_up": "Craftsmanship, skill-building, diligence, mastery in progress",
+  "meaning_rev": "Perfectionism, cut corners, uninspired repetition",
+  "desc": "The Eight of Pentacles is head-down at the bench, making the eighth one better than the seventh. This card encourages the unglamorous reps — mastery is mostly attendance.",
+  "fortune_telling": [
+   "The reps nobody saw you do are why it looks easy now.",
+   "This is bench time. One more careful repetition beats three rushed ones.",
+   "Your skill is about to compound. Keep showing up; the eighth coin shines."
+  ],
+  "fortune_telling_rev": [
+   "Perfectionism once kept a good piece on the bench forever. You shipped the next one.",
+   "The repetition has gone hollow. Vary the work before you resent it.",
+   "You'll be tempted to cut a corner that holds the whole frame. Don't."
+  ]
+ },
+ {
+  "name": "Nine of Pentacles",
+  "suit": "pentacles",
+  "icon": "gem",
+  "meaning_up": "Self-sufficiency, earned luxury, independence, refinement",
+  "meaning_rev": "Overwork behind the garden, hollow status, dependence",
+  "desc": "The Nine of Pentacles strolls its own garden, grapes ripe, falcon calm. Everything here was earned. This card encourages you to actually enjoy what your discipline built.",
+  "fortune_telling": [
+   "The independence you built coin by coin is real. Walk your own garden and count.",
+   "You earned this comfort. Enjoying it is not a lapse in discipline.",
+   "A season of earned ease approaches. Practice receiving it gracefully."
+  ],
+  "fortune_telling_rev": [
+   "A luxury that impressed everyone but you clarified what wealth is for.",
+   "The garden is gorgeous and you're too busy tending to stroll it. Stroll.",
+   "Check what the fine things ahead are for. Buy the ones that buy back time."
+  ]
+ },
+ {
+  "name": "Ten of Pentacles",
+  "suit": "pentacles",
+  "icon": "castle",
+  "meaning_up": "Legacy, family wealth, long-term security, inheritance",
+  "meaning_rev": "Family disputes over resources, short-term thinking, fragile foundations",
+  "desc": "The Ten of Pentacles is the archway generations walk through — wealth that outlives its maker. This card encourages building for people you may never meet.",
+  "fortune_telling": [
+   "Someone before you built the archway you walked in through. You're mid-build on the next one.",
+   "Think in decades today. The compounding has already started.",
+   "Something you establish soon will outlast you. Set the cornerstone square."
+  ],
+  "fortune_telling_rev": [
+   "A squabble over the inheritance taught you what the inheritance actually was.",
+   "Short-term thinking is nibbling the foundation. Repour where it's thin.",
+   "A resource dispute may surface in the family or the team. Write things down early."
+  ]
+ },
+ {
+  "name": "Page of Pentacles",
+  "suit": "pentacles",
+  "icon": "book-open",
+  "meaning_up": "Studiousness, new skills, ambition grounded, an opportunity to learn",
+  "meaning_rev": "Procrastination, a stalled course, dreaming without doing",
+  "desc": "The Page of Pentacles turns the coin over and over, already imagining what it could become. This card encourages the student's posture: begin small, study close, build real.",
+  "fortune_telling": [
+   "A skill you started badly is now one you're known for. Beginnings forgive.",
+   "You're holding a coin that wants to be studied, not spent. Enroll.",
+   "A chance to learn something bankable is coming. Take the notes by hand."
+  ],
+  "fortune_telling_rev": [
+   "The course you never finished still taught you how you don't learn. Useful.",
+   "The dreaming has lapped the doing. Convert one fantasy into one task today.",
+   "Procrastination will offer you a very reasonable extension. Refuse it."
+  ]
+ },
+ {
+  "name": "Knight of Pentacles",
+  "suit": "pentacles",
+  "icon": "shield",
+  "meaning_up": "Reliability, routine, methodical progress, follow-through",
+  "meaning_rev": "Stagnation, boredom, stuck in a rut, over-caution",
+  "desc": "The Knight of Pentacles rides the slowest horse and arrives every single time. This card encourages the steady method — boring is a strategy with an excellent record.",
+  "fortune_telling": [
+   "Showing up every day, unglamorously, is what actually got you here.",
+   "Slow and steady isn't the backup plan; it's the plan. Ride on.",
+   "A long task ahead will reward the plodder. Be the plodder proudly."
+  ],
+  "fortune_telling_rev": [
+   "A rut you mistook for a routine finally announced itself. You changed the route.",
+   "The routine has stopped serving and started sedating. Vary one thing.",
+   "Over-caution may cost you a good opening soon. Trot, just this once."
+  ]
+ },
+ {
+  "name": "Queen of Pentacles",
+  "suit": "pentacles",
+  "icon": "sprout",
+  "meaning_up": "Nurturing practicality, resourcefulness, comfort, grounded care",
+  "meaning_rev": "Self-neglect while providing, smothering, work-home imbalance",
+  "desc": "The Queen of Pentacles keeps the garden fed, the books balanced, and the door open. Care, here, is competence. This card encourages providing in ways that include the provider.",
+  "fortune_telling": [
+   "Someone made a warm, working world around you once. You've been paying it forward since.",
+   "Your practicality is a form of love. Apply a serving to yourself today.",
+   "People will gather where you've made things work. Set an extra place."
+  ],
+  "fortune_telling_rev": [
+   "Running the household on an empty tank taught you where the fuel gauge is.",
+   "Everyone's fed but you. Sit down at your own table.",
+   "The urge to manage everyone's garden is coming. Tend yours first this week."
+  ]
+ },
+ {
+  "name": "King of Pentacles",
+  "suit": "pentacles",
+  "icon": "crown",
+  "meaning_up": "Abundance, business acumen, security, a steady hand on wealth",
+  "meaning_rev": "Greed, materialism, controlling with money, stubborn empire",
+  "desc": "The King of Pentacles built the vineyard, kept the books, and still walks the rows. Wealth, matured into stewardship. This card encourages the long game played generously.",
+  "fortune_telling": [
+   "Discipline you practiced young became an estate you barely notice holding.",
+   "Your judgement on practical matters is at full strength. Make the big call.",
+   "A venture with real roots is coming to your table. Fund what feeds people."
+  ],
+  "fortune_telling_rev": [
+   "An empire held too tightly taught you the difference between owning and gripping.",
+   "The ledger is winning arguments the heart should get. Recuse the ledger once.",
+   "Money may try to do your talking soon. Speak first, spend second."
+  ]
+ }
+]

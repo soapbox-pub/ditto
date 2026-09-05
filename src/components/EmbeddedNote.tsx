@@ -32,6 +32,8 @@ import { EmbeddedRelayListCard } from '@/components/EmbeddedRelayListCard';
 import { EmbeddedProfileCard } from '@/components/EmbeddedProfileCard';
 import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
 import { MEMORY_CARD_KIND } from '@/lib/memorycard';
+import { EmbeddedTarotReadingCard } from '@/components/tarot/EmbeddedTarotReadingCard';
+import { TAROT_READING_KIND } from '@/lib/tarot/cards';
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
 import { isPeopleListKind } from '@/lib/packUtils';
 import { EmojifiedText } from '@/components/CustomEmoji';
@@ -226,6 +228,13 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, fallbackAuthorHint, cl
   // dumping the 16 KB hex content as text.
   if (event.kind === MEMORY_CARD_KIND) {
     return <EmbeddedMemoryCardCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-TR tarot readings (kind 2256) get a compact card listing the drawn
+  // cards in order, reconstructed from the `c` tags. The generic fallback
+  // would feed the prose interpretation through the kind-1 tokenizer.
+  if (event.kind === TAROT_READING_KIND) {
+    return <EmbeddedTarotReadingCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // People-list events (kind 3 follow lists) get a dedicated card showing

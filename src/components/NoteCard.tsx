@@ -21,6 +21,7 @@ import {
   ListMusic,
   Mail,
   MessageCircle,
+  MoonStar,
   Music,
   Quote,
   Rocket,
@@ -100,6 +101,8 @@ const IssueCard = lazy(() => import("@/components/IssueCard").then(m => ({ defau
 import { PrUpdateCard } from "@/components/PrUpdateCard";
 import { RepoStateCard } from "@/components/RepoStateCard";
 import { HighlightContent } from "@/components/HighlightContent";
+import { TarotReadingCard } from "@/components/tarot/TarotReadingCard";
+import { readingTypeFromEvent, TAROT_READING_KIND } from "@/lib/tarot/cards";
 import { WebBookmarkContent } from "@/components/WebBookmarkContent";
 import { StatusContent } from "@/components/StatusContent";
 import { InteractiveRoomContent } from "@/components/InteractiveRoomContent";
@@ -617,6 +620,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isLetter = event.kind === 8211;
   const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
+  const isTarotReading = event.kind === TAROT_READING_KIND;
   const isWebBookmark = event.kind === 39701;
   const isStatus = event.kind === 30315;
   const isAttestation = event.kind === ATTESTATION_KIND;
@@ -684,6 +688,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     !isLetter &&
     !isLoveList &&
     !isHighlight &&
+    !isTarotReading &&
     !isWebBookmark &&
     !isStatus &&
     !isAttestation &&
@@ -945,6 +950,8 @@ const NoteCardImpl = memo(function NoteCardImpl({
           <LoveListContent event={event} compact />
         ) : isHighlight ? (
           <HighlightContent event={event} />
+        ) : isTarotReading ? (
+          <TarotReadingCard event={event} />
         ) : isWebBookmark ? (
           <WebBookmarkContent event={event} />
         ) : isStatus ? (
@@ -2555,6 +2562,15 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     action: "shared a",
     noun: "highlight",
     nounRoute: "/highlights",
+  },
+  [TAROT_READING_KIND]: {
+    icon: MoonStar,
+    action: (event) =>
+      readingTypeFromEvent(event) === "weekly"
+        ? "shared a weekly"
+        : "shared a daily",
+    noun: "tarot reading",
+    nounRoute: "/tarot",
   },
   [QUIZ_KIND]: {
     icon: ClipboardList,

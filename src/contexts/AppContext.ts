@@ -232,6 +232,8 @@ export interface FeedSettings {
   feedIncludeLoveLists: boolean;
   /** Include Blobbi pet updates (kind 31124) in the follows/global feed */
   feedIncludeBlobbi: boolean;
+  /** Include tarot readings (kind 2256, NIP-TR) in the follows/global feed */
+  feedIncludeTarot: boolean;
   /** Show Birdstar (kind 2473 bird detections + kind 30621 custom constellations) link in sidebar */
   showBirdstar: boolean;
   /** Include bird detections (kind 2473) in the follows/global feed */

@@ -1,0 +1,398 @@
+[
+ {
+  "name": "The Fool",
+  "suit": "major",
+  "icon": "sparkles",
+  "meaning_up": "Beginnings, innocence, spontaneity, a free spirit",
+  "meaning_rev": "Naivety, foolishness, recklessness, risk-taking",
+  "desc": "The Fool stands at the precipice of a new journey, unaware of the challenges ahead. He embodies the spirit of boundless potential and the courage to take a leap of faith into the unknown. His presence signifies a time of new beginnings, where every step is an adventure and every moment is filled with wonder.",
+  "fortune_telling": [
+   "You leapt before you looked, and it worked. That beginner's courage still runs through everything you've built since.",
+   "You're standing at the edge of something new. You don't need the full map. Take the step.",
+   "A fresh start is coming that will ask for openness, not expertise. Say yes while it's still a little scary."
+  ],
+  "fortune_telling_rev": [
+   "You rushed in without checking the ground, and it cost you. That stumble taught you where the edges are.",
+   "Enthusiasm is carrying you past some obvious warning signs. Pause and look down before the next step.",
+   "A tempting leap is ahead. Check the landing first."
+  ]
+ },
+ {
+  "name": "The Magician",
+  "suit": "major",
+  "icon": "wand-sparkles",
+  "meaning_up": "Manifestation, resourcefulness, power, inspired action",
+  "meaning_rev": "Manipulation, poor planning, untapped talents",
+  "desc": "The Magician is a master of the elements, a conduit for the power of the universe. He represents the ability to manifest one's desires into reality through sheer willpower and resourcefulness. His presence signifies a time of immense power and the potential for inspired action.",
+  "fortune_telling": [
+   "You once turned almost nothing into something real. That resourcefulness built the ground you stand on.",
+   "Everything you need is already on the table. Stop waiting for better tools and start working.",
+   "A moment is coming when your skills and an opportunity line up perfectly. Be ready to act fast."
+  ],
+  "fortune_telling_rev": [
+   "Talent got scattered across too many half-finished tricks. Some of that power leaked away unused.",
+   "You have the skill but not the focus. Pick one thing and finish it.",
+   "Someone may soon promise more than they can deliver. Check the sleeves before you shake hands."
+  ]
+ },
+ {
+  "name": "The High Priestess",
+  "suit": "major",
+  "icon": "book-open",
+  "meaning_up": "Intuition, sacred knowledge, divine feminine, the subconscious mind",
+  "meaning_rev": "Secrets, disconnected from intuition, withdrawal and silence",
+  "desc": "The High Priestess is the guardian of the subconscious, a keeper of sacred knowledge and hidden mysteries. She represents the power of intuition and the importance of listening to one's inner voice. Her presence signifies a time of deep introspection and a connection to the divine feminine.",
+  "fortune_telling": [
+   "You knew something before you could prove it, and you were right. That quiet knowing shaped your path.",
+   "The answer isn't out there. Sit still long enough and it will surface.",
+   "A truth will reveal itself soon, but only if you stop talking long enough to hear it."
+  ],
+  "fortune_telling_rev": [
+   "You ignored a gut feeling and paid for it. The signal was there; the volume was down.",
+   "You're asking everyone's opinion except your own. Go quiet and listen inward.",
+   "Secrets nearby will try to stay secret. Trust what you sense over what you're told."
+  ]
+ },
+ {
+  "name": "The Empress",
+  "suit": "major",
+  "icon": "crown",
+  "meaning_up": "Femininity, beauty, nature, nurturing, abundance",
+  "meaning_rev": "Creative block, dependence on others",
+  "desc": "The Empress is the embodiment of the divine feminine, a symbol of fertility, creativity, and abundance. She represents the nurturing power of nature and the beauty that surrounds us. Her presence signifies a time of growth, both material and spiritual.",
+  "fortune_telling": [
+   "Someone or something nurtured you generously, and it's still bearing fruit.",
+   "This is a season for tending, not forcing. Feed what you want to grow.",
+   "Something you planted is about to flourish. Make room for the abundance."
+  ],
+  "fortune_telling_rev": [
+   "You gave so much away there was nothing left for you. That depletion still echoes.",
+   "You can't pour from an empty cup. Tend to yourself first today.",
+   "Growth ahead will stall if it's smothered. Care for it, then step back."
+  ]
+ },
+ {
+  "name": "The Emperor",
+  "suit": "major",
+  "icon": "castle",
+  "meaning_up": "Authority, establishment, structure, a father figure",
+  "meaning_rev": "Domination, excessive control, lack of discipline, inflexibility",
+  "desc": "The Emperor is a symbol of authority and power, a ruler who brings structure and order to the world. He represents the importance of discipline and the rule of law. His presence signifies a time of stability and control.",
+  "fortune_telling": [
+   "Structure, or someone who enforced it, gave your life its shape. The discipline stuck.",
+   "Chaos is asking for a plan. Draw the lines and hold them.",
+   "You'll soon be handed real authority. Rule it the way you'd want to be ruled."
+  ],
+  "fortune_telling_rev": [
+   "Someone's iron grip left marks. You learned exactly what control costs.",
+   "You're gripping too hard. Loosen your hold before something snaps.",
+   "A power struggle is forming. Bring standards, not a hammer."
+  ]
+ },
+ {
+  "name": "The Hierophant",
+  "suit": "major",
+  "icon": "scroll",
+  "meaning_up": "Spiritual wisdom, religious beliefs, conformity, tradition, institutions",
+  "meaning_rev": "Personal beliefs, freedom, challenging the status quo",
+  "desc": "The Hierophant is a spiritual teacher, a guide who helps others find their own path to enlightenment. He represents the importance of tradition and the value of institutions. His presence signifies a time of learning and spiritual growth.",
+  "fortune_telling": [
+   "Tradition and good teachers gave you your foundations. The old ways served you well.",
+   "Before you reinvent the wheel, ask someone who's rolled one. Convention has answers today.",
+   "A mentor or a time-tested path is about to appear. There's wisdom in walking it."
+  ],
+  "fortune_telling_rev": [
+   "You broke with convention, and it made you who you are.",
+   "The rulebook isn't working. Write your own page.",
+   "You'll soon outgrow a doctrine. Leave respectfully, but leave."
+  ]
+ },
+ {
+  "name": "The Lovers",
+  "suit": "major",
+  "icon": "hand-heart",
+  "meaning_up": "Love, harmony, relationships, values alignment, choices",
+  "meaning_rev": "Self-love, disharmony, imbalance, misalignment of values",
+  "desc": "The Lovers represent the power of love and the importance of relationships. They symbolize the union of two souls and the harmony that comes from a deep connection. Their presence signifies a time of choices and the need to align with one's values.",
+  "fortune_telling": [
+   "A bond you chose with your whole heart shaped everything after it.",
+   "This is about alignment, not just affection. Choose what matches your values.",
+   "A meaningful connection or crossroads is coming. Choose with your heart and your eyes open."
+  ],
+  "fortune_telling_rev": [
+   "A misaligned bond, or a choice made half-heartedly, still trails behind you.",
+   "Something is out of tune between what you value and what you're doing. Retune it.",
+   "An easy option will tempt you away from the right one. Don't split the difference."
+  ]
+ },
+ {
+  "name": "The Chariot",
+  "suit": "major",
+  "icon": "shield",
+  "meaning_up": "Control, willpower, success, action, determination",
+  "meaning_rev": "Self-discipline, opposition, lack of direction",
+  "desc": "The Chariot is a symbol of victory and success, a testament to the power of willpower and determination. It represents the ability to overcome obstacles and to achieve one's goals. Its presence signifies a time of action and forward momentum.",
+  "fortune_telling": [
+   "You won by refusing to stop. That victory still fuels your confidence.",
+   "Grab the reins. Opposing forces will pull together if you steer with intent.",
+   "Momentum is building toward a win. Keep both hands on the reins."
+  ],
+  "fortune_telling_rev": [
+   "You pushed hard in the wrong direction, and it took real strength to admit it.",
+   "You're revving without steering. Aim before you accelerate.",
+   "An obstacle ahead won't move by force. Redirect instead of ramming it."
+  ]
+ },
+ {
+  "name": "Strength",
+  "suit": "major",
+  "icon": "dumbbell",
+  "meaning_up": "Strength, courage, persuasion, influence, compassion",
+  "meaning_rev": "Inner strength, self-doubt, weakness, insecurity",
+  "desc": "Strength is a symbol of inner power and courage, a testament to the ability to overcome any challenge with grace and compassion. It represents the importance of self-control and the power of a gentle heart. Its presence signifies a time of quiet confidence and inner resolve.",
+  "fortune_telling": [
+   "You tamed something wild, in yourself or your life, with patience instead of force.",
+   "Gentle beats loud today. Lead with the soft hand.",
+   "A challenge is coming that muscle can't fix. Your calm will."
+  ],
+  "fortune_telling_rev": [
+   "Doubt once made you fold when you had the strength to stay.",
+   "The inner critic is roaring. It's a house cat. Feed your courage instead.",
+   "Your patience will be tested. Don't mistake gentleness for weakness."
+  ]
+ },
+ {
+  "name": "The Hermit",
+  "suit": "major",
+  "icon": "hedgehog",
+  "meaning_up": "Soul-searching, introspection, being alone, inner guidance",
+  "meaning_rev": "Isolation, loneliness, withdrawal",
+  "desc": "The Hermit is a symbol of introspection and solitude, a wise old soul who seeks knowledge from within. He represents the importance of taking time for oneself and of listening to one's inner guidance. His presence signifies a time of soul-searching and spiritual enlightenment.",
+  "fortune_telling": [
+   "Time alone gave you an answer crowds never could.",
+   "Step back from the noise. Your lantern works better in the dark.",
+   "A stretch of solitude is coming, and it will be productive, not lonely."
+  ],
+  "fortune_telling_rev": [
+   "You withdrew a little too far, and the world went on without you.",
+   "Reflection has become hiding. Take one step toward the door.",
+   "Isolation will tempt you. Take the wisdom, skip the exile."
+  ]
+ },
+ {
+  "name": "Wheel of Fortune",
+  "suit": "major",
+  "icon": "loader-pinwheel",
+  "meaning_up": "Good luck, karma, life cycles, destiny, a turning point",
+  "meaning_rev": "Bad luck, resistance to change, breaking cycles",
+  "desc": "The Wheel of Fortune is a symbol of destiny and fate, a reminder that life is a constantly turning wheel of ups and downs. It represents the importance of accepting change and of going with the flow. Its presence signifies a time of great opportunity and a turning point in one's life.",
+  "fortune_telling": [
+   "Luck spun your way once and rerouted everything.",
+   "The wheel is turning. Loosen your grip and ride it.",
+   "Circumstances are about to shift in your favor. Be ready to move when they do."
+  ],
+  "fortune_telling_rev": [
+   "A bad turn of the wheel knocked you down. You got back up anyway, and that counts.",
+   "You can't stop the wheel, only your grip on it. Adapt.",
+   "A setback ahead is temporary. Resist it less and it passes faster."
+  ]
+ },
+ {
+  "name": "Justice",
+  "suit": "major",
+  "icon": "scale",
+  "meaning_up": "Justice, fairness, truth, cause and effect, law",
+  "meaning_rev": "Unfairness, lack of accountability, dishonesty",
+  "desc": "Justice is a symbol of truth and fairness, a reminder that all actions have consequences. It represents the importance of taking responsibility for one's choices and of living a life of integrity. Its presence signifies a time of accountability and a search for the truth.",
+  "fortune_telling": [
+   "You got what your actions earned, for better or worse. The scales were honest.",
+   "Weigh it fairly, including your own part in it. Then decide.",
+   "A decision will land in your favor if your hands are clean. Keep them clean."
+  ],
+  "fortune_telling_rev": [
+   "You were dealt something unfair, and it still tilts your scales.",
+   "Accountability is being dodged, maybe by you. Set the scales down evenly.",
+   "An imbalance will demand correcting. Tell the truth early; it's cheaper."
+  ]
+ },
+ {
+  "name": "The Hanged Man",
+  "suit": "major",
+  "icon": "ghost",
+  "meaning_up": "Pause, surrender, letting go, new perspectives",
+  "meaning_rev": "Delays, resistance, stalling, indecision",
+  "desc": "The Hanged Man is a symbol of surrender and letting go, a reminder that sometimes the best course of action is to do nothing at all. He represents the importance of pausing and of seeing things from a new perspective. His presence signifies a time of sacrifice and a search for a new way of being.",
+  "fortune_telling": [
+   "A pause you didn't choose turned out to be the point. It changed how you see.",
+   "Stop struggling. The view from here is the lesson.",
+   "A delay ahead is an upgrade in disguise. Surrender to it."
+  ],
+  "fortune_telling_rev": [
+   "You hung on to a stalled situation long after it stopped teaching you.",
+   "This sacrifice isn't noble anymore, it's a stall. Cut yourself down.",
+   "You'll be tempted to keep waiting. Some doors only open when you let go."
+  ]
+ },
+ {
+  "name": "Death",
+  "suit": "major",
+  "icon": "skull",
+  "meaning_up": "Endings, change, transformation, transition",
+  "meaning_rev": "Resistance to change, personal transformation, inner purging",
+  "desc": "Death is a symbol of endings and beginnings, a reminder that all things must pass. It represents the importance of letting go of the old to make way for the new. Its presence signifies a time of great transformation and a transition to a new way of life.",
+  "fortune_telling": [
+   "Something ended completely, and you grew back different. That ending made room for all of this.",
+   "Something is finishing. Hold the door for it.",
+   "A chapter will close soon. Grieve it properly, then travel light."
+  ],
+  "fortune_telling_rev": [
+   "You kept something on life support long past its time, and it drained you.",
+   "You're resisting a change that has already happened. Loosen your grip.",
+   "Change will keep knocking until you answer. Open the door on your own terms."
+  ]
+ },
+ {
+  "name": "Temperance",
+  "suit": "major",
+  "icon": "goblet",
+  "meaning_up": "Balance, moderation, patience, purpose",
+  "meaning_rev": "Imbalance, excess, self-healing, re-alignment",
+  "desc": "Temperance is a symbol of balance and moderation, a reminder that all things should be done in harmony. It represents the importance of patience and of finding a middle ground. Its presence signifies a time of healing and a search for a sense of purpose.",
+  "fortune_telling": [
+   "You found a middle path where others picked sides. That balance carried you.",
+   "Blend, don't binge. The right mix is subtle.",
+   "Patience and moderation will quietly win a situation that force would lose."
+  ],
+  "fortune_telling_rev": [
+   "Excess of one kind or another threw you off balance, and you felt the wobble for a while.",
+   "Something is out of proportion. Pour a little back.",
+   "Extremes will look exciting soon. The middle path is still the fast one."
+  ]
+ },
+ {
+  "name": "The Devil",
+  "suit": "major",
+  "icon": "pumpkin",
+  "meaning_up": "Shadow self, attachment, addiction, restriction, sexuality",
+  "meaning_rev": "Releasing limiting beliefs, exploring dark thoughts, detachment",
+  "desc": "The Devil is a symbol of our shadow self, a reminder of the parts of ourselves that we keep hidden. He represents the importance of confronting our fears and of breaking free from our addictions. His presence signifies a time of temptation and a search for a sense of freedom.",
+  "fortune_telling": [
+   "Something had its hooks in you. Naming it was the start of everything better.",
+   "Check the chains. Most of them are loose enough to slip.",
+   "A gilded trap is ahead. Enjoy the shine, skip the cage."
+  ],
+  "fortune_telling_rev": [
+   "You broke a chain that others assumed was permanent.",
+   "Freedom is closer than it feels. One honest look at the habit and it loosens.",
+   "You're about to outgrow a vice or a bad bargain. Let it go all the way."
+  ]
+ },
+ {
+  "name": "The Tower",
+  "suit": "major",
+  "icon": "tornado",
+  "meaning_up": "Sudden change, upheaval, chaos, revelation, awakening",
+  "meaning_rev": "Personal transformation, fear of change, averting disaster",
+  "desc": "The Tower is a symbol of sudden change and upheaval, a reminder that all things are temporary. It represents the importance of being prepared for the unexpected and of embracing the chaos. Its presence signifies a time of great revelation and a spiritual awakening.",
+  "fortune_telling": [
+   "Something collapsed suddenly, and the ground it cleared is where you're building now.",
+   "What's shaking was never stable. Save yourself, not the scaffolding.",
+   "A sudden shake-up is coming. It will only take what wasn't sound."
+  ],
+  "fortune_telling_rev": [
+   "You saw the cracks early and got out before the crash. Quiet disasters count as wins.",
+   "You're propping up something that wants to fall. Controlled demolition beats collapse.",
+   "A crisis ahead can still be softened. Reinforce what matters and release the rest."
+  ]
+ },
+ {
+  "name": "The Star",
+  "suit": "major",
+  "icon": "star",
+  "meaning_up": "Hope, faith, purpose, renewal, spirituality",
+  "meaning_rev": "Lack of faith, despair, self-trust, disconnection",
+  "desc": "The Star is a symbol of hope and faith, a reminder that there is always a light in the darkness. It represents the importance of having a sense of purpose and of believing in oneself. Its presence signifies a time of renewal and a connection to the divine.",
+  "fortune_telling": [
+   "After a hard stretch, hope found you again. It never really left.",
+   "You're healing. Keep it slow, keep it honest, keep looking up.",
+   "Relief and renewal are on the way. The wish you keep quiet is closer than you think."
+  ],
+  "fortune_telling_rev": [
+   "A disappointment dimmed your hope for a while. The stars stayed put; you just stopped looking.",
+   "Cynicism is a cheap shield. Set it down for one evening and see.",
+   "When doubt creeps in, remember it's weather. The sky behind it hasn't moved."
+  ]
+ },
+ {
+  "name": "The Moon",
+  "suit": "major",
+  "icon": "moon-star",
+  "meaning_up": "Illusion, fear, anxiety, subconscious, intuition",
+  "meaning_rev": "Release of fear, repressed emotion, inner confusion",
+  "desc": "The Moon is a symbol of illusion and fear, a reminder that not all is as it seems. It represents the importance of listening to one's intuition and of exploring the subconscious mind. Its presence signifies a time of anxiety and a search for the truth.",
+  "fortune_telling": [
+   "You walked a stretch of your story half in the dark, on instinct alone. It got you here.",
+   "Not everything is what it appears to be right now. Move slowly and trust your gut over the glare.",
+   "A confusing stretch is ahead. Instinct will read what logic can't."
+  ],
+  "fortune_telling_rev": [
+   "A fog you lived in finally lifted, and the truth was kinder than the fear.",
+   "The fear is louder than the fact. Turn on a light and check.",
+   "Clarity is coming. What frightened you in the dark will look ordinary at dawn."
+  ]
+ },
+ {
+  "name": "The Sun",
+  "suit": "major",
+  "icon": "sun",
+  "meaning_up": "Positivity, fun, warmth, success, vitality",
+  "meaning_rev": "Inner child, feeling down, overly optimistic",
+  "desc": "The Sun is a symbol of positivity and fun, a reminder that there is always a reason to be happy. It represents the importance of living in the moment and of enjoying the simple pleasures of life. Its presence signifies a time of success and a feeling of vitality.",
+  "fortune_telling": [
+   "A season of real joy warmed everything that came after.",
+   "It's a good day. Don't audit it. Enjoy it.",
+   "Bright days are coming: success, warmth, and nothing to decode."
+  ],
+  "fortune_telling_rev": [
+   "A cloud parked itself over a happy time, and you learned that joy needs defending.",
+   "The sun is out and you're indoors. Step outside your own gloom for a minute.",
+   "Good news will arrive slightly late. Still good. Keep the curtains open."
+  ]
+ },
+ {
+  "name": "Judgement",
+  "suit": "major",
+  "icon": "gavel",
+  "meaning_up": "Judgement, rebirth, inner calling, absolution",
+  "meaning_rev": "Self-doubt, inner critic, ignoring the call",
+  "desc": "Judgement is a symbol of rebirth and renewal, a reminder that we all have the power to change our lives for the better. It represents the importance of listening to one's inner calling and of forgiving oneself for past mistakes. Its presence signifies a time of absolution and a new beginning.",
+  "fortune_telling": [
+   "A wake-up call changed your course. You answered it, which is the part that matters.",
+   "Take stock honestly. Forgive the old version of you and get up.",
+   "A summons to something bigger is coming. Rise to it."
+  ],
+  "fortune_telling_rev": [
+   "You judged yourself harder than any jury would have.",
+   "Self-doubt is drowning out the call. Lower the gavel and listen.",
+   "You'll get a second chance you don't think you deserve. Take it anyway."
+  ]
+ },
+ {
+  "name": "The World",
+  "suit": "major",
+  "icon": "globe",
+  "meaning_up": "Completion, integration, accomplishment, travel",
+  "meaning_rev": "Seeking personal closure, short-cuts, delays",
+  "desc": "The World is a symbol of completion and integration, a reminder that all things are connected. It represents the importance of celebrating one's accomplishments and of feeling a sense of wholeness. Its presence signifies a time of travel and a new chapter in one's life.",
+  "fortune_telling": [
+   "You finished something whole. That completion is a foundation, not just a memory.",
+   "The circle is closing. Celebrate before you start the next one.",
+   "Completion is near, and it will feel as good as promised. The world opens after."
+  ],
+  "fortune_telling_rev": [
+   "Something ended at ninety percent, and it still itches.",
+   "You're one honest push from done. Close the loop.",
+   "Don't stop at almost. The last mile is where the meaning lives."
+  ]
+ }
+]

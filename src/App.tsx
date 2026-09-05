@@ -151,6 +151,7 @@ const hardcodedConfig: AppConfig = {
     feedIncludeProfileUpdates: true,
     feedIncludeLoveLists: true,
     feedIncludeBlobbi: true,
+    feedIncludeTarot: true,
     showBirdstar: true,
     feedIncludeBirdDetections: true,
     feedIncludeBirdex: true,

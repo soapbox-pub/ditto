@@ -122,6 +122,9 @@ export const KIND_LABELS: Record<number, string> = {
   // Coinjoin
   2022: 'Coinjoin pool',
 
+  // NIP-TR tarot reading
+  2256: 'Tarot reading',
+
   // Ditto custom kinds
   2473: 'Bird detection',
 

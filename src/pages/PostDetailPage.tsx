@@ -50,6 +50,8 @@ import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
 const CustomNipCard = lazy(() => import("@/components/CustomNipCard").then(m => ({ default: m.CustomNipCard })));
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { HighlightContent } from "@/components/HighlightContent";
+import { TarotReadingCard } from "@/components/tarot/TarotReadingCard";
+import { TAROT_READING_KIND } from "@/lib/tarot/cards";
 import { WebBookmarkContent } from "@/components/WebBookmarkContent";
 import { StatusContent } from "@/components/StatusContent";
 import { InteractiveRoomContent } from "@/components/InteractiveRoomContent";
@@ -1335,6 +1337,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isLetter = event.kind === 8211;
   const isLoveList = event.kind === LOVE_LIST_KIND;
   const isHighlight = event.kind === 9802;
+  const isTarotReading = event.kind === TAROT_READING_KIND;
   const isWebBookmark = event.kind === 39701;
   const isStatus = event.kind === 30315;
   const isRoom = event.kind === 30312 || event.kind === 30313;
@@ -1383,6 +1386,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isLetter &&
     !isLoveList &&
     !isHighlight &&
+    !isTarotReading &&
     !isWebBookmark &&
     !isStatus &&
     !isRoom &&
@@ -2745,6 +2749,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <LoveListContent event={event} />
             ) : isHighlight ? (
               <HighlightContent event={event} expanded />
+            ) : isTarotReading ? (
+              <TarotReadingCard event={event} expanded />
             ) : isWebBookmark ? (
               <WebBookmarkContent event={event} expanded />
             ) : isStatus ? (

@@ -614,6 +614,14 @@ Save blocks begin with the ASCII magic `SC`. The BIOS title is Shift-JIS at offs
 
 The following specifications are maintained by their respective authors. Ditto implements these kinds but does not own the specs. See each link for the full event structure, tags, and client behavior.
 
+### Tarot Readings (Kind 2256, NIP-TR)
+
+**Spec:** `nostr:naddr1qvzqqqrcvypzppscgyy746fhmrt0nq955z6xmf80pkvrat0yq0hpknqtd00z8z68qqfhgctjda6z6cmpwfjz6un9v9jxjmn8wvxwl7dc`
+
+A tarot reading is a regular kind 2256 event. The drawn cards are ordered `c` tags — `["c", "<card-identifier>", "<orientation>"]` — where the identifier is the card's traditional English name kebab-cased (`the-fool`, `two-of-cups`) and the orientation is `reversed` or omitted for upright. The n-th `c` tag is the n-th card drawn; position is positional, carried by order rather than labels. The spread is named by a single `s` tag (Ditto draws `past-present-future`), the cadence by `t` tags (`daily`/`weekly`), and `alt` gives a NIP-31 fallback. The spec allows optional prose in `content` and an `imeta` image, but the draw is fully reconstructable from the tags alone — Nostr is the database, no other storage exists.
+
+Ditto publishes readings with empty `content` (the cards and their meanings render from the tags) and shows them as face-up card art in draw order (feed, detail, and compact quote embeds). The logged-in user's current sealed reading is restored across devices by querying `kinds: [2256]`, `authors: [<user>]`, `#t: [<daily|weekly>]` with a `since` of 24 hours (daily) or 7 days (weekly).
+
 ### Color Moments (Kind 3367)
 
 **Author:** Chad Curtis

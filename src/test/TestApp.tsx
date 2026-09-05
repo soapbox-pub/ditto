@@ -125,6 +125,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeProfileUpdates: false,
       feedIncludeLoveLists: true,
       feedIncludeBlobbi: true,
+      feedIncludeTarot: false,
       showBirdstar: false,
       feedIncludeBirdDetections: false,
       feedIncludeBirdex: false,
