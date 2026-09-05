@@ -2,7 +2,7 @@
  * Ditto's expression, blink and gaze layers compose on the canonical body.
  *
  * End to end: a kind 31124 event → `parseBlobbiEvent` → the canonical visual
- * identity → `@blobbi/renderer` body → Ditto eye animation → Ditto recipe →
+ * identity → `@blobbi-kit/renderer` body → Ditto eye animation → Ditto recipe →
  * Ditto sanitizer → DOM. What must hold: exactly one set of Ditto eye groups,
  * no renderer gaze markup competing with them, recipes landing on the face,
  * and a synthetic Adult V2 rendering without crashing.

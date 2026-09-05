@@ -10,7 +10,7 @@ kind 31124 event
    ↓  @blobbi-kit/react         headless hooks (collection, actions, missions)
    ↓  Ditto adapters            BlobbiCompanion / CompanionData → RenderableBlobbi
    ↓                            (src/blobbi/ui/lib/adapters.ts, via getBlobbiVisualIdentity)
-   ↓  @blobbi/renderer          the canonical BODY: anatomy, V1 forms, Baby V1,
+   ↓  @blobbi-kit/renderer      the canonical BODY: anatomy, V1 forms, Baby V1,
    ↓                            trait colours, per-instance SVG ids, V2 views
    ↓                            (src/blobbi/ui/lib/canonical-base.ts)
    ↓  Ditto eye animation       blink clip-paths + gaze groups   (ui/lib/eye-animation.ts)
@@ -28,8 +28,8 @@ kind 31124 event
 | Adult form resolution (explicit → seed → default) | `@blobbi-kit/core` | `resolveAdultForm` |
 | Visual identity projection | `@blobbi-kit/core` | `getBlobbiVisualIdentity` |
 | Nostr/React data hooks | `@blobbi-kit/react` | `useBlobbisCollection`, care hooks |
-| Base body: Adult V1 (16 forms), Baby V1, colours, ids | `@blobbi/renderer` | `renderBlobbiSvg` |
-| Adult V2 anatomy, front/side/back views, closed eyes | `@blobbi/renderer` | same |
+| Base body: Adult V1 (16 forms), Baby V1, colours, ids | `@blobbi-kit/renderer` | `renderBlobbiSvg` |
+| Adult V2 anatomy, front/side/back views, closed eyes | `@blobbi-kit/renderer` | same |
 | Egg / incubation visuals and behaviour | Ditto | `src/blobbi/egg`, `BlobbiEggVisual` |
 | Blink lifecycle, pointer eye tracking | Ditto | `useBlobbiEyes`, `useExternalEyeOffset` |
 | Sleeping presentation (closed-eye overlay, Zzz) | Ditto | recipe `sleepy` + eye clip |
@@ -97,11 +97,13 @@ shadows) and a fragment-only `href`/`xlink:href` on a gradient element
 (gradient inheritance). Every other `href`, `<use>`, `<image>`, `<a>`, script,
 event handler and filter primitive stays blocked.
 
-## Dependencies (development)
+## Dependencies
 
-The three packages are npm `file:` links to the sibling `blobbi-kit` checkout
-(`@blobbi-kit/core` 0.5.1, `@blobbi-kit/react` 0.5.1, `@blobbi/renderer`
-0.1.0) until they are published; `npm run build` in blobbi-kit refreshes them.
-Vite serves the linked `dist/`, keeps them out of pre-bundling, pins React to
-Ditto's copy and dedupes the context singletons. `src/blobbi/canonical-packages.test.tsx`
-pins all of this and proves a single React runtime.
+The three packages are ordinary registry dependencies: `@blobbi-kit/core`
+`^0.5.1`, `@blobbi-kit/react` `^0.5.1` and `@blobbi-kit/renderer` `^0.1.0`,
+all published from the blobbi-kit repository. The renderer's only peer is
+React; core's only runtime dependency is `@noble/hashes`; the react package
+peers on core, `@nostrify/react`, `@tanstack/react-query` and React. Vite
+dedupes the React and context singletons as ordinary hygiene.
+`src/blobbi/canonical-packages.test.tsx` pins the specifiers, the installed
+versions, the package boundaries and a single React runtime.

@@ -2,7 +2,7 @@
  * BlobbiAdultSvgRenderer — Pure SVG rendering component for adult Blobbi.
  *
  * This component is the leaf node of the visual pipeline. It:
- *   1. Draws the canonical body through `@blobbi/renderer` (form, colours,
+ *   1. Draws the canonical body through `@blobbi-kit/renderer` (form, colours,
  *      per-instance ids; see lib/canonical-base.ts)
  *   2. Adds eye animation infrastructure (blink clip-paths, gaze groups)
  *   3. Applies visual recipe or emotion preset
@@ -24,7 +24,7 @@
 import { useMemo } from 'react';
 
 import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
-import type { BlobbiFacing } from '@blobbi/renderer';
+import type { BlobbiFacing } from '@blobbi-kit/renderer';
 
 import { addEyeAnimation } from './lib/eye-animation';
 import { resolveVisualRecipe, applyVisualRecipe, type BlobbiVisualRecipe } from './lib/recipe';

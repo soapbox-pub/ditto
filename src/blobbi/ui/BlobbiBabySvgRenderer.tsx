@@ -2,7 +2,7 @@
  * BlobbiBabySvgRenderer — Pure SVG rendering component for baby Blobbi.
  *
  * This component is the leaf node of the visual pipeline. It:
- *   1. Draws the canonical baby body through `@blobbi/renderer` (colours,
+ *   1. Draws the canonical baby body through `@blobbi-kit/renderer` (colours,
  *      per-instance ids; see lib/canonical-base.ts)
  *   2. Adds eye animation infrastructure (blink clip-paths, gaze groups)
  *   3. Applies visual recipe or emotion preset

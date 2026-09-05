@@ -1,7 +1,7 @@
 /**
  * Canonical base artwork for Ditto's Blobbi visuals.
  *
- * The BODY comes from `@blobbi/renderer`, the canonical Blobbi renderer shared
+ * The BODY comes from `@blobbi-kit/renderer`, the canonical Blobbi renderer shared
  * with Blobbi Island: anatomy, V1 form artwork, trait colours, sleeping
  * artwork, per-instance SVG ids and, for V2, the authored directional views.
  * Ditto no longer keeps its own copy of that engine.
@@ -30,7 +30,7 @@
  *  - the artwork GENERATION is identity: `visualGeneration` from the parsed
  *    companion, `'v1'` when absent, exactly as `@blobbi-kit/core` reads it.
  */
-import { renderBlobbiSvg, type BlobbiFacing, type BlobbiVisualGeneration } from '@blobbi/renderer';
+import { renderBlobbiSvg, type BlobbiFacing, type BlobbiVisualGeneration } from '@blobbi-kit/renderer';
 import type { Blobbi } from '@blobbi-kit/core/types/blobbi';
 import { resolveAdultForm, type AdultForm } from '@blobbi-kit/core/types/adult';
 

@@ -59,7 +59,7 @@ blobbiPurify.addHook('uponSanitizeAttribute', (node, data) => {
   }
 
   // Gradient inheritance. The canonical Adult V2 artwork (from
-  // @blobbi/renderer) declares its limb/foot gradients once and derives the
+  // @blobbi-kit/renderer) declares its limb/foot gradients once and derives the
   // positioned copies with `<linearGradient xlink:href="#footGradient" ...>`.
   // `href`/`xlink:href` stay FORBIDDEN everywhere else (links, <use>, <image>
   // are how an SVG reaches out); the single exception is a gradient element

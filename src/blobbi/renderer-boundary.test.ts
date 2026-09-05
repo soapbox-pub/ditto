@@ -52,13 +52,13 @@ describe('the duplicated base engine is gone', () => {
 });
 
 describe('packages are consumed through their public entry points', () => {
-  it('no deep import into @blobbi/renderer internals', () => {
-    const deep = SOURCES.filter((f) => specifiersOf(f).some((s) => s.startsWith('@blobbi/renderer/'))).map(rel);
+  it('no deep import into @blobbi-kit/renderer internals', () => {
+    const deep = SOURCES.filter((f) => specifiersOf(f).some((s) => s.startsWith('@blobbi-kit/renderer/'))).map(rel);
     expect(deep).toEqual([]);
   });
 
   it('the renderer is used by the visual layer and by nothing in the domain or companion behaviour', () => {
-    const users = SOURCES.filter((f) => specifiersOf(f).includes('@blobbi/renderer')).map(rel);
+    const users = SOURCES.filter((f) => specifiersOf(f).includes('@blobbi-kit/renderer')).map(rel);
     expect(users.length).toBeGreaterThan(0);
     for (const u of users) {
       expect(u.startsWith('src/blobbi/ui/'), `${u} should not import the renderer`).toBe(true);

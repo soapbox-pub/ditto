@@ -1,6 +1,6 @@
 /**
  * The canonical body boundary: Ditto's visual pipeline starts from
- * `@blobbi/renderer` output for every stage, form, colour and generation.
+ * `@blobbi-kit/renderer` output for every stage, form, colour and generation.
  */
 import { describe, it, expect } from 'vitest';
 import { ADULT_FORMS, deriveAdultFormFromSeed } from '@blobbi-kit/core/types/adult';
