@@ -1,24 +1,100 @@
 /**
  * Mouth Detection
- * 
+ *
  * Detects the mouth position from Blobbi SVG content.
- * Uses two strategies:
- * 1. Primary: Look for <!-- Mouth --> marker and extract elements
- * 2. Fallback: Regex-based Q-curve path matching
+ * Uses three strategies, in order:
+ * 1. Semantic: Q-curve paths whose stroke references a mouth gradient
+ *    (`url(#cattiMouth3D)`, `url(#froggiMouthHighlight)`, `url(#crystiSmile)`).
+ *    This is the canonical artwork's own structure and needs no comment.
+ * 2. Marker: Look for <!-- Mouth --> marker and extract elements after it
+ * 3. Fallback: Regex-based Q-curve path matching (first plausible path)
+ *
+ * Why the semantic strategy exists: multi-path mouths (Catti's two halves,
+ * Froggi's mouth + highlight) were only recognised as ONE mouth through the
+ * marker. When Ditto's inlined artwork was minified (comments stripped) the
+ * regex fallback silently took over: it saw Catti's left half as the whole
+ * mouth (centre x=91 instead of 100) and its replacement deleted every other
+ * single-Q stroke path in the drawing, Catti's whiskers and six of Froggi's
+ * feature strokes included. The gradient reference survives minification and
+ * id namespacing, so the result no longer depends on comments being present.
  */
 
 import type { MouthPosition, MouthDetectionResult, MouthAnchor } from './types';
+
+// ─── Semantic Detection ───────────────────────────────────────────────────────
+
+/** A self-closing single-Q-curve path carrying a stroke (the mouth path shape). */
+const SINGLE_Q_STROKE_PATH = /<path[^>]*d="M\s*[\d.]+\s+[\d.]+\s*Q\s*[\d.]+\s+[\d.]+\s+[\d.]+\s+[\d.]+"[^>]*stroke[^>]*\/>/g;
+/** A stroke that references a gradient named for the mouth (ids may be namespaced: `b_x_cattiMouth3D`). */
+const MOUTH_STROKE_REF = /\sstroke="url\(#[^)"]*(?:mouth|smile)[^)"]*\)"/i;
+
+interface LocatedPath {
+  match: string;
+  index: number;
+}
+
+/** Every single-Q stroke path whose stroke is a mouth/smile gradient, in document order. */
+function findSemanticMouthPaths(svgText: string): LocatedPath[] {
+  const found: LocatedPath[] = [];
+  SINGLE_Q_STROKE_PATH.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = SINGLE_Q_STROKE_PATH.exec(svgText)) !== null) {
+    if (MOUTH_STROKE_REF.test(m[0])) found.push({ match: m[0], index: m.index });
+  }
+  return found;
+}
+
+/**
+ * Detect the mouth from the artwork's own gradient references. The position
+ * spans every mouth path (both halves of a two-path mouth), exactly as the
+ * marker strategy computes it.
+ */
+function detectMouthBySemanticStroke(svgText: string): MouthDetectionResult | null {
+  const paths = findSemanticMouthPaths(svgText);
+  if (paths.length === 0) return null;
+  const mouthElements = paths.map((p) => p.match).join('\n');
+  const position = extractMouthPositionFromElements(mouthElements);
+  if (!position) return null;
+  const last = paths[paths.length - 1];
+  return {
+    position,
+    mouthElements,
+    startIndex: paths[0].index,
+    endIndex: last.index + last.match.length,
+  };
+}
+
+/**
+ * Replace ONLY the semantic mouth paths: the first becomes the new mouth, the
+ * others are removed. Returns null when the drawing has no mouth gradient.
+ */
+function replaceMouthBySemanticStroke(svgText: string, newMouthSvg: string): string | null {
+  const paths = findSemanticMouthPaths(svgText);
+  if (paths.length === 0) return null;
+  let result = svgText;
+  // Splice from the end so earlier indices stay valid.
+  for (let i = paths.length - 1; i >= 0; i--) {
+    const { index, match } = paths[i];
+    result = result.slice(0, index) + (i === 0 ? newMouthSvg : '') + result.slice(index + match.length);
+  }
+  return result;
+}
 
 // ─── Main Detection ───────────────────────────────────────────────────────────
 
 /**
  * Detect mouth position from SVG content.
- * 
+ *
  * Strategy:
- * 1. Primary: Look for <!-- Mouth --> marker and extract elements after it
- * 2. Fallback: Use regex to find mouth-like Q curve paths
+ * 1. Semantic: paths stroked with a mouth/smile gradient (comment-independent)
+ * 2. Marker: Look for <!-- Mouth --> marker and extract elements after it
+ * 3. Fallback: Use regex to find mouth-like Q curve paths
  */
 export function detectMouthPosition(svgText: string): MouthDetectionResult | null {
+  const semanticResult = detectMouthBySemanticStroke(svgText);
+  if (semanticResult) {
+    return semanticResult;
+  }
   const markerResult = detectMouthByMarker(svgText);
   if (markerResult) {
     return markerResult;
@@ -162,7 +238,9 @@ function detectMouthByRegex(svgText: string): MouthDetectionResult | null {
 /**
  * Replace mouth <path> elements in the SVG with new mouth content.
  * 
- * Uses two strategies in order:
+ * Uses three strategies in order:
+ * 0. Semantic: only paths stroked with a mouth/smile gradient are touched,
+ *    whatever comments the drawing carries.
  * 1. Marker-bounded: If a <!-- Mouth --> marker exists, only replace Q-curve
  *    paths within the marker section. This prevents non-mouth paths (e.g.
  *    Catti's whiskers) from being matched and destroyed.
@@ -170,6 +248,12 @@ function detectMouthByRegex(svgText: string): MouthDetectionResult | null {
  *    for SVGs without markers).
  */
 export function replaceMouthSection(svgText: string, newMouthSvg: string): string {
+  // Strategy 0: semantic replacement (mouth-gradient strokes only)
+  const semanticResult = replaceMouthBySemanticStroke(svgText, newMouthSvg);
+  if (semanticResult !== null) {
+    return semanticResult;
+  }
+
   // Strategy 1: marker-bounded replacement
   const markerResult = replaceMouthByMarker(svgText, newMouthSvg);
   if (markerResult !== null) {
