@@ -179,6 +179,9 @@ export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
     state: preview.state,
     seed: preview.seed,
     visualTraits: preview.visualTraits,
+    // A freshly adopted egg draws the original artwork generation; the event
+    // carries no `visual_generation` tag, which the domain reads as v1.
+    visualGeneration: 'v1' as const,
     stats: preview.stats,
     
     // Required but not used for preview rendering

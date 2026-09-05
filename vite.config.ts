@@ -6,7 +6,7 @@ import path from "node:path";
 
 import react from "@vitejs/plugin-react";
 import { visualizer } from "rollup-plugin-visualizer";
-import { defineConfig, loadEnv, type Plugin } from "vite";
+import { defineConfig, loadEnv, searchForWorkspaceRoot, type Plugin } from "vite";
 
 import { DittoConfigSchema } from "./src/lib/schemas";
 
@@ -370,6 +370,13 @@ export default defineConfig(({ mode }) => {
     host: "::",
     port: 8080,
     allowedHosts: env.ALLOWED_HOSTS === "*" ? true : undefined,
+    fs: {
+      // The Blobbi packages are npm `file:` dependencies on the sibling
+      // blobbi-kit checkout (see package.json). npm symlinks them into
+      // node_modules and Vite resolves the symlink to its real path outside
+      // this project root, so their built `dist/` must be allowed to be served.
+      allow: [searchForWorkspaceRoot(process.cwd()), "../blobbi-kit/packages"],
+    },
   },
   plugins: [
     react(),
@@ -393,8 +400,9 @@ export default defineConfig(({ mode }) => {
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
-    // Only run Ditto's own tests. Blobbi lives in the published @blobbi-kit/*
-    // packages (node_modules), whose internal tests are not part of this run.
+    // Only run Ditto's own tests. The Blobbi packages (@blobbi-kit/core,
+    // @blobbi-kit/react, @blobbi/renderer) are consumed from their built
+    // `dist/`; their own test suites run in the blobbi-kit repository.
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     onConsoleLog(log) {
       return !log.includes("React Router Future Flag Warning");
@@ -404,11 +412,12 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       deps: {
-        // Inline the published @blobbi-kit packages so Vitest transforms them
-        // through its pipeline. Without this they resolve as externalized
-        // node_modules, and `vi.mock()` calls in tests (e.g. mocking
-        // '@nostrify/react') never intercept the imports made inside them.
-        inline: [/@blobbi-kit\//],
+        // Inline the Blobbi packages so Vitest transforms them through its
+        // pipeline. Without this they could resolve as externalized modules,
+        // and `vi.mock()` calls in tests (e.g. mocking '@nostrify/react')
+        // would never intercept the imports made inside them. Matched on the
+        // package specifier and on the linked real path under blobbi-kit.
+        inline: [/@blobbi-kit\//, /@blobbi\/renderer/, /blobbi-kit\/packages\//],
       },
     },
   },
@@ -426,13 +435,29 @@ export default defineConfig(({ mode }) => {
     },
   },
   optimizeDeps: {
-    exclude: ['@capacitor/filesystem', '@capacitor/share', '@capacitor/app-launcher'],
+    exclude: [
+      '@capacitor/filesystem',
+      '@capacitor/share',
+      '@capacitor/app-launcher',
+      // Linked from the sibling blobbi-kit checkout: kept out of dependency
+      // pre-bundling so a rebuild there shows up without clearing Vite's cache.
+      '@blobbi-kit/core',
+      '@blobbi-kit/react',
+      '@blobbi/renderer',
+    ],
   },
   resolve: {
     alias: [
-      // @blobbi-kit/core and @blobbi-kit/react resolve through their installed
-      // package exports in node_modules (published npm packages), not source aliases.
+      // @blobbi-kit/core, @blobbi-kit/react and @blobbi/renderer resolve through
+      // their package exports in node_modules (`file:` links to the sibling
+      // blobbi-kit checkout), not source aliases.
       { find: "@", replacement: path.resolve(import.meta.dirname, "./src") },
+      // The linked packages live outside this project, where a second copy of
+      // React (blobbi-kit's own devDependency) is reachable by plain Node
+      // resolution. Pin React to this project's copy so there is exactly one
+      // runtime; `dedupe` below covers the same for the other singletons.
+      { find: "react", replacement: path.resolve(import.meta.dirname, "node_modules/react") },
+      { find: "react-dom", replacement: path.resolve(import.meta.dirname, "node_modules/react-dom") },
     ],
     // Dedupe the React-context-bearing singletons so a dependency can't pull in a
     // second copy of them (which breaks useContext).
