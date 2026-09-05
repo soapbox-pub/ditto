@@ -257,6 +257,20 @@ describe('sanitizeBlobbiSvg', () => {
     expect(sanitized).not.toContain('evil.example');
   });
 
+  it('drops a filter attribute that is not an in-document url(#id) reference', () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <defs><filter id="blur10"><feGaussianBlur stdDeviation="10" /></filter></defs>
+      <ellipse cx="50" cy="80" rx="30" ry="5" filter="url(#blur10)" />
+      <ellipse cx="50" cy="60" rx="30" ry="5" filter="url(https://evil.example/f.svg#x)" />
+      <ellipse cx="50" cy="40" rx="30" ry="5" filter="blur(4px)" />
+    </svg>`;
+    const sanitized = sanitizeBlobbiSvg(svg);
+    expect(sanitized).toContain('filter="url(#blur10)"');
+    expect(sanitized).not.toContain('evil.example');
+    expect(sanitized).not.toContain('blur(4px)');
+    expect((sanitized.match(/ filter="/g) ?? []).length).toBe(1);
+  });
+
   it('rejects SVGs exceeding max length', () => {
     const largeSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
       <text>${'x'.repeat(600 * 1024)}</text>

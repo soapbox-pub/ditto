@@ -17,6 +17,7 @@ import { ADULT_FORMS } from '@blobbi-kit/core/types/adult';
 import { renderCanonicalBaseSvg, type RenderableBlobbi } from '../canonical-base';
 import { addEyeAnimation } from '../eye-animation';
 import { applyVisualRecipe, resolveVisualRecipe, EMOTION_RECIPES } from '../recipe';
+import type { BlobbiEmotion } from '../emotion-types';
 import { detectMouthPosition, replaceMouthSection } from './detection';
 
 const stripComments = (s: string) => s.replace(/<!--[\s\S]*?-->/g, '');
@@ -31,8 +32,8 @@ function blobbi(form: string): RenderableBlobbi {
 }
 const body = (form: string) => renderCanonicalBaseSvg(blobbi(form), { stage: 'adult', instanceId: 'm' }).svg;
 const prepared = (form: string, svg = body(form)) => addEyeAnimation(svg, { baseColor: '#33AA66', instanceId: 'm' });
-const MOUTH_RECIPES = Object.entries(EMOTION_RECIPES).filter(([, r]) => r.mouth).map(([name]) => name);
-const NON_MOUTH_RECIPES = Object.entries(EMOTION_RECIPES).filter(([, r]) => !r.mouth).map(([name]) => name);
+const MOUTH_RECIPES = (Object.keys(EMOTION_RECIPES) as BlobbiEmotion[]).filter((name) => EMOTION_RECIPES[name].mouth);
+const NON_MOUTH_RECIPES = (Object.keys(EMOTION_RECIPES) as BlobbiEmotion[]).filter((name) => !EMOTION_RECIPES[name].mouth);
 const mouthEl = (svg: string): string[] => Array.from(svg.match(/<(?:path|ellipse)[^>]*class="[^"]*blobbi-mouth[^"]*"[^>]*>/g) ?? []);
 const whiskers = (svg: string) => (svg.match(/M 48 108|M 48 118|M 128 108|M 128 118/g) ?? []).length;
 const CATTI_MOUTH_HALVES = [/M 100 122 Q 88 128 82 122/, /M 100 122 Q 112 128 118 122/];
@@ -57,7 +58,7 @@ describe('catti: the two-path mouth is one mouth, with or without comments', () 
 
   it.each(MOUTH_RECIPES)('%s: one centred mouth, whiskers kept, eyeColor kept, identical without comments', (emotion) => {
     expect(MOUTH_RECIPES.length).toBeGreaterThanOrEqual(12);
-    const recipe = resolveVisualRecipe(emotion as never);
+    const recipe = resolveVisualRecipe(emotion);
     const withC = applyVisualRecipe(prepared('catti'), recipe, emotion, 'adult', 'catti', 'm');
     const noC = applyVisualRecipe(prepared('catti', stripComments(body('catti'))), recipe, emotion, 'adult', 'catti', 'm');
     // Exactly one recipe mouth, centred on the face.
@@ -79,7 +80,7 @@ describe('catti: the two-path mouth is one mouth, with or without comments', () 
   });
 
   it.each(NON_MOUTH_RECIPES)('%s: recipes without a mouth part leave both halves untouched', (emotion) => {
-    const recipe = resolveVisualRecipe(emotion as never);
+    const recipe = resolveVisualRecipe(emotion);
     const out = applyVisualRecipe(prepared('catti'), recipe, emotion, 'adult', 'catti', 'm');
     for (const half of CATTI_MOUTH_HALVES) expect(out).toMatch(half);
     expect(mouthEl(out)).toHaveLength(0);

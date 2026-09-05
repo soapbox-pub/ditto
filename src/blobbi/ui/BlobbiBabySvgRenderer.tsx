@@ -4,12 +4,11 @@
  * This component is the leaf node of the visual pipeline. It:
  *   1. Draws the canonical baby body through `@blobbi/renderer` (colours,
  *      per-instance ids; see lib/canonical-base.ts)
- *   2. (colours and ids are part of step 1)
- *   3. Adds eye animation infrastructure (blink clip-paths, gaze groups)
- *   4. Applies visual recipe or emotion preset
- *   5. Applies manual body effects (when no recipe is provided)
- *   6. Sanitizes the SVG
- *   7. Renders via dangerouslySetInnerHTML
+ *   2. Adds eye animation infrastructure (blink clip-paths, gaze groups)
+ *   3. Applies visual recipe or emotion preset
+ *   4. Applies manual body effects (when no recipe is provided)
+ *   5. Sanitizes the SVG
+ *   6. Renders via dangerouslySetInnerHTML
  *
  * It does NOT know about:
  *   - Eye tracking hooks (useBlobbiEyes / useExternalEyeOffset)

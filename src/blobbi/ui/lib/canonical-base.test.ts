@@ -99,7 +99,9 @@ describe('visual generation is identity, defaulting to V1', () => {
   it('absent, v1 and garbage resolve to v1; only v2 resolves to v2', () => {
     expect(resolveRenderGeneration({})).toBe('v1');
     expect(resolveRenderGeneration({ visualGeneration: 'v1' })).toBe('v1');
-    expect(resolveRenderGeneration({ visualGeneration: 'v9' as never })).toBe('v1');
+    // External JSON can carry anything; a value outside the union resolves to v1.
+    const external: { visualGeneration?: string } = { visualGeneration: 'v9' };
+    expect(resolveRenderGeneration(external as Parameters<typeof resolveRenderGeneration>[0])).toBe('v1');
     expect(resolveRenderGeneration({ visualGeneration: 'v2' })).toBe('v2');
   });
 

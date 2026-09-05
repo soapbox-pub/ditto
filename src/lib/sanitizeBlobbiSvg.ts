@@ -71,6 +71,14 @@ blobbiPurify.addHook('uponSanitizeAttribute', (node, data) => {
     FRAGMENT_REF.test(data.attrValue)
   ) {
     data.forceKeepAttr = true;
+    return;
+  }
+
+  // `filter` is newly allowed for the V2 shadows and, unlike href, is not a
+  // URI attribute DOMPurify vets itself. Only an in-document reference to a
+  // <filter> in this drawing is meaningful; anything else is dropped.
+  if (data.attrName === 'filter' && !FRAGMENT_URL_REF.test(data.attrValue.trim())) {
+    data.keepAttr = false;
   }
 });
 
@@ -78,6 +86,8 @@ blobbiPurify.addHook('uponSanitizeAttribute', (node, data) => {
 const GRADIENT_ELEMENTS = new Set(['lineargradient', 'radialgradient']);
 /** `#id` and nothing else: no scheme, no path, no query. */
 const FRAGMENT_REF = /^#[A-Za-z0-9_:.-]+$/;
+/** `url(#id)` and nothing else, for the `filter` presentation attribute. */
+const FRAGMENT_URL_REF = /^url\(#[A-Za-z0-9_:.-]+\)$/;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ALLOWED TAGS
