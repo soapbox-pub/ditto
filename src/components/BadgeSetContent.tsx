@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Award } from 'lucide-react';
+
+import { FallbackImage } from '@/components/FallbackImage';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -57,7 +59,7 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
       {image ? (
         <div className="relative isolate overflow-hidden rounded-2xl border border-border bg-black">
           <div className="aspect-[3/1] w-full">
-            <img
+            <FallbackImage
               src={image}
               alt={title}
               className="size-full object-cover"

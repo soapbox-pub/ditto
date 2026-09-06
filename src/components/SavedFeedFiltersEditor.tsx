@@ -26,6 +26,7 @@ import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useUserLists, useMatchedListId } from '@/hooks/useUserLists';
 import { useFollowPacks } from '@/hooks/useFollowPacks';
+import { FallbackImage } from '@/components/FallbackImage';
 import { cn } from '@/lib/utils';
 import type { TabFilter } from '@/contexts/AppContext';
 import type { SearchProfile } from '@/hooks/useSearchProfiles';
@@ -520,9 +521,12 @@ export function AuthorChip({ pubkey, onRemove }: { pubkey: string; onRemove: () 
   const picture = author.data?.metadata?.picture;
   return (
     <span className="inline-flex items-center gap-1.5 pl-1.5 pr-1 py-0.5 rounded-full bg-secondary border border-border text-xs max-w-[160px]">
-      {picture
-        ? <img src={picture} alt="" className="size-4 rounded-full shrink-0 object-cover" decoding="async" />
-        : <User className="size-3 shrink-0 text-muted-foreground" />}
+      <FallbackImage
+        src={picture}
+        className="size-4 rounded-full shrink-0 object-cover"
+        decoding="async"
+        fallback={<User className="size-3 shrink-0 text-muted-foreground" />}
+      />
       <span className="truncate">{name}</span>
       <button onClick={onRemove} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors" aria-label="Remove">
         <X className="size-3" />

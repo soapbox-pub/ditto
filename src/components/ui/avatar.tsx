@@ -1,5 +1,6 @@
 import * as React from "react"
 
+import { useBlossomFallback } from "@/hooks/useBlossomFallback"
 import { cn } from "@/lib/utils"
 import { type AvatarShape, isEmoji, getAvatarMaskUrl, isValidAvatarShape } from "@/lib/avatarShape"
 
@@ -81,19 +82,18 @@ Avatar.displayName = "Avatar"
 const AvatarImage = React.forwardRef<
   HTMLImageElement,
   React.ImgHTMLAttributes<HTMLImageElement>
->(({ className, onError, ...props }, ref) => {
-  const [hasError, setHasError] = React.useState(false)
+>(({ className, onError, src: rawSrc, ...props }, ref) => {
   const hasSrcRef = React.useContext(AvatarHasSrcContext)
-  const src = props.src
+  // A picture uploaded through the app is a content-addressed Blossom URL
+  // naming whichever server won the upload race, and the same bytes were
+  // mirrored to the others (BUD-04). Walk those before showing the initial:
+  // one server going down must not blank every avatar it happened to win.
+  // The walk restarts on its own when the picture changes.
+  const { src, onError: advance, failed } = useBlossomFallback(
+    typeof rawSrc === "string" ? rawSrc : undefined,
+  )
 
-  // Reset error when src changes
-  const prevSrc = React.useRef(src)
-  if (src !== prevSrc.current) {
-    prevSrc.current = src
-    if (hasError) setHasError(false)
-  }
-
-  const showImage = !hasError && !!src
+  const showImage = !failed && !!src
 
   // Signal to AvatarFallback synchronously during this render frame
   if (showImage) {
@@ -107,11 +107,12 @@ const AvatarImage = React.forwardRef<
       loading="lazy"
       decoding="async"
       {...props}
+      src={src}
       ref={ref}
       alt=""
       className={cn("absolute inset-0 h-full w-full object-cover", className)}
       onError={(e) => {
-        setHasError(true)
+        advance()
         onError?.(e)
       }}
     />

@@ -4,6 +4,7 @@ import { UserRoundPen } from 'lucide-react';
 import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
+import { FallbackImage } from '@/components/FallbackImage';
 import { encodeEventAddress } from '@/lib/encodeEvent';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
@@ -48,16 +49,12 @@ export function EmbeddedProfileCard({ event, className, disableHoverCards }: Emb
       </div>
 
       {banner && (
-        <div className="overflow-hidden rounded-lg">
-          <img
+        <div className="overflow-hidden rounded-lg empty:hidden">
+          <FallbackImage
             src={banner}
-            alt=""
             className="max-h-[100px] w-full object-cover"
             loading="lazy"
             decoding="async"
-            onError={(e) => {
-              (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
-            }}
           />
         </div>
       )}

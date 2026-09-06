@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Award } from 'lucide-react';
 
 import type { BadgeData } from '@/lib/parseBadgeDefinition';
+import { FallbackImage } from '@/components/FallbackImage';
 import { useCardTilt } from '@/hooks/useCardTilt';
 import { cn } from '@/lib/utils';
 
@@ -53,26 +54,25 @@ export function BadgeThumbnail({ badge, size = 48, className }: BadgeThumbnailPr
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
     >
-      {thumbUrl ? (
-        <img
-          src={thumbUrl}
-          alt={badge.name}
-          className={cn('rounded-lg object-cover', className)}
-          style={{ width: size, height: size }}
-          loading="lazy"
-          decoding="async"
-        />
-      ) : (
-        <div
-          className={cn(
-            'rounded-lg border border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center',
-            className,
-          )}
-          style={{ width: size, height: size }}
-        >
-          <Award className="text-primary/30" style={{ width: size * 0.5, height: size * 0.5 }} />
-        </div>
-      )}
+      <FallbackImage
+        src={thumbUrl}
+        alt={badge.name}
+        className={cn('rounded-lg object-cover', className)}
+        style={{ width: size, height: size }}
+        loading="lazy"
+        decoding="async"
+        fallback={(
+          <div
+            className={cn(
+              'rounded-lg border border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center',
+              className,
+            )}
+            style={{ width: size, height: size }}
+          >
+            <Award className="text-primary/30" style={{ width: size * 0.5, height: size * 0.5 }} />
+          </div>
+        )}
+      />
     </div>
   );
 }

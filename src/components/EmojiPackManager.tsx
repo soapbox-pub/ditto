@@ -1,5 +1,7 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { Loader2, Pencil, Smile, Trash2 } from 'lucide-react';
+
+import { FallbackImage } from '@/components/FallbackImage';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Button } from '@/components/ui/button';
@@ -188,18 +190,16 @@ function PackRow({ pack, mode, onEdit }: PackRowProps) {
 
   return (
     <div className="flex items-center gap-3 px-4 py-3">
-      {picture ? (
-        <img
-          src={picture}
-          alt=""
-          className="size-10 shrink-0 rounded-lg object-cover border border-border"
-          decoding="async"
-        />
-      ) : (
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
-          <Smile className="size-5" />
-        </span>
-      )}
+      <FallbackImage
+        src={picture}
+        className="size-10 shrink-0 rounded-lg object-cover border border-border"
+        decoding="async"
+        fallback={(
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
+            <Smile className="size-5" />
+          </span>
+        )}
+      />
       <div className="min-w-0 flex-1 space-y-1">
         <div className="text-sm font-semibold leading-tight truncate">{name}</div>
         {visible.length > 0 ? (

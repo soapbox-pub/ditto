@@ -1,5 +1,6 @@
 import { type ReactNode, useCallback, useState } from 'react';
 
+import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { isCustomEmoji, getCustomEmojiUrl, buildEmojiMap, type ResolvedEmoji } from '@/lib/customEmoji';
 import { cn } from '@/lib/utils';
 
@@ -28,7 +29,9 @@ interface CustomEmojiImgProps {
  */
 export function CustomEmojiImg({ name, url, className = 'inline h-[1.2em] w-[1.2em] object-contain align-text-bottom', fallback = null }: CustomEmojiImgProps) {
   const [pixelated, setPixelated] = useState(false);
-  const [failed, setFailed] = useState(false);
+  // Emoji-pack images are Blossom blobs more often than not; walk the viewer's
+  // other servers before the emoji disappears.
+  const { src, onError, failed } = useBlossomFallback(url);
 
   const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
@@ -41,7 +44,7 @@ export function CustomEmojiImg({ name, url, className = 'inline h-[1.2em] w-[1.2
 
   return (
     <img
-      src={url}
+      src={src}
       alt={`:${name}:`}
       title={`:${name}:`}
       className={className}
@@ -49,7 +52,7 @@ export function CustomEmojiImg({ name, url, className = 'inline h-[1.2em] w-[1.2
       loading="lazy"
       decoding="async"
       onLoad={handleLoad}
-      onError={() => setFailed(true)}
+      onError={onError}
     />
   );
 }

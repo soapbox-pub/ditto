@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import { Award } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { useCardTilt } from '@/hooks/useCardTilt';
 import { parseBadgeDefinition } from '@/lib/parseBadgeDefinition';
 
@@ -73,9 +74,14 @@ const INTERACT_PAD = 48;
  * Badge image with mouse-only 3D tilt. Touch events are ignored so
  * tapping through to the detail view is not interfered with.
  */
-function BadgeImageTilt({ heroImage, badgeName }: { heroImage?: string; badgeName: string }) {
+function BadgeImageTilt({ heroImage: primary, badgeName }: { heroImage?: string; badgeName: string }) {
   const tilt = useCardTilt(25, 1.08);
   const glareRef = useRef<HTMLDivElement>(null);
+  // Badge art is a Blossom blob more often than not: walk the viewer's other
+  // servers before the placeholder. The glare mask follows the source that
+  // actually loaded.
+  const { src, onError, failed } = useBlossomFallback(primary);
+  const heroImage = failed ? undefined : src;
 
   const imageMask: React.CSSProperties | undefined = heroImage ? {
     maskImage: `url(${heroImage})`,
@@ -139,6 +145,7 @@ function BadgeImageTilt({ heroImage, badgeName }: { heroImage?: string; badgeNam
           className="size-28 rounded-2xl object-cover drop-shadow-lg"
           loading="lazy"
           decoding="async"
+          onError={onError}
         />
       ) : (
         <div className="size-28 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">

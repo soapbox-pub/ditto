@@ -4,6 +4,7 @@ import { nip19 } from 'nostr-tools';
 import { useQueryClient } from '@tanstack/react-query';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { FallbackImage } from '@/components/FallbackImage';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { EmojifiedText } from '@/components/CustomEmoji';
@@ -54,15 +55,12 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
     <>
       {/* Mini banner */}
       <div className="h-16 bg-secondary relative">
-        {metadata?.banner && (
-          <img
-            src={metadata.banner}
-            alt=""
-            className="w-full h-full object-cover"
-            loading="lazy"
-            decoding="async"
-          />
-        )}
+        <FallbackImage
+          src={metadata?.banner}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
+        />
         {/* Follow button over the banner */}
         <div className="absolute top-2 right-2">
           <FollowButton pubkey={pubkey} size="sm" />

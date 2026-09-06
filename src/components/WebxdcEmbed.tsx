@@ -12,6 +12,7 @@ import { useWebxdc } from '@/hooks/useWebxdc';
 import { useDecryptedFile } from '@/hooks/useDecryptedFile';
 import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
 import { deriveIframeSubdomain } from '@/lib/iframeSubdomain';
+import { FallbackImage } from '@/components/FallbackImage';
 import { cn } from '@/lib/utils';
 
 export interface WebxdcEmbedProps {
@@ -145,18 +146,17 @@ export function WebxdcEmbed({ url: originalUrl, uuid, name, icon: originalIcon, 
         <div className="px-3 py-2 flex items-center gap-2 w-full">
           {/* App icon + name */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            {icon ? (
-              <img
-                src={icon}
-                alt={name ?? 'Webxdc App'}
-                className="size-6 rounded-md object-cover shrink-0"
-                decoding="async"
-              />
-            ) : (
-              <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                <Blocks className="size-3.5 text-primary/50" />
-              </div>
-            )}
+            <FallbackImage
+              src={icon}
+              alt={name ?? 'Webxdc App'}
+              className="size-6 rounded-md object-cover shrink-0"
+              decoding="async"
+              fallback={(
+                <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                  <Blocks className="size-3.5 text-primary/50" />
+                </div>
+              )}
+            />
             <span className="text-sm font-medium truncate">{name ?? 'Webxdc App'}</span>
           </div>
 
@@ -293,20 +293,18 @@ function WebxdcCartridgeButton({
             height: '45.99%',
           }}
         >
-          {icon ? (
-            <img
-              src={icon}
-              alt=""
-              aria-hidden="true"
-              className="w-[70%] aspect-square rounded-[12%] object-cover drop-shadow-md"
-              draggable={false}
-              decoding="async"
-            />
-          ) : (
-            <div className="w-[70%] aspect-square rounded-[12%] bg-primary/15 flex items-center justify-center drop-shadow-md">
-              <Blocks className="w-1/2 h-1/2 text-primary" />
-            </div>
-          )}
+          <FallbackImage
+            src={icon}
+            aria-hidden="true"
+            className="w-[70%] aspect-square rounded-[12%] object-cover drop-shadow-md"
+            draggable={false}
+            decoding="async"
+            fallback={(
+              <div className="w-[70%] aspect-square rounded-[12%] bg-primary/15 flex items-center justify-center drop-shadow-md">
+                <Blocks className="w-1/2 h-1/2 text-primary" />
+              </div>
+            )}
+          />
         </div>
       </button>
     </div>

@@ -9,6 +9,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
+import { FallbackImage } from '@/components/FallbackImage';
 import { cn } from '@/lib/utils';
 import { optimisticPatchEventTags, rollbackEvent, toggleTag } from '@/lib/optimisticEvent';
 
@@ -159,14 +160,12 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
     <div className="mt-3 space-y-3">
       {/* Pack header */}
       <div className="flex items-start gap-3">
-        {pack.picture && (
-          <img
-            src={pack.picture}
-            alt={pack.name}
-            className="size-12 rounded-lg object-cover shrink-0 border border-border"
-            decoding="async"
-          />
-        )}
+        <FallbackImage
+          src={pack.picture}
+          alt={pack.name}
+          className="size-12 rounded-lg object-cover shrink-0 border border-border"
+          decoding="async"
+        />
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-[15px] truncate">{pack.name}</h3>
           {pack.about && (

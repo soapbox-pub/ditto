@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useAppContext } from './useAppContext';
-import { getEffectiveBlossomServers } from '@/lib/appBlossom';
+import { useBlossomServers } from './useBlossomFallback';
 import { blossomAlternatives } from '@/lib/blossomFallback';
 import {
   decryptFileToObjectUrl,
@@ -70,7 +69,7 @@ export function useDecryptedFile(
   opts: UseDecryptedFileOptions = {},
 ): DecryptedFileState {
   const { enabled = true } = opts;
-  const { config } = useAppContext();
+  const servers = useBlossomServers();
   const [state, setState] = useState<InternalState>({ error: false });
   const [allowOversize, setAllowOversize] = useState(false);
 
@@ -79,17 +78,9 @@ export function useDecryptedFile(
   const { algorithm, key, nonce, hash, mime: declaredMime } = encryption ?? {};
   const fallbacks = encryption?.fallbacks?.join('\n');
 
-  const servers = getEffectiveBlossomServers(
-    config.blossomServerMetadata,
-    config.useAppBlossomServers,
-  );
-  const serverKey = servers.join('\n');
-
-  const alternatives = useMemo(
-    () => blossomAlternatives(url, servers),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [url, serverKey],
-  );
+  // The same blob on the viewer's other servers; `servers` is memoized by the
+  // hook, so this rebuilds only when the URL or the list actually changes.
+  const alternatives = useMemo(() => blossomAlternatives(url, servers), [url, servers]);
 
   const unsupported = !!encryption && !isSupportedEncryption(encryption);
 

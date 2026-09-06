@@ -27,6 +27,7 @@ import { useComments } from '@/hooks/useComments';
 import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { parseBadgeDefinition } from '@/lib/parseBadgeDefinition';
+import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { useCardTilt } from '@/hooks/useCardTilt';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { AwardBadgeDialog } from '@/components/AwardBadgeDialog';
@@ -515,7 +516,10 @@ function AwardeeCardSkeleton() {
 /** Extra padding (px) around the badge that expands the pointer hit-area. */
 const INTERACT_PAD = 80;
 
-function BadgeHero({ heroImage, badgeName }: { heroImage: string; badgeName: string }) {
+function BadgeHero({ heroImage: primary, badgeName }: { heroImage: string; badgeName: string }) {
+  // Badge art is a Blossom blob more often than not: walk the viewer's other
+  // servers as loads fail. The glare mask follows the source that loaded.
+  const { src: heroImage, onError } = useBlossomFallback(primary);
   const tilt = useCardTilt(30, 1.06);
   const glareRef = useRef<HTMLDivElement>(null);
   const glareFadeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -642,6 +646,7 @@ function BadgeHero({ heroImage, badgeName }: { heroImage: string; badgeName: str
           loading="lazy"
           draggable={false}
           decoding="async"
+          onError={onError}
         />
         {/* Specular glare overlay — masked to the image's alpha channel */}
         <div

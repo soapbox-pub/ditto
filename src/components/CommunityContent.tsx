@@ -5,6 +5,7 @@ import { nip19 } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { FallbackImage } from '@/components/FallbackImage';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -124,7 +125,7 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
       {/* Community hero image */}
       {image ? (
         <div className="relative -mx-4 aspect-[21/9] overflow-hidden">
-          <img
+          <FallbackImage
             src={image}
             alt={name}
             className="w-full h-full object-cover"

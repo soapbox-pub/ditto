@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { type AvatarShape, isValidAvatarShape, isEmoji, getAvatarMaskUrlAsync, shapedAvatarBorderStyle } from '@/lib/avatarShape';
 import { CheckCircle2, Pencil, Plus, Trash2, ChevronDown, ImagePlus, SmilePlus, X as XIcon } from 'lucide-react';
 import { BioContent } from '@/components/BioContent';
+import { FallbackImage } from '@/components/FallbackImage';
 import { cn } from '@/lib/utils';
 import { getNip05Domain, formatNip05Display } from '@/lib/nip05';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
@@ -193,13 +194,11 @@ export function ProfileCard({
       {/* Banner */}
       <div
         className={cn('relative h-36 bg-secondary', editable && 'cursor-pointer group')}
-        style={
-          bannerUrl
-            ? { backgroundImage: `url("${bannerUrl}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
-            : undefined
-        }
         onClick={() => editable && onPickImage?.('banner')}
       >
+        {/* An <img> rather than a CSS background so a dead Blossom server can
+            be detected and the banner walked to a mirror. */}
+        <FallbackImage src={bannerUrl} className="absolute inset-0 size-full object-cover" />
         {!metadata.banner && <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />}
         {editable && !metadata.banner && (
           <div className="absolute inset-0 flex items-center justify-center">

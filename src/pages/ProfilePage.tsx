@@ -9,6 +9,7 @@ import { nip19 } from 'nostr-tools';
 import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake, HeartHandshake } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { FallbackImage } from '@/components/FallbackImage';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -2124,16 +2125,14 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
           <div className="h-36 md:h-48 bg-secondary relative">
             {author.isLoading ? (
               <Skeleton className="w-full h-full rounded-none" />
-            ) : metadata?.banner ? (
-              <img
-                src={metadata.banner}
-                alt=""
-                className="w-full h-full object-cover cursor-pointer"
-                onClick={() => setLightboxImage(metadata.banner!)}
-                decoding="async"
-              />
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />
+              <FallbackImage
+                src={metadata?.banner}
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => setLightboxImage(metadata!.banner!)}
+                decoding="async"
+                fallback={<div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />}
+              />
             )}
 
             {/* Custom theme indicator — shown when profile has a theme (active or disabled) */}
@@ -3352,18 +3351,19 @@ function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName
             >
               {isLoading ? (
                 <Skeleton className="size-16 rounded-xl" />
-              ) : badge?.image ? (
-                <img
-                  src={badge.image}
-                  alt={badge.name}
+              ) : (
+                <FallbackImage
+                  src={badge?.image}
+                  alt={badge?.name}
                   className="size-16 rounded-xl object-cover border border-border bg-secondary/30 transition-transform group-hover:scale-105"
                   loading="lazy"
                   decoding="async"
+                  fallback={(
+                    <div className="size-16 rounded-xl border border-border bg-secondary/30 flex items-center justify-center transition-transform group-hover:scale-105">
+                      <Award className="size-7 text-muted-foreground" />
+                    </div>
+                  )}
                 />
-              ) : (
-                <div className="size-16 rounded-xl border border-border bg-secondary/30 flex items-center justify-center transition-transform group-hover:scale-105">
-                  <Award className="size-7 text-muted-foreground" />
-                </div>
               )}
               <span className="text-xs text-muted-foreground text-center leading-tight line-clamp-2 max-w-[5rem] group-hover:text-foreground transition-colors">
                 {isLoading ? <Skeleton className="h-3 w-14" /> : (badge?.name || ref.identifier)}

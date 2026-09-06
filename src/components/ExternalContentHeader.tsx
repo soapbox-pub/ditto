@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { BookOpen, Bird, Droplets, ExternalLink, FileText, Globe, MapPin, MessageCircle, Package, Play, Repeat2, Share2, Stars, User, Users, Wind } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { FallbackImage } from '@/components/FallbackImage';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
@@ -1153,19 +1154,18 @@ export function CommunityPreview({ addr }: { addr: { kind: number; pubkey: strin
       to={link}
       className="flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors"
     >
-      {communityImage ? (
-        <img
-          src={communityImage}
-          alt={communityName}
-          className="size-12 rounded-lg object-cover shrink-0"
-          loading="lazy"
-          decoding="async"
-        />
-      ) : (
-        <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-          <Users className="size-5 text-primary/50" />
-        </div>
-      )}
+      <FallbackImage
+        src={communityImage}
+        alt={communityName}
+        className="size-12 rounded-lg object-cover shrink-0"
+        loading="lazy"
+        decoding="async"
+        fallback={(
+          <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Users className="size-5 text-primary/50" />
+          </div>
+        )}
+      />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
