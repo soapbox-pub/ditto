@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.38.1] - 2026-09-06
+
+Broken images, healed. Profile pictures, banners, badges, custom emoji, and app icons now fall back to another media server when the one hosting them goes dark — the same recovery your photos and videos already had. And uploads are finally copied to your backup servers for real, so nothing you post rides on a single machine staying online.
+
+### Changed
+- Profile pictures, banners, badges, custom emoji, emoji pack icons, community images, and app icons fall back to another media server when the one hosting them is unreachable
+
+### Fixed
+- Files you upload are now actually copied to your backup media servers, so a post's images survive any one server disappearing
+
+### Removed
+- The copy link and open in browser buttons in the nsite preview bar
+
 ## [2.38.0] - 2026-09-05
 
 The cards are calling. Draw your daily three-card tarot spread — past, present, and future — flip them one by one, and seal your fate for the day. Feeling patient? A weekly reading goes deeper. Share your spread to your feed and let your followers read the stars with you, where every reading unfolds as its own little starlit scene.
