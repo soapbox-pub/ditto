@@ -16,6 +16,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLanguage } from '@/hooks/useLanguage';
 import { LANGUAGE_OPTIONS } from '@/i18n/language';
 import type { CurrencyDisplay } from '@/contexts/AppContext';
+import { DEFAULT_FAVICON_URL, DEFAULT_LINK_PREVIEW_URL } from '@/lib/apiUrls';
 
 /** The build-time default DSN from the environment variable. */
 const DEFAULT_SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
@@ -135,12 +136,12 @@ export function AdvancedSettings() {
                       toast({ title: intl.formatMessage({ id: 'settings.advanced.faviconUrlUpdated', defaultMessage: "Favicon URL updated" }) });
                     }
                   }}
-                  placeholder="https://ditto.pub/api/favicon/{hostname}"
+                  placeholder={DEFAULT_FAVICON_URL}
                   className="font-mono text-base md:text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
                   <span className="font-medium"><FormattedMessage id="settings.advanced.defaultLabel" defaultMessage={"Default:"} />{' '}</span>
-                  <span className="font-mono break-all">https://ditto.pub/api/favicon/{'{hostname}'}</span>
+                  <span className="font-mono break-all">{DEFAULT_FAVICON_URL}</span>
                 </div>
               </div>
 
@@ -168,12 +169,12 @@ export function AdvancedSettings() {
                       toast({ title: intl.formatMessage({ id: 'settings.advanced.linkPreviewUrlUpdated', defaultMessage: "Link preview URL updated" }) });
                     }
                   }}
-                  placeholder="https://ditto.pub/api/link-preview/{url}"
+                  placeholder={DEFAULT_LINK_PREVIEW_URL}
                   className="font-mono text-base md:text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
                   <span className="font-medium"><FormattedMessage id="settings.advanced.defaultLabel" defaultMessage={"Default:"} />{' '}</span>
-                  <span className="font-mono break-all">https://ditto.pub/api/link-preview/{'{url}'}</span>
+                  <span className="font-mono break-all">{DEFAULT_LINK_PREVIEW_URL}</span>
                 </div>
               </div>
 

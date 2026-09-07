@@ -24,6 +24,7 @@ import { secureStorage } from "@/lib/secureStorage";
 import { APP_CONFIG_STORAGE_KEY } from "@/lib/activeAccount";
 import { DEFAULT_ESPLORA_APIS } from "@/lib/esplora";
 import { DEFAULT_SIDEBAR_WIDGETS } from "@/lib/sidebarWidgets";
+import { DEFAULT_FAVICON_URL, DEFAULT_LINK_PREVIEW_URL } from "@/lib/apiUrls";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
 import AppRouter from "./AppRouter";
 
@@ -177,8 +178,8 @@ const hardcodedConfig: AppConfig = {
     updatedAt: 0,
   },
   useAppBlossomServers: true,
-  faviconUrl: "https://ditto.pub/api/favicon/{hostname}",
-  linkPreviewUrl: "https://ditto.pub/api/link-preview/{url}",
+  faviconUrl: DEFAULT_FAVICON_URL,
+  linkPreviewUrl: DEFAULT_LINK_PREVIEW_URL,
   corsProxy: "https://proxy.shakespeare.diy/?url={href}",
   contentWarningPolicy: "blur",
   exemptFollowsFromFilters: false,

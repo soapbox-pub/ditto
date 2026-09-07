@@ -9,6 +9,7 @@ import {
 } from '@/lib/activeAccount';
 import { builtinThemes, buildThemeCssFromCore, resolveTheme, resolveThemeConfig, type ThemeConfig, type ThemesConfig } from '@/themes';
 import { AppConfigSchema } from '@/lib/schemas';
+import { migrateApiUrl } from '@/lib/apiUrls';
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
 import { hslToRgb, parseHsl, rgbToHex } from '@/lib/colorUtils';
 import { z } from 'zod';
@@ -112,13 +113,26 @@ export function AppProvider(props: AppProviderProps) {
   // consumed by every card in the feed — an unstable value identity here
   // bypasses React.memo on all of them and re-renders the whole feed
   // whenever AppProvider renders (e.g. during NostrSync's login-time syncs).
-  const config = useMemo(() => ({
-    ...defaultConfig,
-    ...rawConfig,
-    // Deep-merge feedSettings so new keys added to the default are visible
-    // even for existing users who have an older feedSettings in localStorage.
-    feedSettings: { ...defaultConfig.feedSettings, ...rawConfig.feedSettings },
-  }), [defaultConfig, rawConfig]);
+  const config = useMemo(() => {
+    const merged = {
+      ...defaultConfig,
+      ...rawConfig,
+      // Deep-merge feedSettings so new keys added to the default are visible
+      // even for existing users who have an older feedSettings in localStorage.
+      feedSettings: { ...defaultConfig.feedSettings, ...rawConfig.feedSettings },
+    };
+
+    return {
+      ...merged,
+      // Retire the API URLs that older releases defaulted to. This has to
+      // happen on read rather than as a one-off rewrite of the stored blob:
+      // NostrSync writes these straight into `rawConfig` from the account's
+      // encrypted settings event on every login, so a migration that only
+      // touched localStorage would be undone the next time the user signed in.
+      faviconUrl: migrateApiUrl(merged.faviconUrl),
+      linkPreviewUrl: migrateApiUrl(merged.linkPreviewUrl),
+    };
+  }, [defaultConfig, rawConfig]);
 
   const appContextValue: AppContextType = useMemo(() => ({
     config,

@@ -6,6 +6,7 @@ import NostrProvider from "@/components/NostrProvider";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
 import { I18nProvider } from "@/components/I18nProvider";
+import { DEFAULT_FAVICON_URL, DEFAULT_LINK_PREVIEW_URL } from "@/lib/apiUrls";
 
 interface TestAppProps {
   children: React.ReactNode;
@@ -140,8 +141,8 @@ export function TestApp({ children }: TestAppProps) {
       updatedAt: 0,
     },
     useAppBlossomServers: true,
-    faviconUrl: "https://ditto.pub/api/favicon/{hostname}",
-    linkPreviewUrl: "https://ditto.pub/api/link-preview/{url}",
+    faviconUrl: DEFAULT_FAVICON_URL,
+    linkPreviewUrl: DEFAULT_LINK_PREVIEW_URL,
     corsProxy: "https://proxy.shakespeare.diy/?url={href}",
     magicMouse: false,
     contentWarningPolicy: "blur",
