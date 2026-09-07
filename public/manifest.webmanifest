@@ -32,10 +32,28 @@
       "purpose": "maskable"
     },
     {
+      "src": "/badge-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "monochrome"
+    },
+    {
+      "src": "/badge-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "monochrome"
+    },
+    {
       "src": "/logo.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
+    },
+    {
+      "src": "/badge.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "monochrome"
     }
   ],
   "screenshots": [

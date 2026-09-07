@@ -166,7 +166,7 @@ self.addEventListener('push', (event) => {
     const options = {
       body,
       icon: payload.icon ?? '/icon-192.png',
-      badge: payload.badge ?? '/icon-192.png',
+      badge: payload.badge ?? '/badge-96.png',
       data: payload.data ?? {},
       requireInteraction: false,
       // A burst collapses onto one shape-keyed tag and stops re-alerting, so a
