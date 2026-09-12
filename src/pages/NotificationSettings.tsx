@@ -159,11 +159,13 @@ export function NotificationSettings() {
   const { settings, updateSettings } = useEncryptedSettings();
   const {
     enabled: pushHookEnabled,
+    supported: pushSupported,
+    permission,
+    requestPermission: requestPushPermission,
     enable: enablePush,
     disable: disablePush,
     syncPreferences: syncPushPreferences,
   } = usePushNotifications();
-  const [permission, setPermission] = useState<NotificationPermission>('default');
 
   const isNative = Capacitor.isNativePlatform();
 
@@ -226,22 +228,17 @@ export function NotificationSettings() {
     description: intl.formatMessage({ id: 'settings.notifications.metaDescription', defaultMessage: "Configure your notification preferences" }),
   });
 
-  useEffect(() => {
-    if ('Notification' in window) {
-      setPermission(Notification.permission);
-    }
-  }, []);
-
   const handleTogglePush = async (enabled: boolean) => {
     if (enabled && !isNative) {
-      if (!('Notification' in window)) return;
+      if (!pushSupported && !('Notification' in window)) return;
 
-      const result = await Notification.requestPermission();
-      setPermission(result);
+      // Whatever consent the transport needs — the browser's own prompt for
+      // Web Push, nothing at all for a host that asks during registration.
+      const result = await requestPushPermission();
       if (result !== 'granted') return;
 
-      // Register with nostr-push from this click handler (iOS requires
-      // requestPermission + pushManager.subscribe from a user gesture).
+      // Register from this click handler (iOS requires requestPermission +
+      // pushManager.subscribe from a user gesture).
       if (user) {
         try {
           await enablePush(user.pubkey, prefs);
@@ -325,7 +322,11 @@ export function NotificationSettings() {
     return <Navigate to="/settings" replace />;
   }
 
-  const isSupported = isNative || 'Notification' in window;
+  // `pushSupported` covers a host bridge (napp) and a browser that can do Web
+  // Push against a configured nostr-push server. The `Notification` fallback
+  // keeps the row available in builds with no server pubkey, where the toggle
+  // still drives the stored preference the other transports read.
+  const isSupported = isNative || pushSupported || 'Notification' in window;
   const isDenied = !isNative && permission === 'denied';
 
   return (

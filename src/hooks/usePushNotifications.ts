@@ -1,321 +1,181 @@
 /**
  * usePushNotifications
  *
- * Manages the Web Push notification lifecycle via nostr-push.
+ * Drives the push notification lifecycle over whichever transport this
+ * environment offers — `window.napp` when a host app provides it, Web Push via
+ * nostr-push otherwise. See `src/lib/push/` for the adapters; nothing above
+ * this hook needs to know which one is in play.
  *
- * - Registers the service worker and restores push state on mount.
- * - enable(): fetches the VAPID key, subscribes to Web Push, and registers
- *   per-type subscriptions with nostr-push. Must be called from a user gesture
- *   AFTER Notification.requestPermission() has already been granted.
- * - disable(): deletes server subscriptions and unsubscribes the browser.
- *
- * Uses an ephemeral device keypair (persisted in localStorage) to sign RPC
- * events so the user's Nostr signer is never prompted.
+ * - Selects and brings up an adapter on mount, restoring prior state.
+ * - requestPermission(): asks for whatever consent the transport needs. Must be
+ *   called from a user gesture, immediately before enable().
+ * - enable(): subscribes, with filters built from the user's notification
+ *   preferences, read relays, and follow set.
+ * - disable(): tears the subscriptions down.
  */
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 
-import { NostrPushClient, serializePushSubscription, urlBase64ToUint8Array } from '@/lib/nostrPush';
-import { NOTIFICATION_TEMPLATES } from '@/lib/notificationTemplates';
-import type { EncryptedSettings } from '@/hooks/useEncryptedSettings';
-
-// ─── Config ───────────────────────────────────────────────────────────────────
-
-const SERVER_PUBKEY: string = import.meta.env.VITE_NOSTR_PUSH_PUBKEY ?? '';
-const DOMAIN = typeof window !== 'undefined' ? window.location.hostname : '';
-
-/** Relays used for the RPC channel to nostr-push. */
-const RPC_RELAYS = [
-  'wss://relay.ditto.pub/',
-  'wss://relay.primal.net/',
-  'wss://relay.damus.io/',
-];
-
-// localStorage keys
-const VAPID_KEY_CACHE = 'ditto-push-vapid-key';
-const SUBSCRIPTION_ID_KEY = 'ditto-push-subscription-id';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function getOrCreateSubscriptionId(): string {
-  const existing = localStorage.getItem(SUBSCRIPTION_ID_KEY);
-  if (existing) return existing;
-  const id = crypto.randomUUID();
-  localStorage.setItem(SUBSCRIPTION_ID_KEY, id);
-  return id;
-}
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
-/** Maps notification template IDs to preference keys. */
-const TEMPLATE_ID_TO_PREF_KEY: Record<string, keyof NonNullable<EncryptedSettings['notificationPreferences']>> = {
-  reactions: 'reactions',
-  reposts: 'reposts',
-  zaps: 'zaps',
-  mentions: 'mentions',
-  comments: 'comments',
-  badges: 'badges',
-  letters: 'letters',
-};
+import { useAppContext } from '@/hooks/useAppContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { useFollowList } from '@/hooks/useFollowActions';
+import { getEffectiveRelays } from '@/lib/appRelays';
+import { createPushAdapter } from '@/lib/push';
+import type { PushAdapter, PushPreferences, PushTransport } from '@/lib/push/types';
 
 export interface UsePushNotificationsReturn {
-  /** Current browser permission state. */
+  /** Current permission state, as far as the transport reports one. */
   permission: NotificationPermission;
-  /** Whether Web Push is currently active and registered. */
+  /** Whether push is currently active and registered. */
   enabled: boolean;
-  /** Whether the browser and environment support Web Push. */
+  /** Whether this environment supports push at all. */
   supported: boolean;
-  /** Subscribe and register with nostr-push. Caller must request permission first. */
-  enable: (userPubkey: string, prefs?: NonNullable<EncryptedSettings['notificationPreferences']>) => Promise<void>;
-  /** Unsubscribe from Web Push and delete server registrations. */
+  /** Which transport was selected. */
+  transport: PushTransport;
+  /**
+   * Ask for notification permission. Call from a user gesture, and only
+   * proceed to enable() when this resolves 'granted'. Transports whose host
+   * owns consent (napp) resolve 'granted' without prompting — their consent
+   * prompt happens inside enable(), which rejects if the user declines.
+   */
+  requestPermission: () => Promise<NotificationPermission>;
+  /** Subscribe. Caller must request permission first. */
+  enable: (userPubkey: string, prefs?: PushPreferences) => Promise<void>;
+  /** Unsubscribe and delete any server- or host-side registration. */
   disable: () => Promise<void>;
   /**
-   * Sync per-type subscription active states and filter settings with nostr-push.
-   * Call this when notification type preferences or onlyFollowing changes.
+   * Re-apply notification preferences to live subscriptions.
+   * Call when notification type preferences or onlyFollowing change.
    */
-  syncPreferences: (prefs: NonNullable<EncryptedSettings['notificationPreferences']>, userPubkey: string) => Promise<void>;
+  syncPreferences: (prefs: PushPreferences, userPubkey: string) => Promise<void>;
 }
 
 export function usePushNotifications(): UsePushNotificationsReturn {
-  const supported =
-    typeof window !== 'undefined' &&
-    'serviceWorker' in navigator &&
-    'PushManager' in window &&
-    !!SERVER_PUBKEY;
+  const { config } = useAppContext();
+  const { user } = useCurrentUser();
+  const { settings } = useEncryptedSettings();
+  const { data: followData } = useFollowList();
 
-  const [permission, setPermission] = useState<NotificationPermission>(
-    typeof Notification !== 'undefined' ? Notification.permission : 'default',
-  );
+  // One adapter for the life of the hook. Transports are picked from globals
+  // that don't change after load, so this never needs to re-select.
+  const adapterRef = useRef<PushAdapter | null>(null);
+  if (!adapterRef.current) {
+    adapterRef.current = createPushAdapter();
+  }
+  const adapter = adapterRef.current;
+
+  const [permission, setPermission] = useState<NotificationPermission>(() => {
+    if (!adapter.needsBrowserPermission) return 'granted';
+    return typeof Notification !== 'undefined' ? Notification.permission : 'default';
+  });
   const [enabled, setEnabled] = useState(false);
 
-  const pushSubRef = useRef<PushSubscription | null>(null);
-  const clientRef = useRef<NostrPushClient | null>(null);
-  const swRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
-  // Pre-fetched VAPID key so enable() doesn't need an async network call
-  // before pushManager.subscribe() — browsers require that call to be
-  // synchronously reachable from the user gesture.
-  const vapidKeyRef = useRef<string | null>(null);
+  // Relays and follows are only used by transports that subscribe themselves,
+  // but resolving them here keeps callers from having to.
+  const relays = useMemo(() => {
+    const { relays } = getEffectiveRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays);
+    return relays.filter((relay) => relay.read).map((relay) => relay.url);
+  }, [config.relayMetadata, config.useAppRelays, config.useUserRelays]);
 
-  // ─── Register SW + restore state on mount ─────────────────────────────────
+  const follows = useMemo(() => followData?.pubkeys ?? [], [followData?.pubkeys]);
+
+  // Keep the latest values reachable from callbacks without rebuilding them.
+  const contextRef = useRef({ relays, follows });
+  contextRef.current = { relays, follows };
+
+  // The preferences last pushed to the transport. Callers pass freshly toggled
+  // preferences to syncPreferences() before the settings round-trip lands, so
+  // this — not `settings` — is the newest version until it catches up.
+  const prefsRef = useRef<PushPreferences | undefined>(undefined);
+
+  // ─── Bring the adapter up on mount ────────────────────────────────────────
 
   useEffect(() => {
-    if (!supported) return;
+    if (!adapter.supported) return;
 
     let cancelled = false;
 
     (async () => {
-      // Load the device key from secure storage before the rest of the bring-up
-      // sequence; everything below depends on \`clientRef.current\` being set.
-      const client = await NostrPushClient.create(SERVER_PUBKEY, RPC_RELAYS);
-      if (cancelled) {
-        client.destroy();
-        return;
+      await adapter.init();
+      if (cancelled) return;
+      const active = await adapter.isEnabled();
+      if (cancelled) return;
+      if (active) {
+        setEnabled(true);
+        if (adapter.needsBrowserPermission) setPermission('granted');
       }
-      clientRef.current = client;
-
-      try {
-        const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-        swRegistrationRef.current = reg;
-        await navigator.serviceWorker.ready;
-        if (cancelled) return;
-
-        // Pre-fetch and cache the VAPID key so it is ready before the user
-        // clicks "Enable". This keeps pushManager.subscribe() as the first
-        // async step inside enable(), satisfying the browser's user-gesture
-        // requirement (otherwise the intermediate network await breaks the
-        // activation chain and throws "DOMException: The operation is insecure").
-        let vapidKey = localStorage.getItem(VAPID_KEY_CACHE);
-        if (!vapidKey) {
-          try {
-            vapidKey = await client.getVapidKey(DOMAIN);
-            localStorage.setItem(VAPID_KEY_CACHE, vapidKey);
-          } catch (err) {
-            console.warn('[push] Failed to pre-fetch VAPID key:', err);
-          }
-        }
-        if (cancelled) return;
-        if (vapidKey) {
-          vapidKeyRef.current = vapidKey;
-        }
-
-        // Returning user: if permission is already granted and a browser push
-        // subscription exists, restore the enabled state silently.
-        if (Notification.permission === 'granted') {
-          const existing = await reg.pushManager.getSubscription();
-          if (cancelled) return;
-          if (existing) {
-            pushSubRef.current = existing;
-            setPermission('granted');
-            setEnabled(true);
-          }
-        }
-      } catch (err) {
-        console.error('[push] SW registration failed:', err);
-      }
-    })();
+    })().catch((err) => {
+      console.error('[push] Initialization failed:', err);
+    });
 
     return () => {
       cancelled = true;
-      clientRef.current?.destroy();
-      clientRef.current = null;
+      adapter.destroy();
     };
-  }, [supported]);
+  }, [adapter]);
 
-  // ─── syncPreferences() ─────────────────────────────────────────────────────
+  // ─── Actions ──────────────────────────────────────────────────────────────
 
-  const syncPreferences = useCallback(async (
-    prefs: NonNullable<EncryptedSettings['notificationPreferences']>,
-    userPubkey: string,
-  ) => {
-    const client = clientRef.current;
-    const baseId = localStorage.getItem(SUBSCRIPTION_ID_KEY);
-    if (!client || !baseId) return;
+  const requestPermission = useCallback(async () => {
+    const result = await adapter.requestPermission();
+    setPermission(result);
+    return result;
+  }, [adapter]);
 
-    const onlyFollowing = prefs.onlyFollowing === true;
-
-    await Promise.allSettled(
-      NOTIFICATION_TEMPLATES.map((tmpl) => {
-        const prefKey = TEMPLATE_ID_TO_PREF_KEY[tmpl.id];
-        // Default to active when the preference is absent
-        const isActive = prefKey ? prefs[prefKey] !== false : true;
-
-        // Build the full filter — includes #p and optionally $contacts
-        const filter: { kinds: number[]; '#p': string[]; authors?: string[] } = {
-          kinds: tmpl.kinds,
-          '#p': [userPubkey],
-        };
-        if (onlyFollowing) {
-          filter.authors = ['$contacts'];
-        }
-
-        return client.updateSubscription({
-          subscription_id: `${baseId}-${tmpl.id}`,
-          domain: DOMAIN,
-          updates: {
-            is_active: isActive,
-            filter,
-            // Re-send the notification template so text improvements reach
-            // subscriptions registered before the template changed.
-            notification: {
-              title: tmpl.title,
-              body: tmpl.body,
-              icon: '/icon-192.png',
-              badge: '/icon-192.png',
-            },
-          },
-        }).catch((err) => {
-          console.error(`[push] Failed to update ${tmpl.id} (is_active=${isActive}):`, err);
-        });
-      }),
-    );
-  }, []);
-
-  // ─── enable() ─────────────────────────────────────────────────────────────
-
-  const enable = useCallback(async (userPubkey: string, prefs?: NonNullable<EncryptedSettings['notificationPreferences']>) => {
-    if (!supported) return;
-
-    // Caller must have already obtained permission (from a user gesture).
-    if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
-      console.warn('[push] enable() called but Notification.permission is', Notification.permission);
-      return;
-    }
-
-    const client = clientRef.current;
-    if (!client) {
-      console.warn('[push] NostrPushClient not initialized — service worker may still be loading');
-      return;
-    }
-
-    // Use the VAPID key pre-fetched on mount (already in vapidKeyRef and
-    // localStorage). Avoid any network round-trip here — an async await
-    // before pushManager.subscribe() breaks the user-gesture activation chain
-    // and causes "DOMException: The operation is insecure" in strict browsers.
-    let vapidPublicKey = vapidKeyRef.current ?? localStorage.getItem(VAPID_KEY_CACHE);
-    if (!vapidPublicKey) {
-      // Should rarely happen (pre-fetch failed on mount). Log a warning but
-      // still attempt the fetch; on browsers that enforce the gesture chain
-      // this may still throw the insecure-operation error.
-      console.warn('[push] VAPID key not pre-fetched; fetching now (may fail on strict browsers)');
-      vapidPublicKey = await client.getVapidKey(DOMAIN);
-      localStorage.setItem(VAPID_KEY_CACHE, vapidPublicKey);
-      vapidKeyRef.current = vapidPublicKey;
-    }
-
-    // Get or create the browser push subscription.
-    const reg = swRegistrationRef.current ?? await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-      });
-    }
-    pushSubRef.current = sub;
-
-    // Register one subscription per notification type with nostr-push.
-    const baseId = getOrCreateSubscriptionId();
-    const serialized = serializePushSubscription(sub);
-    const onlyFollowing = prefs?.onlyFollowing === true;
-
-    await Promise.all(NOTIFICATION_TEMPLATES.map((tmpl) => {
-      const filter: { kinds: number[]; '#p': string[]; authors?: string[] } = {
-        kinds: tmpl.kinds,
-        '#p': [userPubkey],
-      };
-      if (onlyFollowing) {
-        filter.authors = ['$contacts'];
-      }
-      return client.registerSubscription({
-        subscription_id: `${baseId}-${tmpl.id}`,
-        domain: DOMAIN,
-        filter,
-        notification: {
-          title: tmpl.title,
-          body: tmpl.body,
-          icon: '/icon-192.png',
-          badge: '/icon-192.png',
-        },
-        push_subscription: serialized,
-      });
-    }));
-
-    // If any per-type preferences are already set, sync them immediately
-    // so newly registered subscriptions respect existing disabled types.
-    if (prefs) {
-      await syncPreferences(prefs, userPubkey);
-    }
-
+  const enable = useCallback(async (userPubkey: string, prefs?: PushPreferences) => {
+    if (!adapter.supported) return;
+    const { relays, follows } = contextRef.current;
+    prefsRef.current = prefs;
+    await adapter.enable({ pubkey: userPubkey, prefs, relays, follows });
     setEnabled(true);
-  }, [supported, syncPreferences]);
-
-  // ─── disable() ────────────────────────────────────────────────────────────
+  }, [adapter]);
 
   const disable = useCallback(async () => {
-    const client = clientRef.current;
-    const baseId = localStorage.getItem(SUBSCRIPTION_ID_KEY);
-
-    if (client && baseId) {
-      await Promise.allSettled(
-        NOTIFICATION_TEMPLATES.map((tmpl) =>
-          client.deleteSubscription({
-            subscription_id: `${baseId}-${tmpl.id}`,
-            domain: DOMAIN,
-          }).catch((err) => console.error(`[push] Failed to delete ${tmpl.id}:`, err)),
-        ),
-      );
-    }
-
-    const pushSub = pushSubRef.current;
-    if (pushSub) {
-      try {
-        await pushSub.unsubscribe();
-      } catch { /* ignore */ }
-      pushSubRef.current = null;
-    }
-
+    await adapter.disable();
     setEnabled(false);
-  }, []);
+  }, [adapter]);
 
-  return { permission, enabled, supported, enable, disable, syncPreferences };
+  const syncPreferences = useCallback(async (prefs: PushPreferences, userPubkey: string) => {
+    const { relays, follows } = contextRef.current;
+    prefsRef.current = prefs;
+    await adapter.sync({ pubkey: userPubkey, prefs, relays, follows });
+  }, [adapter]);
+
+  // ─── Keep locally-held subscriptions current ──────────────────────────────
+
+  // A transport that holds its own subscriptions named the relays and follows
+  // it had at subscribe time, and would keep watching them forever. Re-sync
+  // when either changes — cheap, and it also advances the host's `since` so a
+  // reconnect doesn't replay. Transports that resolve both server-side are
+  // skipped so a settings mount doesn't re-send nine RPCs for nothing.
+  const followsKey = useMemo(
+    () => (follows.length > 0 ? follows.slice().sort().join(',') : ''),
+    [follows],
+  );
+  const relaysKey = useMemo(() => relays.join(','), [relays]);
+
+  useEffect(() => {
+    if (!adapter.ownsSubscriptions || !enabled || !user) return;
+    const prefs = prefsRef.current ?? settings?.notificationPreferences ?? undefined;
+    const { relays, follows } = contextRef.current;
+    adapter.sync({ pubkey: user.pubkey, prefs, relays, follows }).catch((err) => {
+      console.error('[push] Failed to re-sync subscriptions:', err);
+    });
+    // `settings` is deliberately not a dependency: preference changes arrive
+    // through syncPreferences(), and re-running on every settings revision
+    // would resubscribe on unrelated edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adapter, enabled, user?.pubkey, followsKey, relaysKey]);
+
+  return {
+    permission,
+    enabled,
+    supported: adapter.supported,
+    transport: adapter.transport,
+    requestPermission,
+    enable,
+    disable,
+    syncPreferences,
+  };
 }
