@@ -136,7 +136,10 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
       naddr,
       linkSigner: addr.pubkey,
       fragment: '',
+      brand: 'armada',
       openUrl: `https://armada.buzz/invite/${naddr}`,
+      armadaUrl: `https://armada.buzz/invite/${naddr}`,
+      vectorUrl: `https://vectorapp.io/invite/${naddr}`,
       missingSecret: true,
     };
     return <ArmadaInviteEmbed invite={invite} className={className} />;
