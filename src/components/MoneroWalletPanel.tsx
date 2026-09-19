@@ -117,7 +117,7 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
             <p className="text-muted-foreground text-sm">
               <FormattedMessage
                 id="monero.panel.empty.description"
-                defaultMessage="Monero has its own keys, so it can't be derived from your Nostr identity. Create a wallet or restore one from a seed — it's encrypted to your account and follows you across devices."
+                defaultMessage="Create a wallet or restore one from a seed. It's encrypted to your account and follows you across devices."
               />
             </p>
           </div>

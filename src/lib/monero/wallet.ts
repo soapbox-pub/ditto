@@ -24,6 +24,7 @@
  */
 import { loadMonero, type MoneroModule } from './client';
 import { loadWalletCache, saveWalletCache } from './cache';
+import { restoreHeightForNewWallet } from './heights';
 import { trimTxSummaries, type MoneroTxSummary, type MoneroWalletRecord, type MoneroWalletState } from './record';
 
 import type { MoneroWalletFull, MoneroTxWallet } from 'monero-ts';
@@ -87,11 +88,13 @@ export function generateCachePassword(): string {
  * depend on the network; that was a mistake, and it stranded users behind
  * whichever public node happened to be down.
  *
- * The restore height instead comes from `wallet2`'s own estimate, which is
- * derived from hardcoded checkpoints and needs no daemon. It lands a little
- * *behind* the true tip (roughly a month), which is the safe direction: a new
- * wallet has no history, so the only cost is scanning some empty blocks, and
- * being conservative can never miss funds the way an over-estimate could.
+ * The restore height is the chain tip *now*, since a wallet generated now
+ * cannot have received anything earlier. It is estimated locally from a
+ * measured checkpoint at 120s/block (see `./heights.ts`) rather than read from
+ * a node, and floored at `wallet2`'s own estimate so we never do worse than it
+ * would. `wallet2`'s number alone is about a month stale, and scanning a month
+ * of blocks looking for transactions a new wallet cannot have is exactly the
+ * pointless work this avoids.
  *
  * Returns the seed, primary address and restore height needed to build a
  * {@link MoneroWalletRecord}. The wallet is closed before returning — the
@@ -113,11 +116,13 @@ export async function createWallet(
 
   try {
     signal?.throwIfAborted();
-    const [seed, address, restoreHeight] = await Promise.all([
+    const [seed, address, wallet2Estimate] = await Promise.all([
       wallet.getSeed(),
       wallet.getPrimaryAddress(),
       wallet.getRestoreHeight(),
     ]);
+
+    const restoreHeight = restoreHeightForNewWallet(Date.now(), wallet2Estimate);
 
     return { seed, address, restoreHeight, cachePassword };
   } finally {

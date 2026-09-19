@@ -68,10 +68,21 @@ Creating a wallet, though, needs **no node at all** — see below.
 A Monero wallet is 32 random bytes reduced to an ed25519 scalar (the spend
 key), a Keccak hash of that (the view key), and base58 for the address. None
 of it touches the network, and `createWallet()` / `restoreWallet()` in
-`src/lib/monero/wallet.ts` pass no `server`. The restore height for a new
-wallet comes from `wallet2`'s own checkpoint-derived estimate, which lands
-slightly *behind* the true tip — the safe direction, since the only cost is
-scanning empty blocks.
+`src/lib/monero/wallet.ts` pass no `server`.
+
+The restore height for a new wallet is the chain tip *at the moment it was
+generated*, since such a wallet cannot have received anything earlier. It is
+estimated locally from a measured checkpoint at 120s/block
+(`src/lib/monero/heights.ts`), the same interpolation Monerujo and Feather
+ship, minus a one-day safety margin. `wallet2` has its own daemon-free
+estimate but it is baked in at build time and runs about a month stale, which
+would mean scanning ~21,500 blocks looking for transactions a new wallet
+cannot have; we floor our estimate at `wallet2`'s so we never do worse than it
+would. Measured in a browser: 720 blocks to scan, against a live tip.
+
+The margin is deliberately lopsided. Overshooting the real tip is the failure
+that loses money — outputs received in the skipped window are never scanned —
+while undershooting costs a few seconds on empty blocks.
 
 An earlier version passed a node and read the chain tip for the restore
 height, which quietly made key generation depend on the network and stranded

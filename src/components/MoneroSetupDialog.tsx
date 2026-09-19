@@ -226,7 +226,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
             ) : (
               <FormattedMessage
                 id="monero.setup.description"
-                defaultMessage="Monero uses its own keys, so it can't be derived from your Nostr identity like Bitcoin can."
+                defaultMessage="Your wallet is encrypted to your account, so it follows you across devices."
               />
             )}
           </DialogDescription>
