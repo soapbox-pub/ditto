@@ -94,6 +94,75 @@ export function atomicToUSD(atomicUnits: bigint, xmrPrice: number): string {
 }
 
 /**
+ * The unit a Monero amount is entered and displayed in.
+ *
+ * Deliberately narrower than `AmountUnit`: sats is a Bitcoin denomination and
+ * means nothing here, so a sats-preferring user gets XMR.
+ */
+export type MoneroDisplayUnit = 'usd' | 'xmr';
+
+/**
+ * Convert a raw amount-input value — a string while the user is typing, a
+ * number once committed — into atomic units.
+ *
+ * The Monero counterpart of `amountInputToSats`. Returns `0n` for blank,
+ * negative, non-numeric, and (in USD mode) unpriced input, which every caller
+ * already treats as "no amount entered".
+ */
+export function amountInputToAtomic(
+  value: number | string,
+  unit: MoneroDisplayUnit,
+  xmrPrice: number | undefined,
+): bigint {
+  if (unit === 'xmr') {
+    // Straight through the exact decimal parser — never via `Number`, which
+    // would round away the low atomic units of a precisely-typed amount.
+    return parseXMR(String(value)) ?? 0n;
+  }
+
+  const fiat = typeof value === 'string' ? parseFloat(value) : value;
+  if (!Number.isFinite(fiat) || fiat <= 0) return 0n;
+  if (!xmrPrice || !Number.isFinite(xmrPrice) || xmrPrice <= 0) return 0n;
+  return fiatToAtomic(fiat, xmrPrice);
+}
+
+/**
+ * Format an atomic amount in the given display unit, exactly (no abbreviation).
+ *
+ * The Monero counterpart of `formatMoneyAmount`. Falls back to XMR when USD is
+ * preferred but no price is available, so a dead price endpoint never blanks
+ * out a send button.
+ */
+export function formatMoneroAmount(
+  atomicUnits: bigint,
+  unit: MoneroDisplayUnit,
+  xmrPrice: number | undefined,
+): string {
+  if (unit === 'usd' && xmrPrice && Number.isFinite(xmrPrice) && xmrPrice > 0) {
+    return atomicToUSD(atomicUnits, xmrPrice);
+  }
+  return `${formatXMR(atomicUnits)} XMR`;
+}
+
+/**
+ * Format a raw amount-input value in its own unit, without needing a price.
+ *
+ * The Monero counterpart of `formatAmountInput`, for the window in USD mode
+ * where the price hasn't landed and `amountInputToAtomic` still returns `0n` —
+ * the send button can echo what the user typed instead of showing "0". Returns
+ * `""` for a blank or invalid value.
+ */
+export function formatMoneroAmountInput(
+  value: number | string,
+  unit: MoneroDisplayUnit,
+): string {
+  const amount = typeof value === 'string' ? parseFloat(value) : value;
+  if (!Number.isFinite(amount) || amount <= 0) return '';
+  if (unit === 'xmr') return `${amount} XMR`;
+  return amount < 1 ? `$${amount.toFixed(2)}` : `$${amount}`;
+}
+
+/**
  * Validate a Monero address.
  *
  * Shape check only — base58 alphabet, leading byte, and length:

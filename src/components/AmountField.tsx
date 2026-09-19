@@ -1,9 +1,37 @@
 import { useEffect, useRef } from 'react';
 
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { formatSats, presetsFor, type AmountPresetSet } from '@/lib/bitcoinMoney';
+import { formatSats } from '@/lib/bitcoinMoney';
 import { formatNumber } from '@/lib/formatNumber';
 import type { CurrencyDisplay } from '@/contexts/AppContext';
+
+/**
+ * A unit this field can be denominated in.
+ *
+ * The two `CurrencyDisplay` values are the user's own preference. `'xmr'` is
+ * not a preference — it's the fallback for the Monero rail, which has no sats
+ * and can't render a dollar amount until the XMR price lands.
+ */
+export type AmountUnit = CurrencyDisplay | 'xmr';
+
+/**
+ * Preset chips, one row per unit. Only the active unit's row is rendered, so a
+ * surface that can never show a given unit may omit it.
+ *
+ * Rows are hand-picked round numbers per unit rather than conversions of each
+ * other, so sats users get `1k` instead of `947`.
+ */
+export type AmountPresets = { usd: number[]; sats?: number[]; xmr?: number[] };
+
+/** How each unit is written and stepped. */
+const UNITS: Record<AmountUnit, { prefix?: string; suffix?: string; step: string }> = {
+  usd: { prefix: '$', step: '0.01' },
+  sats: { suffix: 'sats', step: '1' },
+  // Three decimals is the finest step worth arrowing through: at any realistic
+  // XMR price 0.001 is well under a dollar, and the input still accepts more
+  // precision when typed.
+  xmr: { suffix: 'XMR', step: '0.001' },
+};
 
 interface AmountFieldProps {
   /**
@@ -14,13 +42,13 @@ interface AmountFieldProps {
   value: number | string;
   /** Called with the new raw value. Callers typically also clear their error. */
   onValueChange: (value: number | string) => void;
-  /** The user's display-currency preference. Drives units, step, and presets. */
-  currency: CurrencyDisplay;
+  /** The unit the amount is written in. Drives the prefix/suffix, step, presets. */
+  currency: AmountUnit;
   /** Whether the big number is in text-entry mode. */
   editing: boolean;
   setEditing: (editing: boolean) => void;
-  /** Preset chips for both currencies; the matching set is rendered. */
-  presets: AmountPresetSet;
+  /** Preset chips per unit; the row matching `currency` is rendered. */
+  presets: AmountPresets;
   /**
    * Renders the amount in the destructive colour — insufficient balance, an
    * output below the dust limit, etc.
@@ -52,8 +80,8 @@ export function AmountField({
   label = 'Amount',
 }: AmountFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const isSats = currency === 'sats';
-  const unitLabel = isSats ? 'sats' : 'USD';
+  const { prefix, suffix, step } = UNITS[currency];
+  const unitLabel = suffix ?? 'USD';
 
   const numeric = typeof value === 'string' ? parseFloat(value) : value;
   const hasValidAmount = Number.isFinite(numeric) && numeric > 0;
@@ -76,32 +104,35 @@ export function AmountField({
   };
 
   // Committed display: sats get thousand separators, USD keeps cents only for
-  // sub-dollar amounts ("$0.50" but "$5", not "$5.00").
+  // sub-dollar amounts ("$0.50" but "$5", not "$5.00"), XMR echoes what was
+  // typed (it's already a decimal, and padding it would imply false precision).
   const display = !hasValidAmount
     ? '0'
-    : isSats
+    : currency === 'sats'
       ? formatSats(Math.round(numeric))
-      : numeric < 1
-        ? numeric.toFixed(2)
-        : String(numeric);
+      : currency === 'xmr'
+        ? String(numeric)
+        : numeric < 1
+          ? numeric.toFixed(2)
+          : String(numeric);
 
   const accentClass = invalid ? 'text-destructive' : 'text-muted-foreground';
   const amountClass = invalid ? 'text-destructive' : '';
 
-  const activePresets = presetsFor(presets, currency);
+  const activePresets = presets[currency] ?? presets.usd;
 
   return (
     <>
       <div className="flex flex-col items-center">
         {editing ? (
           <div className="flex items-baseline justify-center">
-            {!isSats && <span className={`text-4xl font-semibold ${accentClass}`}>$</span>}
+            {prefix && <span className={`text-4xl font-semibold ${accentClass}`}>{prefix}</span>}
             <input
               ref={inputRef}
               type="number"
               inputMode="decimal"
               min={0}
-              step={isSats ? '1' : '0.01'}
+              step={step}
               value={value}
               onChange={(e) => onValueChange(e.target.value)}
               onBlur={commit}
@@ -115,7 +146,7 @@ export function AmountField({
               className={`bg-transparent border-0 outline-none text-4xl font-semibold text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${amountClass}`}
               style={{ width: `${Math.max(2, String(value).length + 1)}ch` }}
             />
-            {isSats && <span className={`text-2xl font-semibold ml-1.5 ${accentClass}`}>sats</span>}
+            {suffix && <span className={`text-2xl font-semibold ml-1.5 ${accentClass}`}>{suffix}</span>}
           </div>
         ) : (
           <button
@@ -124,9 +155,9 @@ export function AmountField({
             aria-label={`Edit ${label.toLowerCase()}`}
             className="flex items-baseline justify-center rounded-md px-2 -mx-2 hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
           >
-            {!isSats && <span className={`text-4xl font-semibold ${accentClass}`}>$</span>}
+            {prefix && <span className={`text-4xl font-semibold ${accentClass}`}>{prefix}</span>}
             <span className={`text-4xl font-semibold tabular-nums ${amountClass}`}>{display}</span>
-            {isSats && <span className={`text-2xl font-semibold ml-1.5 ${accentClass}`}>sats</span>}
+            {suffix && <span className={`text-2xl font-semibold ml-1.5 ${accentClass}`}>{suffix}</span>}
           </button>
         )}
       </div>
@@ -159,9 +190,11 @@ export function AmountField({
 /**
  * Preset chip label. Five chips share one row, so sats presets abbreviate
  * ("1k" rather than "1,000") while USD drops the trailing zeros on whole
- * dollars ("$1", but "$0.10").
+ * dollars ("$1", but "$0.10"). XMR presets are already short decimals and are
+ * shown bare — the unit is on the amount above them.
  */
-export function formatPresetLabel(amount: number, currency: CurrencyDisplay): string {
+export function formatPresetLabel(amount: number, currency: AmountUnit): string {
   if (currency === 'sats') return formatNumber(amount);
+  if (currency === 'xmr') return String(amount);
   return amount < 1 ? `$${amount.toFixed(2)}` : `$${amount}`;
 }
