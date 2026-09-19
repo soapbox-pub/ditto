@@ -35,27 +35,41 @@ interface SimplePriceResponse {
 }
 
 /**
+ * Read Kraken's ticker: `result.<pair>.c[0]` is the last-trade close.
+ *
+ * The pair is matched rather than taken positionally. Kraken names XMR/USD
+ * `XXMRZUSD`, and a response carrying anything else is not an XMR price.
+ */
+function extractKrakenPrice(json: unknown): number | null {
+  if (typeof json !== 'object' || json === null) return null;
+  const { result } = json as KrakenTickerResponse;
+  if (!result || typeof result !== 'object') return null;
+
+  for (const [pair, entry] of Object.entries(result)) {
+    if (!/XMR/i.test(pair) || !/USD/i.test(pair)) continue;
+    const value = Number.parseFloat(entry?.c?.[0] ?? '');
+    if (Number.isFinite(value) && value > 0) return value;
+  }
+  return null;
+}
+
+/**
  * Pull a numeric price out of an arbitrary JSON response.
  *
- * Handles Kraken's shape (`result.<pair>.c[0]` — last-trade close) plus the
- * flatter shapes most other price APIs use, so pointing `moneroPriceApi` at a
+ * The flat shapes most other price APIs use, so pointing `moneroPriceApi` at a
  * CoinGecko simple-price URL or a self-hosted endpoint works without a code
  * change. Returns `null` when nothing parseable is found.
+ *
+ * Note how indiscriminate this is: the first positive number anywhere in the
+ * body wins. That is the cost of accepting an arbitrary endpoint, and it is
+ * why {@link fetchMoneroPrice} only uses it for a **custom** one — the default
+ * goes through the Kraken reader above, which knows what it is looking at.
  */
 function extractPrice(json: unknown): number | null {
   if (typeof json !== 'object' || json === null) return null;
 
-  // Kraken: { result: { XXMRZUSD: { c: ["123.45", "1.0"] } } }
-  const kraken = json as KrakenTickerResponse;
-  if (kraken.result && typeof kraken.result === 'object') {
-    for (const entry of Object.values(kraken.result)) {
-      const close = entry?.c?.[0];
-      if (typeof close === 'string') {
-        const value = Number.parseFloat(close);
-        if (Number.isFinite(value) && value > 0) return value;
-      }
-    }
-  }
+  const kraken = extractKrakenPrice(json);
+  if (kraken !== null) return kraken;
 
   // CoinGecko simple price: { monero: { usd: 123.45 } }
   const simple = json as SimplePriceResponse;
@@ -69,6 +83,19 @@ function extractPrice(json: unknown): number | null {
 
   return null;
 }
+
+/**
+ * Prices outside this range are discarded as unusable.
+ *
+ * A price is a multiplier on an amount the user is about to send
+ * irreversibly: "$5" at a price of 0.01 is 500 XMR. The bounds are wide enough
+ * that only a broken feed — a rate for the wrong pair, a stray number picked
+ * out of an unrelated JSON body, a value in the wrong unit — falls outside
+ * them, and the wallet showing XMR only is a far better outcome than the
+ * wallet confidently converting with a wrong number.
+ */
+const MIN_PLAUSIBLE_XMR_USD = 1;
+const MAX_PLAUSIBLE_XMR_USD = 100_000;
 
 /**
  * Fetch the current XMR price in USD.
@@ -91,7 +118,20 @@ export async function fetchMoneroPrice(
     if (!response.ok) return undefined;
 
     const json: unknown = await response.json();
-    return extractPrice(json) ?? undefined;
+
+    // The default endpoint has a known shape, so read it exactly. The
+    // permissive scan is for endpoints a self-hoster pointed us at, where we
+    // have no idea what we're parsing.
+    const price =
+      apiUrl === DEFAULT_MONERO_PRICE_API ? extractKrakenPrice(json) : extractPrice(json);
+
+    if (price === null) return undefined;
+    if (price < MIN_PLAUSIBLE_XMR_USD || price > MAX_PLAUSIBLE_XMR_USD) {
+      console.warn(`Ignoring implausible XMR price: ${price}`);
+      return undefined;
+    }
+
+    return price;
   } catch {
     return undefined;
   }

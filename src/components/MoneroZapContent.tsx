@@ -12,6 +12,7 @@ import {
   amountInputToAtomic,
   formatMoneroAmount,
   formatMoneroAmountInput,
+  truncateAddress,
   type MoneroDisplayUnit,
 } from '@/lib/monero/units';
 import { prepareTx, relayTx, type PreparedTx } from '@/lib/monero/wallet';
@@ -130,6 +131,16 @@ export function MoneroZapContent({ method, target, onSuccess }: MoneroZapContent
     total > 0n
       ? formatMoneroAmount(total, unit, xmrPrice)
       : formatMoneroAmountInput(amountInput, unit);
+
+  /**
+   * The same total in XMR, always shown alongside a USD figure.
+   *
+   * A USD amount here is the output of a price fetched over the network, and
+   * the thing being authorized is an irreversible, unverifiable transfer. If
+   * that number is wrong the user has no way to notice from a dollar sign —
+   * so the confirmation always states what actually leaves the wallet.
+   */
+  const totalXmrDisplay = unit === 'usd' && total > 0n ? formatMoneroAmount(total, 'xmr', xmrPrice) : null;
 
   /** USD mode with no price yet — nothing can be converted, let alone sent. */
   const awaitingPrice = unit === 'usd' && !xmrPrice;
@@ -269,6 +280,42 @@ export function MoneroZapContent({ method, target, onSuccess }: MoneroZapContent
         />
       </div>
 
+      {/*
+        Once the transaction is built, the pane states exactly what the second
+        tap will do: the real XMR total, the split if wallet2 made one, and the
+        address it goes to. A zap dialog otherwise never shows the recipient
+        address at all — the profile it was opened from is not the same
+        assurance, and a Monero payment can't be checked afterwards.
+      */}
+      {prepared && (
+        <dl className="grid gap-1.5 rounded-lg border p-3 text-xs">
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted-foreground">
+              <FormattedMessage id="monero.zap.confirm.sending" defaultMessage="Sending" />
+            </dt>
+            <dd className="font-medium text-right">
+              {formatMoneroAmount(prepared.amount, 'xmr', xmrPrice)}
+              {unit === 'usd' && xmrPrice ? ` · ${formatMoneroAmount(prepared.amount, 'usd', xmrPrice)}` : ''}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted-foreground">
+              <FormattedMessage id="monero.zap.confirm.to" defaultMessage="To" />
+            </dt>
+            <dd className="font-mono text-right break-all">{truncateAddress(target.authority)}</dd>
+          </div>
+          {prepared.txCount > 1 && (
+            <p className="text-muted-foreground">
+              <FormattedMessage
+                id="monero.zap.confirm.split"
+                defaultMessage="Sent as {count} transactions, because of how your funds are split up."
+                values={{ count: prepared.txCount }}
+              />
+            </p>
+          )}
+        </dl>
+      )}
+
       {error && <p className="text-xs text-destructive">{error}</p>}
 
       <Button
@@ -307,7 +354,7 @@ export function MoneroZapContent({ method, target, onSuccess }: MoneroZapContent
           <FormattedMessage
             id="monero.zap.confirm"
             defaultMessage="Tap again to send {amount}"
-            values={{ amount: totalDisplay }}
+            values={{ amount: totalXmrDisplay ?? totalDisplay }}
           />
         ) : (
           <FormattedMessage
@@ -327,7 +374,7 @@ export function MoneroZapContent({ method, target, onSuccess }: MoneroZapContent
               <FormattedMessage
                 id="monero.zap.fee"
                 defaultMessage="Fee {amount}"
-                values={{ amount: formatMoneroAmount(prepared.fee, unit, xmrPrice) }}
+                values={{ amount: formatMoneroAmount(prepared.fee, 'xmr', xmrPrice) }}
               />
             ) : (
               <FormattedMessage

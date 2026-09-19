@@ -213,7 +213,18 @@ export function parseMoneroUri(
 
   const withoutScheme = trimmed.slice(trimmed.indexOf(':') + 1);
   const [addressPart, queryPart] = withoutScheme.split('?');
-  const address = decodeURIComponent(addressPart ?? '').trim();
+
+  // Malformed percent-encoding throws rather than returning anything. This
+  // parses attacker-supplied input — a `monero:` deep link, or a scanned QR
+  // code — from inside a render effect, so an exception here takes down the
+  // wallet page instead of being rejected as the bad URI it is.
+  let address: string;
+  try {
+    address = decodeURIComponent(addressPart ?? '').trim();
+  } catch {
+    return null;
+  }
+
   if (!isMoneroAddress(address)) return null;
 
   const params = new URLSearchParams(queryPart ?? '');

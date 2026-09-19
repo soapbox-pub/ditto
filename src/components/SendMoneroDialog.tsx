@@ -341,6 +341,19 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
                     {formatXMR(step.prepared.amount + step.prepared.fee)} XMR
                   </dd>
                 </div>
+
+                {/* wallet2 splits a transfer whose inputs don't fit in one
+                    transaction. The fee above is already the total, but the
+                    recipient will see several payments, so say so. */}
+                {step.prepared.txCount > 1 && (
+                  <p className="text-xs text-muted-foreground">
+                    <FormattedMessage
+                      id="monero.send.confirm.split"
+                      defaultMessage="Sent as {count} transactions, because of how your funds are split up."
+                      values={{ count: step.prepared.txCount }}
+                    />
+                  </p>
+                )}
               </dl>
 
               <div className="flex gap-2">

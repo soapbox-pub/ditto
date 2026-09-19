@@ -565,16 +565,43 @@ function toTxSummary(tx: MoneroTxWallet): MoneroTxSummary {
   };
 }
 
-/** A transaction built but not yet relayed. */
+/** One or more transactions built but not yet relayed. */
 export interface PreparedTx {
-  /** Opaque handle used to relay it. */
+  /** Opaque handle(s) used to relay it — a JSON array of wallet2 metadata. */
   metadata: string;
-  /** Amount being sent, in atomic units. */
+  /** Total amount being sent, in atomic units. */
   amount: bigint;
-  /** Network fee, in atomic units. */
+  /** Total network fee, in atomic units. */
   fee: bigint;
   /** Destination address. */
   address: string;
+  /** How many transactions this will broadcast. Usually 1. */
+  txCount: number;
+}
+
+/**
+ * Fold everything wallet2 built into a single {@link PreparedTx}.
+ *
+ * A transfer is not always one transaction. `create_transactions_2` splits
+ * when the inputs it needs don't fit in one, and with `can_split` left unset
+ * — which is how `createTxs` is called — it returns the pieces rather than
+ * refusing (see `monero_wallet_full.cpp`, "check if request cannot be
+ * fulfilled due to splitting"). Reading only the first one meant a wallet
+ * with many small outputs showed the user a fraction of their own amount and
+ * fee on the confirmation screen, and then underpaid the recipient by the
+ * rest. Every piece is carried through to {@link relayTx}, and the totals are
+ * what the user confirms.
+ */
+function toPreparedTx(txs: MoneroTxWallet[], address: string): PreparedTx {
+  if (!txs.length) throw new Error('Failed to construct transaction');
+
+  return {
+    metadata: JSON.stringify(txs.map((tx) => tx.getMetadata())),
+    amount: txs.reduce((sum, tx) => sum + (tx.getOutgoingAmount() ?? 0n), 0n),
+    fee: txs.reduce((sum, tx) => sum + (tx.getFee() ?? 0n), 0n),
+    address,
+    txCount: txs.length,
+  };
 }
 
 /**
@@ -600,15 +627,7 @@ export async function prepareTx(
     relay: false,
   });
 
-  const tx = txs[0];
-  if (!tx) throw new Error('Failed to construct transaction');
-
-  return {
-    metadata: tx.getMetadata(),
-    amount: tx.getOutgoingAmount() ?? amount,
-    fee: tx.getFee() ?? 0n,
-    address,
-  };
+  return toPreparedTx(txs, address);
 }
 
 /**
@@ -634,25 +653,20 @@ export async function prepareSweepTx(
 
   if (!txs.length) throw new Error('Nothing to sweep');
 
-  // A sweep can split across several transactions when the wallet holds many
-  // outputs. Relaying all of them is handled by the caller via `metadata`
-  // joined below; we report the aggregate for display.
-  const totalAmount = txs.reduce((sum, tx) => sum + (tx.getOutgoingAmount() ?? 0n), 0n);
-  const totalFee = txs.reduce((sum, tx) => sum + (tx.getFee() ?? 0n), 0n);
-
-  return {
-    metadata: JSON.stringify(txs.map((tx) => tx.getMetadata())),
-    amount: totalAmount,
-    fee: totalFee,
-    address,
-  };
+  // A sweep routinely splits across several transactions when the wallet holds
+  // many outputs, which is why this path always aggregated. `prepareTx` now
+  // shares the same handling, for the same reason.
+  return toPreparedTx(txs, address);
 }
 
 /**
  * Relay a prepared transaction and return its hash.
  *
- * Handles both the single-transaction form from {@link prepareTx} and the
- * JSON-array form a sweep produces.
+ * `metadata` is a JSON array, so a transfer wallet2 split into several
+ * transactions is broadcast whole. The bare-string form is still accepted for
+ * a `PreparedTx` that predates that. When there are several, the first hash is
+ * returned for display — `PreparedTx.txCount` is what tells the UI there were
+ * more.
  */
 export async function relayTx(session: MoneroSession, prepared: PreparedTx): Promise<string> {
   let metadatas: string[];
