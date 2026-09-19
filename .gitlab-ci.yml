@@ -335,7 +335,24 @@ publish-zapstore:
     RELAY_URLS: "wss://relay.zapstore.dev,wss://relay.ditto.pub,wss://relay.dreamith.to,wss://relay.primal.net"
     BLOSSOM_URL: "https://blossom.ditto.pub"
   script:
-    - go install github.com/zapstore/zsp@latest
+    # Pinned, because `@latest` broke this job on v2.39.0: zsp 0.5.x is a
+    # different tool in four ways that all land at once.
+    #
+    #   - it declares `go 1.25`, and the golang images set GOTOOLCHAIN=local, so
+    #     `go install` fails outright instead of fetching a newer toolchain
+    #   - the CLI moved to ./cmd/zsp; the module root is now a library
+    #   - RELAY_URLS was renamed RELAYS, and the old name is ignored *silently*
+    #     -- a green job that published to zsp's default relay alone
+    #   - the top-level `version` key was dropped with the legacy config migration
+    #
+    # The blocker is the fifth: 0.5.x requires an active NIP-C1 ownership proof
+    # (kind 30509, d-tag = the APK signing certificate's SHA-256) naming the
+    # publishing key as owner or delegate, and there is no flag to skip it. No
+    # such event exists for Ditto's certificate
+    # c1f737561ca9b145d5528fe37cc51a2449150de1a9baa778f73fae36f96f608e, so 0.5.x
+    # cannot publish this app at all until one is signed by the Zapstore bunker
+    # identity. Unpin only after that proof is published.
+    - go install github.com/zapstore/zsp@v0.4.17
 
     # Restore the persistent NIP-46 client key so the bunker recognizes us across CI runs.
     # zsp stores client keys at ~/.config/zsp/bunker-keys/<bunker-pubkey>.key
