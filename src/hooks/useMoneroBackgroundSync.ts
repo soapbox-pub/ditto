@@ -3,13 +3,15 @@
  *
  * Mounted once, near the root, by `<MoneroBackgroundSync />`. When the logged-in
  * account has a Monero wallet this opens its session, syncs it to the chain
- * tip, and leaves wallet2 polling — on every page, not just `/wallet`. Two
- * things come out of that:
+ * tip, and leaves wallet2 polling — on every page, not just `/wallet`. What
+ * that buys is the IndexedDB cache staying close to the tip, so opening the
+ * wallet page is fast instead of starting a scan from wherever the last visit
+ * left off.
  *
- *  - The IndexedDB cache stays close to the tip, so opening the wallet page is
- *    fast instead of starting a scan from wherever the last visit left off.
- *  - The snapshot in the encrypted record stays fresh, so a cold start or
- *    another device shows a real balance immediately.
+ * It publishes **nothing**. Pushing the balance snapshot to relays from here
+ * meant a public, timestamped event every time money moved; that now happens
+ * only from the wallet page and only on an interval. See
+ * `shouldPublishSnapshot` in `src/lib/monero/record.ts`.
  *
  * ## Only in a Web Worker
  *
@@ -39,12 +41,10 @@ import { moneroRecordQueryKeys, useMoneroRecord } from '@/hooks/useMoneroRecord'
 import { shutdownMonero, supportsWebWorkers } from '@/lib/monero/client';
 import { hasWalletCache } from '@/lib/monero/cache';
 import { pickReachableNode } from '@/lib/monero/nodes';
-import { isStateMateriallyDifferent, type MoneroWalletState } from '@/lib/monero/record';
 import {
   closeSession,
   getSession,
   persistCache,
-  readState,
   startBackgroundSync,
   stopBackgroundSync,
   syncWallet,
@@ -56,7 +56,7 @@ import {
 const SYNC_PERIOD_MS = 30_000;
 
 /**
- * How often state is re-read and the cache flushed, regardless of events.
+ * How often the cache is flushed, regardless of events.
  *
  * `watchBalances` covers anything that moves a balance. This catches what it
  * doesn't — a pending transaction confirming, an output unlocking — and makes
@@ -85,7 +85,7 @@ export function useMoneroBackgroundSync(): void {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const queryClient = useQueryClient();
-  const { record, updateState } = useMoneroRecord();
+  const { record } = useMoneroRecord();
 
   const pubkey = user?.pubkey ?? '';
   const hasWallet = !!record;
@@ -126,15 +126,12 @@ export function useMoneroBackgroundSync(): void {
   }, [pubkey, queryClient]);
 
   // Read through refs inside the loop rather than depending on them. The record
-  // object is replaced on every refetch and on every snapshot we publish
-  // ourselves, and depending on it would tear the session down and reopen it in
-  // a loop — restarting a scan each time.
+  // object is replaced on every refetch, and depending on it would tear the
+  // session down and reopen it in a loop — restarting a scan each time.
   const recordRef = useRef(record);
   recordRef.current = record;
   const nodeUrlsRef = useRef(config.moneroNodes);
   nodeUrlsRef.current = config.moneroNodes;
-  const updateStateRef = useRef(updateState);
-  updateStateRef.current = updateState;
 
   useEffect(() => {
     if (!pubkey || !hasWallet) return;
@@ -148,25 +145,21 @@ export function useMoneroBackgroundSync(): void {
     let checkpoint: ReturnType<typeof setInterval> | undefined;
 
     /**
-     * Last snapshot we published, seeded from the record so a boot where
-     * nothing changed since the previous session publishes nothing.
+     * Flush wallet2's cache to IndexedDB.
+     *
+     * Deliberately does **not** publish a snapshot to relays. It used to, on
+     * every balance change, which meant this hook announced the timing of
+     * every payment the account made or received in a public event — on a
+     * privacy coin, and from every page of the app. Publishing now happens
+     * only from the wallet page, throttled; see `shouldPublishSnapshot`.
+     *
+     * The cache is the part that matters here anyway: it is what keeps the
+     * next open from rescanning, and it never leaves the device.
      */
-    let published: MoneroWalletState | null = recordRef.current?.state ?? null;
-
-    /** Read state, flush the cache, and publish the snapshot if it moved. */
-    const checkpointState = async () => {
+    const checkpointCache = async () => {
       if (!session || cancelled) return;
       try {
-        const state = await readState(session);
         await persistCache(session);
-        if (cancelled) return;
-
-        if (isStateMateriallyDifferent(published, state)) {
-          published = state;
-          updateStateRef.current.mutate(state, {
-            onError: (error) => console.warn('Failed to cache Monero wallet state:', error),
-          });
-        }
       } catch (error) {
         console.warn('Monero background checkpoint failed:', error);
       }
@@ -179,8 +172,9 @@ export function useMoneroBackgroundSync(): void {
       // A passphrase-protected wallet can only be rebuilt from its seed with
       // the passphrase, which is deliberately not stored. With no local cache
       // to open instead, opening here would derive a *different* wallet and
-      // then publish its empty state over the user's real snapshot. Leave it to
-      // the wallet page, which is where a prompt belongs.
+      // cache it. `getSession` now refuses that outright, but there's no point
+      // provoking the error on every page load: the prompt belongs on the
+      // wallet page, so leave it to do the work.
       if (current.hasPassphrase && !(await hasWalletCache(pubkey))) return;
       if (cancelled) return;
 
@@ -198,26 +192,20 @@ export function useMoneroBackgroundSync(): void {
         }
 
         detachListener = await watchBalances(session, () => {
-          void checkpointState();
+          void checkpointCache();
         });
 
         // The first catch-up. Progress isn't reported anywhere — no UI is
-        // watching — but this is what writes the cache and the snapshot after
-        // a cold start.
-        const state = await syncWallet(session);
+        // watching — but this is what writes the cache after a cold start, so
+        // opening the wallet page doesn't start a scan from wherever the last
+        // visit left off.
+        await syncWallet(session);
         if (cancelled) return;
-
-        if (isStateMateriallyDifferent(published, state)) {
-          published = state;
-          updateStateRef.current.mutate(state, {
-            onError: (error) => console.warn('Failed to cache Monero wallet state:', error),
-          });
-        }
 
         await startBackgroundSync(session, SYNC_PERIOD_MS);
         if (cancelled) return;
 
-        checkpoint = setInterval(() => void checkpointState(), CHECKPOINT_MS);
+        checkpoint = setInterval(() => void checkpointCache(), CHECKPOINT_MS);
       } catch (error) {
         // Nothing is rendering this. A background sync that can't reach a node
         // is not worth interrupting the user over — the wallet page surfaces

@@ -194,6 +194,42 @@ export function parseMoneroRecord(json: unknown): MoneroWalletRecord | null {
  * the chain costs the "N blocks behind" label some accuracy until the next
  * real change, which is a much better trade than the traffic.
  */
+/**
+ * Shortest interval between two published snapshots.
+ *
+ * The snapshot is a convenience — a balance on a cold start, before any wasm
+ * loads — and it is paid for in public metadata. Each publish is a kind-30078
+ * event on relays with the author and a timestamp in the clear, and the old
+ * rule (publish whenever the balance or the transaction list changed) meant
+ * every payment in or out left a public, timestamped mark on a *Monero*
+ * wallet. The amounts stay encrypted, but "this pubkey transacted at 14:02"
+ * is most of what the chain is designed not to reveal.
+ *
+ * Six hours decouples the two. Combined with only publishing from the wallet
+ * page (see `useMoneroWallet`), what the timestamps track is a user opening
+ * their wallet, not a payment arriving. The cost is a snapshot on another
+ * device that can be up to six hours stale — which the UI already labels as
+ * cached, and which a sync replaces within seconds of the page opening.
+ */
+export const SNAPSHOT_PUBLISH_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Whether a snapshot is worth publishing to relays right now.
+ *
+ * Two gates: it has to differ in a way a user would see, and enough time has
+ * to have passed since the last one. See {@link SNAPSHOT_PUBLISH_INTERVAL_MS}
+ * for why the second gate exists.
+ */
+export function shouldPublishSnapshot(
+  previous: MoneroWalletState | null | undefined,
+  next: MoneroWalletState,
+  now: number = Date.now(),
+): boolean {
+  if (!isStateMateriallyDifferent(previous, next)) return false;
+  if (!previous) return true;
+  return now - previous.updatedAt >= SNAPSHOT_PUBLISH_INTERVAL_MS;
+}
+
 export function isStateMateriallyDifferent(
   previous: MoneroWalletState | null | undefined,
   next: MoneroWalletState,

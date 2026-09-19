@@ -60,6 +60,9 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
   const [copied, setCopied] = useState(false);
   const [confirmedBackup, setConfirmedBackup] = useState(false);
 
+  /** Whether to announce the address as a NIP-A3 payment target on finish. */
+  const [publishAddress, setPublishAddress] = useState(true);
+
   // Restore-form state.
   const [seedInput, setSeedInput] = useState('');
   const [restoreHeightInput, setRestoreHeightInput] = useState('');
@@ -70,6 +73,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
     setError(null);
     setCopied(false);
     setConfirmedBackup(false);
+    setPublishAddress(true);
     setSeedInput('');
     setRestoreHeightInput('');
     setPassphrase('');
@@ -129,14 +133,20 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
    * Advertise the wallet's address as a NIP-A3 Monero payment target, unless
    * the user has already declared one — see `useEnsurePaymentTarget`.
    *
+   * Asked for up front rather than reported in a toast afterwards. Publishing
+   * ties a Nostr identity to a Monero address in public and permanently — the
+   * wallet has no subaddresses yet, so this is the one address everything is
+   * received on, forever. Defaulting the checkbox to on keeps the behaviour
+   * most people want; putting it on screen *before* the publish is what makes
+   * it a choice.
+   *
    * Deliberately cannot fail the setup flow. By the time this runs the seed is
    * already saved, and a relay hiccup while publishing a donation address must
-   * not look like the wallet itself didn't work. Returns whether a target was
-   * published, so the toast can say so rather than doing it behind the user's
-   * back.
+   * not look like the wallet itself didn't work.
    */
   const announceTarget = useCallback(
     async (address: string): Promise<boolean> => {
+      if (!publishAddress) return false;
       try {
         return (await ensurePaymentTarget({ type: 'monero', authority: address })) === 'added';
       } catch (err) {
@@ -144,7 +154,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
         return false;
       }
     },
-    [ensurePaymentTarget],
+    [publishAddress, ensurePaymentTarget],
   );
 
   /** Publish the record for a newly-created wallet. */
@@ -291,6 +301,25 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
     }
   }, [step, toast, intl]);
 
+  /**
+   * Consent row for announcing the address, shown on both finish screens.
+   */
+  const publishAddressField = (
+    <label className="flex items-start gap-3 cursor-pointer">
+      <Checkbox
+        checked={publishAddress}
+        onCheckedChange={(checked) => setPublishAddress(checked === true)}
+        className="mt-0.5"
+      />
+      <span className="text-sm text-muted-foreground">
+        <FormattedMessage
+          id="monero.setup.publishAddress"
+          defaultMessage="Put this address on my profile so people can send me Monero. It will be public."
+        />
+      </span>
+    </label>
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
@@ -427,6 +456,8 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
               </span>
             </label>
 
+            {publishAddressField}
+
             <Button
               onClick={handleFinishCreate}
               disabled={!confirmedBackup || createRecord.isPending}
@@ -505,6 +536,8 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
                 />
               </p>
             </div>
+
+            {publishAddressField}
 
             <div className="flex gap-2">
               <Button

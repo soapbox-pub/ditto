@@ -126,15 +126,17 @@ to read their feed. Where `supportsWebWorkers()` is false, wallets are opened
 with `proxyToWorker: false` and syncing stays confined to the wallet page,
 behind the progress bar that explains the wait.
 
-Two things keep the feature from being chatty on relays:
+Background sync publishes **nothing**. It keeps the IndexedDB cache close to
+the tip, which is what makes opening the wallet page fast; snapshots go to
+relays only from the wallet page, and only on an interval (see
+[Snapshot publishing](#snapshot-publishing-is-throttled) below).
 
-- Snapshots are published only when the balance or the transaction list
-  actually changes (`isStateMateriallyDifferent`). `syncedHeight` and
-  `updatedAt` move with every block, and comparing whole snapshots would sign
-  and publish a kind-30078 event every couple of minutes forever.
-- A passphrase-protected wallet with no local cache is skipped entirely. The
-  passphrase isn't stored, so opening from the seed alone would derive a
-  *different* wallet and publish its empty state over the real snapshot.
+A passphrase-protected wallet with no local cache is skipped entirely. The
+passphrase isn't stored, so opening from the seed alone would derive a
+*different* wallet and cache it. `getSession` refuses that outright now — it
+checks the derived address against the record — but there is no point
+provoking the error on every page load when the prompt belongs on the wallet
+page.
 
 ## Storage
 
@@ -172,6 +174,31 @@ Losing it is never fatal — it costs a resync from `restoreHeight`, nothing
 more — so every function in that module degrades to a no-op when IndexedDB is
 unavailable (iOS Lockdown Mode, some private-browsing modes).
 
+### Snapshot publishing is throttled
+
+Each published snapshot is a kind-30078 event on public relays: encrypted
+content, but a plaintext author and timestamp. Publishing whenever the balance
+or transaction list changed therefore announced the *timing* of every payment
+this account made or received — on a chain whose entire purpose is to not
+reveal that.
+
+So two gates now apply (`shouldPublishSnapshot` in `src/lib/monero/record.ts`):
+
+- It must differ in a way the user would see —
+  `isStateMateriallyDifferent`, as before. `syncedHeight` and `updatedAt` move
+  with every block, so comparing whole snapshots would republish forever.
+- At least six hours must have passed since the last one.
+
+Combined with publishing only from the wallet page, what these timestamps
+track is a user opening their wallet rather than money moving. The cost is a
+snapshot on another device that can be up to six hours stale, which the UI
+already labels as cached and which a sync replaces seconds after the page
+opens.
+
+The event carries no `title` tag either. The `d` tag is enough to find the
+record if you know to look; a plaintext "Ditto Monero Wallet" next to it turned
+one relay query into a list of who holds Monero.
+
 ### What this split buys, and what it doesn't
 
 The cached `state` snapshot means a **balance appears instantly** on a new
@@ -193,10 +220,42 @@ This is the same exposure the derived Bitcoin wallet already has — there the
 Nostr key *is* the spending key — so Monero introduces no new class of risk.
 It does put a second balance behind the same door.
 
-Extension (NIP-07) and bunker (NIP-46) logins are strictly better: the Nostr
-key never enters the page, and every read of the record costs a signer
-round-trip. A signer without NIP-44 support cannot use the Monero wallet at
-all, and the setup flow says so rather than failing later.
+Extension (NIP-07) and bunker (NIP-46) logins are better, but **not** because
+the seed stays out of the page. It doesn't: once the record is decrypted, the
+seed is in memory in plaintext, and the background sync decrypts it on every
+page load for anyone who has a wallet. What those logins buy is that the
+*Nostr* key never enters the page and the decryption costs a signer
+round-trip an attacker has to provoke rather than read.
+
+What follows from that is a lifecycle obligation, not a comment: the decrypted
+record is dropped from the query cache on an account switch and on logout, and
+`monero-ts` is torn down with it (`useMoneroBackgroundSync`). Both record
+queries are `gcTime: Infinity`, so nothing else would ever evict them, and a
+seed outliving its login is the one thing this design cannot excuse.
+
+A signer without NIP-44 support cannot use the Monero wallet at all, and the
+setup flow says so rather than failing later.
+
+### One wallet per account, and nothing shared between them
+
+Ditto supports multiple accounts and does **not** remount on a switch, so
+every piece of Monero state is scoped by pubkey deliberately: the IndexedDB
+cache, the session map in `wallet.ts`, the wallet-currency preference, both
+record query keys, and the live session/balance state in `useMoneroWallet`,
+which is reset and closed on any pubkey change. Anything left unscoped shows
+one account's balance and *receive address* under another's name, and a
+snapshot written from the wrong session puts that address in the other
+account's record, where their other devices pick it up.
+
+### The address is checked on every open
+
+A seed offset ("passphrase") is not stored, and opening a seed without it does
+not fail — it derives a different, valid, empty wallet. `getSession` therefore
+compares the derived primary address against the record's on every open and
+refuses the session on a mismatch, which is the only thing standing between a
+missing passphrase and a wallet that hands out an address nobody can spend
+from. The wallet page prompts; a cached blob that opens to the wrong address is
+discarded so the next open rebuilds from the seed.
 
 ## Sending
 
@@ -211,6 +270,20 @@ is build-then-confirm, not estimate-then-build:
    and reports the **real** fee. Nothing has touched the network yet.
 3. **Send** — `relayTxs` broadcasts it, and the cache is persisted immediately
    so the spent outputs are recorded and a later send can't double-spend them.
+
+A transfer is not necessarily one transaction. `create_transactions_2` splits
+when the inputs it needs don't fit, and `can_split` is left unset, so wallet2
+returns the pieces rather than refusing. Both build paths aggregate every
+piece, relay all of them, and report `txCount` so the confirmation can say so —
+reading only the first would show the user a fraction of their own amount and
+fee, then underpay the recipient by the rest.
+
+The confirmation always states the amount in **XMR**, even for a user whose
+display preference is USD. A dollar figure here is the output of a price
+fetched over the network, and the thing being authorized is irreversible and
+unverifiable; the default price endpoint is parsed as Kraken specifically
+(matched on the XMR/USD pair) and implausible values are discarded, but the
+user should still be able to see what actually leaves the wallet.
 
 Available in two places: the wallet page (`SendMoneroDialog`) and the NIP-A3
 zap dialog (`MoneroZapContent`).
@@ -227,11 +300,15 @@ promoted from `generic` to a **native** `PaymentMethodKind`:
   copyable address, and a `monero:` handoff button, so the payment can still be
   made from Cake, Feather or Monerujo.
 
-### The address is published automatically
+### The address is published on request
 
-Finishing setup — whether you created a wallet or restored one — publishes
-your primary address as a `payto` tag on your kind 10133 event, so people can
-send you Monero from your profile without you having to copy it into Settings.
+Finishing setup — whether you created a wallet or restored one — offers to
+publish your primary address as a `payto` tag on your kind 10133 event, so
+people can send you Monero from your profile without copying it into Settings.
+The checkbox is on the backup and restore screens and defaults to on; it is
+asked *before* the publish rather than reported after, because there are no
+subaddresses yet, so this is the one address everything is received on and it
+is public permanently.
 
 `useEnsurePaymentTarget` is additive and only fills a gap:
 
@@ -246,8 +323,7 @@ send you Monero from your profile without you having to copy it into Settings.
   relay hiccup while announcing a donation address must not look like the
   wallet itself broke.
 
-The toast says which happened, because publishing links your Nostr identity to
-a payment address in public and shouldn't be silent.
+The toast says which happened.
 
 ### No attribution event
 

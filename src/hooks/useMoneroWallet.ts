@@ -37,7 +37,7 @@ import {
   type MoneroSession,
   type SyncProgress,
 } from '@/lib/monero/wallet';
-import type { MoneroWalletState } from '@/lib/monero/record';
+import { shouldPublishSnapshot, type MoneroWalletState } from '@/lib/monero/record';
 
 /** How long a cached snapshot is presented without a "stale" marker. */
 const SNAPSHOT_FRESH_MS = 5 * 60 * 1000;
@@ -120,22 +120,34 @@ export function useMoneroWallet() {
   );
 
   /**
-   * Publish a snapshot — but only from the account that is still active.
+   * Publish a snapshot to relays, if it's worth it.
    *
-   * `updateState` writes into whatever record `useMoneroRecord` currently
-   * holds, which flips the instant the account does. A sync that finishes just
-   * after a switch would otherwise write A's balance and A's *address* into
-   * B's record, and every other device logged in as B would then show A's
-   * address as its receive address.
+   * Two guards, for two different reasons:
+   *
+   *  - **The account.** `updateState` writes into whatever record
+   *    `useMoneroRecord` currently holds, which flips the instant the account
+   *    does. A sync finishing just after a switch would otherwise write A's
+   *    balance and A's *address* into B's record, and every other device
+   *    logged in as B would show A's address as its receive address.
+   *  - **The interval.** Each publish is a public, timestamped event. Writing
+   *    one whenever the balance moves publishes the timing of every Monero
+   *    payment this account makes or receives. See
+   *    `SNAPSHOT_PUBLISH_INTERVAL_MS`.
+   *
+   * This is the only place snapshots are published. The app-wide background
+   * sync keeps the local IndexedDB cache warm but publishes nothing, so the
+   * timestamps on these events track a user opening their wallet page rather
+   * than money moving.
    */
   const publishState = useCallback(
     (from: MoneroSession, next: MoneroWalletState) => {
       if (!isCurrent(from)) return;
+      if (!shouldPublishSnapshot(record?.state, next)) return;
       updateState.mutate(next, {
         onError: (err) => console.warn('Failed to cache Monero wallet state:', err),
       });
     },
-    [isCurrent, updateState],
+    [isCurrent, record?.state, updateState],
   );
 
   /**

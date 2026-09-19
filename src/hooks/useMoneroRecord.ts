@@ -189,9 +189,12 @@ export function useMoneroRecord() {
       const signed = await user.signer.signEvent({
         kind: 30078,
         content,
+        // No `title` tag. The `d` tag already identifies this event to anyone
+        // who goes looking, and a plaintext "Ditto Monero Wallet" alongside it
+        // turns a relay query into a list of who holds Monero. The content is
+        // encrypted; the envelope shouldn't advertise what's inside it.
         tags: [
           ['d', dTag],
-          ['title', `${config.appName} Monero Wallet`],
           ['client', config.appName, ...(config.client ? [config.client] : [])],
         ],
         created_at: Math.floor(Date.now() / 1000),
