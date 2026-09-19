@@ -246,32 +246,39 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
         </div>
       )}
 
-      {/* Actions */}
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setSendOpen(true)}
-          disabled={phase !== 'ready' || unlockedBalance === 0n}
-          className="rounded-full"
-        >
-          <Send className="size-3.5 mr-1.5" />
-          <FormattedMessage id="monero.panel.send" defaultMessage="Send" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void refresh()}
-          disabled={syncing}
-          className="rounded-full"
-          aria-label={intl.formatMessage({
-            id: 'monero.panel.refresh',
-            defaultMessage: 'Refresh',
-          })}
-        >
-          <RefreshCw className={`size-3.5 ${syncing ? 'animate-spin' : ''}`} />
-        </Button>
-      </div>
+      {/*
+        Actions, hidden entirely while scanning rather than shown disabled.
+        Neither is usable mid-sync — Send has no output set to spend from, and
+        Refresh would only restart the scan already running — and a greyed-out
+        button beside a spinning one reads as a broken control rather than a
+        temporary one. The progress line above already says what's happening.
+      */}
+      {!syncing && (
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSendOpen(true)}
+            disabled={unlockedBalance === 0n}
+            className="rounded-full"
+          >
+            <Send className="size-3.5 mr-1.5" />
+            <FormattedMessage id="monero.panel.send" defaultMessage="Send" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void refresh()}
+            className="rounded-full"
+            aria-label={intl.formatMessage({
+              id: 'monero.panel.refresh',
+              defaultMessage: 'Refresh',
+            })}
+          >
+            <RefreshCw className="size-3.5" />
+          </Button>
+        </div>
+      )}
 
       <SendMoneroDialog
         isOpen={sendOpen}
