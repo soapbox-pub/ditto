@@ -4,6 +4,15 @@
 declare module '@fontsource-variable/*';
 declare module '@fontsource/comic-relief/*';
 
+/**
+ * URL of monero-ts's prebuilt web worker, served and emitted verbatim by the
+ * `ditto:monero-worker` plugin in `vite.config.ts`.
+ */
+declare module 'virtual:monero-worker-url' {
+  const url: string;
+  export default url;
+}
+
 interface ImportMetaEnv {
   /** Hex pubkey of the nostr-push server for Web Push notifications. */
   readonly VITE_NOSTR_PUSH_PUBKEY?: string;

@@ -39,14 +39,17 @@
  *
  * Loading it classic is also what upstream's own Vite sample does (it copies
  * the file to `public/` and lets the default loader fetch it), so this is the
- * arrangement `monero-ts` is actually tested against. Importing with `?url`
- * additionally means Vite ships the prebuilt webpack bundle byte-for-byte
- * rather than re-bundling 3.6 MB of someone else's build output.
+ * arrangement `monero-ts` is actually tested against.
+ *
+ * The URL comes from the `ditto:monero-worker` plugin in `vite.config.ts`,
+ * which serves the prebuilt bundle byte-for-byte in dev and emits it as a
+ * root-level asset in build. Vite's own mechanisms can't be used: `?url`
+ * resolves to a `/node_modules/…` path in dev that the transform pipeline
+ * rewrites into ESM, and `new Worker(new URL(…))` re-bundles the file.
  */
 import type moneroTs from 'monero-ts';
 
-// Emitted as a build asset; the value is just the fingerprinted URL string.
-import moneroWorkerUrl from 'monero-ts/dist/monero.worker.js?url';
+import moneroWorkerUrl from 'virtual:monero-worker-url';
 
 /** The `monero-ts` module namespace. */
 export type MoneroModule = typeof moneroTs;

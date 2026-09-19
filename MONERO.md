@@ -53,11 +53,35 @@ Two consequences follow, and both are visible in the UI:
   disabled), so scanning a long history takes minutes. The wallet panel shows
   block-level progress rather than an indeterminate spinner, because pretending
   otherwise would be dishonest.
-- **The node must send CORS headers.** A browser can only reach a `monerod`
-  started with `--rpc-access-control-origins`, including on the binary
-  `/getblocks.bin` endpoint that sync actually uses. Most public nodes don't.
-  Settings → Wallet has a **Test** button that names this case explicitly,
-  because a node lacking CORS produces no useful browser-side error.
+- **Very few public nodes are usable from a browser.** Two requirements that
+  native wallets don't have: a publicly-trusted TLS certificate (most public
+  nodes are self-signed on a non-standard port, which Chrome rejects outright
+  with `ERR_CERT_AUTHORITY_INVALID` and no override), and CORS headers on the
+  binary `/getblocks.bin` endpoint. Of ten widely-recommended nodes measured
+  from a real browser, **two** worked. Settings → Wallet has a **Test** button,
+  because `fetch` reports every one of these failures as a bare `TypeError`.
+
+Creating a wallet, though, needs **no node at all** — see below.
+
+### Generating a wallet is offline, local work
+
+A Monero wallet is 32 random bytes reduced to an ed25519 scalar (the spend
+key), a Keccak hash of that (the view key), and base58 for the address. None
+of it touches the network, and `createWallet()` / `restoreWallet()` in
+`src/lib/monero/wallet.ts` pass no `server`. The restore height for a new
+wallet comes from `wallet2`'s own checkpoint-derived estimate, which lands
+slightly *behind* the true tip — the safe direction, since the only cost is
+scanning empty blocks.
+
+An earlier version passed a node and read the chain tip for the restore
+height, which quietly made key generation depend on the network and stranded
+users behind whichever public node happened to be down. Don't reintroduce
+that: nothing in the setup flow should await a node.
+
+We use `wallet2` rather than hand-rolling the derivation with WebCrypto, even
+though the maths is simple, because address encoding is precisely where a
+subtle bug produces a valid-*looking* address whose funds are unrecoverable.
+That is worth the WebAssembly.
 
 ### Lazy loading
 
@@ -180,7 +204,7 @@ Two `AppConfig` fields, both editable in Settings → Wallet and overridable in
 
 | Field | Default |
 |---|---|
-| `moneroNodes` | `xmr-node.cakewallet.com:18081`, `node.monerodevs.org:18089`, `xmr.stormycloud.org:18089` |
+| `moneroNodes` | `xmr-node.cakewallet.com:18081`, `node.sethforprivacy.com:443` |
 | `moneroPriceApi` | Kraken's public ticker |
 
 The price source follows Monerujo's approach (read a public exchange directly)
@@ -205,10 +229,31 @@ Three changes in `vite.config.ts` are required and load-bearing:
    `output.type !== "chunk"` guard skipped it. An unlabelled script has its
    body replaced with a comment by LibreJS, and the worker then never boots.
 
-The worker is loaded via `new Worker(new URL('monero-ts/dist/monero.worker.js',
-import.meta.url))` rather than `monero-ts`'s default `/monero.worker.js` root
-path, specifically so Vite fingerprints it as a build asset and the banner can
-reach it.
+### The worker must be a classic worker
+
+emscripten's HTTP glue in `monero.js` reads its collaborators off `this`
+(`const HttpClient = this.HttpClient`), which only resolves to `globalThis` in
+sloppy mode. A module worker is always strict, so `{ type: 'module' }` makes
+the wallet die with *"Cannot read properties of undefined (reading
+'HttpClient')"* on the first request to a node. `monero.js` carries no
+`"use strict"` precisely because it depends on this.
+
+That also rules out letting Vite process the file at all, which is what the
+`ditto:monero-worker` plugin exists for. It serves the prebuilt bundle
+straight from `node_modules` in dev and emits it as a root-level asset in
+build, byte-for-byte in both, and the app gets the URL from the virtual module
+`virtual:monero-worker-url`. Neither Vite mechanism works:
+
+- `new Worker(new URL(...))` re-bundles 3.6 MB of someone else's webpack
+  output, and the format is then governed by `worker.format`.
+- `import '...?url'` is fine in a production build, but in dev it resolves to
+  `/node_modules/monero-ts/dist/monero.worker.js`, which the dev server hands
+  to the transform pipeline and returns as ESM — the classic worker then dies
+  on `Cannot use import statement outside a module`.
+
+The plugin emits during `generateBundle` at default order, so
+`librejsLicense()` (which runs `post`) still sees the result as a `.js` asset
+and gives it the AGPL banner and a Web Labels row.
 
 ## Content Security Policy
 

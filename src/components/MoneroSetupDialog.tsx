@@ -15,9 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/useToast';
-import { useAppContext } from '@/hooks/useAppContext';
 import { useMoneroRecord } from '@/hooks/useMoneroRecord';
-import { pickReachableNode } from '@/lib/monero/nodes';
 import { createWallet, restoreWallet } from '@/lib/monero/wallet';
 
 interface MoneroSetupDialogProps {
@@ -47,7 +45,6 @@ type Step =
 export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDialogProps) {
   const intl = useIntl();
   const { toast } = useToast();
-  const { config } = useAppContext();
   const { createRecord, canEncrypt } = useMoneroRecord();
 
   const [step, setStep] = useState<Step>({ name: 'choose' });
@@ -82,14 +79,14 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
     setError(null);
     setStep({ name: 'creating' });
     try {
-      const nodeUrl = await pickReachableNode(config.moneroNodes);
-      const created = await createWallet(nodeUrl);
+      // No node involved: generating a wallet is local work. See createWallet().
+      const created = await createWallet();
       setStep({ name: 'backup', ...created });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create wallet');
       setStep({ name: 'choose' });
     }
-  }, [config.moneroNodes]);
+  }, []);
 
   /** Publish the record for a newly-created wallet. */
   const handleFinishCreate = useCallback(async () => {
@@ -152,9 +149,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
 
     setStep({ name: 'restoring' });
     try {
-      const nodeUrl = await pickReachableNode(config.moneroNodes);
       const { address, cachePassword } = await restoreWallet(seed, {
-        nodeUrl,
         restoreHeight,
         passphrase: passphrase || undefined,
       });
@@ -187,7 +182,6 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
     seedInput,
     restoreHeightInput,
     passphrase,
-    config.moneroNodes,
     createRecord,
     toast,
     intl,

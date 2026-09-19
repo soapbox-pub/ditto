@@ -151,7 +151,7 @@ export function MoneroNodeSettings() {
       <p className="text-xs text-muted-foreground px-1">
         <FormattedMessage
           id="settings.monero.corsNote"
-          defaultMessage="Nodes must send CORS headers to work in a browser. Most public nodes don't, even ones that work fine in other Monero wallets — use Test to check before relying on one."
+          defaultMessage="A node needs a valid certificate and CORS headers to work in a browser. Most public nodes have neither, even ones that work fine in other Monero wallets — use Test before relying on one."
         />
       </p>
 
@@ -210,10 +210,10 @@ export function MoneroNodeSettings() {
                         ) : (
                           <>
                             <TriangleAlert className="size-3 shrink-0" />
-                            {probe.error === 'cors' ? (
+                            {probe.error === 'blocked' ? (
                               <FormattedMessage
-                                id="settings.monero.probeCors"
-                                defaultMessage="Unreachable — likely no CORS support"
+                                id="settings.monero.probeBlocked"
+                                defaultMessage="Blocked — untrusted certificate or no CORS"
                               />
                             ) : probe.error === 'timeout' ? (
                               <FormattedMessage

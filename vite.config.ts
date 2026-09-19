@@ -312,6 +312,83 @@ ${rows.join("\n")}
 `;
 }
 
+/**
+ * Serve and emit `monero-ts`'s prebuilt web worker **verbatim**.
+ *
+ * The worker has to be a *classic* worker: emscripten's HTTP glue in
+ * `monero.js` reads its collaborators off `this`, which only resolves to
+ * `globalThis` in sloppy mode, and a module worker is always strict. See the
+ * long note in `src/lib/monero/client.ts`.
+ *
+ * That rules out every way of letting Vite process the file:
+ *
+ *  - `new Worker(new URL(...))` makes Vite re-bundle 3.6 MB of someone else's
+ *    webpack output, and the format is then governed by `worker.format`.
+ *  - `import '...?url'` works in a production build, but in dev it resolves to
+ *    `/node_modules/monero-ts/dist/monero.worker.js`, which the dev server
+ *    hands to the transform pipeline and returns as ESM. The classic worker
+ *    then dies on `Cannot use import statement outside a module`.
+ *
+ * So the file is served straight from `node_modules` in dev and emitted as a
+ * root-level asset in build, byte-for-byte in both. This mirrors what
+ * upstream's own Vite sample does by copying it into `public/`, without
+ * vendoring 3.6 MB into the repo.
+ *
+ * Emitting during `generateBundle` (default order) means `librejsLicense()`,
+ * which runs `post`, still sees it as a `.js` asset — so it gets the AGPL
+ * banner and a Web Labels row like every other script.
+ */
+const MONERO_WORKER_MODULE = "virtual:monero-worker-url";
+const MONERO_WORKER_FILE = "monero.worker.js";
+const MONERO_WORKER_SRC = path.resolve("node_modules/monero-ts/dist/monero.worker.js");
+
+function moneroWorker(): Plugin {
+  const resolvedId = "\0" + MONERO_WORKER_MODULE;
+
+  /** Cache-bust on dependency version rather than content hash. */
+  function publicPath(): string {
+    let version = "0";
+    try {
+      version = (require("monero-ts/package.json") as { version: string }).version;
+    } catch {
+      // Dependency missing; the import will fail with a clearer error anyway.
+    }
+    return `/${MONERO_WORKER_FILE}?v=${version}`;
+  }
+
+  return {
+    name: "ditto:monero-worker",
+
+    resolveId(id) {
+      if (id === MONERO_WORKER_MODULE) return resolvedId;
+    },
+
+    load(id) {
+      if (id === resolvedId) return `export default ${JSON.stringify(publicPath())};`;
+    },
+
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (!req.url) return next();
+        const { pathname } = new URL(req.url, "http://localhost");
+        if (pathname !== `/${MONERO_WORKER_FILE}`) return next();
+
+        res.setHeader("Content-Type", "text/javascript; charset=utf-8");
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        res.end(fs.readFileSync(MONERO_WORKER_SRC));
+      });
+    },
+
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: MONERO_WORKER_FILE,
+        source: fs.readFileSync(MONERO_WORKER_SRC),
+      });
+    },
+  };
+}
+
 function librejsLicense(): Plugin {
   return {
     name: "ditto:librejs-license",
@@ -408,6 +485,7 @@ export default defineConfig(({ mode }) => {
       ? []
       : [nodePolyfills({ include: ["http", "https", "fs", "stream", "util", "path"] })]),
     stripWoffFallbacks(),
+    moneroWorker(),
     librejsLicense(),
     visualizer({
       filename: "dist/bundle.html",

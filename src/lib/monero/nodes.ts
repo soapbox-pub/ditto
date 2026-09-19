@@ -8,20 +8,34 @@
  * yours). That makes *which* node you use a real privacy choice, which is why
  * the list is user-configurable in Settings rather than hardcoded.
  *
- * ## Why this list is short, and why every entry is CORS-enabled
+ * ## Why this list is so short
  *
- * A browser wallet can only reach a node that sends `Access-Control-Allow-*`
- * headers, including on the binary `/getblocks.bin` endpoint that sync
- * actually hammers. Most public Monero nodes do not — `monerod` only emits
- * them when started with `--rpc-access-control-origins`. A node that syncs
- * fine in Cake Wallet or Feather (native HTTP, no CORS) will silently fail
- * here. Every default below was checked for a reflected
- * `Access-Control-Allow-Origin` on both `/json_rpc` and `/getblocks.bin`.
+ * A browser imposes two requirements that native wallets don't, and public
+ * Monero nodes routinely fail both:
  *
- * Adding a node in Settings that lacks CORS produces a connection failure with
- * no useful browser-side diagnostic (the preflight is rejected before any
- * response body exists), so `testMoneroNode` below reports that case
- * explicitly rather than as a generic network error.
+ *  1. **A publicly-trusted TLS certificate.** Most public nodes serve RPC over
+ *     TLS with a *self-signed* certificate on a non-standard port. Cake,
+ *     Feather and Monerujo accept those; a browser rejects them outright with
+ *     `ERR_CERT_AUTHORITY_INVALID` and offers no override for a subresource
+ *     request. This is the bigger filter in practice.
+ *  2. **CORS headers**, including on the binary `/getblocks.bin` endpoint that
+ *     sync actually hammers. `monerod` only emits them when started with
+ *     `--rpc-access-control-origins`.
+ *
+ * The defaults below were measured from a real browser, not assumed. Of ten
+ * widely-recommended public nodes tested, exactly two worked; the rest failed
+ * on certificates (`node.monerodevs.org`, `node2.monerodevs.org`,
+ * `xmr.stormycloud.org`, `nodes.hashvault.pro` — all
+ * `ERR_CERT_AUTHORITY_INVALID`; `monero.stackwallet.com` —
+ * `ERR_CERT_DATE_INVALID`) or DNS. Note that the one entry on a standard port,
+ * `node.sethforprivacy.com:443`, works precisely because port 443 implies a
+ * normal certificate.
+ *
+ * **Do not add a node here without testing it in a browser.** A node that
+ * works everywhere else will still fail here, and the failure is opaque:
+ * `fetch` rejects with a bare `TypeError` that cannot distinguish a bad
+ * certificate from a missing CORS header. `testMoneroNode` below says as much
+ * rather than guessing at one cause.
  *
  * ## Ordering
  *
@@ -40,19 +54,16 @@ export interface MoneroNode {
 }
 
 /**
- * Default node list.
+ * Default node list — every entry verified from a real browser.
  *
- * `xmr-node.cakewallet.com` is first because it is the one public node
- * verified to return full CORS headers — including preflight `OPTIONS` and the
- * binary `/getblocks.bin` endpoint — which is the hard requirement for a
- * browser wallet. The others are widely-used community nodes included as
- * fallbacks; if one of them has not enabled CORS it will surface as
- * "unreachable" in Settings rather than failing mysteriously mid-sync.
+ * Kept deliberately to nodes that answered `get_info` over `fetch` with a
+ * valid certificate and working CORS. A longer list of plausible-looking
+ * entries would be worse than useless: each unreachable node is a timeout the
+ * user waits through before the wallet connects.
  */
 export const DEFAULT_MONERO_NODES: readonly MoneroNode[] = [
   { url: 'https://xmr-node.cakewallet.com:18081', label: 'Cake Wallet' },
-  { url: 'https://node.monerodevs.org:18089', label: 'MoneroDevs' },
-  { url: 'https://xmr.stormycloud.org:18089', label: 'StormyCloud' },
+  { url: 'https://node.sethforprivacy.com:443', label: 'Seth For Privacy' },
 ];
 
 /** Default node URLs, for `AppConfig.moneroNodes`. */
@@ -113,10 +124,12 @@ export interface NodeProbeResult {
   /** Node's reported chain height, when reachable. */
   height?: number;
   /**
-   * Why the probe failed. `cors` is called out separately because it is by far
-   * the most common cause for a node that works in every native wallet.
+   * Why the probe failed. `blocked` means the browser refused the request
+   * before any response existed — a self-signed certificate or a missing CORS
+   * header, which `fetch` reports identically as a bare `TypeError`. It is by
+   * far the most common outcome for a node that works in every native wallet.
    */
-  error?: 'cors' | 'timeout' | 'http' | 'network';
+  error?: 'blocked' | 'timeout' | 'http' | 'network';
 }
 
 /**
@@ -155,11 +168,12 @@ export async function testMoneroNode(
     };
   } catch (error) {
     if (controller.signal.aborted) return { url, ok: false, error: 'timeout' };
-    // A CORS rejection surfaces as an opaque TypeError with no status. We
-    // can't distinguish it from a DNS failure at the API level, but CORS is
-    // overwhelmingly the likelier cause for a host that resolves at all, and
-    // saying so gives the user something actionable.
-    if (error instanceof TypeError) return { url, ok: false, error: 'cors' };
+    // A certificate rejection, a CORS rejection and a DNS failure all surface
+    // as an opaque TypeError with no status — the browser deliberately denies
+    // the page any detail. Measured against ten public nodes, a bad
+    // certificate was the most common cause, CORS second, so the UI names both
+    // rather than asserting one.
+    if (error instanceof TypeError) return { url, ok: false, error: 'blocked' };
     return { url, ok: false, error: 'network' };
   } finally {
     clearTimeout(timer);

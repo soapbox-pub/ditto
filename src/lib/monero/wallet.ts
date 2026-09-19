@@ -77,18 +77,28 @@ export function generateCachePassword(): string {
 }
 
 /**
- * Create a brand-new Monero wallet.
+ * Create a brand-new Monero wallet. **Entirely offline.**
+ *
+ * Generating a Monero wallet is local work — 32 random bytes reduced to an
+ * ed25519 scalar for the spend key, a Keccak hash of that for the view key,
+ * and base58 for the address. No node is contacted and none needs to be
+ * reachable. An earlier version of this function passed a `server` and read
+ * the chain tip for the restore height, which quietly made key generation
+ * depend on the network; that was a mistake, and it stranded users behind
+ * whichever public node happened to be down.
+ *
+ * The restore height instead comes from `wallet2`'s own estimate, which is
+ * derived from hardcoded checkpoints and needs no daemon. It lands a little
+ * *behind* the true tip (roughly a month), which is the safe direction: a new
+ * wallet has no history, so the only cost is scanning some empty blocks, and
+ * being conservative can never miss funds the way an over-estimate could.
  *
  * Returns the seed, primary address and restore height needed to build a
  * {@link MoneroWalletRecord}. The wallet is closed before returning — the
  * caller persists the record first, *then* opens a session. Doing it in that
  * order means we never have a funded wallet whose seed was never stored.
- *
- * `restoreHeight` is set to the node's current height: a wallet created now
- * has no history before now, so there is nothing earlier to scan.
  */
 export async function createWallet(
-  nodeUrl: string,
   { signal }: { signal?: AbortSignal } = {},
 ): Promise<{ seed: string; address: string; restoreHeight: number; cachePassword: string }> {
   const monero = await loadMonero();
@@ -98,24 +108,16 @@ export async function createWallet(
     path: '',
     password: cachePassword,
     networkType: monero.MoneroNetworkType.MAINNET,
-    server: { uri: nodeUrl },
     proxyToWorker: true,
   });
 
   try {
     signal?.throwIfAborted();
-    const seed = await wallet.getSeed();
-    const address = await wallet.getPrimaryAddress();
-
-    // A freshly generated wallet can't have received anything before the
-    // current tip. Fall back to the wallet's own restore height if the node
-    // is unreachable, rather than failing creation outright.
-    let restoreHeight: number;
-    try {
-      restoreHeight = await wallet.getDaemonHeight();
-    } catch {
-      restoreHeight = await wallet.getRestoreHeight();
-    }
+    const [seed, address, restoreHeight] = await Promise.all([
+      wallet.getSeed(),
+      wallet.getPrimaryAddress(),
+      wallet.getRestoreHeight(),
+    ]);
 
     return { seed, address, restoreHeight, cachePassword };
   } finally {
@@ -125,6 +127,8 @@ export async function createWallet(
 
 /**
  * Restore a wallet from an existing seed, deriving its primary address.
+ * **Also entirely offline** — deriving an address from a seed is local work,
+ * and scanning only begins once a session is opened.
  *
  * Used by the setup flow to validate a user-supplied seed before anything is
  * written: if `monero-ts` rejects the mnemonic, we surface the error while the
@@ -133,11 +137,10 @@ export async function createWallet(
 export async function restoreWallet(
   seed: string,
   {
-    nodeUrl,
     restoreHeight,
     passphrase,
     signal,
-  }: { nodeUrl: string; restoreHeight: number; passphrase?: string; signal?: AbortSignal },
+  }: { restoreHeight: number; passphrase?: string; signal?: AbortSignal },
 ): Promise<{ address: string; cachePassword: string }> {
   const monero = await loadMonero();
   const cachePassword = generateCachePassword();
@@ -152,7 +155,6 @@ export async function restoreWallet(
     // two entirely different wallets.
     ...(passphrase ? { seedOffset: passphrase } : {}),
     restoreHeight: Math.max(0, restoreHeight),
-    server: { uri: nodeUrl },
     proxyToWorker: true,
   });
 
