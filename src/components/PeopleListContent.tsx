@@ -3,6 +3,7 @@ import { Users, PartyPopper, UserCheck } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
+import { FollowListDiff } from '@/components/FollowListDiff';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
@@ -68,6 +69,9 @@ export function PeopleListContent({ event }: { event: NostrEvent }) {
 
       {/* Avatar stack */}
       <PeopleAvatarStack pubkeys={displayPubkeys} maxVisible={8} size="md" />
+
+      {/* What changed since the previous version (relies on relay history) */}
+      <FollowListDiff event={event} />
     </div>
   );
 }
