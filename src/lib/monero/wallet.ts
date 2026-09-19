@@ -22,7 +22,7 @@
  * decision in one place and avoids depending on the polyfilled `fs` shim
  * behaving identically across browser, WKWebView and Android WebView.
  */
-import { loadMonero, type MoneroModule } from './client';
+import { loadMonero, supportsWebWorkers, type MoneroModule } from './client';
 import { loadWalletCache, saveWalletCache } from './cache';
 import { restoreHeightForNewWallet } from './heights';
 import { trimTxSummaries, type MoneroTxSummary, type MoneroWalletRecord, type MoneroWalletState } from './record';
@@ -102,6 +102,19 @@ const sessions = new Map<string, SessionEntry>();
 const opening = new Map<string, Promise<MoneroSession>>();
 
 /**
+ * Run wallet2 in a Web Worker wherever one exists.
+ *
+ * Every wallet-opening call passes this rather than a hardcoded `true`.
+ * `monero-ts` defaults `proxyToWorker` to true and its worker loader would
+ * throw a `ReferenceError` on a platform without `Worker`, taking the whole
+ * wallet down; falling back to the main thread at least keeps it usable, at
+ * the cost of a UI that stalls during a scan. See `supportsWebWorkers()`.
+ */
+function proxyToWorker(): boolean {
+  return supportsWebWorkers();
+}
+
+/**
  * Generate a random wallet-file password.
  *
  * 32 bytes of CSPRNG output, hex-encoded. Stored in the encrypted record; see
@@ -147,7 +160,7 @@ export async function createWallet(
     path: '',
     password: cachePassword,
     networkType: monero.MoneroNetworkType.MAINNET,
-    proxyToWorker: true,
+    proxyToWorker: proxyToWorker(),
     fs: NO_FILESYSTEM,
   });
 
@@ -197,7 +210,7 @@ export async function restoreWallet(
     // two entirely different wallets.
     ...(passphrase ? { seedOffset: passphrase } : {}),
     restoreHeight: Math.max(0, restoreHeight),
-    proxyToWorker: true,
+    proxyToWorker: proxyToWorker(),
     fs: NO_FILESYSTEM,
   });
 
@@ -250,7 +263,7 @@ export async function getSession(
         keysData: cached.keysData,
         cacheData: cached.cacheData,
         server: { uri: nodeUrl },
-        proxyToWorker: true,
+        proxyToWorker: proxyToWorker(),
         fs: NO_FILESYSTEM,
       });
     } else {
@@ -262,7 +275,7 @@ export async function getSession(
         ...(passphrase ? { seedOffset: passphrase } : {}),
         restoreHeight: Math.max(0, record.restoreHeight),
         server: { uri: nodeUrl },
-        proxyToWorker: true,
+        proxyToWorker: proxyToWorker(),
         fs: NO_FILESYSTEM,
       });
     }
@@ -368,6 +381,39 @@ export async function syncWallet(
  */
 export async function startBackgroundSync(session: MoneroSession, periodMs = 30_000): Promise<void> {
   await session.wallet.startSyncing(periodMs);
+}
+
+/**
+ * Call `onChange` whenever wallet2 reports a new balance.
+ *
+ * This is what lets the app-wide background sync react to an incoming payment
+ * without polling `readState()` on a timer — reading state pulls the whole
+ * transaction list back across the worker boundary, which is far too heavy to
+ * do speculatively on every page of the app.
+ *
+ * Resolves to a detach function. Only `onBalancesChanged` is subscribed:
+ * `onOutputReceived` fires for the same events and would double up, and
+ * `onNewBlock` fires every couple of minutes whether anything happened or not.
+ */
+export async function watchBalances(
+  session: MoneroSession,
+  onChange: () => void,
+): Promise<() => Promise<void>> {
+  const { monero, wallet } = session;
+
+  const listener = new (class extends monero.MoneroWalletListener {
+    override async onBalancesChanged(): Promise<void> {
+      onChange();
+    }
+  })();
+
+  await wallet.addListener(listener);
+
+  return async () => {
+    await wallet.removeListener(listener).catch(() => {
+      // Listener already detached — the wallet may have been closed under us.
+    });
+  };
 }
 
 /** Stop background syncing. */

@@ -7,6 +7,7 @@ import { ActiveAccountSync } from "@/components/ActiveAccountSync";
 import { AppProvider } from "@/components/AppProvider";
 import { I18nProvider } from "@/components/I18nProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
+import { MoneroBackgroundSync } from "@/components/MoneroBackgroundSync";
 import { NativeNotifications } from "@/components/NativeNotifications";
 import NostrProvider from "@/components/NostrProvider";
 import { NostrSync } from "@/components/NostrSync";
@@ -246,6 +247,7 @@ export function App() {
                   <NostrSync />
                   <NativeNotifications />
                   <NotificationStream />
+                  <MoneroBackgroundSync />
 
                   <NWCProvider>
                     <EmotionDevProvider>

@@ -29,6 +29,7 @@ part of Ditto with a wallet setup flow.
   React UI                     src/components/Monero*.tsx
       │
   Hooks                        useMoneroWallet · useMoneroRecord · useWalletCurrency
+                               useMoneroBackgroundSync
       │
   Session manager              src/lib/monero/wallet.ts
       │
@@ -98,12 +99,42 @@ That is worth the WebAssembly.
 
 `monero-ts` is ~3 MB of wasm plus a ~3.6 MB Web Worker. Everything goes through
 `loadMonero()` in `src/lib/monero/client.ts`, which `import()`s the module on
-first use so Vite emits it as a separate chunk. The Monero panel is only
-mounted when the user selects the Monero tab, so a user who never opens it
-downloads none of it.
+first use so Vite emits it as a separate chunk. A user with no Monero wallet
+downloads none of it: the Monero panel is only mounted when they select the
+Monero tab, and background sync (below) does nothing without a wallet record.
+
+A user who *does* have a wallet now pays for the chunk on whatever page they
+land on, because background sync opens the wallet there. That's the deliberate
+trade for syncing off the wallet page; it is deferred a few seconds past first
+paint so it doesn't compete with the initial render.
 
 **Never add a top-level `import ... from 'monero-ts'`** — it would pull the
 whole thing into the entry chunk.
+
+### Background sync
+
+`useMoneroBackgroundSync`, mounted once by `<MoneroBackgroundSync />` in
+`App.tsx`, keeps the wallet synced on **every page**, not just `/wallet`. It
+opens the session, syncs to the tip, subscribes to `onBalancesChanged`, and
+leaves wallet2 polling on a 30-second period, checkpointing state and the
+IndexedDB cache every five minutes.
+
+**It runs only where `Worker` exists.** wallet2's emscripten build has pthreads
+disabled, so a scan takes minutes of solid CPU; in a worker that's invisible,
+but on the main thread it would freeze scrolling and typing for a user who came
+to read their feed. Where `supportsWebWorkers()` is false, wallets are opened
+with `proxyToWorker: false` and syncing stays confined to the wallet page,
+behind the progress bar that explains the wait.
+
+Two things keep the feature from being chatty on relays:
+
+- Snapshots are published only when the balance or the transaction list
+  actually changes (`isStateMateriallyDifferent`). `syncedHeight` and
+  `updatedAt` move with every block, and comparing whole snapshots would sign
+  and publish a kind-30078 event every couple of minutes forever.
+- A passphrase-protected wallet with no local cache is skipped entirely. The
+  passphrase isn't stored, so opening from the seed alone would derive a
+  *different* wallet and publish its empty state over the real snapshot.
 
 ## Storage
 
@@ -367,9 +398,11 @@ sync is unaffected.
 - **iOS WKWebView is unverified.** The build is correct and the wasm loads in a
   standard browser, but running a multi-minute single-threaded wasm scan inside
   WKWebView has not been tested on a device.
-- **No background sync.** Syncing only runs while the wallet page is open.
-  Native wallets use a foreground service (Monerujo) or a background isolate
-  (Cake); neither is available to a web view.
+- **Background sync only lasts as long as the page does.** Syncing now runs on
+  every page rather than only on `/wallet`, but it still stops when the tab or
+  the app is closed — and without a Web Worker it is confined to `/wallet`, as
+  described above. Native wallets use a foreground service (Monerujo) or a
+  background isolate (Cake); neither is available to a web view.
 - **No subaddresses.** Everything uses account 0, subaddress 0. Per-payment
   subaddresses would improve recipient privacy and are the natural next step.
 - **No Polyseed.** The setup flow accepts a 16-word Polyseed on restore and

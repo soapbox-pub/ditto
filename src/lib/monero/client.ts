@@ -57,6 +57,31 @@ export type MoneroModule = typeof moneroTs;
 let modulePromise: Promise<MoneroModule> | null = null;
 
 /**
+ * Whether this environment can run `monero-ts` in a Web Worker.
+ *
+ * Two things depend on the answer:
+ *
+ *  - **`proxyToWorker`.** With a worker, wallet2's scan runs off the main
+ *    thread. Without one it runs *on* it, and since the emscripten build has
+ *    pthreads disabled, a long scan janks or freezes the UI for as long as it
+ *    takes.
+ *  - **Background sync.** `useMoneroBackgroundSync` only syncs app-wide when a
+ *    worker is available. Freezing the whole app while the user is reading
+ *    their feed is not a trade worth making, so without workers syncing is
+ *    confined to the wallet page, where the progress bar explains the wait.
+ *
+ * `typeof Worker` is the honest check here rather than a probe: constructing
+ * the real worker costs a 3.6 MB fetch, and constructing a throwaway `blob:`
+ * one tests a permission (`worker-src blob:`) Ditto's CSP doesn't grant
+ * anyway, so a failure would tell us nothing about the worker we actually use.
+ * A worker that exists but fails to start surfaces as an open error instead,
+ * which the wallet page already renders.
+ */
+export function supportsWebWorkers(): boolean {
+  return typeof Worker === 'function';
+}
+
+/**
  * Load (and cache) the `monero-ts` module, wiring up the worker loader.
  *
  * Safe to call repeatedly and concurrently — the promise is memoized, so the
@@ -68,7 +93,12 @@ export function loadMonero(): Promise<MoneroModule> {
       const monero = await import('monero-ts');
 
       // Classic worker — see the note above. No `type: 'module'`.
-      monero.LibraryUtils.setWorkerLoader(() => new Worker(moneroWorkerUrl));
+      // Skipped where `Worker` doesn't exist: the loader would throw on the
+      // first call, and wallets are opened with `proxyToWorker: false` there
+      // so it is never reached anyway.
+      if (supportsWebWorkers()) {
+        monero.LibraryUtils.setWorkerLoader(() => new Worker(moneroWorkerUrl));
+      }
 
       return monero;
     })();

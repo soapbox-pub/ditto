@@ -180,6 +180,43 @@ export function parseMoneroRecord(json: unknown): MoneroWalletRecord | null {
   return result.data;
 }
 
+/**
+ * Whether two snapshots differ in a way worth publishing a new record for.
+ *
+ * Every write here is a signed kind-30078 event: a relay round-trip, and on a
+ * bunker or extension login a signer round-trip too. The background sync reads
+ * state whenever wallet2 reports a change, and `syncedHeight` and `updatedAt`
+ * move with every block, so comparing whole snapshots would republish the
+ * record every couple of minutes for the rest of the session and gain nothing.
+ *
+ * What the snapshot exists for is showing a balance and a history instantly on
+ * a cold start, so only those fields are compared. A height that lags behind
+ * the chain costs the "N blocks behind" label some accuracy until the next
+ * real change, which is a much better trade than the traffic.
+ */
+export function isStateMateriallyDifferent(
+  previous: MoneroWalletState | null | undefined,
+  next: MoneroWalletState,
+): boolean {
+  if (!previous) return true;
+
+  if (
+    previous.address !== next.address ||
+    previous.balance !== next.balance ||
+    previous.unlockedBalance !== next.unlockedBalance ||
+    previous.txs.length !== next.txs.length
+  ) {
+    return true;
+  }
+
+  // Confirmation flips matter: "Pending" becoming a date is a visible change
+  // even when the balance is untouched.
+  return previous.txs.some((tx, i) => {
+    const other = next.txs[i];
+    return !other || tx.hash !== other.hash || tx.confirmed !== other.confirmed;
+  });
+}
+
 /** Trim a transaction list to the cached maximum, newest first. */
 export function trimTxSummaries(txs: MoneroTxSummary[]): MoneroTxSummary[] {
   return [...txs]
