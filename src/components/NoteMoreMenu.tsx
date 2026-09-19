@@ -17,6 +17,7 @@ import {
   ListPlus,
   PanelLeft,
   RotateCcw,
+  EyeOff,
 } from 'lucide-react';
 import {
   Dialog,
@@ -48,7 +49,9 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useMuteList } from '@/hooks/useMuteList';
 import { useDeleteEvent } from '@/hooks/useDeleteEvent';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
+import { getFeedKeyForKind, getKindLabel } from '@/lib/extraKinds';
 import { encodeEventAddress } from '@/lib/encodeEvent';
 import { isReplaceableLikeKind } from '@/lib/eventKinds';
 import { getNsiteSubdomain, isNsiteKind } from '@/lib/nsiteSubdomain';
@@ -101,9 +104,19 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const [eventJsonOpen, setEventJsonOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [hideConfirmOpen, setHideConfirmOpen] = useState(false);
 
   const { user } = useCurrentUser();
   const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
+  const { feedSettings, updateFeedSettings } = useFeedSettings();
+  const { updateSettings } = useEncryptedSettings();
+
+  // "Hide from feed" only applies to non-kind-1 events whose kind maps to a
+  // feed toggle. Kind 1 posts are the baseline feed content and aren't hideable
+  // from here; kinds with no feed toggle (overlays, sidebar-only) get no item.
+  const feedKey = event.kind === 1 ? undefined : getFeedKeyForKind(event.kind);
+  const kindLabel = getKindLabel(event.kind);
+  const canHideFromFeed = !!feedKey && !!kindLabel;
 
   // Bookmark / pin / mute mutations live in the PARENT — which stays mounted
   // while the menu Content unmounts on close. In TanStack Query v5, callbacks
@@ -208,6 +221,18 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
     );
   };
 
+  const handleHideFromFeed = () => {
+    if (!feedKey) return;
+    updateFeedSettings({ [feedKey]: false });
+    if (user) {
+      updateSettings
+        .mutateAsync({ feedSettings: { ...feedSettings, [feedKey]: false } })
+        .catch(() => {});
+    }
+    setHideConfirmOpen(false);
+    toast({ title: kindLabel ? `Hid ${kindLabel} from your feed` : 'Hidden from your feed' });
+  };
+
   return (
     <>
       {open && (
@@ -248,6 +273,11 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
             onOpenChange(false);
             setTimeout(() => setRecoveryOpen(true), 150);
           }}
+          hideFromFeedLabel={canHideFromFeed ? kindLabel : undefined}
+          onHideFromFeed={() => {
+            onOpenChange(false);
+            setTimeout(() => setHideConfirmOpen(true), 150);
+          }}
         />
       )}
 
@@ -278,6 +308,29 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
         open={recoveryOpen}
         onOpenChange={setRecoveryOpen}
       />
+
+      <AlertDialog open={hideConfirmOpen} onOpenChange={setHideConfirmOpen}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hide {kindLabel ?? 'this content'} from your feed?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This hides all {kindLabel ?? 'events of this type'} from your feeds. You can turn it
+              back on anytime under Settings → Home Feed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleHideFromFeed();
+              }}
+            >
+              Hide from feed
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent onClick={(e) => e.stopPropagation()}>
@@ -322,9 +375,12 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
   onViewEventJson: () => void;
   onDelete: () => void;
   onRestore: () => void;
+  /** Label of the content type to hide, or undefined when hiding isn't applicable. */
+  hideFromFeedLabel?: string;
+  onHideFromFeed: () => void;
 }
 
-function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, userMuted, conversationMuted, displayName, onBookmark, onTogglePin, onMuteConversation, onMuteUser, onReport, onMention, onAddToList, onViewEventJson, onDelete, onRestore }: NoteMoreMenuContentProps) {
+function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, userMuted, conversationMuted, displayName, onBookmark, onTogglePin, onMuteConversation, onMuteUser, onReport, onMention, onAddToList, onViewEventJson, onDelete, onRestore, hideFromFeedLabel, onHideFromFeed }: NoteMoreMenuContentProps) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const shareOrigin = useShareOrigin();
@@ -417,6 +473,13 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
         <Separator />
 
         <div className="py-1">
+          {hideFromFeedLabel && (
+            <MenuItem
+              icon={<EyeOff className="size-5" />}
+              label={`Hide ${hideFromFeedLabel} from feed`}
+              onClick={onHideFromFeed}
+            />
+          )}
           {!isOwnPost && (
             <MenuItem
               icon={conversationMuted ? <Bell className="size-5" /> : <BellOff className="size-5" />}

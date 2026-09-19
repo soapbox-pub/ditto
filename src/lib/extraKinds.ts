@@ -937,6 +937,28 @@ export function getEnabledFeedKinds(feedSettings: FeedSettings): number[] {
   return kinds;
 }
 
+/**
+ * Find the FeedSettings key that controls a kind's inclusion in mixed feeds.
+ * Walks EXTRA_KINDS the same way getEnabledFeedKinds does — matching the
+ * parent kind, its extraFeedKinds, sub-kinds, and their extraFeedKinds.
+ * Returns undefined for kinds with no feed toggle (sidebar-only, overlay-only,
+ * or otherwise unmanaged), so callers can hide "hide from feed" affordances.
+ */
+export function getFeedKeyForKind(kind: number): keyof FeedSettings | undefined {
+  for (const def of EXTRA_KINDS) {
+    if (def.subKinds) {
+      for (const sub of def.subKinds) {
+        if (sub.kind === kind || sub.extraFeedKinds?.includes(kind)) {
+          return sub.feedKey;
+        }
+      }
+    } else if (def.feedKey && (def.kind === kind || def.extraFeedKinds?.includes(kind))) {
+      return def.feedKey;
+    }
+  }
+  return undefined;
+}
+
 /** Return the kinds enabled for a specific extra-kind page (respecting sub-kind toggles). */
 export function getPageKinds(def: ExtraKindDef, feedSettings: FeedSettings): number[] {
   if (!def.subKinds) return [def.kind];
