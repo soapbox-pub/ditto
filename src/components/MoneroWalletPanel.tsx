@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { FormattedMessage } from 'react-intl';
 import {
   AlertTriangle,
   ArrowDownLeft,
@@ -37,7 +37,6 @@ interface MoneroWalletPanelProps {
  * in, and it's called from an effect once a wallet record exists.
  */
 export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {}) {
-  const intl = useIntl();
   const {
     hasWallet,
     isLoadingRecord,
@@ -213,13 +212,6 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
               />
             </div>
           )}
-
-          <p className="text-center text-xs text-muted-foreground">
-            <FormattedMessage
-              id="monero.panel.syncNote"
-              defaultMessage="Monero scans the chain on your device, so this can take a while the first time."
-            />
-          </p>
         </div>
       )}
 
@@ -247,11 +239,10 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
       )}
 
       {/*
-        Actions, hidden entirely while scanning rather than shown disabled.
-        Neither is usable mid-sync — Send has no output set to spend from, and
-        Refresh would only restart the scan already running — and a greyed-out
-        button beside a spinning one reads as a broken control rather than a
-        temporary one. The progress line above already says what's happening.
+        Send is hidden entirely while scanning rather than shown disabled: it
+        has no output set to spend from mid-sync, and a greyed-out button beside
+        a spinning one reads as a broken control rather than a temporary one.
+        The progress line above already says what's happening.
       */}
       {!syncing && (
         <div className="flex gap-2">
@@ -264,18 +255,6 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
           >
             <Send className="size-3.5 mr-1.5" />
             <FormattedMessage id="monero.panel.send" defaultMessage="Send" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void refresh()}
-            className="rounded-full"
-            aria-label={intl.formatMessage({
-              id: 'monero.panel.refresh',
-              defaultMessage: 'Refresh',
-            })}
-          >
-            <RefreshCw className="size-3.5" />
           </Button>
         </div>
       )}
