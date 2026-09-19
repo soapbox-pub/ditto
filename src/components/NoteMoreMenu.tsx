@@ -329,7 +329,7 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
             <AlertDialogDescription>
               <FormattedMessage
                 id="note.moreMenu.hideFromFeed.description"
-                defaultMessage="{type} will no longer appear anywhere in your feeds — not just this one. You can turn them back on anytime in Settings → Home Feed."
+                defaultMessage="{type} will no longer appear anywhere in your feeds, not just this one. You can turn them back on anytime in Settings → Home Feed."
                 values={{ type: kindLabel ?? 'This type of content' }}
               />
             </AlertDialogDescription>
