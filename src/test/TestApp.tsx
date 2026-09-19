@@ -158,6 +158,8 @@ export function TestApp({ children }: TestAppProps) {
     imageQuality: 'compressed',
     sandboxDomain: 'iframe.diy',
     esploraApis: ['https://mempool.space/api'],
+    moneroNodes: ['https://xmr-node.cakewallet.com:18081'],
+    moneroPriceApi: 'https://api.kraken.com/0/public/Ticker?pair=XMRUSD',
     currencyDisplay: 'usd',
     sidebarWidgets: [],
     maxCachedEventAge: 604800,

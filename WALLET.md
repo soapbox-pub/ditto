@@ -2,6 +2,12 @@
 
 This document explains how the application derives a Bitcoin Taproot address from a Nostr public key, enabling every Nostr identity to function as a Bitcoin wallet.
 
+> Ditto also has a **Monero** wallet, which works on entirely different
+> principles — Monero keys cannot be derived from a Nostr identity, so it has a
+> setup flow and encrypted key storage. See [`MONERO.md`](./MONERO.md). The
+> `/wallet` page switches between the two with a currency dropdown, and
+> remembers the choice per account.
+
 ## Why This Works
 
 Nostr and Bitcoin Taproot (BIP-341) share the exact same cryptographic primitives:

@@ -11,10 +11,12 @@ import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
  *
  *   1. `https://ditto.pub/...` universal links — the path/query/hash is
  *      forwarded verbatim to the in-app router.
- *   2. `bitcoin:...` BIP-21 payment URIs — the user is dropped on the
+  *   2. `bitcoin:...` BIP-21 payment URIs — the user is dropped on the
  *      `/wallet` page with the URI passed through `location.state.bip21Uri`
  *      so the Send dialog auto-opens with the recipient (and amount, when
- *      present) prefilled.
+ *      present) prefilled. `monero:...` URIs work the same way via
+ *      `location.state.moneroUri`, additionally switching the page to the
+ *      Monero tab.
  *   3. `nostr:...` NIP-21 URIs — the bech32 identifier (npub, nprofile,
  *      note, nevent, naddr) is resolved to its app route and navigated to.
  *
@@ -41,6 +43,13 @@ export function DeepLinkHandler() {
         // and some QR encoders uppercase the entire URI).
         if (/^bitcoin:/i.test(raw)) {
           navigate('/wallet', { state: { bip21Uri: raw } });
+          return;
+        }
+
+        // `monero:` URIs — same idea, but the wallet page also has to switch
+        // to the Monero tab before opening its Send dialog.
+        if (/^monero:/i.test(raw)) {
+          navigate('/wallet', { state: { moneroUri: raw } });
           return;
         }
 

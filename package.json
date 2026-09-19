@@ -123,6 +123,7 @@
     "idb": "^8.0.3",
     "input-otp": "^1.4.2",
     "lucide-react": "^1.8.0",
+    "monero-ts": "^0.11.15",
     "nostr-tools": "^2.13.0",
     "qr-scanner": "^1.4.2",
     "qrcode": "^1.5.4",
@@ -179,6 +180,7 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^8.0.3",
+    "vite-plugin-node-polyfills": "^0.28.0",
     "vitest": "^4.1.8"
   },
   "overrides": {

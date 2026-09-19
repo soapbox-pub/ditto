@@ -9,9 +9,17 @@ import { PageHeader } from '@/components/PageHeader';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { QRCodeCanvas } from '@/components/ui/qrcode';
 import { SendBitcoinDialog } from '@/components/SendBitcoinDialog';
+import { MoneroWalletPanel, MoneroGlyph } from '@/components/MoneroWalletPanel';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBitcoinWallet } from '@/hooks/useBitcoinWallet';
+import { useWalletCurrency, type WalletCurrency } from '@/hooks/useWalletCurrency';
 import { satsToUSD, formatBTC } from '@/lib/bitcoin';
 import type { Transaction } from '@/lib/bitcoin';
 
@@ -24,12 +32,21 @@ import type { Transaction } from '@/lib/bitcoin';
  */
 interface WalletLocationState {
   bip21Uri?: string;
+  /** A `monero:` URI, which also switches the page to the Monero tab. */
+  moneroUri?: string;
 }
+
+/** Display metadata for the currency switcher. */
+const CURRENCY_LABELS: Record<WalletCurrency, string> = {
+  bitcoin: 'Bitcoin',
+  monero: 'Monero',
+};
 
 export function WalletPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { bitcoinAddress, addressData, btcPrice, transactions, isLoading, error, refetch } = useBitcoinWallet();
+  const { currency, setCurrency } = useWalletCurrency();
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -43,29 +60,41 @@ export function WalletPage() {
   // after consumption doesn't blank out the dialog's `initialUri` prop while
   // it's still open.
   const [pendingUri, setPendingUri] = useState<string | undefined>(undefined);
+  const [pendingMoneroUri, setPendingMoneroUri] = useState<string | undefined>(undefined);
   const consumedDeepLinkRef = useRef(false);
 
-  // Auto-open the Send dialog when the user arrived via a `bitcoin:` deep
-  // link. Only fires once per navigation; we then clear `location.state` so
-  // a back-then-forward navigation, or a refresh, doesn't relaunch the
-  // dialog. Logged-out users get the login prompt instead — no point opening
-  // a Send dialog they can't use.
+  // Auto-open the Send dialog when the user arrived via a `bitcoin:` or
+  // `monero:` deep link. Only fires once per navigation; we then clear
+  // `location.state` so a back-then-forward navigation, or a refresh, doesn't
+  // relaunch the dialog. Logged-out users get the login prompt instead — no
+  // point opening a Send dialog they can't use.
   useEffect(() => {
     if (consumedDeepLinkRef.current) return;
-    const uri = locationState?.bip21Uri;
-    if (!uri) return;
+    const bitcoinUri = locationState?.bip21Uri;
+    const moneroUri = locationState?.moneroUri;
+    if (!bitcoinUri && !moneroUri) return;
     consumedDeepLinkRef.current = true;
+
     if (user) {
-      setPendingUri(uri);
-      setSendOpen(true);
+      if (moneroUri) {
+        // Switch tabs first so the Monero panel is mounted (and its wallet
+        // hook connected) by the time the Send dialog renders.
+        setCurrency('monero');
+        setPendingMoneroUri(moneroUri);
+      } else if (bitcoinUri) {
+        setCurrency('bitcoin');
+        setPendingUri(bitcoinUri);
+        setSendOpen(true);
+      }
     }
     // Strip the URI from history state so it doesn't replay on back-forward.
     navigate(location.pathname, { replace: true, state: null });
-  }, [locationState, user, navigate, location.pathname]);
+  }, [locationState, user, navigate, location.pathname, setCurrency]);
 
   useSeoMeta({
     title: `Wallet | ${config.appName}`,
-    description: 'Your Bitcoin Taproot wallet derived from your Nostr identity.',
+    description:
+      'Your Bitcoin Taproot wallet derived from your Nostr identity, and your encrypted Monero wallet.',
   });
 
   const copyAddress = async () => {
@@ -93,15 +122,53 @@ export function WalletPage() {
             <Bitcoin className="size-8 text-primary" />
           </div>
           <div className="space-y-2 max-w-xs">
-            <h2 className="text-xl font-bold">Your Bitcoin Wallet</h2>
+            <h2 className="text-xl font-bold">Your Wallet</h2>
             <p className="text-muted-foreground text-sm">
-              Log in to see your Bitcoin Taproot address derived from your Nostr identity.
+              Log in to see your Bitcoin Taproot address derived from your Nostr identity, and to
+              set up a Monero wallet.
             </p>
           </div>
           <LoginArea className="max-w-60" />
         </div>
       ) : (
-        <div className="flex flex-col items-center px-4 pt-8 pb-4 space-y-6 max-w-sm mx-auto">
+        <>
+          {/* Currency switcher. The choice is remembered per account. */}
+          <div className="flex justify-center pt-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="rounded-full gap-1.5">
+                  {currency === 'bitcoin' ? (
+                    <Bitcoin className="size-4 text-orange-500" />
+                  ) : (
+                    <MoneroGlyph className="size-4 text-orange-500" />
+                  )}
+                  {CURRENCY_LABELS[currency]}
+                  <ChevronDown className="size-3.5 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center">
+                <DropdownMenuItem onSelect={() => setCurrency('bitcoin')} className="gap-2">
+                  <Bitcoin className="size-4 text-orange-500" />
+                  Bitcoin
+                  {currency === 'bitcoin' && <Check className="size-3.5 ml-auto" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setCurrency('monero')} className="gap-2">
+                  <MoneroGlyph className="size-4 text-orange-500" />
+                  Monero
+                  {currency === 'monero' && <Check className="size-3.5 ml-auto" />}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/*
+            Only the selected panel is mounted. That's what keeps the 3 MB
+            Monero wasm chunk from loading for users who never switch to it.
+          */}
+          {currency === 'monero' ? (
+            <MoneroWalletPanel initialSendUri={pendingMoneroUri} />
+          ) : (
+            <div className="flex flex-col items-center px-4 pt-8 pb-4 space-y-6 max-w-sm mx-auto">
           {/* Balance */}
           {isLoading ? (
             <div className="flex flex-col items-center space-y-2">
@@ -199,7 +266,9 @@ export function WalletPage() {
               </TxAccordion>
             </>
           )}
-        </div>
+            </div>
+          )}
+        </>
       )}
     </main>
   );

@@ -7,6 +7,7 @@ import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig, loadEnv, type Plugin } from "vite";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 import { DittoConfigSchema } from "./src/lib/schemas";
 
@@ -340,11 +341,30 @@ function librejsLicense(): Plugin {
 
         const chunks: string[] = [];
         for (const [fileName, output] of Object.entries(bundle)) {
-          if (output.type !== "chunk") continue;
+          if (output.type === "chunk") {
+            chunks.push(fileName);
+            // Nothing but whitespace may follow @license-end, and both tags must
+            // start their own line (LibreJS matches /^\s*\/\/\s*@license.../m).
+            output.code = `${banner}${output.code}\n// @license-end\n`;
+            continue;
+          }
+
+          // Emitted `.js` *assets* are scripts too, and LibreJS makes no
+          // distinction: `new Worker(new URL('…/monero.worker.js', …))` lands
+          // here rather than in `chunks`, so without this branch the Monero
+          // wallet's 3.6 MB wasm worker ships unlabelled and LibreJS replaces
+          // its body with a comment — the worker then never boots.
+          //
+          // Like the bundled chunks, these are combined works redistributed
+          // under the AGPL; the Web Labels page below spells out the upstream
+          // licenses they carry.
+          if (!fileName.endsWith(".js")) continue;
+          const { source } = output;
+          const code = typeof source === "string"
+            ? source
+            : new TextDecoder().decode(source);
           chunks.push(fileName);
-          // Nothing but whitespace may follow @license-end, and both tags must
-          // start their own line (LibreJS matches /^\s*\/\/\s*@license.../m).
-          output.code = `${banner}${output.code}\n// @license-end\n`;
+          output.source = `${banner}${code}\n// @license-end\n`;
         }
 
         // Chunk fileNames are already `assets/…`; public scripts sit at the root.
@@ -373,6 +393,20 @@ export default defineConfig(({ mode }) => {
   },
   plugins: [
     react(),
+    // `monero-ts` is a CommonJS build of monero-project's wallet2 compiled to
+    // WebAssembly, and it reaches for Node builtins the way the upstream C++
+    // does: `fs` for the wallet file, `http`/`https` + `stream` for daemon
+    // RPC, `path`/`util` throughout. Only these six are needed — the wider
+    // default polyfill set (crypto, buffer, process, …) would shadow browser
+    // globals the rest of Ditto relies on.
+    //
+    // Excluded under Vitest. The tests run in Node and several of them read
+    // fixtures off disk; shimming `fs` with a browser stub there breaks them
+    // with "readFileSync is not a function". Nothing in the test suite
+    // exercises monero-ts, so the polyfills are pure downside in that mode.
+    ...(mode === "test"
+      ? []
+      : [nodePolyfills({ include: ["http", "https", "fs", "stream", "util", "path"] })]),
     stripWoffFallbacks(),
     librejsLicense(),
     visualizer({
@@ -414,6 +448,10 @@ export default defineConfig(({ mode }) => {
   },
   build: {
     target: 'esnext',
+    // monero-ts ships CommonJS that mixes `require()` with ES syntax; without
+    // this its `require("#monero-ts/monero.js")` wasm loader is left untouched
+    // and throws at runtime.
+    commonjsOptions: { transformMixedEsModules: true },
     rollupOptions: {
       output: {
         manualChunks(id: string) {

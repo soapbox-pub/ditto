@@ -18,6 +18,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
 import { DEFAULT_ESPLORA_APIS } from '@/lib/esplora';
+import { MoneroNodeSettings } from '@/components/MoneroNodeSettings';
 
 export function WalletSettings() {
   const intl = useIntl();
@@ -416,6 +417,9 @@ export function WalletSettings() {
             </Button>
           </div>
         </div>
+
+        {/* ── Monero nodes ───────────────────────────────────────── */}
+        <MoneroNodeSettings />
       </div>
 
       {/* Add wallet dialog */}

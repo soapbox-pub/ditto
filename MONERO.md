@@ -1,0 +1,226 @@
+# Monero Wallet
+
+This document explains how Ditto's Monero wallet works, and why it is built
+differently from the [Bitcoin wallet](./WALLET.md).
+
+## Why Monero can't work like Bitcoin
+
+Ditto's Bitcoin wallet has no setup step and no stored keys. A Nostr public key
+is a 32-byte x-only secp256k1 point, which is byte-for-byte a Taproot internal
+key, so every Nostr identity *already is* a Bitcoin wallet — the address is
+derived, and the same key signs both.
+
+Monero shares none of that:
+
+| Property | Nostr / Bitcoin | Monero |
+|---|---|---|
+| Curve | secp256k1 | Ed25519 |
+| Keys per wallet | one | two (view + spend) |
+| Address derivation | from the identity key | from generated keys |
+| Balance discovery | scan an address on a public index | trial-decrypt every output locally |
+
+So a Monero wallet has key material that exists nowhere else. It has to be
+generated once, shown to the user, and stored — which is why Monero is the only
+part of Ditto with a wallet setup flow.
+
+## Architecture
+
+```
+  React UI                     src/components/Monero*.tsx
+      │
+  Hooks                        useMoneroWallet · useMoneroRecord · useWalletCurrency
+      │
+  Session manager              src/lib/monero/wallet.ts
+      │
+  monero-ts (lazy)             src/lib/monero/client.ts
+      │
+  wallet2 (WebAssembly)        monero-project v0.18.5.1
+      │
+  monerod JSON-RPC             configurable, see Settings → Wallet
+```
+
+### The library
+
+[`monero-ts`](https://github.com/woodser/monero-ts) is monero-project's own
+`wallet2` compiled to WebAssembly via emscripten. Ditto does **not** use a
+light-wallet server: the wallet scans the chain itself and trial-decrypts every
+output locally, exactly as Cake Wallet, Feather, Monerujo and the official GUI
+do. No server ever receives a view key.
+
+Two consequences follow, and both are visible in the UI:
+
+- **First sync is slow.** The emscripten build is single-threaded (pthreads are
+  disabled), so scanning a long history takes minutes. The wallet panel shows
+  block-level progress rather than an indeterminate spinner, because pretending
+  otherwise would be dishonest.
+- **The node must send CORS headers.** A browser can only reach a `monerod`
+  started with `--rpc-access-control-origins`, including on the binary
+  `/getblocks.bin` endpoint that sync actually uses. Most public nodes don't.
+  Settings → Wallet has a **Test** button that names this case explicitly,
+  because a node lacking CORS produces no useful browser-side error.
+
+### Lazy loading
+
+`monero-ts` is ~3 MB of wasm plus a ~3.6 MB Web Worker. Everything goes through
+`loadMonero()` in `src/lib/monero/client.ts`, which `import()`s the module on
+first use so Vite emits it as a separate chunk. The Monero panel is only
+mounted when the user selects the Monero tab, so a user who never opens it
+downloads none of it.
+
+**Never add a top-level `import ... from 'monero-ts'`** — it would pull the
+whole thing into the entry chunk.
+
+## Storage
+
+Wallet data is split across two places, by size.
+
+### The encrypted record (NIP-78, kind 30078)
+
+`d` tag: `<appId>/monero-wallet`. NIP-44-encrypted to the user's own pubkey.
+Schema in `src/lib/monero/record.ts`.
+
+| Field | Purpose |
+|---|---|
+| `seed` | 25-word mnemonic — the only thing that recovers funds |
+| `hasPassphrase` | Whether a seed offset is required (the passphrase itself is **never** stored) |
+| `cachePassword` | Random password encrypting the local `.keys` blob |
+| `restoreHeight` | Block to begin scanning from |
+| `address` | Denormalized, so the UI can render before wasm loads |
+| `state` | Cached balance + recent transactions from the last sync |
+
+This is a **separate event** from `useEncryptedSettings`, not a field inside
+it. Settings are rewritten on every theme toggle through a read-modify-write
+cycle; putting irreplaceable key material in that blob would make each of those
+writes a chance to clobber a seed.
+
+### The local cache (IndexedDB)
+
+`wallet2`'s transaction/output cache lives in the `ditto-monero` database,
+keyed by pubkey (`src/lib/monero/cache.ts`).
+
+It is **not** in the Nostr event because it can't be: the cache is the output
+set needed to select transaction inputs, it grows with history into the
+megabytes, and relays commonly cap events at 64–256 KB.
+
+Losing it is never fatal — it costs a resync from `restoreHeight`, nothing
+more — so every function in that module degrades to a no-op when IndexedDB is
+unavailable (iOS Lockdown Mode, some private-browsing modes).
+
+### What this split buys, and what it doesn't
+
+The cached `state` snapshot means a **balance appears instantly** on a new
+device, before any wasm loads or any block is scanned. The UI marks it as
+cached when it's more than five minutes old.
+
+**Sending from a device that has never synced still requires a sync**, because
+the outputs aren't there. There is no way around that short of handing a view
+key to a light-wallet server, which is the trade this design exists to avoid.
+
+## Security
+
+The record is encrypted to the user's own Nostr key, so **the Monero wallet is
+exactly as secure as the Nostr key**. For an `nsec` login that key sits in
+`localStorage`, which means an XSS that reaches it also reaches the Monero
+seed.
+
+This is the same exposure the derived Bitcoin wallet already has — there the
+Nostr key *is* the spending key — so Monero introduces no new class of risk.
+It does put a second balance behind the same door.
+
+Extension (NIP-07) and bunker (NIP-46) logins are strictly better: the Nostr
+key never enters the page, and every read of the record costs a signer
+round-trip. A signer without NIP-44 support cannot use the Monero wallet at
+all, and the setup flow says so rather than failing later.
+
+## Sending
+
+Monero fees can't be estimated before a transaction is built — they depend on
+the ring members and output count `wallet2` actually selects. So the send flow
+is build-then-confirm, not estimate-then-build:
+
+1. **Form** — recipient and amount. "Send max" uses `sweepUnlocked`, because
+   subtracting an estimated fee from the balance (what the Bitcoin flow does)
+   can't work here.
+2. **Confirm** — `createTxs({ relay: false })` builds the transaction locally
+   and reports the **real** fee. Nothing has touched the network yet.
+3. **Send** — `relayTxs` broadcasts it, and the cache is persisted immediately
+   so the spent outputs are recorded and a later send can't double-spend them.
+
+Available in two places: the wallet page (`SendMoneroDialog`) and the NIP-A3
+zap dialog (`MoneroZapContent`).
+
+## NIP-A3 integration
+
+Monero was already a recognized [NIP-A3](https://github.com/ATXMJ/nips)
+payment-target type (`payto` type `monero` in a kind 10133 event). It has been
+promoted from `generic` to a **native** `PaymentMethodKind`:
+
+- **Sender has a Ditto Monero wallet** — the zap dialog shows a real in-app
+  send flow.
+- **Sender doesn't** — it falls back to `GenericPaymentContent`: a QR code, a
+  copyable address, and a `monero:` handoff button, so the payment can still be
+  made from Cake, Feather or Monerujo.
+
+### No attribution event
+
+On-chain Bitcoin zaps publish a kind 8333 referencing `bitcoin:tx:<txid>` (see
+[`NIP.md`](./NIP.md)). There is **no Monero equivalent**, deliberately.
+
+Kind 8333 works because a Bitcoin transaction is publicly verifiable: any
+client can check the txid, the amount and the destination against the chain. A
+Monero transaction is not — that's the entire point of the chain. A "Monero zap
+receipt" would therefore be an unverifiable claim that anyone could forge,
+which is exactly the spoofing that NIP.md's kind-8333 verification rules exist
+to prevent. Publishing one would look like attribution while providing none.
+
+## Configuration
+
+Two `AppConfig` fields, both editable in Settings → Wallet and overridable in
+`ditto.json`:
+
+| Field | Default |
+|---|---|
+| `moneroNodes` | `xmr-node.cakewallet.com:18081`, `node.monerodevs.org:18089`, `xmr.stormycloud.org:18089` |
+| `moneroPriceApi` | Kraken's public ticker |
+
+The price source follows Monerujo's approach (read a public exchange directly)
+rather than Cake Wallet's (route every quote through a vendor API behind a
+key). For a wallet whose purpose is not leaking to third parties, fewer
+operators is better. A failed price fetch is not an error — the wallet shows
+XMR only.
+
+## Build integration
+
+Three changes in `vite.config.ts` are required and load-bearing:
+
+1. **`vite-plugin-node-polyfills`** for `http`, `https`, `fs`, `stream`,
+   `util`, `path`. `monero-ts` reaches for Node builtins the way the upstream
+   C++ does. Only these six — the wider default set shadows browser globals the
+   rest of Ditto relies on.
+2. **`commonjsOptions.transformMixedEsModules`** — `monero-ts` mixes
+   `require()` with ES syntax, and without this its
+   `require("#monero-ts/monero.js")` wasm loader throws at runtime.
+3. **The LibreJS banner must cover `.js` *assets*, not just chunks.** The
+   Monero worker is emitted by Vite as an asset, so the original
+   `output.type !== "chunk"` guard skipped it. An unlabelled script has its
+   body replaced with a comment by LibreJS, and the worker then never boots.
+
+The worker is loaded via `new Worker(new URL('monero-ts/dist/monero.worker.js',
+import.meta.url))` rather than `monero-ts`'s default `/monero.worker.js` root
+path, specifically so Vite fingerprints it as a build asset and the banner can
+reach it.
+
+## Known limitations
+
+- **iOS WKWebView is unverified.** The build is correct and the wasm loads in a
+  standard browser, but running a multi-minute single-threaded wasm scan inside
+  WKWebView has not been tested on a device.
+- **No background sync.** Syncing only runs while the wallet page is open.
+  Native wallets use a foreground service (Monerujo) or a background isolate
+  (Cake); neither is available to a web view.
+- **No subaddresses.** Everything uses account 0, subaddress 0. Per-payment
+  subaddresses would improve recipient privacy and are the natural next step.
+- **No Polyseed.** The setup flow accepts a 16-word Polyseed on restore and
+  passes it to `monero-ts`, but new wallets generate the 25-word legacy seed.
+- **Bundle size.** Monero adds ~6.6 MB to `dist/`. Lazy on web; unconditional
+  in the APK/AAB/IPA, since Capacitor bundles all of `dist/`.

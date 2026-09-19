@@ -406,6 +406,30 @@ export interface AppConfig {
    */
   esploraApis: string[];
   /**
+   * Ordered list of Monero remote nodes (`monerod` RPC origins) used by the
+   * Monero wallet.
+   *
+   * Unlike `esploraApis` — where the server only ever sees an address — a
+   * Monero wallet scans the chain itself, so the node learns the user's IP and
+   * request timing. Which node is in use is therefore a privacy decision, and
+   * the list is exposed in Settings.
+   *
+   * Entries must send CORS headers (including on the binary `/getblocks.bin`
+   * endpoint) or a browser cannot sync against them at all; see
+   * `src/lib/monero/nodes.ts`.
+   *
+   * Default: see `DEFAULT_MONERO_NODE_URLS`.
+   */
+  moneroNodes: string[];
+  /**
+   * Endpoint returning the XMR spot price.
+   *
+   * Defaults to Kraken's public ticker, which needs no API key and no
+   * vendor-operated middleman — the same approach Monerujo takes. Override to
+   * point at any endpoint whose response `src/lib/monero/price.ts` can parse.
+   */
+  moneroPriceApi: string;
+  /**
    * How to display monetary amounts (zap totals, wallet balances, etc.).
    * "usd" converts sats to USD via the current BTC price; "sats" shows raw
    * satoshi amounts. Default: "usd".

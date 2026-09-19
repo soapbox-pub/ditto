@@ -53,14 +53,18 @@ export interface PaymentTarget {
 /**
  * How a payment target is consumed in the zap dialog.
  *
- * - `bitcoin` / `lightning` are **native**: Ditto already has dedicated,
- *   icon-rich flows for them. A payment target of these types overrides the
- *   value Ditto would derive, but the UI/UX is preserved (no extra clickable
- *   button).
- * - `generic` methods (Monero, Ethereum, …) render a QR code, a copyable
- *   address, and a clickable native-URI button.
+ * - `bitcoin` / `lightning` / `monero` are **native**: Ditto has a dedicated
+ *   in-app send flow for each. A payment target of these types overrides the
+ *   value Ditto would otherwise derive, but the purpose-built UI is preserved.
+ * - `generic` methods (Ethereum, Nano, Cash App, …) render a QR code, a
+ *   copyable address, and a clickable native-URI button.
+ *
+ * Monero moved from `generic` to native once Ditto gained its own Monero
+ * wallet: when the user has one set up, we can build and broadcast the
+ * transaction in-app instead of handing the address off to an external wallet.
+ * The generic QR/copy path is still the fallback for users without a wallet.
  */
-export type PaymentMethodKind = 'bitcoin' | 'lightning' | 'generic';
+export type PaymentMethodKind = 'bitcoin' | 'lightning' | 'monero' | 'generic';
 
 /** Static metadata + behavior for a recognized payment type. */
 export interface PaymentMethodDef {
@@ -160,8 +164,10 @@ export const PAYMENT_METHODS: Record<PaymentTargetType, PaymentMethodDef> = {
     label: 'Monero',
     short: 'XMR',
     symbol: 'ɱ',
-    kind: 'generic',
+    kind: 'monero',
     validate: isMoneroAuthority,
+    // Still produces a `monero:` URI — the zap dialog falls back to the
+    // generic QR/handoff pane for users who haven't set up a Monero wallet.
     uri: (a) => `monero:${a.trim()}`,
     placeholder: '4… (Monero address)',
   },
@@ -297,6 +303,11 @@ export function findBitcoinTarget(targets: PaymentTarget[]): PaymentTarget | und
 /** Find the lightning payment target (if any) in a parsed list. */
 export function findLightningTarget(targets: PaymentTarget[]): PaymentTarget | undefined {
   return targets.find((t) => t.type === 'lightning');
+}
+
+/** Find the monero payment target (if any) in a parsed list. */
+export function findMoneroTarget(targets: PaymentTarget[]): PaymentTarget | undefined {
+  return targets.find((t) => t.type === 'monero');
 }
 
 /** Whether a bitcoin authority is a BIP-352 silent-payment code (`sp1…`). */

@@ -22,6 +22,7 @@ import { QRCodeCanvas } from '@/components/ui/qrcode';
 import { AmountField } from '@/components/AmountField';
 import { OnchainZapContent } from '@/components/OnchainZapContent';
 import { GenericPaymentContent } from '@/components/GenericPaymentContent';
+import { MoneroZapContent } from '@/components/MoneroZapContent';
 import { PaymentMethodIcon } from '@/components/PaymentMethodIcon';
 import { ZapSuccessScreen } from '@/components/ZapSuccessScreen';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -440,8 +441,11 @@ export function ZapDialogImpl({
     };
   }, [bitcoinTarget]);
 
-  // Generic (non-native) payment targets — Monero, Ethereum, etc. These render
-  // a QR + native-URI button rather than a built-in send flow.
+  // Every payment target except the two Ditto derives itself. Monero is in
+  // here and is *not* generic — it dispatches to its own send flow in
+  // `ZapMethodPane` (falling back to the QR/handoff pane only when the user
+  // has no Monero wallet). The rest (Ethereum, Nano, Cash App, …) render the
+  // QR + native-URI button.
   const genericTargets = useMemo(
     () =>
       paymentTargets.filter(
@@ -720,6 +724,20 @@ function ZapMethodPane({
 }: ZapMethodPaneProps) {
   if (method?.def.kind === 'lightning') {
     return <LightningZapContent {...lightningContentProps} />;
+  }
+  if (method?.def.kind === 'monero' && method.target) {
+    // Monero closes the dialog on success rather than routing through
+    // <ZapSuccessScreen />, which is denominated in sats — showing an XMR
+    // amount there would require either a misleading conversion or a second
+    // set of props for a screen that exists to celebrate a Lightning zap.
+    // The send flow raises its own toast.
+    return (
+      <MoneroZapContent
+        method={method.def}
+        target={method.target}
+        onSuccess={onClose}
+      />
+    );
   }
   if (method?.def.kind === 'generic' && method.target) {
     return <GenericPaymentContent method={method.def} target={method.target} />;

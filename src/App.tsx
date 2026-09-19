@@ -23,6 +23,8 @@ import { DittoConfigSchema, type DittoConfig } from "@/lib/schemas";
 import { secureStorage } from "@/lib/secureStorage";
 import { APP_CONFIG_STORAGE_KEY } from "@/lib/activeAccount";
 import { DEFAULT_ESPLORA_APIS } from "@/lib/esplora";
+import { DEFAULT_MONERO_NODE_URLS } from "@/lib/monero/nodes";
+import { DEFAULT_MONERO_PRICE_API } from "@/lib/monero/price";
 import { DEFAULT_SIDEBAR_WIDGETS } from "@/lib/sidebarWidgets";
 import { DEFAULT_FAVICON_URL, DEFAULT_LINK_PREVIEW_URL } from "@/lib/apiUrls";
 import { EmotionDevProvider } from "@/blobbi/dev/EmotionDevContext";
@@ -195,6 +197,8 @@ const hardcodedConfig: AppConfig = {
   curatorPubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d',
   sandboxDomain: 'iframe.diy',
   esploraApis: [...DEFAULT_ESPLORA_APIS],
+  moneroNodes: [...DEFAULT_MONERO_NODE_URLS],
+  moneroPriceApi: DEFAULT_MONERO_PRICE_API,
   currencyDisplay: 'usd',
   sidebarWidgets: DEFAULT_SIDEBAR_WIDGETS,
   maxCachedEventAge: 604800,
