@@ -5,7 +5,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { ActivityCard } from '@/components/ActivityCard';
 import { EmojifiedText } from '@/components/CustomEmoji';
-import { FollowUpdateBody } from '@/components/FollowListDiff';
+import { FollowUpdateBody } from '@/components/FollowUpdateBody';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';

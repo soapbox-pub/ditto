@@ -1,48 +1,24 @@
 import { Link } from 'react-router-dom';
 import { FormattedMessage } from 'react-intl';
 import { nip19 } from 'nostr-tools';
-import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
+import type { NostrMetadata } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { FollowButton } from '@/components/FollowButton';
-import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
-import { FOLLOW_UPDATE_VERB, NUKE_THRESHOLD, useFollowUpdate, type FollowUpdate } from '@/hooks/useFollowUpdate';
+import { NUKE_THRESHOLD, type FollowUpdate } from '@/hooks/useFollowUpdate';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { cn } from '@/lib/utils';
 
 type Tone = 'follow' | 'unfollow';
 
 /**
- * Detail-page body for a kind 3 follow list: the headline sentence plus the
- * people rows. The feed card puts the sentence in its actor row instead and
- * renders only {@link FollowUpdateBody}.
- */
-export function FollowListDiff({ event }: { event: NostrEvent }) {
-  const update = useFollowUpdate(event);
-  const author = useAuthor(event.pubkey);
-  const authorName = getDisplayName(author.data?.metadata, event.pubkey);
-
-  if (update.mode === 'loading') return <RowsSkeleton withHeadline />;
-  if (update.mode === 'none') return null;
-
-  return (
-    <div className="mt-2">
-      <p className="text-[15px] font-semibold leading-snug text-foreground">
-        <span>{authorName}</span>{' '}
-        <FormattedMessage {...FOLLOW_UPDATE_VERB[update.mode]} />
-      </p>
-      <FollowUpdateBody update={update} authorName={authorName} />
-    </div>
-  );
-}
-
-/**
- * The people rows for a follow update, without the primary headline. Secondary
- * sections (unfollows beneath follows, nuke counts) carry their own lead-in.
+ * The people rows for a kind 3 follow update. The headline sentence
+ * ("chad started following") lives in the feed card's actor row; secondary
+ * sections here (unfollows beneath follows, nuke counts) carry their own lead-in.
  */
 export function FollowUpdateBody({ update, authorName }: { update: FollowUpdate; authorName: string }) {
   const { mode, follows, unfollows, followOverflow, unfollowOverflow, removedCount, latest, peopleMeta } = update;
@@ -208,21 +184,18 @@ function PersonRow({
   );
 }
 
-function RowsSkeleton({ withHeadline }: { withHeadline?: boolean }) {
+function RowsSkeleton() {
   return (
-    <div className="mt-2">
-      {withHeadline && <Skeleton className="h-4 w-44" />}
-      <div className="mt-3 space-y-3">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="flex items-center gap-3">
-            <Skeleton className="size-12 shrink-0 rounded-full" />
-            <div className="flex-1 space-y-1.5">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-3 w-full" />
-            </div>
+    <div className="mt-3 space-y-3">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex items-center gap-3">
+          <Skeleton className="size-12 shrink-0 rounded-full" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-full" />
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }

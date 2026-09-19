@@ -3,27 +3,17 @@ import { Users, PartyPopper, UserCheck } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
-import { FollowListDiff } from '@/components/FollowListDiff';
 import { getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /**
- * Feed card for kind 3 (follow list), 30000 (follow set), or 39089 (follow pack).
+ * Compact feed card for kind 30000 (follow set) or 39089 (follow pack):
+ * title + optional description + optional cover image + avatar stack.
  *
- * Kind 3 follow lists render as a "life update" poster (who the author started
- * or stopped following since the previous version) via `FollowListDiff`.
- * Curated sets and packs keep the generic title + description + cover image +
- * avatar stack treatment.
+ * Kind 3 follow lists never reach this component: NoteCard renders them as a
+ * `FollowUpdateCard` and the detail page uses `PeopleListDetailContent`.
  */
 export function PeopleListContent({ event }: { event: NostrEvent }) {
-  if (event.kind === 3) {
-    return <FollowListDiff event={event} />;
-  }
-
-  return <PeopleListCard event={event} />;
-}
-
-function PeopleListCard({ event }: { event: NostrEvent }) {
   const { title, description, image, pubkeys, variant } = useMemo(
     () => parsePeopleList(event),
     [event],
