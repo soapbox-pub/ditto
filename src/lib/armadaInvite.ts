@@ -24,11 +24,27 @@ import { sanitizeUrl } from '@/lib/sanitizeUrl';
 /** The addressable invite bundle kind (Concord CORD-05 §1). */
 export const INVITE_BUNDLE_KIND = 33301;
 
-/** Web app that can open these invites. The path base is cosmetic per CORD-05. */
+/** Web apps that can open these invites. The path base is cosmetic per CORD-05. */
 const ARMADA_INVITE_BASE = 'https://armada.buzz/invite/';
+const VECTOR_INVITE_BASE = 'https://vectorapp.io/invite/';
 
-/** The `…/invite/<naddr>` path prefix used by Armada links. */
+/** The `…/invite/<naddr>` path prefix used by these links. */
 const INVITE_PATH_PREFIX = '/invite/';
+
+/**
+ * Which client the source link is branded for. `armada.buzz` is our own
+ * domain; `vectorapp.io` is Vector's. When someone shares a Vector link we
+ * feature Vector's branding (and offer Armada as a subtle alternative);
+ * otherwise we feature Armada.
+ */
+export type InviteBrand = 'armada' | 'vector';
+
+/** Map a link's hostname to the client it's branded for. */
+function hostBrand(hostname: string): InviteBrand {
+  const host = hostname.toLowerCase().replace(/^www\./, '');
+  if (host === 'vectorapp.io' || host.endsWith('.vectorapp.io')) return 'vector';
+  return 'armada';
+}
 
 export interface ArmadaInvite {
   /** The bare invite-bundle naddr (locator, no fragment). */
@@ -37,8 +53,14 @@ export interface ArmadaInvite {
   linkSigner: string;
   /** The `#fragment` secret, without the leading `#`. Empty if the link dropped it. */
   fragment: string;
-  /** A canonical https URL that opens the invite in Armada. */
+  /** The client the source link is branded for (drives which card we render). */
+  brand: InviteBrand;
+  /** The featured client's URL — `armadaUrl` or `vectorUrl` per {@link brand}. */
   openUrl: string;
+  /** A canonical https URL that opens the invite in Armada. */
+  armadaUrl: string;
+  /** A canonical https URL that opens the invite in Vector. */
+  vectorUrl: string;
   /** True when the link is missing its `#fragment` and therefore can't be joined. */
   missingSecret: boolean;
 }
@@ -66,6 +88,8 @@ export function parseArmadaInvite(input: string): ArmadaInvite | undefined {
 
   let naddr: string | undefined;
   let fragment = '';
+  // A bare naddr has no host, so default to our own domain (Armada).
+  let brand: InviteBrand = 'armada';
 
   if (/^naddr1[023456789acdefghjklmnpqrstuvwxyz]+/i.test(trimmed)) {
     const [head, ...rest] = trimmed.split('#');
@@ -81,16 +105,30 @@ export function parseArmadaInvite(input: string): ArmadaInvite | undefined {
     if (!url.pathname.startsWith(INVITE_PATH_PREFIX)) return undefined;
     naddr = decodeURIComponent(url.pathname.slice(INVITE_PATH_PREFIX.length)).replace(/\/$/, '');
     fragment = url.hash.replace(/^#/, '');
+    brand = hostBrand(url.hostname);
   }
 
   if (!naddr) return undefined;
   const linkSigner = naddrToSigner(naddr);
   if (!linkSigner) return undefined;
 
-  const openUrl = sanitizeUrl(`${ARMADA_INVITE_BASE}${naddr}${fragment ? `#${fragment}` : ''}`);
-  if (!openUrl) return undefined;
+  const suffix = `${naddr}${fragment ? `#${fragment}` : ''}`;
+  const armadaUrl = sanitizeUrl(`${ARMADA_INVITE_BASE}${suffix}`);
+  const vectorUrl = sanitizeUrl(`${VECTOR_INVITE_BASE}${suffix}`);
+  if (!armadaUrl || !vectorUrl) return undefined;
 
-  return { naddr, linkSigner, fragment, openUrl, missingSecret: fragment.length === 0 };
+  const openUrl = brand === 'vector' ? vectorUrl : armadaUrl;
+
+  return {
+    naddr,
+    linkSigner,
+    fragment,
+    brand,
+    openUrl,
+    armadaUrl,
+    vectorUrl,
+    missingSecret: fragment.length === 0,
+  };
 }
 
 /** Whether `input` is a community invite link (with or without its `#fragment`). */

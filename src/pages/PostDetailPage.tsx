@@ -90,7 +90,8 @@ import { ChestIcon } from "@/components/icons/ChestIcon";
 import { LiveStreamPage } from "@/components/LiveStreamPage";
 import { MagicDeckContent } from "@/components/MagicDeckContent";
 import { MusicDetailContent } from "@/components/MusicDetailContent";
-import { ActivityCard, EventActionHeader, NoteCard } from "@/components/NoteCard";
+import { ActivityCard } from "@/components/ActivityCard";
+import { EventActionHeader, NoteCard } from "@/components/NoteCard";
 import { publishedAtAction } from "@/lib/publishedAtAction";
 import { NoteContent } from "@/components/NoteContent";
 import { CelebrationOverlay, CELEBRATION_DURATION_MS } from "@/components/CelebrationOverlay";
@@ -457,7 +458,10 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
       naddr,
       linkSigner: addr.pubkey,
       fragment: "",
+      brand: "armada",
       openUrl: `https://armada.buzz/invite/${naddr}`,
+      armadaUrl: `https://armada.buzz/invite/${naddr}`,
+      vectorUrl: `https://vectorapp.io/invite/${naddr}`,
       missingSecret: true,
     };
     return (

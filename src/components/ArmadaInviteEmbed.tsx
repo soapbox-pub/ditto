@@ -7,6 +7,7 @@ import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { useArmadaInvitePreview } from '@/hooks/useArmadaInvitePreview';
 import { useArmadaImage } from '@/hooks/useArmadaImage';
 import type { ArmadaInvite, ArmadaInvitePreview } from '@/lib/armadaInvite';
+import { VectorInviteEmbed } from '@/components/VectorInviteEmbed';
 import { cn } from '@/lib/utils';
 
 interface ArmadaInviteEmbedProps {
@@ -107,6 +108,15 @@ function channelsLabel(count: number): string {
  * active theme's `primary` accent with Armada's cut-corner chrome.
  */
 export function ArmadaInviteEmbed({ invite, className, variant = 'embed' }: ArmadaInviteEmbedProps) {
+  // A link shared from Vector's own domain gets Vector's branding, with Armada
+  // offered as a subtle alternative. Everything else features Armada.
+  if (invite.brand === 'vector') {
+    return <VectorInviteEmbed invite={invite} className={className} variant={variant} />;
+  }
+  return <ArmadaInviteCard invite={invite} className={className} variant={variant} />;
+}
+
+function ArmadaInviteCard({ invite, className, variant = 'embed' }: ArmadaInviteEmbedProps) {
   const safeUrl = sanitizeUrl(invite.openUrl);
   const [copied, setCopied] = useState(false);
 
