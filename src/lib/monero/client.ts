@@ -12,17 +12,41 @@
  * Never add a top-level `import ... from 'monero-ts'` anywhere in `src/` — it
  * would pull the whole thing into the entry chunk and undo this.
  *
- * ## The worker
+ * ## The worker, and why it must be a *classic* worker
  *
  * `monero-ts` runs each wallet in a Web Worker by default (`proxyToWorker`),
  * which is what keeps a multi-minute chain scan from freezing the UI thread.
  * Its built-in loader expects to find `/monero.worker.js` at the site root; we
- * instead hand it an explicit loader built on `new URL(..., import.meta.url)`
- * so Vite fingerprints and emits the worker as a build asset. That also means
- * the LibreJS banner in `vite.config.ts` can reach it — see the `.js` asset
- * branch of `librejsLicense()`.
+ * instead import the prebuilt bundle with `?url`, so Vite fingerprints and
+ * emits it as a build asset (which also puts it in reach of the LibreJS banner
+ * in `vite.config.ts` — see the `.js` asset branch of `librejsLicense()`).
+ *
+ * **Do not pass `{ type: 'module' }` here.** A module worker runs in strict
+ * mode no matter what the file contains, and emscripten's generated HTTP glue
+ * in `monero.js` reads its collaborators off `this`:
+ *
+ *     function(url, method, body, timeout) {
+ *       const HttpClient = this.HttpClient;
+ *       const LibraryUtils = this.LibraryUtils;
+ *
+ * Those are the globals `LibraryUtils.initWasmModule()` assigns to
+ * `globalThis`, and the code reaches them by relying on a plain call getting
+ * `this === globalThis` — which is only true in sloppy mode. Under strict mode
+ * `this` is `undefined` and the wallet dies with "Cannot read properties of
+ * undefined (reading 'HttpClient')" the moment wallet2 makes its first request
+ * to a node. `monero.js` carries no `"use strict"` precisely because it
+ * depends on this.
+ *
+ * Loading it classic is also what upstream's own Vite sample does (it copies
+ * the file to `public/` and lets the default loader fetch it), so this is the
+ * arrangement `monero-ts` is actually tested against. Importing with `?url`
+ * additionally means Vite ships the prebuilt webpack bundle byte-for-byte
+ * rather than re-bundling 3.6 MB of someone else's build output.
  */
 import type moneroTs from 'monero-ts';
+
+// Emitted as a build asset; the value is just the fingerprinted URL string.
+import moneroWorkerUrl from 'monero-ts/dist/monero.worker.js?url';
 
 /** The `monero-ts` module namespace. */
 export type MoneroModule = typeof moneroTs;
@@ -40,12 +64,8 @@ export function loadMonero(): Promise<MoneroModule> {
     modulePromise = (async () => {
       const monero = await import('monero-ts');
 
-      monero.LibraryUtils.setWorkerLoader(
-        () =>
-          new Worker(new URL('monero-ts/dist/monero.worker.js', import.meta.url), {
-            type: 'module',
-          }),
-      );
+      // Classic worker — see the note above. No `type: 'module'`.
+      monero.LibraryUtils.setWorkerLoader(() => new Worker(moneroWorkerUrl));
 
       return monero;
     })();
