@@ -210,6 +210,57 @@ import.meta.url))` rather than `monero-ts`'s default `/monero.worker.js` root
 path, specifically so Vite fingerprints it as a build asset and the banner can
 reach it.
 
+## Content Security Policy
+
+Ditto's CSP (the meta tag in `index.html`) is
+`script-src 'self' 'wasm-unsafe-eval'`. That keyword permits compiling and
+instantiating WebAssembly — all the wasm wallet2 build needs — but not
+`unsafe-eval`, so no string can be evaluated as JavaScript. In a client where
+an `nsec` sits in `localStorage`, that distinction is the difference between an
+XSS being contained and it being instant key theft. **Do not add
+`unsafe-eval` to make Monero work.**
+
+`monero-ts` ships one call that violates it. `GenUtils.isBrowser()` detects its
+environment by building throwaway functions from source:
+
+```js
+new Function("try {return this===window;}catch(e){return false;}")()
+```
+
+The `try`/`catch` is *inside* the generated body, so it catches nothing — the
+refusal happens at construction and the `EvalError` escapes. And `LibraryUtils`
+calls `isBrowser()` from a **static class field** (`WORKER_DIST_PATH_DEFAULT`),
+which is evaluated when the class is defined, so `await import('monero-ts')`
+throws on its own, before any wallet code runs. The symptom is the wallet
+setup flow failing with:
+
+```
+Evaluating a string as JavaScript violates the following Content Security
+Policy directive because 'unsafe-eval' is not an allowed source of script:
+script-src 'self' 'wasm-unsafe-eval'
+```
+
+`scripts/patch-monero-csp.mjs` rewrites both calls to equivalent CSP-safe
+expressions, and runs from `postinstall`. It patches two files: the readable
+CommonJS source, and the inlined copy inside the prebuilt webpack bundle
+`dist/monero.worker.js`.
+
+It is a postinstall patch rather than a Vite plugin because a Rollup
+`transform` hook would catch both in a production build but miss the dev
+server, where Vite pre-bundles CommonJS deps with esbuild and plugin transforms
+don't run. Every Ditto npm script starts with `npm i`, so the patch is always
+current. The script is idempotent and **exits non-zero if it finds neither the
+original code nor its own replacement**, so a `monero-ts` bump that moves this
+code fails the install loudly instead of shipping a build that dies under CSP.
+
+Three other `Function(...)` call sites survive into the bundle and are all
+harmless: lodash's `freeGlobal || freeSelf || Function('return this')()`
+short-circuits on `self` in every browser and worker; `function-bind`'s shim is
+unreachable because `Function.prototype.bind` is native; and
+`is-generator-function`'s probe is wrapped in a real `try`/`catch`. The last
+one still logs a CSP violation from inside the worker — noisy, but caught, so
+sync is unaffected.
+
 ## Known limitations
 
 - **iOS WKWebView is unverified.** The build is correct and the wasm loads in a
