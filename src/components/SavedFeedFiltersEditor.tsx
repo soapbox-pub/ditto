@@ -18,6 +18,7 @@ import {
   X, Check, User,
 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
+import { FormattedMessage } from 'react-intl';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
@@ -234,7 +235,9 @@ export function KindPicker({ value, options, onChange }: {
             )}
           >
             <Hash className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="truncate">Add kind {customKind}</span>
+            <span className="truncate">
+              <FormattedMessage id="feedFilters.kindPicker.addKind" defaultMessage="Add kind {kind}" values={{ kind: customKind }} />
+            </span>
             {value === customKind && <Check className="size-3 shrink-0 ml-auto text-primary" />}
           </button>
         )}
@@ -409,7 +412,9 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
                 {selectedKinds.includes(customKind) && <Check className="size-3 text-primary-foreground" />}
               </div>
               <Hash className="size-4 shrink-0 text-muted-foreground" />
-              <span className="flex-1 truncate">Add kind {customKind}</span>
+              <span className="flex-1 truncate">
+                <FormattedMessage id="feedFilters.kindPicker.addKind" defaultMessage="Add kind {kind}" values={{ kind: customKind }} />
+              </span>
             </button>
           )}
 
