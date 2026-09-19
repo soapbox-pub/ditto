@@ -7,12 +7,14 @@ import {
   Check,
   ChevronDown,
   Copy,
+  KeyRound,
   Loader2,
   RefreshCw,
   Send,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { QRCodeCanvas } from '@/components/ui/qrcode';
 import { MoneroSetupDialog } from '@/components/MoneroSetupDialog';
@@ -53,6 +55,7 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
     phase,
     progress,
     error,
+    needsPassphrase,
     connect,
     refresh,
   } = useMoneroWallet();
@@ -64,6 +67,7 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
   const [sendOpen, setSendOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [txOpen, setTxOpen] = useState(false);
+  const [passphrase, setPassphrase] = useState('');
 
   // Open the Send dialog when a `monero:` deep link brought us here. Guarded
   // by a ref so dismissing the dialog doesn't immediately reopen it.
@@ -88,6 +92,7 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
 
     connectAttempted.current = false;
     consumedSendUri.current = false;
+    setPassphrase('');
     setCopied(false);
     setTxOpen(false);
     setSendOpen(false);
@@ -175,6 +180,12 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
   const syncing = phase === 'syncing' || phase === 'opening' || phase === 'loading';
   const locked = balance - unlockedBalance;
 
+  // The seed alone derives the wrong wallet without its offset, so this is a
+  // prompt rather than a failure. Nothing below it can be trusted until the
+  // wallet actually opens — including the balance, which is the last snapshot
+  // the record carries.
+  const awaitingPassphrase = phase === 'locked' || (needsPassphrase && !syncing);
+
   return (
     <div className="flex flex-col items-center px-4 pt-8 pb-4 space-y-6 max-w-sm mx-auto">
       {/* Balance */}
@@ -203,6 +214,38 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
           </span>
         )}
       </div>
+
+
+      {/* Passphrase prompt */}
+      {awaitingPassphrase && (
+        <form
+          className="w-full space-y-3 rounded-lg border p-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (passphrase) void connect(passphrase);
+          }}
+        >
+          <div className="flex gap-3">
+            <KeyRound className="size-5 shrink-0 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              <FormattedMessage
+                id="monero.panel.passphrase.prompt"
+                defaultMessage="This wallet's seed is protected by a passphrase. Ditto never stores it, so it's needed once on each new device."
+              />
+            </p>
+          </div>
+          <Input
+            type="password"
+            value={passphrase}
+            onChange={(e) => setPassphrase(e.target.value)}
+            autoComplete="off"
+            aria-label="Monero seed passphrase"
+          />
+          <Button type="submit" disabled={!passphrase} size="sm" className="w-full rounded-full">
+            <FormattedMessage id="monero.panel.passphrase.unlock" defaultMessage="Unlock wallet" />
+          </Button>
+        </form>
+      )}
 
       {/* Sync status */}
       {syncing && (
@@ -270,7 +313,7 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
         a spinning one reads as a broken control rather than a temporary one.
         The progress line above already says what's happening.
       */}
-      {!syncing && (
+      {!syncing && !awaitingPassphrase && (
         <div className="flex gap-2">
           <Button
             variant="outline"

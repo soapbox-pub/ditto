@@ -23,7 +23,7 @@
  * behaving identically across browser, WKWebView and Android WebView.
  */
 import { loadMonero, supportsWebWorkers, type MoneroModule } from './client';
-import { loadWalletCache, saveWalletCache } from './cache';
+import { clearWalletCache, loadWalletCache, saveWalletCache } from './cache';
 import { restoreHeightForNewWallet } from './heights';
 import { trimTxSummaries, type MoneroTxSummary, type MoneroWalletRecord, type MoneroWalletState } from './record';
 
@@ -225,11 +225,48 @@ export async function restoreWallet(
 }
 
 /**
+ * Thrown when an opened wallet is not the wallet the record describes.
+ *
+ * Almost always means a passphrase (wallet2's seed offset) is missing or
+ * wrong: the same 25 words with and without one derive two entirely different
+ * wallets, and nothing about the derivation fails — you get a perfectly valid
+ * wallet belonging to nobody. {@link needsPassphrase} distinguishes that from
+ * a stale cache blob left behind by a previous wallet.
+ */
+export class MoneroWalletMismatchError extends Error {
+  constructor(
+    readonly expected: string,
+    readonly actual: string,
+    readonly needsPassphrase: boolean,
+  ) {
+    super(
+      needsPassphrase
+        ? 'This seed needs its passphrase to open the right wallet.'
+        : "The stored wallet doesn't match this account's Monero address.",
+    );
+    this.name = 'MoneroWalletMismatchError';
+  }
+}
+
+/**
  * Open (or reuse) a wallet session for a pubkey.
  *
  * Prefers the locally-cached blobs so a reopen doesn't rescan. Falls back to
  * rebuilding from the record's seed when there's no cache — the slow path, but
  * always correct.
+ *
+ * ## Why the address is checked
+ *
+ * The seed path takes `passphrase`, which is never stored (that is the whole
+ * point of a seed offset), so it has to be supplied by whoever opens the
+ * wallet. Omitting it doesn't fail — wallet2 happily derives a *different*
+ * wallet from the same words, with a valid address and a zero balance. That
+ * wallet then renders as the user's, hands out a receive address nobody can
+ * spend from, and gets its empty state published over the real snapshot.
+ *
+ * So every open is checked against the address the record was created with.
+ * It costs one call and it is the only thing standing between a missing
+ * passphrase and a silently wrong wallet.
  */
 export async function getSession(
   pubkey: string,
@@ -279,6 +316,27 @@ export async function getSession(
         proxyToWorker: proxyToWorker(),
         fs: NO_FILESYSTEM,
       });
+    }
+
+    // Records written before `address` was denormalized, or by a future
+    // version that drops it, simply skip the check rather than failing open
+    // on a comparison against nothing.
+    if (record.address) {
+      const address = await wallet.getPrimaryAddress();
+      if (address !== record.address) {
+        await wallet.close(false).catch(() => {
+          // Nothing useful to do; the error below is the one that matters.
+        });
+        // A cached blob that opens to the wrong address belongs to a wallet
+        // this account no longer has. Drop it so the next open rebuilds from
+        // the seed rather than failing the same way forever.
+        if (cached) await clearWalletCache(pubkey);
+        throw new MoneroWalletMismatchError(
+          record.address,
+          address,
+          !cached && record.hasPassphrase && !passphrase,
+        );
+      }
     }
 
     const session: MoneroSession = { wallet, monero, pubkey };

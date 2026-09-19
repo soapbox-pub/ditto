@@ -18,9 +18,13 @@ import { useCallback } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import type { NostrEvent } from '@nostrify/nostrify';
+
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { hasWalletCache } from '@/lib/monero/cache';
 import {
   moneroRecordDTag,
   parseMoneroRecord,
@@ -44,6 +48,19 @@ export function moneroRecordQueryKeys(pubkey: string): unknown[][] {
   ];
 }
 
+/**
+ * What the caller believes it is replacing.
+ *
+ * A kind 30078 write is a replacement, and this one carries the only copy of
+ * the seed, so "what was there before" has to be established before every
+ * publish rather than assumed from the query cache.
+ */
+type PublishGuard =
+  /** Nothing may exist yet — this is the first record for the account. */
+  | { expect: 'absent' }
+  /** The record must still be the event it was decrypted from. */
+  | { expect: 'event'; event: NostrEvent | null };
+
 /** Parameters for creating the initial record. */
 export interface CreateMoneroRecordParams {
   seed: string;
@@ -56,22 +73,36 @@ export interface CreateMoneroRecordParams {
 export function useMoneroRecord() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const { store } = useNostrStorage();
   const { config } = useAppContext();
   const queryClient = useQueryClient();
 
   const dTag = moneroRecordDTag(config.appId);
   const canEncrypt = !!user?.signer.nip44;
 
-  /** The raw kind-30078 event holding the record. */
+  /**
+   * The raw kind-30078 event holding the record.
+   *
+   * Read through `fetchFreshEvent` with the local event store as a floor, not
+   * a bare `nostr.query`. `NPool.query` resolves 300ms after the *first* EOSE
+   * and swallows relay errors, so one fast relay that doesn't carry this event
+   * is enough to make an existing wallet look like no wallet at all — which
+   * renders the setup screen, and from there a second wallet can be created
+   * over the first. The store holds what this device last saw, so a relay miss
+   * degrades to "your last known record" instead of to nothing.
+   *
+   * A device that has genuinely never seen the wallet still can't tell the two
+   * apart; `createRecord` below carries the guards for that case.
+   */
   const eventQuery = useQuery({
     queryKey: ['monero-record-event', user?.pubkey, dTag],
     queryFn: async ({ signal }) => {
       if (!user) return null;
-      const events = await nostr.query(
-        [{ kinds: [30078], authors: [user.pubkey], '#d': [dTag], limit: 1 }],
-        { signal },
+      return fetchFreshEvent(
+        nostr,
+        { kinds: [30078], authors: [user.pubkey], '#d': [dTag] },
+        { store, signal },
       );
-      return events[0] ?? null;
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
@@ -111,16 +142,46 @@ export function useMoneroRecord() {
   });
 
   /**
-   * Encrypt and publish a record.
+   * Encrypt and publish a record, after checking what is actually out there.
    *
-   * Always re-fetches the current event first rather than trusting the query
-   * cache: this event holds key material, and writing a stale copy could drop
-   * a wallet created moments ago on another device.
+   * This event is the only copy of the seed, and it is replaceable: a publish
+   * built on a stale read silently destroys whatever it replaces. So every
+   * write re-reads first — relays plus the local store, which is the floor
+   * that keeps a relay miss from reading as "no wallet" — and checks the
+   * result against what the caller expected to be replacing.
+   *
+   * The comparison is by event id and `created_at`, not by decrypting and
+   * diffing the seed: a different seed necessarily lives in a different event,
+   * and decrypting would cost a signer round-trip on a bunker login for every
+   * snapshot we write. An event *older* than ours is stale propagation from a
+   * lagging relay, not another device, so it isn't treated as a conflict.
    */
   const publishRecord = useCallback(
-    async (record: MoneroWalletRecord) => {
+    async (record: MoneroWalletRecord, guard: PublishGuard) => {
       if (!user) throw new Error('Not logged in');
       if (!user.signer.nip44) throw new Error('Your signer does not support NIP-44 encryption');
+
+      const fresh = await fetchFreshEvent(
+        nostr,
+        { kinds: [30078], authors: [user.pubkey], '#d': [dTag] },
+        { store },
+      );
+
+      if (guard.expect === 'absent') {
+        if (fresh?.content) {
+          throw new Error('A Monero wallet already exists for this account');
+        }
+      } else if (
+        fresh?.content &&
+        (!guard.event || (fresh.id !== guard.event.id && fresh.created_at >= guard.event.created_at))
+      ) {
+        // Another device — or another tab — replaced the record since we read
+        // it. Publishing our copy now would put its seed back over theirs.
+        // Hand the newer event to the query cache so the app re-decrypts and
+        // converges instead of retrying into the same conflict.
+        queryClient.setQueryData(['monero-record-event', user.pubkey, dTag], fresh);
+        throw new Error('Your Monero wallet was updated on another device.');
+      }
 
       const plaintext = JSON.stringify(record);
       const content = await user.signer.nip44.encrypt(user.pubkey, plaintext);
@@ -143,7 +204,7 @@ export function useMoneroRecord() {
 
       return { record, event: signed };
     },
-    [user, nostr, dTag, config.appName, config.client, queryClient],
+    [user, nostr, store, dTag, config.appName, config.client, queryClient],
   );
 
   /** Create the initial record for a new or restored wallet. */
@@ -151,16 +212,23 @@ export function useMoneroRecord() {
     mutationFn: async (params: CreateMoneroRecordParams) => {
       if (!user) throw new Error('Not logged in');
 
-      // Refuse to overwrite an existing wallet. Without this, a second run of
-      // the setup flow — a stale tab, a double submit — would replace a seed
-      // that may already control funds.
-      const existing = await fetchFreshEvent(nostr, {
-        kinds: [30078],
-        authors: [user.pubkey],
-        '#d': [dTag],
-      });
-      if (existing?.content) {
-        throw new Error('A Monero wallet already exists for this account');
+      // Creating is the one write that can destroy a seed it never saw, so it
+      // refuses to run on an inconclusive read. `NPool.query` swallows relay
+      // errors and resolves 300ms after the first EOSE, so a fast relay that
+      // simply doesn't carry the event looks exactly like "no wallet yet" —
+      // and the setup screen the user is looking at is itself the product of
+      // that same read.
+      if (eventQuery.isError) {
+        throw new Error("Couldn't check your relays for an existing wallet. Try again.");
+      }
+
+      // A local wallet cache proves this account already had a wallet on this
+      // device, whatever the relays are saying right now.
+      if (await hasWalletCache(user.pubkey)) {
+        throw new Error(
+          'This account already has a Monero wallet cached on this device. ' +
+            'Reload to let it load from your relays before setting up a new one.',
+        );
       }
 
       const record: MoneroWalletRecord = {
@@ -173,7 +241,7 @@ export function useMoneroRecord() {
         createdAt: Date.now(),
       };
 
-      return publishRecord(record);
+      return publishRecord(record, { expect: 'absent' });
     },
   });
 
@@ -182,13 +250,17 @@ export function useMoneroRecord() {
    *
    * Only the `state` field is touched — the seed and restore height are
    * carried over from the record we already hold, so a sync can never rewrite
-   * key material.
+   * key material *of its own accord*. It can still carry a stale copy of it:
+   * the record it spreads came from whichever event this hook last decrypted,
+   * so a device that has been open since before another device restored a
+   * wallet would republish the old seed over the new one. Passing the source
+   * event makes `publishRecord` refuse that.
    */
   const updateState = useMutation({
     mutationFn: async (state: MoneroWalletState) => {
       const current = recordQuery.data;
       if (!current) throw new Error('No Monero wallet record to update');
-      return publishRecord({ ...current, state });
+      return publishRecord({ ...current, state }, { expect: 'event', event: eventQuery.data ?? null });
     },
   });
 

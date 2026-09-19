@@ -80,7 +80,7 @@ export function MoneroZapContent({ method, target, onSuccess }: MoneroZapContent
   const intl = useIntl();
   const { toast } = useToast();
   const { config } = useAppContext();
-  const { hasWallet, session, unlockedBalance, xmrPrice, phase, connect, refreshState } =
+  const { hasWallet, session, unlockedBalance, xmrPrice, phase, needsPassphrase, connect, refreshState } =
     useMoneroWallet();
 
   // Monero has no sats, so a sats-preferring user writes amounts in XMR. The
@@ -96,10 +96,13 @@ export function MoneroZapContent({ method, target, onSuccess }: MoneroZapContent
   const [error, setError] = useState('');
 
   // Bring the wallet online as soon as the Monero pane is shown, so the user
-  // isn't waiting on a sync only after they've typed an amount.
+  // isn't waiting on a sync only after they've typed an amount. A passphrase
+  // wallet with no local cache is left alone: the prompt for it belongs on the
+  // wallet page, not in a zap dialog, and opening without it would derive the
+  // wrong wallet rather than fail.
   useEffect(() => {
-    if (hasWallet) void connect();
-  }, [hasWallet, connect]);
+    if (hasWallet && !needsPassphrase) void connect();
+  }, [hasWallet, needsPassphrase, connect]);
 
   const amount = useMemo(
     () => amountInputToAtomic(amountInput, unit, xmrPrice),
@@ -225,6 +228,23 @@ export function MoneroZapContent({ method, target, onSuccess }: MoneroZapContent
           <FormattedMessage
             id="monero.zap.noWallet"
             defaultMessage="Set up a Monero wallet in Ditto to send directly from here."
+          />
+        </p>
+      </div>
+    );
+  }
+
+  // A wallet that can't open on this device without a passphrase. Prompting
+  // for a seed offset inside a zap dialog is the wrong place for it, so this
+  // falls back to the handoff pane the same way "no wallet" does.
+  if (needsPassphrase) {
+    return (
+      <div className="grid gap-2">
+        <GenericPaymentContent method={method} target={target} />
+        <p className="px-4 pb-2 text-center text-xs text-muted-foreground">
+          <FormattedMessage
+            id="monero.zap.locked"
+            defaultMessage="Unlock your Monero wallet on the wallet page to send from here."
           />
         </p>
       </div>

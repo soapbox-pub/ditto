@@ -18,16 +18,18 @@
  * nothing.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMoneroRecord } from '@/hooks/useMoneroRecord';
+import { hasWalletCache } from '@/lib/monero/cache';
 import { fetchMoneroPrice } from '@/lib/monero/price';
 import { pickReachableNode } from '@/lib/monero/nodes';
 import {
   closeSession,
   getSession,
+  MoneroWalletMismatchError,
   readState,
   startBackgroundSync,
   stopBackgroundSync,
@@ -42,6 +44,8 @@ const SNAPSHOT_FRESH_MS = 5 * 60 * 1000;
 
 export type MoneroConnectionPhase =
   | 'disconnected'
+  /** Waiting on the passphrase that the stored seed alone can't supply. */
+  | 'locked'
   | 'loading'
   | 'opening'
   | 'syncing'
@@ -51,6 +55,7 @@ export type MoneroConnectionPhase =
 export function useMoneroWallet() {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
+  const queryClient = useQueryClient();
   const { record, isLoading: isLoadingRecord, canEncrypt, updateState } = useMoneroRecord();
 
   const [session, setSession] = useState<MoneroSession | null>(null);
@@ -73,6 +78,32 @@ export function useMoneroWallet() {
 
   const pubkey = user?.pubkey ?? '';
   const nodeUrls = useMemo(() => config.moneroNodes, [config.moneroNodes]);
+
+  /**
+   * Whether this device holds a wallet cache for the account.
+   *
+   * Only interesting for a passphrase-protected wallet: with a cache we reopen
+   * the `.keys` blob and the passphrase never comes up, and without one the
+   * wallet has to be rebuilt from the seed, which needs it. Invalidated after
+   * a successful open, since that writes the cache.
+   */
+  const { data: hasCache } = useQuery({
+    queryKey: ['monero-cache-present', pubkey],
+    queryFn: () => hasWalletCache(pubkey),
+    enabled: !!pubkey && !!record,
+    staleTime: 60_000,
+  });
+
+  /**
+   * The wallet can't be opened without a passphrase the user has to type.
+   *
+   * wallet2's seed offset is deliberately not stored — storing it would defeat
+   * its purpose — so a passphrase wallet with no local cache can only be
+   * rebuilt with help. Opening it anyway doesn't fail: it derives a different,
+   * empty wallet (see `MoneroWalletMismatchError`), which is why this is a
+   * state the UI has to handle rather than something to attempt and see.
+   */
+  const needsPassphrase = !!record?.hasPassphrase && hasCache === false && !session;
 
   /**
    * The pubkey of the current render, readable from an async callback that
@@ -149,10 +180,18 @@ export function useMoneroWallet() {
    *
    * Idempotent: calling it while already connected or connecting is a no-op,
    * so a component can call it from an effect without debouncing.
+   *
+   * Pass `passphrase` when {@link needsPassphrase} is set. Without it the open
+   * stops at `phase: 'locked'` rather than deriving the wrong wallet.
    */
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (passphrase?: string) => {
     if (!record || !pubkey) return;
     if (connectingRef.current || session) return;
+
+    if (record.hasPassphrase && !passphrase && !(await hasWalletCache(pubkey))) {
+      setPhase('locked');
+      return;
+    }
 
     connectingRef.current = true;
     setError(null);
@@ -163,7 +202,7 @@ export function useMoneroWallet() {
 
       if (!mountedRef.current || pubkey !== pubkeyRef.current) return;
       setPhase('opening');
-      const opened = await getSession(pubkey, record, nodeUrl);
+      const opened = await getSession(pubkey, record, nodeUrl, { passphrase });
 
       if (!isCurrent(opened)) {
         // Unmounted, or the account changed mid-open. Leave the session
@@ -195,13 +234,22 @@ export function useMoneroWallet() {
       await startBackgroundSync(opened);
     } catch (err) {
       if (!mountedRef.current || pubkey !== pubkeyRef.current) return;
+
+      // A wrong or missing passphrase isn't an error to retry — it's a prompt.
+      if (err instanceof MoneroWalletMismatchError && err.needsPassphrase) {
+        setError(passphrase ? err.message : null);
+        setPhase('locked');
+        return;
+      }
+
       const message = err instanceof Error ? err.message : 'Failed to open Monero wallet';
       setError(message);
       setPhase('error');
     } finally {
       connectingRef.current = false;
+      queryClient.invalidateQueries({ queryKey: ['monero-cache-present', pubkey] });
     }
-  }, [record, pubkey, session, nodeUrls, isCurrent, publishState]);
+  }, [record, pubkey, session, nodeUrls, isCurrent, publishState, queryClient]);
 
   /** Re-sync an already-open wallet. */
   const refresh = useCallback(async () => {
@@ -292,6 +340,10 @@ export function useMoneroWallet() {
     isLoadingRecord,
     /** Whether the signer supports the NIP-44 encryption the record needs. */
     canEncrypt,
+    /**
+     * The wallet is waiting on a passphrase. Call `connect(passphrase)`.
+     */
+    needsPassphrase,
 
     /** The open session, once connected. */
     session,
