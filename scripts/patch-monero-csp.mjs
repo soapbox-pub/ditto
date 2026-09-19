@@ -47,6 +47,15 @@
  * this code fails the install loudly instead of silently shipping a build that
  * dies under CSP.
  *
+ * ## This is meant to be temporary
+ *
+ * Submitted upstream as https://github.com/woodser/monero-ts/pull/330, with the
+ * same two replacements used here. If that lands, bumping `monero-ts` past it
+ * makes this file redundant: the patch will report "found neither the
+ * Function() call nor its replacement" and fail the install, which is the
+ * signal to delete the script and its `postinstall` entry rather than to
+ * re-point it at new line numbers.
+ *
  * ## What is deliberately left alone
  *
  * Three other `Function(...)` call sites survive into the bundle and are all

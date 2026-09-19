@@ -253,6 +253,12 @@ current. The script is idempotent and **exits non-zero if it finds neither the
 original code nor its own replacement**, so a `monero-ts` bump that moves this
 code fails the install loudly instead of shipping a build that dies under CSP.
 
+The same fix is submitted upstream as
+[woodser/monero-ts#330](https://github.com/woodser/monero-ts/pull/330). If it
+lands, bumping `monero-ts` past it makes the script redundant — the patch will
+fail the install, which is the signal to delete it and its `postinstall` entry
+rather than re-point it at new line numbers.
+
 Three other `Function(...)` call sites survive into the bundle and are all
 harmless: lodash's `freeGlobal || freeSelf || Function('return this')()`
 short-circuits on `self` in every browser and worker; `function-bind`'s shim is
