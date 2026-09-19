@@ -196,6 +196,28 @@ promoted from `generic` to a **native** `PaymentMethodKind`:
   copyable address, and a `monero:` handoff button, so the payment can still be
   made from Cake, Feather or Monerujo.
 
+### The address is published automatically
+
+Finishing setup — whether you created a wallet or restored one — publishes
+your primary address as a `payto` tag on your kind 10133 event, so people can
+send you Monero from your profile without you having to copy it into Settings.
+
+`useEnsurePaymentTarget` is additive and only fills a gap:
+
+- If **any** `payto monero` tag already exists it publishes nothing, even if
+  Ditto considers that tag malformed. Anything you put there by hand is yours.
+- It copies the previous event's tags verbatim and appends one, rather than
+  re-serializing from the parsed set the way `useUpdatePaymentTargets` does.
+  That distinction matters: the parsing path drops any `payto` type outside
+  Ditto's curated allowlist, which is fine in an editor you can see but not in
+  something that runs on its own. A `payto dogecoin` tag survives this.
+- Failure never fails setup. The seed is already saved by that point, and a
+  relay hiccup while announcing a donation address must not look like the
+  wallet itself broke.
+
+The toast says which happened, because publishing links your Nostr identity to
+a payment address in public and shouldn't be silent.
+
 ### No attribution event
 
 On-chain Bitcoin zaps publish a kind 8333 referencing `bitcoin:tx:<txid>` (see

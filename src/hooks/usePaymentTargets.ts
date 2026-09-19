@@ -6,10 +6,12 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { rollbackQuery } from '@/lib/optimisticEvent';
 import {
+  PAYMENT_METHODS,
   PAYMENT_TARGETS_KIND,
   parsePaymentTargets,
   paymentTargetsToTags,
   type PaymentTarget,
+  type PaymentTargetType,
 } from '@/lib/paymentTargets';
 
 /**
@@ -93,6 +95,86 @@ export function useUpdatePaymentTargets() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-targets', user?.pubkey] });
+    },
+  });
+}
+
+/** Outcome of {@link useEnsurePaymentTarget}. */
+export type EnsureTargetResult =
+  /** No target of this type existed; one was published. */
+  | 'added'
+  /** The user already declared this type. Nothing was published. */
+  | 'existing';
+
+/**
+ * Add a payment target for a type the user hasn't declared yet, leaving
+ * everything else exactly as it was.
+ *
+ * This is the *additive* counterpart to {@link useUpdatePaymentTargets}, and
+ * the difference matters. That hook takes the complete desired set and
+ * re-serializes it, which means any `payto` type outside Ditto's curated
+ * allowlist is dropped on write. That's acceptable in the editor, where the
+ * user can see what they're saving. It is not acceptable here, because this
+ * runs automatically — so instead of rebuilding the tag list, we copy the
+ * previous event's tags verbatim and append one.
+ *
+ * The existence check reads the **raw tags** rather than the parsed targets,
+ * so a `payto` entry Ditto considers malformed still counts as "already
+ * declared". Anything the user put there by hand is theirs; the point of this
+ * hook is to fill a gap, never to correct or replace.
+ *
+ * Publishing is a public act — it links a Nostr identity to a payment
+ * address — so callers should surface that it happened rather than doing it
+ * silently.
+ */
+export function useEnsurePaymentTarget() {
+  const { nostr } = useNostr();
+  const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
+  const { mutateAsync: publishEvent } = useNostrPublish();
+
+  return useMutation({
+    mutationFn: async ({
+      type,
+      authority,
+    }: {
+      type: PaymentTargetType;
+      authority: string;
+    }): Promise<EnsureTargetResult> => {
+      if (!user) throw new Error('You must be logged in.');
+
+      const value = authority.trim();
+      if (!PAYMENT_METHODS[type].validate(value)) {
+        throw new Error(`Invalid ${PAYMENT_METHODS[type].label} address`);
+      }
+
+      // Always read fresh: this is a replaceable event that other clients (and
+      // Ditto's own profile settings) may have changed since we last looked,
+      // and publishing a stale copy would drop their edits.
+      const prev = await fetchFreshEvent(nostr, {
+        kinds: [PAYMENT_TARGETS_KIND],
+        authors: [user.pubkey],
+      });
+
+      const alreadyDeclared = (prev?.tags ?? []).some(
+        (tag) => tag[0] === 'payto' && typeof tag[1] === 'string' && tag[1].trim().toLowerCase() === type,
+      );
+      if (alreadyDeclared) return 'existing';
+
+      const tags = [...(prev?.tags ?? [])];
+      if (!tags.some((tag) => tag[0] === 'alt')) tags.push(['alt', 'Payment targets']);
+      tags.push(['payto', type, value]);
+
+      await publishEvent({
+        kind: PAYMENT_TARGETS_KIND,
+        content: prev?.content ?? '',
+        tags,
+        prev: prev ?? undefined,
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ['payment-targets', user.pubkey] });
+
+      return 'added';
     },
   });
 }

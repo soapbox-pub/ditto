@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/useToast';
 import { useMoneroRecord } from '@/hooks/useMoneroRecord';
+import { useEnsurePaymentTarget } from '@/hooks/usePaymentTargets';
 import { createWallet, restoreWallet } from '@/lib/monero/wallet';
 
 interface MoneroSetupDialogProps {
@@ -46,6 +47,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
   const intl = useIntl();
   const { toast } = useToast();
   const { createRecord, canEncrypt } = useMoneroRecord();
+  const { mutateAsync: ensurePaymentTarget } = useEnsurePaymentTarget();
 
   const [step, setStep] = useState<Step>({ name: 'choose' });
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +90,28 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
     }
   }, []);
 
+  /**
+   * Advertise the wallet's address as a NIP-A3 Monero payment target, unless
+   * the user has already declared one — see `useEnsurePaymentTarget`.
+   *
+   * Deliberately cannot fail the setup flow. By the time this runs the seed is
+   * already saved, and a relay hiccup while publishing a donation address must
+   * not look like the wallet itself didn't work. Returns whether a target was
+   * published, so the toast can say so rather than doing it behind the user's
+   * back.
+   */
+  const announceTarget = useCallback(
+    async (address: string): Promise<boolean> => {
+      try {
+        return (await ensurePaymentTarget({ type: 'monero', authority: address })) === 'added';
+      } catch (err) {
+        console.warn('Failed to publish Monero payment target:', err);
+        return false;
+      }
+    },
+    [ensurePaymentTarget],
+  );
+
   /** Publish the record for a newly-created wallet. */
   const handleFinishCreate = useCallback(async () => {
     if (step.name !== 'backup') return;
@@ -100,22 +124,29 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
         cachePassword: step.cachePassword,
         hasPassphrase: false,
       });
+      const announced = await announceTarget(step.address);
       toast({
         title: intl.formatMessage({
           id: 'monero.setup.created.title',
           defaultMessage: 'Monero wallet created',
         }),
-        description: intl.formatMessage({
-          id: 'monero.setup.created.description',
-          defaultMessage: 'Your wallet is encrypted and synced to your Nostr account.',
-        }),
+        description: announced
+          ? intl.formatMessage({
+              id: 'monero.setup.created.description.announced',
+              defaultMessage:
+                'Encrypted to your account. Your address is now on your profile so people can send you Monero.',
+            })
+          : intl.formatMessage({
+              id: 'monero.setup.created.description',
+              defaultMessage: 'Your wallet is encrypted and synced to your Nostr account.',
+            }),
       });
       onComplete?.();
       handleClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save wallet');
     }
-  }, [step, createRecord, toast, intl, onComplete, handleClose]);
+  }, [step, createRecord, announceTarget, toast, intl, onComplete, handleClose]);
 
   /** Validate and publish a restored wallet. */
   const handleRestore = useCallback(async () => {
@@ -162,15 +193,22 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
         hasPassphrase: !!passphrase,
       });
 
+      const announced = await announceTarget(address);
       toast({
         title: intl.formatMessage({
           id: 'monero.setup.restored.title',
           defaultMessage: 'Monero wallet restored',
         }),
-        description: intl.formatMessage({
-          id: 'monero.setup.restored.description',
-          defaultMessage: 'Scanning the blockchain now — this can take a while.',
-        }),
+        description: announced
+          ? intl.formatMessage({
+              id: 'monero.setup.restored.description.announced',
+              defaultMessage:
+                'Scanning the blockchain now. Your address is also on your profile so people can send you Monero.',
+            })
+          : intl.formatMessage({
+              id: 'monero.setup.restored.description',
+              defaultMessage: 'Scanning the blockchain now — this can take a while.',
+            }),
       });
       onComplete?.();
       handleClose();
@@ -183,6 +221,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
     restoreHeightInput,
     passphrase,
     createRecord,
+    announceTarget,
     toast,
     intl,
     onComplete,
