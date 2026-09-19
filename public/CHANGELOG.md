@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.39.0] - 2026-09-19
+
+Monero comes to Ditto. Create or restore a wallet in the app, keep the seed encrypted under your own key, and scan the chain on your own device — no server ever sees your view key. Your address goes on your profile so anyone can pay you, and you can send Monero from the zap dialog. Feeds get more social too: follow lists arrive as activity cards showing who someone just started following, with a Follow button on every row. Any content type can also be hidden from your feed from a post's menu.
+
+### Added
+- A Monero wallet: create or restore one in the app, watch it scan the chain on your own device, see your balance and history, and send XMR — with your seed encrypted under your own key and never handed to a server
+- Send Monero from the zap dialog when you have a wallet, in whichever denomination you prefer, instead of only a QR handoff
+- Your Monero address is published on your profile when you finish setup, so people can pay you without copying it anywhere
+- Your Monero wallet keeps syncing in the background on every page, so your balance is ready when you open the wallet instead of scanning from where you left off a week ago
+- Follow lists arrive in your feed as an activity card — who just started following whom, with a Follow button next to each person, and a single "nuked their follow list" line when someone clears the whole thing
+- "Hide from feed" in a post's menu, to drop that entire content type out of your feed in one tap
+- Content types Ditto doesn't list yet can be added to your home feed and profile tabs by typing their number straight into the picker
+- Invite links shared from vectorapp.io show Vector's own colors and an "Open in Vector" button, with Ditto's Armada handoff still a tap away
+- Notifications can be delivered by the app hosting Ditto where one offers it, with no notification server in between
+
+### Fixed
+- Highlight and quiz push notifications can be turned off — their switches previously did nothing
+- The notification badge no longer renders as a solid white blob in the status bar, and Android themed icons get a proper monochrome Ditto glyph instead of the full-color tile
+
 ## [2.38.1] - 2026-09-06
 
 Broken images, healed. Profile pictures, banners, badges, custom emoji, and app icons now fall back to another media server when the one hosting them goes dark — the same recovery your photos and videos already had. And uploads are finally copied to your backup servers for real, so nothing you post rides on a single machine staying online.
