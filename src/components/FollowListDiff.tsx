@@ -1,106 +1,148 @@
-import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { UserMinus } from 'lucide-react';
 import { FormattedMessage } from 'react-intl';
 import { nip19 } from 'nostr-tools';
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { FollowButton } from '@/components/FollowButton';
 import { useAuthor } from '@/hooks/useAuthor';
-import { useAuthors } from '@/hooks/useAuthors';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
-import { usePeopleListDiff } from '@/hooks/usePeopleListDiff';
+import { FOLLOW_UPDATE_VERB, NUKE_THRESHOLD, useFollowUpdate, type FollowUpdate } from '@/hooks/useFollowUpdate';
 import { getDisplayName } from '@/lib/getDisplayName';
-import { getPeopleListVariant } from '@/lib/packUtils';
+import { cn } from '@/lib/utils';
 
-/** Most timeline rows to render before collapsing the rest into "+N more". */
-const MAX_ACTIONS = 3;
-/** A removal this large is treated as a wipe rather than listed person-by-person. */
-const NUKE_THRESHOLD = 10;
+type Tone = 'follow' | 'unfollow';
 
-type ActionKind = 'followed' | 'unfollowed';
-interface Action {
-  kind: ActionKind;
-  pubkey: string;
+/**
+ * Detail-page body for a kind 3 follow list: the headline sentence plus the
+ * people rows. The feed card puts the sentence in its actor row instead and
+ * renders only {@link FollowUpdateBody}.
+ */
+export function FollowListDiff({ event }: { event: NostrEvent }) {
+  const update = useFollowUpdate(event);
+  const author = useAuthor(event.pubkey);
+  const authorName = getDisplayName(author.data?.metadata, event.pubkey);
+
+  if (update.mode === 'loading') return <RowsSkeleton withHeadline />;
+  if (update.mode === 'none') return null;
+
+  return (
+    <div className="mt-2">
+      <p className="text-[15px] font-semibold leading-snug text-foreground">
+        <span>{authorName}</span>{' '}
+        <FormattedMessage {...FOLLOW_UPDATE_VERB[update.mode]} />
+      </p>
+      <FollowUpdateBody update={update} authorName={authorName} />
+    </div>
+  );
 }
 
 /**
- * Renders what changed between this people-list version and the previous one as
- * a compact activity timeline — "{author} followed {person}" rows, each with a
- * Follow button when you don't already follow that person. Caps the list at
- * {@link MAX_ACTIONS} rows and collapses a mass unfollow into a single "nuked
- * their follow list" notice.
- *
- * Renders nothing when there's no previous version to compare against (e.g. the
- * relay doesn't retain history) or nothing changed.
+ * The people rows for a follow update, without the primary headline. Secondary
+ * sections (unfollows beneath follows, nuke counts) carry their own lead-in.
  */
-export function FollowListDiff({ event }: { event: NostrEvent }) {
-  const { data: diff } = usePeopleListDiff(event);
-  const author = useAuthor(event.pubkey);
-  const authorName = getDisplayName(author.data?.metadata, event.pubkey);
-  const variant = getPeopleListVariant(event.kind);
-  const isFollowList = variant === 'follow-list';
+export function FollowUpdateBody({ update, authorName }: { update: FollowUpdate; authorName: string }) {
+  const { mode, follows, unfollows, followOverflow, unfollowOverflow, removedCount, latest, peopleMeta } = update;
 
-  const massRemoval = (diff?.removed.length ?? 0) >= NUKE_THRESHOLD;
+  if (mode === 'loading') return <RowsSkeleton />;
+  if (mode === 'none') return null;
 
-  // Newest follows are appended last on kind 3, so reverse to surface them first.
-  const actions = useMemo<Action[]>(() => {
-    if (!diff) return [];
-    const added: Action[] = diff.added.slice().reverse().map((pubkey) => ({ kind: 'followed', pubkey }));
-    const removed: Action[] = massRemoval
-      ? []
-      : diff.removed.slice().reverse().map((pubkey) => ({ kind: 'unfollowed', pubkey }));
-    return [...added, ...removed];
-  }, [diff, massRemoval]);
+  if (mode === 'latest') {
+    return <Rows tone="follow" pubkeys={latest} peopleMeta={peopleMeta} />;
+  }
 
-  const visible = actions.slice(0, MAX_ACTIONS);
-  const overflow = actions.length - visible.length;
+  if (mode === 'nuke') {
+    return <NukeCount count={removedCount} />;
+  }
 
-  const authorLabel = <span className="font-semibold text-foreground">{authorName}</span>;
+  if (mode === 'unfollow') {
+    return <Rows tone="unfollow" pubkeys={unfollows} overflow={unfollowOverflow} peopleMeta={peopleMeta} />;
+  }
 
-  if (!diff?.hasPrevious) return null;
-  if (actions.length === 0 && !massRemoval) return null;
-
+  // mode === 'follow', possibly with unfollows or a nuke beneath.
+  const massRemoval = removedCount >= NUKE_THRESHOLD;
   return (
-    <div className="mt-2 space-y-1.5">
+    <div className="space-y-4">
+      <Rows tone="follow" pubkeys={follows} overflow={followOverflow} peopleMeta={peopleMeta} />
+
       {massRemoval && (
-        <div className="flex items-center gap-2 rounded-lg bg-rose-500/10 px-3 py-2 text-[13px] leading-snug text-rose-700 dark:text-rose-300">
-          <UserMinus className="size-4 shrink-0" />
-          <span>
-            {isFollowList ? (
-              <FormattedMessage
-                id="followDiff.nukedFollows"
-                defaultMessage="{author} nuked their follow list — removed {count} people"
-                values={{ author: authorLabel, count: diff.removed.length }}
-              />
-            ) : (
-              <FormattedMessage
-                id="followDiff.nukedList"
-                defaultMessage="{author} nuked their list — removed {count} people"
-                values={{ author: authorLabel, count: diff.removed.length }}
-              />
-            )}
-          </span>
+        <div>
+          <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">
+            <FormattedMessage
+              id="followDiff.alsoNuked"
+              defaultMessage="and nuked the rest of their follow list"
+            />
+          </p>
+          <NukeCount count={removedCount} />
         </div>
       )}
 
-      {visible.map((action) => (
-        <ActionRow
-          key={`${action.kind}:${action.pubkey}`}
-          action={action}
-          authorLabel={authorLabel}
-          isFollowList={isFollowList}
-        />
-      ))}
+      {!massRemoval && unfollows.length > 0 && (
+        <div>
+          <p className="text-sm text-muted-foreground">
+            <FormattedMessage
+              id="followDiff.stoppedFollowing"
+              defaultMessage="{author} stopped following"
+              values={{ author: authorName }}
+            />
+          </p>
+          <Rows tone="unfollow" pubkeys={unfollows} overflow={unfollowOverflow} peopleMeta={peopleMeta} />
+        </div>
+      )}
 
+      {!massRemoval && unfollows.length === 0 && unfollowOverflow > 0 && (
+        <p className="text-sm text-muted-foreground">
+          <FormattedMessage
+            id="followDiff.alsoUnfollowed"
+            defaultMessage="and stopped following {count, plural, one {# person} other {# people}}"
+            values={{ count: unfollowOverflow }}
+          />
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─── Pieces ───────────────────────────────────────────────────────────
+
+function NukeCount({ count }: { count: number }) {
+  return (
+    <p className="mt-1 text-sm text-muted-foreground">
+      <FormattedMessage
+        id="followDiff.nukedCount"
+        defaultMessage="{count, plural, one {# person gone} other {# people gone}}"
+        values={{ count }}
+      />
+    </p>
+  );
+}
+
+function Rows({
+  tone,
+  pubkeys,
+  overflow = 0,
+  peopleMeta,
+}: {
+  tone: Tone;
+  pubkeys: string[];
+  overflow?: number;
+  peopleMeta: Map<string, { metadata?: NostrMetadata }> | undefined;
+}) {
+  return (
+    <div>
+      <ul className="mt-3 space-y-3">
+        {pubkeys.map((pk) => (
+          <PersonRow key={pk} tone={tone} pubkey={pk} metadata={peopleMeta?.get(pk)?.metadata} />
+        ))}
+      </ul>
       {overflow > 0 && (
-        <p className="pl-8 text-[13px] text-muted-foreground">
+        <p className="mt-2 pl-[60px] text-sm text-muted-foreground">
           <FormattedMessage
             id="followDiff.more"
-            defaultMessage="+{count} more"
+            defaultMessage="and {count} more"
             values={{ count: overflow }}
           />
         </p>
@@ -109,85 +151,78 @@ export function FollowListDiff({ event }: { event: NostrEvent }) {
   );
 }
 
-function ActionRow({
-  action,
-  authorLabel,
-  isFollowList,
+function PersonRow({
+  tone,
+  pubkey,
+  metadata,
 }: {
-  action: Action;
-  authorLabel: React.ReactNode;
-  isFollowList: boolean;
+  tone: Tone;
+  pubkey: string;
+  metadata: NostrMetadata | undefined;
 }) {
   const { user } = useCurrentUser();
-  const { data: authorsMap } = useAuthors([action.pubkey]);
   const { data: followData } = useFollowList();
 
-  const metadata = authorsMap?.get(action.pubkey)?.metadata;
-  const personName = getDisplayName(metadata, action.pubkey);
-  const npub = nip19.npubEncode(action.pubkey);
+  const name = getDisplayName(metadata, pubkey);
+  const npub = nip19.npubEncode(pubkey);
+  const bio = metadata?.about?.trim();
+  const isFollow = tone === 'follow';
 
-  const alreadyFollowing = !!followData?.pubkeys.includes(action.pubkey);
-  const isSelf = user?.pubkey === action.pubkey;
-  // Only offer a Follow button for people the author *added* and you don't yet follow.
-  const showFollow = action.kind === 'followed' && !alreadyFollowing && !isSelf;
-
-  const personLink = (
-    <Link
-      to={`/${npub}`}
-      onClick={(e) => e.stopPropagation()}
-      className="font-semibold text-foreground hover:underline"
-    >
-      {personName}
-    </Link>
-  );
+  // Offer Follow on both sections: someone the author dropped may still be
+  // worth following yourself.
+  const alreadyFollowing = !!followData?.pubkeys.includes(pubkey);
+  const isSelf = user?.pubkey === pubkey;
+  const showFollow = !alreadyFollowing && !isSelf;
 
   return (
-    <div className="flex items-center gap-2">
+    <li className="flex items-center gap-3">
       <Link
         to={`/${npub}`}
         onClick={(e) => e.stopPropagation()}
-        aria-label={personName}
-        className="shrink-0"
+        aria-label={name}
+        className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        <Avatar shape={getAvatarShape(metadata)} className="size-6">
-          <AvatarImage src={metadata?.picture} alt={personName} />
-          <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-            {personName[0]?.toUpperCase()}
+        <Avatar shape={getAvatarShape(metadata)} className={cn('size-12', !isFollow && 'grayscale opacity-70')}>
+          <AvatarImage src={metadata?.picture} alt={name} />
+          <AvatarFallback className="bg-primary/20 text-primary text-base">
+            {name[0]?.toUpperCase()}
           </AvatarFallback>
         </Avatar>
       </Link>
 
-      <p className="min-w-0 flex-1 text-[13px] leading-snug text-muted-foreground">
-        {action.kind === 'followed' ? (
-          isFollowList ? (
-            <FormattedMessage
-              id="followDiff.followedRow"
-              defaultMessage="{author} followed {person}"
-              values={{ author: authorLabel, person: personLink }}
-            />
-          ) : (
-            <FormattedMessage
-              id="followDiff.addedRow"
-              defaultMessage="{author} added {person}"
-              values={{ author: authorLabel, person: personLink }}
-            />
-          )
-        ) : isFollowList ? (
-          <FormattedMessage
-            id="followDiff.unfollowedRow"
-            defaultMessage="{author} unfollowed {person}"
-            values={{ author: authorLabel, person: personLink }}
-          />
-        ) : (
-          <FormattedMessage
-            id="followDiff.removedRow"
-            defaultMessage="{author} removed {person}"
-            values={{ author: authorLabel, person: personLink }}
-          />
+      <div className="min-w-0 flex-1">
+        <Link
+          to={`/${npub}`}
+          onClick={(e) => e.stopPropagation()}
+          className="block truncate text-[15px] font-semibold leading-snug text-foreground hover:underline"
+        >
+          {name}
+        </Link>
+        {bio && (
+          <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-muted-foreground">{bio}</p>
         )}
-      </p>
+      </div>
 
-      {showFollow && <FollowButton pubkey={action.pubkey} className="h-7 shrink-0 px-3 text-xs" />}
+      {showFollow && <FollowButton pubkey={pubkey} className="h-8 shrink-0 px-4 text-xs" />}
+    </li>
+  );
+}
+
+function RowsSkeleton({ withHeadline }: { withHeadline?: boolean }) {
+  return (
+    <div className="mt-2">
+      {withHeadline && <Skeleton className="h-4 w-44" />}
+      <div className="mt-3 space-y-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex items-center gap-3">
+            <Skeleton className="size-12 shrink-0 rounded-full" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-full" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

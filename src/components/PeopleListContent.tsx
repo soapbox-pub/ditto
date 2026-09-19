@@ -4,28 +4,29 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
 import { FollowListDiff } from '@/components/FollowListDiff';
-import { useAuthor } from '@/hooks/useAuthor';
 import { getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /**
- * Compact feed card for kind 3 (follow list), 30000 (follow set), or 39089 (follow pack).
- * Shows title + optional description + optional cover image + member count + avatar stack.
+ * Feed card for kind 3 (follow list), 30000 (follow set), or 39089 (follow pack).
  *
- * For kind 3 the event has no tags describing it, so we fetch the author's metadata
- * and derive a title like "Alice's follows" with about/banner as description/image.
+ * Kind 3 follow lists render as a "life update" poster (who the author started
+ * or stopped following since the previous version) via `FollowListDiff`.
+ * Curated sets and packs keep the generic title + description + cover image +
+ * avatar stack treatment.
  */
 export function PeopleListContent({ event }: { event: NostrEvent }) {
-  const needsAuthorMeta = event.kind === 3;
-  const author = useAuthor(needsAuthorMeta ? event.pubkey : '');
-  const authorMetadata = needsAuthorMeta ? author.data?.metadata : undefined;
+  if (event.kind === 3) {
+    return <FollowListDiff event={event} />;
+  }
 
+  return <PeopleListCard event={event} />;
+}
+
+function PeopleListCard({ event }: { event: NostrEvent }) {
   const { title, description, image, pubkeys, variant } = useMemo(
-    () => parsePeopleList(event, {
-      authorMetadata,
-      authorDisplayName: authorMetadata?.name || authorMetadata?.display_name,
-    }),
-    [event, authorMetadata],
+    () => parsePeopleList(event),
+    [event],
   );
 
   const displayPubkeys = useMemo(() => getDisplayPubkeys(event, pubkeys), [event, pubkeys]);
@@ -69,9 +70,6 @@ export function PeopleListContent({ event }: { event: NostrEvent }) {
 
       {/* Avatar stack */}
       <PeopleAvatarStack pubkeys={displayPubkeys} maxVisible={8} size="md" />
-
-      {/* What changed since the previous version (relies on relay history) */}
-      <FollowListDiff event={event} />
     </div>
   );
 }
