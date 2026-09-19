@@ -31,11 +31,12 @@
  * unaffected — nothing is fetched for them.
  */
 import { useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useMoneroRecord } from '@/hooks/useMoneroRecord';
-import { supportsWebWorkers } from '@/lib/monero/client';
+import { moneroRecordQueryKeys, useMoneroRecord } from '@/hooks/useMoneroRecord';
+import { shutdownMonero, supportsWebWorkers } from '@/lib/monero/client';
 import { hasWalletCache } from '@/lib/monero/cache';
 import { pickReachableNode } from '@/lib/monero/nodes';
 import { isStateMateriallyDifferent, type MoneroWalletState } from '@/lib/monero/record';
@@ -83,10 +84,46 @@ const STARTUP_DELAY_MS = 5_000;
 export function useMoneroBackgroundSync(): void {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
+  const queryClient = useQueryClient();
   const { record, updateState } = useMoneroRecord();
 
   const pubkey = user?.pubkey ?? '';
   const hasWallet = !!record;
+
+  /**
+   * Drop the previous account's wallet material when the account changes.
+   *
+   * Both record queries are `gcTime: Infinity` and the decrypted one holds the
+   * **seed**, so nothing evicts them on its own: after a switch or a logout,
+   * A's seed would otherwise stay in memory for the rest of the page's life —
+   * reachable by an XSS with no signer prompt, which is precisely the exposure
+   * an extension or bunker login is supposed to avoid. Tearing down
+   * `monero-ts` as well releases the worker pool and its wasm heap, so a later
+   * login doesn't inherit the previous account's worker state.
+   *
+   * This lives here rather than in `useMoneroWallet` because this hook is
+   * mounted once for the whole app: the wallet page may never have rendered.
+   */
+  const seenPubkey = useRef(pubkey);
+  useEffect(() => {
+    const previous = seenPubkey.current;
+    if (previous === pubkey) return;
+    seenPubkey.current = pubkey;
+
+    if (!previous) return;
+
+    for (const key of moneroRecordQueryKeys(previous)) {
+      queryClient.removeQueries({ queryKey: key });
+    }
+
+    // Close before shutting down, so the cache is flushed while the worker
+    // pool still exists. `closeSession` is a no-op for an unknown pubkey, and
+    // its own teardown already runs from the effect below.
+    void (async () => {
+      await closeSession(previous);
+      await shutdownMonero();
+    })();
+  }, [pubkey, queryClient]);
 
   // Read through refs inside the loop rather than depending on them. The record
   // object is replaced on every refetch and on every snapshot we publish

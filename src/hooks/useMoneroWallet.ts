@@ -74,6 +74,67 @@ export function useMoneroWallet() {
   const pubkey = user?.pubkey ?? '';
   const nodeUrls = useMemo(() => config.moneroNodes, [config.moneroNodes]);
 
+  /**
+   * The pubkey of the current render, readable from an async callback that
+   * resolves after an account switch. Assigned during render, so it is current
+   * before any effect runs.
+   */
+  const pubkeyRef = useRef(pubkey);
+  pubkeyRef.current = pubkey;
+
+  /** Whether `session` still belongs to the account that is logged in now. */
+  const isCurrent = useCallback(
+    (from: MoneroSession) => mountedRef.current && from.pubkey === pubkeyRef.current,
+    [],
+  );
+
+  /**
+   * Publish a snapshot — but only from the account that is still active.
+   *
+   * `updateState` writes into whatever record `useMoneroRecord` currently
+   * holds, which flips the instant the account does. A sync that finishes just
+   * after a switch would otherwise write A's balance and A's *address* into
+   * B's record, and every other device logged in as B would then show A's
+   * address as its receive address.
+   */
+  const publishState = useCallback(
+    (from: MoneroSession, next: MoneroWalletState) => {
+      if (!isCurrent(from)) return;
+      updateState.mutate(next, {
+        onError: (err) => console.warn('Failed to cache Monero wallet state:', err),
+      });
+    },
+    [isCurrent, updateState],
+  );
+
+  /**
+   * Session state belongs to exactly one account.
+   *
+   * Ditto does not remount on an account switch — `logins[0]` flips in place —
+   * so nothing here is discarded unless we discard it. Left alone, the next
+   * account inherits A's open wallet: the panel renders A's balance, history
+   * and receive QR under B's name, `connect()` short-circuits because a
+   * session already exists so B's real wallet never opens, and a send spends
+   * from A. Close the old session and clear everything derived from it.
+   */
+  const openedForRef = useRef(pubkey);
+  useEffect(() => {
+    const previous = openedForRef.current;
+    if (previous === pubkey) return;
+    openedForRef.current = pubkey;
+
+    connectingRef.current = false;
+    setSession(null);
+    setPhase('disconnected');
+    setProgress(null);
+    setLiveState(null);
+    setError(null);
+
+    // Flushes the cache on the way out. Safe to call when the background sync
+    // already closed it — `closeSession` is a no-op for an unknown pubkey.
+    if (previous) void closeSession(previous);
+  }, [pubkey]);
+
   /** Spot price, polled on the same cadence as the Bitcoin wallet's. */
   const { data: xmrPrice } = useQuery({
     queryKey: ['monero-price', config.moneroPriceApi],
@@ -100,13 +161,14 @@ export function useMoneroWallet() {
     try {
       const nodeUrl = await pickReachableNode(nodeUrls);
 
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || pubkey !== pubkeyRef.current) return;
       setPhase('opening');
       const opened = await getSession(pubkey, record, nodeUrl);
 
-      if (!mountedRef.current) {
-        // Logged out or navigated away mid-open. Leave the session cached —
-        // it's keyed by pubkey and a remount will reuse it.
+      if (!isCurrent(opened)) {
+        // Unmounted, or the account changed mid-open. Leave the session
+        // cached — it's keyed by pubkey, and a remount (or a switch back)
+        // reuses it. The switch effect above closes it if it's now stale.
         return;
       }
 
@@ -116,11 +178,11 @@ export function useMoneroWallet() {
 
       const state = await syncWallet(opened, {
         onProgress: (next) => {
-          if (mountedRef.current) setProgress(next);
+          if (isCurrent(opened)) setProgress(next);
         },
       });
 
-      if (!mountedRef.current) return;
+      if (!isCurrent(opened)) return;
 
       setLiveState(state);
       setPhase('ready');
@@ -128,20 +190,18 @@ export function useMoneroWallet() {
 
       // Push the fresh snapshot back to the encrypted record so the next
       // device — or the next cold start — can show a balance immediately.
-      updateState.mutate(state, {
-        onError: (err) => console.warn('Failed to cache Monero wallet state:', err),
-      });
+      publishState(opened, state);
 
       await startBackgroundSync(opened);
     } catch (err) {
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || pubkey !== pubkeyRef.current) return;
       const message = err instanceof Error ? err.message : 'Failed to open Monero wallet';
       setError(message);
       setPhase('error');
     } finally {
       connectingRef.current = false;
     }
-  }, [record, pubkey, session, nodeUrls, updateState]);
+  }, [record, pubkey, session, nodeUrls, isCurrent, publishState]);
 
   /** Re-sync an already-open wallet. */
   const refresh = useCallback(async () => {
@@ -150,61 +210,60 @@ export function useMoneroWallet() {
       return;
     }
 
+    if (!isCurrent(session)) return;
+
     setPhase('syncing');
     setError(null);
     try {
       const state = await syncWallet(session, {
         onProgress: (next) => {
-          if (mountedRef.current) setProgress(next);
+          if (isCurrent(session)) setProgress(next);
         },
       });
-      if (!mountedRef.current) return;
+      if (!isCurrent(session)) return;
       setLiveState(state);
       setPhase('ready');
       setProgress(null);
-      updateState.mutate(state, {
-        onError: (err) => console.warn('Failed to cache Monero wallet state:', err),
-      });
+      publishState(session, state);
     } catch (err) {
-      if (!mountedRef.current) return;
+      if (!isCurrent(session)) return;
       setError(err instanceof Error ? err.message : 'Sync failed');
       setPhase('error');
     }
-  }, [session, connect, updateState]);
+  }, [session, connect, isCurrent, publishState]);
 
   /** Re-read balances without a full sync (after sending, say). */
   const refreshState = useCallback(async () => {
-    if (!session) return;
+    if (!session || !isCurrent(session)) return;
     try {
       const state = await readState(session);
-      if (!mountedRef.current) return;
+      if (!isCurrent(session)) return;
       setLiveState(state);
-      updateState.mutate(state, {
-        onError: (err) => console.warn('Failed to cache Monero wallet state:', err),
-      });
+      publishState(session, state);
     } catch (err) {
       console.warn('Failed to re-read Monero wallet state:', err);
     }
-  }, [session, updateState]);
+  }, [session, isCurrent, publishState]);
 
-  /** Close the session, flushing its cache to IndexedDB. */
+  /**
+   * Close the session, flushing its cache to IndexedDB.
+   *
+   * Keyed off the session's own pubkey rather than the render's, so it can
+   * never close the account that happens to be active now.
+   */
   const disconnect = useCallback(async () => {
-    if (!pubkey) return;
-    if (session) await stopBackgroundSync(session);
-    await closeSession(pubkey);
+    if (!session) return;
+    await stopBackgroundSync(session);
+    await closeSession(session.pubkey);
     if (!mountedRef.current) return;
     setSession(null);
     setPhase('disconnected');
     setLiveState(null);
     setProgress(null);
-  }, [pubkey, session]);
+  }, [session]);
 
-  // Tear the session down on logout so a different account can't inherit it.
-  useEffect(() => {
-    if (!pubkey && session) {
-      void disconnect();
-    }
-  }, [pubkey, session, disconnect]);
+  // Logout needs no separate teardown: it is an account change to the empty
+  // pubkey, which the effect above already handles.
 
   // The live state wins when we have it; otherwise fall back to the snapshot
   // cached in the encrypted record.

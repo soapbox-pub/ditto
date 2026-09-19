@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { QRCodeCanvas } from '@/components/ui/qrcode';
 import { MoneroSetupDialog } from '@/components/MoneroSetupDialog';
 import { SendMoneroDialog } from '@/components/SendMoneroDialog';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMoneroWallet } from '@/hooks/useMoneroWallet';
 import { atomicToUSD, buildMoneroUri, formatXMR, truncateAddress } from '@/lib/monero/units';
 import type { MoneroTxSummary } from '@/lib/monero/record';
@@ -56,6 +57,9 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
     refresh,
   } = useMoneroWallet();
 
+  const { user } = useCurrentUser();
+  const pubkey = user?.pubkey ?? '';
+
   const [setupOpen, setSetupOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -64,16 +68,38 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
   // Open the Send dialog when a `monero:` deep link brought us here. Guarded
   // by a ref so dismissing the dialog doesn't immediately reopen it.
   const consumedSendUri = useRef(false);
+
+  // Auto-connect once, when a wallet record exists. The ref keeps a re-render
+  // (or a failed connect that flips `phase` to 'error') from retrying in a
+  // loop against an unreachable node.
+  const connectAttempted = useRef(false);
+
+  // Both refs latch for the lifetime of the component, and Ditto doesn't
+  // remount on an account switch — so without this, switching to an account
+  // whose session was just torn down would leave the panel permanently
+  // disconnected, waiting on a connect that already "happened" for someone
+  // else. This effect is declared *first* so it re-arms the refs before the
+  // two effects below read them, and only fires on a real change: on mount
+  // there is nothing to reset and re-arming would connect twice.
+  const panelPubkey = useRef(pubkey);
+  useEffect(() => {
+    if (panelPubkey.current === pubkey) return;
+    panelPubkey.current = pubkey;
+
+    connectAttempted.current = false;
+    consumedSendUri.current = false;
+    setCopied(false);
+    setTxOpen(false);
+    setSendOpen(false);
+    setSetupOpen(false);
+  }, [pubkey]);
+
   useEffect(() => {
     if (!initialSendUri || consumedSendUri.current || !hasWallet) return;
     consumedSendUri.current = true;
     setSendOpen(true);
   }, [initialSendUri, hasWallet]);
 
-  // Auto-connect once, when a wallet record exists. The ref keeps a re-render
-  // (or a failed connect that flips `phase` to 'error') from retrying in a
-  // loop against an unreachable node.
-  const connectAttempted = useRef(false);
   useEffect(() => {
     if (!hasWallet || connectAttempted.current) return;
     connectAttempted.current = true;

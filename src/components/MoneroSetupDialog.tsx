@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { AlertTriangle, Check, Copy, Loader2, Plus, RotateCcw, ShieldAlert } from 'lucide-react';
 
@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/useToast';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMoneroRecord } from '@/hooks/useMoneroRecord';
 import { useEnsurePaymentTarget } from '@/hooks/usePaymentTargets';
 import { createWallet, restoreWallet } from '@/lib/monero/wallet';
@@ -46,8 +47,11 @@ type Step =
 export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDialogProps) {
   const intl = useIntl();
   const { toast } = useToast();
+  const { user } = useCurrentUser();
   const { createRecord, canEncrypt } = useMoneroRecord();
   const { mutateAsync: ensurePaymentTarget } = useEnsurePaymentTarget();
+
+  const pubkey = user?.pubkey ?? '';
 
   const [step, setStep] = useState<Step>({ name: 'choose' });
   const [error, setError] = useState<string | null>(null);
@@ -76,9 +80,40 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
     onClose();
   }, [reset, onClose]);
 
+  /**
+   * The account this in-progress flow belongs to.
+   *
+   * A generated seed lives in component state until "Finish setup" publishes
+   * it, and Ditto doesn't remount on an account switch. Without this, a switch
+   * between generating and finishing would encrypt that seed to the *new*
+   * account and announce its address on their profile. Discarding an unsaved
+   * seed is free — nothing has been published yet, and the next "Create"
+   * generates another.
+   */
+  const startedFor = useRef(pubkey);
+  useEffect(() => {
+    if (startedFor.current === pubkey) return;
+    startedFor.current = pubkey;
+    reset();
+  }, [pubkey, reset]);
+
+  /** Guard every publish against a switch that landed mid-flow. */
+  const assertSameAccount = useCallback((): boolean => {
+    if (startedFor.current === pubkey) return true;
+    setError(
+      intl.formatMessage({
+        id: 'monero.setup.error.accountChanged',
+        defaultMessage: 'Your account changed. Start the wallet setup again.',
+      }),
+    );
+    setStep({ name: 'choose' });
+    return false;
+  }, [pubkey, intl]);
+
   /** Generate a brand-new wallet and move to the backup screen. */
   const handleCreate = useCallback(async () => {
     setError(null);
+    startedFor.current = pubkey;
     setStep({ name: 'creating' });
     try {
       // No node involved: generating a wallet is local work. See createWallet().
@@ -88,7 +123,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
       setError(err instanceof Error ? err.message : 'Failed to create wallet');
       setStep({ name: 'choose' });
     }
-  }, []);
+  }, [pubkey]);
 
   /**
    * Advertise the wallet's address as a NIP-A3 Monero payment target, unless
@@ -115,6 +150,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
   /** Publish the record for a newly-created wallet. */
   const handleFinishCreate = useCallback(async () => {
     if (step.name !== 'backup') return;
+    if (!assertSameAccount()) return;
     setError(null);
     try {
       await createRecord.mutateAsync({
@@ -146,11 +182,12 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save wallet');
     }
-  }, [step, createRecord, announceTarget, toast, intl, onComplete, handleClose]);
+  }, [step, assertSameAccount, createRecord, announceTarget, toast, intl, onComplete, handleClose]);
 
   /** Validate and publish a restored wallet. */
   const handleRestore = useCallback(async () => {
     setError(null);
+    startedFor.current = pubkey;
 
     const seed = seedInput.trim().replace(/\s+/g, ' ');
     const wordCount = seed ? seed.split(' ').length : 0;
@@ -185,6 +222,9 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
         passphrase: passphrase || undefined,
       });
 
+      // Deriving the address is slow enough to switch accounts under.
+      if (!assertSameAccount()) return;
+
       await createRecord.mutateAsync({
         seed,
         address,
@@ -217,9 +257,11 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
       setStep({ name: 'restore' });
     }
   }, [
+    pubkey,
     seedInput,
     restoreHeightInput,
     passphrase,
+    assertSameAccount,
     createRecord,
     announceTarget,
     toast,

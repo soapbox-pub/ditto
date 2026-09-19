@@ -29,6 +29,21 @@ import {
   type MoneroWalletState,
 } from '@/lib/monero/record';
 
+/**
+ * Query-key prefixes holding Monero wallet material for one account.
+ *
+ * Both queries below are `gcTime: Infinity`, and the second one holds the
+ * **decrypted seed**. Nothing evicts them on its own, so an account switch or
+ * a logout has to remove them explicitly — see `useMoneroBackgroundSync`.
+ * Prefixes, so they match partially the way `removeQueries` does.
+ */
+export function moneroRecordQueryKeys(pubkey: string): unknown[][] {
+  return [
+    ['monero-record-event', pubkey],
+    ['monero-record', pubkey],
+  ];
+}
+
 /** Parameters for creating the initial record. */
 export interface CreateMoneroRecordParams {
   seed: string;
@@ -64,9 +79,17 @@ export function useMoneroRecord() {
     refetchOnWindowFocus: true,
   });
 
-  /** The decrypted, validated record. */
+  /**
+   * The decrypted, validated record.
+   *
+   * Keyed by pubkey as well as event id. The id alone is unique per author, so
+   * entries can't collide — but it collapses to `undefined` for every account
+   * that has no wallet yet, and it leaves a decrypted seed sitting in the cache
+   * under the previous account's id after a switch. `moneroRecordQueryKeys()`
+   * is what the teardown in `useMoneroBackgroundSync` matches against.
+   */
   const recordQuery = useQuery({
-    queryKey: ['monero-record', eventQuery.data?.id],
+    queryKey: ['monero-record', user?.pubkey, eventQuery.data?.id],
     queryFn: async (): Promise<MoneroWalletRecord | null> => {
       const event = eventQuery.data;
       if (!event?.content || !user?.signer.nip44) return null;
@@ -116,7 +139,7 @@ export function useMoneroRecord() {
       await nostr.event(signed, { signal: AbortSignal.timeout(10_000) });
 
       queryClient.setQueryData(['monero-record-event', user.pubkey, dTag], signed);
-      queryClient.setQueryData(['monero-record', signed.id], record);
+      queryClient.setQueryData(['monero-record', user.pubkey, signed.id], record);
 
       return { record, event: signed };
     },
@@ -192,7 +215,7 @@ export function useMoneroRecord() {
 
       await nostr.event(signed, { signal: AbortSignal.timeout(10_000) });
       queryClient.setQueryData(['monero-record-event', user.pubkey, dTag], signed);
-      queryClient.setQueryData(['monero-record', signed.id], null);
+      queryClient.setQueryData(['monero-record', user.pubkey, signed.id], null);
     },
   });
 

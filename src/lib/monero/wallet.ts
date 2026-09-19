@@ -100,6 +100,7 @@ const NO_FILESYSTEM: Record<string, (...args: unknown[]) => Promise<never>> = Ob
 
 const sessions = new Map<string, SessionEntry>();
 const opening = new Map<string, Promise<MoneroSession>>();
+const closing = new Map<string, Promise<void>>();
 
 /**
  * Run wallet2 in a Web Worker wherever one exists.
@@ -296,17 +297,39 @@ export async function getSession(
   }
 }
 
-/** Close and forget a session, optionally persisting its cache first. */
+/**
+ * Close and forget a session, optionally persisting its cache first.
+ *
+ * Concurrent calls for the same pubkey share one close, and a later caller
+ * awaits the earlier one rather than returning immediately. An account switch
+ * tears down from two places at once — the wallet page and the app-wide
+ * background sync — and the second caller is typically about to
+ * `shutdownMonero()`. Returning early there would terminate the worker pool
+ * while the first close was still flushing the cache to IndexedDB, costing a
+ * full rescan on the next open for no reason.
+ */
 export async function closeSession(pubkey: string, { save = true }: { save?: boolean } = {}): Promise<void> {
+  const inFlight = closing.get(pubkey);
+  if (inFlight) return inFlight;
+
   const entry = sessions.get(pubkey);
   if (!entry) return;
   sessions.delete(pubkey);
 
+  const promise = (async () => {
+    try {
+      if (save) await persistCache(entry.session);
+      await entry.session.wallet.close(false);
+    } catch (error) {
+      console.warn('Failed to close Monero wallet cleanly:', error);
+    }
+  })();
+
+  closing.set(pubkey, promise);
   try {
-    if (save) await persistCache(entry.session);
-    await entry.session.wallet.close(false);
-  } catch (error) {
-    console.warn('Failed to close Monero wallet cleanly:', error);
+    await promise;
+  } finally {
+    closing.delete(pubkey);
   }
 }
 
