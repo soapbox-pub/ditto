@@ -62,6 +62,42 @@ interface SessionEntry {
   nodeUrl: string;
 }
 
+/**
+ * Stand-in for the Node `fs.promises` object `monero-ts` expects.
+ *
+ * Ditto never lets `monero-ts` touch a filesystem. Wallets are opened with
+ * `path: ''` and explicit `keysData` / `cacheData` blobs, and persistence is
+ * ours (see `./cache.ts`). But `MoneroWalletFull.openWallet()` calls its
+ * `getFs()` helper unconditionally before it gets far enough to notice:
+ *
+ *     static getFs() {
+ *       if (!MoneroWalletFull.FS) MoneroWalletFull.FS = fs.promises;
+ *
+ * In a browser bundle that `fs` import resolves to `node-stdlib-browser`'s
+ * empty mock, which is `null`, so reading `.promises` throws *"Cannot read
+ * properties of null (reading 'promises')"*. It only bites on **reopen** —
+ * creating a wallet skips the call because the path is empty — so it shows up
+ * as a wallet that works once and is broken on every subsequent visit.
+ *
+ * Supplying any object keeps `getFs()` from ever being called. These methods
+ * reject rather than no-op: with our configuration none of them can legitimately
+ * run, so a future change that starts depending on path-based persistence
+ * should fail loudly instead of silently reading and writing nothing.
+ * `LibraryUtils.exists()` catches around `access`, so the rejection there is
+ * already interpreted as "no file", which is the truth.
+ */
+const NO_FILESYSTEM: Record<string, (...args: unknown[]) => Promise<never>> = Object.fromEntries(
+  ['access', 'mkdir', 'readFile', 'rename', 'unlink', 'writeFile'].map((method) => [
+    method,
+    () =>
+      Promise.reject(
+        new Error(
+          `monero-ts called fs.${method}(), but Ditto stores wallets in IndexedDB — see src/lib/monero/cache.ts`,
+        ),
+      ),
+  ]),
+);
+
 const sessions = new Map<string, SessionEntry>();
 const opening = new Map<string, Promise<MoneroSession>>();
 
@@ -112,6 +148,7 @@ export async function createWallet(
     password: cachePassword,
     networkType: monero.MoneroNetworkType.MAINNET,
     proxyToWorker: true,
+    fs: NO_FILESYSTEM,
   });
 
   try {
@@ -161,6 +198,7 @@ export async function restoreWallet(
     ...(passphrase ? { seedOffset: passphrase } : {}),
     restoreHeight: Math.max(0, restoreHeight),
     proxyToWorker: true,
+    fs: NO_FILESYSTEM,
   });
 
   try {
@@ -213,6 +251,7 @@ export async function getSession(
         cacheData: cached.cacheData,
         server: { uri: nodeUrl },
         proxyToWorker: true,
+        fs: NO_FILESYSTEM,
       });
     } else {
       wallet = await monero.createWalletFull({
@@ -224,6 +263,7 @@ export async function getSession(
         restoreHeight: Math.max(0, record.restoreHeight),
         server: { uri: nodeUrl },
         proxyToWorker: true,
+        fs: NO_FILESYSTEM,
       });
     }
 

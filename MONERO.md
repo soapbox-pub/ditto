@@ -262,6 +262,23 @@ Three changes in `vite.config.ts` are required and load-bearing:
    `output.type !== "chunk"` guard skipped it. An unlabelled script has its
    body replaced with a comment by LibreJS, and the worker then never boots.
 
+### There is no filesystem
+
+`monero-ts` expects Node's `fs`. In a browser bundle that import resolves to
+`node-stdlib-browser`'s empty mock, which is `null`, so
+`MoneroWalletFull.getFs()` throws *"Cannot read properties of null (reading
+'promises')"*. `openWallet()` calls it unconditionally, before it notices the
+wallet was handed explicit `keysData` / `cacheData` and an empty path — so the
+failure appears only when **reopening** a cached wallet, never when creating
+one. The symptom is a wallet that works the day you make it and is broken on
+every visit after.
+
+Every wallet Ditto opens therefore passes an explicit `fs` (`NO_FILESYSTEM` in
+`src/lib/monero/wallet.ts`), which keeps `getFs()` from ever being reached. Its
+methods reject rather than no-op: with `path: ''` none of them can legitimately
+run, so anything that starts depending on path-based persistence should fail
+loudly instead of silently reading and writing nothing.
+
 ### The worker must be a classic worker
 
 emscripten's HTTP glue in `monero.js` reads its collaborators off `this`
