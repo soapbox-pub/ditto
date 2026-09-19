@@ -235,6 +235,17 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
     );
   }, [options, search]);
 
+  // When the search is a plain kind number with no matching predefined option,
+  // let the user add it manually (any kind, even ones Ditto doesn't list).
+  const customKind = useMemo(() => {
+    const q = search.trim();
+    if (!/^\d+$/.test(q)) return null;
+    const n = parseInt(q, 10);
+    if (n <= 0) return null;
+    if (options.some((o) => o.value === String(n))) return null;
+    return String(n);
+  }, [search, options]);
+
   const isAllKinds = selectedKinds.length === 0;
 
   const toggleKind = (value: string) => {
@@ -345,13 +356,34 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
               );
             })}
 
-            {filtered.length === 0 && search && (
+            {filtered.length === 0 && search && !customKind && (
               <p className="text-sm text-muted-foreground text-center py-6">No kinds match</p>
             )}
           </div>
 
           {canScrollDown && (
             <KindScrollCaret direction="down" onMouseEnter={() => startScroll('down')} onMouseLeave={stopScroll} />
+          )}
+
+          {/* Pinned to the bottom so it stays reachable even when a short number
+              (e.g. "3") matches many listed kinds (30000, 30023…) above it. */}
+          {customKind && (
+            <button
+              onClick={() => toggleKind(customKind)}
+              className={cn(
+                'w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors text-left border-t border-border shrink-0',
+                selectedKinds.includes(customKind) ? 'bg-primary/10 text-primary' : 'hover:bg-secondary/60 text-foreground',
+              )}
+            >
+              <div className={cn(
+                'size-4 shrink-0 rounded border flex items-center justify-center transition-colors',
+                selectedKinds.includes(customKind) ? 'bg-primary border-primary' : 'border-border bg-background',
+              )}>
+                {selectedKinds.includes(customKind) && <Check className="size-3 text-primary-foreground" />}
+              </div>
+              <Hash className="size-4 shrink-0 text-muted-foreground" />
+              <span className="flex-1 truncate">Add kind {customKind}</span>
+            </button>
           )}
 
           {selectedKinds.length > 0 && (
