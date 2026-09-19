@@ -117,8 +117,6 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   // toggle. Kind 1 posts are the baseline feed content and aren't hideable from
   // here; kinds with no feed toggle (overlays, sidebar-only) get no item.
   const feedKind = event.kind === 1 ? undefined : getFeedKindInfo(event.kind);
-  const feedKey = feedKind?.feedKey;
-  const kindLabel = feedKind?.label;
 
   // Bookmark / pin / mute mutations live in the PARENT — which stays mounted
   // while the menu Content unmounts on close. In TanStack Query v5, callbacks
@@ -224,7 +222,8 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   };
 
   const handleHideFromFeed = () => {
-    if (!feedKey) return;
+    if (!feedKind) return;
+    const { feedKey, label } = feedKind;
     updateFeedSettings({ [feedKey]: false });
     if (user) {
       updateSettings
@@ -235,7 +234,7 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
     toast({
       title: intl.formatMessage(
         { id: 'note.moreMenu.hideFromFeed.toast', defaultMessage: "You won't see {type} in your feed anymore" },
-        { type: kindLabel ?? 'this content' },
+        { type: label },
       ),
     });
   };
@@ -280,7 +279,7 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
             onOpenChange(false);
             setTimeout(() => setRecoveryOpen(true), 150);
           }}
-          hideFromFeedType={kindLabel}
+          hideFromFeedType={feedKind?.label}
           onHideFromFeed={() => {
             onOpenChange(false);
             setTimeout(() => setHideConfirmOpen(true), 150);
@@ -316,39 +315,41 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
         onOpenChange={setRecoveryOpen}
       />
 
-      <AlertDialog open={hideConfirmOpen} onOpenChange={setHideConfirmOpen}>
-        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              <FormattedMessage
-                id="note.moreMenu.hideFromFeed.title"
-                defaultMessage="Stop showing {type}?"
-                values={{ type: kindLabel ?? 'this content' }}
-              />
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              <FormattedMessage
-                id="note.moreMenu.hideFromFeed.description"
-                defaultMessage="{type} will no longer appear anywhere in your feeds, not just this one. You can turn them back on anytime in Settings → Home Feed."
-                values={{ type: kindLabel ?? 'This type of content' }}
-              />
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>
-              <FormattedMessage id="note.moreMenu.hideFromFeed.cancel" defaultMessage="Cancel" />
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleHideFromFeed();
-              }}
-            >
-              <FormattedMessage id="note.moreMenu.hideFromFeed.confirm" defaultMessage="Stop showing" />
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {feedKind && (
+        <AlertDialog open={hideConfirmOpen} onOpenChange={setHideConfirmOpen}>
+          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                <FormattedMessage
+                  id="note.moreMenu.hideFromFeed.title"
+                  defaultMessage="Stop showing {type}?"
+                  values={{ type: feedKind.label }}
+                />
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                <FormattedMessage
+                  id="note.moreMenu.hideFromFeed.description"
+                  defaultMessage="{type} will no longer appear anywhere in your feeds, not just this one. You can turn them back on anytime in Settings → Home Feed."
+                  values={{ type: feedKind.label }}
+                />
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>
+                <FormattedMessage id="note.moreMenu.hideFromFeed.cancel" defaultMessage="Cancel" />
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleHideFromFeed();
+                }}
+              >
+                <FormattedMessage id="note.moreMenu.hideFromFeed.confirm" defaultMessage="Stop showing" />
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent onClick={(e) => e.stopPropagation()}>
