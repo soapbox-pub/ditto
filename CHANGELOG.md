@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.39.1] - 2026-09-19
+
+A maintenance release with no changes to the app itself. It re-runs the release pipeline so everything in 2.39.0 — the Monero wallet, follow-list activity cards, and hiding a content type from your feed — reaches every app store.
+
 ## [2.39.0] - 2026-09-19
 
 Monero comes to Ditto. Create or restore a wallet in the app, keep the seed encrypted under your own key, and scan the chain on your own device — no server ever sees your view key. Your address goes on your profile so anyone can pay you, and you can send Monero from the zap dialog. Feeds get more social too: follow lists arrive as activity cards showing who someone just started following, with a Follow button on every row. Any content type can also be hidden from your feed from a post's menu.
