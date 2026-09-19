@@ -937,23 +937,37 @@ export function getEnabledFeedKinds(feedSettings: FeedSettings): number[] {
   return kinds;
 }
 
+/** The feed toggle governing a kind, plus its human label for feed-visibility UI. */
+export interface FeedKindInfo {
+  /** FeedSettings key that includes/excludes this kind from mixed feeds. */
+  feedKey: keyof FeedSettings;
+  /**
+   * Plural category label for the toggle (e.g. "Reactions", "Reposted Notes").
+   * Taken from the def/sub `label` rather than getKindLabel(), whose per-kind
+   * overrides are singular ("repost", "reaction") and read wrong in phrases
+   * like "Stop showing {label}".
+   */
+  label: string;
+}
+
 /**
- * Find the FeedSettings key that controls a kind's inclusion in mixed feeds.
- * Walks EXTRA_KINDS the same way getEnabledFeedKinds does — matching the
- * parent kind, its extraFeedKinds, sub-kinds, and their extraFeedKinds.
- * Returns undefined for kinds with no feed toggle (sidebar-only, overlay-only,
- * or otherwise unmanaged), so callers can hide "hide from feed" affordances.
+ * Find the feed toggle (and its label) that controls a kind's inclusion in
+ * mixed feeds. Walks EXTRA_KINDS the same way getEnabledFeedKinds does —
+ * matching the parent kind, its extraFeedKinds, sub-kinds, and their
+ * extraFeedKinds. Returns undefined for kinds with no feed toggle (sidebar-only,
+ * overlay-only, or otherwise unmanaged), so callers can hide feed-visibility
+ * affordances.
  */
-export function getFeedKeyForKind(kind: number): keyof FeedSettings | undefined {
+export function getFeedKindInfo(kind: number): FeedKindInfo | undefined {
   for (const def of EXTRA_KINDS) {
     if (def.subKinds) {
       for (const sub of def.subKinds) {
         if (sub.kind === kind || sub.extraFeedKinds?.includes(kind)) {
-          return sub.feedKey;
+          return { feedKey: sub.feedKey, label: sub.label };
         }
       }
     } else if (def.feedKey && (def.kind === kind || def.extraFeedKinds?.includes(kind))) {
-      return def.feedKey;
+      return { feedKey: def.feedKey, label: def.label };
     }
   }
   return undefined;

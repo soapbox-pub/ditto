@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { nip19 } from 'nostr-tools';
 import { useNavigate } from 'react-router-dom';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import {
   Bookmark,
@@ -51,7 +52,7 @@ import { useDeleteEvent } from '@/hooks/useDeleteEvent';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
-import { getFeedKeyForKind, getKindLabel } from '@/lib/extraKinds';
+import { getFeedKindInfo } from '@/lib/extraKinds';
 import { encodeEventAddress } from '@/lib/encodeEvent';
 import { isReplaceableLikeKind } from '@/lib/eventKinds';
 import { getNsiteSubdomain, isNsiteKind } from '@/lib/nsiteSubdomain';
@@ -106,17 +107,18 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [hideConfirmOpen, setHideConfirmOpen] = useState(false);
 
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
   const { feedSettings, updateFeedSettings } = useFeedSettings();
   const { updateSettings } = useEncryptedSettings();
 
-  // "Hide from feed" only applies to non-kind-1 events whose kind maps to a
-  // feed toggle. Kind 1 posts are the baseline feed content and aren't hideable
-  // from here; kinds with no feed toggle (overlays, sidebar-only) get no item.
-  const feedKey = event.kind === 1 ? undefined : getFeedKeyForKind(event.kind);
-  const kindLabel = getKindLabel(event.kind);
-  const canHideFromFeed = !!feedKey && !!kindLabel;
+  // Feed-visibility only applies to non-kind-1 events whose kind maps to a feed
+  // toggle. Kind 1 posts are the baseline feed content and aren't hideable from
+  // here; kinds with no feed toggle (overlays, sidebar-only) get no item.
+  const feedKind = event.kind === 1 ? undefined : getFeedKindInfo(event.kind);
+  const feedKey = feedKind?.feedKey;
+  const kindLabel = feedKind?.label;
 
   // Bookmark / pin / mute mutations live in the PARENT — which stays mounted
   // while the menu Content unmounts on close. In TanStack Query v5, callbacks
@@ -230,7 +232,12 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
         .catch(() => {});
     }
     setHideConfirmOpen(false);
-    toast({ title: kindLabel ? `Hid ${kindLabel} from your feed` : 'Hidden from your feed' });
+    toast({
+      title: intl.formatMessage(
+        { id: 'note.moreMenu.hideFromFeed.toast', defaultMessage: "You won't see {type} in your feed anymore" },
+        { type: kindLabel ?? 'this content' },
+      ),
+    });
   };
 
   return (
@@ -273,7 +280,7 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
             onOpenChange(false);
             setTimeout(() => setRecoveryOpen(true), 150);
           }}
-          hideFromFeedLabel={canHideFromFeed ? kindLabel : undefined}
+          hideFromFeedType={kindLabel}
           onHideFromFeed={() => {
             onOpenChange(false);
             setTimeout(() => setHideConfirmOpen(true), 150);
@@ -312,21 +319,32 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
       <AlertDialog open={hideConfirmOpen} onOpenChange={setHideConfirmOpen}>
         <AlertDialogContent onClick={(e) => e.stopPropagation()}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hide {kindLabel ?? 'this content'} from your feed?</AlertDialogTitle>
+            <AlertDialogTitle>
+              <FormattedMessage
+                id="note.moreMenu.hideFromFeed.title"
+                defaultMessage="Stop showing {type}?"
+                values={{ type: kindLabel ?? 'this content' }}
+              />
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This hides all {kindLabel ?? 'events of this type'} from your feeds. You can turn it
-              back on anytime under Settings → Home Feed.
+              <FormattedMessage
+                id="note.moreMenu.hideFromFeed.description"
+                defaultMessage="{type} will no longer appear anywhere in your feeds — not just this one. You can turn them back on anytime in Settings → Home Feed."
+                values={{ type: kindLabel ?? 'This type of content' }}
+              />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>
+              <FormattedMessage id="note.moreMenu.hideFromFeed.cancel" defaultMessage="Cancel" />
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
                 handleHideFromFeed();
               }}
             >
-              Hide from feed
+              <FormattedMessage id="note.moreMenu.hideFromFeed.confirm" defaultMessage="Stop showing" />
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -376,11 +394,12 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
   onDelete: () => void;
   onRestore: () => void;
   /** Label of the content type to hide, or undefined when hiding isn't applicable. */
-  hideFromFeedLabel?: string;
+  hideFromFeedType?: string;
   onHideFromFeed: () => void;
 }
 
-function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, userMuted, conversationMuted, displayName, onBookmark, onTogglePin, onMuteConversation, onMuteUser, onReport, onMention, onAddToList, onViewEventJson, onDelete, onRestore, hideFromFeedLabel, onHideFromFeed }: NoteMoreMenuContentProps) {
+function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, userMuted, conversationMuted, displayName, onBookmark, onTogglePin, onMuteConversation, onMuteUser, onReport, onMention, onAddToList, onViewEventJson, onDelete, onRestore, hideFromFeedType, onHideFromFeed }: NoteMoreMenuContentProps) {
+  const intl = useIntl();
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const shareOrigin = useShareOrigin();
@@ -473,10 +492,13 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
         <Separator />
 
         <div className="py-1">
-          {hideFromFeedLabel && (
+          {hideFromFeedType && (
             <MenuItem
               icon={<EyeOff className="size-5" />}
-              label={`Hide ${hideFromFeedLabel} from feed`}
+              label={intl.formatMessage(
+                { id: 'note.moreMenu.hideFromFeed.action', defaultMessage: 'Stop showing {type} in my feed' },
+                { type: hideFromFeedType },
+              )}
               onClick={onHideFromFeed}
             />
           )}
