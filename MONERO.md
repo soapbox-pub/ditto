@@ -174,6 +174,11 @@ Losing it is never fatal — it costs a resync from `restoreHeight`, nothing
 more — so every function in that module degrades to a no-op when IndexedDB is
 unavailable (iOS Lockdown Mode, some private-browsing modes).
 
+The same reasoning applies to a blob that won't open: `getSession` discards it
+and rebuilds from the seed rather than failing, because failing would strand
+the account on that device forever — every retry would read the same bad
+cache.
+
 ### Snapshot publishing is throttled
 
 Each published snapshot is a kind-30078 event on public relays: encrypted

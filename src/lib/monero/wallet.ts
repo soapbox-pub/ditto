@@ -292,19 +292,32 @@ export async function getSession(
     const monero = await loadMonero();
     const cached = await loadWalletCache(pubkey);
 
-    let wallet: MoneroWalletFull;
+    let wallet: MoneroWalletFull | undefined;
+    let fromCache = false;
 
     if (cached) {
-      wallet = await monero.openWalletFull({
-        password: record.cachePassword,
-        networkType: monero.MoneroNetworkType.MAINNET,
-        keysData: cached.keysData,
-        cacheData: cached.cacheData,
-        server: { uri: nodeUrl },
-        proxyToWorker: proxyToWorker(),
-        fs: NO_FILESYSTEM,
-      });
-    } else {
+      try {
+        wallet = await monero.openWalletFull({
+          password: record.cachePassword,
+          networkType: monero.MoneroNetworkType.MAINNET,
+          keysData: cached.keysData,
+          cacheData: cached.cacheData,
+          server: { uri: nodeUrl },
+          proxyToWorker: proxyToWorker(),
+          fs: NO_FILESYSTEM,
+        });
+        fromCache = true;
+      } catch (error) {
+        // The cache is derived data — every byte of it can be rebuilt from the
+        // seed — so a blob that won't open is a slow day, not a lost wallet.
+        // Failing here instead would strand the account on this device
+        // permanently, since every retry reads the same bad blob.
+        console.warn('Cached Monero wallet failed to open; rebuilding from the seed:', error);
+        await clearWalletCache(pubkey);
+      }
+    }
+
+    if (!wallet) {
       wallet = await monero.createWalletFull({
         path: '',
         password: record.cachePassword,
@@ -330,11 +343,11 @@ export async function getSession(
         // A cached blob that opens to the wrong address belongs to a wallet
         // this account no longer has. Drop it so the next open rebuilds from
         // the seed rather than failing the same way forever.
-        if (cached) await clearWalletCache(pubkey);
+        if (fromCache) await clearWalletCache(pubkey);
         throw new MoneroWalletMismatchError(
           record.address,
           address,
-          !cached && record.hasPassphrase && !passphrase,
+          !fromCache && record.hasPassphrase && !passphrase,
         );
       }
     }
