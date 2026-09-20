@@ -128,7 +128,8 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
   const intl = useIntl();
   const { toast } = useToast();
   const { config } = useAppContext();
-  const { session, unlockedBalance, xmrPrice, phase, refreshState } = useMoneroWallet();
+  const { hasWallet, session, unlockedBalance, xmrPrice, phase, needsPassphrase, connect, refreshState } =
+    useMoneroWallet();
 
   // Monero has no sats, so a sats-preferring user writes amounts in XMR. The
   // unit follows the preference alone and never flips when the price arrives —
@@ -150,6 +151,18 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
   const dialogContentRef = useCallback((node: HTMLElement | null) => {
     setPortalContainer(node ?? undefined);
   }, []);
+
+  // `useMoneroWallet` is a plain hook, not a shared context, so this dialog
+  // holds its own `session` state — the one the wallet panel opened lives in a
+  // different instance and isn't visible here. Without opening our own, the
+  // send button's `!session` guard never clears and it stays disabled even
+  // when the panel behind it reads as fully synced. `connect()` is idempotent
+  // and `getSession` is cached per pubkey, so this reuses the already-open
+  // wallet rather than loading a second one. A passphrase wallet with no local
+  // cache is left alone: that prompt belongs on the wallet page, not here.
+  useEffect(() => {
+    if (isOpen && hasWallet && !needsPassphrase) void connect();
+  }, [isOpen, hasWallet, needsPassphrase, connect]);
 
   // ── Amount ───────────────────────────────────────────────────
 
