@@ -3,9 +3,10 @@
  *
  * The host app (Tenna) keeps one relay connection per relay any site named and
  * holds our filters open as ordinary `REQ`s while Ditto is closed. Matches are
- * delivered to `public/sw.js` as `push` events carrying the raw Nostr event, so
- * unlike nostr-push there is no server rendering the text and no notification
- * template to register — the worker draws the notification itself.
+ * delivered to `public/sw.js` as `push` events carrying the raw Nostr event —
+ * or, when a push is too small to hold one, its id and the relays to fetch it
+ * from. Either way there is no server rendering the text and no notification
+ * template to register, unlike nostr-push: the worker draws it itself.
  *
  * What this adapter owns is the filter set: one filter per enabled notification
  * type, scoped to events tagging the user, packed into as few subscriptions as

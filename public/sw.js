@@ -17,10 +17,16 @@
  * - **nostr-push** — a server matched the event, rendered the text, and sent
  *   `{ title, body, icon, badge, data }`. There is nothing left to decide.
  * - **napp** — the host app (Tenna) held the relay subscription open and sends
- *   `{ event, relay, subscription }`: the raw Nostr event, unverified and
- *   unrendered. Everything the server would have done — who deserves a
- *   notification, what it says, whose face is on it — happens here, in
- *   `handleNappPush()` below.
+ *   `{ $type: 'napp.push.payload', event_id, event?, relays }`: the raw Nostr
+ *   event, unverified and unrendered. Everything the server would have done —
+ *   who deserves a notification, what it says, whose face is on it — happens
+ *   here, in `handleNappPush()` below.
+ *
+ * `event` is the part that may be missing. On Android it never is, but a push
+ * is a message on somebody else's transport and iOS gives the whole of one
+ * four kilobytes, so an event longer than that arrives as `event_id` and the
+ * relays to look for it on. `fetchEventById()` goes and gets it; when even that
+ * fails, the id is still enough for a vaguer notification, which beats none.
  *
  * The napp path has no server to trust, so it re-checks what it can: the event
  * must tag the logged-in user, and must come from someone they follow when
@@ -215,6 +221,14 @@ const PROFILE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
  * notification reading "Someone" than a slow one with a name on it.
  */
 const PROFILE_TIMEOUT_MS = 2500;
+/**
+ * How long to wait for an event the push was too small to carry. Longer than a
+ * profile lookup — without it there is no notification worth reading — but
+ * still far inside the twenty seconds the host waits on `waitUntil()`.
+ */
+const EVENT_TIMEOUT_MS = 5000;
+/** Relays asked at once for a missing event, or for an author's profile. */
+const RELAY_FANOUT = 4;
 
 function openDb(name, store) {
   return new Promise((resolve, reject) => {
@@ -309,26 +323,26 @@ function cleanPicture(value) {
 }
 
 /**
- * Ask one relay for an author's kind 0 over a short-lived socket. Resolves
- * `{ name, picture }` with nulls for whatever it couldn't find, and never
- * rejects — a nameless notification still beats no notification.
+ * Ask one relay for one event over a short-lived socket. Resolves with the
+ * first `EVENT` it sends, or null on EOSE, error, close or timeout — it never
+ * rejects, because every caller here would rather show something than nothing.
  */
-function requestProfile(relay, pubkey) {
+function requestEvent(relay, filter, timeoutMs) {
   return new Promise((resolve) => {
     let socket;
     let settled = false;
 
-    const finish = (profile) => {
+    const finish = (event) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       try {
         socket?.close();
       } catch { /* already gone */ }
-      resolve(profile ?? { name: null, picture: null });
+      resolve(event ?? null);
     };
 
-    const timer = setTimeout(() => finish(null), PROFILE_TIMEOUT_MS);
+    const timer = setTimeout(() => finish(null), timeoutMs);
 
     try {
       socket = new WebSocket(relay);
@@ -336,10 +350,10 @@ function requestProfile(relay, pubkey) {
       return finish(null);
     }
 
-    const subId = `sw-profile-${Math.random().toString(36).slice(2, 10)}`;
+    const subId = `sw-req-${Math.random().toString(36).slice(2, 10)}`;
 
     socket.onopen = () => {
-      socket.send(JSON.stringify(['REQ', subId, { kinds: [0], authors: [pubkey], limit: 1 }]));
+      socket.send(JSON.stringify(['REQ', subId, { ...filter, limit: 1 }]));
     };
 
     socket.onmessage = (message) => {
@@ -351,17 +365,8 @@ function requestProfile(relay, pubkey) {
       }
       if (!Array.isArray(frame) || frame[1] !== subId) return;
 
-      if (frame[0] === 'EVENT' && frame[2] && frame[2].kind === 0) {
-        let metadata;
-        try {
-          metadata = JSON.parse(frame[2].content);
-        } catch {
-          return finish(null);
-        }
-        finish({
-          name: cleanName(metadata.display_name) ?? cleanName(metadata.name),
-          picture: cleanPicture(metadata.picture),
-        });
+      if (frame[0] === 'EVENT' && frame[2] && typeof frame[2] === 'object') {
+        finish(frame[2]);
       } else if (frame[0] === 'CLOSED' || frame[0] === 'EOSE') {
         finish(null);
       }
@@ -372,10 +377,67 @@ function requestProfile(relay, pubkey) {
   });
 }
 
-async function resolveProfile(relay, pubkey) {
+/**
+ * Ask several relays at once and take the first that answers. A relay that is
+ * unreachable, slow, or simply doesn't have it must not spend the budget the
+ * others would have used; `Promise.any()` settles on the first hit and only
+ * gives up when every one of them has.
+ */
+async function requestEventFromAny(relays, filter, timeoutMs, accept) {
+  const targets = relays.slice(0, RELAY_FANOUT);
+  if (!targets.length) return null;
+
+  const attempts = targets.map(async (relay) => {
+    const event = await requestEvent(relay, filter, timeoutMs);
+    if (!event || !accept(event)) throw new Error('no match');
+    return event;
+  });
+
+  try {
+    return await Promise.any(attempts);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The event a push was too small to carry. `event_id` and `relays` are what the
+ * host sends in its place — see NAPP.md — and this is the fetch they're for.
+ */
+function fetchEventById(relays, id) {
+  return requestEventFromAny(relays, { ids: [id] }, EVENT_TIMEOUT_MS, (event) => event.id === id);
+}
+
+/**
+ * An author's kind 0, as `{ name, picture }` with nulls for whatever couldn't
+ * be found. Never rejects — a nameless notification still beats no
+ * notification.
+ */
+async function requestProfile(relays, pubkey) {
+  const event = await requestEventFromAny(
+    relays,
+    { kinds: [0], authors: [pubkey] },
+    PROFILE_TIMEOUT_MS,
+    (candidate) => candidate.kind === 0 && typeof candidate.content === 'string',
+  );
+  if (!event) return { name: null, picture: null };
+
+  let metadata;
+  try {
+    metadata = JSON.parse(event.content);
+  } catch {
+    return { name: null, picture: null };
+  }
+  return {
+    name: cleanName(metadata.display_name) ?? cleanName(metadata.name),
+    picture: cleanPicture(metadata.picture),
+  };
+}
+
+async function resolveProfile(relays, pubkey) {
   const cached = await readCachedProfile(pubkey);
   if (cached) return cached;
-  const profile = await requestProfile(relay, pubkey);
+  const profile = await requestProfile(relays, pubkey);
   await writeCachedProfile(pubkey, profile);
   return profile;
 }
@@ -455,11 +517,70 @@ function isWanted(event, state) {
   return true;
 }
 
-/** Render and post a notification for one raw event handed over by the host. */
+const HEX_64 = /^[0-9a-f]{64}$/;
+
+/**
+ * Where the event came from, or where to look for it. `relays` is the current
+ * shape; `relay`, a single string, is what hosts before Tenna v0.8.1 sent, and
+ * costs one line to keep working.
+ */
+function nappRelays(payload) {
+  const relays = Array.isArray(payload.relays)
+    ? payload.relays
+    : (typeof payload.relay === 'string' ? [payload.relay] : []);
+
+  return relays.filter((url) => typeof url === 'string' && /^wss?:\/\//i.test(url));
+}
+
+/**
+ * All that's left when an event can't be had: its id. Says that something
+ * happened without saying what, which is the best a push of four kilobytes can
+ * do for a note that didn't fit and that no relay would hand over.
+ *
+ * The one check `isWanted()` makes — that the event tags this user — can't be
+ * made here, so this leans on the host having matched our filters, which name
+ * the user in `#p`. What it can't stand behind is "only from people I follow",
+ * which the worker enforces for itself whenever the follow set is too big to
+ * send. An occasional stranger getting through on this path is the price of
+ * saying anything at all.
+ */
+async function showUnknownEventNotification(eventId) {
+  const title = 'New notification';
+  const body = 'Open Ditto to see what happened.';
+  const isBurst = await recordAndCheckBurst(shapeKey(body));
+
+  await self.registration.showNotification(title, {
+    body,
+    icon: '/icon-192.png',
+    badge: '/badge-96.png',
+    data: { url: '/notifications', eventId },
+    requireInteraction: false,
+    // The same tag the full notification would have used, so a later push
+    // carrying the event replaces this one instead of doubling it.
+    tag: `ditto-event-${eventId}`,
+    renotify: !isBurst,
+    silent: isBurst,
+  });
+}
+
+/** Render and post a notification for one event handed over by the host. */
 async function handleNappPush(payload) {
-  const event = payload.event;
-  if (!event || typeof event !== 'object') return;
-  if (typeof event.kind !== 'number' || !/^[0-9a-f]{64}$/.test(event.pubkey ?? '')) return;
+  const relays = nappRelays(payload);
+  const eventId = typeof payload.event_id === 'string' && HEX_64.test(payload.event_id)
+    ? payload.event_id
+    : null;
+
+  let event = payload.event;
+
+  // A push too large to carry the event carries its id and somewhere to look
+  // for it instead. See NAPP.md.
+  if (!event || typeof event !== 'object') {
+    if (!eventId) return;
+    event = await fetchEventById(relays, eventId);
+    if (!event) return showUnknownEventNotification(eventId);
+  }
+
+  if (typeof event.kind !== 'number' || !HEX_64.test(event.pubkey ?? '')) return;
 
   const template = NAPP_TEMPLATE_BY_KIND.get(event.kind);
   if (!template) return; // A kind nothing subscribed to; the relay is confused.
@@ -468,9 +589,8 @@ async function handleNappPush(payload) {
   if (!isWanted(event, state)) return;
 
   const author = notificationAuthor(event);
-  const relay = typeof payload.relay === 'string' ? payload.relay : null;
-  const profile = relay && /^[0-9a-f]{64}$/.test(author)
-    ? await resolveProfile(relay, author)
+  const profile = relays.length && HEX_64.test(author)
+    ? await resolveProfile(relays, author)
     : { name: null, picture: null };
 
   const sats = event.kind === 9735 ? zapSats(event) : null;
@@ -493,7 +613,7 @@ async function handleNappPush(payload) {
     requireInteraction: false,
     // Distinct events get distinct tags so none replaces another; a burst
     // collapses onto one shape-keyed tag instead (see the note up top).
-    tag: isBurst ? `ditto-burst-${shape.slice(0, 64)}` : `ditto-event-${event.id ?? shape}`,
+    tag: isBurst ? `ditto-burst-${shape.slice(0, 64)}` : `ditto-event-${event.id ?? eventId ?? shape}`,
     renotify: !isBurst,
     silent: isBurst,
   });
@@ -511,8 +631,15 @@ self.addEventListener('push', (event) => {
     payload = { title: 'Ditto', body: event.data.text() };
   }
 
-  // napp hands over a raw Nostr event; nostr-push hands over rendered text.
-  if (payload && typeof payload.event === 'object' && payload.event !== null) {
+  // napp hands over a raw Nostr event (or the id of one); nostr-push hands over
+  // rendered text. `$type` is what tells the two apart when a site holds both
+  // kinds of subscription — a host older than Tenna v0.8.1 doesn't send it, and
+  // is recognized by the raw event it puts in `event` instead.
+  const isNapp = payload
+    && (payload.$type === 'napp.push.payload'
+      || (typeof payload.event === 'object' && payload.event !== null));
+
+  if (isNapp) {
     event.waitUntil(handleNappPush(payload));
     return;
   }
