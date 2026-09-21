@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.39.2] - 2026-09-20
+
+A bug-fix release for wallets, zaps, and notifications. Zaps that carry a comment now pay instead of getting cancelled, sending Monero from the send dialog works again, and restoring a wallet that's already there quietly loads it instead of dead-ending on an error. Push notifications also arrive for longer posts that used to slip through.
+
+### Fixed
+- Zaps with a comment no longer fail to pay
+- Sending Monero from the send dialog works again — the send button is no longer stuck disabled with a recipient and amount set
+- Restoring a wallet that already exists now loads it instead of dead-ending on a contradictory error
+- Push notifications now arrive for longer posts that previously came through silent or not at all
+
 ## [2.39.1] - 2026-09-19
 
 A maintenance release with no changes to the app itself. It re-runs the release pipeline so everything in 2.39.0 — the Monero wallet, follow-list activity cards, and hiding a content type from your feed — reaches every app store.
