@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/useToast';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useMoneroRecord } from '@/hooks/useMoneroRecord';
+import { MoneroWalletExistsError, useMoneroRecord } from '@/hooks/useMoneroRecord';
 import { useEnsurePaymentTarget } from '@/hooks/usePaymentTargets';
 import { createWallet, restoreWallet } from '@/lib/monero/wallet';
 
@@ -157,6 +157,31 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
     [publishAddress, ensurePaymentTarget],
   );
 
+  /**
+   * Recover gracefully when a create/restore finds the wallet already exists.
+   *
+   * By the time this fires, `publishRecord` has already pushed the found event
+   * into the query cache, so the wallet is loading behind the dialog. All that
+   * is left is to reassure the user, who reached this screen believing they
+   * had no wallet, that nothing was lost, and get out of the way. Deliberately
+   * a positive toast, not the red error box the setup flow uses for failures.
+   */
+  const handleAlreadyExists = useCallback(() => {
+    toast({
+      title: intl.formatMessage({
+        id: 'monero.setup.alreadyExists.title',
+        defaultMessage: 'Your wallet is already here',
+      }),
+      description: intl.formatMessage({
+        id: 'monero.setup.alreadyExists.description',
+        defaultMessage:
+          "This account's Monero wallet is backed up to your Nostr account. Nothing was lost, and there's no need to restore. Loading it now.",
+      }),
+    });
+    onComplete?.();
+    handleClose();
+  }, [toast, intl, onComplete, handleClose]);
+
   /** Publish the record for a newly-created wallet. */
   const handleFinishCreate = useCallback(async () => {
     if (step.name !== 'backup') return;
@@ -190,9 +215,23 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
       onComplete?.();
       handleClose();
     } catch (err) {
+      if (err instanceof MoneroWalletExistsError) {
+        handleAlreadyExists();
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to save wallet');
     }
-  }, [step, assertSameAccount, createRecord, announceTarget, toast, intl, onComplete, handleClose]);
+  }, [
+    step,
+    assertSameAccount,
+    createRecord,
+    announceTarget,
+    toast,
+    intl,
+    onComplete,
+    handleClose,
+    handleAlreadyExists,
+  ]);
 
   /** Validate and publish a restored wallet. */
   const handleRestore = useCallback(async () => {
@@ -263,6 +302,10 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
       onComplete?.();
       handleClose();
     } catch (err) {
+      if (err instanceof MoneroWalletExistsError) {
+        handleAlreadyExists();
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to restore wallet');
       setStep({ name: 'restore' });
     }
@@ -278,6 +321,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
     intl,
     onComplete,
     handleClose,
+    handleAlreadyExists,
   ]);
 
   const copySeed = useCallback(async () => {

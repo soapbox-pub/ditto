@@ -49,6 +49,23 @@ export function moneroRecordQueryKeys(pubkey: string): unknown[][] {
 }
 
 /**
+ * A create/restore was asked to publish, but a record already exists.
+ *
+ * Thrown *after* the found event has been handed to the query cache, so the
+ * wallet converges on screen at the same moment. Typed rather than a bare
+ * `Error` so the setup dialog can treat it as a recovery ("your wallet was
+ * already here") instead of a red failure. The caller reached the setup
+ * screen from an inconclusive read, and telling them the wallet both doesn't
+ * exist and already exists is the worst possible pair of messages.
+ */
+export class MoneroWalletExistsError extends Error {
+  constructor() {
+    super('A Monero wallet already exists for this account');
+    this.name = 'MoneroWalletExistsError';
+  }
+}
+
+/**
  * What the caller believes it is replacing.
  *
  * A kind 30078 write is a replacement, and this one carries the only copy of
@@ -169,7 +186,15 @@ export function useMoneroRecord() {
 
       if (guard.expect === 'absent') {
         if (fresh?.content) {
-          throw new Error('A Monero wallet already exists for this account');
+          // The read that produced the setup screen missed this event, but the
+          // fresh re-read here found it, so the wallet is real and we're
+          // holding it. Hand it to the query cache (the same convergence the
+          // 'event' branch does below) so the panel loads the existing wallet
+          // instead of dead-ending on "already exists" right after telling the
+          // user they had none. Throwing only signals the caller to stop and
+          // show the recovery; the wallet is already on its way in.
+          queryClient.setQueryData(['monero-record-event', user.pubkey, dTag], fresh);
+          throw new MoneroWalletExistsError();
         }
       } else if (
         fresh?.content &&
