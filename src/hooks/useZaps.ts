@@ -177,7 +177,14 @@ export function useZaps(
         zapUrl.searchParams.set('amount', String(zapAmount));
         zapUrl.searchParams.set('nostr', zapRequestJson);
 
-        const res = await fetch(zapUrl.toString());
+        // NIP-57 servers hash the `nostr` parameter into the invoice, and
+        // some percent-decode it, reading the "+" that URLSearchParams emits
+        // for a space as a literal plus. Send spaces as "%20" so the server
+        // hashes exactly the JSON we signed. A bare "+" is always a space
+        // here since URLSearchParams encodes literal pluses as "%2B".
+        zapUrl.search = zapUrl.searchParams.toString().replace(/\+/g, '%20');
+
+        const res = await fetch(zapUrl);
         const responseText = await res.text();
         let responseData: { pr?: string; reason?: string } = {};
 
