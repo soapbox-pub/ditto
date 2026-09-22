@@ -220,6 +220,7 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeBirdex: z.boolean().optional(),
   feedIncludeConstellations: z.boolean().optional(),
   feedIncludeLoveLists: z.boolean().optional(),
+  feedIncludeTop8: z.boolean().optional(),
   feedIncludeRelayLists: z.boolean().optional(),
   feedIncludeProfileUpdates: z.boolean().optional(),
 });

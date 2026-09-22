@@ -6,7 +6,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { nip19 } from 'nostr-tools';
-import { Zap, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake, HeartHandshake } from 'lucide-react';
+import { Zap, MoreHorizontal, ClipboardCopy, Crown, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake, HeartHandshake } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { FallbackImage } from '@/components/FallbackImage';
@@ -48,6 +48,8 @@ import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useInterests } from '@/hooks/useInterests';
 import { normalizeTagValue } from '@/lib/hashtag';
 import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
+import { TOP8_KIND, useTop8 } from '@/hooks/useTop8';
+import { Top8Grid } from '@/components/Top8Grid';
 import { useWallComments } from '@/hooks/useWallComments';
 import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
@@ -160,6 +162,8 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', pubkey);
   const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
+  const { isInTop8, isFull: top8IsFull, addToTop8, removeFromTop8 } = useTop8();
+  const inTop8 = isInTop8(pubkey);
   const sidebarId = `nostr:${npubEncoded}`;
   const isInSidebar = orderedItems.includes(sidebarId);
   const [reportOpen, setReportOpen] = useState(false);
@@ -213,6 +217,30 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const handleReport = () => openAfterClose(setReportOpen);
   const handleAddToList = () => openAfterClose(setAddToListOpen);
 
+  const handleToggleTop8 = () => {
+    if (inTop8) {
+      removeFromTop8.mutate(pubkey, {
+        onSuccess: () => toast({ title: `Removed @${displayName} from your Top 8` }),
+        onError: () => toast({ title: 'Failed to update your Top 8', variant: 'destructive' }),
+      });
+    } else {
+      addToTop8.mutate(pubkey, {
+        onSuccess: () => toast({
+          title: `@${displayName} is in your Top 8`,
+          description: 'Drag to rank them on the Top 8 page.',
+        }),
+        onError: (error) => toast({
+          title: top8IsFull ? 'Your Top 8 is full' : 'Failed to update your Top 8',
+          description: top8IsFull
+            ? 'Remove someone on the Top 8 page to make room.'
+            : error instanceof Error ? error.message : undefined,
+          variant: 'destructive',
+        }),
+      });
+    }
+    close();
+  };
+
   const handleToggleSidebar = () => {
     if (isInSidebar) {
       removeFromSidebar(sidebarId);
@@ -258,6 +286,16 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             label="Add to list"
             onClick={handleAddToList}
           />
+          {/* Top 8 (kind 18678). Shown even when the Top 8 is full — hiding the
+              row would leave no explanation for why; the failed add toasts
+              "your Top 8 is full" and points at the Top 8 page instead. */}
+          {user && !isOwnProfile && (
+            <MenuRow
+              icon={<Crown className="size-5" />}
+              label={inTop8 ? 'Remove from Top 8' : 'Add to Top 8'}
+              onClick={handleToggleTop8}
+            />
+          )}
           <MenuRow
             icon={isInSidebar ? <Trash2 className="size-5" /> : <PanelLeft className="size-5" />}
             label={isInSidebar ? 'Remove from sidebar' : 'Add to sidebar'}
@@ -1598,6 +1636,11 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   // Profile's love list (kind 15683, derived from supplementary query)
   const lovedCount = supplementary?.loved.length ?? 0;
 
+  // Profile's Top 8 (kind 18678, see NIP.md) — also from the supplementary
+  // query, so showing it costs no extra round-trip. Memoized on the array
+  // identity so the grid doesn't re-render on unrelated profile updates.
+  const profileTop8 = useMemo(() => supplementary?.top8 ?? [], [supplementary?.top8]);
+
   // NIP-85 user stats (followers count)
   const { data: userStats } = useNip85UserStats(pubkey);
   const followersCount = userStats?.followers ?? 0;
@@ -2506,6 +2549,19 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     <span className="text-sm text-muted-foreground">loved</span>
                   </Link>
                 )}
+                {/* Top 8 (kind 18678). The grid itself lives in the right
+                    sidebar on desktop and inline below on mobile, so this is a
+                    plain link rather than another count. */}
+                {profileTop8.length > 0 && pubkey && (
+                  <Link
+                    to={`/${nip19.naddrEncode({ kind: TOP8_KIND, pubkey, identifier: '' })}`}
+                    className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                    title="Top 8"
+                  >
+                    <Crown className="size-3.5 text-primary" aria-hidden />
+                    <span className="text-sm text-muted-foreground">Top 8</span>
+                  </Link>
+                )}
               </div>
 
               {metadata?.about && (
@@ -2539,6 +2595,18 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     <span className="text-[10px] text-muted-foreground font-medium">+{badgeRefs.length - 5}</span>
                   )}
                 </div>
+              )}
+
+              {/* Top 8 shown inline on mobile — mirrors the sidebar section,
+                  which is hidden below `lg` along with the rest of the sidebar. */}
+              {profileTop8.length > 0 && (
+                <section className="mt-4 lg:hidden">
+                  <h2 className="flex items-center gap-1.5 text-sm font-bold mb-2">
+                    <Crown className="size-4 text-primary" aria-hidden />
+                    Top 8
+                  </h2>
+                  <Top8Grid pubkeys={profileTop8} columns={4} size="sm" />
+                </section>
               )}
 
               {/* Profile fields shown inline on mobile (sidebar is hidden below widgets) */}

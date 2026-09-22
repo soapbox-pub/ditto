@@ -9,6 +9,7 @@ import {
   CircleX,
   ClipboardCheck,
   ClipboardList,
+  Crown,
   Egg,
   FileCode,
   FileText,
@@ -146,6 +147,7 @@ import { UnknownKindContent } from "@/components/UnknownKindContent";
 import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
 import { LoveListContent } from "@/components/LoveListContent";
+import { Top8Content } from "@/components/Top8Content";
 import { VanishCardCompact } from "@/components/VanishEventContent";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
 import { ZapstoreReleaseContent, ZapstoreAssetContent } from "@/components/ZapstoreReleaseContent";
@@ -167,6 +169,7 @@ import { getGitRepoRef, getGitRootRef, gitStatusVerb, gitTicketNoun } from "@/li
 import { useAuthor } from "@/hooks/useAuthor";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useLoveList, LOVE_LIST_KIND } from "@/hooks/useLoveList";
+import { TOP8_KIND } from "@/hooks/useTop8";
 import { useNip05Verify } from "@/hooks/useNip05Verify";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
@@ -511,6 +514,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
   const isLoveList = event.kind === LOVE_LIST_KIND;
+  const isTop8 = event.kind === TOP8_KIND;
   const isHighlight = event.kind === 9802;
   const isTarotReading = event.kind === TAROT_READING_KIND;
   const isWebBookmark = event.kind === 39701;
@@ -579,6 +583,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     !isEncryptedDM &&
     !isLetter &&
     !isLoveList &&
+    !isTop8 &&
     !isHighlight &&
     !isTarotReading &&
     !isWebBookmark &&
@@ -840,6 +845,8 @@ const NoteCardImpl = memo(function NoteCardImpl({
           <EncryptedLetterContent event={event} compact />
         ) : isLoveList ? (
           <LoveListContent event={event} compact />
+        ) : isTop8 ? (
+          <Top8Content event={event} compact />
         ) : isHighlight ? (
           <HighlightContent event={event} />
         ) : isTarotReading ? (
@@ -2273,6 +2280,14 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     iconClassName: "text-red-500",
     action: (event) => publishedAtAction(event, { created: "wrote their", updated: "updated their", fallback: "updated their" }),
     noun: "Love List",
+  },
+  [TOP8_KIND]: {
+    icon: Crown,
+    iconClassName: "text-primary",
+    action: (event) => publishedAtAction(event, { created: "picked their", updated: "shuffled their", fallback: "updated their" }),
+    // No nounRoute — /top-8 is the viewer's own editor, not an index of the
+    // author's list, so linking the noun there would be a bait-and-switch.
+    noun: "Top 8",
   },
   37516: {
     icon: ChestIcon,

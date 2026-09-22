@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { LOVE_LIST_KIND, loveListPubkeys } from '@/hooks/useLoveList';
+import { TOP8_KIND, top8Pubkeys } from '@/hooks/useTop8';
 import { normalizeTagValue } from '@/lib/hashtag';
 
 /**
@@ -29,6 +30,10 @@ export interface ProfileSupplementary {
   loved: string[];
   /** Raw kind 15683 event. */
   loveListEvent?: NostrEvent;
+  /** The profile's Top 8, in rank order (from kind 18678, see NIP.md). */
+  top8: string[];
+  /** Raw kind 18678 event. */
+  top8Event?: NostrEvent;
   /** Hashtag interests (lowercased t-tag values from kind 10015). */
   interests: string[];
   /** Raw kind 10015 event. */
@@ -37,9 +42,10 @@ export interface ProfileSupplementary {
 
 /**
  * Fetch follow list (kind 3), pinned notes (kind 10001), love list
- * (kind 15683, see NIP.md), and interests (kind 10015) for a pubkey.
- * Profile tabs (kind 16769) are fetched separately by useProfileTabs to
- * avoid stale-seed race conditions with usePublishProfileTabs.
+ * (kind 15683), Top 8 (kind 18678, both see NIP.md), and interests
+ * (kind 10015) for a pubkey. Profile tabs (kind 16769) are fetched separately
+ * by useProfileTabs to avoid stale-seed race conditions with
+ * usePublishProfileTabs.
  */
 export function useProfileSupplementary(pubkey: string | undefined) {
   const { nostr } = useNostr();
@@ -48,13 +54,14 @@ export function useProfileSupplementary(pubkey: string | undefined) {
   return useQuery<ProfileSupplementary>({
     queryKey: ['profile-supplementary', pubkey ?? ''],
     queryFn: async () => {
-      if (!pubkey) return { following: [], pinnedIds: [], loved: [], interests: [] };
+      if (!pubkey) return { following: [], pinnedIds: [], loved: [], top8: [], interests: [] };
 
       const events = await nostr.query(
         [
           { kinds: [3], authors: [pubkey], limit: 1 },
           { kinds: [10001], authors: [pubkey], limit: 1 },
           { kinds: [LOVE_LIST_KIND], authors: [pubkey], limit: 1 },
+          { kinds: [TOP8_KIND], authors: [pubkey], limit: 1 },
           { kinds: [10015], authors: [pubkey], limit: 1 },
         ],
         { signal: AbortSignal.timeout(8000) },
@@ -63,6 +70,7 @@ export function useProfileSupplementary(pubkey: string | undefined) {
       const kind3 = latest(events, 3);
       const kind10001 = latest(events, 10001);
       const loveListEvent = latest(events, LOVE_LIST_KIND);
+      const top8Event = latest(events, TOP8_KIND);
       const interestsEvent = latest(events, 10015);
 
       // Seed pinned notes cache so usePinnedNotes doesn't re-fetch
@@ -77,6 +85,8 @@ export function useProfileSupplementary(pubkey: string | undefined) {
         : [];
 
       const loved = loveListPubkeys(loveListEvent);
+
+      const top8 = top8Pubkeys(top8Event);
 
       // t-tag values are untrusted — validate against the hashtag alphabet,
       // dedupe, and cap the count so a malicious 10015 can't flood the UI.
@@ -94,6 +104,8 @@ export function useProfileSupplementary(pubkey: string | undefined) {
         pinnedListEvent: kind10001,
         loved,
         loveListEvent,
+        top8,
+        top8Event,
         interests,
         interestsEvent,
       };

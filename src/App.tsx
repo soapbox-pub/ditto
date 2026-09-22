@@ -154,6 +154,7 @@ const hardcodedConfig: AppConfig = {
     feedIncludeRelayLists: true,
     feedIncludeProfileUpdates: true,
     feedIncludeLoveLists: true,
+    feedIncludeTop8: true,
     feedIncludeBlobbi: true,
     feedIncludeTarot: true,
     showBirdstar: true,

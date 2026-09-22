@@ -53,6 +53,7 @@ import { PostActionBar } from '@/components/PostActionBar';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { FollowAllSplitButton } from '@/components/FollowAllSplitButton';
 import { LoveListContent } from '@/components/LoveListContent';
+import { Top8Content } from '@/components/Top8Content';
 
 import { useToast } from '@/hooks/useToast';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -61,6 +62,7 @@ import { useComments } from '@/hooks/useComments';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { LOVE_LIST_KIND, loveListPubkeys } from '@/hooks/useLoveList';
+import { TOP8_KIND, top8Pubkeys } from '@/hooks/useTop8';
 import { useTabFeed } from '@/hooks/useProfileFeed';
 import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useUserLists } from '@/hooks/useUserLists';
@@ -312,6 +314,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
   const isFollowSet = event.kind === 30000;
   const isFollowPack = event.kind === 39089;
   const isLoveList = event.kind === LOVE_LIST_KIND;
+  const isTop8 = event.kind === TOP8_KIND;
   const dTag = useMemo(
     () => event.tags.find(([n]) => n === 'd')?.[1] ?? '',
     [event.tags],
@@ -325,7 +328,8 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
   const authorNpub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
   // Parsed list (kind 3 uses author metadata as fallback; kind 15683 love
-  // lists carry no title/description/image, so synthesize from the author)
+  // lists and kind 18678 Top 8s carry no title/description/image, so
+  // synthesize from the author)
   const { title, description, image, pubkeys } = useMemo(() => {
     if (isLoveList) {
       return {
@@ -335,11 +339,19 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
         pubkeys: loveListPubkeys(event),
       };
     }
+    if (isTop8) {
+      return {
+        title: authorName ? `${authorName}'s Top 8` : 'Top 8',
+        description: '',
+        image: undefined,
+        pubkeys: top8Pubkeys(event),
+      };
+    }
     return parsePeopleList(event, {
       authorMetadata,
       authorDisplayName: authorName,
     });
-  }, [event, isLoveList, authorMetadata, authorName]);
+  }, [event, isLoveList, isTop8, authorMetadata, authorName]);
   // Reversed for kind 3 follow lists so newest follows show first; identity
   // for curated kinds. Used only for display — mutations and filters continue
   // to use the original `pubkeys` array.
@@ -393,8 +405,8 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
 
   // Stable cache-key for the feed tab — the naddr uniquely identifies this list.
   const shareNip19 = useMemo(() => {
-    if (isFollowList || isLoveList) {
-      // Kinds 3 and 15683 are replaceable, no d-tag
+    if (isFollowList || isLoveList || isTop8) {
+      // Kinds 3, 15683, and 18678 are replaceable, no d-tag
       return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: '' });
     }
     return nip19.naddrEncode({
@@ -402,7 +414,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
       pubkey: event.pubkey,
       identifier: dTag,
     });
-  }, [event, dTag, isFollowList, isLoveList]);
+  }, [event, dTag, isFollowList, isLoveList, isTop8]);
 
   // ── Clone (save a copy of this list as my own kind 30000) ─────────────────
   const handleClone = useCallback(async () => {
@@ -422,8 +434,8 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
     }
   }, [user, cloning, createList, title, description, pubkeys, toast]);
 
-  // When the user is viewing their own kind 3 / love list, Follow All makes no sense.
-  const showFollowAllButton = !(isOwnList && (isFollowList || isLoveList));
+  // When the user is viewing their own kind 3 / love list / Top 8, Follow All makes no sense.
+  const showFollowAllButton = !(isOwnList && (isFollowList || isLoveList || isTop8));
 
   return (
     <>
@@ -431,6 +443,13 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
       {isLoveList && (
         <div className="px-4 pt-2">
           <LoveListContent event={event} />
+        </div>
+      )}
+
+      {/* Top 8s lead with the ranked grid — the ranking is the content */}
+      {isTop8 && (
+        <div className="px-4 pt-2">
+          <Top8Content event={event} />
         </div>
       )}
 
@@ -479,8 +498,8 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
           </div>
         </div>
 
-        {/* Title — love lists skip it (the card above carries the heading) */}
-        {!isLoveList && <h2 className="text-xl font-bold mt-4 leading-snug">{title}</h2>}
+        {/* Title — love lists and Top 8s skip it (the card above carries the heading) */}
+        {!isLoveList && !isTop8 && <h2 className="text-xl font-bold mt-4 leading-snug">{title}</h2>}
 
         {/* Description */}
         {description && (
@@ -505,13 +524,26 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
               listNoun={
                 isLoveList
                   ? "this person's love list"
-                  : isFollowList
-                    ? "this person's follow list"
-                    : 'this list'
+                  : isTop8
+                    ? "this person's Top 8"
+                    : isFollowList
+                      ? "this person's follow list"
+                      : 'this list'
               }
               includeAuthorPubkey={isFollowList ? event.pubkey : undefined}
               className="flex-1"
             />
+          )}
+
+          {/* Top 8 owners edit theirs on the dedicated /top-8 page, which is
+              where the drag-to-rank UI lives. */}
+          {isOwnList && isTop8 && (
+            <Button asChild variant="outline" className={showFollowAllButton ? undefined : 'flex-1'}>
+              <Link to="/top-8">
+                <Pencil className="size-4" />
+                Edit your Top 8
+              </Link>
+            </Button>
           )}
 
           {/* Edit — owners of follow sets and follow packs can edit details and members directly */}
@@ -555,7 +587,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
           )}
 
           {/* Save (clone) — available to logged-in viewers who don't own the list, not for kind 3 / love lists (those are personal lists, you don't clone them) */}
-          {user && !isOwnList && !isFollowList && !isLoveList && (
+          {user && !isOwnList && !isFollowList && !isLoveList && !isTop8 && (
             <Button
               variant="outline"
               className={showFollowAllButton ? undefined : 'flex-1'}

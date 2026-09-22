@@ -125,7 +125,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EncryptedMessageContent } from "@/components/EncryptedMessageContent";
 import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
 import { LoveListContent } from "@/components/LoveListContent";
+import { Top8Content } from "@/components/Top8Content";
 import { LOVE_LIST_KIND } from "@/hooks/useLoveList";
+import { TOP8_KIND } from "@/hooks/useTop8";
 import { VanishEventContent } from "@/components/VanishEventContent";
 import { parseFirstImeta } from '@/lib/imeta';
 import { type FileEncryption } from '@/lib/encryptedFile';
@@ -145,7 +147,7 @@ import { formatNumber } from "@/lib/formatNumber";
 import { getKindLabel, KIND_LABELS } from "@/lib/kindLabels";
 
 /** Kinds that get the full people-list detail view (follow list / set / pack / love list). */
-const PEOPLE_LIST_KINDS = new Set([3, 30000, 39089, LOVE_LIST_KIND]);
+const PEOPLE_LIST_KINDS = new Set([3, 30000, 39089, LOVE_LIST_KIND, TOP8_KIND]);
 
 /** Kind 30311 = NIP-53 Live Activities. */
 const LIVE_STREAM_KIND = 30311;
@@ -1340,6 +1342,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
   const isLoveList = event.kind === LOVE_LIST_KIND;
+  const isTop8 = event.kind === TOP8_KIND;
   const isHighlight = event.kind === 9802;
   const isTarotReading = event.kind === TAROT_READING_KIND;
   const isWebBookmark = event.kind === 39701;
@@ -1389,6 +1392,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isEncryptedDM &&
     !isLetter &&
     !isLoveList &&
+    !isTop8 &&
     !isHighlight &&
     !isTarotReading &&
     !isWebBookmark &&
@@ -2751,6 +2755,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <EncryptedLetterContent event={event} />
             ) : isLoveList ? (
               <LoveListContent event={event} />
+            ) : isTop8 ? (
+              <Top8Content event={event} />
             ) : isHighlight ? (
               <HighlightContent event={event} expanded />
             ) : isTarotReading ? (

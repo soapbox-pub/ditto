@@ -1,7 +1,7 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
-import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, History, Server, Stars, UserCheck, UserRoundPen, Users } from 'lucide-react';
+import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, Crown, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, History, Server, Stars, UserCheck, UserRoundPen, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -434,6 +434,18 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'social',
     feedOnly: true,
     blurb: 'A Love List names the people someone truly loves. The kind number spells "1·LOVE" on a phone keypad, and updates render as a paper love letter in the feed. Your own loved ones get a dedicated Loved tab at the front of your home feed.',
+  },
+  // Top 8 (feed-only — Ditto custom kind 18678, see NIP.md)
+  {
+    kind: 18678,
+    id: 'top-8',
+    feedKey: 'feedIncludeTop8',
+    label: 'Top 8',
+    description: 'Top 8 updates — someone\'s eight favorite people, ranked (kind 18678)',
+    addressable: false,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'A Top 8 is someone\'s eight favorite people, in rank order — the MySpace Top 8, revived. The kind number spells "1·TOP8" on a phone keypad. Updates render as a numbered grid in the feed, so you see it when a friend shuffles their number one. Curate your own at /top-8.',
   },
   // Whimsy
   {
@@ -1068,6 +1080,7 @@ const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: st
   5128: History,
   15128: Globe,
   15683: Heart,
+  18678: Crown,
   35128: Globe,
   30817: CircleAlert,
   2473: Bird,

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert, Mail } from 'lucide-react';
+import { Check, Copy, Crown, QrCode, ExternalLink, Bitcoin, ShieldAlert, Mail } from 'lucide-react';
 import { LinkFooter } from '@/components/LinkFooter';
 import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
@@ -36,6 +36,9 @@ import { parseImetaEntries } from '@/lib/imeta';
 import { type FileEncryption } from '@/lib/encryptedFile';
 import { useDecryptedFile } from '@/hooks/useDecryptedFile';
 import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
+import { Top8Grid } from '@/components/Top8Grid';
+import { useProfileSupplementary } from '@/hooks/useProfileData';
+import { TOP8_KIND } from '@/hooks/useTop8';
 
 /** Media-native kinds shown in the sidebar (excludes kind 1 text notes and kind 1111 comments). */
 const SIDEBAR_MEDIA_KINDS = [20, 21, 22, 34236, 36787, 34139, 30054, 30055];
@@ -547,6 +550,11 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
   const { config } = useAppContext();
   const { nostr } = useNostr();
 
+  // Top 8 (kind 18678, see NIP.md). ProfilePage already runs this query under
+  // the same key, so this is a cache read, not a second round-trip.
+  const { data: supplementary } = useProfileSupplementary(pubkey);
+  const top8 = supplementary?.top8 ?? [];
+
   // Single query: fetch media-native events, then fill remaining slots with kind 1 media if needed.
   const { data: sidebarEvents, isPending: mediaLoading } = useQuery({
     queryKey: ['sidebar-media', pubkey ?? ''],
@@ -588,6 +596,24 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
 
   return (
     <aside className={cn("w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3", className)}>
+      {/* Top 8 Section — the ranked grid leads the sidebar, MySpace-style.
+          Mirrored inline on the profile itself below `lg`, where the whole
+          sidebar is hidden. */}
+      {pubkey !== undefined && top8.length > 0 && (
+        <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
+          <h2 className="flex items-center gap-2 text-xl font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
+            <Crown className="size-5 text-primary" aria-hidden />
+            <Link
+              to={`/${nip19.naddrEncode({ kind: TOP8_KIND, pubkey, identifier: '' })}`}
+              className="hover:underline"
+            >
+              Top 8
+            </Link>
+          </h2>
+          <Top8Grid pubkeys={top8} columns={4} size="sm" />
+        </section>
+      )}
+
       {/* Media Section — only shown when pubkey prop is provided */}
       {pubkey !== undefined && <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <h2 className="text-xl font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>Media</h2>

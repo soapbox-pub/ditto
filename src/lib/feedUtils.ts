@@ -329,6 +329,10 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
   // has no hearts to show on its paper card.
   if (event.kind === 15683 && !event.tags.some(([n, v]) => n === 'p' && v)) return true;
 
+  // Top 8 (kind 18678, see NIP.md) with no `p` tags — an emptied Top 8 has
+  // nobody to rank.
+  if (event.kind === 18678 && !event.tags.some(([n, v]) => n === 'p' && v)) return true;
+
   // NIP-65 relay lists (kind 10002) with no `r` tags. Clients publish empty
   // ones during onboarding, and there is nothing to render for them.
   if (event.kind === 10002 && !event.tags.some(([n, v]) => n === 'r' && v)) return true;

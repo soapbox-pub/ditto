@@ -125,6 +125,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeRelayLists: false,
       feedIncludeProfileUpdates: false,
       feedIncludeLoveLists: true,
+      feedIncludeTop8: true,
       feedIncludeBlobbi: true,
       feedIncludeTarot: false,
       showBirdstar: false,

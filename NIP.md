@@ -8,6 +8,7 @@
 |-------|----------------------|-------------------------------------------------------|
 | 8333  | Onchain Zap          | Attestation that an on-chain BTC tx paid a target     |
 | 15683 | Love List            | The people the user truly loves (one per user)        |
+| 18678 | Top 8                | The user's ranked eight favorite people (one per user)|
 | 36767 | Theme Definition     | Shareable, named custom UI theme                      |
 | 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 | 16769 | Profile Tabs         | The user's custom profile page tabs (one per user)    |
@@ -207,6 +208,53 @@ Empty by convention. Clients MAY use the NIP-51 private-items scheme (NIP-44-enc
 - **Updates as content:** a kind 15683 event itself renders in feeds as a "love letter" card listing the loved people (avatar + name per `p` tag).
 - **Mutations** MUST follow read-modify-write: fetch the freshest kind 15683 for the author, rebuild the `p` tags, preserve unknown tags and `content`, and republish.
 - Clients SHOULD hide kind 15683 events with zero `p` tags (an emptied list has nothing to display).
+
+---
+
+## Kind 18678: Top 8
+
+### Summary
+
+Replaceable event listing the author's **eight favorite people, in rank order** — a revival of the MySpace "Top 8". Structured like a NIP-51 standard people list (`p` tags), with one list per user (latest event wins).
+
+Unlike a Love List or a follow list, **order is the whole point**: the first `p` tag is the author's number one, the second is number two, and so on. Rearranging a Top 8 is a meaningful social act, and clients surface the update in feeds so it can be noticed.
+
+The kind number keypad-spells **"1·TOP8"**: T=8, O=6, P=7 → `867`, followed by the literal `8` → `8678`, with a leading `1` to land in the replaceable range (10000–19999).
+
+### Event Structure
+
+```json
+{
+  "kind": 18678,
+  "pubkey": "<author-pubkey>",
+  "content": "",
+  "tags": [
+    ["p", "<number-one-pubkey>"],
+    ["p", "<number-two-pubkey>"],
+    ["p", "<number-three-pubkey>"],
+    ["alt", "Top 8: this user's eight favorite people, in order"]
+  ]
+}
+```
+
+### Tags
+
+| Tag   | Required | Description                                                          |
+|-------|----------|----------------------------------------------------------------------|
+| `p`   | Yes (0–8) | 32-byte hex pubkey of a person in the Top 8. **Tag order is rank order** — the first `p` tag is rank 1. Duplicates are ignored (first occurrence wins). |
+| `alt` | Yes      | NIP-31 human-readable fallback.                                      |
+
+### Content
+
+Empty by convention. Clients MAY use the NIP-51 private-items scheme (NIP-44-encrypted stringified tag array); Ditto publishes public entries only and ignores ciphertext it cannot decrypt.
+
+### Client Behavior
+
+- **Cap at eight.** Clients MUST NOT publish more than eight `p` tags, and SHOULD ignore `p` tags past the eighth when reading (a malicious or buggy publisher could include hundreds).
+- **Order is rank.** Clients MUST preserve `p` tag order on read and on write. Reordering is a first-class operation, not a side effect of add/remove.
+- **Updates as content:** a kind 18678 event itself renders in feeds as a card showing the ranked eight, so followers see when someone shuffles their Top 8.
+- **Mutations** MUST follow read-modify-write: fetch the freshest kind 18678 for the author, rebuild the `p` tags, preserve unknown tags and `content`, and republish.
+- Clients SHOULD hide kind 18678 events with zero `p` tags (an emptied list has nothing to display).
 
 ---
 

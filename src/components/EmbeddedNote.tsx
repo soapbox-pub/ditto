@@ -14,7 +14,9 @@ import { VanishCardCompact } from '@/components/VanishEventContent';
 import { EncryptedMessageCompact } from '@/components/EncryptedMessageContent';
 import { EncryptedLetterCompact } from '@/components/EncryptedLetterContent';
 import { LoveListCompact } from '@/components/LoveListContent';
+import { Top8Compact } from '@/components/Top8Content';
 import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
+import { TOP8_KIND } from '@/hooks/useTop8';
 import { EmbeddedProfileBadgesCard } from '@/components/EmbeddedNaddr';
 import { EmbeddedAttestationCard } from '@/components/EmbeddedAttestationCard';
 import { ATTESTATION_KIND } from '@/lib/attestation';
@@ -136,6 +138,11 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, fallbackAuthorHint, cl
   // data lives in `p` tags, so the generic fallback would render empty.
   if (event.kind === LOVE_LIST_KIND) {
     return <LoveListCompact event={event} className={className} />;
+  }
+
+  // Kind 18678 Top 8 (see NIP.md) — same story, all the data is in `p` tags.
+  if (event.kind === TOP8_KIND) {
+    return <Top8Compact event={event} className={className} />;
   }
 
   // Profile badges (kind 10008 / legacy 30008 with d=profile_badges) get a

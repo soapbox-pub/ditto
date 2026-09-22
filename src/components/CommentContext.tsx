@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { FormattedMessage } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import {
-  Award, BarChart3, Bird, Bitcoin, Bookmark, BookOpen, CalendarClock, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Egg, FileText, Film,
+  Award, BarChart3, Bird, Bitcoin, Bookmark, BookOpen, CalendarClock, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Crown, Egg, FileText, Film,
   Flag,
   GitBranch, GitPullRequest, HandHeart, Heart, History, Mail, MapPin, MessageSquare, Mic, MoonStar, Music, Newspaper,
   Video,
@@ -139,6 +139,7 @@ const KIND_LABELS: Record<number, string> = {
   1311: 'a live chat message',
   8211: 'a letter',
   15683: 'a Love List',
+  18678: 'a Top 8',
   1617: 'a patch',
   1618: 'a pull request',
   1619: 'a pull request update',
@@ -223,6 +224,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   1617: FileText,
   8211: Mail,
   15683: Heart,
+  18678: Crown,
   1618: GitPullRequest,
   1619: GitPullRequest,
   1621: CircleDot,

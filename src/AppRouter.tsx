@@ -74,6 +74,7 @@ const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ defa
 const SharePage = lazy(() => import("./pages/SharePage").then(m => ({ default: m.SharePage })));
 const TarotPage = lazy(() => import("./pages/TarotPage").then(m => ({ default: m.TarotPage })));
 const ThemesPage = lazy(() => import("./pages/ThemesPage").then(m => ({ default: m.ThemesPage })));
+const Top8Page = lazy(() => import("./pages/Top8Page").then(m => ({ default: m.Top8Page })));
 const TreasuresPage = lazy(() => import("./pages/TreasuresPage").then(m => ({ default: m.TreasuresPage })));
 const QuizzesPage = lazy(() => import("./pages/QuizzesPage").then(m => ({ default: m.QuizzesPage })));
 const CreateQuizPage = lazy(() => import("./pages/CreateQuizPage").then(m => ({ default: m.CreateQuizPage })));
@@ -269,6 +270,7 @@ export function AppRouter() {
             <Route path="/themes" element={<ThemesPage />} />
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/bookmarks" element={<BookmarksPage />} />
+            <Route path="/top-8" element={<Top8Page />} />
             <Route path="/ai-chat" element={<AIChatPage />} />
             <Route path="/blobbi" element={<BlobbiPage />} />
             <Route path="/world" element={<WorldPage />} />
