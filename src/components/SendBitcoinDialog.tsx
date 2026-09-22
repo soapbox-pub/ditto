@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { FormattedMessage } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import {
   AlertTriangle,
@@ -609,12 +610,15 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
         <DialogContent className="sm:max-w-md">
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="size-5 text-orange-500" />
-            Sending Not Available
+            <FormattedMessage id="sendBitcoin.unsupported.title" defaultMessage="Sending Not Available" />
           </DialogTitle>
           <Alert>
             <AlertTriangle className="size-4" />
             <AlertDescription>
-              Your login doesn't support sending Bitcoin. Log in with your secret key to send.
+              <FormattedMessage
+                id="sendBitcoin.unsupported.body"
+                defaultMessage="Your current signer can't sign Bitcoin transactions. To send, use a signer that supports Bitcoin (PSBT) signing."
+              />
             </AlertDescription>
           </Alert>
           <Button onClick={handleClose}>Close</Button>

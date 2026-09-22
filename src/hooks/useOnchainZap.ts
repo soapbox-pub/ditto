@@ -107,7 +107,7 @@ export function useOnchainZap(
       if (user.pubkey === target.pubkey) throw new Error("You can't zap yourself.");
       if (!canSignPsbt || !signPsbt) {
         throw new Error(
-          "Your login doesn't support sending Bitcoin. Log in with your secret key to send Bitcoin zaps.",
+          "Your login doesn't support sending Bitcoin.",
         );
       }
       if (!Number.isFinite(amountSats) || amountSats <= 0) {

@@ -81,7 +81,7 @@ export class NBrowserSignerBtc extends NBrowserSigner implements BtcSigner {
 
     if (typeof nostr.signPsbt !== 'function') {
       throw new Error(
-        "Your browser extension doesn't support sending Bitcoin. Try a different extension, or log in with your secret key.",
+        "Your browser extension doesn't support sending Bitcoin. Try a different extension that supports Bitcoin (PSBT) signing.",
       );
     }
 
@@ -141,7 +141,7 @@ export class NConnectSignerBtc extends NConnectSigner implements BtcSigner {
       const msg = error instanceof Error ? error.message : String(error);
       if (looksLikeCapabilityError(msg)) {
         throw new Error(
-          `Your remote signer doesn't support sending Bitcoin. Update your signer, or log in with your secret key. (${msg})`,
+          `Your remote signer doesn't support sending Bitcoin. Update to a signer that supports Bitcoin (PSBT) signing. (${msg})`,
         );
       }
       // Not a capability failure — propagate the original error so the user

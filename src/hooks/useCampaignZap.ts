@@ -111,7 +111,7 @@ export function useCampaignZap(
       if (!user) throw new Error('You must be logged in to donate.');
       if (!canSignPsbt || !signPsbt) {
         throw new Error(
-          "Your login doesn't support sending Bitcoin. Log in with your secret key to donate from Ditto.",
+          "Your login doesn't support sending Bitcoin.",
         );
       }
       if (!Number.isFinite(amountSats) || amountSats <= 0) {

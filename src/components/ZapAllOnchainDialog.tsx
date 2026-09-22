@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Bitcoin, Loader2, X, Check, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { FormattedMessage } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Button } from '@/components/ui/button';
@@ -389,7 +390,10 @@ export function ZapAllOnchainDialog({
             <div className="grid gap-3 px-4 py-6 text-center">
               <Bitcoin className="size-8 mx-auto text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
-                Your login doesn't support sending Bitcoin transactions. Log in with your secret key to use Zap all.
+                <FormattedMessage
+                  id="zapAll.unsupported.body"
+                  defaultMessage="Your current signer can't sign Bitcoin transactions. To use Zap all, use a signer that supports Bitcoin (PSBT) signing."
+                />
               </p>
               <Button onClick={() => onOpenChange(false)} variant="secondary">
                 Close
