@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.39.3] - 2026-09-22
+
+Failed posts now explain themselves. Instead of one flat "Failed to publish note," Ditto names what actually went wrong — a cancelled signature, a signer that never answered, a rate limit, a relay asking you to log in — and what to do about it. A post with nowhere to go no longer reports itself as sent. And when your login can't sign a Bitcoin transaction, Ditto points you to a signer that can instead of suggesting you paste your secret key.
+
+### Changed
+- A post that fails now says why — the signature was cancelled, your signer went quiet, your relays rate-limited you, a relay wants you to log in first — with the next step named, instead of a single "Failed to publish note."
+- When your login can't sign a Bitcoin transaction, Ditto now points you to a signer that supports it instead of suggesting you paste your secret key
+
+### Fixed
+- Posting with no relay set to write now tells you so, instead of cheerfully reporting a post that never left your browser as sent
+- A successful post no longer reports failure when the feed refresh behind it hiccups
+
 ## [2.39.2] - 2026-09-20
 
 A bug-fix release for wallets, zaps, and notifications. Zaps that carry a comment now pay instead of getting cancelled, sending Monero from the send dialog works again, and restoring a wallet that's already there quietly loads it instead of dead-ending on an error. Push notifications also arrive for longer posts that used to slip through.
