@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker, BarChart3, Plus, ChevronLeft } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -43,6 +44,7 @@ import { cn } from '@/lib/utils';
 import { notificationSuccess } from '@/lib/haptics';
 import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, mimeFromExt } from '@/lib/mediaUrls';
 import { extractBlossomUris, blossomImetaTag } from '@/lib/blossomUri';
+import { describePublishError } from '@/lib/publishError';
 
 /** Lazy-loaded EmojiPicker — keeps emoji-mart + its data out of the main bundle. */
 const LazyEmojiPicker = lazy(() => import('@/components/EmojiPicker').then(m => ({ default: m.EmojiPicker })));
@@ -319,9 +321,24 @@ export function ComposeBox({
   const customEmojis = useMemo(() => customEmojisEnabled ? allCustomEmojis : [], [customEmojisEnabled, allCustomEmojis]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const intl = useIntl();
   const { config } = useAppContext();
   const imageQuality = config.imageQuality;
   const isMobile = useIsMobile();
+
+  /**
+   * Explain a failed publish. Everything from a cancelled signing request to a
+   * relay-wide rejection arrives here as an opaque `unknown`, so it goes
+   * through `describePublishError` rather than a single catch-all string.
+   */
+  const showPublishErrorToast = useCallback((error: unknown) => {
+    const { title, description, values } = describePublishError(error);
+    toast({
+      title: intl.formatMessage(title),
+      description: intl.formatMessage(description, values),
+      variant: 'destructive',
+    });
+  }, [intl, toast]);
 
   // Build a stable localStorage key based on compose context.
   // Different contexts (new post, reply, quote) each get their own draft slot.
@@ -856,69 +873,84 @@ export function ComposeBox({
     if (!user) return;
     setIsPublishingVoice(true);
     try {
-      const recording = await voiceRecorder.stopRecording();
-      if (!recording) return;
+      let audioUrl: string;
+      let imetaTag: string[];
 
-      // Determine file extension from MIME type
-      const extMap: Record<string, string> = {
-        'audio/mp4': '.m4a',
-        'audio/mp4;codecs=aac': '.m4a',
-        'audio/aac': '.aac',
-        'audio/webm;codecs=opus': '.webm',
-        'audio/webm': '.webm',
-        'audio/ogg;codecs=opus': '.ogg',
-      };
-      const ext = extMap[recording.mimeType] ?? '.webm';
-      const fileName = `voice-message-${Date.now()}${ext}`;
-      const file = new File([recording.blob], fileName, { type: recording.mimeType });
+      // Recording and uploading fail for their own reasons (no audio captured,
+      // Blossom rejected the blob) and mustn't be reported as a publish failure.
+      try {
+        const recording = await voiceRecorder.stopRecording();
+        if (!recording) return;
 
-      // Upload to Blossom
-      const tags = await uploadFile(file);
-      const [[, audioUrl]] = tags;
+        // Determine file extension from MIME type
+        const extMap: Record<string, string> = {
+          'audio/mp4': '.m4a',
+          'audio/mp4;codecs=aac': '.m4a',
+          'audio/aac': '.aac',
+          'audio/webm;codecs=opus': '.webm',
+          'audio/webm': '.webm',
+          'audio/ogg;codecs=opus': '.ogg',
+        };
+        const ext = extMap[recording.mimeType] ?? '.webm';
+        const fileName = `voice-message-${Date.now()}${ext}`;
+        const file = new File([recording.blob], fileName, { type: recording.mimeType });
 
-      // Build NIP-A0 imeta tag with waveform and duration
-      const imetaFields = [
-        `url ${audioUrl}`,
-        `m ${recording.mimeType}`,
-        `waveform ${recording.waveform.join(' ')}`,
-        `duration ${Math.round(recording.duration)}`,
-      ];
-      const imetaTag = ['imeta', ...imetaFields];
+        // Upload to Blossom
+        const tags = await uploadFile(file);
+        [[, audioUrl]] = tags;
 
-      if (replyTo) {
-        // Every voice reply is a NIP-22 voice comment (kind 1244), whatever it
-        // replies to — postComment handles the root scope, the rebroadcast,
-        // and inserting it into the open thread.
-        await postComment({
-          ...resolveReplyScope(replyTo),
-          content: audioUrl,
-          tags: [imetaTag],
-          kind: 1244,
-        });
-        // Voice replies aren't injected into feeds; just mark them stale for
-        // the next natural refetch (see prependEventToFeeds for why there's
-        // no immediate refetch).
-        queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
-      } else {
-        // Root voice message (kind 1222)
-        const published = await createEvent({
-          kind: 1222,
-          content: audioUrl,
-          tags: [imetaTag],
-        });
-        // Optimistically show the new voice post in cached feeds.
-        prependEventToFeeds(queryClient, published);
+        // Build NIP-A0 imeta tag with waveform and duration
+        imetaTag = [
+          'imeta',
+          `url ${audioUrl}`,
+          `m ${recording.mimeType}`,
+          `waveform ${recording.waveform.join(' ')}`,
+          `duration ${Math.round(recording.duration)}`,
+        ];
+      } catch (error) {
+        console.error('Failed to upload voice message:', error);
+        toast({ title: 'Upload failed', description: 'Could not upload your voice message.', variant: 'destructive' });
+        return;
+      }
+
+      try {
+        if (replyTo) {
+          // Every voice reply is a NIP-22 voice comment (kind 1244), whatever it
+          // replies to — postComment handles the root scope, the rebroadcast,
+          // and inserting it into the open thread.
+          await postComment({
+            ...resolveReplyScope(replyTo),
+            content: audioUrl,
+            tags: [imetaTag],
+            kind: 1244,
+          });
+          // Voice replies aren't injected into feeds; just mark them stale for
+          // the next natural refetch (see prependEventToFeeds for why there's
+          // no immediate refetch).
+          queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
+        } else {
+          // Root voice message (kind 1222)
+          const published = await createEvent({
+            kind: 1222,
+            content: audioUrl,
+            tags: [imetaTag],
+          });
+          // Optimistically show the new voice post in cached feeds.
+          prependEventToFeeds(queryClient, published);
+        }
+      } catch (error) {
+        console.error('Failed to publish voice message:', error);
+        showPublishErrorToast(error);
+        return;
       }
 
       notificationSuccess();
       toast({ title: 'Voice message sent!', description: 'Your voice message has been published.' });
       onSuccess?.();
-    } catch {
-      toast({ title: 'Error', description: 'Failed to send voice message.', variant: 'destructive' });
     } finally {
       setIsPublishingVoice(false);
     }
-  }, [user, voiceRecorder, uploadFile, createEvent, postComment, replyTo, queryClient, toast, onSuccess]);
+  }, [user, voiceRecorder, uploadFile, createEvent, postComment, replyTo, queryClient, toast, showPublishErrorToast, onSuccess]);
 
   /**
    * Strip tracking parameters from the links in an outgoing note, unless the
@@ -940,6 +972,13 @@ export function ComposeBox({
   const handleSubmit = async () => {
     if (!content.trim() || !user || charCount > MAX_CHARS) return;
 
+    let published: NostrEvent;
+    /** The NIP-22 thread root, which isn't always the event being replied to. */
+    let threadRoot: NostrEvent | URL | `#${string}` | undefined;
+
+    // Only the publish itself belongs in this try. The optimistic cache
+    // updates that follow it run after the note is already on a relay, and
+    // must never be reported as a failure to publish.
     try {
       const hashtags = extractHashtags(content);
       const tags: string[][] = hashtags.map((t) => ['t', t]);
@@ -1064,9 +1103,6 @@ export function ComposeBox({
 
 
 
-      let published: NostrEvent;
-      /** The NIP-22 thread root, which isn't always the event being replied to. */
-      let threadRoot: NostrEvent | URL | `#${string}` | undefined;
       if (replyTo) {
         // Every reply is a NIP-22 comment (kind 1111), kind 1 notes included.
         const scope = resolveReplyScope(replyTo);
@@ -1080,8 +1116,15 @@ export function ComposeBox({
           created_at: Math.floor(Date.now() / 1000),
         });
       }
+    } catch (error) {
+      console.error('Failed to publish note:', error);
+      showPublishErrorToast(error);
+      return;
+    }
 
-      resetComposeState();
+    resetComposeState();
+
+    try {
       // Rebroadcast the quoted event alongside the new note (best-effort).
       // Reply targets are rebroadcast inside usePostComment.
       if (showQuotedEvent && quotedEvent) {
@@ -1115,21 +1158,24 @@ export function ComposeBox({
         queryClient.invalidateQueries({ queryKey: ['event-stats', quotedEvent.id] });
         queryClient.invalidateQueries({ queryKey: ['event-interactions', quotedEvent.id] });
       }
-      notificationSuccess();
-      const nevent = tryNeventEncode({ id: published.id, author: published.pubkey, kind: published.kind });
-      toast({
-        title: 'Posted!',
-        description: replyTo ? 'Your reply has been published.' : quotedEvent ? 'Your quote has been published.' : 'Your note has been published.',
-        action: nevent ? (
-          <ToastAction altText="View post" asChild>
-            <Link to={`/${nevent}`}>View</Link>
-          </ToastAction>
-        ) : undefined,
-      });
-      onSuccess?.();
-    } catch {
-      toast({ title: 'Error', description: 'Failed to publish note.', variant: 'destructive' });
+    } catch (error) {
+      // The note is already published; a failed cache update is cosmetic and
+      // resolves itself on the next refetch.
+      console.error('Failed to update the UI after publishing:', error);
     }
+
+    notificationSuccess();
+    const nevent = tryNeventEncode({ id: published.id, author: published.pubkey, kind: published.kind });
+    toast({
+      title: 'Posted!',
+      description: replyTo ? 'Your reply has been published.' : quotedEvent ? 'Your quote has been published.' : 'Your note has been published.',
+      action: nevent ? (
+        <ToastAction altText="View post" asChild>
+          <Link to={`/${nevent}`}>View</Link>
+        </ToastAction>
+      ) : undefined,
+    });
+    onSuccess?.();
   };
 
   const handlePollSubmit = async () => {
@@ -1171,17 +1217,21 @@ export function ComposeBox({
 
     tags.push(['alt', `Poll: ${finalContent}`]);
 
+    let published: NostrEvent;
     try {
-      const published = await createEvent({ kind: 1068, content: finalContent, tags });
-      resetComposeState();
-      // Optimistically show the new poll in cached feeds.
-      prependEventToFeeds(queryClient, published);
-      notificationSuccess();
-      toast({ title: 'Poll published!' });
-      onSuccess?.();
-    } catch {
-      toast({ title: 'Error', description: 'Failed to publish poll.', variant: 'destructive' });
+      published = await createEvent({ kind: 1068, content: finalContent, tags });
+    } catch (error) {
+      console.error('Failed to publish poll:', error);
+      showPublishErrorToast(error);
+      return;
     }
+
+    resetComposeState();
+    // Optimistically show the new poll in cached feeds.
+    prependEventToFeeds(queryClient, published);
+    notificationSuccess();
+    toast({ title: 'Poll published!' });
+    onSuccess?.();
   };
 
   const pollFilledCount = pollOptions.filter((o) => o.label.trim()).length;

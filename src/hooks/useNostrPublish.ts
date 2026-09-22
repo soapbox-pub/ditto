@@ -4,7 +4,9 @@ import { nip19 } from "nostr-tools";
 
 import { useAppContext } from "./useAppContext";
 import { useCurrentUser } from "./useCurrentUser";
+import { getEffectiveRelays } from "@/lib/appRelays";
 import { sendToInboxRelays } from "@/lib/inboxRelays";
+import { NO_WRITE_RELAYS } from "@/lib/publishError";
 
 import type { NostrEvent } from "@nostrify/nostrify";
 
@@ -63,6 +65,15 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
   return useMutation({
     mutationFn: async (t: EventTemplate) => {
       if (user) {
+        // Bail before bothering the signer if there's nowhere to publish to.
+        // `NPool.event()` returns successfully when its event router yields no
+        // relays, so without this check the UI reports a post that was never
+        // sent anywhere. Mirrors NostrProvider's own routing.
+        const { relays } = getEffectiveRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays);
+        if (!relays.some((relay) => relay.write)) {
+          throw new Error(NO_WRITE_RELAYS);
+        }
+
         // Extract `prev` before building the event — it's not part of the Nostr event schema.
         const { prev, ...template } = t;
         const tags = [...(template.tags ?? [])];
