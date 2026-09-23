@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.40.0] - 2026-09-22
+
+The Top 8 is back. Pick your eight favorite people, drag them into the order you mean it, and the ranking sits on your profile for everyone to see — number one at the top. Rearranging it shows up in your followers' feeds, because that was always the best part. Find it under Top 8 in the sidebar, stage your changes, and publish when you're happy with them.
+
+### Added
+- A Top 8 — rank your eight favorite people, drag to reorder, and show the ranking off on your profile. Edits stay local until you hit Save, so nobody watches you agonize.
+- Anyone's Top 8 appears on their profile, and rearranging yours lands in your followers' feeds as a card they can read and tap through
+
 ## [2.39.3] - 2026-09-22
 
 Failed posts now explain themselves. Instead of one flat "Failed to publish note," Ditto names what actually went wrong — a cancelled signature, a signer that never answered, a rate limit, a relay asking you to log in — and what to do about it. A post with nowhere to go no longer reports itself as sent. And when your login can't sign a Bitcoin transaction, Ditto points you to a signer that can instead of suggesting you paste your secret key.
