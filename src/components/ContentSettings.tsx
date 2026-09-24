@@ -3,8 +3,9 @@ import { FormattedMessage, useIntl } from 'react-intl';
 import { IntroImage } from '@/components/IntroImage';
 import {
   Users, Download, Loader2, X, Pencil, Home, Globe, MapPin,
-  Palette, Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink,
+  Palette, Trash2, Plus, UserX, Hash, MessageSquareOff, ExternalLink, Lock,
 } from 'lucide-react';
+import { ListNotice } from '@/components/ListNotice';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +19,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
+import { useListErrorMessage } from '@/hooks/useListErrorMessage';
 import { useToast } from '@/hooks/useToast';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useInterests } from '@/hooks/useInterests';
@@ -1029,7 +1031,7 @@ interface MuteTypeConfig {
 
 export function MuteSettingsInternals() {
   const intl = useIntl();
-  const { muteItems, isLoading, addMute, removeMute } = useMuteList();
+  const { muteItems, isLoading, isPublic, addMute, removeMute, makeMuteListPrivate } = useMuteList();
   const { toast } = useToast();
   const [newMuteType, setNewMuteType] = useState<MuteListItem['type']>('pubkey');
   const [newMuteValue, setNewMuteValue] = useState('');
@@ -1061,6 +1063,8 @@ export function MuteSettingsInternals() {
     },
   };
 
+  const muteErrorMessage = useListErrorMessage();
+
   const handleAddMute = async () => {
     if (!newMuteValue.trim()) {
       toast({ title: intl.formatMessage({ id: 'settings.content.error', defaultMessage: "Error" }), description: intl.formatMessage({ id: 'settings.content.enterValue', defaultMessage: "Please enter a value" }), variant: 'destructive' });
@@ -1078,7 +1082,7 @@ export function MuteSettingsInternals() {
     } catch (error) {
       toast({
         title: intl.formatMessage({ id: 'settings.content.error', defaultMessage: "Error" }),
-        description: error instanceof Error ? error.message : intl.formatMessage({ id: 'settings.content.addMuteFailed', defaultMessage: "Failed to add mute" }),
+        description: muteErrorMessage(error, intl.formatMessage({ id: 'settings.content.addMuteFailed', defaultMessage: "Failed to add mute" })),
         variant: 'destructive',
       });
     }
@@ -1091,7 +1095,19 @@ export function MuteSettingsInternals() {
     } catch (error) {
       toast({
         title: intl.formatMessage({ id: 'settings.content.error', defaultMessage: "Error" }),
-        description: error instanceof Error ? error.message : intl.formatMessage({ id: 'settings.content.removeMuteFailed', defaultMessage: "Failed to remove mute" }),
+        description: muteErrorMessage(error, intl.formatMessage({ id: 'settings.content.removeMuteFailed', defaultMessage: "Failed to remove mute" })),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleMakePrivate = async () => {
+    try {
+      await makeMuteListPrivate.mutateAsync();
+    } catch (error) {
+      toast({
+        title: intl.formatMessage({ id: 'settings.content.error', defaultMessage: "Error" }),
+        description: muteErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -1165,6 +1181,24 @@ export function MuteSettingsInternals() {
           </Button>
         </div>
       </div>
+
+      {isPublic && (
+        <div className="px-3 py-4 border-b border-border">
+          <ListNotice
+            action={(
+              <Button variant="outline" size="sm" className="h-7 shrink-0 text-xs" onClick={() => void handleMakePrivate()} disabled={makeMuteListPrivate.isPending}>
+                <Lock className="mr-1.5 size-3" aria-hidden />
+                <FormattedMessage id="common.makePrivate" defaultMessage="Make private" />
+              </Button>
+            )}
+          >
+            <FormattedMessage
+              id="settings.content.muteListPublic"
+              defaultMessage="Your mute list is public, so anyone can see who and what you've muted. Making it private hides it from others and from apps that can't read private lists."
+            />
+          </ListNotice>
+        </div>
+      )}
 
       {/* Follow exemption toggle */}
       <div className="px-3 py-4 border-b border-border">

@@ -1,13 +1,22 @@
 import { useNostr } from '@nostrify/react';
 import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { NostrEvent, NostrFilter, NostrSigner } from '@nostrify/nostrify';
+import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
+import { useNostrStorage } from './useNostrStorage';
 import { useAppContext } from './useAppContext';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import {
+  editNip51List,
+  listVisibility,
+  makeListPrivate,
+  readNip51List,
+  type Nip51ListContents,
+  type Nip51ListEdit,
+} from '@/lib/nip51List';
 import { isNostrId } from '@/lib/nostrId';
 import { getStorageKey } from '@/lib/storageKey';
 
@@ -61,87 +70,31 @@ export function parseMuteTags(tags: string[][]): MuteListItem[] {
   return items;
 }
 
-/**
- * Detect whether encrypted content uses NIP-04 (legacy) or NIP-44 encoding.
- * NIP-51 says: "Clients can automatically discover if the encryption is NIP-04
- * or NIP-44 by searching for 'iv' in the ciphertext."
- */
-function isNip04Encrypted(content: string): boolean {
-  return content.includes('?iv=');
+/** Mute entry tag names (NIP-51 kind 10000). */
+const MUTE_TAG_NAMES = new Set(['p', 't', 'word', 'e']);
+
+/** Whether a tag is a mute entry, as opposed to `alt`, `client`, etc. */
+function isMuteTag(tag: string[]): boolean {
+  return MUTE_TAG_NAMES.has(tag[0]) && !!tag[1];
 }
 
-/**
- * Decrypt encrypted content from a kind 10000 event, handling both NIP-44 and
- * legacy NIP-04 formats for backward compatibility per NIP-51.
- */
-async function decryptContent(
-  content: string,
-  signer: NostrSigner,
-  pubkey: string,
-): Promise<string | null> {
-  if (!content) return null;
-
-  try {
-    if (isNip04Encrypted(content)) {
-      // NIP-04 legacy encryption
-      if (signer.nip04) {
-        return await signer.nip04.decrypt(pubkey, content);
-      }
-      console.warn('Mute list uses NIP-04 encryption but signer does not support nip04');
-      return null;
-    } else {
-      // NIP-44 encryption
-      if (signer.nip44) {
-        return await signer.nip44.decrypt(pubkey, content);
-      }
-      console.warn('Mute list uses NIP-44 encryption but signer does not support nip44');
-      return null;
-    }
-  } catch (error) {
-    console.error('Failed to decrypt mute list content:', error);
-    return null;
-  }
+/** The tag that stores a mute item. */
+function muteItemToTag(item: MuteListItem): string[] {
+  const name = item.type === 'pubkey' ? 'p' : item.type === 'hashtag' ? 't' : item.type === 'word' ? 'word' : 'e';
+  return [name, item.value];
 }
 
-/**
- * Parse all mute items from a kind 10000 event, combining both public tags
- * and encrypted (private) content per NIP-51.
- */
-async function getAllMuteItems(
-  event: NostrEvent | null,
-  signer: NostrSigner,
-  pubkey: string,
-): Promise<MuteListItem[]> {
-  if (!event) return [];
-
-  // Parse public tags from the event
-  const publicItems = parseMuteTags(event.tags);
-
-  // Parse private (encrypted) items from the content
-  let privateItems: MuteListItem[] = [];
-  if (event.content) {
-    const decrypted = await decryptContent(event.content, signer, pubkey);
-    if (decrypted) {
-      try {
-        const tags = JSON.parse(decrypted) as string[][];
-        privateItems = parseMuteTags(tags);
-      } catch (error) {
-        console.error('Failed to parse decrypted mute list content:', error);
-      }
-    }
-  }
-
-  // Deduplicate: combine public + private, removing duplicates
+/** Deduplicated mute items from both halves of a list. */
+function itemsFromContents(contents: Nip51ListContents): MuteListItem[] {
   const seen = new Set<string>();
   const combined: MuteListItem[] = [];
-  for (const item of [...publicItems, ...privateItems]) {
+  for (const item of [...parseMuteTags(contents.publicTags), ...parseMuteTags(contents.privateTags)]) {
     const key = `${item.type}:${item.value}`;
     if (!seen.has(key)) {
       seen.add(key);
       combined.push(item);
     }
   }
-
   return combined;
 }
 
@@ -153,8 +106,8 @@ async function getAllMuteItems(
 const EMPTY_MUTE_ITEMS: MuteListItem[] = [];
 
 /**
- * Hook to manage NIP-51 mute lists (kind 10000)
- * All mute items are encrypted for privacy
+ * Hook to manage NIP-51 mute lists (kind 10000). Entries are edited in the
+ * visibility the list already has; see `nip51List`.
  */
 export function useMuteList() {
   const { nostr } = useNostr();
@@ -162,6 +115,7 @@ export function useMuteList() {
   const { config } = useAppContext();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
+  const { store } = useNostrStorage();
   const cacheKey = getMuteCacheKey(config.appId);
 
   // Placeholder from localStorage so mutes apply immediately on page load.
@@ -201,7 +155,15 @@ export function useMuteList() {
       const event = query.data;
       if (!event || !user) return [];
 
-      const items = await getAllMuteItems(event, user.signer, user.pubkey);
+      const contents = await readNip51List(event, user.signer, user.pubkey);
+
+      // If the private part couldn't be decrypted, keep applying the last
+      // mutes we could read rather than dropping every private mute.
+      if (contents.unreadable) {
+        return itemsFromContents({ ...contents, privateTags: (cachedItems ?? []).map(muteItemToTag) });
+      }
+
+      const items = itemsFromContents(contents);
 
       // Persist to localStorage for next page load
       setCachedMuteItems(config.appId, user.pubkey, items);
@@ -211,6 +173,48 @@ export function useMuteList() {
     enabled: !!query.data && !!user,
     placeholderData: cachedItems,
   });
+
+  /**
+   * Read-modify-write the mute list in its current mode (public or private,
+   * see `nip51List`). Returns the resulting items, which are applied to the
+   * caches before publishing so mutes take effect immediately.
+   */
+  const editMuteList = async (
+    edit: (prev: NostrEvent | null, contents: Nip51ListContents) => Promise<Nip51ListEdit | null>,
+  ): Promise<void> => {
+    if (!user) throw new Error('User not logged in');
+
+    // Fetch the freshest kind 10000 from relays before mutating. Pass the
+    // local store as a fallback floor: a kind 10000 is replaceable, so a relay
+    // miss returning null would otherwise rebuild from an empty base and wipe
+    // every mute made on another client.
+    const prev = await fetchFreshEvent(nostr, { kinds: [10000], authors: [user.pubkey] }, { store });
+    const contents = await readNip51List(prev, user.signer, user.pubkey);
+    const next = await edit(prev, contents);
+    if (!next) return;
+
+    // When the private half is unreadable, `next.privateTags` is empty but the
+    // encrypted content is carried over unchanged. Keep applying the private
+    // mutes we last read: the cached items that weren't public in `prev`.
+    let privateTags = next.privateTags;
+    if (contents.unreadable) {
+      const prevPublic = new Set(parseMuteTags(contents.publicTags).map((i) => `${i.type}:${i.value}`));
+      const cached = getCachedMuteItems(cacheKey, user.pubkey) ?? [];
+      privateTags = cached.filter((i) => !prevPublic.has(`${i.type}:${i.value}`)).map(muteItemToTag);
+    }
+    const newItems = itemsFromContents({ publicTags: next.tags, privateTags, unreadable: false });
+
+    // Update localStorage and the in-memory cache so isMuted() flips
+    // immediately, before the relay round-trip.
+    setCachedMuteItems(config.appId, user.pubkey, newItems);
+    if (query.data?.id) {
+      queryClient.setQueryData<MuteListItem[]>(['muteItems', query.data.id], newItems);
+    }
+
+    await publishEvent({ kind: 10000, tags: next.tags, content: next.content, prev: prev ?? undefined });
+  };
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['muteList', user?.pubkey] });
 
   // Add item to mute list
   const addMute = useMutation({
@@ -231,62 +235,34 @@ export function useMuteList() {
         normalizedValue = ne;
       }
 
-      // ① Fetch the freshest kind 10000 from relays before mutating
-      const prev = await fetchFreshEvent(nostr, { kinds: [10000], authors: [user.pubkey] });
-      const currentItems = await getAllMuteItems(prev, user.signer, user.pubkey);
-
-      // ② Add only if not already present (dedup)
-      const alreadyMuted = currentItems.some(
-        (i) => i.type === item.type && i.value === normalizedValue,
-      );
-      const newItems = alreadyMuted
-        ? currentItems
-        : [...currentItems, { ...item, value: normalizedValue }];
-
-      // Update localStorage immediately so it survives page refresh
-      setCachedMuteItems(config.appId, user.pubkey, newItems);
-
-      // Optimistically update the in-memory muteItems cache so isMuted()
-      // flips immediately, before the relay round-trip.
-      if (query.data?.id) {
-        queryClient.setQueryData<MuteListItem[]>(['muteItems', query.data.id], newItems);
-      }
-
-      await updateMuteList(newItems, prev);
+      await editMuteList((prev, contents) => editNip51List({
+        prev,
+        contents,
+        signer: user.signer,
+        pubkey: user.pubkey,
+        add: [muteItemToTag({ ...item, value: normalizedValue })],
+        isEntry: isMuteTag,
+      }));
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['muteList', user?.pubkey] });
-    },
+    onSuccess: invalidate,
   });
 
   // Remove item from mute list
   const removeMute = useMutation({
     mutationFn: async (item: MuteListItem) => {
       if (!user) throw new Error('User not logged in');
+      const target = muteItemToTag(item);
 
-      // ① Fetch the freshest kind 10000 from relays before mutating
-      const prev = await fetchFreshEvent(nostr, { kinds: [10000], authors: [user.pubkey] });
-      const currentItems = await getAllMuteItems(prev, user.signer, user.pubkey);
-
-      // ② Remove the target item
-      const newItems = currentItems.filter(
-        (i) => !(i.type === item.type && i.value === item.value),
-      );
-
-      // Update localStorage immediately so it survives page refresh
-      setCachedMuteItems(config.appId, user.pubkey, newItems);
-
-      // Optimistically update the in-memory muteItems cache so isMuted()
-      // flips immediately, before the relay round-trip.
-      if (query.data?.id) {
-        queryClient.setQueryData<MuteListItem[]>(['muteItems', query.data.id], newItems);
-      }
-
-      await updateMuteList(newItems, prev);
+      await editMuteList((prev, contents) => editNip51List({
+        prev,
+        contents,
+        signer: user.signer,
+        pubkey: user.pubkey,
+        remove: (tag) => tag[0] === target[0] && tag[1] === target[1],
+        isEntry: isMuteTag,
+      }));
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['muteList', user?.pubkey] });
-    },
+    onSuccess: invalidate,
   });
 
   // Bulk-add many pubkeys to the mute list in a single publish.
@@ -303,73 +279,44 @@ export function useMuteList() {
         if (np) normalized.add(np);
       }
 
-      // ① Fetch the freshest kind 10000 from relays
-      const prev = await fetchFreshEvent(nostr, { kinds: [10000], authors: [user.pubkey] });
-      const currentItems = await getAllMuteItems(prev, user.signer, user.pubkey);
+      let added = 0;
+      await editMuteList(async (prev, contents) => {
+        const alreadyMuted = new Set(
+          itemsFromContents(contents).filter((i) => i.type === 'pubkey').map((i) => i.value),
+        );
+        const toAdd = [...normalized].filter((pk) => !alreadyMuted.has(pk));
+        added = toAdd.length;
 
-      // ② Determine which pubkeys are not already muted
-      const alreadyMuted = new Set(
-        currentItems.filter((i) => i.type === 'pubkey').map((i) => i.value),
-      );
-      const toAdd: MuteListItem[] = [];
-      for (const pk of normalized) {
-        if (!alreadyMuted.has(pk)) {
-          toAdd.push({ type: 'pubkey', value: pk });
-        }
-      }
+        // Nothing to add — skip the publish to avoid a no-op kind 10000 broadcast
+        if (!toAdd.length) return null;
 
-      // Nothing to add — skip the publish to avoid a no-op kind 10000 broadcast
-      if (toAdd.length === 0) return 0;
-
-      const newItems = [...currentItems, ...toAdd];
-
-      // Update localStorage immediately so mutes apply on refresh
-      setCachedMuteItems(config.appId, user.pubkey, newItems);
-
-      // Optimistically update the in-memory muteItems cache so muted posts
-      // disappear immediately, before the relay round-trip.
-      if (query.data?.id) {
-        queryClient.setQueryData<MuteListItem[]>(['muteItems', query.data.id], newItems);
-      }
-
-      await updateMuteList(newItems, prev);
-
-      return toAdd.length;
+        return editNip51List({
+          prev,
+          contents,
+          signer: user.signer,
+          pubkey: user.pubkey,
+          add: toAdd.map((pk) => ['p', pk]),
+          isEntry: isMuteTag,
+        });
+      });
+      return added;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['muteList', user?.pubkey] });
-    },
+    onSuccess: invalidate,
   });
 
-  // Update entire mute list
-  const updateMuteList = async (items: MuteListItem[], prev: NostrEvent | null) => {
-    if (!user) throw new Error('User not logged in');
-    if (!user.signer.nip44) throw new Error('NIP-44 encryption not supported');
-
-    const tags: string[][] = [];
-
-    for (const item of items) {
-      const tag = [
-        item.type === 'pubkey' ? 'p' :
-        item.type === 'hashtag' ? 't' :
-        item.type === 'word' ? 'word' :
-        'e',
-        item.value,
-      ];
-      tags.push(tag);
-    }
-
-    // Encrypt all mutes
-    const plaintext = JSON.stringify(tags);
-    const content = await user.signer.nip44.encrypt(user.pubkey, plaintext);
-
-    await publishEvent({
-      kind: 10000,
-      content,
-      tags: [],
-      prev: prev ?? undefined,
-    });
-  };
+  // Move a public mute list's entries into the encrypted content.
+  const makeMuteListPrivate = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error('User not logged in');
+      await editMuteList((_prev, contents) => makeListPrivate({
+        contents,
+        signer: user.signer,
+        pubkey: user.pubkey,
+        isEntry: isMuteTag,
+      }));
+    },
+    onSuccess: invalidate,
+  });
 
   // Check if a specific item is muted
   const isMuted = (type: MuteListItem['type'], value: string): boolean => {
@@ -407,9 +354,12 @@ export function useMuteList() {
     isLoading: query.isLoading || muteItems.isLoading,
     isError: query.isError || muteItems.isError,
     error: query.error || muteItems.error,
+    /** The list stores entries publicly; offer to make it private. */
+    isPublic: listVisibility(query.data, isMuteTag) === 'public',
     addMute,
     removeMute,
     muteManyPubkeys,
+    makeMuteListPrivate,
     isMuted,
     mutedPubkeys,
     mutedHashtags,
