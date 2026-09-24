@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { memo, useState, useEffect, useMemo, type ComponentProps } from 'react';
 import { useInView } from '@/hooks/useInView';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -455,16 +455,17 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
           {feedItems.length > 0 ? (
             <div>
               {feedItems.map((item: FeedItem, index: number) => (
-                <LazyFeedItem key={feedItemKey(item)} cacheKey={feedItemKey(item)} className="cv-feed-item" initialInView={index < 10}>
-                  <NoteCard
-                    event={item.event}
-                    repostedBy={item.repostedBy}
-                    repostEvent={item.repostEvent}
-                    reactedBy={item.reactedBy}
-                    zappedBy={item.zappedBy}
-                    profileZapRecipient={item.profileZapRecipient}
-                  />
-                </LazyFeedItem>
+                <FeedRow
+                  key={feedItemKey(item)}
+                  cacheKey={feedItemKey(item)}
+                  initialInView={index < 10}
+                  event={item.event}
+                  repostedBy={item.repostedBy}
+                  repostEvent={item.repostEvent}
+                  reactedBy={item.reactedBy}
+                  zappedBy={item.zappedBy}
+                  profileZapRecipient={item.profileZapRecipient}
+                />
               ))}
               {hasNextPage && (
                 <div ref={scrollRef} className="py-4">
@@ -600,16 +601,17 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
         {feedItems.map((item, index) => (
-          <LazyFeedItem key={feedItemKey(item)} cacheKey={feedItemKey(item)} className="cv-feed-item" initialInView={index < 10}>
-            <NoteCard
-              event={item.event}
-              repostedBy={item.repostedBy}
-              repostEvent={item.repostEvent}
-              reactedBy={item.reactedBy}
-              zappedBy={item.zappedBy}
-              profileZapRecipient={item.profileZapRecipient}
-            />
-          </LazyFeedItem>
+          <FeedRow
+            key={feedItemKey(item)}
+            cacheKey={feedItemKey(item)}
+            initialInView={index < 10}
+            event={item.event}
+            repostedBy={item.repostedBy}
+            repostEvent={item.repostEvent}
+            reactedBy={item.reactedBy}
+            zappedBy={item.zappedBy}
+            profileZapRecipient={item.profileZapRecipient}
+          />
         ))}
         {hasNextPage && (
           <div ref={scrollRef} className="py-4">
@@ -679,9 +681,7 @@ function HashtagFeedContent({ tag }: { tag: string }) {
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
         {filteredEvents.map((event, index) => (
-          <LazyFeedItem key={event.id} cacheKey={event.id} className="cv-feed-item" initialInView={index < 10}>
-            <NoteCard event={event} />
-          </LazyFeedItem>
+          <FeedRow key={event.id} cacheKey={event.id} initialInView={index < 10} event={event} />
         ))}
       </div>
     </PullToRefresh>
@@ -742,9 +742,7 @@ function GeotagFeedContent({ tag }: { tag: string }) {
     <PullToRefresh onRefresh={handleRefresh}>
       <div>
         {filteredEvents.map((event, index) => (
-          <LazyFeedItem key={event.id} cacheKey={event.id} className="cv-feed-item" initialInView={index < 10}>
-            <NoteCard event={event} />
-          </LazyFeedItem>
+          <FeedRow key={event.id} cacheKey={event.id} initialInView={index < 10} event={event} />
         ))}
       </div>
     </PullToRefresh>
@@ -774,3 +772,23 @@ function NoteCardSkeleton() {
     </div>
   );
 }
+
+/**
+ * One windowed feed row. Memoized on the item's own fields (stable objects
+ * from the query cache), so a feed re-render — a new page, the new-posts
+ * count, a tab or settings change — doesn't re-render every row, its
+ * LazyFeedItem and the NoteCard error boundary around it. A 30s scroll
+ * profile had each row re-rendering with the feed: ~1,850 row renders for
+ * 45 mounts, growing with the length of the feed.
+ */
+const FeedRow = memo(function FeedRow({
+  cacheKey,
+  initialInView,
+  ...noteCard
+}: { cacheKey: string; initialInView: boolean } & ComponentProps<typeof NoteCard>) {
+  return (
+    <LazyFeedItem cacheKey={cacheKey} className="cv-feed-item" initialInView={initialInView}>
+      <NoteCard {...noteCard} />
+    </LazyFeedItem>
+  );
+});
