@@ -407,7 +407,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
 
         {step.name === 'choose' && (
           <div className="grid gap-3">
-            <Button onClick={handleCreate} disabled={!canEncrypt} className="w-full justify-start h-auto py-3">
+            <Button onClick={handleCreate} disabled={!canEncrypt} className="w-full justify-start h-auto py-3 rounded-xl">
               <Plus className="size-4 mr-3 shrink-0" />
               <span className="text-left">
                 <span className="block font-medium">
@@ -426,7 +426,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
               variant="outline"
               onClick={() => setStep({ name: 'restore' })}
               disabled={!canEncrypt}
-              className="w-full justify-start h-auto py-3"
+              className="w-full justify-start h-auto py-3 rounded-xl"
             >
               <RotateCcw className="size-4 mr-3 shrink-0" />
               <span className="text-left">

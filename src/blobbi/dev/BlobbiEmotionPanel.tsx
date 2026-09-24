@@ -92,7 +92,7 @@ export function BlobbiEmotionPanel({ isOpen, onClose }: BlobbiEmotionPanelProps)
                 size="sm"
                 onClick={() => handleSelectEmotion(value)}
                 className={cn(
-                  'flex flex-col items-center gap-1 h-auto py-3',
+                  'flex flex-col items-center gap-1 h-auto py-3 rounded-xl',
                   currentEmotion === value && 'ring-2 ring-amber-500/50'
                 )}
               >

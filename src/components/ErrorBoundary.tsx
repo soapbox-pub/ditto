@@ -154,13 +154,13 @@ function DefaultErrorFallback({ error, reset }: { error: Error; reset: () => voi
         <div className="flex gap-2">
           <button
             onClick={reset}
-            className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors"
           >
             Try again
           </button>
           <button
             onClick={() => window.location.reload()}
-            className="flex-1 px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
+            className="flex-1 px-4 py-2 bg-secondary text-secondary-foreground rounded-full hover:bg-secondary/90 transition-colors"
           >
             Reload page
           </button>

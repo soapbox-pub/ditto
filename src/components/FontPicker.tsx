@@ -180,7 +180,7 @@ export function FontPicker({ value, onChange, placeholder = 'Default (Inter)', p
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between font-normal h-9 text-sm"
+            className="w-full justify-between font-normal h-9 text-sm rounded-md"
             style={currentFont
               ? { fontFamily: `"${resolveCssFamily(currentFont.family)}", sans-serif` }
               : placeholderFont
