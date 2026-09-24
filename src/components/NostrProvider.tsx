@@ -373,8 +373,13 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // as NPool, so hooks using `useNostr()` get transparent caching and batching.
   // The `as unknown as NPool` cast is safe because AppPool exposes
   // all the same methods hooks use: query, event, req, relay, group, close.
+  // Memoized: this provider re-renders on every config or login change, and a
+  // fresh value object would re-render every `useNostr()` consumer with it.
+  const nostr = (appPool.current ?? pool.current) as unknown as NPool;
+  const nostrContextValue = useMemo(() => ({ nostr }), [nostr]);
+
   return (
-    <NostrContext.Provider value={{ nostr: (appPool.current ?? pool.current) as unknown as NPool }}>
+    <NostrContext.Provider value={nostrContextValue}>
       <NostrStorageContext.Provider value={eventStore.current}>
         {children}
       </NostrStorageContext.Provider>

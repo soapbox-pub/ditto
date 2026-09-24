@@ -1,7 +1,7 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
 
-import { AudioPlayerContext, type AudioTrack, type TrackLoadState } from '@/contexts/audioPlayerContextDef';
+import { AudioPlayerContext, AudioProgressContext, type AudioTrack, type TrackLoadState } from '@/contexts/audioPlayerContextDef';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { blossomAlternatives } from '@/lib/blossomFallback';
@@ -399,18 +399,27 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setDuration(0);
   }, [revokeObjectUrl]);
 
+  const value = useMemo(() => ({
+    currentTrack, playlist, currentIndex, minimized, isPlaying, volume,
+    loadState, artworkSrc,
+    playTrack, playPlaylist, pause, resume, seek, setVolume, nextTrack, prevTrack, minimize, expand, stop,
+    decryptAnyway,
+  }), [
+    currentTrack, playlist, currentIndex, minimized, isPlaying, volume,
+    loadState, artworkSrc,
+    playTrack, playPlaylist, pause, resume, seek, setVolume, nextTrack, prevTrack, minimize, expand, stop,
+    decryptAnyway,
+  ]);
+
+  const progress = useMemo(() => ({ currentTime, duration }), [currentTime, duration]);
+
   return (
-    <AudioPlayerContext.Provider
-      value={{
-        currentTrack, playlist, currentIndex, minimized, isPlaying, currentTime, duration, volume,
-        loadState, artworkSrc,
-        playTrack, playPlaylist, pause, resume, seek, setVolume, nextTrack, prevTrack, minimize, expand, stop,
-        decryptAnyway,
-      }}
-    >
-      {/* Hidden global audio element */}
-      <audio ref={audioRef} preload="metadata" className="hidden" />
-      {children}
+    <AudioPlayerContext.Provider value={value}>
+      <AudioProgressContext.Provider value={progress}>
+        {/* Hidden global audio element */}
+        <audio ref={audioRef} preload="metadata" className="hidden" />
+        {children}
+      </AudioProgressContext.Provider>
     </AudioPlayerContext.Provider>
   );
 }

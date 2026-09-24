@@ -52,10 +52,6 @@ export interface AudioPlayerState {
   minimized: boolean;
   /** Whether audio is currently playing. */
   isPlaying: boolean;
-  /** Current playback time in seconds. */
-  currentTime: number;
-  /** Total duration in seconds. */
-  duration: number;
   /** Volume (0–1). */
   volume: number;
   /** Whether the current track is playable yet, and why not when it isn't. */
@@ -106,4 +102,23 @@ export function useAudioPlayer(): AudioPlayerContextType {
   const ctx = useContext(AudioPlayerContext);
   if (!ctx) throw new Error('useAudioPlayer must be used within AudioPlayerProvider');
   return ctx;
+}
+
+/**
+ * Playback position, kept out of {@link AudioPlayerContext} because it changes
+ * on every `timeupdate` (~4×/s while playing). Every audio card in a feed reads
+ * the player context, so carrying the position there re-rendered all of them
+ * for the whole time a track played.
+ */
+export interface AudioProgress {
+  /** Current playback time in seconds. */
+  currentTime: number;
+  /** Total duration in seconds. */
+  duration: number;
+}
+
+export const AudioProgressContext = createContext<AudioProgress>({ currentTime: 0, duration: 0 });
+
+export function useAudioProgress(): AudioProgress {
+  return useContext(AudioProgressContext);
 }

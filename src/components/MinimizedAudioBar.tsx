@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Pause, SkipBack, SkipForward, Maximize2, X, GripVertical, Loader2 } from 'lucide-react';
-import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
+import { useAudioPlayer, useAudioProgress } from '@/contexts/audioPlayerContextDef';
 import { TrackLoadNotice } from '@/components/AudioTrackStatus';
 import { cn } from '@/lib/utils';
 
@@ -38,7 +38,8 @@ function clampToViewport(x: number, y: number, w: number, h: number) {
  */
 export function MinimizedAudioBar() {
   const player = useAudioPlayer();
-  const { currentTrack, minimized, isPlaying, currentTime, duration, playlist, currentIndex, loadState, artworkSrc } = player;
+  const { currentTrack, minimized, isPlaying, playlist, currentIndex, loadState, artworkSrc } = player;
+  const { currentTime, duration } = useAudioProgress();
 
   const navigate = useNavigate();
   const barRef = useRef<HTMLDivElement>(null);

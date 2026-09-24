@@ -9,6 +9,10 @@ export interface CustomEmoji {
   url: string;
 }
 
+// Stable empty: NoteContent keys its emoji map on this, and a fresh `[]` per
+// render (logged out, or before the query resolves) rebuilt it every render.
+const NO_EMOJIS: CustomEmoji[] = [];
+
 /**
  * Query the current user's NIP-30 custom emoji list (kind 10030).
  *
@@ -127,7 +131,7 @@ export function useCustomEmojis() {
   });
 
   return {
-    emojis: query.data ?? [],
+    emojis: query.data ?? NO_EMOJIS,
     isLoading: query.isLoading,
   };
 }
