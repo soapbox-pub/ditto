@@ -3,30 +3,52 @@
  * from a sandboxed nsite iframe to the parent user's signer.
  *
  * Each `nostr.*` RPC method is gated by the permission system. If no
- * stored decision exists, a prompt is shown to the user. Prompts are
- * serialized (one at a time) to prevent overwhelming the user.
+ * stored decision exists, a prompt is shown to the user. Only one prompt is
+ * shown at a time; requests that arrive while one is open are rejected.
  */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 import {
+  describeNsiteRecord,
   getNsitePermission,
   setNsitePermission,
+  type NsitePermissionScope,
   type NsitePermissionType,
+  type NsiteRecordInfo,
 } from '@/lib/nsitePermissions';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+/**
+ * How long a decision may be remembered:
+ * - `always`: persisted per site
+ * - `session`: until the nsite is closed
+ * - `never`: asked every time
+ */
+export type NsiteRememberMode = 'always' | 'session' | 'never';
+
 /** Describes a pending permission prompt waiting for the user's decision. */
 export interface NsitePromptState {
+  /** Unique per request, so the prompt UI resets between requests. */
+  id: number;
   /** The permission type being requested. */
   type: NsitePermissionType;
   /** For signEvent: the event kind. Null otherwise. */
   kind: number | null;
   /** For signEvent: the unsigned event template. */
   event?: Record<string, unknown>;
+  /**
+   * The user's own record being written (kind 30078) or read (self-decrypt).
+   * `unknown` means a self-decrypt whose ciphertext matched no known record.
+   */
+  record?: NsiteRecordInfo | 'unknown';
+  /** How long the user's decision may be remembered. */
+  rememberMode: NsiteRememberMode;
 }
 
 /** The user's response to a permission prompt. */
@@ -42,6 +64,8 @@ interface UseNsiteSignerRpcOptions {
   siteId: string;
   /** Human-readable site name for storage. */
   siteName: string;
+  /** Whether the nsite is open. Session grants end when it closes. */
+  active: boolean;
 }
 
 interface UseNsiteSignerRpcResult {
@@ -57,6 +81,34 @@ interface UseNsiteSignerRpcResult {
   resolvePrompt: (decision: NsitePromptDecision) => void;
 }
 
+type PromptRequest = Omit<NsitePromptState, 'id'>;
+
+/**
+ * Kinds whose content is commonly encrypted to the author's own key: NIP-51
+ * private lists, drafts, and NIP-78 app data. Self-decrypt requests are
+ * matched against the user's locally stored events of these kinds so the
+ * prompt can say what is being read.
+ */
+const SELF_ENCRYPTED_KINDS = [10000, 10003, 30000, 30003, 30078, 31234];
+
+/** Session key for self-decrypts that matched no known record. */
+const UNKNOWN_SELF_DATA = '<unknown-self-data>';
+
+function scopeKey(scope: NsitePermissionScope): string {
+  return JSON.stringify([scope.type, scope.kind, scope.dTag]);
+}
+
+function getDTag(tags: unknown): string {
+  if (!Array.isArray(tags)) return '';
+  const tag = tags.find((t): t is string[] => Array.isArray(t) && t[0] === 'd');
+  return typeof tag?.[1] === 'string' ? tag[1] : '';
+}
+
+function countDTags(tags: unknown): number {
+  if (!Array.isArray(tags)) return 0;
+  return tags.filter((t) => Array.isArray(t) && t[0] === 'd').length;
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -64,8 +116,11 @@ interface UseNsiteSignerRpcResult {
 export function useNsiteSignerRpc({
   siteId,
   siteName,
+  active,
 }: UseNsiteSignerRpcOptions): UseNsiteSignerRpcResult {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
+  const { store } = useNostrStorage();
   const [pendingPrompt, setPendingPrompt] = useState<NsitePromptState | null>(null);
 
   // Ref to the resolve/reject pair for the current prompt, so the prompt UI
@@ -74,17 +129,44 @@ export function useNsiteSignerRpc({
     resolve: (decision: NsitePromptDecision) => void;
     reject: (err: Error) => void;
   } | null>(null);
+  const promptIdRef = useRef(0);
+
+  // Decisions remembered only until the nsite is closed.
+  const sessionDecisionsRef = useRef(new Map<string, boolean>());
+
+  // Session decisions belong to one site and one account. Drop them, and any
+  // open prompt, when the nsite is closed or either of those changes.
+  const sessionOwnerRef = useRef({ siteId, pubkey: user?.pubkey });
+  useEffect(() => {
+    const owner = sessionOwnerRef.current;
+    const switched = owner.siteId !== siteId || owner.pubkey !== user?.pubkey;
+    sessionOwnerRef.current = { siteId, pubkey: user?.pubkey };
+    if (active && !switched) return;
+    sessionDecisionsRef.current.clear();
+    // Reject a prompt left open, so it can't block the next session or be
+    // answered on behalf of another account.
+    promptResolverRef.current?.reject(new Error('User rejected'));
+    promptResolverRef.current = null;
+    setPendingPrompt(null);
+  }, [active, siteId, user?.pubkey]);
 
   /**
    * Show a permission prompt and wait for the user's decision.
-   * Only one prompt is active at a time (enforced by the injected script's
-   * serial queue — it only sends one RPC at a time).
+   *
+   * The injected provider script serializes requests, but the site's own
+   * code can post to the parent directly. A request arriving while a prompt
+   * is open is rejected — replacing the prompt would let a site swap in a
+   * different request just before the user clicks Allow.
    */
   const showPrompt = useCallback(
-    (state: NsitePromptState): Promise<NsitePromptDecision> => {
+    (request: PromptRequest): Promise<NsitePromptDecision> => {
       return new Promise<NsitePromptDecision>((resolve, reject) => {
+        if (promptResolverRef.current) {
+          reject(new Error('Another permission request is pending'));
+          return;
+        }
         promptResolverRef.current = { resolve, reject };
-        setPendingPrompt(state);
+        setPendingPrompt({ ...request, id: ++promptIdRef.current });
       });
     },
     [],
@@ -103,27 +185,36 @@ export function useNsiteSignerRpc({
   );
 
   /**
-   * Check permission and optionally prompt. Returns true if allowed.
+   * Check permission and optionally prompt. Returns if allowed.
    * Throws an error (with a user-facing message) if denied.
    */
   const checkPermission = useCallback(
-    async (
-      type: NsitePermissionType,
-      kind: number | null,
-      promptState: NsitePromptState,
-    ): Promise<void> => {
+    async (scope: NsitePermissionScope, request: PromptRequest): Promise<void> => {
       if (!user) throw new Error('Not logged in');
 
-      const stored = getNsitePermission(siteId, user.pubkey, type, kind);
+      const sessionKey = scopeKey(scope);
+      const { rememberMode } = request;
 
-      if (stored === 'allow') return;
-      if (stored === 'deny') throw new Error('User rejected');
+      let stored: boolean | undefined;
+      if (rememberMode === 'always') {
+        const decision = getNsitePermission(siteId, user.pubkey, scope);
+        if (decision !== 'ask') stored = decision === 'allow';
+      } else if (rememberMode === 'session') {
+        stored = sessionDecisionsRef.current.get(sessionKey);
+      }
+
+      if (stored === true) return;
+      if (stored === false) throw new Error('User rejected');
 
       // No stored decision — ask the user.
-      const decision = await showPrompt(promptState);
+      const decision = await showPrompt(request);
 
       if (decision.remember) {
-        setNsitePermission(siteId, user.pubkey, siteName, type, kind, decision.allowed);
+        if (rememberMode === 'always') {
+          setNsitePermission(siteId, user.pubkey, siteName, scope, decision.allowed);
+        } else if (rememberMode === 'session') {
+          sessionDecisionsRef.current.set(sessionKey, decision.allowed);
+        }
       }
 
       if (!decision.allowed) {
@@ -131,6 +222,62 @@ export function useNsiteSignerRpc({
       }
     },
     [siteId, siteName, user, showPrompt],
+  );
+
+  /** Find which of the user's own records a self-encrypted ciphertext is from. */
+  const identifySelfCiphertext = useCallback(
+    async (ciphertext: string): Promise<{ kind: number; dTag: string | null } | null> => {
+      if (!user) return null;
+      try {
+        const events = await store.query([{ kinds: SELF_ENCRYPTED_KINDS, authors: [user.pubkey] }]);
+        const match = events.find((e) => e.pubkey === user.pubkey && e.content === ciphertext);
+        if (!match) return null;
+        return { kind: match.kind, dTag: match.kind === 30078 ? getDTag(match.tags) : null };
+      } catch {
+        return null;
+      }
+    },
+    [store, user],
+  );
+
+  /**
+   * Gate a decrypt call. Messages with other people share one grant per
+   * operation. Data encrypted to the user's own key is gated per record, since
+   * it holds private lists, settings and wallet backups.
+   */
+  const checkDecrypt = useCallback(
+    async (type: 'nip04.decrypt' | 'nip44.decrypt', pubkey: string, ciphertext: string) => {
+      if (!user) throw new Error('Not logged in');
+
+      if (pubkey.toLowerCase() !== user.pubkey) {
+        await checkPermission(
+          { type, kind: null, dTag: null },
+          { type, kind: null, rememberMode: 'always' },
+        );
+        return;
+      }
+
+      const target = await identifySelfCiphertext(ciphertext);
+
+      // Unidentified data is asked about every time. It is only matched
+      // against records in the local store, so a site could fetch the wallet
+      // backup from relays (or alter a NIP-04 IV) to make it look unknown,
+      // and a remembered grant would then cover it.
+      if (!target) {
+        await checkPermission(
+          { type, kind: null, dTag: UNKNOWN_SELF_DATA },
+          { type, kind: null, record: 'unknown', rememberMode: 'never' },
+        );
+        return;
+      }
+
+      const record = describeNsiteRecord(target.kind, target.dTag, config.appId);
+      await checkPermission(
+        { type, kind: target.kind, dTag: target.dTag },
+        { type, kind: target.kind, record, rememberMode: record.sensitive ? 'never' : 'always' },
+      );
+    },
+    [user, config.appId, checkPermission, identifySelfCiphertext],
   );
 
   // ---------------------------------------------------------------------------
@@ -158,7 +305,7 @@ export function useNsiteSignerRpc({
         }
 
         // ------------------------------------------------------------------
-        // signEvent — permission gated per kind
+        // signEvent — permission gated per kind (per d tag for kind 30078)
         // ------------------------------------------------------------------
         case 'nostr.signEvent': {
           const event = p.event as Record<string, unknown> | undefined;
@@ -168,11 +315,24 @@ export function useNsiteSignerRpc({
 
           const kind = event.kind as number;
 
-          await checkPermission('signEvent', kind, {
-            type: 'signEvent',
-            kind,
-            event,
-          });
+          if (kind === 30078) {
+            // Relays match `#d` filters against every `d` tag, so a second
+            // one would let a grant for one record overwrite another.
+            if (countDTags(event.tags) > 1) {
+              throw new Error('Events with more than one d tag are not allowed');
+            }
+            const dTag = getDTag(event.tags);
+            const record = describeNsiteRecord(kind, dTag, config.appId);
+            await checkPermission(
+              { type: 'signEvent', kind, dTag },
+              { type: 'signEvent', kind, event, record, rememberMode: record.sensitive ? 'never' : 'always' },
+            );
+          } else {
+            await checkPermission(
+              { type: 'signEvent', kind, dTag: null },
+              { type: 'signEvent', kind, event, rememberMode: 'always' },
+            );
+          }
 
           // Build the event template the signer expects.
           const template = {
@@ -198,10 +358,10 @@ export function useNsiteSignerRpc({
             throw new Error('Invalid params');
           }
 
-          await checkPermission('nip04.encrypt', null, {
-            type: 'nip04.encrypt',
-            kind: null,
-          });
+          await checkPermission(
+            { type: 'nip04.encrypt', kind: null, dTag: null },
+            { type: 'nip04.encrypt', kind: null, rememberMode: 'always' },
+          );
 
           return await signer.nip04.encrypt(pubkey, plaintext);
         }
@@ -211,14 +371,11 @@ export function useNsiteSignerRpc({
 
           const pubkey = p.pubkey as string;
           const ciphertext = p.ciphertext as string;
-          if (!pubkey || typeof ciphertext !== 'string') {
+          if (typeof pubkey !== 'string' || !pubkey || typeof ciphertext !== 'string') {
             throw new Error('Invalid params');
           }
 
-          await checkPermission('nip04.decrypt', null, {
-            type: 'nip04.decrypt',
-            kind: null,
-          });
+          await checkDecrypt('nip04.decrypt', pubkey, ciphertext);
 
           return await signer.nip04.decrypt(pubkey, ciphertext);
         }
@@ -235,10 +392,10 @@ export function useNsiteSignerRpc({
             throw new Error('Invalid params');
           }
 
-          await checkPermission('nip44.encrypt', null, {
-            type: 'nip44.encrypt',
-            kind: null,
-          });
+          await checkPermission(
+            { type: 'nip44.encrypt', kind: null, dTag: null },
+            { type: 'nip44.encrypt', kind: null, rememberMode: 'always' },
+          );
 
           return await signer.nip44.encrypt(pubkey, plaintext);
         }
@@ -248,14 +405,11 @@ export function useNsiteSignerRpc({
 
           const pubkey = p.pubkey as string;
           const ciphertext = p.ciphertext as string;
-          if (!pubkey || typeof ciphertext !== 'string') {
+          if (typeof pubkey !== 'string' || !pubkey || typeof ciphertext !== 'string') {
             throw new Error('Invalid params');
           }
 
-          await checkPermission('nip44.decrypt', null, {
-            type: 'nip44.decrypt',
-            kind: null,
-          });
+          await checkDecrypt('nip44.decrypt', pubkey, ciphertext);
 
           return await signer.nip44.decrypt(pubkey, ciphertext);
         }
@@ -264,7 +418,7 @@ export function useNsiteSignerRpc({
           throw new Error(`Method not found: ${method}`);
       }
     },
-    [user, checkPermission],
+    [user, config.appId, checkPermission, checkDecrypt],
   );
 
   return { onRpc, pendingPrompt, resolvePrompt };

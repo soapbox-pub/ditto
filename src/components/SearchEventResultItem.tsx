@@ -153,8 +153,9 @@ function NsiteThumbnail({
   result: SearchEventResult;
   Icon: ComponentType<{ className?: string }>;
 }) {
-  const siteUrl = `https://${getNsiteSubdomain(result.event)}.nsite.lol`;
-  const { data: preview } = useLinkPreview(siteUrl);
+  const subdomain = getNsiteSubdomain(result.event);
+  const siteUrl = subdomain ? `https://${subdomain}.nsite.lol` : undefined;
+  const { data: preview } = useLinkPreview(siteUrl ?? null);
 
   const image = sanitizeUrl(result.image) ?? sanitizeUrl(preview?.thumbnail_url);
 

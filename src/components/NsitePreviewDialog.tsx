@@ -15,7 +15,7 @@ import { useNsiteSignerRpc } from '@/hooks/useNsiteSignerRpc';
 import { APP_BLOSSOM_SERVERS, getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { deriveIframeSubdomain } from '@/lib/iframeSubdomain';
 import { getNsiteNostrProviderScript } from '@/lib/nsiteNostrProvider';
-import { getNsiteSubdomain } from '@/lib/nsiteSubdomain';
+import { getNsiteSiteId, getNsiteSubdomain } from '@/lib/nsiteSubdomain';
 import { getPreviewInjectedScript } from '@/lib/previewInjectedScript';
 import { getMimeType } from '@/lib/sandbox';
 import type { FileResponse, InjectedScript } from '@/lib/sandbox';
@@ -151,17 +151,19 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
   const { config } = useAppContext();
   const { user } = useCurrentUser();
 
-  // Use the NIP-5A canonical subdomain as the stable identifier, then derive
+  // Use the site's stable identifier (its NIP-5A subdomain when it has one), then derive
   // a private HMAC-SHA256 subdomain so the raw identifier is never exposed as
   // a sandbox origin (preventing cross-app localStorage/IndexedDB collisions).
+  const siteId = getNsiteSiteId(event);
   const nsiteSubdomain = getNsiteSubdomain(event);
-  const siteUrl = `https://${nsiteSubdomain}.nsite.lol`;
-  const previewSubdomain = useMemo(() => deriveIframeSubdomain(config.appId, 'nsite', nsiteSubdomain), [config.appId, nsiteSubdomain]);
+  const siteUrl = nsiteSubdomain ? `https://${nsiteSubdomain}.nsite.lol` : undefined;
+  const previewSubdomain = useMemo(() => deriveIframeSubdomain(config.appId, 'nsite', siteId), [config.appId, siteId]);
 
   // NIP-07 signer proxy — only active when a user is logged in.
   const signerRpc = useNsiteSignerRpc({
-    siteId: nsiteSubdomain,
+    siteId,
     siteName: appName,
+    active: open,
   });
 
   // Build the manifest and server list from the event (memoised per event identity)
@@ -268,7 +270,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
 
           {/* Permissions manager (only when logged in) */}
           {user && (
-            <NsitePermissionManager siteId={nsiteSubdomain} />
+            <NsitePermissionManager siteId={siteId} />
           )}
 
           {/* Close */}
@@ -299,6 +301,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
         {/* Permission prompt overlay */}
         {signerRpc.pendingPrompt && (
           <NsitePermissionPrompt
+            key={signerRpc.pendingPrompt.id}
             appPicture={appPicture}
             appName={appName}
             siteUrl={siteUrl}

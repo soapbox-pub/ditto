@@ -3,6 +3,7 @@ import { Shield, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   clearNsitePermissions,
@@ -64,6 +65,7 @@ interface NsitePermissionManagerProps {
  */
 export function NsitePermissionManager({ siteId }: NsitePermissionManagerProps) {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
 
   // Subscribe to permission changes so the list stays in sync.
   useSyncExternalStore(subscribe, getSnapshot);
@@ -75,7 +77,11 @@ export function NsitePermissionManager({ siteId }: NsitePermissionManagerProps) 
   const handleRemove = useCallback(
     (perm: NsitePermission) => {
       if (!user) return;
-      removeNsitePermission(siteId, user.pubkey, perm.type, perm.kind);
+      removeNsitePermission(siteId, user.pubkey, {
+        type: perm.type,
+        kind: perm.kind,
+        dTag: perm.dTag ?? null,
+      });
     },
     [siteId, user],
   );
@@ -134,12 +140,12 @@ export function NsitePermissionManager({ siteId }: NsitePermissionManagerProps) 
             <div className="divide-y">
               {permissions.map((perm) => (
                 <div
-                  key={`${perm.type}-${perm.kind}`}
+                  key={`${perm.type}-${perm.kind}-${perm.dTag ?? ''}`}
                   className="flex items-center gap-3 px-4 py-2.5"
                 >
                   {/* Label */}
                   <span className="text-sm flex-1 min-w-0 truncate">
-                    {getPermissionLabel(perm.type, perm.kind)}
+                    {getPermissionLabel(perm, config.appId)}
                   </span>
 
                   {/* Remove */}

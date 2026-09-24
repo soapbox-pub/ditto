@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, KeyRound, Lock, Pen, ShieldAlert, X } from 'lucide-react';
+import { AlertTriangle, Check, KeyRound, Lock, Pen, ShieldAlert, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Label } from '@/components/ui/label';
 import { getKindLabel } from '@/lib/nsitePermissions';
-import type { NsitePromptState, NsitePromptDecision } from '@/hooks/useNsiteSignerRpc';
+import type { NsitePromptState, NsitePromptDecision, NsiteRememberMode } from '@/hooks/useNsiteSignerRpc';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -43,34 +43,58 @@ function getPromptIcon(type: NsitePromptState['type']) {
   }
 }
 
-function getPromptTitle(type: NsitePromptState['type'], kind: number | null): string {
+function getPromptTitle(prompt: NsitePromptState): string {
+  const { type, kind, record } = prompt;
   switch (type) {
     case 'signEvent':
+      if (record && record !== 'unknown') return `Write: ${record.label}`;
       return kind !== null
         ? `Sign: ${getKindLabel(kind)}`
         : 'Sign event';
     case 'nip04.encrypt':
       return 'Encrypt message (NIP-04)';
-    case 'nip04.decrypt':
-      return 'Decrypt message (NIP-04)';
     case 'nip44.encrypt':
       return 'Encrypt message (NIP-44)';
+    case 'nip04.decrypt':
     case 'nip44.decrypt':
-      return 'Decrypt message (NIP-44)';
+      if (record === 'unknown') return 'Read your private data';
+      if (record) return `Read: ${record.label}`;
+      return type === 'nip04.decrypt' ? 'Decrypt message (NIP-04)' : 'Decrypt message (NIP-44)';
   }
 }
 
-function getPromptDescription(type: NsitePromptState['type']): string {
+function getPromptDescription(prompt: NsitePromptState): string {
+  const { type, record } = prompt;
   switch (type) {
     case 'signEvent':
+      if (record && record !== 'unknown') {
+        return 'This app wants to save this data on your behalf, replacing what is stored there now.';
+      }
       return 'This app wants to sign a Nostr event on your behalf.';
     case 'nip04.encrypt':
     case 'nip44.encrypt':
       return 'This app wants to encrypt a message using your keys.';
     case 'nip04.decrypt':
     case 'nip44.decrypt':
+      if (record === 'unknown') {
+        return 'This app wants to decrypt data that is encrypted to your own key. It could be private lists, app settings, or wallet backups.';
+      }
+      if (record) return 'This app wants to read private data stored in this record.';
       return 'This app wants to decrypt a message using your keys.';
   }
+}
+
+/** Warning for records holding key material, or null. */
+function getSensitiveWarning(prompt: NsitePromptState): string | null {
+  const { type, record } = prompt;
+  if (!record || record === 'unknown' || !record.sensitive) return null;
+  return type === 'signEvent'
+    ? 'This will replace your Monero wallet backup.'
+    : 'This record contains your Monero wallet seed.';
+}
+
+function getRememberLabel(mode: NsiteRememberMode): string {
+  return mode === 'session' ? 'Remember until this app is closed' : 'Remember for this site';
 }
 
 /** Truncate a string to a maximum character length. */
@@ -97,12 +121,14 @@ export function NsitePermissionPrompt({
   const [remember, setRemember] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
-  const handleAllow = () => onResolve({ allowed: true, remember });
-  const handleDeny = () => onResolve({ allowed: false, remember });
+  const canRemember = prompt.rememberMode !== 'never';
+  const handleAllow = () => onResolve({ allowed: true, remember: canRemember && remember });
+  const handleDeny = () => onResolve({ allowed: false, remember: canRemember && remember });
 
   const icon = getPromptIcon(prompt.type);
-  const title = getPromptTitle(prompt.type, prompt.kind);
-  const description = getPromptDescription(prompt.type);
+  const title = getPromptTitle(prompt);
+  const description = getPromptDescription(prompt);
+  const warning = getSensitiveWarning(prompt);
 
   // For signEvent, show a preview of the event content.
   const eventContent = prompt.event?.content as string | undefined;
@@ -145,6 +171,14 @@ export function NsitePermissionPrompt({
             </div>
           </div>
 
+          {/* Key-material warning */}
+          {warning && (
+            <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+              <AlertTriangle className="size-4 shrink-0 mt-0.5 text-destructive" />
+              <p className="text-xs text-destructive">{warning}</p>
+            </div>
+          )}
+
           {/* Event content preview (signEvent only) */}
           {prompt.type === 'signEvent' && eventContent && (
             <div className="rounded-lg border bg-muted/30 p-3">
@@ -175,19 +209,21 @@ export function NsitePermissionPrompt({
           )}
 
           {/* Remember checkbox */}
-          <div className="flex items-center gap-2 pt-1">
-            <Checkbox
-              id="nsite-remember"
-              checked={remember}
-              onCheckedChange={(checked) => setRemember(checked === true)}
-            />
-            <Label
-              htmlFor="nsite-remember"
-              className="text-xs text-muted-foreground cursor-pointer select-none"
-            >
-              Remember for this site
-            </Label>
-          </div>
+          {canRemember && (
+            <div className="flex items-center gap-2 pt-1">
+              <Checkbox
+                id="nsite-remember"
+                checked={remember}
+                onCheckedChange={(checked) => setRemember(checked === true)}
+              />
+              <Label
+                htmlFor="nsite-remember"
+                className="text-xs text-muted-foreground cursor-pointer select-none"
+              >
+                {getRememberLabel(prompt.rememberMode)}
+              </Label>
+            </div>
+          )}
         </div>
 
         {/* Actions */}

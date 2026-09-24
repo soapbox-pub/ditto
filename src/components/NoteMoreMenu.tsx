@@ -413,7 +413,9 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
 
   // Nsite events (root sites, named sites, and snapshots) use the nsite://
   // scheme in the sidebar for auto-play behavior.
-  const nsiteUri = isNsiteKind(event.kind) ? `nsite://${getNsiteSubdomain(event)}` : undefined;
+  // A named site without a canonical subdomain is pinned by its nostr: URI.
+  const nsiteSubdomain = isNsiteKind(event.kind) ? getNsiteSubdomain(event) : undefined;
+  const nsiteUri = nsiteSubdomain ? `nsite://${nsiteSubdomain}` : undefined;
   const sidebarUri = nsiteUri ?? nostrUri;
   const isInSidebar = orderedItems.includes(sidebarUri);
 

@@ -41,6 +41,9 @@ function base36ToHex(b36: string): string {
   return n.toString(16).padStart(64, '0');
 }
 
+/** NIP-5A rule for a named site's `d` tag to have a canonical subdomain. */
+const NAMED_SITE_D_TAG = /^[a-z0-9-]{0,12}[a-z0-9]$/;
+
 /**
  * A parsed nsite subdomain.
  *
@@ -96,6 +99,7 @@ export function parseNsiteSubdomain(subdomain: string): ParsedNsiteSubdomain | n
 
   // Validate base36 characters
   if (!/^[0-9a-z]+$/.test(b36Part)) return null;
+  if (!NAMED_SITE_D_TAG.test(dTag)) return null;
 
   try {
     const pubkey = base36ToHex(b36Part);
@@ -111,13 +115,16 @@ export function parseNsiteSubdomain(subdomain: string): ParsedNsiteSubdomain | n
  * - Root site (kind 15128): `<npub>`
  * - Named site (kind 35128 with d-tag): `<pubkeyB36><dTag>`
  * - Snapshot (kind 5128): `v<snapshotIdB36>`
+ *
+ * A named site whose `d` tag doesn't fit the NIP-5A rule has no canonical
+ * subdomain, so this returns undefined. The result is used as a hostname, so
+ * an unchecked `d` tag could point it at another host.
  */
-export function getNsiteSubdomain(event: NostrEvent): string {
-  const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-
-  if (event.kind === NSITE_NAMED_KIND && dTag) {
-    const pubkeyB36 = hexToBase36(event.pubkey);
-    return `${pubkeyB36}${dTag}`;
+export function getNsiteSubdomain(event: NostrEvent): string | undefined {
+  if (event.kind === NSITE_NAMED_KIND) {
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1];
+    if (!dTag || !NAMED_SITE_D_TAG.test(dTag)) return undefined;
+    return `${hexToBase36(event.pubkey)}${dTag}`;
   }
 
   if (event.kind === NSITE_SNAPSHOT_KIND) {
@@ -125,6 +132,23 @@ export function getNsiteSubdomain(event: NostrEvent): string {
   }
 
   return nip19.npubEncode(event.pubkey);
+}
+
+/**
+ * A stable identifier for an nsite, used to key signer permissions, the
+ * sandbox origin, and the active-player state.
+ *
+ * This is the canonical subdomain when there is one. A named site without one
+ * gets its `kind:pubkey:d` address instead, so it never shares an identity
+ * (and with it, storage and permissions) with the author's root site or
+ * another named site. The colons keep it from ever being a valid hostname.
+ */
+export function getNsiteSiteId(event: NostrEvent): string {
+  const subdomain = getNsiteSubdomain(event);
+  if (subdomain) return subdomain;
+
+  const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+  return `${event.kind}:${event.pubkey}:${dTag}`;
 }
 
 /** An addressable/replaceable pointer to the site a snapshot was taken from. */

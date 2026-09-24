@@ -14,6 +14,7 @@ import { useLinkPreview } from "@/hooks/useLinkPreview";
 import { toast } from "@/hooks/useToast";
 import {
 	getNsiteAggregateHash,
+	getNsiteSiteId,
 	getNsiteSubdomain,
 	getSnapshotParent,
 	NSITE_NAMED_KIND,
@@ -44,7 +45,10 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 	const isNamed = event.kind === NSITE_NAMED_KIND && !!dTag;
 	const isSnapshot = event.kind === NSITE_SNAPSHOT_KIND;
 	const nsiteSubdomain = getNsiteSubdomain(event);
-	const siteUrl = `https://${nsiteSubdomain}.nsite.lol`;
+	const siteId = getNsiteSiteId(event);
+	// A named site whose d tag has no NIP-5A subdomain can still run in the
+	// preview, but it has no gateway URL.
+	const siteUrl = nsiteSubdomain ? `https://${nsiteSubdomain}.nsite.lol` : undefined;
 	const displayName = title || (isNamed ? dTag : isSnapshot ? "Snapshot" : "Root Site");
 
 	const aggregateHash = isSnapshot ? getNsiteAggregateHash(event) : undefined;
@@ -57,10 +61,12 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 		: undefined;
 
 	const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
-	const sidebarUri = `nsite://${nsiteSubdomain}`;
+	const sidebarUri = nsiteSubdomain
+		? `nsite://${nsiteSubdomain}`
+		: `nostr:${nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag ?? "" })}`;
 	const isPinned = orderedItems.includes(sidebarUri);
 
-	const { data: preview, isLoading } = useLinkPreview(siteUrl);
+	const { data: preview, isLoading } = useLinkPreview(siteUrl ?? null);
 	const image = preview?.thumbnail_url;
 	const previewTitle = preview?.title;
 
@@ -85,8 +91,8 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 	// Sync open/close state with the global NsitePlayerContext.
 	const handlePreviewOpenChange = useCallback((open: boolean) => {
 		setPreviewOpen(open);
-		setActiveSubdomain(open ? nsiteSubdomain : null);
-	}, [nsiteSubdomain, setActiveSubdomain]);
+		setActiveSubdomain(open ? siteId : null);
+	}, [siteId, setActiveSubdomain]);
 
 	// Open the player when autoPlayKey changes (e.g. sidebar clicked again).
 	useEffect(() => {
@@ -98,11 +104,11 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 	// Register on mount if auto-playing, and clean up on unmount.
 	useEffect(() => {
 		if (previewOpen) {
-			setActiveSubdomain(nsiteSubdomain);
+			setActiveSubdomain(siteId);
 		}
 		return () => {
 			// Only clear if we are still the active subdomain.
-			if (activeRef.current === nsiteSubdomain) {
+			if (activeRef.current === siteId) {
 				setActiveSubdomain(null);
 			}
 		};
@@ -217,7 +223,7 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 							Source
 						</a>
 					</Button>
-				) : (
+				) : siteUrl && (
 					<Button asChild size="sm" variant="secondary" className="h-7 text-xs">
 						<a
 							href={siteUrl}

@@ -2,13 +2,18 @@
  * Permission model and localStorage persistence for nsite NIP-07 signer proxy.
  *
  * Permissions are scoped to (userPubkey, siteId) and are granular:
- * - `signEvent` permissions are stored per event kind
- * - Encryption/decryption permissions are stored per operation type
+ * - `signEvent` permissions are stored per event kind, and per `d` tag for
+ *   kind 30078 app data (so a grant to write one app's record can't be used to
+ *   overwrite another's, e.g. Ditto's wallet backup)
+ * - Decryption of the user's own data (ciphertext encrypted to their own key)
+ *   is stored per identified record — kind, plus `d` tag for kind 30078
+ * - Other encryption/decryption permissions are stored per operation type
  *
  * `getPublicKey` is always allowed (clicking "Run" implies consent) and is
  * not tracked in this system.
  */
 import { getKindLabel } from '@/lib/kindLabels';
+import { MONERO_RECORD_D_SUFFIX } from '@/lib/monero/record';
 
 // Re-export so existing consumers of `getKindLabel` from this module keep working.
 export { getKindLabel } from '@/lib/kindLabels';
@@ -29,8 +34,13 @@ export type NsitePermissionType =
 export interface NsitePermission {
   /** Operation type. */
   type: NsitePermissionType;
-  /** Event kind — only meaningful for `signEvent`, null otherwise. */
+  /**
+   * Event kind. For `signEvent`, the kind being signed. For decrypt, the kind
+   * of the user's own record being read — null means messages with others.
+   */
   kind: number | null;
+  /** `d` tag of the targeted kind 30078 record, null otherwise. */
+  dTag?: string | null;
   /** Whether this operation is allowed. */
   allowed: boolean;
 }
@@ -49,11 +59,26 @@ export interface NsiteAllowance {
   createdAt: number;
 }
 
+/** Identifies what a permission applies to. */
+export interface NsitePermissionScope {
+  type: NsitePermissionType;
+  kind: number | null;
+  dTag: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Storage helpers
 // ---------------------------------------------------------------------------
 
 const STORAGE_KEY = 'nostr:nsite-permissions';
+
+/**
+ * Kind 30078 signing grants from before they were scoped per `d` tag. They no
+ * longer match any request, so drop them rather than list them as active.
+ */
+function isLegacyAppDataGrant(p: NsitePermission): boolean {
+  return p.type === 'signEvent' && p.kind === 30078 && (p.dTag ?? null) === null;
+}
 
 /** Read all allowances from localStorage. */
 function readAllowances(): NsiteAllowance[] {
@@ -61,7 +86,13 @@ function readAllowances(): NsiteAllowance[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return (parsed as NsiteAllowance[]).map((a) => ({
+      ...a,
+      // Guard against a malformed entry: throwing here would return [] and
+      // the next write would erase every site's permissions.
+      permissions: Array.isArray(a.permissions) ? a.permissions.filter((p) => !isLegacyAppDataGrant(p)) : [],
+    }));
   } catch {
     return [];
   }
@@ -86,6 +117,13 @@ function findAllowance(
   );
 }
 
+/** Whether a stored permission applies to the given scope. */
+function matchesScope(p: NsitePermission, scope: NsitePermissionScope): boolean {
+  return p.type === scope.type
+    && (p.kind ?? null) === scope.kind
+    && (p.dTag ?? null) === scope.dTag;
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -98,19 +136,12 @@ function findAllowance(
 export function getNsitePermission(
   siteId: string,
   userPubkey: string,
-  type: NsitePermissionType,
-  kind: number | null = null,
+  scope: NsitePermissionScope,
 ): 'allow' | 'deny' | 'ask' {
-  const allowances = readAllowances();
-  const allowance = findAllowance(allowances, siteId, userPubkey);
+  const allowance = findAllowance(readAllowances(), siteId, userPubkey);
   if (!allowance) return 'ask';
 
-  const match = allowance.permissions.find((p) => {
-    if (p.type !== type) return false;
-    // For signEvent, match on kind; for others kind is always null.
-    if (type === 'signEvent') return p.kind === kind;
-    return true;
-  });
+  const match = allowance.permissions.find((p) => matchesScope(p, scope));
 
   if (!match) return 'ask';
   return match.allowed ? 'allow' : 'deny';
@@ -124,8 +155,7 @@ export function setNsitePermission(
   siteId: string,
   userPubkey: string,
   siteName: string,
-  type: NsitePermissionType,
-  kind: number | null,
+  scope: NsitePermissionScope,
   allowed: boolean,
 ): void {
   const allowances = readAllowances();
@@ -142,14 +172,8 @@ export function setNsitePermission(
     allowances.push(allowance);
   }
 
-  // Find existing entry for this (type, kind) pair.
-  const idx = allowance.permissions.findIndex((p) => {
-    if (p.type !== type) return false;
-    if (type === 'signEvent') return p.kind === kind;
-    return true;
-  });
-
-  const entry: NsitePermission = { type, kind, allowed };
+  const idx = allowance.permissions.findIndex((p) => matchesScope(p, scope));
+  const entry: NsitePermission = { ...scope, allowed };
 
   if (idx >= 0) {
     allowance.permissions[idx] = entry;
@@ -166,18 +190,13 @@ export function setNsitePermission(
 export function removeNsitePermission(
   siteId: string,
   userPubkey: string,
-  type: NsitePermissionType,
-  kind: number | null,
+  scope: NsitePermissionScope,
 ): void {
   const allowances = readAllowances();
   const allowance = findAllowance(allowances, siteId, userPubkey);
   if (!allowance) return;
 
-  allowance.permissions = allowance.permissions.filter((p) => {
-    if (p.type !== type) return true;
-    if (type === 'signEvent') return p.kind !== kind;
-    return false;
-  });
+  allowance.permissions = allowance.permissions.filter((p) => !matchesScope(p, scope));
 
   // Remove the allowance entirely if no permissions remain.
   if (allowance.permissions.length === 0) {
@@ -203,6 +222,15 @@ export function clearNsitePermissions(
 }
 
 /**
+ * Clear every site's stored permissions for a user.
+ */
+export function clearAllNsitePermissionsForUser(userPubkey: string): void {
+  const allowances = readAllowances();
+  const filtered = allowances.filter((a) => a.userPubkey !== userPubkey);
+  if (filtered.length !== allowances.length) writeAllowances(filtered);
+}
+
+/**
  * Get the full allowance record for a site, or undefined if none exists.
  */
 export function getNsiteAllowance(
@@ -216,23 +244,60 @@ export function getNsiteAllowance(
 // Human-readable labels
 // ---------------------------------------------------------------------------
 
-/** Get a human-readable label for a permission type and optional kind. */
+/** A user-facing description of one of the user's own records. */
+export interface NsiteRecordInfo {
+  /** Human-readable name, e.g. "Ditto settings" or `App data "foo/bar"`. */
+  label: string;
+  /** Holds key material — never remember decisions about it. */
+  sensitive: boolean;
+}
+
+/**
+ * Describe a record of the user's that an nsite wants to read or write.
+ * Ditto's own kind 30078 records get a name; other apps' records show the raw
+ * `d` tag, since that's the only identifier they have.
+ */
+export function describeNsiteRecord(
+  kind: number,
+  dTag: string | null,
+  appId: string,
+): NsiteRecordInfo {
+  if (kind === 30078 && dTag !== null) {
+    if (dTag === `${appId}/${MONERO_RECORD_D_SUFFIX}`) {
+      return { label: 'Ditto Monero wallet', sensitive: true };
+    }
+    if (dTag === `${appId}/metadata`) {
+      return { label: 'Ditto settings', sensitive: false };
+    }
+    return { label: `App data "${dTag}"`, sensitive: false };
+  }
+  return { label: getKindLabel(kind), sensitive: false };
+}
+
+/** Get a human-readable label for a stored permission. */
 export function getPermissionLabel(
-  type: NsitePermissionType,
-  kind: number | null,
+  permission: Pick<NsitePermission, 'type' | 'kind' | 'dTag'>,
+  appId: string,
 ): string {
+  const { type, kind } = permission;
+  const dTag = permission.dTag ?? null;
+
   switch (type) {
     case 'signEvent': {
       if (kind === null) return 'Sign event';
+      if (kind === 30078 && dTag !== null) {
+        return `Write: ${describeNsiteRecord(kind, dTag, appId).label}`;
+      }
       return `Sign: ${getKindLabel(kind)}`;
     }
     case 'nip04.encrypt':
       return 'Encrypt (NIP-04)';
-    case 'nip04.decrypt':
-      return 'Decrypt (NIP-04)';
     case 'nip44.encrypt':
       return 'Encrypt (NIP-44)';
-    case 'nip44.decrypt':
-      return 'Decrypt (NIP-44)';
+    case 'nip04.decrypt':
+    case 'nip44.decrypt': {
+      if (kind !== null) return `Read: ${describeNsiteRecord(kind, dTag, appId).label}`;
+      return type === 'nip04.decrypt' ? 'Decrypt messages (NIP-04)' : 'Decrypt messages (NIP-44)';
+    }
   }
 }
