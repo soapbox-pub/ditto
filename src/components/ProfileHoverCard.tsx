@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useQueryClient } from '@tanstack/react-query';
 import { AnchoredPopover } from '@/components/AnchoredPopover';
-import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { FallbackImage } from '@/components/FallbackImage';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -207,30 +206,25 @@ export function ProfileHoverCard({ pubkey, children, asChild }: ProfileHoverCard
       >
         {asChild ? children : <a>{children}</a>}
       </Slot>
-      {/* Portaled to <body> like the Radix HoverCard this replaces, not into
-          an enclosing dialog: inside a dialog's container the card lands
-          ~24px off its trigger. */}
-      <PortalContainerProvider value={undefined}>
-        <AnchoredPopover
-          open={open}
-          onOpenChange={(next) => {
-            clearTimeout(timerRef.current);
-            setOpen(next);
-          }}
-          anchorRef={anchorRef}
-          side="bottom"
-          align="start"
-          sideOffset={8}
-          className="w-72 p-0 rounded-2xl overflow-hidden border border-border shadow-xl"
-          onClick={(e) => e.stopPropagation()}
-          onPointerEnter={onPointerEnter}
-          onPointerLeave={onPointerLeave}
-          onOpenAutoFocus={(e) => e.preventDefault()}
-          onCloseAutoFocus={(e) => e.preventDefault()}
-        >
-          <ProfileHoverCardBody pubkey={pubkey} />
-        </AnchoredPopover>
-      </PortalContainerProvider>
+      <AnchoredPopover
+        open={open}
+        onOpenChange={(next) => {
+          clearTimeout(timerRef.current);
+          setOpen(next);
+        }}
+        anchorRef={anchorRef}
+        side="bottom"
+        align="start"
+        sideOffset={8}
+        className="w-72 p-0 rounded-2xl overflow-hidden border border-border shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
+        <ProfileHoverCardBody pubkey={pubkey} />
+      </AnchoredPopover>
     </>
   );
 }
