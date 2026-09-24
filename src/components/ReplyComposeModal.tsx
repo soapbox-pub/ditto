@@ -11,6 +11,7 @@ import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import { EmbeddedPost } from '@/components/EmbeddedPost';
 import { ComposeBox, type ExternalReplyRoot } from '@/components/ComposeBox';
 import { LinkEmbed } from '@/components/LinkEmbed';
+import { MountOnOpen } from '@/components/MountOnOpen';
 import { cn } from '@/lib/utils';
 
 interface ReplyComposeModalProps {
@@ -32,7 +33,16 @@ interface ReplyComposeModalProps {
   placeholder?: string;
 }
 
-export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent, initialMode, title: titleOverride, placeholder: placeholderOverride }: ReplyComposeModalProps) {
+/** Mounted on first open: every feed card owns one or more of these. */
+export function ReplyComposeModal(props: ReplyComposeModalProps) {
+  return (
+    <MountOnOpen open={props.open}>
+      <ReplyComposeModalImpl {...props} />
+    </MountOnOpen>
+  );
+}
+
+function ReplyComposeModalImpl({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent, initialMode, title: titleOverride, placeholder: placeholderOverride }: ReplyComposeModalProps) {
   const isUrl = event instanceof URL;
   const isExternalId = typeof event === 'string';
   const isExternal = isUrl || isExternalId;

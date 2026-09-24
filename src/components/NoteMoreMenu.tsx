@@ -39,6 +39,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { EmbeddedPost } from '@/components/EmbeddedPost';
 import { EventRecoveryDialog } from '@/components/EventRecoveryDialog';
+import { MountOnOpen } from '@/components/MountOnOpen';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ReportDialog } from '@/components/ReportDialog';
 import { AddToListDialog } from '@/components/AddToListDialog';
@@ -97,7 +98,21 @@ function encodeEventNip19(event: NostrEvent): string {
   return encodeEventAddress(event);
 }
 
-export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
+/**
+ * Mounted on first open: every feed card owns one, and the menu runs the
+ * bookmark, pin, mute, settings and author hooks and mounts six dialogs.
+ * Stays mounted after closing, so the dialogs it opens and the toasts of the
+ * mutations it started outlive the menu itself.
+ */
+export function NoteMoreMenu(props: NoteMoreMenuProps) {
+  return (
+    <MountOnOpen open={props.open}>
+      <NoteMoreMenuImpl {...props} />
+    </MountOnOpen>
+  );
+}
+
+function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
   // These states live here (not in NoteMoreMenuContent) so they persist after the menu closes
   const [reportOpen, setReportOpen] = useState(false);
   const [mentionComposeOpen, setMentionComposeOpen] = useState(false);
