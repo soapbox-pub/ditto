@@ -26,8 +26,11 @@ import {
   Pencil,
   X,
   MessageCircle,
+  Pin,
+  PinOff,
 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
+import { FormattedMessage, useIntl } from 'react-intl';
 import type { NostrEvent, NostrFilter, NostrMetadata } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -67,6 +70,7 @@ import { useTabFeed } from '@/hooks/useProfileFeed';
 import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useUserLists } from '@/hooks/useUserLists';
 import { useFollowPacks, useFollowPackActions } from '@/hooks/useFollowPacks';
+import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 
 import { feedItemKey, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
@@ -434,6 +438,38 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
     }
   }, [user, cloning, createList, title, description, pubkeys, toast]);
 
+  // ── Pin to home (a home feed tab that follows this list) ──────────────────
+  // Stored as a saved feed whose authors come from the list's `p` tags at
+  // read time, so the tab keeps up as members are added or removed.
+  const intl = useIntl();
+  const { savedFeeds, addSavedFeed, removeSavedFeed } = useSavedFeeds();
+  const [pinning, setPinning] = useState(false);
+  const canPin = !!user && (isFollowSet || isFollowPack);
+  const listPointer = `a:${event.kind}:${event.pubkey}:${dTag}`;
+  const pinnedFeed = savedFeeds.find((f) => f.vars.some((v) => v.pointer === listPointer));
+
+  const handleTogglePin = useCallback(async () => {
+    if (pinning) return;
+    setPinning(true);
+    try {
+      if (pinnedFeed) {
+        await removeSavedFeed(pinnedFeed.id);
+        toast({ title: intl.formatMessage({ id: 'peopleList.unpinned', defaultMessage: 'Removed from your home feed' }) });
+      } else {
+        await addSavedFeed(
+          title,
+          { kinds: [1, 6, 16], authors: ['$list'] },
+          [{ name: '$list', tagName: 'p', pointer: listPointer }],
+        );
+        toast({ title: intl.formatMessage({ id: 'peopleList.pinned', defaultMessage: 'Pinned to your home feed' }) });
+      }
+    } catch {
+      toast({ title: intl.formatMessage({ id: 'peopleList.pinFailed', defaultMessage: 'Failed to update your home feed' }), variant: 'destructive' });
+    } finally {
+      setPinning(false);
+    }
+  }, [pinning, pinnedFeed, removeSavedFeed, addSavedFeed, title, listPointer, toast, intl]);
+
   // When the user is viewing their own kind 3 / love list / Top 8, Follow All makes no sense.
   const showFollowAllButton = !(isOwnList && (isFollowList || isLoveList || isTop8));
 
@@ -601,6 +637,30 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
                 <Copy className="size-4" />
               )}
               Save
+            </Button>
+          )}
+
+          {canPin && (
+            <Button
+              variant="outline"
+              className={showFollowAllButton ? undefined : 'flex-1'}
+              onClick={handleTogglePin}
+              disabled={pinning}
+              aria-pressed={!!pinnedFeed}
+              title={pinnedFeed
+                ? intl.formatMessage({ id: 'peopleList.unpinTitle', defaultMessage: 'Remove this list from your home feed tabs' })
+                : intl.formatMessage({ id: 'peopleList.pinTitle', defaultMessage: 'Add this list as a tab on your home feed' })}
+            >
+              {pinning ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : pinnedFeed ? (
+                <PinOff className="size-4" />
+              ) : (
+                <Pin className="size-4" />
+              )}
+              {pinnedFeed
+                ? <FormattedMessage id="peopleList.unpin" defaultMessage="Unpin" />
+                : <FormattedMessage id="peopleList.pin" defaultMessage="Pin" />}
             </Button>
           )}
         </div>

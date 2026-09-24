@@ -202,7 +202,8 @@ export function resolvePointer(
     if (parts.length < 3) return null;
     const kind = parseInt(parts[0], 10);
     if (isNaN(kind)) return null;
-    return { type: 'a', kind, pubkey: parts[1], dTag: parts[2] };
+    // The d-tag is everything after the pubkey — it may itself contain colons.
+    return { type: 'a', kind, pubkey: parts[1], dTag: parts.slice(2).join(':') };
   }
 
   return null;

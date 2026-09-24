@@ -334,6 +334,11 @@ export function useTabFeed(
     queryKey: ['tab-feed', tabKey, kindsKey, authorsKey, searchKey],
     queryFn: async ({ pageParam, signal }) => {
       if (!filter) return { items: [], oldestQueryTimestamp: Math.floor(Date.now() / 1000), rawCount: 0, fetchLimit: PAGE_SIZE };
+      // An authors list that resolved to nobody (e.g. an empty pinned list)
+      // must not fall through to an unscoped query of everyone's posts.
+      if (filter.authors && filter.authors.length === 0) {
+        return { items: [], oldestQueryTimestamp: Math.floor(Date.now() / 1000), rawCount: 0, fetchLimit: PAGE_SIZE };
+      }
 
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
       const now = Math.floor(Date.now() / 1000);

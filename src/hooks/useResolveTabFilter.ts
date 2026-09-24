@@ -54,8 +54,10 @@ export function useResolveTabFilter(
             { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
           );
           if (events.length === 0) return [];
+          // Relays may hold older versions of a replaceable event; use the newest.
+          const newest = events.reduce((a, b) => (b.created_at > a.created_at ? b : a));
           // Extract all values of the specified tag
-          return events[0].tags
+          return newest.tags
             .filter(([name]) => name === v.tagName)
             .map(([, value]) => value)
             .filter(Boolean) as string[];

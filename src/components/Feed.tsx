@@ -514,9 +514,12 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
 
   // Augment the resolved filter with protocol:nostr (NIP-50 Ditto extension)
   // to match the behavior of the core feeds and ensure latest native Nostr
-  // posts are returned.
+  // posts are returned. Author-scoped feeds (pinned lists) are left alone:
+  // a search only goes to Ditto's relays and drops bridged posts, and the
+  // user picked those authors on purpose.
   const augmentedFilter = useMemo(() => {
     if (!resolvedFilter) return null;
+    if (resolvedFilter.authors && !resolvedFilter.search) return resolvedFilter;
     const existing = resolvedFilter.search ?? '';
     const search = existing.includes('protocol:nostr')
       ? existing
