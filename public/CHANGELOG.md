@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.41.0] - 2026-09-24
+
+This release puts you in charge of your relays. A new Relay Privacy section lets you decide when Ditto signs in to a relay — never, only your own, ask each time, or anywhere — and block the ones you'd rather never touch. Zap notifications now hide forgeries and count only real payments, mute lists keep the privacy you set them with, your likes travel to the right places, and the mobile composer finally stays put above the keyboard.
+
+### Added
+- Relay Privacy in Network settings: choose when Ditto signs in to a relay — never, only your own relays, ask each time, or any relay — and block relays you never want to connect to. A relay's own page can offer to sign you in.
+
+### Changed
+- Your likes and unlikes now travel to the note author's own relays, so reactions add up across every client instead of stranding on yours
+- Mute lists keep the privacy they were made with — a public list stays public, a private one stays private — and a relay that misses your list can no longer wipe your mutes
+- The curated Ditto feed no longer skips weeks of posts, over-surfaces a freshly petted pet, or lets one account flood a whole page, and it now includes tarot readings and bird detections
+- On Android, saving your key backup opens a Save-as dialog so you pick where it lands instead of dropping into a shared folder
+- Ditto guards your secrets more carefully — error reports scrub keys and wallet links, logging out clears that account's wallet and site permissions, and importing events warns you first about anything that would replace or delete what you already have
+
+### Fixed
+- The mobile compose sheet stays pinned above the keyboard on iOS instead of leaving a blank gap
+- Scrolling the mention or emoji suggestion list on a touchscreen no longer picks one by accident
+- Fake zap notifications are hidden — only real, verified payments show up and count toward your unread dot
+- The feed no longer prints a raw lightning invoice as a wall of text
+
 ## [2.40.0] - 2026-09-22
 
 The Top 8 is back. Pick your eight favorite people, drag them into the order you mean it, and the ranking sits on your profile for everyone to see — number one at the top. Rearranging it shows up in your followers' feeds, because that was always the best part. Find it under Top 8 in the sidebar, stage your changes, and publish when you're happy with them.
