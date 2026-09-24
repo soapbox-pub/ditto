@@ -1,11 +1,12 @@
 import { Quote, Undo2 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { Slot } from '@radix-ui/react-slot';
 import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { impactLight } from '@/lib/haptics';
 
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { AnchoredPopover } from '@/components/AnchoredPopover';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
@@ -26,6 +27,7 @@ interface RepostMenuProps {
 export function RepostMenu({ event, children }: RepostMenuProps) {
   const [open, setOpen] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
+  const triggerRef = useRef<HTMLElement>(null);
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { mutate: publishEvent } = useNostrPublish();
@@ -191,19 +193,28 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
 
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
-          {trigger}
-        </PopoverTrigger>
-        <PopoverContent 
-          className="w-48 p-0 rounded-xl overflow-hidden"
-          align="start"
-          side="top"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {menuContent}
-        </PopoverContent>
-      </Popover>
+      <Slot
+        ref={triggerRef}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={(e: React.MouseEvent) => {
+          e.stopPropagation();
+          setOpen((prev) => !prev);
+        }}
+      >
+        {trigger}
+      </Slot>
+      <AnchoredPopover
+        open={open}
+        onOpenChange={setOpen}
+        anchorRef={triggerRef}
+        className="w-48 p-0 rounded-xl overflow-hidden"
+        align="start"
+        side="top"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {menuContent}
+      </AnchoredPopover>
       <ReplyComposeModal 
         quotedEvent={event}
         open={quoteOpen}

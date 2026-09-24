@@ -3,7 +3,7 @@ import { Heart } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { AnchoredPopover } from '@/components/AnchoredPopover';
 import { QuickReactMenu } from '@/components/QuickReactMenu';
 import { RenderResolvedEmoji } from '@/components/CustomEmoji';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -75,6 +75,7 @@ export function ReactionButton({
   const { mutate: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const justClosedRef = useRef(false);
   const pickerExpandedRef = useRef(false);
@@ -173,123 +174,128 @@ export function ReactionButton({
   }, []);
 
   return (
-    <Popover open={menuOpen} onOpenChange={(open) => {
-      if (open && justClosedRef.current) return;
-      if (!open) pickerExpandedRef.current = false;
-      setMenuOpen(open);
-    }}>
-      <PopoverTrigger asChild>
-        <button
-          className={cn(
-            'flex items-center gap-1.5 p-2 rounded-full transition-colors focus:outline-none',
-            'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
-            className,
-            hasReacted && 'text-pink-500',
-          )}
-          title="React"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!user) return;
-            if (hasReacted) {
-              impactLight();
-              handleUnreact(e);
-              return;
-            }
-            if (justClosedRef.current) return;
-            setMenuOpen((prev) => !prev);
-          }}
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            if (!user) return;
-            if (hasReacted) return;
-            impactMedium();
-            triggerBurst('❤️');
-            setMenuOpen(false);
-            const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
-            queryClient.setQueryData(['user-reaction', eventId], { content: '❤️' });
-            if (prevStats) {
-              queryClient.setQueryData<EventStats>(['event-stats', eventId], {
-                ...prevStats,
-                reactions: prevStats.reactions + 1,
-              });
-            }
-            publishEvent(
-              {
-                kind: 7,
-                content: '❤️',
-                tags: [['e', eventId], ['p', eventPubkey], ['k', String(eventKind)]],
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={menuOpen}
+        className={cn(
+          'flex items-center gap-1.5 p-2 rounded-full transition-colors focus:outline-none',
+          'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
+          className,
+          hasReacted && 'text-pink-500',
+        )}
+        title="React"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!user) return;
+          if (hasReacted) {
+            impactLight();
+            handleUnreact(e);
+            return;
+          }
+          if (justClosedRef.current) return;
+          setMenuOpen((prev) => !prev);
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          if (!user) return;
+          if (hasReacted) return;
+          impactMedium();
+          triggerBurst('❤️');
+          setMenuOpen(false);
+          const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
+          queryClient.setQueryData(['user-reaction', eventId], { content: '❤️' });
+          if (prevStats) {
+            queryClient.setQueryData<EventStats>(['event-stats', eventId], {
+              ...prevStats,
+              reactions: prevStats.reactions + 1,
+            });
+          }
+          publishEvent(
+            {
+              kind: 7,
+              content: '❤️',
+              tags: [['e', eventId], ['p', eventPubkey], ['k', String(eventKind)]],
+            },
+            {
+              onSuccess: () => {
+                // Rebroadcast the original event alongside the reaction (best-effort).
+                if (reactedEvent) rebroadcastEvent(nostr, reactedEvent);
+                setTimeout(() => {
+                  queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
+                  queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
+                  queryClient.invalidateQueries({ queryKey: ['user-reaction', eventId] });
+                }, 3000);
               },
-              {
-                onSuccess: () => {
-                  // Rebroadcast the original event alongside the reaction (best-effort).
-                  if (reactedEvent) rebroadcastEvent(nostr, reactedEvent);
-                  setTimeout(() => {
-                    queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
-                    queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
-                    queryClient.invalidateQueries({ queryKey: ['user-reaction', eventId] });
-                  }, 3000);
-                },
-                onError: () => {
-                  queryClient.setQueryData(['user-reaction', eventId], null);
-                  if (prevStats) {
-                    queryClient.setQueryData<EventStats>(['event-stats', eventId], prevStats);
-                  }
-                },
+              onError: () => {
+                queryClient.setQueryData(['user-reaction', eventId], null);
+                if (prevStats) {
+                  queryClient.setQueryData<EventStats>(['event-stats', eventId], prevStats);
+                }
               },
-            );
-          }}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        >
-          <span className="relative flex items-center justify-center">
-            <span
-              className={cn(
-                'flex items-center justify-center',
-                burst && 'motion-safe:animate-reaction-pop',
-              )}
-            >
-              {filledHeart ? (
-                <Heart className="size-6" fill={hasReacted ? 'currentColor' : 'none'} />
-              ) : hasReacted && userReaction ? (
-                <RenderResolvedEmoji emoji={userReaction} className="h-5 w-5 object-contain leading-none translate-y-px" />
-              ) : (
-                <Heart className="size-5" />
-              )}
-            </span>
-            {burst && (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-0 flex items-center justify-center motion-reduce:hidden"
-              >
-                {/* Shockwave ring */}
-                <span className="absolute size-6 rounded-full border-2 border-pink-500/60 animate-reaction-halo" />
-                {BURST_RAYS.map((ray, i) => (
-                  <span
-                    key={i}
-                    className={cn(
-                      'absolute animate-reaction-spark select-none',
-                      !burst.emoji && 'size-1.5 rounded-full',
-                    )}
-                    style={{
-                      fontSize: burst.emoji ? 12 : undefined,
-                      lineHeight: burst.emoji ? 1 : undefined,
-                      backgroundColor: burst.emoji ? undefined : ray.color,
-                      '--spark-x': `${ray.x}px`,
-                      '--spark-y': `${ray.y}px`,
-                    } as React.CSSProperties}
-                  >
-                    {burst.emoji}
-                  </span>
-                ))}
-              </span>
+            },
+          );
+        }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        <span className="relative flex items-center justify-center">
+          <span
+            className={cn(
+              'flex items-center justify-center',
+              burst && 'motion-safe:animate-reaction-pop',
+            )}
+          >
+            {filledHeart ? (
+              <Heart className="size-6" fill={hasReacted ? 'currentColor' : 'none'} />
+            ) : hasReacted && userReaction ? (
+              <RenderResolvedEmoji emoji={userReaction} className="h-5 w-5 object-contain leading-none translate-y-px" />
+            ) : (
+              <Heart className="size-5" />
             )}
           </span>
-          {reactionCount > 0 && (
-            <span className={cn('text-sm tabular-nums', hasReacted && 'text-pink-500')}>{formatNumber(reactionCount)}</span>
+          {burst && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-0 flex items-center justify-center motion-reduce:hidden"
+            >
+              {/* Shockwave ring */}
+              <span className="absolute size-6 rounded-full border-2 border-pink-500/60 animate-reaction-halo" />
+              {BURST_RAYS.map((ray, i) => (
+                <span
+                  key={i}
+                  className={cn(
+                    'absolute animate-reaction-spark select-none',
+                    !burst.emoji && 'size-1.5 rounded-full',
+                  )}
+                  style={{
+                    fontSize: burst.emoji ? 12 : undefined,
+                    lineHeight: burst.emoji ? 1 : undefined,
+                    backgroundColor: burst.emoji ? undefined : ray.color,
+                    '--spark-x': `${ray.x}px`,
+                    '--spark-y': `${ray.y}px`,
+                  } as React.CSSProperties}
+                >
+                  {burst.emoji}
+                </span>
+              ))}
+            </span>
           )}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
+        </span>
+        {reactionCount > 0 && (
+          <span className={cn('text-sm tabular-nums', hasReacted && 'text-pink-500')}>{formatNumber(reactionCount)}</span>
+        )}
+      </button>
+      <AnchoredPopover
+        open={menuOpen}
+        onOpenChange={(open) => {
+          if (open && justClosedRef.current) return;
+          if (!open) pickerExpandedRef.current = false;
+          setMenuOpen(open);
+        }}
+        anchorRef={buttonRef}
         className="w-auto p-0 border-0 bg-transparent shadow-none"
         side="top"
         align="start"
@@ -316,7 +322,7 @@ export function ReactionButton({
             }, 300);
           }}
         />
-      </PopoverContent>
-    </Popover>
+      </AnchoredPopover>
+    </>
   );
 }
