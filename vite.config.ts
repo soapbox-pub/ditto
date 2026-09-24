@@ -458,6 +458,24 @@ function librejsLicense(): Plugin {
   };
 }
 
+/**
+ * `npm run build:profile`: a production build that can be profiled. Two
+ * differences, each of which a profile of the normal build is missing:
+ *
+ *  - function and class names kept through minification, so components, and
+ *    every frame of a CPU profile, read as names instead of `Xe`;
+ *  - source maps, so a Performance-panel flame graph maps back to `src/`.
+ *
+ * `VITE_PROFILE_REACT=1` on top swaps in react-dom's profiling build, so every
+ * fiber carries its render time and the React DevTools Profiler works against
+ * it. Opt-in, because React 19.2's profiling build also logs every component
+ * render to the Performance timeline, which inflates the CPU a profile measures.
+ *
+ * Never a release build — it is larger and a little slower.
+ */
+const PROFILE_BUILD = process.env.VITE_PROFILE === "1";
+const PROFILE_REACT = PROFILE_BUILD && process.env.VITE_PROFILE_REACT === "1";
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -530,8 +548,10 @@ export default defineConfig(({ mode }) => {
     // this its `require("#monero-ts/monero.js")` wasm loader is left untouched
     // and throws at runtime.
     commonjsOptions: { transformMixedEsModules: true },
+    sourcemap: PROFILE_BUILD,
     rollupOptions: {
       output: {
+        ...(PROFILE_BUILD ? { keepNames: true } : {}),
         manualChunks(id: string) {
           // Consolidate lucide icons into a single chunk instead of 60+ micro-chunks.
           if (id.includes('node_modules/lucide-react')) {
@@ -549,6 +569,8 @@ export default defineConfig(({ mode }) => {
       // @blobbi-kit/core and @blobbi-kit/react resolve through their installed
       // package exports in node_modules (published npm packages), not source aliases.
       { find: "@", replacement: path.resolve(import.meta.dirname, "./src") },
+      // react-dom/profiling is react-dom/client plus fiber timings.
+      ...(PROFILE_REACT ? [{ find: /^react-dom\/client$/, replacement: "react-dom/profiling" }] : []),
     ],
     // Dedupe the React-context-bearing singletons so a dependency can't pull in a
     // second copy of them (which breaks useContext).

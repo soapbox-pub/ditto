@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "npm i --silent --no-audit --no-fund && vite",
     "build": "npm i --silent --no-audit --no-fund && vite build -l error && cp dist/index.html dist/404.html && npm run librejs:check && echo 'Project built successfully!'",
+    "build:profile": "VITE_PROFILE=1 npm run build",
     "test": "npm i --silent --no-audit --no-fund && tsc --noEmit && eslint --cache && vitest run --reporter=dot --silent && vite build -l error && cp dist/index.html dist/404.html && npm run librejs:check && echo 'All tests passed!'",
     "postinstall": "node scripts/patch-monero-csp.mjs",
     "librejs:check": "node scripts/check-librejs.mjs",
