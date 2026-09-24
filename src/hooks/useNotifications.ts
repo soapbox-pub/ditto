@@ -6,6 +6,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
 import { useFollowList } from './useFollowActions';
+import { useZapReceiptCheck } from './useZapReceiptCheck';
 import { LETTER_KIND } from '@/lib/letterTypes';
 import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
 
@@ -358,6 +359,11 @@ export function useNotifications(): NotificationData {
     fetchNextPage,
   } = infiniteQuery;
 
+  // Genuine zap receipts for the user are signed by their lightning
+  // provider. Anyone can sign a kind 9735, so drop receipts from other
+  // signers once the provider is known.
+  const { isGenuine: isGenuineZap } = useZapReceiptCheck(user?.pubkey);
+
   // Flatten and deduplicate across pages
   const items = useMemo(() => {
     if (!data?.pages) return [];
@@ -365,9 +371,9 @@ export function useNotifications(): NotificationData {
     return data.pages.flatMap((page) => page.items).filter((item) => {
       if (seen.has(item.event.id)) return false;
       seen.add(item.event.id);
-      return true;
+      return isGenuineZap(item.event);
     });
-  }, [data?.pages]);
+  }, [data?.pages, isGenuineZap]);
 
   // Only use cursor if settings have actually loaded, otherwise null
   const remoteCursor = settings !== undefined && settings !== null

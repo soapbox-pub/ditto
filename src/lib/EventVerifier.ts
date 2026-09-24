@@ -1,6 +1,8 @@
 import { getEventHash, verifyEvent } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { isValidZapReceipt } from '@/lib/zapReceipt';
+
 /**
  * `verifyEvent` with a cache, for use as the `verifyEvent` option of
  * `NRelay1`. Share one instance across every relay connection in a pool.
@@ -19,6 +21,10 @@ import type { NostrEvent } from '@nostrify/nostrify';
  * proven authentic, and re-running Schnorr on a second copy cannot tell us
  * anything new. We still recompute the hash on a cache hit, so a forged event
  * that merely claims a known id is rejected.
+ *
+ * Kind 9735 zap receipts must also be internally consistent (see
+ * `isValidZapReceipt`); the cache covers that too, since it depends only on
+ * the hashed fields.
  */
 export class EventVerifier {
   /** Ids whose signature we have already checked. Iterates in insertion order. */
@@ -41,6 +47,10 @@ export class EventVerifier {
     }
 
     if (!verifyEvent(event)) {
+      return false;
+    }
+
+    if (event.kind === 9735 && !isValidZapReceipt(event)) {
       return false;
     }
 

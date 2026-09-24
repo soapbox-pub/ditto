@@ -36,6 +36,21 @@ function formatSats(sats: number): string {
 }
 
 /**
+ * Abbreviate a BOLT-11 invoice for display (head…tail).
+ *
+ * The full invoice is kept in state for the QR, the copy button, and the
+ * explicit pay actions — it is deliberately never rendered as a complete,
+ * contiguous text node. WebLN / Lightning browser extensions scan page text
+ * for whole invoices and pop an unsolicited "confirm payment" prompt when one
+ * scrolls into view; a truncated string fails the bech32 checksum, so no
+ * payment can be initiated without the user acting on this card.
+ */
+function abbreviateInvoice(invoice: string): string {
+  if (invoice.length <= 30) return invoice;
+  return `${invoice.slice(0, 16)}…${invoice.slice(-10)}`;
+}
+
+/**
  * Inline card for rendering a BOLT11 lightning invoice found in note content.
  * Horizontal layout with theme-aware QR that expands on tap.
  * Amount text scales to fit via container query units.
@@ -185,7 +200,7 @@ export function LightningInvoiceCard({ invoice, className }: LightningInvoiceCar
             className="flex items-center gap-1.5 group max-w-full"
           >
             <span className="truncate text-xs font-mono text-muted-foreground group-hover:text-foreground transition-colors">
-              {invoice}
+              {abbreviateInvoice(invoice)}
             </span>
             {copied
               ? <Check className="size-3.5 text-primary shrink-0" />

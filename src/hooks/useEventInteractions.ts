@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { isCustomEmoji, getCustomEmojiUrl } from '@/lib/customEmoji';
 import { isNostrId } from '@/lib/nostrId';
+import { zapReceiptAmountMsat } from '@/lib/zapReceipt';
 
 export interface RepostEntry {
   eventId: string;
@@ -42,50 +43,13 @@ export interface EventInteractions {
   zaps: ZapEntry[];
 }
 
-/** Extracts the zap amount in millisatoshis from a kind 9735 zap receipt. */
+/**
+ * Extracts the zap amount in millisatoshis from a kind 9735 zap receipt: the
+ * amount of its bolt11 invoice. The receipt's and the request's `amount` tags
+ * are claims; the invoice is what was paid.
+ */
 export function extractZapAmount(event: NostrEvent): number {
-  const amountTag = event.tags.find(([name]) => name === 'amount');
-  if (amountTag?.[1]) {
-    const msats = parseInt(amountTag[1], 10);
-    if (!isNaN(msats) && msats > 0) return msats;
-  }
-
-  const descTag = event.tags.find(([name]) => name === 'description');
-  if (descTag?.[1]) {
-    try {
-      const zapRequest = JSON.parse(descTag[1]);
-      const reqAmountTag = zapRequest.tags?.find(([name]: [string]) => name === 'amount');
-      if (reqAmountTag?.[1]) {
-        const msats = parseInt(reqAmountTag[1], 10);
-        if (!isNaN(msats) && msats > 0) return msats;
-      }
-    } catch {
-      // Invalid JSON
-    }
-  }
-
-  const bolt11Tag = event.tags.find(([name]) => name === 'bolt11');
-  if (bolt11Tag?.[1]) {
-    const msats = parseBolt11Amount(bolt11Tag[1]);
-    if (msats > 0) return msats;
-  }
-
-  return 0;
-}
-
-function parseBolt11Amount(bolt11: string): number {
-  const match = bolt11.toLowerCase().match(/^ln\w+?(\d+)([munp]?)1/);
-  if (!match) return 0;
-  const value = parseInt(match[1], 10);
-  if (isNaN(value)) return 0;
-  const multiplier = match[2];
-  switch (multiplier) {
-    case 'm': return value * 100_000_000;
-    case 'u': return value * 100_000;
-    case 'n': return value * 100;
-    case 'p': return value / 10;
-    default:  return value * 100_000_000_000;
-  }
+  return zapReceiptAmountMsat(event);
 }
 
 /**
