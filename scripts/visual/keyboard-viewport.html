@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Compose keyboard/viewport visual harness</title>
+<!--
+  Visual regression harness for the mobile compose sheet's keyboard handling.
+
+  It reproduces, in a real layout engine, the fixed-positioning contract that
+  `ComposeDialogContent` (src/components/ComposeDialogContent.tsx) and
+  `useVisualViewportVar` (src/hooks/useVisualViewportVar.ts) implement together:
+
+    - the sheet is `position: fixed`, anchored to the *visual* viewport via
+      `top: var(--visual-viewport-offset-top, 0px)` and
+      `height: var(--visual-viewport-height, 100dvh)`;
+    - those variables are published by a visualViewport listener that must track
+      BOTH `height` (resize) and `offsetTop` (scroll).
+
+  jsdom computes no layout, so this can't live in the Vitest suite. The runner
+  (keyboard-viewport.mjs) drives it in headless Chromium and measures real
+  geometry + captures screenshots.
+
+  ?mode=buggy   → pre-fix behaviour: top:0, height-only listener (resize only).
+  ?mode=fixed   → post-fix behaviour: offset-anchored top, height+offset listener
+                   on resize+scroll. Mirrors the shipped source.
+
+  window.visualViewport is stubbed so the runner can simulate the virtual
+  keyboard (no automation tool can drive the real OS keyboard / offsetTop).
+-->
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  /* The page/layout viewport. A calm backdrop so the sheet + keyboard read clearly in screenshots. */
+  body { background: #cbd5e1; }
+
+  /* The area of the layout viewport scrolled off the top when iOS shifts the
+     visual viewport down (visualViewport.offsetTop). Painted so a clipped sheet
+     is obvious in the screenshot. */
+  #offtop {
+    position: fixed;
+    left: 0; top: 0; width: 100%;
+    background: repeating-linear-gradient(45deg, #f87171, #f87171 10px, #ef4444 10px, #ef4444 20px);
+    z-index: 1;
+  }
+
+  /* The virtual keyboard: occupies the layout viewport below the visual viewport. */
+  #keyboard {
+    position: fixed;
+    left: 0; width: 100%;
+    background: #1e293b;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    z-index: 1;
+  }
+
+  /* ── The compose sheet — mirrors ComposeDialogContent's mobile classes ──
+     Tailwind:
+       fixed left-0 top-[var(--visual-viewport-offset-top,0px)]
+       h-[var(--visual-viewport-height,100dvh)] w-full
+       flex flex-col overflow-hidden bg-background */
+  #sheet {
+    position: fixed;
+    left: 0;
+    width: 100%;
+    top: var(--visual-viewport-offset-top, 0px);
+    height: var(--visual-viewport-height, 100dvh);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 -8px 24px rgba(0,0,0,0.18);
+    z-index: 2;
+  }
+  /* Buggy variant: glued to the layout-viewport top, ignoring the visual
+     viewport's offset — exactly the pre-fix `top-0`. */
+  body[data-mode="buggy"] #sheet { top: 0; }
+
+  #header {
+    flex: 0 0 auto;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid #e2e8f0;
+    font-weight: 600;
+    color: #0f172a;
+  }
+  #body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px;
+    color: #334155;
+  }
+  /* GIF picker tray — mirrors ComposeBox's picker tray (shrink-0, capped height). */
+  #tray {
+    flex: 0 0 auto;
+    height: min(280px, calc(var(--visual-viewport-height, 100dvh) * 0.4));
+    border-top: 1px solid #e2e8f0;
+    background: #f1f5f9;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 8px;
+    overflow: hidden;
+  }
+  #tray .gif { background: #a5b4fc; border-radius: 8px; }
+  /* Action bar — the row that must sit flush above the keyboard. */
+  #actionbar {
+    flex: 0 0 auto;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    border-top: 1px solid #e2e8f0;
+    background: #ffffff;
+  }
+  #actionbar .btn {
+    height: 36px; min-width: 36px;
+    border-radius: 999px;
+    background: #6366f1;
+    color: #fff;
+    border: 0;
+    padding: 0 16px;
+    font-weight: 600;
+  }
+  #actionbar .spacer { flex: 1 1 auto; }
+</style>
+<script>
+  // ── Stub window.visualViewport ────────────────────────────────────────────
+  // Headless Chromium has a real visualViewport, but nothing can drive the OS
+  // virtual keyboard from automation, so we replace it with a controllable
+  // EventTarget. height/offsetTop are mutated by the runner via __openKeyboard.
+  (function () {
+    class StubViewport extends EventTarget {
+      constructor() { super(); this.height = window.innerHeight; this.offsetTop = 0; this.pageTop = 0; this.width = window.innerWidth; }
+    }
+    const vv = new StubViewport();
+    Object.defineProperty(window, 'visualViewport', { value: vv, configurable: true });
+
+    // Simulate the keyboard opening: the visual viewport shrinks by the keyboard
+    // height and (on iOS) shifts down by offsetTop. Fire the *native* event for
+    // each change — offsetTop is reported via `scroll`, height via `resize`.
+    window.__openKeyboard = function (offsetTop, height) {
+      vv.offsetTop = offsetTop;
+      vv.height = height;
+      vv.dispatchEvent(new Event('resize'));
+      vv.dispatchEvent(new Event('scroll'));
+    };
+  })();
+</script>
+</head>
+<body>
+  <div id="offtop"></div>
+  <div id="keyboard"></div>
+  <div id="sheet">
+    <div id="header">New post</div>
+    <div id="body">What's on your mind?</div>
+    <div id="tray">
+      <div class="gif"></div><div class="gif"></div>
+      <div class="gif"></div><div class="gif"></div>
+    </div>
+    <div id="actionbar">
+      <button class="btn" aria-label="GIF">GIF</button>
+      <div class="spacer"></div>
+      <button class="btn">Post!</button>
+    </div>
+  </div>
+
+  <script>
+    // ── The visual-viewport variable sync ─────────────────────────────────────
+    // Two implementations selectable by ?mode, kept deliberately in step with
+    // src/hooks/useVisualViewportVar.ts so the harness exercises the real
+    // before/after behaviour rather than an invented one.
+    const mode = new URLSearchParams(location.search).get('mode') || 'fixed';
+    document.body.dataset.mode = mode;
+
+    const vv = window.visualViewport;
+    const root = document.documentElement;
+
+    function updateFixed() {
+      // Post-fix: publish both height and offsetTop.
+      root.style.setProperty('--visual-viewport-height', Math.round(vv.height) + 'px');
+      root.style.setProperty('--visual-viewport-offset-top', Math.round(vv.offsetTop) + 'px');
+    }
+    function updateBuggy() {
+      // Pre-fix: height only, no offset.
+      root.style.setProperty('--visual-viewport-height', Math.round(vv.height) + 'px');
+    }
+
+    if (mode === 'buggy') {
+      // Pre-fix listened to `resize` only.
+      vv.addEventListener('resize', updateBuggy);
+      updateBuggy();
+    } else {
+      // Post-fix listens to `resize` AND `scroll` (offsetTop changes fire scroll).
+      vv.addEventListener('resize', updateFixed);
+      vv.addEventListener('scroll', updateFixed);
+      updateFixed();
+    }
+  </script>
+</body>
+</html>

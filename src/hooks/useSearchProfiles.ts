@@ -54,6 +54,27 @@ function searchCachedProfiles(
   return results.slice(0, limit);
 }
 
+/**
+ * Rank a profile against the query so that name/display_name matches win over
+ * nip05-only matches. Lower is better. Without this, a query like "primal"
+ * floats every `someone@primal.net` account above the account actually *named*
+ * Primal, because the relay's NIP-50 search matches (and ranks) the nip05
+ * domain just as strongly as the name.
+ */
+function relevanceTier(profile: SearchProfile, lowerQuery: string): number {
+  const name = profile.metadata.name?.toLowerCase() ?? '';
+  const displayName = profile.metadata.display_name?.toLowerCase() ?? '';
+  const nip05 = profile.metadata.nip05?.toLowerCase() ?? '';
+  const nip05Local = nip05.replace(/^_@/, '').split('@')[0] ?? '';
+
+  if (name === lowerQuery || displayName === lowerQuery) return 0;
+  if (name.startsWith(lowerQuery) || displayName.startsWith(lowerQuery)) return 1;
+  if (name.includes(lowerQuery) || displayName.includes(lowerQuery)) return 2;
+  if (nip05Local === lowerQuery || nip05Local.startsWith(lowerQuery)) return 3;
+  if (nip05.includes(lowerQuery)) return 4;
+  return 5;
+}
+
 /** Search for profiles by username/nip05 using NIP-50 search on relay.ditto.pub. */
 export function useSearchProfiles(query: string) {
   const { nostr } = useNostr();
@@ -78,7 +99,7 @@ export function useSearchProfiles(query: string) {
       // content — exactly what a typeahead dropdown wants. Relays that don't
       // support the extension simply ignore the token.
       const events = await nostr.query(
-        [{ kinds: [0], search: `${debouncedQuery.trim()} autocomplete:true sort:top`, limit: 10 }],
+        [{ kinds: [0], search: `${debouncedQuery.trim()} autocomplete:true sort:top`, limit: 20 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
@@ -109,25 +130,41 @@ export function useSearchProfiles(query: string) {
     placeholderData: (prev) => prev,
   });
 
-  // Sort followed profiles ahead of non-followed, then fall back to
-  // cached author profiles when the relay search returns nothing.
+  // Merge relay results with locally-cached profiles, then rank so that
+  // name/display_name matches beat nip05-only matches. The relay's NIP-50
+  // search ranks nip05-domain hits (e.g. everyone `@primal.net`) as highly as
+  // real name matches, so relying on its order alone buries the account the
+  // user is actually looking for. Merging the cache also lets name matches the
+  // relay omitted surface when they were already loaded this session.
   const data = useMemo(() => {
-    const relayData = relayResults.data;
+    const query = debouncedQuery.trim();
+    if (!query) return relayResults.data ?? [];
 
-    if (relayData && relayData.length > 0) {
-      return [...relayData].sort((a, b) => {
+    const lowerQuery = query.toLowerCase();
+    const merged = new Map<string, SearchProfile>();
+
+    for (const profile of relayResults.data ?? []) {
+      merged.set(profile.pubkey, profile);
+    }
+    for (const profile of searchCachedProfiles(queryClient, query, followedPubkeys, 20)) {
+      if (!merged.has(profile.pubkey)) merged.set(profile.pubkey, profile);
+    }
+
+    return Array.from(merged.values())
+      .sort((a, b) => {
+        const aTier = relevanceTier(a, lowerQuery);
+        const bTier = relevanceTier(b, lowerQuery);
+        if (aTier !== bTier) return aTier - bTier;
+
         const aFollowed = followedPubkeys.has(a.pubkey) ? 0 : 1;
         const bFollowed = followedPubkeys.has(b.pubkey) ? 0 : 1;
-        return aFollowed - bFollowed;
-      });
-    }
+        if (aFollowed !== bFollowed) return aFollowed - bFollowed;
 
-    // Relay returned nothing — search the local cache instead
-    if (debouncedQuery.trim().length >= 1) {
-      return searchCachedProfiles(queryClient, debouncedQuery.trim(), followedPubkeys);
-    }
-
-    return relayData;
+        const aName = (a.metadata.name || a.metadata.display_name || '').toLowerCase();
+        const bName = (b.metadata.name || b.metadata.display_name || '').toLowerCase();
+        return aName.localeCompare(bName);
+      })
+      .slice(0, 10);
   }, [relayResults.data, followedPubkeys, debouncedQuery, queryClient]);
 
   return {

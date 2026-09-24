@@ -37,10 +37,11 @@ export function ComposeDialogContent({ className, children, ref, ...props }: Com
           // Shared
           'fixed z-[250] flex flex-col overflow-hidden bg-background border-border shadow-lg duration-200',
           'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
-          // Mobile: full-screen sheet pinned to the top, sized to the visual
-          // viewport (shrinks with the keyboard), safe-area aware, sliding up
-          // from the bottom like a native modal.
-          'left-0 top-0 h-[var(--visual-viewport-height,100dvh)] w-full',
+          // Mobile: full-screen sheet anchored to the visual viewport (shrinks
+          // with the keyboard and follows iOS's layout-viewport scroll offset so
+          // it never clips off the top or leaves a gap above the keyboard),
+          // safe-area aware, sliding up from the bottom like a native modal.
+          'left-0 top-[var(--visual-viewport-offset-top,0px)] h-[var(--visual-viewport-height,100dvh)] w-full',
           'pt-[var(--safe-area-inset-top,env(safe-area-inset-top,0px))] pb-[var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px))]',
           'data-[state=open]:slide-in-from-bottom-8 data-[state=closed]:slide-out-to-bottom-8',
           // Desktop: centered card

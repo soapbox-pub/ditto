@@ -8,7 +8,11 @@ import htmlParser from "@html-eslint/parser";
 import customRules from "./eslint-rules/index.js";
 
 export default tseslint.config(
-  { ignores: ["dist", "**/dist", "android", "ios", ".agents"] },
+  // scripts/visual is a dev-only browser test harness (run via `npm run
+  // test:visual`, not shipped). Its HTML deliberately uses an inline script to
+  // simulate a page and omits production-page requirements (OG tags,
+  // webmanifest), so the app's HTML lint rules don't apply.
+  { ignores: ["dist", "**/dist", "android", "ios", ".agents", "scripts/visual"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
