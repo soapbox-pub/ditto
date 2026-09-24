@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useCurrentUserProfile } from '@/hooks/useCurrentUser';
 import { getAvatarShape, getEmojiMaskUrl } from '@/lib/avatarShape';
 
 interface FabButtonProps {
@@ -15,7 +15,7 @@ interface FabButtonProps {
  * circle fallback), matching the FloatingComposeButton style exactly.
  */
 export function FabButton({ onClick, icon, disabled, className = '', title }: FabButtonProps) {
-  const { metadata } = useCurrentUser();
+  const { metadata } = useCurrentUserProfile();
   const avatarShape = getAvatarShape(metadata);
 
   const shapeMaskStyle = useMemo<React.CSSProperties | undefined>(() => {

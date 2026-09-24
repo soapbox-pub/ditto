@@ -1,7 +1,7 @@
 import { lazy } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useCurrentUserProfile } from '@/hooks/useCurrentUser';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getExtraKindDef, getSectionKinds } from '@/lib/extraKinds';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
@@ -67,7 +67,7 @@ function KindFeedWrapper({ itemId }: { itemId: string }) {
  * back to "/", so redirecting again here would create an infinite loop.
  */
 function ProfileHomeRedirect() {
-  const { user, metadata } = useCurrentUser();
+  const { user, metadata } = useCurrentUserProfile();
   const profileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   if (!user) return <Index />;
   return <Navigate to={profileUrl} replace />;

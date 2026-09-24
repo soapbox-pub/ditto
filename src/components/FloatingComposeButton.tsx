@@ -7,7 +7,7 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useCurrentUserProfile } from '@/hooks/useCurrentUser';
 import { FabButton } from '@/components/FabButton';
 
 // Lazy-load the compose modal (pulls in emoji-mart ~620K)
@@ -27,7 +27,7 @@ interface FloatingComposeButtonProps {
 }
 
 export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: FloatingComposeButtonProps) {
-  const { user, isLoading } = useCurrentUser();
+  const { user, isLoading } = useCurrentUserProfile();
   const navigate = useNavigate();
   const [composeOpen, setComposeOpen] = useState(false);
   const [comingSoonOpen, setComingSoonOpen] = useState(false);

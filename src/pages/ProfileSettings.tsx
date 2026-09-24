@@ -32,7 +32,7 @@ import { isAnimatedImage, METADATA_SCAN_BYTES } from '@/lib/imageMetadata';
 import { SortableList, SortableItem } from '@/components/SortableList';
 import { PaymentTargetsEditor, type PaymentTargetsEditorHandle } from '@/components/PaymentTargetsEditor';
 import { useAppContext } from '@/hooks/useAppContext';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useCurrentUserProfile } from '@/hooks/useCurrentUser';
 import { parseAuthorEvent } from '@/hooks/useAuthor';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
@@ -441,7 +441,7 @@ function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploadi
 
 export function ProfileSettings() {
   const intl = useIntl();
-  const { user, metadata, event } = useCurrentUser();
+  const { user, metadata, event } = useCurrentUserProfile();
   const { config } = useAppContext();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent, isPending } = useNostrPublish();
@@ -1035,7 +1035,7 @@ const MONTHS = [
  */
 function BirthdaySection() {
   const intl = useIntl();
-  const { user, event } = useCurrentUser();
+  const { user, event } = useCurrentUserProfile();
   const { nostr } = useNostr();
   const { store } = useNostrStorage();
   const { mutateAsync: publishEvent } = useNostrPublish();

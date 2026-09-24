@@ -8,7 +8,7 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
 import { selectionChanged } from '@/lib/haptics';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useCurrentUserProfile } from '@/hooks/useCurrentUser';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -25,7 +25,7 @@ const hiddenStyle: React.CSSProperties = {
 export function MobileBottomNav() {
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { user, metadata } = useCurrentUser();
+  const { user, metadata } = useCurrentUserProfile();
   const hasUnread = useHasUnreadNotifications();
   const { scrollContainer, noArcs } = useLayoutSnapshot();
   const { hidden } = useScrollDirection(scrollContainer);

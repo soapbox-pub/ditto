@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useCurrentUserProfile } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { parseAuthorEvent } from '@/hooks/useAuthor';
 import { useToast } from '@/hooks/useToast';
@@ -57,7 +57,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
   const queryClient = useQueryClient();
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const { user, metadata, event } = useCurrentUser();
+  const { user, metadata, event } = useCurrentUserProfile();
   const { mutateAsync: publishEvent, isPending } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { toast } = useToast();

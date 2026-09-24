@@ -5,7 +5,7 @@ import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
 import { NSecSigner } from '@nostrify/nostrify';
 
 import type { Webxdc as WebxdcAPI, SendingStatusUpdate, ReceivedStatusUpdate, RealtimeListener } from '@webxdc/types/webxdc';
-import { useCurrentUser } from './useCurrentUser';
+import { useCurrentUserProfile } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 
 /**
@@ -19,7 +19,7 @@ import { useNostrPublish } from './useNostrPublish';
  */
 export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
   const { nostr } = useNostr();
-  const { user, metadata } = useCurrentUser();
+  const { user, metadata } = useCurrentUserProfile();
   const { mutate: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
 

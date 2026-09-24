@@ -18,7 +18,7 @@ import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
 import { LoginFlow } from '@/components/auth/LoginFlow';
 import { FollowQRDialog } from '@/components/FollowQRDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useCurrentUserProfile } from '@/hooks/useCurrentUser';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';
 
@@ -39,7 +39,7 @@ export function LeftSidebar() {
   const intl = useIntl();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, metadata, event: currentUserEvent, isLoading: isProfileLoading } = useCurrentUser();
+  const { user, metadata, event: currentUserEvent, isLoading: isProfileLoading } = useCurrentUserProfile();
   const currentUserAvatarShape = getAvatarShape(metadata);
   const { currentUser, otherUsers, setLogin } = useLoggedInAccounts();
   const { logout } = useLoginActions();

@@ -28,7 +28,7 @@ import { StickerPicker } from '@/components/StickerPicker';
 
 import { NoteContent } from '@/components/NoteContent';
 
-import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useCurrentUserProfile } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { usePostComment } from '@/hooks/usePostComment';
 import { useUploadFile } from '@/hooks/useUploadFile';
@@ -303,7 +303,7 @@ export function ComposeBox({
   initialContent = '',
   initialMode = 'post',
 }: ComposeBoxProps) {
-  const { user, metadata, event: userEvent, isLoading: isProfileLoading } = useCurrentUser();
+  const { user, metadata, event: userEvent, isLoading: isProfileLoading } = useCurrentUserProfile();
   const avatarShape = getAvatarShape(metadata);
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   // NIP-24 birthday — the current user's own avatar wears a party hat all day.

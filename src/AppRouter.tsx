@@ -13,7 +13,7 @@ import { Toaster } from "./components/ui/toaster";
 import { MainLayout } from "./components/MainLayout";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { VersionCheck } from "./components/VersionCheck";
-import { useCurrentUser } from "./hooks/useCurrentUser";
+import { useCurrentUserProfile } from "./hooks/useCurrentUser";
 import { useProfileUrl } from "./hooks/useProfileUrl";
 import { getExtraKindDef, getSectionKinds } from "./lib/extraKinds";
 
@@ -118,7 +118,7 @@ function PollsFeedPage() {
 
 /** Redirects /profile to the user's canonical profile URL (nip05 or npub). */
 function ProfileRedirect() {
-  const { user, metadata } = useCurrentUser();
+  const { user, metadata } = useCurrentUserProfile();
   const profileUrl = useProfileUrl(user?.pubkey ?? "", metadata);
   if (!user) return <Navigate to="/" replace />;
   return <Navigate to={profileUrl} replace />;

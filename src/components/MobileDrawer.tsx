@@ -16,7 +16,7 @@ import { LoginFlow } from '@/components/auth/LoginFlow';
 import { FollowQRDialog } from '@/components/FollowQRDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useCurrentUserProfile } from '@/hooks/useCurrentUser';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
@@ -50,7 +50,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const clipStyle = drawerClipStyle(clipId);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, metadata, event: currentUserEvent } = useCurrentUser();
+  const { user, metadata, event: currentUserEvent } = useCurrentUserProfile();
   const currentUserAvatarShape = getAvatarShape(metadata);
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const { logout } = useLoginActions();

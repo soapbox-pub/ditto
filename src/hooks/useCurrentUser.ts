@@ -80,9 +80,18 @@ export function useCurrentUser() {
 
   const user = users[0] as NUser | undefined;
 
-  // The current user's kind 0 profile is served from useAuthor, which
-  // may resolve instantly if pre-cached by useFeed. Otherwise it fetches
-  // from relays in the background.
+  // No profile read here: this is called by several components in every feed
+  // row, and each useAuthor call is a query observer plus a local-store read
+  // on mount. Callers that need the kind 0 use useCurrentUserProfile.
+  return { user, users };
+}
+
+/** The current user plus their kind 0 profile. */
+export function useCurrentUserProfile() {
+  const { user, users } = useCurrentUser();
+
+  // Served from useAuthor, which may resolve instantly if pre-cached by
+  // useFeed. Otherwise it fetches from relays in the background.
   const author = useAuthor(user?.pubkey);
 
   return {
