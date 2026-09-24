@@ -1740,6 +1740,22 @@ export function NoteCard(props: NoteCardProps) {
 
 const MAX_HEIGHT = 400; // px — posts taller than this get truncated
 
+/**
+ * Characters of a collapsed post to render. Always taller than
+ * {@link MAX_HEIGHT} at feed type sizes, so a post longer than this is
+ * truncated either way; rendering the rest behind the fold only costs DOM.
+ * Spam posts run to 40KB with 1,500+ links each — ~3,200 DOM nodes per card
+ * for 550px of visible content, 70k nodes on one hashtag feed.
+ */
+const COLLAPSED_CHARS = 2000;
+
+/** `content` cut at the last whitespace before `limit`, so no token is split. */
+function clipContent(content: string, limit: number): string {
+  const head = content.slice(0, limit);
+  const cut = head.search(/\s\S*$/);
+  return cut > 0 ? head.slice(0, cut) : head;
+}
+
 /** Truncates long text note content with a "Read more" fade + button.
  *  Media attachments render inline within NoteContent at their original content position. */
 function TruncatedNoteContent({
@@ -1753,16 +1769,26 @@ function TruncatedNoteContent({
 
   const mediaDominant = isMediaDominantPost(event);
 
+  // Collapsed and long: render only the head of the post. It still overflows
+  // the fold, so the fade and "Read more" show as they would anyway.
+  const clipped = !expanded && !mediaDominant && event.content.length > COLLAPSED_CHARS;
+  const shownEvent = useMemo(
+    () => (clipped ? { ...event, content: clipContent(event.content, COLLAPSED_CHARS) } : event),
+    [clipped, event],
+  );
+  const truncated = overflows || clipped;
+
   const measure = useCallback(() => {
     const el = contentRef.current;
     if (el) setOverflows(!mediaDominant && el.scrollHeight > MAX_HEIGHT);
   }, [mediaDominant]);
 
+  // Re-run when the rendered content changes (expanding a clipped post).
   useEffect(() => {
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [measure]);
+  }, [measure, shownEvent]);
 
   // Re-measure after images load — scrollHeight is unreliable before images have rendered.
   useEffect(() => {
@@ -1775,25 +1801,25 @@ function TruncatedNoteContent({
     );
     return () =>
       imgs.forEach((img) => img.removeEventListener("load", measure));
-  }, [measure]);
+  }, [measure, shownEvent]);
 
   return (
     <div className="mt-2 break-words overflow-hidden">
       <div
         ref={contentRef}
         style={
-          !expanded && overflows
+          !expanded && truncated
             ? { maxHeight: MAX_HEIGHT, overflow: "hidden" }
             : undefined
         }
         className="relative"
       >
-        <NoteContent event={event} className="text-[15px] leading-relaxed" />
-        {!expanded && overflows && (
+        <NoteContent event={shownEvent} className="text-[15px] leading-relaxed" />
+        {!expanded && truncated && (
           <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent pointer-events-none" />
         )}
       </div>
-      {overflows && (
+      {truncated && (
         <button
           className="mt-1 text-sm text-primary hover:underline"
           onClick={(e) => {
