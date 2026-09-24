@@ -1,6 +1,6 @@
 import { getEventHash, verifyEvent } from 'nostr-tools';
 
-import { normalizeRelayUrl } from '@/lib/relayList';
+import { trimRelayUrl } from '@/lib/relayList';
 
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -65,7 +65,14 @@ export type ImportIssueKind =
   /** Signed by a pubkey other than the logged-in account. */
   | 'foreign'
   /** Claims our pubkey (or any pubkey) but the signature doesn't verify. */
-  | 'invalid-signature';
+  | 'invalid-signature'
+  /**
+   * An ephemeral kind (20000–29999). These are never stored, so there's
+   * nothing to restore, and they include credentials — relay AUTH (22242),
+   * HTTP auth (27235), Blossom auth (24242), remote-signer messages (24133) —
+   * that a crafted file could get signed and published for someone to replay.
+   */
+  | 'ephemeral';
 
 export interface ImportIssue {
   kind: ImportIssueKind;
@@ -143,6 +150,11 @@ export function parseJsonl(text: string, pubkey: string): ParsedImport {
 
     if (typeof record.kind !== 'number' || !Number.isInteger(record.kind) || record.kind < 0) {
       issues.push({ kind: 'malformed', line });
+      continue;
+    }
+
+    if (record.kind >= 20000 && record.kind < 30000) {
+      issues.push({ kind: 'ephemeral', line, id: isHex64(record.id) ? record.id : undefined, eventKind: record.kind });
       continue;
     }
 
@@ -272,7 +284,7 @@ export function saveSyncState(pubkey: string, state: AccountSyncState): void {
 
 /** Read one relay's slice of the sync state. */
 export function getRelaySyncState(pubkey: string, url: string): RelaySyncState {
-  return loadSyncState(pubkey)[normalizeRelayUrl(url)] ?? {};
+  return loadSyncState(pubkey)[trimRelayUrl(url)] ?? {};
 }
 
 /** Merge an update into one relay's slice, leaving other relays untouched. */
@@ -281,7 +293,7 @@ export function updateRelaySyncState(
   url: string,
   update: (prev: RelaySyncState) => RelaySyncState,
 ): void {
-  const key = normalizeRelayUrl(url);
+  const key = trimRelayUrl(url);
   const state = loadSyncState(pubkey);
   state[key] = update(state[key] ?? {});
   saveSyncState(pubkey, state);

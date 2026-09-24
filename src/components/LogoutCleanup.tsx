@@ -2,11 +2,12 @@ import { useNostrLogin } from "@nostrify/react/login";
 import { useEffect, useRef } from "react";
 
 import { clearAllNsitePermissionsForUser } from "@/lib/nsitePermissions";
+import { clearCachedBlockedRelays } from "@/lib/relayPolicy";
 import { secureStorage } from "@/lib/secureStorage";
 
 /**
- * Remove an account's wallet connections and nsite permissions from this
- * device when it logs out.
+ * Remove an account's wallet connections, nsite permissions and cached
+ * blocked relays from this device when it logs out.
  *
  * NWC connection strings authorize payments, and on web they sit in plaintext
  * localStorage, so they shouldn't outlive the login. This watches the login
@@ -27,6 +28,7 @@ export function LogoutCleanup() {
       void secureStorage.removeItem(`nwc-connections:${pubkey}`);
       void secureStorage.removeItem(`nwc-active-connection:${pubkey}`);
       clearAllNsitePermissionsForUser(pubkey);
+      clearCachedBlockedRelays(pubkey);
     }
     previous.current = current;
   }, [logins]);

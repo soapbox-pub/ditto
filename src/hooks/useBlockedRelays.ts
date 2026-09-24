@@ -14,7 +14,7 @@ import {
   type Nip51ListContents,
   type Nip51ListEdit,
 } from '@/lib/nip51List';
-import { normalizeRelayUrl } from '@/lib/relayPolicy';
+import { normalizeRelayUrl, relayMatchKey } from '@/lib/relayPolicy';
 
 /** NIP-51 blocked relays list. */
 export const BLOCKED_RELAYS_KIND = 10006;
@@ -24,10 +24,15 @@ function isRelayTag(tag: string[]): boolean {
 }
 
 const sameRelay = (a: string[], b: string[]) =>
-  a[0] === b[0] && normalizeRelayUrl(a[1] ?? '') === normalizeRelayUrl(b[1] ?? '');
+  a[0] === b[0] && relayMatchKey(a[1] ?? '') === relayMatchKey(b[1] ?? '');
 
 function relayUrls(tags: string[][]): string[] {
-  return [...new Set(tags.filter(isRelayTag).map((tag) => normalizeRelayUrl(tag[1])!))];
+  const byKey = new Map<string, string>();
+  for (const tag of tags.filter(isRelayTag)) {
+    const key = relayMatchKey(tag[1])!;
+    if (!byKey.has(key)) byKey.set(key, normalizeRelayUrl(tag[1])!);
+  }
+  return [...byKey.values()];
 }
 
 interface BlockedRelaysData {
@@ -58,10 +63,13 @@ export function useBlockedRelays() {
     staleTime: 5 * 60 * 1000,
     queryFn: async ({ signal }) => {
       if (!user) return { event: null, urls: [], privateUrls: [], unreadable: false };
-      const [event] = await nostr.query(
-        [{ kinds: [BLOCKED_RELAYS_KIND], authors: [user.pubkey], limit: 1 }],
-        { signal },
-      );
+      // Like the mute list, use the local store as a floor: a relay miss must
+      // not read as "nothing blocked" and reconnect to every blocked relay.
+      const event = await fetchFreshEvent(
+        nostr,
+        { kinds: [BLOCKED_RELAYS_KIND], authors: [user.pubkey] },
+        { store, signal },
+      ) ?? undefined;
       const contents = await readNip51List(event, user.signer, user.pubkey);
       return {
         event: event ?? null,
@@ -98,13 +106,13 @@ export function useBlockedRelays() {
   };
 
   const unblockRelay = (url: string) => {
-    const normalized = normalizeRelayUrl(url);
+    const key = relayMatchKey(url);
     return edit.mutateAsync((prev, contents) => editNip51List({
       prev,
       contents,
       signer: user!.signer,
       pubkey: user!.pubkey,
-      remove: (tag) => tag[0] === 'relay' && normalizeRelayUrl(tag[1] ?? '') === normalized,
+      remove: (tag) => tag[0] === 'relay' && relayMatchKey(tag[1] ?? '') === key,
       isEntry: isRelayTag,
       same: sameRelay,
     }));
@@ -119,6 +127,8 @@ export function useBlockedRelays() {
   }));
 
   return {
+    /** The list event read, or null when none was found (or not yet loaded). */
+    blockedRelaysEvent: query.data?.event ?? null,
     blockedRelays: query.data?.urls,
     /** The private entries among `blockedRelays`. */
     privateBlockedRelays: query.data?.privateUrls,

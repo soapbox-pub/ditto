@@ -35,16 +35,21 @@ function readKnownZappers(key: string): string[] {
  * - Both `lud16` and `lud06` are resolved, since clients zap through either.
  * - Providers seen before are remembered on this device, so switching
  *   provider doesn't hide the zaps received through the old one.
- * - Receipts older than the current profile are let through: they may come
- *   from a provider in use before it that this device never saw.
+ * - Receipts from an unknown signer that predate the current profile are
+ *   `unverified`: they may come from a provider in use before it that this
+ *   device never saw, but `created_at` is chosen by whoever signs the
+ *   receipt, so they must be shown as such and never count as unread.
+ *   Newer ones are `forged`.
  *
- * The returned function accepts every event until a provider is known (no
- * lightning address, endpoint unreachable, or zaps not supported), so
- * callers treat receipts as unverified rather than invalid. Non-zap events
- * always pass. `key` changes whenever the check does, for query keys.
+ * Every receipt is `genuine` until a provider is known (no lightning
+ * address, endpoint unreachable, or zaps not supported), since there is
+ * nothing to check it against. Non-zap events are always `genuine`. `key`
+ * changes whenever the check does, for query keys.
  */
+export type ZapReceiptVerdict = 'genuine' | 'unverified' | 'forged';
+
 export function useZapReceiptCheck(pubkey: string | undefined): {
-  isGenuine: (event: NostrEvent) => boolean;
+  checkZap: (event: NostrEvent) => ZapReceiptVerdict;
   key: string;
 } {
   const { config } = useAppContext();
@@ -81,13 +86,12 @@ export function useZapReceiptCheck(pubkey: string | undefined): {
 
   const zapperSet = useMemo(() => (zappers ? new Set(zappers) : undefined), [zappers]);
 
-  const isGenuine = useCallback((event: NostrEvent): boolean => {
-    if (event.kind !== 9735 || !zapperSet) return true;
-    if (zapperSet.has(event.pubkey)) return true;
-    return profileCreatedAt !== undefined && event.created_at < profileCreatedAt;
+  const checkZap = useCallback((event: NostrEvent): ZapReceiptVerdict => {
+    if (event.kind !== 9735 || !zapperSet || zapperSet.has(event.pubkey)) return 'genuine';
+    return profileCreatedAt !== undefined && event.created_at < profileCreatedAt ? 'unverified' : 'forged';
   }, [zapperSet, profileCreatedAt]);
 
   const key = zappers ? `${zappers.slice().sort().join(',')}@${profileCreatedAt ?? 0}` : 'any';
 
-  return { isGenuine, key };
+  return { checkZap, key };
 }

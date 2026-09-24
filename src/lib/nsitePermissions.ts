@@ -12,6 +12,8 @@
  * `getPublicKey` is always allowed (clicking "Run" implies consent) and is
  * not tracked in this system.
  */
+import { defineMessages, type IntlShape } from 'react-intl';
+
 import { getKindLabel } from '@/lib/kindLabels';
 import { MONERO_RECORD_D_SUFFIX } from '@/lib/monero/record';
 
@@ -244,11 +246,17 @@ export function getNsiteAllowance(
 // Human-readable labels
 // ---------------------------------------------------------------------------
 
-/** A user-facing description of one of the user's own records. */
+/** One of the user's own records that an nsite wants to read or write. */
 export interface NsiteRecordInfo {
-  /** Human-readable name, e.g. "Ditto settings" or `App data "foo/bar"`. */
-  label: string;
-  /** Holds key material — never remember decisions about it. */
+  /**
+   * Ditto's Monero wallet backup, Ditto's settings, another app's kind 30078
+   * data, or a record identified only by its kind.
+   */
+  type: 'wallet' | 'settings' | 'appData' | 'kind';
+  kind: number;
+  /** `d` tag, for app data. */
+  dTag?: string;
+  /** Holds key material or settings — never remember decisions about it. */
   sensitive: boolean;
 }
 
@@ -264,40 +272,71 @@ export function describeNsiteRecord(
 ): NsiteRecordInfo {
   if (kind === 30078 && dTag !== null) {
     if (dTag === `${appId}/${MONERO_RECORD_D_SUFFIX}`) {
-      return { label: 'Ditto Monero wallet', sensitive: true };
+      return { type: 'wallet', kind, sensitive: true };
     }
     if (dTag === `${appId}/metadata`) {
-      return { label: 'Ditto settings', sensitive: false };
+      return { type: 'settings', kind, sensitive: true };
     }
-    return { label: `App data "${dTag}"`, sensitive: false };
+    return { type: 'appData', kind, dTag, sensitive: false };
   }
-  return { label: getKindLabel(kind), sensitive: false };
+  return { type: 'kind', kind, sensitive: false };
+}
+
+const messages = defineMessages({
+  wallet: { id: 'nsite.record.wallet', defaultMessage: 'Ditto Monero wallet' },
+  settings: { id: 'nsite.record.settings', defaultMessage: 'Ditto settings' },
+  appData: { id: 'nsite.record.appData', defaultMessage: 'App data "{dTag}"' },
+  signEvent: { id: 'nsite.permission.signEvent', defaultMessage: 'Sign event' },
+  signKind: { id: 'nsite.permission.signKind', defaultMessage: 'Sign: {label}' },
+  write: { id: 'nsite.permission.write', defaultMessage: 'Write: {label}' },
+  read: { id: 'nsite.permission.read', defaultMessage: 'Read: {label}' },
+  nip04Encrypt: { id: 'nsite.permission.nip04Encrypt', defaultMessage: 'Encrypt (NIP-04)' },
+  nip44Encrypt: { id: 'nsite.permission.nip44Encrypt', defaultMessage: 'Encrypt (NIP-44)' },
+  nip04Decrypt: { id: 'nsite.permission.nip04Decrypt', defaultMessage: 'Decrypt messages (NIP-04)' },
+  nip44Decrypt: { id: 'nsite.permission.nip44Decrypt', defaultMessage: 'Decrypt messages (NIP-44)' },
+});
+
+/** A record's name, e.g. "Ditto settings" or `App data "foo/bar"`. */
+export function formatNsiteRecord(record: NsiteRecordInfo, intl: IntlShape): string {
+  switch (record.type) {
+    case 'wallet':
+      return intl.formatMessage(messages.wallet);
+    case 'settings':
+      return intl.formatMessage(messages.settings);
+    case 'appData':
+      return intl.formatMessage(messages.appData, { dTag: record.dTag ?? '' });
+    case 'kind':
+      return getKindLabel(record.kind);
+  }
 }
 
 /** Get a human-readable label for a stored permission. */
 export function getPermissionLabel(
   permission: Pick<NsitePermission, 'type' | 'kind' | 'dTag'>,
   appId: string,
+  intl: IntlShape,
 ): string {
   const { type, kind } = permission;
   const dTag = permission.dTag ?? null;
 
   switch (type) {
     case 'signEvent': {
-      if (kind === null) return 'Sign event';
+      if (kind === null) return intl.formatMessage(messages.signEvent);
       if (kind === 30078 && dTag !== null) {
-        return `Write: ${describeNsiteRecord(kind, dTag, appId).label}`;
+        return intl.formatMessage(messages.write, { label: formatNsiteRecord(describeNsiteRecord(kind, dTag, appId), intl) });
       }
-      return `Sign: ${getKindLabel(kind)}`;
+      return intl.formatMessage(messages.signKind, { label: getKindLabel(kind) });
     }
     case 'nip04.encrypt':
-      return 'Encrypt (NIP-04)';
+      return intl.formatMessage(messages.nip04Encrypt);
     case 'nip44.encrypt':
-      return 'Encrypt (NIP-44)';
+      return intl.formatMessage(messages.nip44Encrypt);
     case 'nip04.decrypt':
     case 'nip44.decrypt': {
-      if (kind !== null) return `Read: ${describeNsiteRecord(kind, dTag, appId).label}`;
-      return type === 'nip04.decrypt' ? 'Decrypt messages (NIP-04)' : 'Decrypt messages (NIP-44)';
+      if (kind !== null) {
+        return intl.formatMessage(messages.read, { label: formatNsiteRecord(describeNsiteRecord(kind, dTag, appId), intl) });
+      }
+      return intl.formatMessage(type === 'nip04.decrypt' ? messages.nip04Decrypt : messages.nip44Decrypt);
     }
   }
 }

@@ -104,6 +104,27 @@ function getDTag(tags: unknown): string {
   return typeof tag?.[1] === 'string' ? tag[1] : '';
 }
 
+/** NIP-51 list kinds, whose private items are a JSON array of tags. */
+const LIST_KINDS = new Set([10000, 10003, 30000, 30003]);
+
+/**
+ * Whether decrypted content is plausibly the record it was matched to: list
+ * kinds must hold a tag array, and nothing non-sensitive may hold a seed.
+ */
+function plaintextFitsRecord(kind: number, plaintext: string): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(plaintext);
+  } catch {
+    return !LIST_KINDS.has(kind);
+  }
+  if (LIST_KINDS.has(kind)) {
+    return Array.isArray(parsed)
+      && parsed.every((t) => Array.isArray(t) && t.every((v) => typeof v === 'string'));
+  }
+  return !(parsed !== null && typeof parsed === 'object' && 'seed' in parsed);
+}
+
 function countDTags(tags: unknown): number {
   if (!Array.isArray(tags)) return 0;
   return tags.filter((t) => Array.isArray(t) && t[0] === 'd').length;
@@ -224,29 +245,52 @@ export function useNsiteSignerRpc({
     [siteId, siteName, user, showPrompt],
   );
 
-  /** Find which of the user's own records a self-encrypted ciphertext is from. */
+  /**
+   * Find which of the user's own records a self-encrypted ciphertext is from.
+   * Returns every distinct record whose content is exactly this ciphertext:
+   * anyone can copy a ciphertext into a new event, so a site allowed to sign
+   * one kind could republish another record's content under it.
+   */
   const identifySelfCiphertext = useCallback(
-    async (ciphertext: string): Promise<{ kind: number; dTag: string | null } | null> => {
-      if (!user) return null;
+    async (ciphertext: string): Promise<{ kind: number; dTag: string | null }[]> => {
+      if (!user) return [];
       try {
         const events = await store.query([{ kinds: SELF_ENCRYPTED_KINDS, authors: [user.pubkey] }]);
-        const match = events.find((e) => e.pubkey === user.pubkey && e.content === ciphertext);
-        if (!match) return null;
-        return { kind: match.kind, dTag: match.kind === 30078 ? getDTag(match.tags) : null };
+        const matches = new Map<string, { kind: number; dTag: string | null }>();
+        for (const e of events) {
+          if (e.pubkey !== user.pubkey || e.content !== ciphertext) continue;
+          const dTag = e.kind === 30078 ? getDTag(e.tags) : null;
+          matches.set(JSON.stringify([e.kind, dTag]), { kind: e.kind, dTag });
+        }
+        return [...matches.values()];
       } catch {
-        return null;
+        return [];
       }
     },
     [store, user],
   );
 
+  /** Ask about self-encrypted data that can't be tied to one known record. */
+  const checkUnknownSelfData = useCallback(
+    (type: 'nip04.decrypt' | 'nip44.decrypt') => checkPermission(
+      { type, kind: null, dTag: UNKNOWN_SELF_DATA },
+      { type, kind: null, record: 'unknown', rememberMode: 'never' },
+    ),
+    [checkPermission],
+  );
+
   /**
-   * Gate a decrypt call. Messages with other people share one grant per
-   * operation. Data encrypted to the user's own key is gated per record, since
-   * it holds private lists, settings and wallet backups.
+   * Gate a decrypt call and run it. Messages with other people share one
+   * grant per operation. Data encrypted to the user's own key is gated per
+   * record, since it holds private lists, settings and wallet backups.
    */
-  const checkDecrypt = useCallback(
-    async (type: 'nip04.decrypt' | 'nip44.decrypt', pubkey: string, ciphertext: string) => {
+  const gatedDecrypt = useCallback(
+    async (
+      type: 'nip04.decrypt' | 'nip44.decrypt',
+      pubkey: string,
+      ciphertext: string,
+      decrypt: () => Promise<string>,
+    ): Promise<string> => {
       if (!user) throw new Error('Not logged in');
 
       if (pubkey.toLowerCase() !== user.pubkey) {
@@ -254,30 +298,40 @@ export function useNsiteSignerRpc({
           { type, kind: null, dTag: null },
           { type, kind: null, rememberMode: 'always' },
         );
-        return;
+        return decrypt();
       }
 
-      const target = await identifySelfCiphertext(ciphertext);
+      const targets = await identifySelfCiphertext(ciphertext);
 
       // Unidentified data is asked about every time. It is only matched
       // against records in the local store, so a site could fetch the wallet
       // backup from relays (or alter a NIP-04 IV) to make it look unknown,
-      // and a remembered grant would then cover it.
-      if (!target) {
-        await checkPermission(
-          { type, kind: null, dTag: UNKNOWN_SELF_DATA },
-          { type, kind: null, record: 'unknown', rememberMode: 'never' },
-        );
-        return;
+      // and a remembered grant would then cover it. The same goes for
+      // ciphertext found in more than one record.
+      if (targets.length !== 1) {
+        await checkUnknownSelfData(type);
+        return decrypt();
       }
 
+      const [target] = targets;
       const record = describeNsiteRecord(target.kind, target.dTag, config.appId);
       await checkPermission(
         { type, kind: target.kind, dTag: target.dTag },
         { type, kind: target.kind, record, rememberMode: record.sensitive ? 'never' : 'always' },
       );
+      const plaintext = await decrypt();
+      if (record.sensitive) return plaintext;
+
+      // The only copy of another record's ciphertext may be one the site
+      // republished under a kind it can sign, with the real record not in the
+      // local store. What it decrypts to has to fit the record it claims to
+      // be, or the grant for that record doesn't cover it.
+      if (!plaintextFitsRecord(target.kind, plaintext)) {
+        await checkUnknownSelfData(type);
+      }
+      return plaintext;
     },
-    [user, config.appId, checkPermission, identifySelfCiphertext],
+    [user, config.appId, checkPermission, checkUnknownSelfData, identifySelfCiphertext],
   );
 
   // ---------------------------------------------------------------------------
@@ -375,9 +429,8 @@ export function useNsiteSignerRpc({
             throw new Error('Invalid params');
           }
 
-          await checkDecrypt('nip04.decrypt', pubkey, ciphertext);
-
-          return await signer.nip04.decrypt(pubkey, ciphertext);
+          const nip04 = signer.nip04;
+          return await gatedDecrypt('nip04.decrypt', pubkey, ciphertext, () => nip04.decrypt(pubkey, ciphertext));
         }
 
         // ------------------------------------------------------------------
@@ -409,16 +462,15 @@ export function useNsiteSignerRpc({
             throw new Error('Invalid params');
           }
 
-          await checkDecrypt('nip44.decrypt', pubkey, ciphertext);
-
-          return await signer.nip44.decrypt(pubkey, ciphertext);
+          const nip44 = signer.nip44;
+          return await gatedDecrypt('nip44.decrypt', pubkey, ciphertext, () => nip44.decrypt(pubkey, ciphertext));
         }
 
         default:
           throw new Error(`Method not found: ${method}`);
       }
     },
-    [user, config.appId, checkPermission, checkDecrypt],
+    [user, config.appId, checkPermission, gatedDecrypt],
   );
 
   return { onRpc, pendingPrompt, resolvePrompt };

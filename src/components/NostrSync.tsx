@@ -161,16 +161,23 @@ export function NostrSync() {
   // If the private entries couldn't be decrypted, use the private entries
   // last read in their place rather than reconnecting to relays the user
   // blocked privately. Public entries always come from the fetched list, so
-  // an unblock still takes effect.
-  const { blockedRelays, privateBlockedRelays, unreadable: blockedRelaysUnreadable } = useBlockedRelays();
+  // an unblock still takes effect. When no list was found at all (a relay
+  // miss, or offline), keep the cached list: unblocking publishes a new list,
+  // so a missing one is never an unblock.
+  const {
+    blockedRelaysEvent,
+    blockedRelays,
+    privateBlockedRelays,
+    unreadable: blockedRelaysUnreadable,
+  } = useBlockedRelays();
   useEffect(() => {
-    if (!user || !blockedRelays) return;
+    if (!user || !blockedRelays || !blockedRelaysEvent) return;
     if (blockedRelaysUnreadable) {
       setBlockedRelays(user.pubkey, [...blockedRelays, ...getCachedPrivateBlockedRelays(user.pubkey)]);
     } else {
       setBlockedRelays(user.pubkey, blockedRelays, privateBlockedRelays ?? []);
     }
-  }, [user, blockedRelays, privateBlockedRelays, blockedRelaysUnreadable]);
+  }, [user, blockedRelaysEvent, blockedRelays, privateBlockedRelays, blockedRelaysUnreadable]);
 
   // Fetch the user's BUD-03 Blossom server list (kind 10063).
   // useInitialSync seeds ['blossomServerList', pubkey] into the cache on first login.

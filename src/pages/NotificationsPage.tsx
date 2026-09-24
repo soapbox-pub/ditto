@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { FormattedMessage } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { useInView } from '@/hooks/useInView';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useQueryClient } from '@tanstack/react-query';
@@ -728,13 +728,37 @@ function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boole
         <NotificationHeader
           actorPubkey={senderPubkey}
           icon={<Zap className="size-4 text-amber-500 fill-amber-500" />}
-          action={<ActionLink event={event}>{actionText}</ActionLink>}
+          action={
+            <>
+              <ActionLink event={event}>{actionText}</ActionLink>
+              {item.unverified && <UnverifiedZapLabel />}
+            </>
+          }
         />
       </div>
       {recipientPubkey
         ? <ZapRecipientCard recipientPubkey={recipientPubkey} timestamp={event.created_at} />
         : <ReferencedNoteCard item={item} />}
     </NotificationWrapper>
+  );
+}
+
+/**
+ * Marks a zap receipt that wasn't signed by any lightning provider this
+ * device knows for the user, so its sender and amount may be made up.
+ */
+function UnverifiedZapLabel() {
+  const intl = useIntl();
+  return (
+    <span
+      className="ml-1.5 rounded-full border border-border px-1.5 py-0.5 text-xs text-muted-foreground"
+      title={intl.formatMessage({
+        id: 'notifications.zapUnverified.title',
+        defaultMessage: 'This receipt was not signed by a known lightning provider of yours, so the sender and amount may be made up.',
+      })}
+    >
+      <FormattedMessage id="notifications.zapUnverified" defaultMessage="Unverified" />
+    </span>
   );
 }
 

@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { Shield, X } from 'lucide-react';
+import { useIntl } from 'react-intl';
 
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -66,6 +67,7 @@ interface NsitePermissionManagerProps {
 export function NsitePermissionManager({ siteId }: NsitePermissionManagerProps) {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
+  const intl = useIntl();
 
   // Subscribe to permission changes so the list stays in sync.
   useSyncExternalStore(subscribe, getSnapshot);
@@ -145,7 +147,7 @@ export function NsitePermissionManager({ siteId }: NsitePermissionManagerProps) 
                 >
                   {/* Label */}
                   <span className="text-sm flex-1 min-w-0 truncate">
-                    {getPermissionLabel(perm, config.appId)}
+                    {getPermissionLabel(perm, config.appId, intl)}
                   </span>
 
                   {/* Remove */}

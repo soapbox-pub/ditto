@@ -17,7 +17,7 @@ export interface RelayListEntry {
  * while `RelayListManager` runs URLs through `new URL().toString()` which *adds*
  * one. Normalizing on read keeps both shapes comparable.
  */
-export function normalizeRelayUrl(url: string): string {
+export function trimRelayUrl(url: string): string {
   return url.replace(/\/+$/, '');
 }
 
@@ -40,7 +40,7 @@ export function parseRelayList(event: NostrEvent): RelayListEntry[] {
     try {
       const parsed = new URL(url);
       if (parsed.protocol !== 'wss:' && parsed.protocol !== 'ws:') continue;
-      normalized = normalizeRelayUrl(parsed.href);
+      normalized = trimRelayUrl(parsed.href);
     } catch {
       continue;
     }

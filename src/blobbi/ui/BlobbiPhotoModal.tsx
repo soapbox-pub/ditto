@@ -14,10 +14,9 @@ import { useUploadFile } from '@/hooks/useUploadFile';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from '@/hooks/useToast';
-import { openUrl } from '@/lib/downloadFile';
+import { downloadBinaryFile } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
 import type { BlobbiCompanion } from '@blobbi-kit/core/blobbi';
-import { Capacitor } from '@capacitor/core';
 
 export interface BlobbiPhotoModalProps {
   open: boolean;
@@ -73,20 +72,13 @@ export function BlobbiPhotoModal({
       if (!dataUrl) return;
       const filename = `${companion.name.toLowerCase().replace(/\s+/g, '-')}-photo.png`;
 
-      if (Capacitor.isNativePlatform()) {
-        // On native, use the download utility which handles share sheet
-        const blob = dataUrlToFile(dataUrl, filename);
-        const url = URL.createObjectURL(blob);
-        await openUrl(url);
-        URL.revokeObjectURL(url);
-      } else {
-        const link = document.createElement('a');
-        link.download = filename;
-        link.href = dataUrl;
-        link.click();
-      }
+      const bytes = new Uint8Array(await dataUrlToFile(dataUrl, filename).arrayBuffer());
+      await downloadBinaryFile(filename, bytes);
 
       toast({ title: 'Photo saved!' });
+    } catch (error) {
+      console.error('[BlobbiPhoto] Failed to save photo:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to save photo.' });
     } finally {
       setIsDownloading(false);
     }

@@ -42,6 +42,10 @@ const ISSUE_LABELS: Record<ImportIssueKind, MessageDescriptor> = {
     id: 'settings.data.issue.malformed',
     defaultMessage: 'Not a readable event',
   }),
+  ephemeral: defineMessage({
+    id: 'settings.data.issue.ephemeral',
+    defaultMessage: 'Temporary event, never imported',
+  }),
 };
 
 /** Determinate bar for the local phases of an import (signing, saving). */

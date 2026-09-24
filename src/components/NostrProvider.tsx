@@ -19,6 +19,7 @@ import {
   loadBlockedRelays,
   normalizeRelayUrl,
   onBlockedRelaysChange,
+  relayMatchKey,
   requestRelayAuth,
   resetRelayAuthSession,
   setUnblockableRelays,
@@ -248,7 +249,8 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
               content: '',
               tags: [
                 ['relay', url.href],
-                ['challenge', challenge],
+                // A challenge may have been replaced while the user was asked.
+                ['challenge', relay.currentChallenge ?? challenge],
               ],
               created_at: Math.floor(Date.now() / 1000),
             });
@@ -317,15 +319,15 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // takes effect for relays not yet opened. When the blocked set changes,
   // close and forget the affected relays: a newly blocked relay's live
   // connection ends, and an unblocked one is reopened for real on next use.
-  // Keys are the URLs as callers wrote them, so compare them normalized.
+  // Pool keys are the URLs as callers wrote them, so compare match keys.
   useEffect(() => {
     return onBlockedRelaysChange((changed) => {
       // NPool only exposes its relay map read-only; it is a Map at runtime.
       const relays = pool.current?.relays as Map<string, NRelay1> | undefined;
       if (!relays) return;
       for (const [key, relay] of [...relays]) {
-        const href = normalizeRelayUrl(key);
-        if (href && changed.includes(href)) {
+        const matchKey = relayMatchKey(key);
+        if (matchKey && changed.includes(matchKey)) {
           relays.delete(key);
           void relay.close();
         }

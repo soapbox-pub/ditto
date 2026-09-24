@@ -3,6 +3,7 @@ import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { cn } from '@/lib/utils';
 import { useCustomEmojis, type CustomEmoji } from '@/hooks/useCustomEmojis';
 import { usePortalDropdown } from '@/hooks/usePortalDropdown';
+import { useTapToSelect } from '@/hooks/useTapToSelect';
 
 interface EmojiData {
   id: string;
@@ -390,6 +391,8 @@ export function EmojiShortcodeAutocomplete({
     setColonStart(-1);
   }, [colonStart, query, textareaRef, onInsertEmoji, onCustomEmojiInsert, customEmojis]);
 
+  const tapToSelect = useTapToSelect();
+
   if (!isOpen || !dropdownPos || results.length === 0) {
     return null;
   }
@@ -410,13 +413,7 @@ export function EmojiShortcodeAutocomplete({
               'w-full flex items-center gap-3 px-3 py-1.5 text-left text-popover-foreground transition-colors cursor-pointer',
               index === selectedIndex ? 'bg-secondary/60' : 'hover:bg-secondary/60',
             )}
-            // Select on pointer-down so it fires reliably on touch (a
-            // mousedown-preventDefault can swallow the synthetic click);
-            // preventDefault keeps the composer focused.
-            onPointerDown={(e) => {
-              e.preventDefault();
-              selectEmoji(emoji);
-            }}
+            {...tapToSelect(() => selectEmoji(emoji))}
           >
             {emoji.customUrl ? (
               <CustomEmojiImg

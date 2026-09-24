@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { defineMessages, FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { AlertTriangle, Check, KeyRound, Lock, Pen, ShieldAlert, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -6,8 +7,8 @@ import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Label } from '@/components/ui/label';
-import { getKindLabel } from '@/lib/nsitePermissions';
-import type { NsitePromptState, NsitePromptDecision, NsiteRememberMode } from '@/hooks/useNsiteSignerRpc';
+import { formatNsiteRecord, getKindLabel } from '@/lib/nsitePermissions';
+import type { NsitePromptState, NsitePromptDecision } from '@/hooks/useNsiteSignerRpc';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -43,58 +44,81 @@ function getPromptIcon(type: NsitePromptState['type']) {
   }
 }
 
-function getPromptTitle(prompt: NsitePromptState): string {
+const messages = defineMessages({
+  write: { id: 'nsite.prompt.write', defaultMessage: 'Write: {label}' },
+  signKind: { id: 'nsite.prompt.signKind', defaultMessage: 'Sign: {label}' },
+  signEvent: { id: 'nsite.prompt.signEvent', defaultMessage: 'Sign event' },
+  nip04Encrypt: { id: 'nsite.prompt.nip04Encrypt', defaultMessage: 'Encrypt message (NIP-04)' },
+  nip44Encrypt: { id: 'nsite.prompt.nip44Encrypt', defaultMessage: 'Encrypt message (NIP-44)' },
+  readUnknown: { id: 'nsite.prompt.readUnknown', defaultMessage: 'Read your private data' },
+  read: { id: 'nsite.prompt.read', defaultMessage: 'Read: {label}' },
+  nip04Decrypt: { id: 'nsite.prompt.nip04Decrypt', defaultMessage: 'Decrypt message (NIP-04)' },
+  nip44Decrypt: { id: 'nsite.prompt.nip44Decrypt', defaultMessage: 'Decrypt message (NIP-44)' },
+  writeRecordDescription: {
+    id: 'nsite.prompt.writeRecordDescription',
+    defaultMessage: 'This app wants to save this data on your behalf, replacing what is stored there now.',
+  },
+  signDescription: { id: 'nsite.prompt.signDescription', defaultMessage: 'This app wants to sign a Nostr event on your behalf.' },
+  encryptDescription: { id: 'nsite.prompt.encryptDescription', defaultMessage: 'This app wants to encrypt a message using your keys.' },
+  readUnknownDescription: {
+    id: 'nsite.prompt.readUnknownDescription',
+    defaultMessage: 'This app wants to decrypt data that is encrypted to your own key. It could be private lists, app settings, or wallet backups.',
+  },
+  readRecordDescription: { id: 'nsite.prompt.readRecordDescription', defaultMessage: 'This app wants to read private data stored in this record.' },
+  decryptDescription: { id: 'nsite.prompt.decryptDescription', defaultMessage: 'This app wants to decrypt a message using your keys.' },
+  walletWrite: { id: 'nsite.prompt.walletWrite', defaultMessage: 'This will replace your Monero wallet backup.' },
+  walletRead: { id: 'nsite.prompt.walletRead', defaultMessage: 'This record contains your Monero wallet seed.' },
+  settingsWrite: {
+    id: 'nsite.prompt.settingsWrite',
+    defaultMessage: 'This will replace your Ditto settings, including your relays and content filters.',
+  },
+  settingsRead: { id: 'nsite.prompt.settingsRead', defaultMessage: 'This record contains your Ditto settings.' },
+  rememberSession: { id: 'nsite.prompt.rememberSession', defaultMessage: 'Remember until this app is closed' },
+  rememberSite: { id: 'nsite.prompt.rememberSite', defaultMessage: 'Remember for this site' },
+});
+
+function getPromptTitle(prompt: NsitePromptState, intl: IntlShape): string {
   const { type, kind, record } = prompt;
   switch (type) {
     case 'signEvent':
-      if (record && record !== 'unknown') return `Write: ${record.label}`;
+      if (record && record !== 'unknown') return intl.formatMessage(messages.write, { label: formatNsiteRecord(record, intl) });
       return kind !== null
-        ? `Sign: ${getKindLabel(kind)}`
-        : 'Sign event';
+        ? intl.formatMessage(messages.signKind, { label: getKindLabel(kind) })
+        : intl.formatMessage(messages.signEvent);
     case 'nip04.encrypt':
-      return 'Encrypt message (NIP-04)';
+      return intl.formatMessage(messages.nip04Encrypt);
     case 'nip44.encrypt':
-      return 'Encrypt message (NIP-44)';
+      return intl.formatMessage(messages.nip44Encrypt);
     case 'nip04.decrypt':
     case 'nip44.decrypt':
-      if (record === 'unknown') return 'Read your private data';
-      if (record) return `Read: ${record.label}`;
-      return type === 'nip04.decrypt' ? 'Decrypt message (NIP-04)' : 'Decrypt message (NIP-44)';
+      if (record === 'unknown') return intl.formatMessage(messages.readUnknown);
+      if (record) return intl.formatMessage(messages.read, { label: formatNsiteRecord(record, intl) });
+      return intl.formatMessage(type === 'nip04.decrypt' ? messages.nip04Decrypt : messages.nip44Decrypt);
   }
 }
 
-function getPromptDescription(prompt: NsitePromptState): string {
+function getPromptDescription(prompt: NsitePromptState, intl: IntlShape): string {
   const { type, record } = prompt;
   switch (type) {
     case 'signEvent':
-      if (record && record !== 'unknown') {
-        return 'This app wants to save this data on your behalf, replacing what is stored there now.';
-      }
-      return 'This app wants to sign a Nostr event on your behalf.';
+      return intl.formatMessage(record && record !== 'unknown' ? messages.writeRecordDescription : messages.signDescription);
     case 'nip04.encrypt':
     case 'nip44.encrypt':
-      return 'This app wants to encrypt a message using your keys.';
+      return intl.formatMessage(messages.encryptDescription);
     case 'nip04.decrypt':
     case 'nip44.decrypt':
-      if (record === 'unknown') {
-        return 'This app wants to decrypt data that is encrypted to your own key. It could be private lists, app settings, or wallet backups.';
-      }
-      if (record) return 'This app wants to read private data stored in this record.';
-      return 'This app wants to decrypt a message using your keys.';
+      if (record === 'unknown') return intl.formatMessage(messages.readUnknownDescription);
+      return intl.formatMessage(record ? messages.readRecordDescription : messages.decryptDescription);
   }
 }
 
-/** Warning for records holding key material, or null. */
-function getSensitiveWarning(prompt: NsitePromptState): string | null {
+/** Warning for records holding key material or settings, or null. */
+function getSensitiveWarning(prompt: NsitePromptState, intl: IntlShape): string | null {
   const { type, record } = prompt;
   if (!record || record === 'unknown' || !record.sensitive) return null;
-  return type === 'signEvent'
-    ? 'This will replace your Monero wallet backup.'
-    : 'This record contains your Monero wallet seed.';
-}
-
-function getRememberLabel(mode: NsiteRememberMode): string {
-  return mode === 'session' ? 'Remember until this app is closed' : 'Remember for this site';
+  const write = type === 'signEvent';
+  if (record.type === 'settings') return intl.formatMessage(write ? messages.settingsWrite : messages.settingsRead);
+  return intl.formatMessage(write ? messages.walletWrite : messages.walletRead);
 }
 
 /** Truncate a string to a maximum character length. */
@@ -118,6 +142,7 @@ export function NsitePermissionPrompt({
   prompt,
   onResolve,
 }: NsitePermissionPromptProps) {
+  const intl = useIntl();
   const [remember, setRemember] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
@@ -126,9 +151,9 @@ export function NsitePermissionPrompt({
   const handleDeny = () => onResolve({ allowed: false, remember: canRemember && remember });
 
   const icon = getPromptIcon(prompt.type);
-  const title = getPromptTitle(prompt);
-  const description = getPromptDescription(prompt);
-  const warning = getSensitiveWarning(prompt);
+  const title = getPromptTitle(prompt, intl);
+  const description = getPromptDescription(prompt, intl);
+  const warning = getSensitiveWarning(prompt, intl);
 
   // For signEvent, show a preview of the event content.
   const eventContent = prompt.event?.content as string | undefined;
@@ -148,7 +173,9 @@ export function NsitePermissionPrompt({
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate">{appName}</p>
-            <p className="text-xs text-muted-foreground">Permission request</p>
+            <p className="text-xs text-muted-foreground">
+              <FormattedMessage id="nsite.prompt.header" defaultMessage="Permission request" />
+            </p>
           </div>
           {appPicture && (
             <img
@@ -182,7 +209,9 @@ export function NsitePermissionPrompt({
           {/* Event content preview (signEvent only) */}
           {prompt.type === 'signEvent' && eventContent && (
             <div className="rounded-lg border bg-muted/30 p-3">
-              <p className="text-xs text-muted-foreground mb-1">Content</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                <FormattedMessage id="nsite.prompt.content" defaultMessage="Content" />
+              </p>
               <p className="text-sm break-words whitespace-pre-wrap">
                 {truncate(eventContent, 280)}
               </p>
@@ -197,7 +226,9 @@ export function NsitePermissionPrompt({
                   type="button"
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {showDetails ? 'Hide details' : 'Show details'}
+                  {showDetails
+                    ? <FormattedMessage id="nsite.prompt.hideDetails" defaultMessage="Hide details" />
+                    : <FormattedMessage id="nsite.prompt.showDetails" defaultMessage="Show details" />}
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
@@ -220,7 +251,7 @@ export function NsitePermissionPrompt({
                 htmlFor="nsite-remember"
                 className="text-xs text-muted-foreground cursor-pointer select-none"
               >
-                {getRememberLabel(prompt.rememberMode)}
+                {intl.formatMessage(prompt.rememberMode === 'session' ? messages.rememberSession : messages.rememberSite)}
               </Label>
             </div>
           )}
@@ -234,14 +265,14 @@ export function NsitePermissionPrompt({
             onClick={handleDeny}
           >
             <X className="size-3.5" />
-            Deny
+            <FormattedMessage id="nsite.prompt.deny" defaultMessage="Deny" />
           </Button>
           <Button
             className="flex-1 gap-1.5"
             onClick={handleAllow}
           >
             <Check className="size-3.5" />
-            Allow
+            <FormattedMessage id="nsite.prompt.allow" defaultMessage="Allow" />
           </Button>
         </div>
       </div>

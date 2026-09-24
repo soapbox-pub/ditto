@@ -8,6 +8,7 @@ import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { cn } from '@/lib/utils';
 import { usePortalDropdown } from '@/hooks/usePortalDropdown';
+import { useTapToSelect } from '@/hooks/useTapToSelect';
 
 interface MentionAutocompleteProps {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -287,28 +288,6 @@ export function MentionAutocomplete({
   return renderPortal(dropdown, document.body);
 }
 
-/**
- * After a tap selects a mention, the browser still fires the compatibility
- * mousedown/mouseup/click for that touch, and the dropdown is gone by then, so
- * they land on whatever was underneath: usually the textarea, where they'd
- * move the caret away from the inserted mention. Swallow them once.
- */
-function suppressGhostClick(): void {
-  const types = ['mousedown', 'mouseup', 'click'] as const;
-  const swallow = (event: Event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.type === 'click') cleanup();
-  };
-  const cleanup = () => {
-    clearTimeout(timer);
-    for (const type of types) document.removeEventListener(type, swallow, true);
-  };
-  for (const type of types) document.addEventListener(type, swallow, true);
-  // Compatibility events follow within a few hundred ms; don't linger.
-  const timer = setTimeout(cleanup, 600);
-}
-
 function MentionItem({
   profile,
   isSelected,
@@ -327,8 +306,7 @@ function MentionItem({
   const nip05Display = nip05Verified && nip05 ? (nip05.startsWith('_@') ? nip05.slice(2) : nip05) : undefined;
   const identifier = nip05Display || nip19.npubEncode(pubkey);
 
-  // Where a touch/pen gesture started, so we can tell a tap from a scroll.
-  const pointerStart = useRef<{ x: number; y: number } | null>(null);
+  const tapToSelect = useTapToSelect();
 
   return (
     <button
@@ -337,33 +315,7 @@ function MentionItem({
         'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors cursor-pointer',
         isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
       )}
-      // Mouse: select on pointer-down and preventDefault so the composer keeps
-      // focus (a mousedown-preventDefault can otherwise swallow the click).
-      // Touch/pen: defer to pointer-up and require the finger to have stayed
-      // put, so dragging to scroll the list isn't mistaken for a tap. We must
-      // NOT preventDefault on touch pointer-down or native scrolling is killed.
-      onPointerDown={(e) => {
-        if (e.pointerType === 'mouse') {
-          e.preventDefault();
-          onSelect();
-          return;
-        }
-        pointerStart.current = { x: e.clientX, y: e.clientY };
-      }}
-      onPointerUp={(e) => {
-        if (e.pointerType === 'mouse') return;
-        const start = pointerStart.current;
-        pointerStart.current = null;
-        if (!start) return;
-        // 10px slop distinguishes a stationary tap from a scroll drag.
-        if (Math.abs(e.clientX - start.x) < 10 && Math.abs(e.clientY - start.y) < 10) {
-          suppressGhostClick();
-          onSelect();
-        }
-      }}
-      onPointerCancel={() => {
-        pointerStart.current = null;
-      }}
+      {...tapToSelect(onSelect)}
     >
       <div className="relative shrink-0">
         <Avatar shape={getAvatarShape(metadata)} className="size-8">

@@ -59,6 +59,10 @@ function censorValue(value: unknown, ancestors: Set<object>, depth: number): unk
   if (!value || typeof value !== 'object') return value;
   if (ancestors.has(value) || depth > MAX_DEPTH) return '[omitted]';
 
+  // Raw bytes (e.g. a `Uint8Array` secret key) would otherwise be stringified
+  // into their numeric values below.
+  if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer) return '[binary]';
+
   if (value instanceof Error) {
     return {
       name: value.name,
@@ -83,7 +87,9 @@ function censorValue(value: unknown, ancestors: Set<object>, depth: number): unk
         // beforeSend and never sends as-is.
         copy[key] = val;
       } else {
-        copy[key] = typeof val === 'string' && SECRET_KEY.test(key)
+        // Redact by key whatever the value's type: a key can be a string,
+        // bytes, or an array of numbers.
+        copy[key] = val !== null && val !== undefined && typeof val !== 'boolean' && SECRET_KEY.test(key)
           ? '[redacted]'
           : censorValue(val, ancestors, depth + 1);
       }

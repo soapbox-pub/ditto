@@ -193,11 +193,16 @@ export async function saveNsec(
     // shared folder other apps can read.
     if (Capacitor.getPlatform() === 'android') {
       const { DittoDownloader } = await import('./dittoDownloader');
-      const { saved } = await DittoDownloader.saveTextDocument({
-        filename: nsecFilename(npub, name),
-        content: nsec,
-      });
-      return saved ? 'saved-to-file' : 'dismissed';
+      try {
+        const { saved } = await DittoDownloader.saveTextDocument({
+          filename: nsecFilename(npub, name),
+          content: nsec,
+        });
+        return saved ? 'saved-to-file' : 'dismissed';
+      } catch {
+        // No document picker on the device, or the write failed.
+        return 'dismissed';
+      }
     }
 
     // iOS: dismissal is a deliberate user choice, no automatic fallback.

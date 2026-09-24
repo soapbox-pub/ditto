@@ -2,10 +2,12 @@ package pub.ditto.app;
 
 import android.app.Activity;
 import android.app.DownloadManager;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Environment;
+import android.provider.DocumentsContract;
 import android.util.Log;
 
 import androidx.activity.result.ActivityResult;
@@ -38,6 +40,14 @@ import java.nio.charset.StandardCharsets;
 public class DittoDownloadPlugin extends Plugin {
 
     private static final String TAG = "DittoDownloadPlugin";
+
+    /**
+     * Content waiting for the "Save as" dialog to return. Held here rather
+     * than in the call's data, because Capacitor copies a pending call's data
+     * into the activity's saved state while another activity covers it, and
+     * that state leaves the process. The content can be a private key.
+     */
+    private String pendingContent;
 
     /**
      * Enqueue a download of {@code url} into the public Downloads folder.
@@ -123,7 +133,14 @@ public class DittoDownloadPlugin extends Plugin {
         intent.setType("text/plain");
         intent.putExtra(Intent.EXTRA_TITLE, safeFilename(filename));
 
-        startActivityForResult(call, intent, "saveTextDocumentResult");
+        pendingContent = content;
+        call.getData().remove("content");
+        try {
+            startActivityForResult(call, intent, "saveTextDocumentResult");
+        } catch (ActivityNotFoundException e) {
+            pendingContent = null;
+            call.reject("No app is available to save files", e);
+        }
     }
 
     @ActivityCallback
@@ -134,28 +151,50 @@ public class DittoDownloadPlugin extends Plugin {
         Intent data = result.getData();
         Uri uri = data != null ? data.getData() : null;
 
+        String content = pendingContent;
+        pendingContent = null;
+
         if (result.getResultCode() != Activity.RESULT_OK || uri == null) {
             ret.put("saved", false);
             call.resolve(ret);
             return;
         }
 
-        String content = call.getString("content", "");
+        // The process was recreated while the dialog was open, so the content
+        // is gone. Don't leave the empty file behind.
+        if (content == null) {
+            deleteDocument(uri);
+            ret.put("saved", false);
+            call.resolve(ret);
+            return;
+        }
+
         // "w", not "wt": some providers (e.g. Drive) reject truncate mode, and
         // ACTION_CREATE_DOCUMENT always hands back a new, empty file anyway.
         try (OutputStream out = getContext().getContentResolver().openOutputStream(uri, "w")) {
             if (out == null) {
+                deleteDocument(uri);
                 call.reject("Could not open the chosen file");
                 return;
             }
             out.write(content.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
+            deleteDocument(uri);
             call.reject("Save failed: " + e.getMessage(), e);
             return;
         }
 
         ret.put("saved", true);
         call.resolve(ret);
+    }
+
+    /** Remove a document created by the "Save as" dialog, if the provider allows it. */
+    private void deleteDocument(Uri uri) {
+        try {
+            DocumentsContract.deleteDocument(getContext().getContentResolver(), uri);
+        } catch (Exception e) {
+            Log.w(TAG, "Could not delete the unwritten file", e);
+        }
     }
 
     /**

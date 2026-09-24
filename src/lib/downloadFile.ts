@@ -190,8 +190,7 @@ export async function downloadUrl(url: string, filename?: string): Promise<'down
       await DittoDownloader.download({ url, filename: name });
       return 'downloaded';
     } catch {
-      await openUrl(url);
-      return 'opened';
+      return openInstead(url);
     }
   }
 
@@ -205,8 +204,7 @@ export async function downloadUrl(url: string, filename?: string): Promise<'down
       });
       return 'downloaded';
     } catch {
-      await openUrl(url);
-      return 'opened';
+      return openInstead(url);
     }
   }
 
@@ -217,8 +215,7 @@ export async function downloadUrl(url: string, filename?: string): Promise<'down
     await downloadBinaryFile(name, bytes);
     return 'downloaded';
   } catch {
-    await openUrl(url);
-    return 'opened';
+    return openInstead(url);
   }
 }
 
@@ -251,8 +248,10 @@ const OPENABLE_SCHEMES = new Set([
  *
  * Previously this presented the native share sheet, which meant navigation
  * links and download buttons showed a "share" prompt instead of opening.
+ *
+ * Resolves to false when the URL was refused.
  */
-export async function openUrl(url: string): Promise<void> {
+export async function openUrl(url: string): Promise<boolean> {
   // Refuse anything unparseable or outside the allowlist. This warns rather
   // than throws: most callers are fire-and-forget click handlers, and a
   // rejection there would surface as an unhandled promise rejection.
@@ -261,11 +260,11 @@ export async function openUrl(url: string): Promise<void> {
     scheme = new URL(url).protocol.toLowerCase();
   } catch {
     console.warn('openUrl: refusing to open an invalid URL');
-    return;
+    return false;
   }
   if (!OPENABLE_SCHEMES.has(scheme)) {
     console.warn(`openUrl: refusing to open a ${scheme} URL`);
-    return;
+    return false;
   }
 
   if (Capacitor.isNativePlatform()) {
@@ -281,4 +280,11 @@ export async function openUrl(url: string): Promise<void> {
     // triggers the external app without actually unloading the current page.
     window.location.href = url;
   }
+  return true;
+}
+
+/** Fall back to opening a URL that couldn't be downloaded. Throws if refused. */
+async function openInstead(url: string): Promise<'opened'> {
+  if (!(await openUrl(url))) throw new Error('This file cannot be downloaded or opened');
+  return 'opened';
 }

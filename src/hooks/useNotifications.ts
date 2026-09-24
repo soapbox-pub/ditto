@@ -17,6 +17,12 @@ export interface NotificationItem {
   event: NostrEvent;
   /** The referenced event (the post that was liked/reposted/zapped/highlighted), if available. */
   referencedEvent?: NostrEvent;
+  /**
+   * A zap receipt whose signer isn't a known provider of the user's, kept
+   * only because it predates their current profile. Its sender and amount
+   * can't be trusted, so it stands alone and never counts as unread.
+   */
+  unverified?: boolean;
 }
 
 /**
@@ -109,6 +115,7 @@ function getReferencedEventId(event: NostrEvent): string | undefined {
  */
 function groupKey(item: NotificationItem): string {
   const { event } = item;
+  if (item.unverified) return event.id;
   const refId = item.referencedEvent?.id ?? getReferencedEventId(event);
 
   if ((event.kind === 7 || event.kind === 6 || event.kind === 16 || event.kind === 9735 || event.kind === 8333 || event.kind === 9802 || event.kind === 7849) && refId) {
@@ -361,19 +368,22 @@ export function useNotifications(): NotificationData {
 
   // Genuine zap receipts for the user are signed by their lightning
   // provider. Anyone can sign a kind 9735, so drop receipts from other
-  // signers once the provider is known.
-  const { isGenuine: isGenuineZap } = useZapReceiptCheck(user?.pubkey);
+  // signers once the provider is known, and mark the ones that can't be told
+  // apart from an old provider's.
+  const { checkZap } = useZapReceiptCheck(user?.pubkey);
 
   // Flatten and deduplicate across pages
   const items = useMemo(() => {
     if (!data?.pages) return [];
     const seen = new Set<string>();
-    return data.pages.flatMap((page) => page.items).filter((item) => {
-      if (seen.has(item.event.id)) return false;
+    return data.pages.flatMap((page) => page.items).flatMap((item) => {
+      if (seen.has(item.event.id)) return [];
       seen.add(item.event.id);
-      return isGenuineZap(item.event);
+      const verdict = checkZap(item.event);
+      if (verdict === 'forged') return [];
+      return verdict === 'unverified' ? [{ ...item, unverified: true }] : [item];
     });
-  }, [data?.pages, isGenuineZap]);
+  }, [data?.pages, checkZap]);
 
   // Only use cursor if settings have actually loaded, otherwise null
   const remoteCursor = settings !== undefined && settings !== null
@@ -401,7 +411,7 @@ export function useNotifications(): NotificationData {
     if (notificationsCursor === null) return new Set<string>();
     return new Set(
       items
-        .filter((item) => item.event.created_at > notificationsCursor)
+        .filter((item) => !item.unverified && item.event.created_at > notificationsCursor)
         .map((item) => item.event.id),
     );
   }, [items, notificationsCursor]);

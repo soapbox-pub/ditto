@@ -51,6 +51,3 @@ android/*/build/
 android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
 android/downloads/
 i18n-extract.json
-
-# Generated screenshots from the visual composer test (npm run test:visual)
-scripts/visual/out/

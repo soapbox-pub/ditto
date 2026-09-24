@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { isRelayBlocked } from '@/lib/relayPolicy';
+
 export interface RelayInfoDocument {
   name?: string;
   description?: string;
@@ -41,12 +43,17 @@ function relayToHttpUrl(relayUrl: string): string | null {
 
 export function useRelayInfo(relayUrl: string | undefined) {
   const httpUrl = relayUrl ? relayToHttpUrl(relayUrl) : null;
+  // A blocked relay isn't contacted at all, over HTTP either.
+  const blocked = !!relayUrl && isRelayBlocked(relayUrl);
 
   return useQuery<RelayInfoDocument>({
     queryKey: ['relay-info', relayUrl],
     queryFn: async ({ signal }) => {
       if (!httpUrl) {
         throw new Error('Invalid relay URL');
+      }
+      if (relayUrl && isRelayBlocked(relayUrl)) {
+        throw new Error('Relay is blocked');
       }
 
       const response = await fetch(httpUrl, {
@@ -65,7 +72,7 @@ export function useRelayInfo(relayUrl: string | undefined) {
 
       return payload as RelayInfoDocument;
     },
-    enabled: !!httpUrl,
+    enabled: !!httpUrl && !blocked,
     staleTime: 12 * 60 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
     retry: 1,

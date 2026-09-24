@@ -105,7 +105,7 @@ export function RelayAccessSettings() {
     if (!url) {
       toast({
         title: intl.formatMessage({ id: 'settings.network.blockedRelays.invalid', defaultMessage: 'Invalid relay URL' }),
-        description: intl.formatMessage({ id: 'settings.network.blockedRelays.invalidDescription', defaultMessage: 'Enter a relay URL starting with wss://' }),
+        description: intl.formatMessage({ id: 'settings.network.blockedRelays.invalidDescription', defaultMessage: 'Enter a relay URL starting with wss:// or ws://' }),
         variant: 'destructive',
       });
       return;

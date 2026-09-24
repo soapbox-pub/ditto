@@ -35,12 +35,14 @@ import NotFound from './NotFound';
 /** Fetch the latest events from a specific relay, filtered to supported kinds. */
 function useRelayFeed(relayUrl: string | undefined, kinds: number[], pubkey: string | undefined) {
   const { nostr } = useNostr();
+  const queryClient = useQueryClient();
   const kindsKey = [...kinds].sort().join(',');
+  // Keyed by account: whether the relay serves anything can depend on who
+  // is signed in.
+  const queryKey = ['relay-feed', relayUrl, kindsKey, pubkey ?? ''];
 
   return useQuery<{ events: NostrEvent[]; authRequired: boolean }>({
-    // Keyed by account: whether the relay serves anything can depend on who
-    // is signed in.
-    queryKey: ['relay-feed', relayUrl, kindsKey, pubkey ?? ''],
+    queryKey,
     queryFn: async ({ signal }) => {
       if (!relayUrl) return { events: [], authRequired: false };
       const relay = nostr.relay(relayUrl);
@@ -50,6 +52,14 @@ function useRelayFeed(relayUrl: string | undefined, kinds: number[], pubkey: str
       );
       // The relay refused the request until the user signs in (NIP-42).
       const authRequired = relay instanceof AuthAwareRelay && relay.requiresAuth;
+      // The relay may have been declined before this page was open, and its
+      // challenge isn't sent again. Answer it now, which offers to sign in
+      // here, and reload once the relay accepts.
+      if (authRequired && pubkey) {
+        relay.retryAuth().then((accepted) => {
+          if (accepted) queryClient.invalidateQueries({ queryKey });
+        });
+      }
       return { events, authRequired };
     },
     enabled: !!relayUrl && kinds.length > 0,

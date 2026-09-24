@@ -39,8 +39,9 @@ export function useHasUnreadNotifications(): boolean {
   const { user } = useCurrentUser();
   const { settings } = useEncryptedSettings();
   const { floodIds } = useReplyFlood();
-  // Forged zap receipts are hidden from the list, so they mustn't light the dot.
-  const { isGenuine: isGenuineZap, key: zapCheckKey } = useZapReceiptCheck(user?.pubkey);
+  // Forged zap receipts are hidden from the list and unverified ones never
+  // count as new, so neither may light the dot.
+  const { checkZap, key: zapCheckKey } = useZapReceiptCheck(user?.pubkey);
 
   // Only use cursor if settings have actually loaded, otherwise null
   const notificationsCursor = settings !== undefined && settings !== null
@@ -90,7 +91,7 @@ export function useHasUnreadNotifications(): boolean {
       // Drop the user's own events, then fold out likely-spam floods so a wall
       // of throwaway-key spam never lights the dot. The dot lights only when an
       // unread event survives — a real interaction, or spam too sparse to flag.
-      const unread = events.filter((e) => e.pubkey !== user.pubkey && isGenuineZap(e));
+      const unread = events.filter((e) => e.pubkey !== user.pubkey && checkZap(e) === 'genuine');
       const flooded = floodIds(unread);
       return unread.some((e) => !flooded.has(e.id));
     },
