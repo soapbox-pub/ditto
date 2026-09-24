@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.41.1] - 2026-09-24
+
+Pin any follow set or follow pack as its own tab on your home feed, and it keeps up as the list changes. Scrolling feels lighter, with far fewer requests to your relays and less work going on in the background. Your follows feed stops skipping posts that only one relay had, your theme and feed settings stop reverting to old versions, and buttons and search fields now have the same rounded look as the rest of Ditto.
+
+### Added
+- Pin a follow set or follow pack as a home feed tab, either from the list itself or from the Lists page. The tab reads the list's current members each time, so it keeps up with edits.
+
+### Changed
+- Feeds scroll more smoothly and use less battery. Ditto sends far fewer requests to your relays while you scroll, and it stops animating things you can't see.
+- Buttons and search fields are rounded everywhere in the app
+- Pressing Enter in an empty search box opens the search page
+
+### Fixed
+- The follows feed no longer skips posts that only one of your relays had
+- Your theme, feed settings, and sidebar layout no longer revert to an old version when a relay has an outdated copy of them
+- Saved feeds for specific people now include their bridged posts, and a list with no members shows nothing instead of everyone's posts
+
 ## [2.41.0] - 2026-09-24
 
 This release puts you in charge of your relays. A new Relay Privacy section lets you decide when Ditto signs in to a relay — never, only your own, ask each time, or anywhere — and block the ones you'd rather never touch. Zap notifications now hide forgeries and count only real payments, mute lists keep the privacy you set them with, your likes travel to the right places, and the mobile composer finally stays put above the keyboard.
