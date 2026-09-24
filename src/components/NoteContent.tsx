@@ -277,6 +277,15 @@ function linkifyFlags(nodes: ReactNode[]): ReactNode[] {
   return result;
 }
 
+/**
+ * Most link-preview cards one note renders; later standalone URLs render as
+ * plain links. Each card fetches from the preview proxy and lays out an embed,
+ * and nothing else bounds them: spam posts carrying thousands of URLs, one
+ * per line, mounted a card per URL — thousands of fetches at once, which ran
+ * the browser out of request slots and froze the page for tens of seconds.
+ */
+const MAX_LINK_EMBEDS = 5;
+
 /** A parsed token from note content. */
 type ContentToken =
   | { type: 'text'; value: string }
@@ -393,6 +402,7 @@ export function NoteContent({
     let lastIndex = 0;
     let match: RegExpExecArray | null;
     let hadMatches = false;
+    let linkEmbeds = 0;
 
     while ((match = regex.exec(text)) !== null) {
       let [fullMatch] = match;
@@ -502,11 +512,12 @@ export function NoteContent({
           result.push({ type: 'armada-invite', invite: armadaInvite });
         } else if (naddrFromUrl) {
           result.push({ type: 'naddr-embed', addr: naddrFromUrl, url });
-        } else if (isEndOfLine) {
+        } else if (isEndOfLine && linkEmbeds < MAX_LINK_EMBEDS) {
           // Standalone URL at end of line → rich embed (YouTube, Tweet, or link preview)
+          linkEmbeds++;
           result.push({ type: 'link-embed', url });
         } else {
-          // Inline URL mid-sentence → plain clickable link
+          // Inline URL mid-sentence, or past the embed cap → plain clickable link
           result.push({ type: 'inline-link', url });
         }
       } else if ((nostrPrefix && nostrData) || (barePrefix && bareData)) {
