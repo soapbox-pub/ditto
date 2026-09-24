@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useBlockedRelays } from "@/hooks/useBlockedRelays";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useEncryptedSettings, setLocalSettingsSync } from "@/hooks/useEncryptedSettings";
+import { useEncryptedSettings, getLocalSettingsSync, setLocalSettingsSync } from "@/hooks/useEncryptedSettings";
 import { isSyncDone } from "@/hooks/useInitialSync";
 import { parseBlossomServerList } from "@/lib/appBlossom";
 import { getCachedPrivateBlockedRelays, setBlockedRelays } from "@/lib/relayPolicy";
@@ -302,6 +302,16 @@ export function NostrSync() {
 
     // Skip if the remote snapshot is older than what we last applied.
     if (remoteSync <= lastSyncedTimestamp.current) {
+      return;
+    }
+
+    // Skip if this device already applied or wrote a newer snapshot in an
+    // earlier session. Relays hold different versions of the settings event,
+    // and one holding an old copy can win the relay race on page load; applying
+    // it would revert the theme, feed settings, and sidebar layout.
+    if (remoteSync <= getLocalSettingsSync(user.pubkey)) {
+      lastSyncedTimestamp.current = remoteSync;
+      accountSwitched.current = false;
       return;
     }
 

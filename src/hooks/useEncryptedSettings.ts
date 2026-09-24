@@ -1,9 +1,10 @@
 import { useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { NostrFilter } from '@nostrify/nostrify';
+import type { NostrEvent, NostrFilter, NostrSigner } from '@nostrify/nostrify';
 
 import { useAppContext } from '@/hooks/useAppContext';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { useCurrentUser } from './useCurrentUser';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import type { Theme, FeedSettings, ContentWarningPolicy, SavedFeed, WidgetConfig } from '@/contexts/AppContext';
@@ -122,6 +123,29 @@ export interface EncryptedSettings {
   letterPreferences?: LetterPreferences;
 }
 
+/** Decrypt and validate a settings event's content. Throws if it can't be decrypted or parsed. */
+async function decryptSettings(
+  nip44: NonNullable<NostrSigner['nip44']>,
+  pubkey: string,
+  content: string,
+): Promise<EncryptedSettings> {
+  const json = JSON.parse(await nip44.decrypt(pubkey, content));
+  const result = EncryptedSettingsSchema.safeParse(json);
+  if (!result.success) {
+    console.warn('Encrypted settings failed validation, using partial data:', result.error.issues);
+    // Return whatever fields are valid rather than wiping everything
+    return (json ?? {}) as EncryptedSettings;
+  }
+  return result.data as EncryptedSettings;
+}
+
+/** The newer of two versions of the same replaceable event. */
+function newestEvent(a: NostrEvent | null | undefined, b: NostrEvent | null | undefined): NostrEvent | null {
+  if (!a) return b ?? null;
+  if (!b) return a;
+  return b.created_at > a.created_at ? b : a;
+}
+
 /**
  * Hook to manage all encrypted app settings using NIP-78 (kind 30078)
  * Syncs settings across devices while keeping them private
@@ -131,26 +155,26 @@ export function useEncryptedSettings() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
+  const { store } = useNostrStorage();
 
+  const settingsFilter = (pubkey: string): NostrFilter => ({
+    kinds: [30078],
+    authors: [pubkey],
+    '#d': [`${config.appId}/metadata`],
+    limit: 1,
+  });
 
-
-  // Query the encrypted settings event
+  // Query the encrypted settings event.
+  //
+  // Relays often hold different versions of this event, and the pool resolves
+  // shortly after the first relay answers — which may be one holding a
+  // months-old copy. Use the local event cache as a floor so a stale relay
+  // never wins over a newer version this device has already seen.
   const query = useQuery({
     queryKey: ['encryptedSettings', user?.pubkey],
     queryFn: async () => {
       if (!user) return null;
-
-      const filter: NostrFilter = {
-        kinds: [30078],
-        authors: [user.pubkey],
-        '#d': [`${config.appId}/metadata`],
-        limit: 1,
-      };
-
-      const events = await nostr.query([filter]);
-      if (events.length === 0) return null;
-
-      return events[0];
+      return fetchFreshEvent(nostr, settingsFilter(user.pubkey), { store });
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000, // 5 minutes — allows window-focus refetch to pick up cross-device changes
@@ -173,15 +197,7 @@ export function useEncryptedSettings() {
       }
 
       try {
-        const decrypted = await user.signer.nip44.decrypt(user.pubkey, event.content);
-        const json = JSON.parse(decrypted);
-        const result = EncryptedSettingsSchema.safeParse(json);
-        if (!result.success) {
-          console.warn('Encrypted settings failed validation, using partial data:', result.error.issues);
-          // Return whatever fields are valid rather than wiping everything
-          return (json ?? {}) as EncryptedSettings;
-        }
-        return result.data as EncryptedSettings;
+        return await decryptSettings(user.signer.nip44, user.pubkey, event.content);
       } catch (error) {
         console.error('Failed to decrypt settings:', error);
         return null;
@@ -206,28 +222,21 @@ export function useEncryptedSettings() {
       if (!user.signer.nip44) throw new Error('NIP-44 encryption not supported by signer');
 
       // Use the latest pending settings if available (rapid successive mutations).
-      // Otherwise, fetch fresh from relays to avoid cross-device stale reads.
+      // Otherwise, fetch fresh from relays to avoid cross-device stale reads,
+      // with the local event cache and the event this session already holds
+      // as a floor: rebuilding on a stale relay copy would republish old
+      // settings as the newest version everywhere.
       let currentSettings: EncryptedSettings;
       if (pendingSettings.current) {
         currentSettings = pendingSettings.current;
       } else {
-        const freshEvent = await fetchFreshEvent(nostr, {
-          kinds: [30078],
-          authors: [user.pubkey],
-          '#d': [`${config.appId}/metadata`],
-        });
-        if (freshEvent?.content) {
-          try {
-            const decrypted = await user.signer.nip44.decrypt(user.pubkey, freshEvent.content);
-            const json = JSON.parse(decrypted);
-            const result = EncryptedSettingsSchema.safeParse(json);
-            currentSettings = result.success ? (result.data as EncryptedSettings) : (json ?? {}) as EncryptedSettings;
-          } catch {
-            currentSettings = settings.data ?? {};
-          }
-        } else {
-          currentSettings = settings.data ?? {};
-        }
+        const freshEvent = await fetchFreshEvent(nostr, settingsFilter(user.pubkey), { store });
+        const base = newestEvent(freshEvent, query.data);
+        // A decryption failure throws here on purpose: rebuilding from an
+        // empty base would publish only `patch` and wipe every other setting.
+        currentSettings = base?.content
+          ? await decryptSettings(user.signer.nip44, user.pubkey, base.content)
+          : {};
       }
       const updatedSettings: EncryptedSettings = {
         ...currentSettings,
