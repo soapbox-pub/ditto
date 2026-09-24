@@ -9,8 +9,10 @@ import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { nip19 } from 'nostr-tools';
 import {
   Info, Plus, Trash2, Scroll, Users, Pencil,
-  Check, X,
+  Check, X, Pin, Loader2,
 } from 'lucide-react';
+import { useIntl } from 'react-intl';
+import { cn } from '@/lib/utils';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
@@ -30,6 +32,8 @@ import { PageHeader } from '@/components/PageHeader';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserLists } from '@/hooks/useUserLists';
+import { usePinnedList } from '@/hooks/usePinnedList';
+import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useAuthor } from '@/hooks/useAuthor';
 import { toast } from '@/hooks/useToast';
 import type { UserList } from '@/hooks/useUserLists';
@@ -60,6 +64,8 @@ function ListRow({ list, onDelete }: { list: UserList; onDelete: (list: UserList
   const [editing, setEditing] = useState(false);
   const [renameValue, setRenameValue] = useState(list.title);
   const { renameList } = useUserLists();
+  const intl = useIntl();
+  const { isPinned, isPending: pinPending, togglePin } = usePinnedList(30000, user?.pubkey ?? '', list.id, list.title);
 
   const handleRename = () => {
     if (!renameValue.trim() || renameValue.trim() === list.title) {
@@ -130,6 +136,34 @@ function ListRow({ list, onDelete }: { list: UserList; onDelete: (list: UserList
           )}
         </div>
 
+        {/* Pin — always visible once pinned, so the row shows it's on the home feed */}
+        {!editing && user && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn(
+              'size-7 shrink-0 transition-opacity focus-visible:opacity-100',
+              isPinned
+                ? 'text-primary hover:text-primary'
+                : 'text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100',
+            )}
+            onClick={(e) => { e.stopPropagation(); togglePin(); }}
+            disabled={pinPending}
+            aria-pressed={isPinned}
+            title={isPinned
+              ? intl.formatMessage({ id: 'peopleList.unpinTitle', defaultMessage: 'Remove this list from your home feed tabs' })
+              : intl.formatMessage({ id: 'peopleList.pinTitle', defaultMessage: 'Add this list as a tab on your home feed' })}
+          >
+            {pinPending ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : isPinned ? (
+              <Pin className="size-3.5 fill-current" />
+            ) : (
+              <Pin className="size-3.5" />
+            )}
+          </Button>
+        )}
+
         {/* Action buttons — visible on hover */}
         {!editing && (
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -165,6 +199,7 @@ export function UserListsPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { lists, isLoading, createList, deleteList } = useUserLists();
+  const { savedFeeds, removeSavedFeed } = useSavedFeeds();
 
   useSeoMeta({
     title: `Lists | Settings | ${config.appName}`,
@@ -199,6 +234,10 @@ export function UserListsPage() {
       {
         onSuccess: () => {
           toast({ title: `List "${deleteTarget.title}" deleted` });
+          // Drop its home feed tab too, or it lingers as an empty tab.
+          const pointer = `a:30000:${user.pubkey}:${deleteTarget.id}`;
+          const pinned = savedFeeds.find((f) => f.vars.some((v) => v.pointer === pointer));
+          if (pinned) void removeSavedFeed(pinned.id).catch(() => {});
           setDeleteTarget(null);
         },
         onError: () => {
