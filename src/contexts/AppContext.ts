@@ -1,4 +1,5 @@
 import { createContext } from "react";
+import type { RelayAuthPolicy } from "@/lib/relayPolicy";
 import type { ThemeConfig, ThemesConfig } from "@/themes";
 
 /**
@@ -318,6 +319,15 @@ export interface AppConfig {
    * `useAppRelays` is true).
    */
   useUserRelays: boolean;
+  /**
+   * When to answer a relay's NIP-42 AUTH challenge, which tells the relay who
+   * is connecting. Default: `mine` — the user's and the app's relays only.
+   */
+  relayAuthPolicy?: RelayAuthPolicy;
+  /** Relays the user chose to always authenticate to from an AUTH prompt. */
+  relayAuthAllowed?: string[];
+  /** Relays the user chose never to authenticate to from an AUTH prompt. */
+  relayAuthDenied?: string[];
   /** Feed and sidebar content settings */
   feedSettings: FeedSettings;
   /** Ordered list of sidebar item IDs (built-in + extra-kind). */

@@ -3,6 +3,7 @@ import { defineMessage, FormattedMessage, useIntl, type MessageDescriptor } from
 import { Navigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { RelayListManager } from '@/components/RelayListManager';
+import { RelayAccessSettings } from '@/components/RelayAccessSettings';
 import { BlossomSettings } from '@/components/BlossomSettings';
 import { IntroImage } from '@/components/IntroImage';
 import { HelpTip } from '@/components/HelpTip';
@@ -67,6 +68,17 @@ export function NetworkSettingsPage() {
           </div>
           <div className="pt-2 pb-4">
             <RelayListManager />
+          </div>
+        </div>
+
+        {/* Relay sign-in and blocking */}
+        <div>
+          <div className="relative px-3 py-3.5">
+            <h2 className="text-base font-semibold"><FormattedMessage id="settings.network.relayAccess" defaultMessage={"Relay Privacy"} /></h2>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+          </div>
+          <div className="pt-4 pb-4">
+            <RelayAccessSettings />
           </div>
         </div>
 

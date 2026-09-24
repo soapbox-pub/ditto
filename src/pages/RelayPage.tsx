@@ -1,39 +1,56 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Globe, Info, Mail, Shield, Zap, Server, Hash } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { FormattedMessage } from 'react-intl';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
+import { LoginArea } from '@/components/auth/LoginArea';
+import { RelayAuthCard } from '@/components/RelayAuthPrompt';
 import { NoteCard } from '@/components/NoteCard';
 import { PageHeader } from '@/components/PageHeader';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useRelayInfo, type RelayInfoDocument } from '@/hooks/useRelayInfo';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
+import {
+  AuthAwareRelay,
+  claimRelayAuthPrompt,
+  isRelayAuthPending,
+  subscribeRelayAuth,
+} from '@/lib/relayPolicy';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import type { NostrEvent } from '@nostrify/nostrify';
 import NotFound from './NotFound';
 
 /** Fetch the latest events from a specific relay, filtered to supported kinds. */
-function useRelayFeed(relayUrl: string | undefined, kinds: number[]) {
+function useRelayFeed(relayUrl: string | undefined, kinds: number[], pubkey: string | undefined) {
   const { nostr } = useNostr();
   const kindsKey = [...kinds].sort().join(',');
 
-  return useQuery<NostrEvent[]>({
-    queryKey: ['relay-feed', relayUrl, kindsKey],
+  return useQuery<{ events: NostrEvent[]; authRequired: boolean }>({
+    // Keyed by account: whether the relay serves anything can depend on who
+    // is signed in.
+    queryKey: ['relay-feed', relayUrl, kindsKey, pubkey ?? ''],
     queryFn: async ({ signal }) => {
-      if (!relayUrl) return [];
+      if (!relayUrl) return { events: [], authRequired: false };
       const relay = nostr.relay(relayUrl);
-      return relay.query(
+      const events = await relay.query(
         [{ kinds, limit: 15 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
+      // The relay refused the request until the user signs in (NIP-42).
+      const authRequired = relay instanceof AuthAwareRelay && relay.requiresAuth;
+      return { events, authRequired };
     },
     enabled: !!relayUrl && kinds.length > 0,
   });
@@ -44,6 +61,8 @@ export function RelayPage() {
   const { '*': rawParam } = useParams();
   const { feedSettings } = useFeedSettings();
   const { isMuted } = useMuteFilter();
+  const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
   const [infoOpen, setInfoOpen] = useState(false);
 
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
@@ -72,7 +91,23 @@ export function RelayPage() {
   }, [relayUrl]);
 
   const { data: info, isLoading: infoLoading, isError: infoError } = useRelayInfo(relayUrl);
-  const { data: events, isLoading: eventsLoading } = useRelayFeed(relayUrl, kinds);
+  const { data: feed, isLoading: eventsLoading } = useRelayFeed(relayUrl, kinds, user?.pubkey);
+  const events = feed?.events;
+  const safeIcon = useMemo(() => sanitizeUrl(info?.icon), [info?.icon]);
+
+  // This relay's sign-in prompt is shown in place of the feed rather than as
+  // the floating card.
+  useEffect(() => (relayUrl ? claimRelayAuthPrompt(relayUrl) : undefined), [relayUrl]);
+  const authPending = useSyncExternalStore(
+    subscribeRelayAuth,
+    () => !!relayUrl && isRelayAuthPending(relayUrl),
+  );
+
+  // Logged out, with nothing to show because the relay wants to know who is
+  // reading. The NIP-11 flag covers relays that return nothing instead of
+  // refusing.
+  const needsLogin = !user && !events?.length
+    && (!!feed?.authRequired || !!info?.limitation?.auth_required);
 
   const filteredEvents = useMemo(() => {
     if (!events) return events;
@@ -96,7 +131,18 @@ export function RelayPage() {
 
   return (
     <main>
-      <PageHeader title={hostname} icon={<Server className="size-5" />} className="py-2 sidebar:py-4">
+      <PageHeader
+        title={hostname}
+        icon={safeIcon ? (
+          <Avatar className="size-6 shrink-0 border border-border/70">
+            <AvatarImage src={safeIcon} alt="" />
+            <AvatarFallback>
+              <Server className="size-4 text-muted-foreground" />
+            </AvatarFallback>
+          </Avatar>
+        ) : <Server className="size-5" />}
+        className="py-2 sidebar:py-4"
+      >
         <button
           onClick={() => setInfoOpen((o) => !o)}
           className={`p-2 rounded-full transition-colors ${infoOpen ? 'text-foreground bg-secondary' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'}`}
@@ -113,7 +159,16 @@ export function RelayPage() {
 
       {/* Feed section */}
       <div>
-        {eventsLoading ? (
+        {authPending && relayUrl ? (
+          <div className="px-4 py-12">
+            <RelayAuthCard
+              url={relayUrl}
+              variant="inline"
+              // The refused request was dropped while waiting, so ask again.
+              onAnswered={() => queryClient.invalidateQueries({ queryKey: ['relay-feed', relayUrl] })}
+            />
+          </div>
+        ) : eventsLoading ? (
           <div className="divide-y divide-border">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="px-4 py-3">
@@ -127,6 +182,23 @@ export function RelayPage() {
                 </div>
               </div>
             ))}
+          </div>
+        ) : needsLogin ? (
+          <div className="flex flex-col items-center gap-4 px-8 py-16 text-center">
+            <Shield className="size-8 text-muted-foreground" aria-hidden />
+            <div className="space-y-1">
+              <p className="font-medium">
+                <FormattedMessage id="relayPage.authRequired.title" defaultMessage="This relay requires you to sign in" />
+              </p>
+              <p className="mx-auto max-w-sm break-words text-sm text-muted-foreground">
+                <FormattedMessage
+                  id="relayPage.authRequired.description"
+                  defaultMessage="Log in to see what's on {relay}. The relay will be able to see which account is reading."
+                  values={{ relay: info?.name?.trim() || hostname }}
+                />
+              </p>
+            </div>
+            <LoginArea className="max-w-60" />
           </div>
         ) : filteredEvents && filteredEvents.length > 0 ? (
           filteredEvents.map((event) => <NoteCard key={event.id} event={event} />)

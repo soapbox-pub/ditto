@@ -2,6 +2,7 @@ import type { NostrEvent, NostrFilter } from '@nostrify/types';
 import { NKinds, type NPool, type NStore } from '@nostrify/nostrify';
 
 import { isNostrId } from '@/lib/nostrId';
+import { withoutBlockedRelays } from '@/lib/relayPolicy';
 
 /** Maximum number of items per batch to avoid hitting relay filter limits. */
 const MAX_BATCH_SIZE = 50;
@@ -729,7 +730,9 @@ export class AppPool {
   }
 
   group(urls: string[]) {
-    return this.pool.group(urls);
+    // Relay groups are often built from links and other people's relay
+    // lists, so drop any the user has blocked.
+    return this.pool.group(withoutBlockedRelays(urls));
   }
 
   close(): Promise<void> {

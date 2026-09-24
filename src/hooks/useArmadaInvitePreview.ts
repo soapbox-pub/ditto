@@ -38,7 +38,7 @@ export function useArmadaInvitePreview(invite: ArmadaInvite | undefined) {
     queryFn: async (c) => {
       if (!invite || !decoded) return null;
 
-      const relays = decoded.relays.filter((r) => /^wss:\/\//i.test(r));
+      const relays = decoded.relays.filter((r) => /^wss:\/\//i.test(r)).slice(0, 5);
       const conn = relays.length ? nostr.group(relays) : nostr;
 
       const events = await conn.query(

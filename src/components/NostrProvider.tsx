@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { NostrEvent, NostrFilter, NPool, NRelay1 } from '@nostrify/nostrify';
 import { NostrContext } from '@nostrify/react';
 import { NUser, useNostrLogin } from '@nostrify/react/login';
@@ -10,6 +10,20 @@ import { GIT_ACTIVITY_KINDS } from '@/lib/gitActivity';
 import { NSITE_KINDS } from '@/lib/nsiteSubdomain';
 import { AppPool } from '@/lib/AppPool';
 import { EventVerifier } from '@/lib/EventVerifier';
+import {
+  AuthAwareRelay,
+  BlockedRelay,
+  DEFAULT_RELAY_AUTH_POLICY,
+  isRelayAuthClaimed,
+  isRelayBlocked,
+  loadBlockedRelays,
+  normalizeRelayUrl,
+  onBlockedRelaysChange,
+  requestRelayAuth,
+  resetRelayAuthSession,
+  setUnblockableRelays,
+  withoutBlockedRelays,
+} from '@/lib/relayPolicy';
 import { NIndexedDB } from '@nostrify/indexeddb';
 import { NostrStorageContext } from '@/contexts/NostrStorageContext';
 
@@ -40,8 +54,14 @@ interface NostrProviderProps {
 
 const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   const { children } = props;
-  const { config } = useAppContext();
+  const { config, updateConfig } = useAppContext();
   const { logins } = useNostrLogin();
+
+  // Latest config for the pool's callbacks, which are created only once.
+  const configRef = useRef(config);
+  configRef.current = config;
+  const updateConfigRef = useRef(updateConfig);
+  updateConfigRef.current = updateConfig;
 
   // Create NPool instance only once
   const pool = useRef<NPool | undefined>(undefined);
@@ -105,6 +125,31 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Keep the ref in sync so the AUTH callback always sees the latest signer.
   signerRef.current = currentSigner;
 
+  // Apply the account's cached blocked relays before any connection is made
+  // for it; NostrSync replaces them once the list is fetched. The first load
+  // happens during render, before the pool exists. Later account switches are
+  // handled in a layout effect, which runs before any child's effects can
+  // open a connection. A switch also drops the previous account's
+  // session-only AUTH answers and pending prompts.
+  const activePubkey = currentLogin?.pubkey;
+  if (!pool.current) loadBlockedRelays(activePubkey);
+  const loadedPubkeyRef = useRef(activePubkey);
+  useLayoutEffect(() => {
+    if (loadedPubkeyRef.current === activePubkey) return;
+    loadedPubkeyRef.current = activePubkey;
+    loadBlockedRelays(activePubkey);
+    resetRelayAuthSession();
+  }, [activePubkey]);
+
+  // Bunker relays of every login, which the pool also connects to.
+  const bunkerRelaysRef = useRef<string[]>([]);
+  bunkerRelaysRef.current = logins.flatMap((login) => {
+    const relays = login.type === 'bunker' ? (login.data as { relays?: unknown }).relays : undefined;
+    return Array.isArray(relays) ? relays.filter((r): r is string => typeof r === 'string') : [];
+  });
+  // Blocking a remote signer's relay would silently break signing.
+  setUnblockableRelays(bunkerRelaysRef.current);
+
   // Update effective relays ref when config changes. The NPool reads from
   // this ref, so new queries automatically use the updated relay set.
   //
@@ -117,18 +162,83 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     effectiveRelays.current = getEffectiveRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays);
   }, [config.relayMetadata, config.useAppRelays, config.useUserRelays]);
 
+  /** Whether `href` is one of `urls`, comparing normalized URLs. */
+  const includesRelay = (urls: string[], href: string): boolean =>
+    urls.some((url) => normalizeRelayUrl(url) === href);
+
+  /** Relays the user or the app chose, including ones allowed from a prompt. */
+  const isChosenRelay = (href: string): boolean => includesRelay([
+    ...effectiveRelays.current.relays.map((r) => r.url),
+    ...configRef.current.relayMetadata.relays.map((r) => r.url),
+    ...(configRef.current.relayAuthAllowed ?? []),
+    ...DITTO_RELAYS,
+    DIVINE_RELAY,
+    NGIT_RELAY,
+    ZAPSTORE_RELAY,
+  ], href);
+
+  /**
+   * Whether to answer a relay's AUTH challenge, which tells it who is
+   * connecting. Bunker relays always get it — the remote signer is reached
+   * through them — and blocked relays never do.
+   */
+  const mayAuthenticate = async (href: string, authNeeded: () => Promise<void>): Promise<boolean> => {
+    if (isRelayBlocked(href)) return false;
+    if (includesRelay(bunkerRelaysRef.current, href)) return true;
+    // Relays the user said never to sign in to, from a prompt.
+    if (includesRelay(configRef.current.relayAuthDenied ?? [], href)) return false;
+
+    const policy = configRef.current.relayAuthPolicy ?? DEFAULT_RELAY_AUTH_POLICY;
+    if (policy === 'always') return true;
+    if (policy !== 'never' && isChosenRelay(href)) return true;
+
+    // Relays often challenge on connect without needing it. Only consider
+    // asking once the relay refuses a request until the user signs in.
+    await authNeeded();
+
+    // Ask when the policy says to, or when the user is on the relay's own
+    // page: they went there on purpose, so offer to sign in whatever the
+    // policy.
+    if (policy !== 'ask' && !isRelayAuthClaimed(href)) return false;
+
+    const { allowed, remember } = await requestRelayAuth(href);
+    if (remember) {
+      const key = allowed ? 'relayAuthAllowed' : 'relayAuthDenied';
+      updateConfigRef.current((current) => ({
+        ...current,
+        [key]: [...new Set([...(current[key] ?? []), href])],
+      }));
+    }
+    return allowed;
+  };
+
   // Initialize NPool only once
   if (!pool.current) {
     pool.current = new NPool({
       open(relayUrl: string) {
         const url = new URL(relayUrl);
-        return new NRelay1(url.href, {
+        // Never connect to a relay the user has blocked (NIP-51 kind 10006).
+        if (isRelayBlocked(url.href)) {
+          return new BlockedRelay(url.href) as unknown as NRelay1;
+        }
+        const relay: AuthAwareRelay = new AuthAwareRelay(url.href, {
           // Every read relay receives the same REQ, so a popular event is
           // verified once per connection. Cache by id to pay for it once.
           verifyEvent: verifier.current!.verify,
           // NIP-42: Respond to relay AUTH challenges by signing a kind
           // 22242 ephemeral event with the current user's signer.
+          //
+          // Gated by the user's AUTH policy. The pool also connects to
+          // relays named by links and other people's relay lists, and
+          // answering a challenge tells the relay who is connecting.
           auth: async (challenge: string) => {
+            if (!signerRef.current) {
+              throw new Error('AUTH failed: no signer available (user not logged in)');
+            }
+            if (!(await mayAuthenticate(url.href, () => relay.authNeeded()))) {
+              throw new Error('AUTH declined by the relay AUTH policy');
+            }
+            // Re-read: the user may have logged out while being asked.
             const signer = signerRef.current;
             if (!signer) {
               throw new Error('AUTH failed: no signer available (user not logged in)');
@@ -144,24 +254,25 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
             });
           },
         });
+        return relay;
       },
       reqRouter(filters: NostrFilter[]): Map<URL['href'], NostrFilter[]> {
         const routes = new Map<string, NostrFilter[]>();
 
         // Search queries must go to search relays
         if (filters.some((f) => "search" in f)) {
-          return new Map(DITTO_RELAYS.map(url => [url, filters]));
+          return new Map(withoutBlockedRelays(DITTO_RELAYS).map(url => [url, filters]));
         }
 
         // Include divine relay for kind 34236 queries, which are addressable short videos
         if (filters.every((f) => f?.kinds?.length === 1 && f?.kinds[0] === 34236)) {
-          return new Map([...DITTO_RELAYS, DIVINE_RELAY].map(url => [url, filters]));
+          return new Map(withoutBlockedRelays([...DITTO_RELAYS, DIVINE_RELAY]).map(url => [url, filters]));
         }
 
         // Route to all read relays
-        const readRelays = effectiveRelays.current.relays
+        const readRelays = withoutBlockedRelays(effectiveRelays.current.relays
           .filter(r => r.read)
-          .map(r => r.url);
+          .map(r => r.url));
 
         // Development kinds live on specialized relays the user's read
         // relays rarely carry: Zapstore kinds (apps/releases/assets) on the
@@ -177,7 +288,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
           if (filters.some((f) => f.kinds?.some((k) => ZAPSTORE_KINDS.includes(k)))) urls.add(ZAPSTORE_RELAY);
           if (filters.some((f) => f.kinds?.some((k) => GIT_ACTIVITY_KINDS.includes(k)))) urls.add(NGIT_RELAY);
           for (const url of readRelays) urls.add(url);
-          return new Map([...urls].map((url) => [url, filters]));
+          return new Map(withoutBlockedRelays([...urls]).map((url) => [url, filters]));
         }
 
         for (const url of readRelays) {
@@ -188,9 +299,9 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
       },
       eventRouter(_event: NostrEvent) {
         // Get write relays from effective relays
-        const writeRelays = effectiveRelays.current.relays
+        const writeRelays = withoutBlockedRelays(effectiveRelays.current.relays
           .filter(r => r.write)
-          .map(r => r.url);
+          .map(r => r.url));
 
         const allRelays = new Set<string>(writeRelays);
 
@@ -201,6 +312,26 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
       eoseTimeout: 300,
     });
   }
+
+  // The pool caches a relay per URL for the whole session, so blocking only
+  // takes effect for relays not yet opened. When the blocked set changes,
+  // close and forget the affected relays: a newly blocked relay's live
+  // connection ends, and an unblocked one is reopened for real on next use.
+  // Keys are the URLs as callers wrote them, so compare them normalized.
+  useEffect(() => {
+    return onBlockedRelaysChange((changed) => {
+      // NPool only exposes its relay map read-only; it is a Map at runtime.
+      const relays = pool.current?.relays as Map<string, NRelay1> | undefined;
+      if (!relays) return;
+      for (const [key, relay] of [...relays]) {
+        const href = normalizeRelayUrl(key);
+        if (href && changed.includes(href)) {
+          relays.delete(key);
+          void relay.close();
+        }
+      }
+    });
+  }, []);
 
   // Wrap the pool in our app-specific AppPool. It has the same interface as
   // NPool but layers on local caching and transparent request batching:

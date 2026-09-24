@@ -13,6 +13,9 @@ const ZAPSTORE_KINDS = [32267, 30063, 3063];
 /** Minimal shape of the pool needed by the fallback helpers. */
 type NostrLike = OutboxPool;
 
+/** Most relay hints a single lookup will connect to. */
+const MAX_HINT_RELAYS = 5;
+
 /** Query a specific group of relays for an event; returns the first match or null. */
 async function queryRelayGroup(
   nostr: NostrLike,
@@ -20,9 +23,19 @@ async function queryRelayGroup(
   filter: NostrFilter[],
   signal: AbortSignal,
 ): Promise<NostrEvent | null> {
-  if (urls.length === 0) return null;
+  // Hints come from shared links and events, so keep only well-formed wss:
+  // URLs and cap how many relays one lookup can make us connect to.
+  const relays = [...new Set(urls.flatMap((url) => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'wss:' ? [parsed.href] : [];
+    } catch {
+      return [];
+    }
+  }))].slice(0, MAX_HINT_RELAYS);
+  if (relays.length === 0) return null;
   try {
-    const events = await nostr.group(urls).query(filter, { signal });
+    const events = await nostr.group(relays).query(filter, { signal });
     return events.length > 0 ? events[0] : null;
   } catch {
     return null;
@@ -137,7 +150,7 @@ async function discoverViaReferences(
 
     const attempts: Promise<NostrEvent | null>[] = [];
     if (relayHints.size > 0) {
-      attempts.push(queryRelayGroup(nostr, [...relayHints].slice(0, 5), eventFilter, AbortSignal.timeout(6000)));
+      attempts.push(queryRelayGroup(nostr, [...relayHints], eventFilter, AbortSignal.timeout(6000)));
     }
     for (const pk of pubkeyHints.slice(0, 3)) {
       attempts.push(queryAuthorRelays(nostr, pk, eventFilter, AbortSignal.timeout(8000)));

@@ -5,6 +5,7 @@ import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ActiveAccountSync } from "@/components/ActiveAccountSync";
 import { LogoutCleanup } from "@/components/LogoutCleanup";
+import { RelayAuthPrompt } from "@/components/RelayAuthPrompt";
 import { AppProvider } from "@/components/AppProvider";
 import { I18nProvider } from "@/components/I18nProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
@@ -248,6 +249,7 @@ export function App() {
                 <LogoutCleanup />
                 <NostrProvider>
                   <NostrSync />
+                  <RelayAuthPrompt />
                   <NativeNotifications />
                   <NotificationStream />
                   <MoneroBackgroundSync />

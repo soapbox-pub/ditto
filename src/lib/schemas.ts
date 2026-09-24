@@ -268,6 +268,9 @@ export const AppConfigSchema = z.object({
   relayMetadata: RelayMetadataSchema,
   useAppRelays: z.boolean(),
   useUserRelays: z.boolean(),
+  relayAuthPolicy: z.enum(['never', 'mine', 'ask', 'always']).optional(),
+  relayAuthAllowed: z.array(z.string()).optional(),
+  relayAuthDenied: z.array(z.string()).optional(),
   feedSettings: FeedSettingsSchema,
   sidebarOrder: z.array(z.string()),
   nip85StatsPubkey: z.string().refine(

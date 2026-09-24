@@ -3,10 +3,12 @@ import { useNostr } from "@nostrify/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useAppContext } from "@/hooks/useAppContext";
+import { useBlockedRelays } from "@/hooks/useBlockedRelays";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEncryptedSettings, setLocalSettingsSync } from "@/hooks/useEncryptedSettings";
 import { isSyncDone } from "@/hooks/useInitialSync";
 import { parseBlossomServerList } from "@/lib/appBlossom";
+import { getCachedPrivateBlockedRelays, setBlockedRelays } from "@/lib/relayPolicy";
 import { getStorageKey } from "@/lib/storageKey";
 import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from "@/lib/themeEvent";
 import { DEFAULT_SIDEBAR_WIDGETS } from "@/lib/sidebarWidgets";
@@ -20,6 +22,7 @@ import type { ThemeConfig } from "@/themes";
  * Currently syncs:
  * - NIP-65 relay list (kind 10002)
  * - BUD-03 Blossom server list (kind 10063)
+ * - NIP-51 blocked relays (kind 10006), applied to the relay pool
  * - Encrypted app settings (kind 30078) - theme, feed settings, relay toggle
  * - Active profile theme (kind 16767) - when autoShareTheme is enabled
  */
@@ -153,6 +156,21 @@ export function NostrSync() {
       }
     }
   }, [relayListEvent, config.relayMetadata.updatedAt, updateConfig]);
+
+  // Apply the user's blocked relays (kind 10006) to the relay pool.
+  // If the private entries couldn't be decrypted, use the private entries
+  // last read in their place rather than reconnecting to relays the user
+  // blocked privately. Public entries always come from the fetched list, so
+  // an unblock still takes effect.
+  const { blockedRelays, privateBlockedRelays, unreadable: blockedRelaysUnreadable } = useBlockedRelays();
+  useEffect(() => {
+    if (!user || !blockedRelays) return;
+    if (blockedRelaysUnreadable) {
+      setBlockedRelays(user.pubkey, [...blockedRelays, ...getCachedPrivateBlockedRelays(user.pubkey)]);
+    } else {
+      setBlockedRelays(user.pubkey, blockedRelays, privateBlockedRelays ?? []);
+    }
+  }, [user, blockedRelays, privateBlockedRelays, blockedRelaysUnreadable]);
 
   // Fetch the user's BUD-03 Blossom server list (kind 10063).
   // useInitialSync seeds ['blossomServerList', pubkey] into the cache on first login.
