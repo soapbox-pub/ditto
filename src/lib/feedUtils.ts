@@ -47,6 +47,24 @@ export function getPaginationCursor(events: NostrEvent[]): number {
   return sorted[sorted.length - 1];
 }
 
+/**
+ * Cut a merged multi-relay result down to a page that can't skip anything,
+ * and return the cursor for the next page.
+ *
+ * Each relay returns its own newest `limit` events, and those pages reach back
+ * to different times. Using the oldest merged event as the cursor skips
+ * whatever a relay held between the end of its page and that point, for good.
+ * Every relay with a full page contributed `limit` events at or after its own
+ * page end, so the `limit`-th newest merged event is never older than any
+ * relay's page end. Events older than that are left for the next page, which
+ * keeps the feed in order.
+ */
+export function takeFeedPage(events: NostrEvent[], limit: number): { events: NostrEvent[]; cursor: number } {
+  const newest = [...events].sort((a, b) => b.created_at - a.created_at).slice(0, limit);
+  const cursor = getPaginationCursor(newest);
+  return { events: newest.filter((ev) => ev.created_at >= cursor), cursor };
+}
+
 /** The set of kind numbers that represent reposts (kind 6 for notes, kind 16 for everything else). */
 export const REPOST_KINDS = new Set([6, 16]);
 

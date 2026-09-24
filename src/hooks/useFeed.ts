@@ -13,6 +13,7 @@ import { useIsScrollRestore } from './useIsScrollRestore';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import {
   getPaginationCursor,
+  takeFeedPage,
   isRepostKind,
   isReactionKind,
   isZapKind,
@@ -165,7 +166,8 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
           { signal },
         );
 
-        const events = rawEvents;
+        // Cursor from the unfiltered page, so the NIP-05 check can't move it.
+        const { events, cursor } = takeFeedPage(rawEvents.filter((ev) => ev.created_at <= now), fetchLimit);
 
         // Get the community domain for verification
         let communityDomain = '';
@@ -239,14 +241,9 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
             })
           : events; // Fallback if no domain found
 
-        // Track oldest timestamp from the raw query for pagination, ignoring
-        // outliers from out-of-sync relays to prevent cursor jumps.
-        const validFilteredEvents = filteredEvents.filter((ev) => ev.created_at <= now);
-        const oldestQueryTimestamp = getPaginationCursor(validFilteredEvents);
-
         // Unwrap reposts / reactions / zaps so the target event renders
         // with the wrapper as an overlay header.
-        const items = await buildFeedItems(validFilteredEvents, nostr, signal);
+        const items = await buildFeedItems(filteredEvents, nostr, signal);
 
         let dedupedItems = dedupeFeedItems(items);
 
@@ -260,7 +257,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
         // when NoteCard components mount.
         cacheEvents(dedupedItems);
 
-        return { items: dedupedItems, oldestQueryTimestamp, rawCount: validFilteredEvents.length };
+        return { items: dedupedItems, oldestQueryTimestamp: cursor, rawCount: filteredEvents.length };
       } else if (tab === 'loved' && user && lovedPubkeys !== undefined) {
         // Loved feed — posts and extra kinds from people on the user's Love
         // List (kind 15683), minus anyone also muted (mute wins). Reposts and
@@ -286,8 +283,10 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
           { signal },
         );
 
-        const validEvents = rawEvents.filter((ev) => ev.created_at <= now);
-        const oldestQueryTimestamp = getPaginationCursor(validEvents);
+        const { events: validEvents, cursor: oldestQueryTimestamp } = takeFeedPage(
+          rawEvents.filter((ev) => ev.created_at <= now),
+          fetchLimit,
+        );
 
         // Unwrap reposts / reactions / zaps so the target event renders
         // with the wrapper as an overlay header.
@@ -321,10 +320,12 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
           { signal },
         );
 
-        // Track oldest timestamp from the raw query for pagination, ignoring
-        // outliers from out-of-sync relays to prevent cursor jumps.
-        const validEvents = rawEvents.filter((ev) => ev.created_at <= now);
-        const oldestQueryTimestamp = getPaginationCursor(validEvents);
+        // Take only as many events as one relay could return, so the cursor
+        // can't skip notes that only one relay held (see takeFeedPage).
+        const { events: validEvents, cursor: oldestQueryTimestamp } = takeFeedPage(
+          rawEvents.filter((ev) => ev.created_at <= now),
+          fetchLimit,
+        );
 
         // Unwrap reposts / reactions / zaps so the target event renders
         // with the wrapper as an overlay header.
