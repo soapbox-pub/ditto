@@ -115,10 +115,15 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
 
         await nostr.event(event, { signal: AbortSignal.timeout(5000) });
 
-        // NIP-65: For reply events (kind 1 and 1111), also send to the
-        // inbox (read) relays of tagged users so they receive the reply.
+        // NIP-65: For events that tag other users — replies (kind 1, 1111)
+        // and reactions (kind 7, NIP-25) — also send to the inbox (read)
+        // relays of the tagged users so they receive the event. Reactions
+        // carry a `p` tag for the reacted-to event's author, so likes
+        // accumulate on the author's inbox relays across clients. Deletions
+        // (kind 5) that tag the author, such as unlikes, follow the same path
+        // so they reach wherever the deleted event was delivered.
         // This is fire-and-forget — it must not block the publish flow.
-        if (event.kind === 1 || event.kind === 1111) {
+        if (event.kind === 1 || event.kind === 1111 || event.kind === 7 || event.kind === 5) {
           const taggedPubkeys = event.tags
             .filter(([name]) => name === 'p' || name === 'P')
             .map(([, pubkey]) => pubkey)

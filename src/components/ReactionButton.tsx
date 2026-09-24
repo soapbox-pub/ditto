@@ -129,7 +129,9 @@ export function ReactionButton({
     }
 
     publishEvent(
-      { kind: 5, content: '', tags: [['e', reactionEventId], ['k', '7']] },
+      // The `p` tag sends the deletion to the author's inbox relays, where
+      // the reaction was delivered too (see useNostrPublish).
+      { kind: 5, content: '', tags: [['e', reactionEventId], ['k', '7'], ['p', eventPubkey]] },
       {
         onSuccess: () => {
           setTimeout(() => {
@@ -147,7 +149,7 @@ export function ReactionButton({
         },
       },
     );
-  }, [user, nostr, eventId, publishEvent, queryClient]);
+  }, [user, nostr, eventId, eventPubkey, publishEvent, queryClient]);
 
   const handleMouseEnter = useCallback(() => {
     if (!user) return;
