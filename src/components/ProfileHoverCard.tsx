@@ -1,8 +1,10 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Slot } from '@radix-ui/react-slot';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useQueryClient } from '@tanstack/react-query';
-import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
+import { AnchoredPopover } from '@/components/AnchoredPopover';
+import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { FallbackImage } from '@/components/FallbackImage';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -154,25 +156,81 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
   );
 }
 
+/** Hover intent before the card opens, and grace period before it closes. */
+const OPEN_DELAY_MS = 300;
+const CLOSE_DELAY_MS = 150;
+
 /**
  * Wraps any element with a hover card that shows a profile preview.
  * Shows avatar, display name, NIP-05, and bio on hover.
+ *
+ * Not a Radix HoverCard: a feed card carries two or more of these (avatar,
+ * name, mentions), and a HoverCard root around each trigger mounts a popper,
+ * an anchor that re-renders to register itself, and presence tracking, for
+ * cards that are almost never hovered. Here the trigger stays a bare element
+ * and the card is an {@link AnchoredPopover} built on first hover. The hover
+ * semantics are HoverCard's: open after a delay on pointer enter (not touch)
+ * or keyboard focus, stay open while the pointer is over the card, close
+ * after a grace period, and never move focus.
  */
 export function ProfileHoverCard({ pubkey, children, asChild }: ProfileHoverCardProps) {
+  const [open, setOpen] = useState(false);
+  const anchorRef = useRef<HTMLElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const schedule = useCallback((next: boolean) => {
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setOpen(next), next ? OPEN_DELAY_MS : CLOSE_DELAY_MS);
+  }, []);
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const onPointerEnter = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'touch') schedule(true);
+  };
+  const onPointerLeave = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'touch') schedule(false);
+  };
+
   return (
-    <HoverCard openDelay={300} closeDelay={150}>
-      <HoverCardTrigger asChild={asChild}>
-        {children}
-      </HoverCardTrigger>
-      <HoverCardContent
-        side="bottom"
-        align="start"
-        sideOffset={8}
-        className="w-72 p-0 rounded-2xl overflow-hidden border border-border shadow-xl"
-        onClick={(e) => e.stopPropagation()}
+    <>
+      <Slot
+        ref={anchorRef}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+        // Keyboard focus only: a tap focuses a link too, and on touch the
+        // card would pop up over the page the tap is navigating to.
+        onFocus={(e: React.FocusEvent<HTMLElement>) => {
+          if (e.currentTarget.matches(':focus-visible')) schedule(true);
+        }}
+        onBlur={() => schedule(false)}
       >
-        <ProfileHoverCardBody pubkey={pubkey} />
-      </HoverCardContent>
-    </HoverCard>
+        {asChild ? children : <a>{children}</a>}
+      </Slot>
+      {/* Portaled to <body> like the Radix HoverCard this replaces, not into
+          an enclosing dialog: inside a dialog's container the card lands
+          ~24px off its trigger. */}
+      <PortalContainerProvider value={undefined}>
+        <AnchoredPopover
+          open={open}
+          onOpenChange={(next) => {
+            clearTimeout(timerRef.current);
+            setOpen(next);
+          }}
+          anchorRef={anchorRef}
+          side="bottom"
+          align="start"
+          sideOffset={8}
+          className="w-72 p-0 rounded-2xl overflow-hidden border border-border shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+          onPointerEnter={onPointerEnter}
+          onPointerLeave={onPointerLeave}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
+          <ProfileHoverCardBody pubkey={pubkey} />
+        </AnchoredPopover>
+      </PortalContainerProvider>
+    </>
   );
 }
