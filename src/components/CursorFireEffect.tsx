@@ -75,9 +75,17 @@ export function CursorFireEffect() {
     window.addEventListener('click', onClick);
     window.addEventListener('touchstart', onTouchStart, { passive: true });
 
+    // Re-read the theme color about once a second rather than every frame:
+    // getComputedStyle forces a style recalc, and this loop runs at display rate.
+    let primary = { h: 270, s: 80, l: 60 };
+    let primaryReadAt = -Infinity;
     function getPrimary() {
-      const raw = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
-      return raw ? parseHslString(raw) : { h: 270, s: 80, l: 60 };
+      if (frame.current - primaryReadAt >= 60) {
+        primaryReadAt = frame.current;
+        const raw = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+        primary = raw ? parseHslString(raw) : { h: 270, s: 80, l: 60 };
+      }
+      return primary;
     }
 
     function spawnWispParticles(x: number, y: number) {
@@ -230,8 +238,23 @@ export function CursorFireEffect() {
       }
 
       ctx.globalCompositeOperation = 'source-over';
+
+      // Nothing on screen and no cursor to follow: stop until the next input
+      // instead of clearing an empty full-screen canvas every frame.
+      if (!active.current && particles.current.length === 0 && rings.current.length === 0) {
+        raf.current = 0;
+        return;
+      }
       raf.current = requestAnimationFrame(draw);
     }
+
+    function wake() {
+      if (!raf.current) raf.current = requestAnimationFrame(draw);
+    }
+    window.addEventListener('mousemove', wake);
+    window.addEventListener('touchmove', wake, { passive: true });
+    window.addEventListener('click', wake);
+    window.addEventListener('touchstart', wake, { passive: true });
 
     raf.current = requestAnimationFrame(draw);
 
@@ -244,6 +267,10 @@ export function CursorFireEffect() {
       window.removeEventListener('touchend', onLeave);
       window.removeEventListener('click', onClick);
       window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('mousemove', wake);
+      window.removeEventListener('touchmove', wake);
+      window.removeEventListener('click', wake);
+      window.removeEventListener('touchstart', wake);
     };
   }, []);
 

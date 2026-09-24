@@ -568,7 +568,18 @@ export function useBlobbiEyes(
     let lastTrackingTransform: string | null = null;
     let lastBlinkProgress: number | null = null;
 
+    // Whether the Blobbi is in the viewport. A feed card scrolled out of view
+    // stays mounted, and nobody can see it blink or track the pointer, so the
+    // loop parks itself until it scrolls back in.
+    let onScreen = true;
+    let loopStarted = false;
+
     const animate = (timestamp: number) => {
+      if (!onScreen) {
+        animationRef.current = null;
+        return;
+      }
+
       // Try to cache elements if not done yet
       if (leftGazeRef.current.length === 0 || rightGazeRef.current.length === 0) {
         if (!cacheEyeElements()) {
@@ -723,6 +734,7 @@ export function useBlobbiEyes(
     let cancelWakeAnimation: (() => void) | null = null;
 
     const startAwakeLoop = () => {
+      loopStarted = true;
       animationRef.current = requestAnimationFrame(animate);
     };
 
@@ -732,9 +744,21 @@ export function useBlobbiEyes(
       startAwakeLoop();
     }
 
+    const container = containerRef.current;
+    const observer = container && typeof IntersectionObserver !== 'undefined'
+      ? new IntersectionObserver(([entry]) => {
+        onScreen = entry.isIntersecting;
+        if (onScreen && loopStarted && animationRef.current === null) {
+          animationRef.current = requestAnimationFrame(animate);
+        }
+      })
+      : undefined;
+    if (container) observer?.observe(container);
+
     // ─── Cleanup ────────────────────────────────────────────────────────
 
     return () => {
+      observer?.disconnect();
       cancelWakeAnimation?.();
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
