@@ -1,15 +1,24 @@
 package pub.ditto.app;
 
+import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.Context;
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Environment;
 import android.util.Log;
 
+import androidx.activity.result.ActivityResult;
+
+import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
+
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Capacitor plugin that saves a remote file to the device's public Downloads
@@ -21,6 +30,9 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  * service that is still permitted to write to the public Downloads collection
  * without storage permissions, performs the HTTP GET natively (so it isn't
  * subject to WebView CORS), and shows the standard download notification.
+ *
+ * Also exposes the system "Save as" dialog ({@code ACTION_CREATE_DOCUMENT}) for
+ * files that must only be written where the user explicitly chooses.
  */
 @CapacitorPlugin(name = "DittoDownload")
 public class DittoDownloadPlugin extends Plugin {
@@ -47,17 +59,16 @@ public class DittoDownloadPlugin extends Plugin {
             return;
         }
 
-        // DownloadManager only handles http(s). Anything else (data:, blob:,
-        // custom schemes) must be handled by the caller's fallback.
+        // Only https. Anything else (http:, data:, blob:, custom schemes) must
+        // be handled by the caller's fallback.
         Uri uri = Uri.parse(url);
         String scheme = uri.getScheme();
-        if (scheme == null || !(scheme.equals("http") || scheme.equals("https"))) {
+        if (scheme == null || !scheme.equals("https")) {
             call.reject("Unsupported URL scheme: " + scheme);
             return;
         }
 
-        // Guard against path separators sneaking into the destination name.
-        String safeName = filename.replace('/', '_').replace('\\', '_');
+        String safeName = safeFilename(filename);
 
         try {
             DownloadManager.Request request = new DownloadManager.Request(uri);
@@ -83,5 +94,80 @@ public class DittoDownloadPlugin extends Plugin {
             Log.w(TAG, "Failed to enqueue download", e);
             call.reject("Download failed: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Let the user choose where to save a text file, via the system "Save as"
+     * dialog, and write {@code content} there. Nothing is written if the user
+     * cancels. Resolves {@code { saved: boolean }}.
+     *
+     * @param call.filename the suggested file name (required)
+     * @param call.content  the UTF-8 text to write (required)
+     */
+    @PluginMethod
+    public void saveTextDocument(PluginCall call) {
+        String filename = call.getString("filename");
+        String content = call.getString("content");
+
+        if (filename == null || filename.isEmpty()) {
+            call.reject("Missing 'filename'");
+            return;
+        }
+        if (content == null) {
+            call.reject("Missing 'content'");
+            return;
+        }
+
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_TITLE, safeFilename(filename));
+
+        startActivityForResult(call, intent, "saveTextDocumentResult");
+    }
+
+    @ActivityCallback
+    private void saveTextDocumentResult(PluginCall call, ActivityResult result) {
+        if (call == null) return;
+
+        JSObject ret = new JSObject();
+        Intent data = result.getData();
+        Uri uri = data != null ? data.getData() : null;
+
+        if (result.getResultCode() != Activity.RESULT_OK || uri == null) {
+            ret.put("saved", false);
+            call.resolve(ret);
+            return;
+        }
+
+        String content = call.getString("content", "");
+        // "w", not "wt": some providers (e.g. Drive) reject truncate mode, and
+        // ACTION_CREATE_DOCUMENT always hands back a new, empty file anyway.
+        try (OutputStream out = getContext().getContentResolver().openOutputStream(uri, "w")) {
+            if (out == null) {
+                call.reject("Could not open the chosen file");
+                return;
+            }
+            out.write(content.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            call.reject("Save failed: " + e.getMessage(), e);
+            return;
+        }
+
+        ret.put("saved", true);
+        call.resolve(ret);
+    }
+
+    /**
+     * Reduce a filename to a single path segment: no separators, control or
+     * reserved characters, and no leading dots (so no {@code ..}).
+     */
+    private static String safeFilename(String name) {
+        String cleaned = name
+                .replaceAll("[\\x00-\\x1f\\x7f/\\\\:*?\"<>|]", "_")
+                .replaceAll("^[.\\s]+", "")
+                .trim();
+        if (cleaned.length() > 200) cleaned = cleaned.substring(0, 200);
+        return cleaned.isEmpty() ? "download" : cleaned;
     }
 }

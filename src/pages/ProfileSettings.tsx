@@ -1316,12 +1316,7 @@ function BackupKeySection() {
     setIsSaving(true);
     try {
       const result = await saveNsec(npub, nsec, config.appName);
-      if (result === 'saved-to-file') {
-        toast({
-          title: intl.formatMessage({ id: 'settings.profile.backupKey.saved', defaultMessage: "Secret key saved" }),
-          description: intl.formatMessage({ id: 'settings.profile.backupKey.savedToFileDescription', defaultMessage: "Your secret key was saved to the Documents folder on your device." }),
-        });
-      } else if (result === 'saved') {
+      if (result === 'saved' || result === 'saved-to-file') {
         toast({ title: intl.formatMessage({ id: 'settings.profile.backupKey.saved', defaultMessage: "Secret key saved" }) });
       }
       // 'dismissed' is a deliberate user choice — no toast.

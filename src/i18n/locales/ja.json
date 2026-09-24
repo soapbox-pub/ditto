@@ -399,7 +399,6 @@
   "settings.profile.backupKey.saveFailed": "保存に失敗しました",
   "settings.profile.backupKey.saveFailedDescription": "鍵を保存できませんでした。手動でコピーしてください。",
   "settings.profile.backupKey.saved": "秘密鍵を保存しました",
-  "settings.profile.backupKey.savedToFileDescription": "秘密鍵がデバイスのドキュメントフォルダーに保存されました。",
   "settings.profile.backupKey.saving": "保存中…",
   "settings.profile.backupKey.title": "あなたの鍵",
   "settings.profile.backupKey.warning": "秘密鍵は絶対に誰とも共有しないでください。スクリーンショットや、パスワードマネージャー以外への貼り付けは避けてください。共有すると、他人があなたのアカウントにアクセスできるようになります。",

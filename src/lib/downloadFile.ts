@@ -3,19 +3,37 @@ import { Capacitor } from '@capacitor/core';
 import { fetchDecryptedFile, type FileEncryption } from '@/lib/encryptedFile';
 
 /**
+ * Reduce a filename to a single safe path segment.
+ *
+ * Names often come from URLs or event tags. On native they become a path
+ * inside Documents, so separators or a `..` segment would write elsewhere.
+ */
+export function safeFilename(name: string): string {
+  const cleaned = name
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f/\\:*?"<>|]/g, '_')
+    .replace(/^[.\s]+/, '')
+    .trim()
+    .slice(0, 200);
+  return cleaned || 'download';
+}
+
+/**
  * Download a text file to the user's device.
  *
  * On the web this uses the classic `<a download>` trick.
- * On native (Android & iOS) the file is saved to the app's Documents
- * directory, which is visible in the iOS Files app and Android's
- * app-scoped documents. No permissions are required.
+ * On native the file is saved to `Directory.Documents`: the app's own
+ * Documents folder on iOS (visible in the Files app), but the shared public
+ * Documents folder on Android, which other apps with storage access can read.
+ * Don't use this for secrets.
  */
 export async function downloadTextFile(filename: string, content: string): Promise<void> {
+  filename = safeFilename(filename);
   if (Capacitor.isNativePlatform()) {
     const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
 
-    // Write straight to Documents — visible in the iOS Files app and
-    // Android's app-scoped documents. No storage permissions needed.
+    // Write straight to Documents — visible in the iOS Files app and the
+    // shared Documents folder on Android. No storage permissions needed.
     // NOTE: encoding is required — without it Capacitor expects base64 data
     // and will throw for plain-text strings.
     await Filesystem.writeFile({
@@ -57,6 +75,7 @@ function bytesToBase64(bytes: Uint8Array): string {
  * the anchor pattern silently fails in WKWebView).
  */
 export async function downloadBinaryFile(filename: string, bytes: Uint8Array): Promise<void> {
+  filename = safeFilename(filename);
   if (Capacitor.isNativePlatform()) {
     const { Filesystem, Directory } = await import('@capacitor/filesystem');
     // No `encoding` → Capacitor treats `data` as base64.
@@ -163,7 +182,7 @@ function filenameFromUrl(url: string): string {
  *   there is no client-side way to force a download of an unreadable resource.
  */
 export async function downloadUrl(url: string, filename?: string): Promise<'downloaded' | 'opened'> {
-  const name = filename ?? filenameFromUrl(url);
+  const name = safeFilename(filename ?? filenameFromUrl(url));
 
   if (Capacitor.getPlatform() === 'android') {
     try {
@@ -204,6 +223,24 @@ export async function downloadUrl(url: string, filename?: string): Promise<'down
 }
 
 /**
+ * Schemes `openUrl` will hand off: web pages, the payment URIs Ditto builds,
+ * and `nostr:` / `mailto:` links. Anything else — `javascript:`, `data:`,
+ * `intent:`, `file:`, other apps' deep links — is refused, since URLs often
+ * come from event data.
+ */
+const OPENABLE_SCHEMES = new Set([
+  'http:',
+  'https:',
+  'lightning:',
+  'bitcoin:',
+  'monero:',
+  'ethereum:',
+  'nano:',
+  'nostr:',
+  'mailto:',
+]);
+
+/**
  * Open a URL in the phone's external browser (or a new tab on the web).
  *
  * The programmatic `<a target="_blank">` click pattern doesn't work inside
@@ -216,6 +253,21 @@ export async function downloadUrl(url: string, filename?: string): Promise<'down
  * links and download buttons showed a "share" prompt instead of opening.
  */
 export async function openUrl(url: string): Promise<void> {
+  // Refuse anything unparseable or outside the allowlist. This warns rather
+  // than throws: most callers are fire-and-forget click handlers, and a
+  // rejection there would surface as an unhandled promise rejection.
+  let scheme: string;
+  try {
+    scheme = new URL(url).protocol.toLowerCase();
+  } catch {
+    console.warn('openUrl: refusing to open an invalid URL');
+    return;
+  }
+  if (!OPENABLE_SCHEMES.has(scheme)) {
+    console.warn(`openUrl: refusing to open a ${scheme} URL`);
+    return;
+  }
+
   if (Capacitor.isNativePlatform()) {
     const { AppLauncher } = await import('@capacitor/app-launcher');
     await AppLauncher.openUrl({ url });

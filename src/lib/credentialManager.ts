@@ -145,10 +145,13 @@ function nsecFilename(npub: string, appName?: string): string {
  *
  * - **Android Capacitor**: Tries the AndroidX Credential Manager first
  *   (which delegates to Google Password Manager or any registered provider).
- *   On de-Googled devices (GrapheneOS, /e/OS, etc.) there may be no provider
- *   available and the call fails — in that case we fall back to writing the
- *   key to the app's Documents directory so the user always has a backup.
- *   Returns `'saved'` on keychain success, `'saved-to-file'` on fallback.
+ *   If that doesn't save the key — no provider on de-Googled devices
+ *   (GrapheneOS, /e/OS, etc.), or the user dismissed it; the plugin reports
+ *   both the same way — the system "Save as" dialog opens so the user can
+ *   pick where the file goes. The key is never written to shared storage
+ *   without that choice. Returns `'saved'` on keychain success,
+ *   `'saved-to-file'` when the user saved a file, `'dismissed'` if they
+ *   cancelled both.
  *
  * - **iOS Capacitor**: Prompts iCloud Keychain via
  *   `SecAddSharedWebCredential`. Returns `'dismissed'` if the user dismisses
@@ -172,9 +175,9 @@ function nsecFilename(npub: string, appName?: string): string {
  *               `location.hostname` is always `localhost`, so passing the
  *               app name is the only way to get a meaningful filename.
  * @returns `'saved'` if stored in the platform credential manager or
- *          downloaded as a file on web; `'saved-to-file'` if stored as a
- *          file via the Android fallback; `'dismissed'` if the user
- *          dismissed the iOS credential prompt.
+ *          downloaded as a file on web; `'saved-to-file'` if the user saved
+ *          it to a file of their choosing on Android; `'dismissed'` if the
+ *          user dismissed the prompts.
  */
 export async function saveNsec(
   npub: string,
@@ -185,11 +188,16 @@ export async function saveNsec(
     const saved = await storeNsecCredential(npub, nsec, name);
     if (saved) return 'saved';
 
-    // Android fallback: write the key to Documents so de-Googled devices
-    // (no credential provider installed) still get a persistent backup.
+    // Android fallback: let the user pick where the file goes, so
+    // de-Googled devices still get a backup without the key landing in a
+    // shared folder other apps can read.
     if (Capacitor.getPlatform() === 'android') {
-      await downloadTextFile(nsecFilename(npub, name), nsec);
-      return 'saved-to-file';
+      const { DittoDownloader } = await import('./dittoDownloader');
+      const { saved } = await DittoDownloader.saveTextDocument({
+        filename: nsecFilename(npub, name),
+        content: nsec,
+      });
+      return saved ? 'saved-to-file' : 'dismissed';
     }
 
     // iOS: dismissal is a deliberate user choice, no automatic fallback.

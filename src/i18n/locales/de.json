@@ -399,7 +399,6 @@
   "settings.profile.backupKey.saveFailed": "Speichern fehlgeschlagen",
   "settings.profile.backupKey.saveFailedDescription": "Der Schlüssel konnte nicht gespeichert werden. Bitte kopiere ihn manuell.",
   "settings.profile.backupKey.saved": "Geheimer Schlüssel gespeichert",
-  "settings.profile.backupKey.savedToFileDescription": "Dein geheimer Schlüssel wurde im Ordner „Dokumente“ auf deinem Gerät gespeichert.",
   "settings.profile.backupKey.saving": "Speichern…",
   "settings.profile.backupKey.title": "Dein Schlüssel",
   "settings.profile.backupKey.warning": "Teile deinen geheimen Schlüssel NIEMALS mit anderen. Vermeide es, Screenshots davon zu machen oder ihn irgendwo einzufügen, außer in einem Passwort-Manager. Wenn er geteilt wird, können andere auf dein Konto zugreifen.",

@@ -389,10 +389,9 @@ function SetupQuestionnaire({
   // `'dismissed'` and we still advance — dismissal is a legitimate choice
   // (e.g. the user is saving the key in their own password manager).
   //
-  // On Android, if no credential provider is available (e.g. GrapheneOS or
-  // other de-Googled devices), `saveNsec` falls back to writing the key to
-  // the app's Documents folder and returns `'saved-to-file'`. We surface a
-  // toast so the user knows where to find the backup file.
+  // On Android, if the password manager doesn't save the key, `saveNsec`
+  // opens the system "Save as" dialog. The user picks the location there, so
+  // no confirmation is needed.
   //
   // Only unexpected errors (decode failure, filesystem write failure)
   // surface as a destructive toast.
@@ -404,15 +403,7 @@ function SetupQuestionnaire({
       const pubkey = getPublicKey(decoded.data);
       const npub = nip19.npubEncode(pubkey);
 
-      const result = await saveNsec(npub, nsec, config.appName);
-
-      if (result === "saved-to-file") {
-        toast({
-          title: "Secret key saved",
-          description:
-            "Your secret key was saved to the Documents folder on your device.",
-        });
-      }
+      await saveNsec(npub, nsec, config.appName);
 
       login.nsec(nsec);
       next();
