@@ -138,13 +138,13 @@ export function ProfileSearchDropdown({
   }, [navigate, onSelect]);
 
   const handleTextSearch = useCallback(() => {
-    if (!query.trim()) return;
+    const q = query.trim();
     setOpen(false);
     setQuery('');
     inputRef.current?.blur();
 
     if (!enableTextSearch) return;
-    navigate(`/search?q=${encodeURIComponent(query.trim())}`);
+    navigate(q ? `/search?q=${encodeURIComponent(q)}` : '/search');
   }, [enableTextSearch, query, navigate]);
 
   // Total selectable items: navItems + identifier? + URL comment? + country?(top) + results + country?(bottom) + wikipedia? + archive?

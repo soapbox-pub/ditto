@@ -191,10 +191,9 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   }, [navigate, handleClose, queryClient]);
 
   const handleTextSearch = useCallback(() => {
-    if (!query.trim()) return;
-
+    const q = query.trim();
     handleClose();
-    navigate(`/search?q=${encodeURIComponent(query.trim())}`);
+    navigate(q ? `/search?q=${encodeURIComponent(q)}` : '/search');
   }, [query, navigate, handleClose]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
