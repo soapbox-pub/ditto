@@ -23,6 +23,7 @@ import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import { getStorageKey } from '@/lib/storageKey';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { usePrefetchFeedCards } from '@/hooks/usePrefetchFeedCards';
 import { useFeedTab } from '@/hooks/useFeedTab';
 import { useInterests } from '@/hooks/useInterests';
 import { useMuteFilter } from '@/hooks/useMuteFilter';
@@ -302,6 +303,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     derivedItems,
     `${user?.pubkey ?? ''}:${useDittoQuery ? 'ditto' : activeTab}`,
   );
+  usePrefetchFeedCards(feedItems);
 
   // Show skeletons while loading, but not if the curator list query errored
   // (that would leave logged-out users staring at infinite skeletons).
@@ -574,6 +576,7 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   // empty state over content the user is reading. Resets when the saved feed
   // (or account) changes — this component is reused across saved feed tabs.
   const feedItems = useStickyFeedItems(derivedItems, `${user?.pubkey ?? ''}:${feed.id}`);
+  usePrefetchFeedCards(feedItems);
 
   if (isLoading && feedItems.length === 0) {
     return (

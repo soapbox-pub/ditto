@@ -1,6 +1,7 @@
-import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
+import { type NostrEvent, type NostrMetadata, type NPool, NSchema as n } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { NIndexedDB } from '@nostrify/indexeddb';
+import { type QueryClient, queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useCacheFirstSeed } from '@/hooks/useCacheFirstSeed';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
@@ -33,7 +34,24 @@ export function useAuthor(pubkey: string | undefined) {
     getEvent: (data) => data.event,
   });
 
-  return useQuery<AuthorResult>({
+  return useQuery({
+    ...authorQueryOptions(nostr, queryClient, store, pubkey),
+    enabled: !!pubkey,
+  });
+}
+
+/**
+ * The query behind {@link useAuthor}. Shared with the feed's per-page
+ * prefetch (see usePrefetchFeedCards), which issues one per author in a page
+ * at once so the AppPool folds them into a single kind 0 REQ.
+ */
+export function authorQueryOptions(
+  nostr: NPool,
+  queryClient: QueryClient,
+  store: NIndexedDB,
+  pubkey: string | undefined,
+) {
+  return queryOptions<AuthorResult>({
     queryKey: ['author', pubkey ?? ''],
     queryFn: async ({ signal }) => {
       if (!pubkey) {
@@ -102,7 +120,6 @@ export function useAuthor(pubkey: string | undefined) {
 
       return parseAuthorEvent(newest);
     },
-    enabled: !!pubkey,
     staleTime: 5 * 60 * 1000,   // 5 minutes
     gcTime: 10 * 60 * 1000,     // 10 minutes
     retry: 1,

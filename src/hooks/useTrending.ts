@@ -277,7 +277,7 @@ function isAddressableKind(kind: number): boolean {
 }
 
 /** Compute the NIP-33 `a`-tag coordinate string for an addressable event. */
-function getAddrString(event: NostrEvent): string | undefined {
+export function getAddrString(event: NostrEvent): string | undefined {
   if (!isAddressableKind(event.kind)) return undefined;
   const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
   return `${event.kind}:${event.pubkey}:${dTag}`;

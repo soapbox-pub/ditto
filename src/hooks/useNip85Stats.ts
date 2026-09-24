@@ -1,5 +1,6 @@
+import type { NostrEvent, NPool } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { queryOptions, useQuery } from '@tanstack/react-query';
 import { useAppContext } from '@/hooks/useAppContext';
 
 export interface Nip85EventStats {
@@ -19,16 +20,27 @@ export interface Nip85UserStats {
  * Fetches NIP-85 event stats (kind 30383) from the configured stats pubkey.
  * Returns undefined if no stats are available.
  *
- * Stats lookups are batched automatically: 20 NoteCards mounting in the same
- * frame produce a single REQ with `#d: [id1, ..., id20]` instead of 20
- * separate REQs, thanks to the AppPool's request batching.
+ * Lookups issued in the same microtask share one `#d: [...]` REQ (AppPool
+ * batching). Feed cards mount one at a time as they scroll in, so feeds warm
+ * this cache for a whole page up front (see usePrefetchFeedCards).
  */
 export function useNip85EventStats(eventId: string | undefined) {
   const { nostr } = useNostr();
   const { config } = useAppContext();
   const statsPubkey = config.nip85StatsPubkey;
 
-  return useQuery<Nip85EventStats | null>({
+  return useQuery({
+    ...nip85EventStatsQueryOptions(nostr, statsPubkey, eventId),
+    enabled: !!eventId && !!statsPubkey,
+  });
+}
+
+/**
+ * The query behind {@link useNip85EventStats}. Shared with the feed's per-page
+ * prefetch (see usePrefetchFeedCards).
+ */
+export function nip85EventStatsQueryOptions(nostr: NPool, statsPubkey: string | undefined, eventId: string | undefined) {
+  return queryOptions<Nip85EventStats | null>({
     queryKey: ['nip85-event-stats', eventId, statsPubkey],
     queryFn: async ({ signal }) => {
       if (!eventId || !statsPubkey) return null;
@@ -40,25 +52,11 @@ export function useNip85EventStats(eventId: string | undefined) {
         );
 
         if (events.length === 0) return null;
-
-        const event = events[0];
-        const getTagValue = (tagName: string): number => {
-          const tag = event.tags.find(([name]) => name === tagName);
-          return tag?.[1] ? parseInt(tag[1], 10) : 0;
-        };
-
-        return {
-          commentCount: getTagValue('comment_cnt'),
-          repostCount: getTagValue('repost_cnt'),
-          reactionCount: getTagValue('reaction_cnt'),
-          zapCount: getTagValue('zap_cnt'),
-          zapAmount: getTagValue('zap_amount'),
-        };
+        return parseEventStats(events[0]);
       } catch {
         return null;
       }
     },
-    enabled: !!eventId && !!statsPubkey,
     staleTime: 30 * 1000,
     retry: false,
   });
@@ -125,7 +123,18 @@ export function useNip85AddrStats(addr: string | undefined) {
   const { config } = useAppContext();
   const statsPubkey = config.nip85StatsPubkey;
 
-  return useQuery<Nip85EventStats | null>({
+  return useQuery({
+    ...nip85AddrStatsQueryOptions(nostr, statsPubkey, addr),
+    enabled: !!addr && !!statsPubkey,
+  });
+}
+
+/**
+ * The query behind {@link useNip85AddrStats}. Shared with the feed's per-page
+ * prefetch (see usePrefetchFeedCards).
+ */
+export function nip85AddrStatsQueryOptions(nostr: NPool, statsPubkey: string | undefined, addr: string | undefined) {
+  return queryOptions<Nip85EventStats | null>({
     queryKey: ['nip85-addr-stats', addr, statsPubkey],
     queryFn: async ({ signal }) => {
       if (!addr || !statsPubkey) return null;
@@ -147,26 +156,28 @@ export function useNip85AddrStats(addr: string | undefined) {
         );
 
         if (events.length === 0) return null;
-
-        const event = events[0];
-        const getTagValue = (tagName: string): number => {
-          const tag = event.tags.find(([name]) => name === tagName);
-          return tag?.[1] ? parseInt(tag[1], 10) : 0;
-        };
-
-        return {
-          commentCount: getTagValue('comment_cnt'),
-          repostCount: getTagValue('repost_cnt'),
-          reactionCount: getTagValue('reaction_cnt'),
-          zapCount: getTagValue('zap_cnt'),
-          zapAmount: getTagValue('zap_amount'),
-        };
+        return parseEventStats(events[0]);
       } catch {
         return null;
       }
     },
-    enabled: !!addr && !!statsPubkey,
     staleTime: 30 * 1000,
     retry: false,
   });
+}
+
+/** Read the engagement counts off a kind 30383 / 30384 stats event. */
+function parseEventStats(event: NostrEvent): Nip85EventStats {
+  const getTagValue = (tagName: string): number => {
+    const tag = event.tags.find(([name]) => name === tagName);
+    return tag?.[1] ? parseInt(tag[1], 10) : 0;
+  };
+
+  return {
+    commentCount: getTagValue('comment_cnt'),
+    repostCount: getTagValue('repost_cnt'),
+    reactionCount: getTagValue('reaction_cnt'),
+    zapCount: getTagValue('zap_cnt'),
+    zapAmount: getTagValue('zap_amount'),
+  };
 }

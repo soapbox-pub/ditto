@@ -1,5 +1,6 @@
+import type { NPool } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 /**
@@ -22,15 +23,30 @@ export function useRepostStatus(eventId: string | undefined): string | null | un
   const optimistic = queryClient.getQueryData<string | null>(['user-repost', eventId ?? '']);
 
   const { data } = useQuery({
+    ...repostStatusQueryOptions(nostr, user?.pubkey, eventId),
+    enabled: !!eventId && !!user && !optimistic,
+  });
+
+  // Prefer optimistic value, then query result
+  if (optimistic) return optimistic;
+  return data;
+}
+
+/**
+ * The query behind {@link useRepostStatus}. Shared with the feed's per-page
+ * prefetch (see usePrefetchFeedCards).
+ */
+export function repostStatusQueryOptions(nostr: NPool, userPubkey: string | undefined, eventId: string | undefined) {
+  return queryOptions({
     queryKey: ['user-repost', eventId ?? ''],
     queryFn: async ({ signal }): Promise<string | null> => {
-      if (!eventId || !user) return null;
+      if (!eventId || !userPubkey) return null;
 
       // Query both kind 6 (note reposts) and kind 16 (generic reposts)
       const events = await nostr.query(
         [{
           kinds: [6, 16],
-          authors: [user.pubkey],
+          authors: [userPubkey],
           '#e': [eventId],
           limit: 1,
         }],
@@ -40,12 +56,7 @@ export function useRepostStatus(eventId: string | undefined): string | null | un
       if (events.length === 0) return null;
       return events[0].id;
     },
-    enabled: !!eventId && !!user && !optimistic,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
-
-  // Prefer optimistic value, then query result
-  if (optimistic) return optimistic;
-  return data;
 }

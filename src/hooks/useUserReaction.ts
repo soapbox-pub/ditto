@@ -1,5 +1,6 @@
+import type { NPool } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { type ResolvedEmoji, resolveReactionEmoji } from '@/lib/customEmoji';
 
@@ -9,8 +10,9 @@ import { type ResolvedEmoji, resolveReactionEmoji } from '@/lib/customEmoji';
  * Checks the optimistic cache first (set by QuickReactMenu on react),
  * then falls back to querying the relay for the user's kind 7 events.
  * 
- * Reactions are batched automatically: 20 NoteCards mounting in the same
- * frame produce a single REQ with all 20 event IDs instead of 20 separate REQs.
+ * Lookups issued in the same microtask share one REQ (AppPool batching).
+ * Feed cards mount one at a time as they scroll in, so feeds warm this cache
+ * for a whole page up front (see usePrefetchFeedCards).
  * 
  * Returns undefined while loading, null if no reaction, or a ResolvedEmoji.
  */
@@ -27,14 +29,30 @@ export function useUserReaction(eventId: string | undefined): ResolvedEmoji | nu
   const hasCachedValue = cached !== undefined;
 
   const { data } = useQuery({
+    ...userReactionQueryOptions(nostr, user?.pubkey, eventId),
+    enabled: !!eventId && !!user && !hasCachedValue,
+  });
+
+  // Prefer cached value (including explicit null = no reaction), then query result
+  if (hasCachedValue) return cached;
+  return data;
+}
+
+/**
+ * The query behind {@link useUserReaction}. Shared with the feed's per-page
+ * prefetch, which issues one for every card in a page at once so the AppPool
+ * folds them into a single REQ.
+ */
+export function userReactionQueryOptions(nostr: NPool, userPubkey: string | undefined, eventId: string | undefined) {
+  return queryOptions({
     queryKey: ['user-reaction', eventId ?? ''],
     queryFn: async ({ signal }): Promise<ResolvedEmoji | null> => {
-      if (!eventId || !user) return null;
+      if (!eventId || !userPubkey) return null;
 
       const events = await nostr.query(
         [{
           kinds: [7],
-          authors: [user.pubkey],
+          authors: [userPubkey],
           '#e': [eventId],
           limit: 1,
         }],
@@ -48,12 +66,7 @@ export function useUserReaction(eventId: string | undefined): ResolvedEmoji | nu
 
       return resolveReactionEmoji(events[0]) ?? null;
     },
-    enabled: !!eventId && !!user && !hasCachedValue,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
-
-  // Prefer cached value (including explicit null = no reaction), then query result
-  if (hasCachedValue) return cached;
-  return data;
 }
