@@ -62,7 +62,7 @@ export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus 
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
             placeholder="Search stickers..."
-            className="pl-8 pr-8 h-9 text-base md:text-sm bg-muted/50 border-0 rounded-lg"
+            className="pl-8 pr-8 h-9 text-base md:text-sm bg-muted/50 border-0 rounded-full"
           />
           {query && (
             <button

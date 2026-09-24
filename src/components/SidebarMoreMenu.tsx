@@ -250,11 +250,10 @@ export function SidebarMoreMenu({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="start" collisionPadding={8} className="w-[240px] p-1 flex flex-col max-h-[calc(var(--radix-dropdown-menu-content-available-height)-12px-var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]">
-            <div className="flex items-center gap-3 px-2 py-2 shrink-0">
-              <Search className="size-5 shrink-0" />
+            <div className="flex items-center gap-2 mx-1 mt-1 mb-2 px-3 py-2 shrink-0 rounded-full bg-secondary">
+              <Search className="size-4 shrink-0 text-muted-foreground" />
               <input value={addQuery} onChange={(e) => setAddQuery(e.target.value)} placeholder={intl.formatMessage({ id: 'common.searchPlaceholder', defaultMessage: "Search..." })} className="flex-1 min-w-0 bg-transparent text-base md:text-sm outline-none placeholder:text-muted-foreground/60" autoFocus />
             </div>
-            <div className="h-px bg-border mb-1 shrink-0" />
             {add.canScrollUp && <ScrollCaret direction="up" onMouseEnter={() => add.startScroll('up')} onMouseLeave={add.stopScroll} />}
             <div ref={add.refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={add.onScroll}>
               {groupBySection(addFiltered).map(([section, items], i) => (
@@ -336,11 +335,10 @@ export function SidebarMoreMenu({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" collisionPadding={8} className="w-[240px] p-1 flex flex-col max-h-[calc(var(--radix-dropdown-menu-content-available-height)-12px-var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]">
-        <div className="flex items-center gap-3 px-2 py-2 shrink-0">
-          <Search className="size-5 shrink-0" />
+        <div className="flex items-center gap-2 mx-1 mt-1 mb-2 px-3 py-2 shrink-0 rounded-full bg-secondary">
+          <Search className="size-4 shrink-0 text-muted-foreground" />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={intl.formatMessage({ id: 'common.searchPlaceholder', defaultMessage: "Search..." })} className="flex-1 min-w-0 bg-transparent text-base md:text-sm outline-none placeholder:text-muted-foreground/60" autoFocus />
         </div>
-        <div className="h-px bg-border mb-1 shrink-0" />
         {main.canScrollUp && <ScrollCaret direction="up" onMouseEnter={() => main.startScroll('up')} onMouseLeave={main.stopScroll} />}
         <div ref={main.refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={main.onScroll}>
           {groupBySection(filtered).map(([section, items], i) => (

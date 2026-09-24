@@ -145,7 +145,7 @@ export function GifPicker({ onSelect, autoFocus = true, onSearchActiveChange }: 
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
             placeholder="Search GIFs..."
-            className="pl-8 pr-20 h-9 text-base md:text-sm bg-muted/50 border-0 rounded-lg"
+            className="pl-8 pr-20 h-9 text-base md:text-sm bg-muted/50 border-0 rounded-full"
           />
           {query ? (
             <button

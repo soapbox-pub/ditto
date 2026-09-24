@@ -153,7 +153,7 @@ export function EmojiPicker({ onSelect, customEmojis, height = 280 }: EmojiPicke
 					".scroll { padding-right: var(--padding) !important; }",
 					".sticky { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background-color: transparent !important; }",
 					// Match the app's input style (same as StickerPicker / GifPicker)
-					".search input[type='search'] { background-color: hsl(var(--muted) / 0.5) !important; border: 0 !important; border-radius: 0.5rem !important; padding: 0.5rem 2rem 0.5rem 2.2rem !important; height: 36px !important; }",
+					".search input[type='search'] { background-color: hsl(var(--muted) / 0.5) !important; border: 0 !important; border-radius: 9999px !important; padding: 0.5rem 2rem 0.5rem 2.2rem !important; height: 36px !important; }",
 					".search input[type='search']:focus { box-shadow: 0 0 0 1px hsl(var(--ring)) !important; background-color: hsl(var(--background)) !important; }",
 					".search input[type='search']::placeholder { color: hsl(var(--muted-foreground)) !important; opacity: 1 !important; }",
 					".search .icon { color: hsl(var(--muted-foreground)) !important; }",

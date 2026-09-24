@@ -142,7 +142,7 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Search to add people…"
-              className="pl-9 pr-8"
+              className="pl-9 pr-8 rounded-full"
             />
             {isFetching && (
               <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground animate-spin" />

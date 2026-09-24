@@ -101,7 +101,7 @@ export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: A
               placeholder="Search by name or NIP-05..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="pl-9 pr-3"
+              className="pl-9 pr-3 rounded-full"
               autoFocus
             />
           </div>

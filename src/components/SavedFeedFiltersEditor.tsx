@@ -195,20 +195,22 @@ export function KindPicker({ value, options, onChange }: {
         className="w-56 p-0 flex flex-col overflow-hidden"
         style={{ maxHeight: 'min(280px, var(--radix-popover-content-available-height, 280px))' }}
       >
-        <div className="flex items-center gap-1.5 px-2.5 py-2 border-b border-border shrink-0">
-          <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-          <input
-            className="flex-1 text-base md:text-xs bg-transparent outline-none placeholder:text-muted-foreground"
-            placeholder="Search kinds..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            autoFocus
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="text-muted-foreground hover:text-foreground">
-              <X className="size-3" />
-            </button>
-          )}
+        <div className="p-2 border-b border-border shrink-0">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary">
+            <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
+            <input
+              className="flex-1 min-w-0 text-base md:text-xs bg-transparent outline-none placeholder:text-muted-foreground"
+              placeholder="Search kinds..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              autoFocus
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="text-muted-foreground hover:text-foreground">
+                <X className="size-3" />
+              </button>
+            )}
+          </div>
         </div>
         {canScrollUp && <KindScrollCaret direction="up" onMouseEnter={() => startScroll('up')} onMouseLeave={stopScroll} />}
         <div ref={refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={onScroll}>
@@ -325,20 +327,22 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
           className="w-[--radix-popover-trigger-width] min-w-64 p-0 flex flex-col overflow-hidden"
           style={{ maxHeight: 'min(320px, var(--radix-popover-content-available-height, 320px))' }}
         >
-          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border shrink-0">
-            <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            <input
-              className="flex-1 text-base md:text-sm bg-transparent outline-none placeholder:text-muted-foreground"
-              placeholder="Search kinds..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              autoFocus
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="text-muted-foreground hover:text-foreground">
-                <X className="size-3.5" />
-              </button>
-            )}
+          <div className="p-2 border-b border-border shrink-0">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-secondary">
+              <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
+              <input
+                className="flex-1 min-w-0 text-base md:text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+                placeholder="Search kinds..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                autoFocus
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="text-muted-foreground hover:text-foreground">
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
           </div>
 
           {canScrollUp && (
@@ -612,7 +616,7 @@ export function AuthorFilterDropdown({ onCommit }: { onCommit: (pubkey: string, 
       placeholder="Search by name or npub..."
       onSelect={handleSelect}
       hideCountry
-      inputClassName="rounded-lg bg-secondary/50 border border-border focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 text-base md:text-sm h-9"
+      inputClassName="rounded-full bg-secondary/50 border border-border focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 text-base md:text-sm h-9"
       className="w-full"
     />
   );
