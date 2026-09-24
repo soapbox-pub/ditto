@@ -1,9 +1,45 @@
 import { useState, useEffect } from 'react';
 import type Hls from 'hls.js';
 
+/** Widest thumbnail worth producing: posters render at feed-card width. */
+const MAX_THUMBNAIL_WIDTH = 640;
+
+/**
+ * Draw the video's current frame, downscaled, and encode it as a JPEG object
+ * URL. Resolves `undefined` for a tainted canvas (CORS) or a blank frame.
+ *
+ * Downscaled and encoded with `toBlob` because this runs for every poster-less
+ * video in a feed: drawing a 1080p/4K frame at full size and encoding it with
+ * the synchronous `toDataURL` blocked the main thread for 120-435ms per video.
+ * `toBlob` encodes off the main thread.
+ */
+function captureFrame(video: HTMLVideoElement): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    try {
+      const width = video.videoWidth || 320;
+      const height = video.videoHeight || 180;
+      const scale = Math.min(1, MAX_THUMBNAIL_WIDTH / width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(undefined);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // A blank frame encodes to a few hundred bytes.
+      canvas.toBlob(
+        (blob) => resolve(blob && blob.size > 750 ? URL.createObjectURL(blob) : undefined),
+        'image/jpeg',
+        0.7,
+      );
+    } catch {
+      resolve(undefined); // CORS or tainted canvas
+    }
+  });
+}
+
 /**
  * Extracts a thumbnail frame from a video URL by loading it off-screen,
- * drawing the first frame to a canvas, and returning a data URL.
+ * drawing the first frame to a canvas, and returning an object URL for it.
  * Works reliably on Android WebView where preload="metadata" doesn't render a visible frame.
  */
 export function useVideoThumbnail(src: string, poster: string | undefined): string | undefined {
@@ -15,6 +51,29 @@ export function useVideoThumbnail(src: string, poster: string | undefined): stri
     if (!src) return;
 
     let cancelled = false;
+    /** The object URL this effect created, revoked when it's superseded. */
+    let created: string | undefined;
+
+    const capture = (video: HTMLVideoElement): Promise<void> =>
+      captureFrame(video).then((url) => {
+        if (!url) return;
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        created = url;
+        setThumbnail(url);
+      });
+
+    const release = () => {
+      cancelled = true;
+      if (created) {
+        const revoked = created;
+        URL.revokeObjectURL(revoked);
+        // Don't leave a dead URL in state for the next source to replace.
+        setThumbnail((current) => (current === revoked ? undefined : current));
+      }
+    };
 
     function grabFrameFromUrl(videoSrc: string) {
       const video = document.createElement('video');
@@ -24,26 +83,15 @@ export function useVideoThumbnail(src: string, poster: string | undefined): stri
       video.preload = 'metadata';
       video.src = videoSrc;
 
-      function captureFrame() {
-        if (cancelled) return;
-        try {
-          const canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth || 320;
-          canvas.height = video.videoHeight || 180;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-            if (dataUrl.length > 1000) setThumbnail(dataUrl);
-          }
-        } catch { /* CORS or tainted canvas */ }
-        video.src = '';
-        video.load();
-      }
-
       // After metadata loads, seek to 0.1s — then capture on seeked
       const handleMetadata = () => { video.currentTime = 0.1; };
-      const handleSeeked = () => captureFrame();
+      const handleSeeked = () => {
+        if (cancelled) return;
+        void capture(video).finally(() => {
+          video.src = '';
+          video.load();
+        });
+      };
 
       video.addEventListener('loadedmetadata', handleMetadata, { once: true });
       video.addEventListener('seeked', handleSeeked, { once: true });
@@ -69,25 +117,16 @@ export function useVideoThumbnail(src: string, poster: string | undefined): stri
           if (cancelled) return;
           video.play().then(() => {
             video.pause();
-            try {
-              const canvas = document.createElement('canvas');
-              canvas.width = video.videoWidth || 320;
-              canvas.height = video.videoHeight || 180;
-              const ctx = canvas.getContext('2d');
-              if (ctx) {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                if (dataUrl.length > 1000) setThumbnail(dataUrl);
-              }
-            } catch { /* tainted canvas */ }
+            return capture(video);
+          }).catch(() => { /* ignore */ }).finally(() => {
             video.src = '';
-          }).catch(() => { /* ignore */ });
+          });
         };
 
         video.src = src;
         video.addEventListener('loadeddata', grabFrame, { once: true });
         return () => {
-          cancelled = true;
+          release();
           video.removeEventListener('loadeddata', grabFrame);
           video.src = '';
         };
@@ -102,21 +141,12 @@ export function useVideoThumbnail(src: string, poster: string | undefined): stri
           if (cancelled) return;
           video.play().then(() => {
             video.pause();
-            try {
-              const canvas = document.createElement('canvas');
-              canvas.width = video.videoWidth || 320;
-              canvas.height = video.videoHeight || 180;
-              const ctx = canvas.getContext('2d');
-              if (ctx) {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                if (dataUrl.length > 1000) setThumbnail(dataUrl);
-              }
-            } catch { /* tainted canvas */ }
+            return capture(video);
+          }).catch(() => { /* ignore */ }).finally(() => {
             hlsInstance?.destroy();
             hlsInstance = null;
             video.src = '';
-          }).catch(() => { hlsInstance?.destroy(); hlsInstance = null; });
+          });
         };
 
         const hls = new HlsLib({ startLevel: -1, maxBufferLength: 5 });
@@ -129,12 +159,12 @@ export function useVideoThumbnail(src: string, poster: string | undefined): stri
         });
       });
 
-      return () => { cancelled = true; hlsInstance?.destroy(); hlsInstance = null; video.src = ''; };
+      return () => { release(); hlsInstance?.destroy(); hlsInstance = null; video.src = ''; };
     }
 
     // Regular video file
     const cleanupDirect = grabFrameFromUrl(src);
-    return () => { cancelled = true; cleanupDirect(); };
+    return () => { release(); cleanupDirect(); };
   }, [src, poster]);
 
   return thumbnail;
