@@ -1,4 +1,16 @@
 import { parseFileEncryption, type FileEncryption } from '@/lib/encryptedFile';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
+
+/**
+ * Keep an imeta URL only if it's `https:` or a BUD-10 `blossom:` URI (resolved
+ * later). The original string is kept, not the normalised one, because
+ * callers match these URLs against links in the event's content.
+ */
+function validMediaUrl(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  if (raw.toLowerCase().startsWith('blossom:')) return raw;
+  return sanitizeUrl(raw) ? raw : undefined;
+}
 
 /** Parsed imeta entry from NIP-94 tags. */
 export interface ImetaEntry {
@@ -53,15 +65,20 @@ export function parseImetaEntries(tags: string[][]): ImetaEntry[] {
       if (spaceIdx === -1) continue;
       const key = part.slice(0, spaceIdx);
       const value = part.slice(spaceIdx + 1);
-      if (key === 'fallback') fallbacks.push(value);
-      else fields[key] = value;
+      if (key === 'fallback') {
+        const fallback = validMediaUrl(value);
+        if (fallback) fallbacks.push(fallback);
+      } else {
+        fields[key] = value;
+      }
     }
 
-    if (!fields.url) continue;
+    const url = validMediaUrl(fields.url);
+    if (!url) continue;
 
     entries.push({
-      url: fields.url,
-      thumbnail: fields.image ?? fields.thumb,
+      url,
+      thumbnail: validMediaUrl(fields.image ?? fields.thumb),
       mime: fields.m,
       alt: fields.alt,
       summary: fields.summary,

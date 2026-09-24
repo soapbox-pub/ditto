@@ -90,7 +90,7 @@ export function parseBlossomUri(raw: string): BlossomUri | undefined {
 /**
  * Resolve a URL that may be a BUD-10 `blossom:` URI into a fetchable HTTPS URL.
  *
- * - Plain URLs pass through unchanged.
+ * - Plain `https:` URLs pass through unchanged; anything else is dropped.
  * - `blossom:` URIs resolve to the first candidate blob URL (`xs` server hints
  *   first, then `fallbackServers` — see {@link resolveBlossomUri}). Downstream
  *   consumers get multi-server fallback from `useBlossomFallback`, since the
@@ -98,7 +98,7 @@ export function parseBlossomUri(raw: string): BlossomUri | undefined {
  * - Returns `undefined` for malformed or unresolvable `blossom:` URIs.
  */
 export function resolveBlossomUrl(url: string, fallbackServers: string[]): string | undefined {
-  if (!url.toLowerCase().startsWith('blossom:')) return url;
+  if (!url.toLowerCase().startsWith('blossom:')) return sanitizeUrl(url) ? url : undefined;
   const uri = parseBlossomUri(url);
   if (!uri) return undefined;
   return resolveBlossomUri(uri, fallbackServers)[0];

@@ -48,6 +48,10 @@ export const secureStorage = {
       return;
     }
 
+    // A value never migrated out of localStorage would otherwise survive the
+    // removal and be migrated back on the next read.
+    localStorage.removeItem(key);
+
     try {
       await SecureStoragePlugin.remove({ key });
     } catch {

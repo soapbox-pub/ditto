@@ -1,5 +1,3 @@
-import type { Event as SentryEvent } from '@sentry/core';
-
 /** Subset of the Sentry API surface we actually use. */
 interface SentryLike {
   init: typeof import('@sentry/react').init;
@@ -8,6 +6,92 @@ interface SentryLike {
   captureException: typeof import('@sentry/react').captureException;
   captureMessage: typeof import('@sentry/react').captureMessage;
   setUser: typeof import('@sentry/react').setUser;
+}
+
+/**
+ * Secrets that must never reach Sentry, with their replacements: nsec and
+ * ncryptsec keys, NWC and bunker URIs (both carry a secret), and any
+ * `secret=` parameter. URIs and parameters are also matched percent-encoded,
+ * as they appear inside other URLs' query strings.
+ */
+const SECRET_PATTERNS: [RegExp, string][] = [
+  [/nsec1[023456789acdefghjklmnpqrstuvwxyz]{58}/gi, 'nsec1[redacted]'],
+  [/ncryptsec1[023456789acdefghjklmnpqrstuvwxyz]+/gi, 'ncryptsec1[redacted]'],
+  [/nostr(?:\+|%2B)?walletconnect(?::\/\/|%3A%2F%2F)[^\s"'`<>]*/gi, 'nostr+walletconnect://[redacted]'],
+  [/bunker(?::\/\/|%3A%2F%2F)[^\s"'`<>]*/gi, 'bunker://[redacted]'],
+  [/((?:[?&]|%3F|%26)secret(?:=|%3D))[^&\s"'`<>%]*/gi, '$1[redacted]'],
+];
+
+/**
+ * Object keys whose string values are secrets whatever they look like, such
+ * as the hex secret of a parsed NWC connection. Hex keys can't be matched by
+ * pattern without also wiping every event id and pubkey.
+ */
+const SECRET_KEY = /secret|priv(?:ate)?_?key|^(?:sk|nsec|password|passphrase|mnemonic|seed)$/i;
+
+/** How deep to walk nested values; anything deeper is dropped. */
+const MAX_DEPTH = 12;
+
+function censorString(value: string): string {
+  let censored = value;
+  for (const [pattern, replacement] of SECRET_PATTERNS) {
+    censored = censored.replace(pattern, replacement);
+  }
+  return censored;
+}
+
+/**
+ * Recursively censor secrets in any value (string, object, array, etc.).
+ *
+ * Plain objects and arrays are copied with their values censored. Errors
+ * become `{ name, message, stack }`, since their fields aren't enumerable.
+ * Other objects (class instances, DOM nodes, events), which breadcrumbs pick
+ * up from console arguments, are reduced to their string form rather than
+ * walked, and cycles are cut.
+ */
+function censorSecrets<T>(value: T): T {
+  return censorValue(value, new Set(), 0) as T;
+}
+
+/** `ancestors` holds the objects on the current path, to cut cycles. */
+function censorValue(value: unknown, ancestors: Set<object>, depth: number): unknown {
+  if (typeof value === 'string') return censorString(value);
+  if (!value || typeof value !== 'object') return value;
+  if (ancestors.has(value) || depth > MAX_DEPTH) return '[omitted]';
+
+  if (value instanceof Error) {
+    return {
+      name: value.name,
+      message: censorString(value.message),
+      stack: value.stack ? censorString(value.stack) : undefined,
+    };
+  }
+  const proto: unknown = Object.getPrototypeOf(value);
+  if (!Array.isArray(value) && proto !== Object.prototype && proto !== null) {
+    return censorString(String(value));
+  }
+
+  ancestors.add(value);
+  let result: unknown;
+  if (Array.isArray(value)) {
+    result = value.map((item) => censorValue(item, ancestors, depth + 1));
+  } else {
+    const copy: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(value)) {
+      if (depth === 0 && key === 'sdkProcessingMetadata') {
+        // SDK-internal state (scopes, request data) that the SDK reads after
+        // beforeSend and never sends as-is.
+        copy[key] = val;
+      } else {
+        copy[key] = typeof val === 'string' && SECRET_KEY.test(key)
+          ? '[redacted]'
+          : censorValue(val, ancestors, depth + 1);
+      }
+    }
+    result = copy;
+  }
+  ancestors.delete(value);
+  return result;
 }
 
 let sentryInstance: SentryLike | null = null;
@@ -74,37 +158,13 @@ export async function initializeSentry(dsn: string): Promise<void> {
       environment: import.meta.env.MODE,
       // Release
       release: import.meta.env.VERSION,
-      // Censor sensitive data before sending to Sentry
-      beforeSend(event) {
-        // Regex to match Nostr nsec private keys
-        const NSEC_REGEX = /nsec1[023456789acdefghjklmnpqrstuvwxyz]{58}/g;
-
-        /** Recursively censors sensitive values in any value (string, object, array, etc.) */
-        function censorSensitiveData(value: unknown): unknown {
-          if (typeof value === 'string') {
-            return value
-              .replace(NSEC_REGEX, 'nsec1**********************************************************');
-          }
-          if (Array.isArray(value)) {
-            return value.map(censorSensitiveData);
-          }
-          if (value && typeof value === 'object') {
-            const result: Record<string, unknown> = {};
-            for (const [key, val] of Object.entries(value)) {
-              result[key] = censorSensitiveData(val);
-            }
-            return result;
-          }
-          return value;
-        }
-
-        /** Censors sensitive values from Sentry events before sending */
-        function censorSensitiveValues<T extends SentryEvent>(event: T): T | null {
-          return censorSensitiveData(event) as T;
-        }
-
-        return censorSensitiveValues(event);
-      },
+      // Censor secrets before anything leaves the device. Transactions don't
+      // pass through beforeSend. Breadcrumbs do once attached to an event,
+      // but are scrubbed as they're recorded too, so raw secrets never sit in
+      // the in-memory buffer.
+      beforeSend: (event) => censorSecrets(event),
+      beforeSendTransaction: (event) => censorSecrets(event),
+      beforeBreadcrumb: (breadcrumb) => censorSecrets(breadcrumb),
     });
 
     isInitialized = true;

@@ -4,6 +4,7 @@
 import { NostrLoginProvider } from "@nostrify/react/login";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ActiveAccountSync } from "@/components/ActiveAccountSync";
+import { LogoutCleanup } from "@/components/LogoutCleanup";
 import { AppProvider } from "@/components/AppProvider";
 import { I18nProvider } from "@/components/I18nProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
@@ -244,6 +245,7 @@ export function App() {
             <QueryClientProvider client={queryClient}>
               <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
                 <ActiveAccountSync />
+                <LogoutCleanup />
                 <NostrProvider>
                   <NostrSync />
                   <NativeNotifications />

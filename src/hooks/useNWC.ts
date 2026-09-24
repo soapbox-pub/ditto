@@ -40,7 +40,8 @@ export function useNWCInternal(userPubkey?: string) {
     const parseNWCUri = (uri: string): { connectionString: string } | null => {
       try {
         if (!uri.startsWith('nostr+walletconnect://') && !uri.startsWith('nostrwalletconnect://')) {
-          console.error('Invalid NWC URI protocol:', { protocol: uri.split('://')[0] });
+          // Don't log the input: a misplaced secret would end up in logs.
+          console.error('Invalid NWC URI protocol');
           return null;
         }
         return { connectionString: uri };

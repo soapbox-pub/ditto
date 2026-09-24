@@ -20,11 +20,11 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useToast } from '@/hooks/useToast';
-import { KIND_LABELS } from '@/lib/kindLabels';
+import { getKindLabel, KIND_LABELS } from '@/lib/kindLabels';
 import { tryNpubEncode } from '@/lib/safeNip19';
 import { cn } from '@/lib/utils';
 
-import type { ImportIssueKind } from '@/lib/dataTransfer';
+import { replacesExistingData, type ImportIssueKind } from '@/lib/dataTransfer';
 
 /** Issue rows rendered in the details dialog before truncating. */
 const MAX_ISSUE_ROWS = 200;
@@ -112,6 +112,12 @@ export function DataSettingsPage() {
   const foreignCount = issues.filter((issue) => issue.kind === 'foreign').length;
   const invalidCount = issues.filter((issue) => issue.kind === 'invalid-signature').length;
   const malformedCount = issues.filter((issue) => issue.kind === 'malformed').length;
+
+  // Unsigned records that would overwrite or delete existing data once signed.
+  const replacingRecords = importState.parsed?.unsigned.filter((record) => replacesExistingData(record.kind)) ?? [];
+  const replacingKinds = [...new Set(replacingRecords.map((record) => record.kind))]
+    .sort((a, b) => a - b)
+    .map((kind) => getKindLabel(kind));
 
   async function handleDownload() {
     try {
@@ -362,6 +368,16 @@ export function DataSettingsPage() {
                       id="settings.data.invalidSignatureWarning"
                       defaultMessage={"{count, plural, one {# event has a signature that does not verify and will be skipped.} other {# events have signatures that do not verify and will be skipped.}}"}
                       values={{ count: invalidCount }}
+                    />
+                  </p>
+                )}
+
+                {replacingRecords.length > 0 && (
+                  <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-400">
+                    <FormattedMessage
+                      id="settings.data.replacingWarning"
+                      defaultMessage={"{count, plural, one {# event to sign replaces or deletes existing data} other {# events to sign replace or delete existing data}}: {kinds}. Only continue if you trust this file."}
+                      values={{ count: replacingRecords.length, kinds: intl.formatList(replacingKinds, { type: 'conjunction' }) }}
                     />
                   </p>
                 )}

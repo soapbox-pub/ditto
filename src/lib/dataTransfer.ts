@@ -149,11 +149,14 @@ export function parseJsonl(text: string, pubkey: string): ParsedImport {
     const content = typeof record.content === 'string' ? record.content : '';
     const tags = isTagArray(record.tags) ? record.tags : [];
 
-    // No signature: treat it as a template and sign it later.
+    // No signature: treat it as a template and sign it later. A future
+    // timestamp is clamped to now: a replaceable event dated in the future
+    // could never be replaced by a newer one.
     if (record.sig === undefined || record.sig === null || record.sig === '') {
+      const now = Math.floor(Date.now() / 1000);
       const created_at = typeof record.created_at === 'number' && Number.isFinite(record.created_at)
-        ? Math.floor(record.created_at)
-        : Math.floor(Date.now() / 1000);
+        ? Math.min(Math.floor(record.created_at), now)
+        : now;
 
       unsigned.push({ line, kind: record.kind, content, tags, created_at });
       continue;
@@ -371,4 +374,15 @@ export function progressPercent(progress: RelayProgress): number | undefined {
 export function exportFilename(npub: string): string {
   const date = new Date().toISOString().slice(0, 10);
   return `nostr-export-${npub.slice(0, 12)}-${date}.jsonl`;
+}
+
+/**
+ * Whether signing an event of this kind can replace or delete data the user
+ * already has: deletions (including NIP-62 requests to vanish, which erase
+ * everything), and replaceable or addressable kinds.
+ */
+export function replacesExistingData(kind: number): boolean {
+  return kind === 0 || kind === 3 || kind === 5 || kind === 62
+    || (kind >= 10000 && kind < 20000)
+    || (kind >= 30000 && kind < 40000);
 }
