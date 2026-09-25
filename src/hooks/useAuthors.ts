@@ -1,7 +1,7 @@
 import { type NostrEvent, type NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { parseAuthorEvent } from '@/hooks/useAuthor';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
 
@@ -26,9 +26,12 @@ export function useAuthors(pubkeys: string[]) {
   const queryClient = useQueryClient();
   const { store } = useNostrStorage();
 
-  // Deduplicate and sort for a stable query key
-  const uniquePubkeys = [...new Set(pubkeys)].sort();
-  const pubkeysKey = uniquePubkeys.join(',');
+  // Deduplicate and sort for a stable query key. The array is memoized on
+  // its key so its identity only changes when the set of pubkeys does —
+  // the seeding effect below depends on it, and a fresh array every render
+  // would re-run the effect on every cache write it makes.
+  const pubkeysKey = [...new Set(pubkeys)].sort().join(',');
+  const uniquePubkeys = useMemo(() => (pubkeysKey ? pubkeysKey.split(',') : []), [pubkeysKey]);
 
   // Seed from the local event store so known profiles render immediately,
   // without waiting on the network. Runs in parallel with the query below;
@@ -55,16 +58,20 @@ export function useAuthors(pubkeys: string[]) {
       }
 
       // Seed/merge the batched Map result too.
+      // Keep the existing Map when nothing is newer, so observers don't
+      // re-render for an unchanged result.
       queryClient.setQueryData<Map<string, AuthorData>>(['authors', pubkeysKey], (prev) => {
         const next = new Map<string, AuthorData>(prev ?? uniquePubkeys.map((pubkey) => [pubkey, { pubkey }]));
+        let changed = !prev;
         for (const event of cachedEvents) {
           const existing = next.get(event.pubkey);
           if (existing?.event && existing.event.created_at >= event.created_at) {
             continue;
           }
           next.set(event.pubkey, { pubkey: event.pubkey, ...parseAuthorEvent(event) });
+          changed = true;
         }
-        return next;
+        return changed ? next : prev;
       });
     })();
 
