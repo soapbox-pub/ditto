@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.41.2] - 2026-09-24
+
+Feeds scroll faster and stay responsive, even on hashtags buried in spam. Long posts load only what's on screen until you tap Read more, link previews stop piling up, videos without a thumbnail no longer stutter the page, and profile cards and reaction menus appear only when you reach for them. Tapping a heart you already liked now just removes your like.
+
+### Changed
+- Feeds scroll faster and use less battery: long posts render only their visible part until you tap Read more, video thumbnails are made without freezing the page, and profile cards and reaction and repost menus are built only when you open them
+- A note shows at most five link previews; any further links appear as plain links
+
+### Fixed
+- Hashtag feeds flooded with spam posts no longer freeze or crash the app
+- Tapping a heart you already liked removes your like without also popping open the reaction menu
+- Ditto no longer burns CPU re-checking saved profiles over and over in the background
+
 ## [2.41.1] - 2026-09-24
 
 Pin any follow set or follow pack as its own tab on your home feed, and it keeps up as the list changes. Scrolling feels lighter, with far fewer requests to your relays and less work going on in the background. Your follows feed stops skipping posts that only one relay had, your theme and feed settings stop reverting to old versions, and buttons and search fields now have the same rounded look as the rest of Ditto.
