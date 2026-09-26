@@ -2,11 +2,20 @@ import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { emojiPackCoord, emojiPackName } from '@/hooks/useEmojiPacks';
 import { parseAddr } from '@/lib/parseAddr';
 
 export interface CustomEmoji {
   shortcode: string;
   url: string;
+  /**
+   * The `30030:pubkey:dtag` coordinate of the pack this emoji came from.
+   * Absent for emojis inlined directly on the kind-10030 list. Drives the
+   * picker's one-section-per-pack grouping.
+   */
+  packCoord?: string;
+  /** The source pack's human name, resolved at read time for display. */
+  packName?: string;
 }
 
 // Stable empty: NoteContent keys its emoji map on this, and a fresh `[]` per
@@ -42,7 +51,7 @@ export function useCustomEmojis() {
 
       // Collect all emojis with their source pack identifier so we can
       // detect shortcode collisions across packs and prefix them.
-      interface RawEmoji { shortcode: string; url: string; packId: string }
+      interface RawEmoji { shortcode: string; url: string; packId: string; packCoord?: string; packName?: string }
       const raw: RawEmoji[] = [];
 
       // Step 2: Extract inline emoji tags (no pack, so packId is empty)
@@ -76,9 +85,11 @@ export function useCustomEmojis() {
 
           for (const packEvent of packEvents) {
             const packId = packEvent.tags.find(([n]) => n === 'd')?.[1] ?? '';
+            const packCoord = emojiPackCoord(packEvent.pubkey, packId);
+            const packName = emojiPackName(packEvent);
             for (const tag of packEvent.tags) {
               if (tag[0] === 'emoji' && tag[1] && tag[2]) {
-                raw.push({ shortcode: tag[1], url: tag[2], packId });
+                raw.push({ shortcode: tag[1], url: tag[2], packId, packCoord, packName });
               }
             }
           }
@@ -119,7 +130,12 @@ export function useCustomEmojis() {
 
         if (!seen.has(finalShortcode)) {
           seen.add(finalShortcode);
-          emojis.push({ shortcode: finalShortcode, url: entry.url });
+          emojis.push({
+            shortcode: finalShortcode,
+            url: entry.url,
+            packCoord: entry.packCoord,
+            packName: entry.packName,
+          });
         }
       }
 
