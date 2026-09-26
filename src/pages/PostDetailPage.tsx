@@ -2063,6 +2063,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <EmojiSourceFooter
                 url={resolved.url}
                 name={resolved.name}
+                authorPubkey={event.pubkey}
                 className="mt-2 rounded-xl border border-border bg-secondary/30 px-3 py-2.5"
               />
             );

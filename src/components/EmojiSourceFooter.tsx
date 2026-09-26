@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Check, Loader2, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAddEmojiPack, useHasEmojiPack } from '@/hooks/useEmojiPacks';
@@ -14,6 +15,11 @@ interface EmojiSourceFooterProps {
   url: string;
   /** The emoji's shortcode (no colons), for the preview thumbnail. */
   name?: string;
+  /**
+   * Whoever used the emoji (reactor, note author). When the pack isn't known
+   * locally it's chased down over this author's relays before giving up.
+   */
+  authorPubkey?: string;
   /** Extra classes for the outer row. */
   className?: string;
 }
@@ -22,13 +28,14 @@ interface EmojiSourceFooterProps {
  * Attribution row for a custom-emoji reaction: which NIP-30 pack it came from,
  * plus a one-tap add so seeing an emoji you like is enough to get it.
  *
- * Renders nothing when the emoji's origin can't be resolved — a reaction tag
- * carries only `[emoji, code, url]`, so a pack we've never seen stays unnamed
- * rather than being guessed at.
+ * While the author-scoped relay lookup is in flight it shows a skeleton rather
+ * than an empty gap. Renders nothing only once the lookup settles with no pack
+ * — a reaction tag carries only `[emoji, code, url]`, so a pack we've never
+ * seen stays unnamed rather than being guessed at.
  */
-export function EmojiSourceFooter({ url, name, className }: EmojiSourceFooterProps) {
+export function EmojiSourceFooter({ url, name, authorPubkey, className }: EmojiSourceFooterProps) {
   const { user } = useCurrentUser();
-  const source = useEmojiSource(url);
+  const { source, isLoading } = useEmojiSource(url, authorPubkey);
   const alreadyAdded = useHasEmojiPack(source?.coord);
   const { mutateAsync: addPack, isPending } = useAddEmojiPack();
   const { toast } = useToast();
@@ -51,7 +58,22 @@ export function EmojiSourceFooter({ url, name, className }: EmojiSourceFooterPro
     }
   }, [addPack, source, toast]);
 
-  if (!source) return null;
+  if (!source) {
+    if (!isLoading) return null;
+    // Mirror the resolved row's layout so nothing jumps when the name lands.
+    return (
+      <div className={cn('flex items-center gap-2.5 px-4 py-2.5', className)}>
+        {name && (
+          <CustomEmojiImg name={name} url={url} className="size-7 shrink-0 rounded object-contain" />
+        )}
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">From</div>
+          <Skeleton className="h-3.5 w-24" />
+        </div>
+        {user && <Skeleton className="h-8 w-14 shrink-0 rounded-md" />}
+      </div>
+    );
+  }
   const isAdded = justAdded || alreadyAdded;
 
   return (

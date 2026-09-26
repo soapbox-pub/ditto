@@ -191,17 +191,20 @@ function QuotesTab({ quotes }: { quotes: QuoteEntry[] }) {
   );
 }
 
+/** How many distinct custom emojis get an author-scoped pack lookup. */
+const MAX_REMOTE_EMOJI_LOOKUPS = 6;
+
 /* ──── Reactions Tab ──── */
 function ReactionsTab({ reactions }: { reactions: ReactionEntry[] }) {
   // Summary of unique emojis with counts, sorted by popularity
   const emojiSummary = useMemo(() => {
-    const counts = new Map<string, { count: number; url?: string }>();
+    const counts = new Map<string, { count: number; url?: string; pubkey: string }>();
     for (const r of reactions) {
       const existing = counts.get(r.emoji);
       if (existing) {
         existing.count++;
       } else {
-        counts.set(r.emoji, { count: 1, url: r.emojiUrl });
+        counts.set(r.emoji, { count: 1, url: r.emojiUrl, pubkey: r.pubkey });
       }
     }
     return Array.from(counts.entries())
@@ -211,10 +214,10 @@ function ReactionsTab({ reactions }: { reactions: ReactionEntry[] }) {
   // Distinct custom emojis used, so each origin pack is named + addable once
   // (rather than repeated per reactor row).
   const customEmojis = useMemo(() => {
-    const seen = new Map<string, { url: string; name: string }>();
-    for (const [emoji, { url }] of emojiSummary) {
+    const seen = new Map<string, { url: string; name: string; pubkey: string }>();
+    for (const [emoji, { url, pubkey }] of emojiSummary) {
       if (url && isCustomEmoji(emoji) && !seen.has(url)) {
-        seen.set(url, { url, name: emoji.slice(1, -1) });
+        seen.set(url, { url, name: emoji.slice(1, -1), pubkey });
       }
     }
     return Array.from(seen.values());
@@ -249,8 +252,16 @@ function ReactionsTab({ reactions }: { reactions: ReactionEntry[] }) {
           add it in a tap. Renders only for emojis whose pack we can resolve. */}
       {customEmojis.length > 0 && (
         <div className="divide-y divide-border border-b border-border">
-          {customEmojis.map((e) => (
-            <EmojiSourceFooter key={e.url} url={e.url} name={e.name} />
+          {customEmojis.map((e, i) => (
+            <EmojiSourceFooter
+              key={e.url}
+              url={e.url}
+              name={e.name}
+              // Chase unknown packs over a reactor's relays for the most-used
+              // few only, so a post with dozens of custom reactions doesn't
+              // fan out a lookup per emoji the moment the dialog opens.
+              authorPubkey={i < MAX_REMOTE_EMOJI_LOOKUPS ? e.pubkey : undefined}
+            />
           ))}
         </div>
       )}
