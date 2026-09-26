@@ -73,7 +73,11 @@ export const emojiAvatarBorderStyle = shapedAvatarBorderStyle;
 
 // ── Emoji mask generation ──────────────────────────────────────────────────
 
-/** In-memory cache: emoji string → data-URL. */
+/**
+ * In-memory cache: emoji string → data-URL, or `''` when the glyph drew
+ * nothing. Failures are cached too: Avatar calls this on every render, and an
+ * uncached failure re-ran the 768² pixel scan each time.
+ */
 const emojiMaskCache = new Map<string, string>();
 
 // ── Unified mask URL getter ──────────────────────────────────────────────
@@ -130,7 +134,7 @@ export async function getAvatarMaskUrlAsync(shape: string): Promise<string> {
  */
 export function getEmojiMaskUrl(emoji: string): string {
   const cached = emojiMaskCache.get(emoji);
-  if (cached) return cached;
+  if (cached !== undefined) return cached;
 
   // ── Pass 1: draw emoji on oversized scratch canvas ──────────────────
   const fontSize = 512;
@@ -164,7 +168,10 @@ export function getEmojiMaskUrl(emoji: string): string {
       }
     }
   }
-  if (r < l || b < t) return '';                 // nothing drawn
+  if (r < l || b < t) {                         // nothing drawn
+    emojiMaskCache.set(emoji, '');
+    return '';
+  }
 
   // ── Pass 3: square the bounding box ─────────────────────────────────
   let cropW = r - l + 1;
