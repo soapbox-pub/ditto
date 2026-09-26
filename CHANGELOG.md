@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.42.0] - 2026-09-26
+
+Light the fire: posting streaks are here. Post every day and a 🔥 with your day count shows on your profile, with a heads-up before it breaks and a little celebration when a new one starts. Push notifications got smarter too: tap one to jump straight to the post, reply or mark it read from the notification, and see on-chain zaps, voice messages, quiz results, and highlights described properly. Your posts also reach your own relays even when you browse with Ditto's.
+
+### Added
+- Posting streaks: post every day to grow a 🔥 streak shown on your profile and hover card, with a warning when it's about to break and a celebration when you start a new one
+- Reply and Mark read buttons on browser push notifications
+- Browser push notifications for on-chain zaps and voice messages
+
+### Changed
+- Tapping a browser push notification opens the post it's about instead of your notifications list
+- Push notifications on the phone apps say what on-chain zaps, quiz results, and highlights are instead of a generic "mentioned you"
+- Push notifications stay in sync with your notification settings, relays, and follows without having to reopen the settings page
+- Push notifications say who liked or disliked your post, and skip your own activity
+- Push notifications ignore forged posts, so a bad relay can't put words in someone else's mouth
+
+### Fixed
+- Your posts reach the relays on your relay list even when you've switched to Ditto's relays, so other apps can find them
+- Tall vertical videos in quoted posts no longer push the post menu off screen
+
 ## [2.41.3] - 2026-09-26
 
 Custom emojis get some love: tap one in a post to see which pack it's from and add it in one tap, browse each of your packs in its own section of the picker, and your most-used emojis follow you across devices. A lone emoji now shows up extra big. Feeds scroll smoother and lighter, the Back button stays inside Ditto on shared links, and unusual video formats show as a downloadable file instead of a player that never starts.
