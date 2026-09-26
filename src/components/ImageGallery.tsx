@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { memo, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X, Download, Loader2 } from 'lucide-react';
 import { BlurhashPlaceholder } from '@/components/BlurhashPlaceholder';
@@ -85,12 +85,12 @@ export function ImageGallery({
     [images, imetaMap],
   );
 
-  const openLightbox = (index: number, e: React.MouseEvent) => {
+  const openLightbox = useCallback((index: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (onLightboxOpen) onLightboxOpen(index);
     else setInternalIndex(index);
-  };
+  }, [onLightboxOpen]);
 
   const closeLightbox = useCallback((e?: React.MouseEvent) => {
     if (e) {
@@ -137,7 +137,7 @@ export function ImageGallery({
             visibleCount={visibleImages.length}
             maxGridHeight={maxGridHeight}
             overflow={i === visibleImages.length - 1 ? overflow : 0}
-            onOpen={(e) => openLightbox(i, e)}
+            onOpen={openLightbox}
             dim={imetaMap?.get(url)?.dim}
             blurhash={imetaMap?.get(url)?.blurhash}
             encryption={imetaMap?.get(url)?.encryption}
@@ -174,7 +174,7 @@ function parseDim(dim: string | undefined): { width: number; height: number } | 
 }
 
 /** Single image tile with a blurhash/skeleton shown until the image loads. */
-function GridImage({
+const GridImage = memo(function GridImage({
   url,
   index,
   visibleCount,
@@ -190,7 +190,8 @@ function GridImage({
   visibleCount: number;
   maxGridHeight: string;
   overflow: number;
-  onOpen: (e: React.MouseEvent) => void;
+  /** Called with this tile's `index`; stable across renders so the tile can memoize. */
+  onOpen: (index: number, e: React.MouseEvent) => void;
   /** NIP-94 `dim` tag value, e.g. "1280x720". Used to size the placeholder before load. */
   dim?: string;
   /** NIP-94 `blurhash` tag value. Rendered as a canvas placeholder before the image loads. */
@@ -259,7 +260,7 @@ function GridImage({
         visibleCount === 3 && index === 0 && 'row-span-2',
       )}
       style={containerStyle}
-      onClick={onOpen}
+      onClick={(e) => onOpen(index, e)}
     >
       {/* Placeholder shown while the image is loading */}
       {!loaded && !decrypted.error && !decrypted.tooLarge && (
@@ -310,7 +311,7 @@ function GridImage({
       )}
     </button>
   );
-}
+});
 
 /** Sentinel URL — pass as an image entry to render a loading spinner slot in the lightbox. */
 export const LOADING_SENTINEL = '__lightbox_loading__';

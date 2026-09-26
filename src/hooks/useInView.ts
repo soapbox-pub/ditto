@@ -28,15 +28,25 @@ export function useInView(options: UseInViewOptions = {}): UseInViewResult {
   const inViewRef = useRef(inView);
   inViewRef.current = inView;
 
+  // While skipped, the node goes only into a ref. Putting it in state costs the
+  // caller a second render on mount, and callers like NoteCard skip for almost
+  // every instance. The effect picks the ref up if `skip` later turns false.
+  const nodeRef = useRef<Element | null>(null);
+  const skipRef = useRef(skip);
+  skipRef.current = skip;
+
   const ref = useCallback((next: Element | null) => {
-    setNode(next);
+    nodeRef.current = next;
+    if (!skipRef.current) setNode(next);
   }, []);
 
   // Serialize array thresholds so the effect doesn't re-run on new array identity.
   const thresholdKey = Array.isArray(threshold) ? threshold.join(',') : threshold;
 
   useEffect(() => {
-    if (skip || !node || typeof IntersectionObserver === 'undefined') {
+    // `node` is only a re-run trigger; the ref always holds the live element.
+    const target = nodeRef.current;
+    if (skip || !target || typeof IntersectionObserver === 'undefined') {
       if (inViewRef.current) setInView(false);
       return;
     }
@@ -57,7 +67,7 @@ export function useInView(options: UseInViewOptions = {}): UseInViewResult {
       },
     );
 
-    observer.observe(node);
+    observer.observe(target);
     return () => {
       observer.disconnect();
       setInView(false);

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
@@ -32,7 +33,7 @@ interface Nip05BadgeProps {
  * Only renders when the NIP-05 identifier has been verified against the pubkey.
  * Returns null while verifying or if verification fails.
  */
-export function VerifiedNip05Text({
+export const VerifiedNip05Text = memo(function VerifiedNip05Text({
   nip05,
   pubkey,
   className,
@@ -47,9 +48,11 @@ export function VerifiedNip05Text({
   return (
     <span className={className}>@{formatNip05Display(nip05)}</span>
   );
-}
+});
 
-export function Nip05Badge({ nip05, pubkey, className, iconSize = 16, showCheck = false }: Nip05BadgeProps) {
+// Memoized: its props are all primitives, and it sits in every NoteCard header,
+// which re-renders on every author/stats query update.
+export const Nip05Badge = memo(function Nip05Badge({ nip05, pubkey, className, iconSize = 16, showCheck = false }: Nip05BadgeProps) {
   const { data: verified, isPending } = useNip05Verify(nip05, pubkey);
 
   if (isPending) {
@@ -106,4 +109,4 @@ export function Nip05Badge({ nip05, pubkey, className, iconSize = 16, showCheck 
       )}
     </span>
   );
-}
+});
