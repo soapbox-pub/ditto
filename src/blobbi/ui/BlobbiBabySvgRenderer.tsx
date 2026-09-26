@@ -20,13 +20,13 @@
 import { useMemo } from 'react';
 
 import { resolveBabySvg, customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi';
-import { sanitizeBlobbiSvg } from '@/lib/sanitizeBlobbiSvg';
 
 import { addEyeAnimation } from './lib/eye-animation';
 import { resolveVisualRecipe, applyVisualRecipe, type BlobbiVisualRecipe } from './lib/recipe';
 import type { BlobbiEmotion } from './lib/emotion-types';
 import { applyBodyEffects, type BodyEffectsSpec } from './lib/bodyEffects';
 import { debugBlobbi } from './lib/debug';
+import { buildInstanceSvg } from './lib/svg/instanceSvgCache';
 import { useRecipeFingerprint } from './hooks/useFillLevelUpdate';
 import { useBlobbiInstanceId } from './hooks/useBlobbiInstanceId';
 import type { Blobbi } from '@blobbi-kit/core/types/blobbi';
@@ -72,35 +72,39 @@ export function BlobbiBabySvgRenderer({
 
   const instanceId = useBlobbiInstanceId(blobbi.id);
 
-  const customizedSvg = useMemo(() => {
-    debugBlobbi('svg-rebuild', 'baby customizedSvg rebuild');
+  const safeSvg = useMemo(() => buildInstanceSvg(
+    // Everything the build reads besides the instance ID.
+    JSON.stringify(['baby', blobbi, recipeProp ?? null, recipeLabel ?? null, emotion, bodyEffects ?? null]),
+    instanceId,
+    (instanceId) => {
+      debugBlobbi('svg-rebuild', 'baby customizedSvg rebuild');
 
-    // Always use the base (awake) SVG — sleeping is a recipe overlay, not an asset swap
-    const baseSvg = resolveBabySvg(blobbi, { isSleeping: false });
-    const colorizedSvg = customizeBabySvgFromBlobbi(baseSvg, blobbi, false);
+      // Always use the base (awake) SVG — sleeping is a recipe overlay, not an asset swap
+      const baseSvg = resolveBabySvg(blobbi, { isSleeping: false });
+      const colorizedSvg = customizeBabySvgFromBlobbi(baseSvg, blobbi, false);
 
-    let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId });
+      let animatedSvg = addEyeAnimation(colorizedSvg, { baseColor: blobbi.baseColor, instanceId });
 
-    if (recipeProp) {
-      animatedSvg = applyVisualRecipe(animatedSvg, recipeProp, recipeLabel ?? 'status', 'baby', undefined, instanceId);
-    } else if (emotion !== 'neutral') {
-      const resolved = resolveVisualRecipe(emotion);
-      animatedSvg = applyVisualRecipe(animatedSvg, resolved, emotion, 'baby', undefined, instanceId);
-    }
+      if (recipeProp) {
+        animatedSvg = applyVisualRecipe(animatedSvg, recipeProp, recipeLabel ?? 'status', 'baby', undefined, instanceId);
+      } else if (emotion !== 'neutral') {
+        const resolved = resolveVisualRecipe(emotion);
+        animatedSvg = applyVisualRecipe(animatedSvg, resolved, emotion, 'baby', undefined, instanceId);
+      }
 
-    if (bodyEffects && !recipeProp) {
-      animatedSvg = applyBodyEffects(animatedSvg, { ...bodyEffects, idPrefix: bodyEffects.idPrefix ?? instanceId });
-    }
+      if (bodyEffects && !recipeProp) {
+        animatedSvg = applyBodyEffects(animatedSvg, { ...bodyEffects, idPrefix: bodyEffects.idPrefix ?? instanceId });
+      }
 
-    return animatedSvg;
+      return animatedSvg;
+    },
+  ),
   // Deps use stable primitives from blobbi (not the object reference) and
   // recipeFingerprint (not recipeProp) so that level-only changes and
   // upstream reference churn do NOT trigger full SVG rebuilds. The closure
   // captures the current blobbi/recipeProp for the rare structural rebuilds.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blobbi.id, blobbi.baseColor, blobbi.secondaryColor, blobbi.eyeColor, blobbi.seed, instanceId, recipeFingerprint, recipeLabel, emotion, bodyEffects]);
-
-  const safeSvg = useMemo(() => sanitizeBlobbiSvg(customizedSvg), [customizedSvg]);
+  [blobbi.id, blobbi.baseColor, blobbi.secondaryColor, blobbi.eyeColor, blobbi.seed, instanceId, recipeFingerprint, recipeLabel, emotion, bodyEffects]);
 
   return (
     <div
