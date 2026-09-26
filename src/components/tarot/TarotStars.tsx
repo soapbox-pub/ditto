@@ -151,13 +151,12 @@ export function TarotStars({ className }: { className?: string }) {
       raf = requestAnimationFrame(step);
     };
 
-    const resize = () => {
-      const rect = canvas.getBoundingClientRect();
+    const resize = (nextWidth: number, nextHeight: number) => {
       const dpr = window.devicePixelRatio || 1;
       const prevWidth = width;
       const prevHeight = height;
-      width = rect.width;
-      height = rect.height;
+      width = nextWidth;
+      height = nextHeight;
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -180,9 +179,13 @@ export function TarotStars({ className }: { className?: string }) {
       mouse.y = e.clientY - rect.top;
     };
 
-    const observer = new ResizeObserver(resize);
+    // Sized only from the observer, which reports once after the first layout.
+    // Measuring synchronously here forced a style+layout of the whole feed
+    // (~70ms per reading card mounted mid-scroll).
+    const observer = new ResizeObserver(([entry]) => {
+      resize(entry.contentRect.width, entry.contentRect.height);
+    });
     observer.observe(canvas);
-    resize();
 
     // Re-tint the field when the theme changes.
     const themeObserver = new MutationObserver(() => {
