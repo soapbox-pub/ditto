@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
@@ -55,7 +56,7 @@ function useDomainPubkeys(domain: string | undefined) {
 export function DomainFeedPage() {
   const { config } = useAppContext();
   const { domain } = useParams<{ domain: string }>();
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
 
@@ -100,7 +101,7 @@ export function DomainFeedPage() {
   return (
       <main className="">
         <PageHeader
-          onBack={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
+          onBack={goBack}
           titleContent={
             <div className="flex items-center gap-2 min-w-0">
               <ExternalFavicon url={domain ? `https://${domain}` : undefined} size={20} />

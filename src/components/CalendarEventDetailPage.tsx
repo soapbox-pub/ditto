@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import { nip19 } from 'nostr-tools';
 import {
   ArrowLeft,
@@ -150,7 +151,7 @@ function PersonRow({ pubkey, label, size = 'md' }: { pubkey: string; label?: str
 // --- Main Component ---
 
 export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const { user } = useCurrentUser();
   const { toast } = useToast();
   const shareOrigin = useShareOrigin();
@@ -233,7 +234,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
       {/* ── Standard top bar ── */}
       <div className="flex items-center gap-4 px-4 pt-4 pb-5">
         <button
-          onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
+          onClick={goBack}
           className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
           aria-label="Go back"
         >

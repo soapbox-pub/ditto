@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useGoBack } from "@/hooks/useGoBack";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
 const ClassifiedListingContent = lazy(() => import("@/components/ClassifiedListingContent").then(m => ({ default: m.ClassifiedListingContent })));
@@ -642,15 +643,13 @@ export function PostDetailShell({
   children: React.ReactNode;
   title?: string;
 }) {
-  const navigate = useNavigate();
+  const goBack = useGoBack();
 
   return (
     <main className="">
       <div className="flex items-center gap-4 px-4 pt-4 pb-5">
         <button
-          onClick={() =>
-            window.history.length > 1 ? navigate(-1) : navigate("/")
-          }
+          onClick={goBack}
           className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
           aria-label="Go back"
         >

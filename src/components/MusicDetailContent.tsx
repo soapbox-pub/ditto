@@ -4,7 +4,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import { ArrowLeft, Play, Pause, Music, ListMusic, Disc3, Zap, Clock, Calendar, Tag, Loader2 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -55,7 +56,7 @@ export function MusicDetailContent({ event }: { event: NostrEvent }) {
 // ── Track detail ──────────────────────────────────────────────────────────────
 
 function TrackDetail({ event }: { event: NostrEvent }) {
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const player = useAudioPlayer();
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
 
@@ -105,7 +106,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
     <main className="">
       {/* Header */}
       <div className="flex items-center gap-4 px-4 mt-4 mb-4">
-        <button onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')} className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
+        <button onClick={goBack} className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
           <ArrowLeft className="size-5" />
         </button>
         <h1 className="text-xl font-bold truncate">Track Details</h1>
@@ -342,7 +343,7 @@ function PlaylistDescription({ text }: { text: string }) {
 // ── Playlist detail ───────────────────────────────────────────────────────────
 
 function PlaylistDetail({ event }: { event: NostrEvent }) {
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const player = useAudioPlayer();
   const parsed = useMemo(() => parseMusicPlaylist(event), [event]);
   const [imgError, setImgError] = useState(false);
@@ -407,7 +408,7 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
     <main className="">
       {/* Header */}
       <div className="flex items-center gap-4 px-4 mt-4 mb-4">
-        <button onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')} className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
+        <button onClick={goBack} className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
           <ArrowLeft className="size-5" />
         </button>
         <h1 className="text-xl font-bold truncate">{typeLabel} Details</h1>

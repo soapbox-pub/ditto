@@ -4,7 +4,8 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import { ArrowLeft, Play, Pause, Podcast, Zap, Clock, Loader2 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -51,7 +52,7 @@ export function PodcastDetailContent({ event }: { event: NostrEvent }) {
 // ── Episode detail ────────────────────────────────────────────────────────────
 
 function EpisodeDetail({ event }: { event: NostrEvent }) {
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const player = useAudioPlayer();
   const parsed = useMemo(() => parsePodcastEpisode(event), [event]);
 
@@ -103,7 +104,7 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
     <main className="">
       {/* Header */}
       <div className="flex items-center gap-4 px-4 mt-4 mb-4">
-        <button onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')} className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors">
+        <button onClick={goBack} className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors">
           <ArrowLeft className="size-5" />
         </button>
         <h1 className="text-xl font-bold truncate">Episode Details</h1>
@@ -295,7 +296,7 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
 // ── Trailer detail ────────────────────────────────────────────────────────────
 
 function TrailerDetail({ event }: { event: NostrEvent }) {
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const player = useAudioPlayer();
   const parsed = useMemo(() => parsePodcastTrailer(event), [event]);
 
@@ -326,7 +327,7 @@ function TrailerDetail({ event }: { event: NostrEvent }) {
     <main className="">
       {/* Header */}
       <div className="flex items-center gap-4 px-4 mt-4 mb-4">
-        <button onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')} className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors">
+        <button onClick={goBack} className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors">
           <ArrowLeft className="size-5" />
         </button>
         <h1 className="text-xl font-bold truncate">Trailer Details</h1>

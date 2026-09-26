@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import { Users, Radio, Zap, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
@@ -79,7 +80,7 @@ interface LiveStreamPageProps {
 
 export function LiveStreamPage({ event }: LiveStreamPageProps) {
   const { config } = useAppContext();
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const { user } = useCurrentUser();
   const [descExpanded, setDescExpanded] = useState(false);
 
@@ -186,7 +187,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
         {/* Header */}
         <PageHeader
           title="Live Stream"
-          onBack={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
+          onBack={goBack}
           alwaysShowBack
           className="shrink-0 sidebar:sticky sidebar:top-0 z-10 mt-2 mb-2 sidebar:mt-4 sidebar:mb-4"
         >
