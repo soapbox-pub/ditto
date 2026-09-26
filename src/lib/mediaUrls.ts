@@ -92,3 +92,40 @@ export function extractVideoUrls(content: string): string[] {
 export function extractAudioUrls(content: string): string[] {
   return content.match(new RegExp(AUDIO_URL_REGEX.source, 'gi')) ?? [];
 }
+
+/**
+ * Video container extensions no browser can decode in a `<video>` element.
+ * They classify as video (some are in {@link VIDEO_EXTS}) but only ever render
+ * as a dead player, so the render path offers the file instead. mkv is
+ * deliberately omitted: Chromium plays it when the codecs inside are supported.
+ */
+const UNPLAYABLE_VIDEO_EXTS = /^(avi|flv|wmv|asf|mpg|mpeg|vob|rm|rmvb|divx)$/;
+
+/**
+ * MIME types for the same never-playable containers, for URLs whose type is
+ * only known from an imeta `m` tag (extension-less Blossom URLs).
+ */
+const UNPLAYABLE_VIDEO_MIME =
+  /^video\/(x-msvideo|vnd\.avi|avi|msvideo|x-ms-wmv|x-ms-asf|x-flv|flv|mpeg|vnd\.rn-realvideo|divx)$/;
+
+/** The lowercase extension of a URL's last path segment, or `''`. */
+export function urlExtension(url: string): string {
+  try {
+    const seg = new URL(url).pathname.split('/').pop() ?? '';
+    const dot = seg.lastIndexOf('.');
+    return dot > 0 && dot < seg.length - 1 ? seg.slice(dot + 1).toLowerCase() : '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Whether a video URL/MIME is a container the browser cannot play inline, so
+ * it should render as a file card rather than a `<video>` that never starts.
+ * Checks the declared MIME first, then the URL extension.
+ */
+export function isUnplayableVideo(url: string, mime?: string): boolean {
+  if (mime && UNPLAYABLE_VIDEO_MIME.test(mime.toLowerCase())) return true;
+  const ext = urlExtension(url);
+  return ext ? UNPLAYABLE_VIDEO_EXTS.test(ext) : false;
+}

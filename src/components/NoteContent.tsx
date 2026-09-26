@@ -10,6 +10,7 @@ import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { ArmadaInviteEmbed } from '@/components/ArmadaInviteEmbed';
 import { LightningInvoiceCard } from '@/components/LightningInvoiceCard';
+import { VideoFileCard } from '@/components/VideoFileCard';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
@@ -24,7 +25,7 @@ import { useDecryptedFile } from '@/hooks/useDecryptedFile';
 import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
 import { type FileEncryption } from '@/lib/encryptedFile';
 import { COUNTRIES } from '@/lib/countries';
-import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX, mimeFromExt } from '@/lib/mediaUrls';
+import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX, isUnplayableVideo, mimeFromExt } from '@/lib/mediaUrls';
 import { parseBlossomUri, resolveBlossomUri, type BlossomUri } from '@/lib/blossomUri';
 import { useBlossomUri } from '@/hooks/useBlossomUri';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -1107,6 +1108,14 @@ function MediaEmbed({ url, imeta, isAudio, authorMetadata, authorDisplayName }: 
         avatarShape={getAvatarShape(authorMetadata)}
       />
     );
+  }
+
+  // A container no browser can decode (AVI, WMV, FLV, …) would only ever show
+  // a dead player, so offer the file instead. Encrypted files stay on the
+  // player path, which is what decrypts them.
+  if (!imeta?.encryption && isUnplayableVideo(url, imeta?.mime)) {
+    const size = imeta?.size ? Number(imeta.size) : undefined;
+    return <VideoFileCard url={url} mime={imeta?.mime} size={size && Number.isFinite(size) ? size : undefined} />;
   }
 
   return (
