@@ -423,6 +423,15 @@ function librejsLicense(): Plugin {
             // Nothing but whitespace may follow @license-end, and both tags must
             // start their own line (LibreJS matches /^\s*\/\/\s*@license.../m).
             output.code = `${banner}${output.code}\n// @license-end\n`;
+            // The banner pushes the code down two lines; shift the source map
+            // to match, or every mapped frame lands two lines off. Rolldown has
+            // already emitted the map as its own asset by now, so edit that.
+            const map = output.sourcemapFileName ? bundle[output.sourcemapFileName] : undefined;
+            if (map?.type === "asset" && typeof map.source === "string") {
+              const json = JSON.parse(map.source);
+              json.mappings = `;;${json.mappings}`;
+              map.source = JSON.stringify(json);
+            }
             continue;
           }
 
