@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Blurhash } from 'react-blurhash';
+import { BlurhashPlaceholder } from '@/components/BlurhashPlaceholder';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -307,15 +307,7 @@ function PhotoSlide({
     >
       {!loaded && !decrypted.error && !decrypted.tooLarge && (
         isValidBlurhash(entry.blurhash) ? (
-          <Blurhash
-            hash={entry.blurhash}
-            width={32}
-            height={32}
-            resolutionX={32}
-            resolutionY={32}
-            punch={1}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-          />
+          <BlurhashPlaceholder hash={entry.blurhash} className="absolute inset-0" />
         ) : (
           <Skeleton className="absolute inset-0 w-full h-full rounded-none" />
         )

@@ -20,7 +20,7 @@ import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { Eye, Film, Play, Radio } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Blurhash } from "react-blurhash";
+import { BlurhashPlaceholder } from "@/components/BlurhashPlaceholder";
 import { Link } from "react-router-dom";
 import { isValidBlurhash } from "@/lib/blurhash";
 import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
@@ -258,16 +258,7 @@ function VideoGridCard({ event }: { event: NostrEvent }) {
         {/* Thumbnail */}
         <div className="relative aspect-video overflow-hidden rounded-xl bg-muted">
           {isValidBlurhash(blurhash) && (
-            <Blurhash
-              hash={blurhash}
-              width="100%"
-              height="100%"
-              resolutionX={32}
-              resolutionY={32}
-              punch={1}
-              className="absolute inset-0"
-              style={{ width: "100%", height: "100%" }}
-            />
+            <BlurhashPlaceholder hash={blurhash} className="absolute inset-0" />
           )}
           {thumbnail ? (
             <img
@@ -666,16 +657,7 @@ function ShortThumb({
       <ContentWarningGuard event={event}>
         <div className="relative w-full aspect-[9/16] overflow-hidden rounded-xl bg-muted">
           {isValidBlurhash(blurhash) && !thumbnail && (
-            <Blurhash
-              hash={blurhash}
-              width="100%"
-              height="100%"
-              resolutionX={32}
-              resolutionY={32}
-              punch={1}
-              className="absolute inset-0"
-              style={{ width: "100%", height: "100%" }}
-            />
+            <BlurhashPlaceholder hash={blurhash} className="absolute inset-0" />
           )}
           {thumbnail ? (
             <img

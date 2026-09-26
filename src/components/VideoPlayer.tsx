@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import type Hls from 'hls.js';
 import { Play, Pause, Volume1, Volume2, VolumeX, Expand } from 'lucide-react';
-import { Blurhash } from 'react-blurhash';
+import { BlurhashPlaceholder } from '@/components/BlurhashPlaceholder';
 import { cn } from '@/lib/utils';
 import { isValidBlurhash } from '@/lib/blurhash';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
@@ -281,15 +281,7 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
     >
       {/* Blurhash placeholder — shown until a thumbnail or playback frame appears */}
       {isValidBlurhash(blurhash) && !hasStarted && !(generatedPoster && posterLoaded) && (
-        <Blurhash
-          hash={blurhash}
-          width="100%"
-          height="100%"
-          resolutionX={32}
-          resolutionY={32}
-          punch={1}
-          style={{ position: 'absolute', inset: 0 }}
-        />
+        <BlurhashPlaceholder hash={blurhash} className="absolute inset-0" />
       )}
 
       <video

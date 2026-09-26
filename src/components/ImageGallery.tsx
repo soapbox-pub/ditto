@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X, Download, Loader2 } from 'lucide-react';
-import { Blurhash } from 'react-blurhash';
+import { BlurhashPlaceholder } from '@/components/BlurhashPlaceholder';
 import { useIntl } from 'react-intl';
 import { Capacitor } from '@capacitor/core';
 import { cn } from '@/lib/utils';
@@ -264,22 +264,7 @@ function GridImage({
       {/* Placeholder shown while the image is loading */}
       {!loaded && !decrypted.error && !decrypted.tooLarge && (
         isValidBlurhash(blurhash) ? (
-          // Blurhash canvas fills the container via CSS — pass small integer decode
-          // resolution; the canvas is stretched to 100%×100% by the style prop.
-          <Blurhash
-            hash={blurhash}
-            width={32}
-            height={32}
-            resolutionX={32}
-            resolutionY={32}
-            punch={1}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-            }}
-          />
+          <BlurhashPlaceholder hash={blurhash} className="absolute inset-0" />
         ) : (
           <Skeleton className="absolute inset-0 w-full h-full rounded-none" />
         )

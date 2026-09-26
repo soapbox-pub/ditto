@@ -7,7 +7,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Images, Play, ShieldAlert } from 'lucide-react';
-import { Blurhash } from 'react-blurhash';
+import { BlurhashPlaceholder } from '@/components/BlurhashPlaceholder';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { isValidBlurhash } from '@/lib/blurhash';
 import { BLANK_POSTER } from '@/lib/blankPoster';
@@ -160,16 +160,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
       aria-label={showBlur ? 'Reveal sensitive content' : 'View media'}
     >
       {isValidBlurhash(item.blurhash) && (
-        <Blurhash
-          hash={item.blurhash}
-          width="100%"
-          height="100%"
-          resolutionX={32}
-          resolutionY={32}
-          punch={1}
-          className={cn('absolute inset-0 transition-opacity duration-300', loaded && !showBlur ? 'opacity-0' : 'opacity-100')}
-          style={{ width: '100%', height: '100%' }}
-        />
+        <BlurhashPlaceholder hash={item.blurhash} className={cn('absolute inset-0 transition-opacity duration-300', loaded && !showBlur ? 'opacity-0' : 'opacity-100')} />
       )}
       {!isValidBlurhash(item.blurhash) && !loaded && item.type !== 'audio' && (
         <Skeleton className="absolute inset-0 w-full h-full rounded-none" />

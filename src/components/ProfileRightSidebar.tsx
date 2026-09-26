@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Copy, Crown, QrCode, ExternalLink, Bitcoin, ShieldAlert, Mail } from 'lucide-react';
 import { LinkFooter } from '@/components/LinkFooter';
-import { Blurhash } from 'react-blurhash';
+import { BlurhashPlaceholder } from '@/components/BlurhashPlaceholder';
 import { cn } from '@/lib/utils';
 import { BLANK_POSTER } from '@/lib/blankPoster';
 import { isValidBlurhash } from '@/lib/blurhash';
@@ -241,15 +241,7 @@ function MediaTile({ item }: { item: MediaItem }) {
       {/* Blurhash or skeleton placeholder while media loads */}
       {!loaded && !decrypted.error && !decrypted.tooLarge && (
         isValidBlurhash(item.blurhash) ? (
-          <Blurhash
-            hash={item.blurhash}
-            width={32}
-            height={32}
-            resolutionX={32}
-            resolutionY={32}
-            punch={1}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-          />
+          <BlurhashPlaceholder hash={item.blurhash} className="absolute inset-0" />
         ) : (
           <Skeleton className="absolute inset-0 w-full h-full rounded-none" />
         )
