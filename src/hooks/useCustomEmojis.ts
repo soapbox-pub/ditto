@@ -1,8 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { emojiPackCoord, emojiPackName } from '@/hooks/useEmojiPacks';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
+import { loadPalette, savePalette } from '@/lib/emojiPalette';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { parseAddr } from '@/lib/parseAddr';
 
 export interface CustomEmoji {
@@ -23,123 +27,139 @@ export interface CustomEmoji {
 const NO_EMOJIS: CustomEmoji[] = [];
 
 /**
- * Query the current user's NIP-30 custom emoji list (kind 10030).
+ * Flatten a kind-10030 list plus its resolved kind-30030 packs into a deduped
+ * palette. Inline `["emoji", …]` tags on the list and every pack's emoji tags
+ * are merged; when the same shortcode maps to different URLs across packs it
+ * is prefixed with the pack's `d` tag so both stay reachable.
+ */
+function paletteFrom(listEvent: NostrEvent, packEvents: NostrEvent[]): CustomEmoji[] {
+  interface RawEmoji { shortcode: string; url: string; packId: string; packCoord?: string; packName?: string }
+  const raw: RawEmoji[] = [];
+
+  for (const tag of listEvent.tags) {
+    if (tag[0] === 'emoji' && tag[1] && tag[2]) {
+      raw.push({ shortcode: tag[1], url: tag[2], packId: '' });
+    }
+  }
+  for (const pack of packEvents) {
+    const packId = pack.tags.find(([n]) => n === 'd')?.[1] ?? '';
+    const packCoord = emojiPackCoord(pack.pubkey, packId);
+    const packName = emojiPackName(pack);
+    for (const tag of pack.tags) {
+      if (tag[0] === 'emoji' && tag[1] && tag[2]) {
+        raw.push({ shortcode: tag[1], url: tag[2], packId, packCoord, packName });
+      }
+    }
+  }
+
+  const urlsByCode = new Map<string, Set<string>>();
+  for (const e of raw) {
+    let urls = urlsByCode.get(e.shortcode);
+    if (!urls) urlsByCode.set(e.shortcode, (urls = new Set()));
+    urls.add(e.url);
+  }
+
+  // First-seen wins after prefixing.
+  const out: CustomEmoji[] = [];
+  const seen = new Set<string>();
+  for (const e of raw) {
+    const code = urlsByCode.get(e.shortcode)!.size > 1 && e.packId ? `${e.packId}-${e.shortcode}` : e.shortcode;
+    if (seen.has(code)) continue;
+    seen.add(code);
+    out.push({ shortcode: code, url: e.url, packCoord: e.packCoord, packName: e.packName });
+  }
+  return out;
+}
+
+/** Newest event per addressable coordinate. */
+function newestPerCoord(events: NostrEvent[]): NostrEvent[] {
+  const newest = new Map<string, NostrEvent>();
+  for (const event of events) {
+    const coord = emojiPackCoord(event.pubkey, event.tags.find(([n]) => n === 'd')?.[1] ?? '');
+    const prev = newest.get(coord);
+    if (!prev || event.created_at > prev.created_at) newest.set(coord, event);
+  }
+  return [...newest.values()];
+}
+
+/**
+ * The current user's NIP-30 custom emoji palette: inline `['emoji', …]` tags
+ * on their kind-10030 list plus every kind-30030 pack it references via
+ * `['a', '30030:pubkey:identifier']`.
  *
- * Extracts emojis from two sources:
- * 1. Inline `['emoji', shortcode, url]` tags directly in the kind 10030 event
- * 2. Referenced emoji packs via `['a', '30030:pubkey:identifier']` tags —
- *    these kind 30030 events are fetched and their emoji tags are merged in
+ * Backed by a durable per-account copy (`@/lib/emojiPalette`) that seeds the
+ * query instantly on load. A read only REPLACES it when it produces something
+ * (or proves the list genuinely empty): no list, or packs that didn't come
+ * back, keep the emojis already seen instead of blanking the picker.
  */
 export function useCustomEmojis() {
   const { nostr } = useNostr();
+  const { store } = useNostrStorage();
   const { user } = useCurrentUser();
 
   const query = useQuery({
     queryKey: ['custom-emojis', user?.pubkey ?? ''],
-    queryFn: async ({ signal }) => {
-      if (!user) return [];
+    // Show the durable palette on the first frame; the read below reconciles.
+    initialData: () => {
+      const stored = user ? loadPalette(user.pubkey) : [];
+      return stored.length > 0 ? stored : NO_EMOJIS;
+    },
+    initialDataUpdatedAt: 0, // still stale, so mount triggers a reconcile
+    queryFn: async ({ signal }): Promise<CustomEmoji[]> => {
+      if (!user) return NO_EMOJIS;
+      const floor = loadPalette(user.pubkey);
 
-      // Step 1: Fetch the user's kind 10030 emoji list
-      const listEvents = await nostr.query(
-        [{ kinds: [10030], authors: [user.pubkey], limit: 1 }],
-        { signal },
+      // The local event store is the floor for the list read, so a relay
+      // missing or holding an older copy can't shrink the palette.
+      const list = await fetchFreshEvent(
+        nostr,
+        { kinds: [10030], authors: [user.pubkey] },
+        { store, signal },
       );
+      if (!list) return floor; // list read came up short — keep what we had
 
-      if (listEvents.length === 0) return [];
+      const packRefs = list.tags
+        .filter((t) => t[0] === 'a' && t[1])
+        .map((t) => parseAddr(t[1]))
+        .filter((a): a is NonNullable<typeof a> => !!a && a.kind === 30030);
 
-      const listEvent = listEvents[0];
-
-      // Collect all emojis with their source pack identifier so we can
-      // detect shortcode collisions across packs and prefix them.
-      interface RawEmoji { shortcode: string; url: string; packId: string; packCoord?: string; packName?: string }
-      const raw: RawEmoji[] = [];
-
-      // Step 2: Extract inline emoji tags (no pack, so packId is empty)
-      for (const tag of listEvent.tags) {
-        if (tag[0] === 'emoji' && tag[1] && tag[2]) {
-          raw.push({ shortcode: tag[1], url: tag[2], packId: '' });
-        }
-      }
-
-      // Step 3: Resolve referenced emoji packs (kind 30030)
-      const packRefs: { kind: number; pubkey: string; identifier: string }[] = [];
-      for (const tag of listEvent.tags) {
-        if (tag[0] === 'a' && tag[1]) {
-          const parsed = parseAddr(tag[1]);
-          if (parsed && parsed.kind === 30030) {
-            packRefs.push(parsed);
-          }
-        }
-      }
-
+      let packEvents: NostrEvent[] = [];
       if (packRefs.length > 0) {
         const filters = packRefs.map((ref) => ({
-          kinds: [30030 as number],
+          kinds: [30030],
           authors: [ref.pubkey],
           '#d': [ref.identifier],
           limit: 1,
         }));
+        packEvents = newestPerCoord(await nostr.query(filters, { signal }).catch(() => [] as NostrEvent[]));
+      }
 
-        try {
-          const packEvents = await nostr.query(filters, { signal });
+      const palette = paletteFrom(list, packEvents);
 
-          for (const packEvent of packEvents) {
-            const packId = packEvent.tags.find(([n]) => n === 'd')?.[1] ?? '';
-            const packCoord = emojiPackCoord(packEvent.pubkey, packId);
-            const packName = emojiPackName(packEvent);
-            for (const tag of packEvent.tags) {
-              if (tag[0] === 'emoji' && tag[1] && tag[2]) {
-                raw.push({ shortcode: tag[1], url: tag[2], packId, packCoord, packName });
-              }
-            }
+      // Packs the list references but that didn't come back this time keep
+      // the emojis we last resolved for them rather than dropping out.
+      const resolved = new Set(packEvents.map((p) => emojiPackCoord(p.pubkey, p.tags.find(([n]) => n === 'd')?.[1] ?? '')));
+      const missing = new Set(
+        packRefs.map((r) => emojiPackCoord(r.pubkey, r.identifier)).filter((c) => !resolved.has(c)),
+      );
+      if (missing.size > 0) {
+        const codes = new Set(palette.map((e) => e.shortcode));
+        for (const e of floor) {
+          if (e.packCoord && missing.has(e.packCoord) && !codes.has(e.shortcode)) {
+            codes.add(e.shortcode);
+            palette.push(e);
           }
-        } catch {
-          // Timeout or relay error — return what we have from inline tags
         }
       }
 
-      // Step 4: Detect collisions and prefix with pack identifier.
-      // First pass: find shortcodes that appear with different URLs.
-      const byShortcode = new Map<string, RawEmoji[]>();
-      for (const entry of raw) {
-        const group = byShortcode.get(entry.shortcode);
-        if (group) {
-          group.push(entry);
-        } else {
-          byShortcode.set(entry.shortcode, [entry]);
-        }
-      }
+      // An empty result is only real when the list itself is empty (no inline
+      // emojis, no pack refs). Empty DESPITE refs means the pack read came up
+      // short — keep the durable floor rather than blank the picker.
+      const listIsEmpty = packRefs.length === 0 && !list.tags.some((t) => t[0] === 'emoji' && t[1] && t[2]);
+      if (palette.length === 0 && !listIsEmpty) return floor;
 
-      const collisions = new Set<string>();
-      for (const [shortcode, group] of byShortcode) {
-        const uniqueUrls = new Set(group.map((e) => e.url));
-        if (uniqueUrls.size > 1) {
-          collisions.add(shortcode);
-        }
-      }
-
-      // Second pass: build final list. For collisions, prefix with packId.
-      // Deduplicate by final shortcode (first-seen wins after prefixing).
-      const emojis: CustomEmoji[] = [];
-      const seen = new Set<string>();
-
-      for (const entry of raw) {
-        const finalShortcode = collisions.has(entry.shortcode) && entry.packId
-          ? `${entry.packId}-${entry.shortcode}`
-          : entry.shortcode;
-
-        if (!seen.has(finalShortcode)) {
-          seen.add(finalShortcode);
-          emojis.push({
-            shortcode: finalShortcode,
-            url: entry.url,
-            packCoord: entry.packCoord,
-            packName: entry.packName,
-          });
-        }
-      }
-
-      return emojis;
+      savePalette(user.pubkey, palette);
+      return palette.length > 0 ? palette : NO_EMOJIS;
     },
     enabled: !!user,
     staleTime: 5 * 60_000,

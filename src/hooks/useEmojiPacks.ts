@@ -14,6 +14,7 @@ import type { NIndexedDB } from '@nostrify/indexeddb';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
+import { hasDurableEmojis } from '@/lib/emojiPalette';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { parseAddr } from '@/lib/parseAddr';
 
@@ -90,8 +91,9 @@ export function useHasEmojiPack(coord: string | undefined): boolean {
  * replaces every pack and inline emoji the user has. The local event store is
  * the floor (`fetchFreshEvent` keeps the newer of relay and store), and when
  * both come back empty we only treat the list as genuinely absent if nothing
- * this session has seen says otherwise — any cached list, palette, or pack ref
- * means the read came up short, so we refuse rather than wipe.
+ * we've seen says otherwise — a cached list, palette, or pack ref this session,
+ * or a durable palette from an earlier one, means the read came up short, so
+ * we refuse rather than wipe.
  */
 async function readEmojiListForWrite(
   nostr: NPool,
@@ -105,7 +107,7 @@ async function readEmojiListForWrite(
   const seenList = queryClient.getQueryData<NostrEvent | null>(['emoji-list', pubkey]);
   const seenEmojis = queryClient.getQueryData<unknown[]>(['custom-emojis', pubkey]);
   const seenPacks = queryClient.getQueryData<unknown[]>(['my-emoji-packs', pubkey]);
-  if (seenList || (seenEmojis?.length ?? 0) > 0 || (seenPacks?.length ?? 0) > 0) {
+  if (seenList || (seenEmojis?.length ?? 0) > 0 || (seenPacks?.length ?? 0) > 0 || hasDurableEmojis(pubkey)) {
     throw new Error("Couldn't load your current emoji list. Try again in a moment.");
   }
   return null;
