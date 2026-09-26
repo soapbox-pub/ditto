@@ -1224,20 +1224,16 @@ function EmbedTruncatedContent({ event, expanded, onOverflowChange, highlightTex
     setHighlightOffset(Math.max(0, Math.min(desired, maxOffset)));
   }, [onOverflowChange, highlightText]);
 
-  useEffect(() => {
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [measure]);
-
-  // Re-measure after images load
+  // Measure whenever the content's box changes — first layout, width changes,
+  // images and custom emoji loading in. ResizeObserver reports after layout,
+  // so reading scrollHeight there is free; measuring in the mount effect
+  // forced a layout of the whole page for every embed.
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
-    const imgs = el.querySelectorAll('img');
-    if (imgs.length === 0) return;
-    imgs.forEach((img) => img.addEventListener('load', measure, { once: true }));
-    return () => imgs.forEach((img) => img.removeEventListener('load', measure));
+    const observer = new ResizeObserver(() => measure());
+    observer.observe(el);
+    return () => observer.disconnect();
   }, [measure]);
 
   const clipped = !expanded && overflows;

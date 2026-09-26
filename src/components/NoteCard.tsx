@@ -1783,25 +1783,18 @@ function TruncatedNoteContent({
     if (el) setOverflows(!mediaDominant && el.scrollHeight > MAX_HEIGHT);
   }, [mediaDominant]);
 
-  // Re-run when the rendered content changes (expanding a clipped post).
+  // Measure whenever the content's box changes — first layout, expanding a
+  // clipped post, width changes, images loading in. ResizeObserver reports
+  // after layout, so reading scrollHeight there is free; measuring in the
+  // mount effect forced a layout of the whole feed for every card.
+  const innerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [measure, shownEvent]);
-
-  // Re-measure after images load — scrollHeight is unreliable before images have rendered.
-  useEffect(() => {
-    const el = contentRef.current;
+    const el = innerRef.current;
     if (!el) return;
-    const imgs = el.querySelectorAll("img");
-    if (imgs.length === 0) return;
-    imgs.forEach((img) =>
-      img.addEventListener("load", measure, { once: true }),
-    );
-    return () =>
-      imgs.forEach((img) => img.removeEventListener("load", measure));
-  }, [measure, shownEvent]);
+    const observer = new ResizeObserver(() => measure());
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [measure]);
 
   return (
     <div className="mt-2 break-words overflow-hidden">
@@ -1814,7 +1807,9 @@ function TruncatedNoteContent({
         }
         className="relative"
       >
-        <NoteContent event={shownEvent} className="text-[15px] leading-relaxed" />
+        <div ref={innerRef}>
+          <NoteContent event={shownEvent} className="text-[15px] leading-relaxed" />
+        </div>
         {!expanded && truncated && (
           <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent pointer-events-none" />
         )}
