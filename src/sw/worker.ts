@@ -64,6 +64,9 @@ import { fetchEventById } from './relays';
 import {
   eventIdPath,
   isWanted,
+  MARK_READ_ACTION,
+  notificationActions,
+  type NotificationButton,
   notificationAuthor,
   notificationPath,
   NOTIFICATIONS_PATH,
@@ -75,11 +78,12 @@ import { loadPushState } from './state';
 declare const self: ServiceWorkerGlobalScope;
 
 /**
- * `NotificationOptions` plus the fields lib.dom leaves out. Chromium honours
- * `renotify`; the rest ignore it.
+ * `NotificationOptions` plus the fields lib.webworker leaves out. Chromium
+ * honours both; the rest ignore them.
  */
 interface ShowOptions extends NotificationOptions {
   renotify?: boolean;
+  actions?: NotificationButton[];
 }
 
 function show(title: string, options: ShowOptions): Promise<void> {
@@ -141,6 +145,7 @@ async function showUnknownEventNotification(eventId: string, relays: string[]): 
     badge: '/badge-96.png',
     // No kind to go on, so the event itself, wherever it turns out to be.
     data: { url: eventIdPath(eventId, relays), eventId },
+    actions: notificationActions(null),
     requireInteraction: false,
     // The same tag the full notification would have used, so a later push
     // carrying the event replaces this one instead of doubling it.
@@ -187,6 +192,9 @@ async function handleNappPush(payload: NappPayload): Promise<void> {
     badge: '/badge-96.png',
     // `data.url` is what routes a tap when no worker is alive to route it.
     data: { url: notificationPath(event, relays), eventId: event.id, kind: event.kind },
+    // A collapsed burst is one entry standing for many; there's no single
+    // event in it to answer.
+    actions: notificationActions(isBurst ? null : event),
     requireInteraction: false,
     // Distinct events get distinct tags so none replaces another; a burst
     // collapses onto one shape-keyed tag instead (see the note up top).
@@ -207,6 +215,7 @@ async function handleLegacyPush(payload: LegacyPayload): Promise<void> {
     icon: payload.icon ?? '/icon-192.png',
     badge: payload.badge ?? '/badge-96.png',
     data: payload.data ?? {},
+    actions: notificationActions(null),
     requireInteraction: false,
     // A burst collapses onto one shape-keyed tag and stops re-alerting, so a
     // spam wall overwrites itself in place as a single quiet entry instead of
@@ -277,6 +286,10 @@ async function openPath(path: string): Promise<unknown> {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  // Mark read is the dismissal alone. Reply and a plain tap both open the
+  // event; there's no inline reply field in web notifications, and the worker
+  // couldn't sign one anyway.
+  if (event.action === MARK_READ_ACTION) return;
   event.waitUntil(openPath(clickPath(event.notification.data)));
 });
 

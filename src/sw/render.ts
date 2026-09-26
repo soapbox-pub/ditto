@@ -158,6 +158,34 @@ export function isWanted(event: NostrEvent, state: Partial<PushWorkerState> | nu
   return true;
 }
 
+// --- Action buttons ---
+
+/** A notification action button. lib.webworker doesn't declare it. */
+export interface NotificationButton {
+  action: string;
+  title: string;
+}
+
+/** Opens the event, exactly as tapping the notification does. */
+export const REPLY_ACTION = 'reply';
+/** Dismisses the notification. The in-app read cursor lives in encrypted, signed settings the worker can't write. */
+export const MARK_READ_ACTION = 'mark-read';
+
+const MARK_READ: NotificationButton = { action: MARK_READ_ACTION, title: 'Mark read' };
+const REPLY: NotificationButton = { action: REPLY_ACTION, title: 'Reply' };
+
+/** Notifications that are something said to the user, and so can be answered. */
+const REPLYABLE_KINDS = new Set([1, 1111, 1222, 1244, 9802]);
+
+/**
+ * Buttons for the notification about `event`: Reply on the ones that are
+ * something to reply to, Mark read on all. Chromium shows up to two; Safari
+ * and Firefox show none, and the notification is still tappable.
+ */
+export function notificationActions(event: NostrEvent | null): NotificationButton[] {
+  return event && REPLYABLE_KINDS.has(event.kind) ? [REPLY, MARK_READ] : [MARK_READ];
+}
+
 // --- Where a tap goes ---
 
 export const NOTIFICATIONS_PATH = '/notifications';

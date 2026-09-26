@@ -4,7 +4,7 @@ import { decode } from 'nostr-tools/nip19';
 
 import { ALL_NOTIFICATION_KINDS } from '@/lib/notificationKinds';
 
-import { isWanted, notificationPath, renderText, templateFor, TEMPLATES } from './render';
+import { isWanted, notificationActions, notificationPath, renderText, templateFor, TEMPLATES } from './render';
 
 const USER = 'a'.repeat(64);
 const AUTHOR = 'b'.repeat(64);
@@ -68,6 +68,15 @@ describe('notificationPath', () => {
 
   it('sends letters to the inbox', () => {
     expect(notificationPath(event(8211), [])).toBe('/letters');
+  });
+});
+
+describe('notificationActions', () => {
+  it('offers Reply only on what can be answered', () => {
+    expect(notificationActions(event(1)).map((a) => a.action)).toEqual(['reply', 'mark-read']);
+    expect(notificationActions(event(1111)).map((a) => a.action)).toEqual(['reply', 'mark-read']);
+    expect(notificationActions(event(7, [], '+')).map((a) => a.action)).toEqual(['mark-read']);
+    expect(notificationActions(null).map((a) => a.action)).toEqual(['mark-read']);
   });
 });
 
