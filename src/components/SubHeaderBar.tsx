@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ArcBackground, ARC_OVERHANG_PX } from '@/components/ArcBackground';
@@ -62,16 +62,22 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
     el.addEventListener('scroll', checkOverflow, { passive: true });
     const ro = new ResizeObserver(checkOverflow);
     ro.observe(el);
+    // Re-check when the tabs themselves change (added, removed, relabelled).
+    // Watching the DOM rather than re-running on every `children` prop, which
+    // is a new object each parent render and forced a layout read each time.
+    let frame = 0;
+    const mo = new MutationObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(checkOverflow);
+    });
+    mo.observe(el, { childList: true, subtree: true, characterData: true });
     return () => {
       el.removeEventListener('scroll', checkOverflow);
       ro.disconnect();
+      mo.disconnect();
+      cancelAnimationFrame(frame);
     };
   }, [checkOverflow]);
-
-  // Also re-check overflow when children change (new tabs added/removed)
-  useEffect(() => {
-    checkOverflow();
-  }, [children, checkOverflow]);
 
   const scrollBy = (direction: 'left' | 'right') => {
     const el = scrollRef.current;
@@ -103,8 +109,17 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
 
   const showSafeAreaPadding = pinned && navHidden && atTop;
 
+  // Stable, and skips identical slices: tabs re-report their position on
+  // every scroll/resize, and a fresh object would re-render the bar each time.
+  const contextValue = useMemo(() => {
+    const keep = (set: React.Dispatch<React.SetStateAction<HoverSlice | null>>) =>
+      (next: HoverSlice | null) =>
+        set((prev) => (prev && next && prev.left === next.left && prev.width === next.width ? prev : next));
+    return { onHover: keep(setHover), onActive: keep(setActive), scrollContainerRef: scrollRef };
+  }, []);
+
   return (
-    <SubHeaderBarContext.Provider value={{ onHover: setHover, onActive: setActive, scrollContainerRef: scrollRef }}>
+    <SubHeaderBarContext.Provider value={contextValue}>
       <div
         ref={barRef}
         className={cn(
