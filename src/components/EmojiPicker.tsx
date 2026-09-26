@@ -2,6 +2,8 @@ import data from "@emoji-mart/data";
 import { Picker } from "emoji-mart";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { CustomEmoji } from "@/hooks/useCustomEmojis";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { recordEmojiUsage } from "@/hooks/useEmojiUsage";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useTheme } from "@/hooks/useTheme";
 import { getBackgroundThemeMode } from "@/lib/colorUtils";
@@ -54,6 +56,7 @@ interface EmojiMartEmoji {
 export function EmojiPicker({ onSelect, customEmojis, height = 280 }: EmojiPickerProps) {
 	useTheme(); // subscribe to theme changes so resolvedTheme stays fresh
 	const isMobile = useIsMobile();
+	const { user } = useCurrentUser();
 	const containerRef = useRef<HTMLDivElement>(null);
 	const pickerRef = useRef<InstanceType<typeof Picker> | null>(null);
 
@@ -63,9 +66,12 @@ export function EmojiPicker({ onSelect, customEmojis, height = 280 }: EmojiPicke
 	// Keep callback ref up to date without re-creating the picker.
 	onSelectRef.current = onSelect;
 
+	// Every pick feeds the shared usage table, so the quick-react row and the
+	// picker's "Frequently used" row learn from the same selections.
 	const handleSelect = useCallback((emoji: EmojiMartEmoji) => {
 		if (emoji.src) {
 			// Custom emoji — has an image URL
+			recordEmojiUsage(user?.pubkey, `:${emoji.id}:`, emoji.src, emoji.id);
 			onSelectRef.current({
 				type: "custom",
 				shortcode: emoji.id,
@@ -73,12 +79,13 @@ export function EmojiPicker({ onSelect, customEmojis, height = 280 }: EmojiPicke
 			});
 		} else if (emoji.native) {
 			// Native Unicode emoji
+			recordEmojiUsage(user?.pubkey, emoji.native, undefined, emoji.id);
 			onSelectRef.current({
 				type: "native",
 				emoji: emoji.native,
 			});
 		}
-	}, []);
+	}, [user?.pubkey]);
 
 	// One emoji-mart category per source pack, so the picker's sticky heading
 	// answers "which pack is this emoji from?". Emojis inlined on the kind-10030

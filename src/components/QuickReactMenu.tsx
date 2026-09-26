@@ -115,9 +115,6 @@ export function QuickReactMenu({
     // Set selected emoji for optimistic update
     setSelectedEmoji(emoji);
 
-    // Track emoji usage for quick-react bar ordering
-    trackEmojiUsage(emoji);
-
     // If a custom handler is provided, delegate to it
     if (onReact) {
       onReact(emoji, emojiTag);
@@ -176,20 +173,26 @@ export function QuickReactMenu({
         },
       },
     );
-  }, [user, eventId, eventPubkey, eventKind, reactedEvent, nostr, onReact, publishEvent, queryClient, trackEmojiUsage, onClose, onReacted]);
+  }, [user, eventId, eventPubkey, eventKind, reactedEvent, nostr, onReact, publishEvent, queryClient, onClose, onReacted]);
 
-  /** Handle selection from the quick buttons (native or custom emoji). */
+  /**
+   * Handle selection from the quick buttons (native or custom emoji). Picks
+   * from the full picker are tracked by EmojiPicker itself, so only the quick
+   * row records usage here.
+   */
   const handleQuickSelect = useCallback((emoji: string) => {
     if (isCustomEmoji(emoji)) {
       const shortcode = emoji.slice(1, -1);
       const url = customEmojiMap.get(shortcode);
       if (url) {
+        trackEmojiUsage(emoji, url);
         publishReaction(emoji, ['emoji', shortcode, url]);
         return;
       }
     }
+    trackEmojiUsage(emoji);
     publishReaction(emoji);
-  }, [publishReaction, customEmojiMap]);
+  }, [publishReaction, customEmojiMap, trackEmojiUsage]);
 
   /** Handle selection from the full EmojiPicker (native or custom). */
   const handlePickerSelect = useCallback((selection: EmojiSelection) => {
