@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.41.3] - 2026-09-26
+
+Custom emojis get some love: tap one in a post to see which pack it's from and add it in one tap, browse each of your packs in its own section of the picker, and your most-used emojis follow you across devices. A lone emoji now shows up extra big. Feeds scroll smoother and lighter, the Back button stays inside Ditto on shared links, and unusual video formats show as a downloadable file instead of a player that never starts.
+
+### Added
+- Tap a custom emoji in a post to see a bigger preview, the pack it came from, and a one-tap button to add it
+- Each emoji pack gets its own labelled section in the emoji picker
+- Your most-used emojis are shared between the picker and the quick-react row, and sync across your devices
+
+### Changed
+- A post that's just one emoji shows even larger than a post with several
+- Your custom emojis are ready the moment you open the picker, react, or type a shortcode
+- Emoji shortcode suggestions pop up right after another emoji, like 👍:smile
+- Weird or junk reactions show as ❓ instead of a long line of text, and custom emojis never load from local-network addresses
+- AVI, FLV, and other video formats browsers can't play show as a file card you can open
+- Feeds, profiles, and pack pages scroll smoother and use less memory and battery on long scrolls
+- The Android app no longer asks for fingerprint or biometric permissions it never used
+
+### Fixed
+- Back on a page you opened from a shared link takes you to Ditto's home instead of leaving the app
+- Adding or removing an emoji pack can no longer wipe your emoji list when a relay responds slowly
+- Uploading files like AVI or FLAC no longer sends them without a file type
+- Picking a shortcode suggestion by tapping it on mobile no longer leaves stray text behind
+
 ## [2.41.2] - 2026-09-24
 
 Feeds scroll faster and stay responsive, even on hashtags buried in spam. Long posts load only what's on screen until you tap Read more, link previews stop piling up, videos without a thumbnail no longer stutter the page, and profile cards and reaction menus appear only when you reach for them. Tapping a heart you already liked now just removes your like.
