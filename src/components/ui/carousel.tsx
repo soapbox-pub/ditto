@@ -154,8 +154,41 @@ const CarouselContent = React.forwardRef<
 >(({ className, ...props }, ref) => {
   const { carouselRef, orientation } = useCarousel()
 
+  // Hand the viewport to Embla only once it nears the screen. Embla measures
+  // every slide synchronously when it initializes, which forced a style and
+  // layout of the whole feed for each carousel mounted mid-scroll. An
+  // IntersectionObserver callback runs after layout, so the init that follows
+  // it reads a clean layout. Until then the first slide shows as laid out.
+  const viewportRef = React.useRef<HTMLDivElement | null>(null)
+  const [near, setNear] = React.useState(false)
+
+  React.useEffect(() => {
+    const el = viewportRef.current
+    if (!el || near) return
+    if (typeof IntersectionObserver === "undefined") {
+      setNear(true)
+      return
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setNear(true)
+      },
+      { rootMargin: "200px" }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [near])
+
+  const setViewport = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      viewportRef.current = node
+      if (near) carouselRef(node)
+    },
+    [near, carouselRef]
+  )
+
   return (
-    <div ref={carouselRef} className="overflow-hidden">
+    <div ref={setViewport} className="overflow-hidden">
       <div
         ref={ref}
         className={cn(
