@@ -71,23 +71,19 @@ export function useFeedStream(options: UseFeedStreamOptions): {
   // IDs already counted, so reconnects / duplicate relays don't double-count.
   // (NPool dedupes only the last 1000 ids per subscription, so we track our own.)
   const seenRef = useRef<Set<string>>(new Set());
-  // Whether the user is scrolled away from the top. New posts only count while
-  // scrolled down — at the top they'd already be visible after a refresh.
-  const isScrolledRef = useRef(false);
 
   const reset = useCallback(() => {
     seenRef.current = new Set();
     setNewPostCount(0);
   }, []);
 
-  // Track scroll position. Reset the counter when the user returns to the top.
+  // Reset the counter when the user returns to the top. Not measured on mount:
+  // reading scrollY there forced a ~250ms layout of the freshly mounted feed,
+  // and whether the user is scrolled down only matters once a post arrives.
   useEffect(() => {
     function onScroll() {
-      const scrolled = window.scrollY > SCROLL_THRESHOLD;
-      isScrolledRef.current = scrolled;
-      if (!scrolled) reset();
+      if (window.scrollY <= SCROLL_THRESHOLD && seenRef.current.size > 0) reset();
     }
-    onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, [reset]);
@@ -162,8 +158,9 @@ export function useFeedStream(options: UseFeedStreamOptions): {
     })();
 
     function countEvent(event: NostrEvent) {
-      // Only buffer while scrolled down; at the top a refresh shows them anyway.
-      if (!isScrolledRef.current) return;
+      // Only buffer while scrolled down — at the top they'd already be visible
+      // after a refresh.
+      if (window.scrollY <= SCROLL_THRESHOLD) return;
       // Guard against clock-skewed future events.
       if (event.created_at > Math.floor(Date.now() / 1000)) return;
       if (seenRef.current.has(event.id)) return;
