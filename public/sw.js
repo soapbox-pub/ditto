@@ -31,8 +31,9 @@
  * their follows are read from IndexedDB, written by
  * `src/lib/push/workerState.ts`. What it cannot check is the signature — Tenna
  * doesn't verify before delivery and a worker has no secp256k1 — so a hostile
- * relay can still put words in a stranger's mouth. Tapping through lands on
- * /notifications, which is rendered from verified events.
+ * relay can still put words in a stranger's mouth. Tapping through opens the
+ * event (or the post it's about) by id, and the page verifies what it loads,
+ * so a forged notification leads nowhere — see `notificationPath()`.
  *
  * Spam handling — read this before touching the push handler. The other three
  * notification transports (in-app, Android, iOS) fetch a batch of events and
@@ -576,6 +577,144 @@ function isWanted(event, state) {
 
 const HEX_64 = /^[0-9a-f]{64}$/;
 
+// --- Where a tap goes ---
+
+const BECH32_ALPHABET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+const BECH32_GENERATOR = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+
+function bech32Polymod(values) {
+  let chk = 1;
+  for (const value of values) {
+    const top = chk >>> 25;
+    chk = ((chk & 0x1ffffff) << 5) ^ value;
+    for (let i = 0; i < 5; i++) {
+      if ((top >>> i) & 1) chk ^= BECH32_GENERATOR[i];
+    }
+  }
+  return chk;
+}
+
+/**
+ * NIP-19 bech32, for building the same links `nip19.neventEncode()` and
+ * `nip19.naddrEncode()` would. This file never sees the bundler, so it can't
+ * import nostr-tools.
+ */
+function bech32Encode(prefix, bytes) {
+  const words = [];
+  let acc = 0;
+  let bits = 0;
+  for (const byte of bytes) {
+    acc = ((acc << 8) | byte) & 0xffff;
+    bits += 8;
+    while (bits >= 5) {
+      bits -= 5;
+      words.push((acc >>> bits) & 31);
+    }
+  }
+  if (bits > 0) words.push((acc << (5 - bits)) & 31);
+
+  const expanded = [];
+  for (const c of prefix) expanded.push(c.charCodeAt(0) >> 5);
+  expanded.push(0);
+  for (const c of prefix) expanded.push(c.charCodeAt(0) & 31);
+
+  const mod = bech32Polymod([...expanded, ...words, 0, 0, 0, 0, 0, 0]) ^ 1;
+  const checksum = [];
+  for (let i = 0; i < 6; i++) checksum.push((mod >>> (5 * (5 - i))) & 31);
+
+  return `${prefix}1${[...words, ...checksum].map((w) => BECH32_ALPHABET[w]).join('')}`;
+}
+
+function hexBytes(hex) {
+  const bytes = [];
+  for (let i = 0; i < hex.length; i += 2) bytes.push(parseInt(hex.slice(i, i + 2), 16));
+  return bytes;
+}
+
+/** NIP-19 TLV: 0 special, 1 relay, 2 author, 3 kind. */
+function tlv(entries) {
+  const bytes = [];
+  for (const [type, value] of entries) {
+    bytes.push(type, value.length, ...value);
+  }
+  return bytes;
+}
+
+function kindBytes(kind) {
+  return [(kind >>> 24) & 255, (kind >>> 16) & 255, (kind >>> 8) & 255, kind & 255];
+}
+
+/** Relays worth putting in a link: the ones the event was actually seen on. */
+function relayHints(relays) {
+  const encoder = new TextEncoder();
+  return relays
+    .slice(0, 2)
+    .map((url) => encoder.encode(url))
+    .filter((bytes) => bytes.length <= 255)
+    .map((bytes) => [1, [...bytes]]);
+}
+
+function neventPath(id, { relays = [], author, kind } = {}) {
+  const entries = [[0, hexBytes(id)], ...relayHints(relays)];
+  if (author && HEX_64.test(author)) entries.push([2, hexBytes(author)]);
+  if (Number.isInteger(kind) && kind >= 0) entries.push([3, kindBytes(kind)]);
+  return `/${bech32Encode('nevent', tlv(entries))}`;
+}
+
+/**
+ * The event a reaction, repost or zap is about: the last `e` tag, the same one
+ * `getReferencedEventId()` in `src/hooks/useNotifications.ts` picks. The author
+ * hint sits at index 4 in NIP-10's marked form and index 3 in NIP-25's.
+ */
+function referencedEvent(event) {
+  if (!Array.isArray(event.tags)) return null;
+  const tag = event.tags.findLast((t) => Array.isArray(t) && t[0] === 'e');
+  if (typeof tag?.[1] !== 'string' || !HEX_64.test(tag[1])) return null;
+  const author = [tag[4], tag[3]].find((value) => typeof value === 'string' && HEX_64.test(value));
+  return { id: tag[1], author };
+}
+
+/** The badge definition a kind 8 awards, from its `30009:<pubkey>:<d>` tag. */
+function badgePath(event) {
+  if (!Array.isArray(event.tags)) return null;
+  for (const tag of event.tags) {
+    if (!Array.isArray(tag) || tag[0] !== 'a' || typeof tag[1] !== 'string') continue;
+    const [kind, pubkey, ...rest] = tag[1].split(':');
+    const identifier = rest.join(':');
+    if (kind !== '30009' || !HEX_64.test(pubkey ?? '') || !identifier) continue;
+    const d = [...new TextEncoder().encode(identifier)];
+    if (d.length > 255) continue;
+    return `/${bech32Encode('naddr', tlv([[0, d], [2, hexBytes(pubkey)], [3, kindBytes(30009)]]))}`;
+  }
+  return null;
+}
+
+/** Notifications that are about one of the user's posts rather than being one. */
+const TARGET_KINDS = new Set([6, 7, 16, 8333, 9735]);
+
+/**
+ * Where tapping the notification for `event` lands: the post a reaction,
+ * repost or zap is on; the reply, mention, comment, highlight or quiz result
+ * itself; the awarded badge; the letters inbox. Mirrors where the in-app list
+ * sends each row. /notifications when there's nothing more specific.
+ *
+ * The event is unverified, but these are links, not content: the page fetches
+ * whatever they point at and verifies it like any other event, so a forged
+ * event leads to a "not found", never to forged words.
+ */
+function notificationPath(event, relays) {
+  if (event.kind === 8211) return '/letters';
+  if (event.kind === 8) return badgePath(event) ?? '/notifications';
+
+  if (TARGET_KINDS.has(event.kind)) {
+    const target = referencedEvent(event);
+    return target ? neventPath(target.id, { author: target.author }) : '/notifications';
+  }
+
+  if (typeof event.id !== 'string' || !HEX_64.test(event.id)) return '/notifications';
+  return neventPath(event.id, { relays, author: event.pubkey, kind: event.kind });
+}
+
 /**
  * Where the event came from, or where to look for it. `relays` is the current
  * shape; `relay`, a single string, is what hosts before Tenna v0.8.1 sent, and
@@ -601,7 +740,7 @@ function nappRelays(payload) {
  * send. An occasional stranger getting through on this path is the price of
  * saying anything at all.
  */
-async function showUnknownEventNotification(eventId) {
+async function showUnknownEventNotification(eventId, relays) {
   const title = 'New notification';
   const body = 'Open Ditto to see what happened.';
   const isBurst = await recordAndCheckBurst(shapeKey(body));
@@ -610,7 +749,8 @@ async function showUnknownEventNotification(eventId) {
     body,
     icon: '/icon-192.png',
     badge: '/badge-96.png',
-    data: { url: '/notifications', eventId },
+    // No kind to go on, so the event itself, wherever it turns out to be.
+    data: { url: neventPath(eventId, { relays }), eventId },
     requireInteraction: false,
     // The same tag the full notification would have used, so a later push
     // carrying the event replaces this one instead of doubling it.
@@ -634,7 +774,7 @@ async function handleNappPush(payload) {
   if (!event || typeof event !== 'object') {
     if (!eventId) return;
     event = await fetchEventById(relays, eventId);
-    if (!event) return showUnknownEventNotification(eventId);
+    if (!event) return showUnknownEventNotification(eventId, relays);
   }
 
   if (typeof event.kind !== 'number' || !HEX_64.test(event.pubkey ?? '')) return;
@@ -666,7 +806,7 @@ async function handleNappPush(payload) {
     icon: profile.picture ?? '/icon-192.png',
     badge: '/badge-96.png',
     // `data.url` is what routes a tap when no worker is alive to route it.
-    data: { url: '/notifications', eventId: event.id, kind: event.kind },
+    data: { url: notificationPath(event, relays), eventId: event.id, kind: event.kind },
     requireInteraction: false,
     // Distinct events get distinct tags so none replaces another; a burst
     // collapses onto one shape-keyed tag instead (see the note up top).
@@ -732,8 +872,25 @@ self.addEventListener('push', (event) => {
 
 // --- Notification click ---
 
+/**
+ * The path a notification asked to open, if it's one of ours. `data.url` on a
+ * legacy push came from the server, so only a same-origin path is honored.
+ */
+function clickPath(data) {
+  const url = typeof data?.url === 'string' ? data.url : '';
+  if (!/^\/(?!\/)/.test(url)) return '/notifications';
+  try {
+    const resolved = new URL(url, self.location.origin);
+    if (resolved.origin !== self.location.origin) return '/notifications';
+    return resolved.pathname + resolved.search + resolved.hash;
+  } catch {
+    return '/notifications';
+  }
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const path = clickPath(event.notification.data);
 
   event.waitUntil(
     self.clients
@@ -742,12 +899,12 @@ self.addEventListener('notificationclick', (event) => {
         // Focus an existing Ditto tab if one is open
         for (const client of clientList) {
           if (new URL(client.url).origin === self.location.origin) {
-            client.navigate('/notifications');
+            client.navigate(path);
             return client.focus();
           }
         }
         // Otherwise open a new tab
-        return self.clients.openWindow('/notifications');
+        return self.clients.openWindow(path);
       }),
   );
 });
