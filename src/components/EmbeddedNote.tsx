@@ -1091,9 +1091,10 @@ function EmbeddedNoteCard({
                   className="mt-1.5"
                 />
               ) : previewMedia.video ? (
-                <div className="mt-1.5 overflow-hidden rounded-2xl">
+                <div className="mt-1.5">
                   <VideoPlayer
                     src={previewMedia.video}
+                    maxHeight="320px"
                     poster={imetaMap.get(previewMedia.video)?.thumbnail}
                     encryption={imetaMap.get(previewMedia.video)?.encryption}
                     dim={imetaMap.get(previewMedia.video)?.dim}

@@ -34,6 +34,12 @@ interface VideoPlayerProps {
    * the same key and nonce, per the NIP-94 encryption extension.
    */
   encryption?: FileEncryption;
+  /**
+   * CSS length capping the player's height, e.g. "320px". The player keeps its
+   * aspect ratio by narrowing (and centering) instead of cropping, so tall
+   * vertical videos don't dominate compact surfaces like embeds.
+   */
+  maxHeight?: string;
 }
 
 /** Parses a NIP-94 `dim` string like "1280x720" into `{ width, height }`. */
@@ -85,7 +91,7 @@ function useHls(videoRef: React.RefObject<HTMLVideoElement | null>, src: string)
   return { isHls };
 }
 
-export function VideoPlayer({ src: originalSrc, poster: originalPoster, className, dim, blurhash, title, artist, autoPlay, encryption }: VideoPlayerProps) {
+export function VideoPlayer({ src: originalSrc, poster: originalPoster, className, dim, blurhash, title, artist, autoPlay, encryption, maxHeight }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -272,9 +278,12 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
       ref={containerRef}
       className={cn(
         'relative mt-3 rounded-2xl overflow-hidden border border-border bg-black group',
+        maxHeight && 'mx-auto',
         className,
       )}
-      style={{ aspectRatio }}
+      // Capping the width at maxHeight × (w / h) caps the height through the
+      // aspect ratio without cropping.
+      style={{ aspectRatio, maxWidth: maxHeight ? `calc(${maxHeight} * (${aspectRatio}))` : undefined }}
       onMouseMove={revealControls}
       onMouseLeave={() => { if (isPlaying) scheduleHide(); }}
       onClick={(e) => e.stopPropagation()}
