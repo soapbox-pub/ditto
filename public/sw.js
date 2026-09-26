@@ -29,8 +29,9 @@
  * fails, the id is still enough for a vaguer notification, which beats none.
  *
  * The napp path has no server to trust, so it re-checks what it can: the event
- * must tag the logged-in user, and must come from someone they follow when
- * "only from people I follow" is on. Both are read from IndexedDB, written by
+ * must tag the logged-in user, must not come from them, and must come from
+ * someone they follow when "only from people I follow" is on. The user and
+ * their follows are read from IndexedDB, written by
  * `src/lib/push/nappWorkerState.ts`. What it cannot check is the signature —
  * the host doesn't verify before delivery and a worker has no secp256k1 — so a
  * hostile relay can still put words in a stranger's mouth. Tapping through
@@ -194,6 +195,25 @@ const NAPP_TEMPLATES = [
 const NAPP_TEMPLATE_BY_KIND = new Map();
 for (const template of NAPP_TEMPLATES) {
   for (const kind of template.kinds) NAPP_TEMPLATE_BY_KIND.set(kind, template);
+}
+
+/**
+ * NIP-25 likes and dislikes. A `+` (or empty) reaction is a like and `-` is a
+ * dislike; neither symbol means anything shown on its own, so they get their
+ * own title and no body. Any other content is an emoji reaction and falls
+ * through to the generic kind 7 template. nostr-push can't do this — its
+ * template is fixed per subscription, not per event.
+ */
+const LIKE_TEMPLATE = { kinds: [7], title: '%s liked your post', body: '' };
+const DISLIKE_TEMPLATE = { kinds: [7], title: '%s disliked your post', body: '' };
+
+function templateFor(event) {
+  if (event.kind === 7) {
+    const content = typeof event.content === 'string' ? event.content.trim() : '';
+    if (content === '+' || content === '') return LIKE_TEMPLATE;
+    if (content === '-') return DISLIKE_TEMPLATE;
+  }
+  return NAPP_TEMPLATE_BY_KIND.get(event.kind);
 }
 
 /** Stand-in when the author's profile can't be resolved in time. */
@@ -511,6 +531,9 @@ function isWanted(event, state) {
   const tagsUser = tags.some((t) => Array.isArray(t) && t[0] === 'p' && t[1] === state.pubkey);
   if (!tagsUser) return false;
 
+  // Commenting on, reacting to, or zapping your own post tags you too.
+  if (notificationAuthor(event) === state.pubkey) return false;
+
   if (state.onlyFollowing && state.follows?.length) {
     return state.follows.includes(notificationAuthor(event));
   }
@@ -582,7 +605,7 @@ async function handleNappPush(payload) {
 
   if (typeof event.kind !== 'number' || !HEX_64.test(event.pubkey ?? '')) return;
 
-  const template = NAPP_TEMPLATE_BY_KIND.get(event.kind);
+  const template = templateFor(event);
   if (!template) return; // A kind nothing subscribed to; the relay is confused.
 
   const state = await loadNappState();
