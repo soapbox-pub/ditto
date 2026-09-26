@@ -46,6 +46,7 @@ import type { ProfileTab as CoreProfileTab } from '@/hooks/useProfileFeed';
 import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { MediaCollage, MediaCollageSkeleton } from '@/components/MediaCollage';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
+import { StreakAtRisk, StreakBadge } from '@/components/StreakBadge';
 import { useInterests } from '@/hooks/useInterests';
 import { normalizeTagValue } from '@/lib/hashtag';
 import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
@@ -2519,7 +2520,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               )}
 
                {/* Followers / Following / Loved counts */}
-               <div className="flex items-center gap-4 mt-2">
+               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
                 {followersCount > 0 && (
                   <button
                     className="flex items-center gap-1 hover:opacity-80 transition-opacity"
@@ -2563,7 +2564,10 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     <span className="text-sm text-muted-foreground">Top 8</span>
                   </Link>
                 )}
+                {/* Posting streak (kind 11143), seeded by useProfileSupplementary */}
+                {pubkey && <StreakBadge pubkey={pubkey} fetch={false} />}
               </div>
+              {isOwnProfile && pubkey && <StreakAtRisk pubkey={pubkey} className="mt-2" />}
 
               {metadata?.about && (
                 <p className="mt-3 text-sm whitespace-pre-wrap break-words overflow-hidden">

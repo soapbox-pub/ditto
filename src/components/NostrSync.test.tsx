@@ -22,6 +22,10 @@ vi.mock('@/hooks/useBlockedRelays', () => ({
   useBlockedRelays: () => ({}),
 }));
 
+vi.mock('@/hooks/useStreakSync', () => ({
+  useStreakSync: () => {},
+}));
+
 const config = {
   appId: 'ditto',
   theme: 'light',

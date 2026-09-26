@@ -254,6 +254,8 @@ export const KIND_LABELS: Record<number, string> = {
   15683: 'Love list',
   // Ditto custom — Top 8 ("1·TOP8" on a phone keypad)
   18678: 'Top 8',
+  // Ditto custom — Posting streak
+  11143: 'Posting streak',
   // Weather station
   16158: 'Weather station',
   // Theme

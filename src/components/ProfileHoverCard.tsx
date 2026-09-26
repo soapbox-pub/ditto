@@ -17,6 +17,7 @@ import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { FollowButton } from '@/components/FollowButton';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
+import { StreakBadge } from '@/components/StreakBadge';
 import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { cn } from '@/lib/utils';
@@ -105,6 +106,8 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
         {metadata?.bot && (
           <span className="text-xs text-primary mt-1 inline-block" title="Bot account">Bot</span>
         )}
+
+        <StreakBadge pubkey={pubkey} tooltip={false} className="flex mt-1" />
 
         {/* Bio */}
         {metadata?.about && (

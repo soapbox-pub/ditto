@@ -7,6 +7,7 @@ import { useCurrentUser } from "./useCurrentUser";
 import { getEffectiveRelays } from "@/lib/appRelays";
 import { sendToInboxRelays } from "@/lib/inboxRelays";
 import { NO_WRITE_RELAYS } from "@/lib/publishError";
+import { notifyStreakActivity } from "@/lib/streak";
 
 import type { NostrEvent } from "@nostrify/nostrify";
 
@@ -114,6 +115,9 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
         }
 
         await nostr.event(event, { signal: AbortSignal.timeout(5000) });
+
+        // Creative kinds advance the user's posting streak (see useStreakSync).
+        notifyStreakActivity(event);
 
         // NIP-65: For events that tag other users — replies (kind 1, 1111)
         // and reactions (kind 7, NIP-25) — also send to the inbox (read)

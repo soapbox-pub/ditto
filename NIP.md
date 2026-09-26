@@ -15,6 +15,7 @@
 | 37849 | Quiz                 | Shareable quiz with weighted-scoring questions        |
 | 7849  | Quiz Result          | A user's computed result for a quiz                   |
 | 38192 | PS Memory Card       | One 8 KB block of a PlayStation 1 memory card         |
+| 11143 | Posting Streak       | The user's self-reported posting streak (one per user)|
 
 ### Community Kinds
 
@@ -255,6 +256,71 @@ Empty by convention. Clients MAY use the NIP-51 private-items scheme (NIP-44-enc
 - **Updates as content:** a kind 18678 event itself renders in feeds as a card showing the ranked eight, so followers see when someone shuffles their Top 8.
 - **Mutations** MUST follow read-modify-write: fetch the freshest kind 18678 for the author, rebuild the `p` tags, preserve unknown tags and `content`, and republish.
 - Clients SHOULD hide kind 18678 events with zero `p` tags (an emptied list has nothing to display).
+
+---
+
+## Kind 11143: Posting Streak
+
+### Summary
+
+Replaceable event recording the author's current **posting streak**: an unbroken run of creative activity with no gap longer than 36 hours. One per user (latest event wins).
+
+Streaks are **self-reported and trust-based**. There is no server computing them: the author's client maintains the event from the author's own events, and other clients display it as-is. A forged streak only changes how the forger's own profile looks.
+
+### Event Structure
+
+```json
+{
+  "kind": 11143,
+  "pubkey": "<author-pubkey>",
+  "content": "",
+  "tags": [
+    ["start", "1758844800"],
+    ["end", "1759000000"],
+    ["alt", "Posting streak"]
+  ]
+}
+```
+
+### Tags
+
+| Tag     | Required | Description                                                              |
+|---------|----------|--------------------------------------------------------------------------|
+| `start` | Yes      | Unix timestamp (seconds) of the first creative event in the streak.      |
+| `end`   | Yes      | Unix timestamp (seconds) of the latest creative event in the streak.     |
+| `alt`   | Yes      | NIP-31 human-readable fallback.                                          |
+
+### Reading
+
+With `W = 129600` (36 hours):
+
+- The streak is **live** while `now - end <= W`. Once that window passes, the streak is broken and clients MUST display nothing (or zero), even though the event still exists.
+- **Days** = `max(1, ceil((end - start) / 86400))` for a live streak.
+- It **expires at** `end + W`.
+- Clients SHOULD reject events where `start` or `end` isn't a non-negative integer, `start > end`, or `end` is more than a few minutes in the future.
+
+The rules are timezone-independent, so every client computes the same value from the same event.
+
+### Qualifying Events
+
+Only **creative** events extend a streak: notes and comments (1, 1111), photos and videos (20, 21, 22, 34236), voice messages (1222, 1244), articles (30023), polls (1068), highlights (9802), music and podcasts (36787, 34139, 30054), webxdc apps (1063), themes (36767), calendar events (31922, 31923), listings (30402), fundraisers (33863), color moments (3367), geocaches (37516), quizzes (37849), badge definitions (30009), git repositories, patches and issues (30617, 1617, 1621), and custom NIPs (30817).
+
+Reactions, reposts, zaps, follows, lists, profile and relay metadata, votes, RSVPs, reports, and deletions do not count.
+
+### Maintaining the Streak
+
+For each new qualifying event at time `t`, the author's client updates `(start, end)`:
+
+- No streak yet: `start = end = t`.
+- `t <= end`: no change (streaks never move backwards).
+- `t - end > W`: the streak broke; `start = end = t`.
+- Otherwise: `end = t`.
+
+Deleting events never shortens a streak.
+
+Because users post from multiple clients, most of which don't know about this kind, the author's client SHOULD **repair** the streak from the author's own events: fold in qualifying events newer than `end`, and walk backward from `start` while earlier qualifying events chain within `W`. Before recording a break, a client SHOULD check the author's relays for qualifying events since `end`.
+
+When two versions disagree (multiple devices), merge them: if the later-starting streak begins within `W` of the other's `end`, join them into `(min start, max end)`; otherwise keep the later one. Clients SHOULD batch updates (Ditto waits about a minute after the last qualifying event) rather than publishing after every post.
 
 ---
 

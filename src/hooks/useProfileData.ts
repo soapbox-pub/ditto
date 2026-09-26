@@ -3,8 +3,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { LOVE_LIST_KIND, loveListPubkeys } from '@/hooks/useLoveList';
+import { mergeStreakIntoCache } from '@/hooks/useStreak';
 import { TOP8_KIND, top8Pubkeys } from '@/hooks/useTop8';
 import { normalizeTagValue } from '@/lib/hashtag';
+import { STREAK_KIND } from '@/lib/streak';
 
 /**
  * Pick the newest event of a kind. The pool queries multiple relays, so a
@@ -43,7 +45,8 @@ export interface ProfileSupplementary {
 /**
  * Fetch follow list (kind 3), pinned notes (kind 10001), love list
  * (kind 15683), Top 8 (kind 18678, both see NIP.md), and interests
- * (kind 10015) for a pubkey. Profile tabs (kind 16769) are fetched separately
+ * (kind 10015) for a pubkey, and seed their posting streak (kind 11143, see
+ * NIP.md) into useStreak's cache. Profile tabs (kind 16769) are fetched separately
  * by useProfileTabs to avoid stale-seed race conditions with
  * usePublishProfileTabs.
  */
@@ -63,6 +66,7 @@ export function useProfileSupplementary(pubkey: string | undefined) {
           { kinds: [LOVE_LIST_KIND], authors: [pubkey], limit: 1 },
           { kinds: [TOP8_KIND], authors: [pubkey], limit: 1 },
           { kinds: [10015], authors: [pubkey], limit: 1 },
+          { kinds: [STREAK_KIND], authors: [pubkey], limit: 1 },
         ],
         { signal: AbortSignal.timeout(8000) },
       );
@@ -75,6 +79,7 @@ export function useProfileSupplementary(pubkey: string | undefined) {
 
       // Seed pinned notes cache so usePinnedNotes doesn't re-fetch
       queryClient.setQueryData(['pinned-notes', pubkey], kind10001 ?? null);
+      mergeStreakIntoCache(queryClient, pubkey, events.filter((e) => e.kind === STREAK_KIND));
 
       const following = kind3
         ? kind3.tags.filter(([name]) => name === 'p').map(([, pk]) => pk)
