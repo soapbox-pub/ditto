@@ -6,6 +6,7 @@ import { useAppContext } from "@/hooks/useAppContext";
 import { useBlockedRelays } from "@/hooks/useBlockedRelays";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEncryptedSettings, getLocalSettingsSync, setLocalSettingsSync } from "@/hooks/useEncryptedSettings";
+import { getEmojiUsage, hydrateEmojiUsage, subscribeEmojiUsage } from "@/hooks/useEmojiUsage";
 import { isSyncDone } from "@/hooks/useInitialSync";
 import { parseBlossomServerList } from "@/lib/appBlossom";
 import { getCachedPrivateBlockedRelays, setBlockedRelays } from "@/lib/relayPolicy";
@@ -14,6 +15,8 @@ import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from "@/lib/themeEvent";
 import { DEFAULT_SIDEBAR_WIDGETS } from "@/lib/sidebarWidgets";
 import type { ThemeConfig } from "@/themes";
 
+/** Batch a burst of reactions into one settings write. */
+const EMOJI_USAGE_DEBOUNCE_MS = 10_000;
 
 /**
  * NostrSync - Syncs user's Nostr data
@@ -25,6 +28,7 @@ import type { ThemeConfig } from "@/themes";
  * - NIP-51 blocked relays (kind 10006), applied to the relay pool
  * - Encrypted app settings (kind 30078) - theme, feed settings, relay toggle
  * - Active profile theme (kind 16767) - when autoShareTheme is enabled
+ * - Emoji usage table (inside the encrypted settings), merged both ways
  */
 export function NostrSync() {
   const { nostr } = useNostr();
@@ -35,7 +39,10 @@ export function NostrSync() {
     settings: encryptedSettings,
     isLoading: settingsLoading,
     recentlyWritten,
+    updateSettings,
+    hasNip44Support,
   } = useEncryptedSettings();
+  const { mutateAsync: updateSettingsAsync } = updateSettings;
 
   // Track the last synced settings timestamp to prevent re-syncing the same data.
   // Seeded to the remote lastSync on first load so that a stale relay event
@@ -557,6 +564,43 @@ export function NostrSync() {
     seededTimestamp,
     config.appId,
   ]);
+
+  // Emoji usage table ↔ encrypted settings. Merge-hydrate (max count / most
+  // recent use per emoji) outside the lastSync gating above: the merge is
+  // commutative and a no-op write when nothing moved, so any snapshot — even
+  // a stale one — can only add to the local table.
+  const emojiUsage = encryptedSettings?.emojiUsage;
+  useEffect(() => {
+    if (!user?.pubkey || !emojiUsage) return;
+    hydrateEmojiUsage(user.pubkey, emojiUsage);
+  }, [user?.pubkey, emojiUsage]);
+
+  // …and push the other way, debounced, on a user-initiated pick only
+  // (`subscribeEmojiUsage` never fires for the hydrate above, so two devices
+  // can't ping-pong the table). Only for nsec logins: every other signer
+  // would prompt or show a nudge for a write the user never asked for, so
+  // theirs rides along on their next settings change instead.
+  const settingsReady = !!user && !settingsLoading;
+  useEffect(() => {
+    const pubkey = user?.pubkey;
+    if (!pubkey || user.method !== "nsec" || !hasNip44Support || !settingsReady) return;
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = subscribeEmojiUsage((changed) => {
+      if (changed !== pubkey) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        updateSettingsAsync({ emojiUsage: getEmojiUsage(pubkey) }).catch((error) =>
+          console.warn("Emoji usage sync failed:", error),
+        );
+      }, EMOJI_USAGE_DEBOUNCE_MS);
+    });
+
+    return () => {
+      unsubscribe();
+      if (timer) clearTimeout(timer);
+    };
+  }, [user?.pubkey, user?.method, hasNip44Support, settingsReady, updateSettingsAsync]);
 
   // Sync active profile theme (kind 16767) on pageload when autoShareTheme is enabled.
   // This pulls in the user's published theme and applies it as the customTheme

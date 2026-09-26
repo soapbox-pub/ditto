@@ -43,6 +43,8 @@ vi.mock('@/hooks/useEncryptedSettings', async (importOriginal) => ({
     settings: remoteSettings,
     isLoading: false,
     recentlyWritten: () => false,
+    updateSettings: { mutateAsync: () => Promise.resolve() },
+    hasNip44Support: false,
   }),
 }));
 

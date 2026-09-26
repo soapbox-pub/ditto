@@ -403,6 +403,13 @@ export const EncryptedSettingsSchema = z.looseObject({
   linkPreviewUrl: z.string().optional(),
   sentryDsn: z.string().optional(),
   currencyDisplay: z.enum(['usd', 'sats']).optional(),
+  emojiUsage: z.array(z.object({
+    key: z.string(),
+    url: z.string().optional(),
+    pickerId: z.string().optional(),
+    count: z.number(),
+    usedAt: z.number(),
+  })).optional(),
   savedFeeds: z.array(z.unknown()).transform((arr) =>
     arr.flatMap((item) => {
       if (typeof item !== 'object' || item === null) return [];

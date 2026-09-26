@@ -11,6 +11,7 @@ import type { Theme, FeedSettings, ContentWarningPolicy, SavedFeed, WidgetConfig
 import type { ThemeConfig } from '@/themes';
 import type { ContentFilter } from './useContentFilters';
 import type { LetterPreferences } from '@/lib/letterTypes';
+import { getEmojiUsage, type EmojiUsageEntry } from '@/hooks/useEmojiUsage';
 import { EncryptedSettingsSchema } from '@/lib/schemas';
 
 /**
@@ -121,6 +122,8 @@ export interface EncryptedSettings {
   savedFeeds?: SavedFeed[];
   /** Letter preferences (stationery, font, frame, closing, signature, inbox filters) */
   letterPreferences?: LetterPreferences;
+  /** Emoji usage table behind the quick-react row and the picker's frequent row (see useEmojiUsage). */
+  emojiUsage?: EmojiUsageEntry[];
 }
 
 /** Decrypt and validate a settings event's content. Throws if it can't be decrypted or parsed. */
@@ -238,8 +241,13 @@ export function useEncryptedSettings() {
           ? await decryptSettings(user.signer.nip44, user.pubkey, base.content)
           : {};
       }
+      // Carry the emoji usage table on every write. Signers that prompt per
+      // operation don't get a background push of their own (see NostrSync),
+      // so this is how their table reaches other devices.
+      const emojiUsage = getEmojiUsage(user.pubkey);
       const updatedSettings: EncryptedSettings = {
         ...currentSettings,
+        ...(emojiUsage.length > 0 ? { emojiUsage } : {}),
         ...patch,
         lastSync: Date.now(),
       };
