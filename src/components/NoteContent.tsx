@@ -350,6 +350,13 @@ function isOnlyEmojisOrCustom(text: string, emojiMap: Map<string, string>): bool
   return true;
 }
 
+const EMOJI_OR_CUSTOM_UNIT_REGEX = new RegExp(`${CUSTOM_EMOJI_SHORTCODE}|${EMOJI_UNIT}`, 'gu');
+
+/** How many emoji (native or `:shortcode:`) an emoji-only text holds. */
+function countEmojiUnits(text: string): number {
+  return [...text.matchAll(EMOJI_OR_CUSTOM_UNIT_REGEX)].length;
+}
+
 
 /** Parses content of text note events so that URLs and hashtags are linkified. */
 export function NoteContent({
@@ -783,6 +790,8 @@ export function NoteContent({
 
   // Check if content is only emojis — unicode and/or NIP-30 custom emojis (single text token)
   const isEmojiOnly = groupedTokens.length === 1 && groupedTokens[0].type === 'text' && isOnlyEmojisOrCustom(groupedTokens[0].value, emojiMap);
+  // Emoji-only notes render extra large; a lone single emoji larger still.
+  const isSingleEmoji = isEmojiOnly && groupedTokens[0].type === 'text' && countEmojiUnits(groupedTokens[0].value) === 1;
 
   // Build a map from grouped token index → starting image list index for lightbox positioning
   const tokenImageIndex = useMemo(() => {
@@ -800,11 +809,11 @@ export function NoteContent({
   }, [groupedTokens]);
 
   return (
-    <Wrapper dir="auto" {...highlightSourceAttrs(event)} className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && 'text-5xl leading-tight')}>
+    <Wrapper dir="auto" {...highlightSourceAttrs(event)} className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && (isSingleEmoji ? 'text-5xl leading-normal' : 'text-4xl leading-tight'))}>
       {groupedTokens.map((token, i) => {
         switch (token.type) {
           case 'text':
-            return <span key={i}>{linkifyFlags(maybeMark(emojify(token.value, emojiMap, isEmojiOnly ? 'inline h-12 w-12 object-contain align-text-bottom' : undefined), highlightText))}</span>;
+            return <span key={i}>{linkifyFlags(maybeMark(emojify(token.value, emojiMap, isEmojiOnly ? cn('inline object-contain align-text-bottom', isSingleEmoji ? 'h-12 w-12' : 'h-10 w-10') : undefined), highlightText))}</span>;
           case 'image-embed': {
             if (disableEmbeds || disableMediaEmbeds) {
               // In preview contexts (triple-dot menu, quote cards) media is
