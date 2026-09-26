@@ -71,3 +71,17 @@ export function getEffectiveRelays(
     updatedAt: userRelays.updatedAt,
   };
 }
+
+/**
+ * Get the relay URLs to publish the user's own events to.
+ *
+ * These are the write relays of the effective relay set, plus the write
+ * relays of the user's NIP-65 list even when `useUserRelays` is off. Other
+ * clients look for the user's events on those relays (NIP-65 outbox model),
+ * so they must receive them regardless of which relays this app reads from.
+ */
+export function getPublishRelays(userRelays: RelayMetadata, useAppRelays: boolean): string[] {
+  return getEffectiveRelays(userRelays, useAppRelays, true).relays
+    .filter((relay) => relay.write)
+    .map((relay) => relay.url);
+}

@@ -5,7 +5,7 @@ import { NUser, useNostrLogin } from '@nostrify/react/login';
 import type { NostrSigner } from '@nostrify/types';
 import { useAppContext } from '@/hooks/useAppContext';
 import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
-import { getEffectiveRelays, DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
+import { getEffectiveRelays, getPublishRelays, DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { GIT_ACTIVITY_KINDS } from '@/lib/gitActivity';
 import { NSITE_KINDS } from '@/lib/nsiteSubdomain';
 import { AppPool } from '@/lib/AppPool';
@@ -300,14 +300,10 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         return routes;
       },
       eventRouter(_event: NostrEvent) {
-        // Get write relays from effective relays
-        const writeRelays = withoutBlockedRelays(effectiveRelays.current.relays
-          .filter(r => r.write)
-          .map(r => r.url));
-
-        const allRelays = new Set<string>(writeRelays);
-
-        return [...allRelays];
+        // Write relays of the effective set, plus the user's NIP-65 write
+        // relays even when personal relays are disabled in settings.
+        const { relayMetadata, useAppRelays } = configRef.current;
+        return withoutBlockedRelays(getPublishRelays(relayMetadata, useAppRelays));
       },
       // Resolve queries quickly once any relay sends EOSE, instead of
       // waiting for every relay to finish.
