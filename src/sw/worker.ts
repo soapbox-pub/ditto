@@ -20,15 +20,11 @@
  * fails, the id is still enough for a vaguer notification, which beats none.
  *
  * Neither transport is trusted to have matched correctly, so the worker
- * re-checks what it can: the event must match one of the filters the page
- * asked for, must not come from the user, and must come from someone they
- * follow when "only from people I follow" is on. The filters, the user and
- * their follows are read from IndexedDB, written by
- * `src/lib/push/workerState.ts`. What it doesn't check is the signature — Tenna
- * doesn't verify before delivery — so a hostile relay can still put words in a
- * stranger's mouth. Tapping through opens the event (or the post it's about)
- * by id, and the page verifies what it loads, so a forged notification leads
- * nowhere — see `notificationPath()`.
+ * re-checks everything: the event must be validly signed (`parseEvent()`),
+ * must match one of the filters the page asked for, must not come from the
+ * user, and must come from someone they follow when "only from people I
+ * follow" is on. The filters, the user and their follows are read from
+ * IndexedDB, written by `src/lib/push/workerState.ts`.
  *
  * Spam handling — read this before touching the push handler. The other three
  * notification transports (in-app, Android, iOS) fetch a batch of events and
@@ -56,6 +52,7 @@
  */
 
 import { isNostrId } from '@/lib/nostrId';
+import { isValidZapReceipt } from '@/lib/zapReceipt';
 
 import { notificationShape, recordAndCheckBurst } from './burst';
 import { parseEvent } from './event';
@@ -175,6 +172,10 @@ async function handleNappPush(payload: NappPayload): Promise<void> {
 
   const template = templateFor(event);
   if (!template) return; // A kind nothing subscribed to; the relay is confused.
+
+  // A receipt's signature is the LNURL server's; the sender and amount come
+  // from the zap request and invoice inside it, which must agree with it.
+  if (event.kind === 9735 && !isValidZapReceipt(event)) return;
 
   const state = await loadPushState();
   if (!isWanted(event, state)) return;

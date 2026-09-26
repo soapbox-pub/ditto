@@ -211,9 +211,9 @@ export function eventIdPath(id: string, relays: string[]): string {
  * itself; the awarded badge; the letters inbox. Mirrors where the in-app list
  * sends each row. /notifications when there's nothing more specific.
  *
- * The event is unverified, but these are links, not content: the page fetches
- * whatever they point at and verifies it like any other event, so a forged
- * event leads to a "not found", never to forged words.
+ * The event itself is verified, but what its tags point at isn't — that's
+ * fine, since these are links, not content: the page fetches the target and
+ * verifies it like any other event.
  */
 export function notificationPath(event: NostrEvent, relays: string[]): string {
   if (event.kind === LETTER_KIND) return '/letters';
