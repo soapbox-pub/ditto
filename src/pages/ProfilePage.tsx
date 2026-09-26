@@ -2564,7 +2564,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     <span className="text-sm text-muted-foreground">Top 8</span>
                   </Link>
                 )}
-                {/* Posting streak (kind 11143), seeded by useProfileSupplementary */}
+                {/* Posting streak (kind 13473), seeded by useProfileSupplementary */}
                 {pubkey && <StreakBadge pubkey={pubkey} fetch={false} />}
               </div>
               {isOwnProfile && pubkey && <StreakAtRisk pubkey={pubkey} className="mt-2" />}

@@ -45,7 +45,7 @@ export interface ProfileSupplementary {
 /**
  * Fetch follow list (kind 3), pinned notes (kind 10001), love list
  * (kind 15683), Top 8 (kind 18678, both see NIP.md), and interests
- * (kind 10015) for a pubkey, and seed their posting streak (kind 11143, see
+ * (kind 10015) for a pubkey, and seed their posting streak (kind 13473, see
  * NIP.md) into useStreak's cache. Profile tabs (kind 16769) are fetched separately
  * by useProfileTabs to avoid stale-seed race conditions with
  * usePublishProfileTabs.

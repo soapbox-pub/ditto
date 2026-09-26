@@ -1,7 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
-/** Posting streak (replaceable, see NIP.md). */
-export const STREAK_KIND = 11143;
+/** Posting streak (replaceable, see NIP.md). "1·FIRE" on a phone keypad. */
+export const STREAK_KIND = 13473;
 
 /** Longest gap between creative events before a streak is broken, in seconds (36h). */
 export const STREAK_WINDOW = 129_600;
@@ -63,7 +63,7 @@ function parseTimestamp(value: string | undefined): number | undefined {
 }
 
 /**
- * Parse a kind 11143 event. Streaks are self-reported, so this only rejects
+ * Parse a kind 13473 event. Streaks are self-reported, so this only rejects
  * values that are malformed or impossible — not ones that are merely unlikely.
  */
 export function parseStreakEvent(event: NostrEvent | null | undefined, now = nowSeconds()): Streak | undefined {

@@ -15,7 +15,7 @@
 | 37849 | Quiz                 | Shareable quiz with weighted-scoring questions        |
 | 7849  | Quiz Result          | A user's computed result for a quiz                   |
 | 38192 | PS Memory Card       | One 8 KB block of a PlayStation 1 memory card         |
-| 11143 | Posting Streak       | The user's self-reported posting streak (one per user)|
+| 13473 | Posting Streak       | The user's self-reported posting streak (one per user)|
 
 ### Community Kinds
 
@@ -259,7 +259,7 @@ Empty by convention. Clients MAY use the NIP-51 private-items scheme (NIP-44-enc
 
 ---
 
-## Kind 11143: Posting Streak
+## Kind 13473: Posting Streak
 
 ### Summary
 
@@ -267,11 +267,13 @@ Replaceable event recording the author's current **posting streak**: an unbroken
 
 Streaks are **self-reported and trust-based**. There is no server computing them: the author's client maintains the event from the author's own events, and other clients display it as-is. A forged streak only changes how the forger's own profile looks.
 
+The kind number keypad-spells **"1·FIRE"**: F=3, I=4, R=7, E=3 → `3473`, with a leading `1` to land in the replaceable range (10000–19999).
+
 ### Event Structure
 
 ```json
 {
-  "kind": 11143,
+  "kind": 13473,
   "pubkey": "<author-pubkey>",
   "content": "",
   "tags": [

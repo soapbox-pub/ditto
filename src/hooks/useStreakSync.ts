@@ -64,7 +64,7 @@ function isAbort(error: unknown): boolean {
 }
 
 /**
- * Keep the logged-in user's posting streak (kind 11143) up to date.
+ * Keep the logged-in user's posting streak (kind 13473) up to date.
  *
  * - Every creative event published through Ditto advances the streak
  *   immediately in the query cache, and a debounced publish records it.

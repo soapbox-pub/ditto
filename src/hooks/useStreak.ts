@@ -29,7 +29,7 @@ export function mergeStreakIntoCache(
 }
 
 /**
- * A user's self-reported posting streak (kind 11143, see NIP.md). With
+ * A user's self-reported posting streak (kind 13473, see NIP.md). With
  * `enabled: false` it only reads what another query seeded into the cache.
  */
 export function useStreak(pubkey: string | undefined, { enabled = true }: { enabled?: boolean } = {}) {

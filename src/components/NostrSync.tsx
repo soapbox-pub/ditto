@@ -30,7 +30,7 @@ const EMOJI_USAGE_DEBOUNCE_MS = 10_000;
  * - Encrypted app settings (kind 30078) - theme, feed settings, relay toggle
  * - Active profile theme (kind 16767) - when autoShareTheme is enabled
  * - Emoji usage table (inside the encrypted settings), merged both ways
- * - Posting streak (kind 11143), advanced on publish and repaired from the
+ * - Posting streak (kind 13473), advanced on publish and repaired from the
  *   user's own events posted elsewhere
  */
 export function NostrSync() {
