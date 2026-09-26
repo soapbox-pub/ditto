@@ -1,22 +1,25 @@
 /**
  * Push transport selection.
  *
- * napp wins wherever a host app provides it: the host already holds the relay
- * connections, so there is no third-party push service in the path, no VAPID
- * key to fetch, and no server that has to be told who the user follows. It is
- * only ever present inside such a host (today: Tenna on Android), so everywhere
- * else this falls through to nostr-push.
+ * Every transport takes the same subscriptions (see `types.ts`); this only
+ * decides who carries them. The native apps use their own plugin. Inside a
+ * napp host (Tenna) the host carries them, since it already holds relay
+ * connections — or its own push service — for every site it runs. Everywhere
+ * else it is Web Push through the nostr-push service.
  */
 
-import { NappPushAdapter } from '@/lib/push/NappPushAdapter';
-import { NostrPushAdapter } from '@/lib/push/NostrPushAdapter';
-import type { PushAdapter } from '@/lib/push/types';
+import { Capacitor } from '@capacitor/core';
 
-export type { PushAdapter, PushContext, PushPreferences, PushTransport } from '@/lib/push/types';
-export { NappPushAdapter, buildNappSubscriptions } from '@/lib/push/NappPushAdapter';
-export { NostrPushAdapter } from '@/lib/push/NostrPushAdapter';
+import { NappHost } from '@/lib/push/NappHost';
+import { NativeHost } from '@/lib/push/native';
+import { NostrPushHost } from '@/lib/push/NostrPushHost';
+import { PushAdapter } from '@/lib/push/PushAdapter';
 
-/** Hex pubkey of the nostr-push server, from the build environment. */
+export type { PushContext, PushHost, PushPreferences, PushTransport } from '@/lib/push/types';
+export { PushAdapter } from '@/lib/push/PushAdapter';
+export { buildPushSubscriptions } from '@/lib/push/subscriptions';
+
+/** Hex pubkey of the nostr-push service, from the build environment. */
 const NOSTR_PUSH_PUBKEY: string = import.meta.env.VITE_NOSTR_PUSH_PUBKEY ?? '';
 
 /**
@@ -24,12 +27,13 @@ const NOSTR_PUSH_PUBKEY: string = import.meta.env.VITE_NOSTR_PUSH_PUBKEY ?? '';
  *
  * Always returns an adapter — check `.supported` before using it, since the
  * nostr-push fallback is unsupported in browsers without Web Push and in builds
- * with no server pubkey configured.
+ * with no service pubkey configured.
  */
 export function createPushAdapter(): PushAdapter {
-  const napp = new NappPushAdapter();
-  if (napp.supported) return napp;
+  if (Capacitor.isNativePlatform()) return new PushAdapter(new NativeHost());
 
-  const domain = typeof window !== 'undefined' ? window.location.hostname : '';
-  return new NostrPushAdapter(NOSTR_PUSH_PUBKEY, domain);
+  const napp = new NappHost();
+  if (napp.supported) return new PushAdapter(napp);
+
+  return new PushAdapter(new NostrPushHost(NOSTR_PUSH_PUBKEY));
 }

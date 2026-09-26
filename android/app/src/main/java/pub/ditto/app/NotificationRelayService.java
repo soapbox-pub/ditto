@@ -46,8 +46,11 @@ import okhttp3.WebSocketListener;
  * notifications in real time.
  *
  * Architecture (modeled on Armada's NotificationRelayService):
- * - One always-open WebSocket per configured relay, each with a live REQ
- *   ({kinds, #p: user, since}). Events arrive the moment a relay accepts
+ * - The filters are napp subscriptions handed over by the JS layer through
+ *   {@link DittoNotificationPlugin#setSubscriptions} — the same ones Tenna and
+ *   the nostr-push service watch. One always-open WebSocket per relay any
+ *   subscription names, each with one live REQ carrying every filter aimed at
+ *   that relay (plus {@code since}). Events arrive the moment a relay accepts
  *   them — no polling latency.
  * - OkHttp pingInterval keeps sockets alive through NATs and detects silent
  *   drops; failures reconnect with exponential backoff (1s → 5 min cap).
@@ -127,13 +130,13 @@ public class NotificationRelayService extends Service {
 
     // Config (from SharedPreferences, written by DittoNotificationPlugin).
     private String userPubkey;
-    private final List<String> relayUrls = new ArrayList<>();
-    private final List<Integer> enabledKinds = new ArrayList<>();
-    private final List<String> authors = new ArrayList<>();
+    // Relay URL → the filters to REQ there, from every subscription naming it.
+    private final Map<String, List<JSONObject>> relayFilters = new java.util.LinkedHashMap<>();
     // Full follow set — the flood detector's trust exemption (a followed
-    // author's copy of a pitch is never folded). Separate from `authors`,
-    // which only narrows the REQ under "only from people I follow".
+    // author's copy of a pitch is never folded), and the "only from people I
+    // follow" re-check for when the filters had to go without `authors`.
     private final Set<String> follows = new HashSet<>();
+    private boolean onlyFollowing = false;
 
     // Event ids already notified — dedupes across relays and reconnects.
     // Insertion-ordered so that at the cap the OLDEST ids are evicted one at a
@@ -295,30 +298,86 @@ public class NotificationRelayService extends Service {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         userPubkey = prefs.getString("userPubkey", null);
 
-        relayUrls.clear();
-        relayUrls.addAll(parseStringArray(prefs.getString("relayUrls", null)));
-
-        enabledKinds.clear();
-        enabledKinds.addAll(parseIntArray(prefs.getString("enabledKinds", null)));
-
-        authors.clear();
-        authors.addAll(parseStringArray(prefs.getString("authors", null)));
-
         follows.clear();
         follows.addAll(parseStringArray(prefs.getString("follows", null)));
+        onlyFollowing = prefs.getBoolean("onlyFollowing", false);
 
-        if (userPubkey == null || relayUrls.isEmpty() || enabledKinds.isEmpty()) {
-            Log.d(TAG, "No config (pubkey/relays/kinds); disconnecting.");
+        relayFilters.clear();
+        String subscriptions = prefs.getString("subscriptions", null);
+        if (subscriptions != null) {
+            loadSubscriptions(subscriptions);
+        } else {
+            loadLegacyConfig(prefs);
+        }
+
+        if (userPubkey == null || relayFilters.isEmpty()) {
+            Log.d(TAG, "No config (pubkey/subscriptions); disconnecting.");
             closeAllConnections();
             return;
         }
 
-        // Rebuild all connections with the current filter.
+        // Rebuild all connections with the current filters.
         closeAllConnections();
-        for (String url : new LinkedHashSet<>(relayUrls)) {
+        for (String url : relayFilters.keySet()) {
             RelayConnection rc = new RelayConnection(url);
             connections.add(rc);
             rc.connect();
+        }
+    }
+
+    /** Group the subscriptions' filters by the relays they name. */
+    private void loadSubscriptions(String raw) {
+        try {
+            JSONArray subs = new JSONArray(raw);
+            for (int i = 0; i < subs.length(); i++) {
+                JSONObject sub = subs.optJSONObject(i);
+                if (sub == null) continue;
+                JSONArray filters = sub.optJSONArray("filters");
+                JSONArray relays = sub.optJSONArray("relays");
+                if (filters == null || relays == null) continue;
+                for (int r = 0; r < relays.length(); r++) {
+                    String url = relays.optString(r);
+                    if (url.isEmpty()) continue;
+                    List<JSONObject> list = relayFilters.get(url);
+                    if (list == null) {
+                        list = new ArrayList<>();
+                        relayFilters.put(url, list);
+                    }
+                    for (int f = 0; f < filters.length(); f++) {
+                        JSONObject filter = filters.optJSONObject(f);
+                        if (filter != null) list.add(filter);
+                    }
+                }
+            }
+        } catch (JSONException e) {
+            Log.w(TAG, "Unreadable subscriptions", e);
+            relayFilters.clear();
+        }
+    }
+
+    /**
+     * The config an older build wrote — relays, kinds, and an optional authors
+     * list — as the one filter it stood for. Lets persistent mode survive an
+     * app update that restarts this service before the app is next opened and
+     * hands over real subscriptions.
+     */
+    private void loadLegacyConfig(SharedPreferences prefs) {
+        List<String> relays = parseStringArray(prefs.getString("relayUrls", null));
+        List<Integer> kinds = parseIntArray(prefs.getString("enabledKinds", null));
+        List<String> authors = parseStringArray(prefs.getString("authors", null));
+        if (userPubkey == null || relays.isEmpty() || kinds.isEmpty()) return;
+        try {
+            JSONObject filter = new JSONObject();
+            filter.put("kinds", new JSONArray(kinds));
+            filter.put("#p", new JSONArray().put(userPubkey));
+            if (!authors.isEmpty()) filter.put("authors", new JSONArray(authors));
+            for (String url : new LinkedHashSet<>(relays)) {
+                List<JSONObject> list = new ArrayList<>();
+                list.add(filter);
+                relayFilters.put(url, list);
+            }
+        } catch (JSONException e) {
+            Log.w(TAG, "Unreadable legacy config", e);
         }
     }
 
@@ -427,22 +486,22 @@ public class NotificationRelayService extends Service {
                     poller.setLastSeenTimestamp(lastSeen);
                 }
 
-                JSONObject filter = new JSONObject();
-                JSONArray kinds = new JSONArray();
-                for (int kind : enabledKinds) kinds.put(kind);
-                filter.put("kinds", kinds);
-                filter.put("#p", new JSONArray().put(userPubkey));
-                filter.put("since", lastSeen + 1);
-                filter.put("limit", BACKFILL_LIMIT);
+                List<JSONObject> filters = relayFilters.get(relayUrl);
+                if (filters == null || filters.isEmpty()) return;
 
-                // When "only from people I follow" is enabled, restrict authors.
-                if (!authors.isEmpty()) {
-                    JSONArray authorsArr = new JSONArray();
-                    for (String author : authors) authorsArr.put(author);
-                    filter.put("authors", authorsArr);
+                JSONArray req = new JSONArray();
+                req.put("REQ");
+                req.put(subMain);
+                for (JSONObject source : filters) {
+                    // Copy: the stored filter is shared across reconnects.
+                    JSONObject filter = new JSONObject(source.toString());
+                    // A filter's own `since` is honoured when it is later, as napp does.
+                    filter.put("since", Math.max(lastSeen + 1, source.optLong("since", 0)));
+                    filter.put("limit", BACKFILL_LIMIT);
+                    req.put(filter);
                 }
 
-                webSocket.send(reqMessage(subMain, filter));
+                webSocket.send(req.toString());
             } catch (JSONException e) {
                 Log.w(TAG, "Failed to build REQ", e);
             }
@@ -664,6 +723,9 @@ public class NotificationRelayService extends Service {
             // skip everything until then. Mirrors Armada's advanceInclusiveSince.
             newestTs = advanceInclusiveSince(newestTs, ts, nowSec);
             if (sender.equals(userPubkey)) continue; // skip self-interactions
+            // "Only from people I follow", re-checked here for when the follow
+            // set was too big to send as the filters' `authors`.
+            if (onlyFollowing && !follows.isEmpty() && !follows.contains(sender)) continue;
             // Bounded LRU insert: at the cap the oldest id is evicted, never the
             // whole set. `id` is known-new here (contains() rejected dupes above).
             rememberBoundedId(notifiedIds, id, MAX_NOTIFIED_IDS);

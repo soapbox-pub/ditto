@@ -10,7 +10,7 @@ import { AppProvider } from "@/components/AppProvider";
 import { I18nProvider } from "@/components/I18nProvider";
 import { InitialSyncGate } from "@/components/InitialSyncGate";
 import { MoneroBackgroundSync } from "@/components/MoneroBackgroundSync";
-import { NativeNotifications } from "@/components/NativeNotifications";
+import { PushNotificationsProvider } from "@/components/PushNotificationsProvider";
 import NostrProvider from "@/components/NostrProvider";
 import { NostrSync } from "@/components/NostrSync";
 import { NotificationStream } from "@/components/NotificationStream";
@@ -250,19 +250,20 @@ export function App() {
                 <NostrProvider>
                   <NostrSync />
                   <RelayAuthPrompt />
-                  <NativeNotifications />
                   <NotificationStream />
                   <MoneroBackgroundSync />
 
-                  <NWCProvider>
-                    <EmotionDevProvider>
-                      <TooltipProvider>
-                        <InitialSyncGate>
-                          <AppRouter />
-                        </InitialSyncGate>
-                      </TooltipProvider>
-                    </EmotionDevProvider>
-                  </NWCProvider>
+                  <PushNotificationsProvider>
+                    <NWCProvider>
+                      <EmotionDevProvider>
+                        <TooltipProvider>
+                          <InitialSyncGate>
+                            <AppRouter />
+                          </InitialSyncGate>
+                        </TooltipProvider>
+                      </EmotionDevProvider>
+                    </NWCProvider>
+                  </PushNotificationsProvider>
                 </NostrProvider>
               </NostrLoginProvider>
             </QueryClientProvider>

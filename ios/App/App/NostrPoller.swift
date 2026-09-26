@@ -69,19 +69,41 @@ final class NostrPoller {
         let timestamp: TimeInterval
     }
 
+    /// One relay and every subscription filter aimed at it.
+    struct RelayFilters {
+        let relayUrl: String
+        let filters: [[String: Any]]
+    }
+
     // MARK: - Public API
+
+    /// Group napp subscriptions (`[{ filters, relays }]`, as the JS layer
+    /// builds them for every push transport) by relay, in the order the
+    /// relays first appear.
+    static func relayFilters(from subscriptions: [[String: Any]]) -> [RelayFilters] {
+        var order = [String]()
+        var byRelay = [String: [[String: Any]]]()
+        for sub in subscriptions {
+            guard let filters = sub["filters"] as? [[String: Any]],
+                  let relays = sub["relays"] as? [String] else { continue }
+            for relay in relays where !relay.isEmpty {
+                if byRelay[relay] == nil { order.append(relay) }
+                byRelay[relay, default: []].append(contentsOf: filters)
+            }
+        }
+        return order.map { RelayFilters(relayUrl: $0, filters: byRelay[$0] ?? []) }
+    }
 
     /// Run a single poll cycle: fetch events from a relay, resolve metadata,
     /// and display notifications. Returns the number of notifications shown.
     @discardableResult
     func poll(
         userPubkey: String,
-        relayUrls: [String],
-        enabledKinds: [Int],
-        authors: [String]?,
-        follows: Set<String>? = nil
+        relays: [RelayFilters],
+        follows: Set<String>? = nil,
+        onlyFollowing: Bool = false
     ) async -> Int {
-        guard !relayUrls.isEmpty, !enabledKinds.isEmpty else { return 0 }
+        guard !relays.isEmpty else { return 0 }
 
         let since = lastSeenTimestamp
         let effectiveSince = since > 0 ? since : Int(Date().timeIntervalSince1970) - 300
@@ -91,21 +113,24 @@ final class NostrPoller {
         }
 
         // Try each relay in order until one succeeds.
-        for relayUrl in relayUrls {
+        for relay in relays {
+            let relayUrl = relay.relayUrl
             guard let events = await fetchEvents(
                 relayUrl: relayUrl,
-                userPubkey: userPubkey,
-                enabledKinds: enabledKinds,
-                authors: authors,
+                filters: relay.filters,
                 since: effectiveSince
             ) else {
                 continue // Try next relay on failure.
             }
 
-            // Deduplicate + filter self-interactions.
+            // Deduplicate + filter self-interactions, and re-check "only from
+            // people I follow" for when the follow set was too big to send as
+            // the filters' `authors`.
             var seenIds = Set<String>()
             let filtered = events.filter { ev in
-                guard ev.pubkey != userPubkey, !seenIds.contains(ev.id) else { return false }
+                let sender = Self.senderPubkey(of: ev)
+                guard sender != userPubkey, !seenIds.contains(ev.id) else { return false }
+                if onlyFollowing, let follows, !follows.isEmpty, !follows.contains(sender) { return false }
                 seenIds.insert(ev.id)
                 return true
             }
@@ -185,24 +210,31 @@ final class NostrPoller {
     /// Fetch notification events from a single relay. Returns nil on failure.
     private func fetchEvents(
         relayUrl: String,
-        userPubkey: String,
-        enabledKinds: [Int],
-        authors: [String]?,
+        filters: [[String: Any]],
         since: Int
     ) async -> [NostrEvent]? {
-        guard let url = URL(string: relayUrl) else { return nil }
+        guard let url = URL(string: relayUrl), !filters.isEmpty else { return nil }
 
-        var filter: [String: Any] = [
-            "kinds": enabledKinds,
-            "#p": [userPubkey],
-            "since": since + 1,
-            "limit": Self.fetchLimit,
-        ]
-        if let authors, !authors.isEmpty {
-            filter["authors"] = authors
+        let windowed = filters.map { source -> [String: Any] in
+            var filter = source
+            // A filter's own `since` is honoured when it is later, as napp does.
+            filter["since"] = max(since + 1, source["since"] as? Int ?? 0)
+            filter["limit"] = Self.fetchLimit
+            return filter
         }
 
-        return await relayQuery(url: url, filters: [filter])
+        return await relayQuery(url: url, filters: windowed)
+    }
+
+    /// Who an event is *from*. For a zap receipt that is the sender named in
+    /// the zap request, not the event's author — which is the LNURL server's key.
+    static func senderPubkey(of event: NostrEvent) -> String {
+        guard event.kind == 9735,
+              let description = event.tags.first(where: { $0.first == "description" && $0.count > 1 })?[1],
+              let data = description.data(using: .utf8),
+              let request = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let pubkey = request["pubkey"] as? String else { return event.pubkey }
+        return pubkey
     }
 
     /// Fetch events by IDs from a relay for referenced-event verification.

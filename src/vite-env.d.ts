@@ -14,7 +14,7 @@ declare module 'virtual:monero-worker-url' {
 }
 
 interface ImportMetaEnv {
-  /** Hex pubkey of the nostr-push server for Web Push notifications. */
+  /** Hex pubkey of the nostr-push service that carries Web Push notifications. */
   readonly VITE_NOSTR_PUSH_PUBKEY?: string;
   /**
    * Canonical origin used when generating shareable URLs (QR codes, copy-link,

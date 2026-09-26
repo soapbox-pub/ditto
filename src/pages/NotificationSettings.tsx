@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
-import { isIgnoringBatteryOptimizations, requestIgnoreBatteryOptimizations } from '@/hooks/useNativeNotifications';
+import { isIgnoringBatteryOptimizations, requestIgnoreBatteryOptimizations } from '@/lib/push/native';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { toast } from '@/hooks/useToast';
 
@@ -164,7 +164,6 @@ export function NotificationSettings() {
     requestPermission: requestPushPermission,
     enable: enablePush,
     disable: disablePush,
-    syncPreferences: syncPushPreferences,
   } = usePushNotifications();
 
   const isNative = Capacitor.isNativePlatform();
@@ -271,13 +270,8 @@ export function NotificationSettings() {
     updateSettings.mutateAsync({ notificationPreferences: next }).catch(() => {
       setPrefs((p) => ({ ...p, [key]: !enabled })); // roll back on failure
     });
-    // Sync the active/inactive state with the nostr-push server so disabled
-    // types stop generating push notifications.
-    if (pushEnabled && !isNative && user) {
-      syncPushPreferences(next, user.pubkey).catch((err) => {
-        console.error('[push] Failed to sync preferences:', err);
-      });
-    }
+    // The push subscriptions follow the stored preferences on their own
+    // (PushNotificationsProvider), on every transport.
   };
 
   const handleStyleChange = (style: 'push' | 'persistent') => {
@@ -310,12 +304,6 @@ export function NotificationSettings() {
     updateSettings.mutateAsync({ notificationPreferences: next }).catch(() => {
       setPrefs((p) => ({ ...p, onlyFollowing: !enabled })); // roll back on failure
     });
-    // Sync the authors filter with nostr-push so $contacts is applied/removed
-    if (pushEnabled && !isNative && user) {
-      syncPushPreferences(next, user.pubkey).catch((err) => {
-        console.error('[push] Failed to sync onlyFollowing preference:', err);
-      });
-    }
   };
 
   if (!user) {
@@ -323,7 +311,7 @@ export function NotificationSettings() {
   }
 
   // `pushSupported` covers a host bridge (napp) and a browser that can do Web
-  // Push against a configured nostr-push server. The `Notification` fallback
+  // Push against a configured nostr-push service. The `Notification` fallback
   // keeps the row available in builds with no server pubkey, where the toggle
   // still drives the stored preference the other transports read.
   const isSupported = isNative || pushSupported || 'Notification' in window;

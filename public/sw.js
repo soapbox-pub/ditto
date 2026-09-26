@@ -11,16 +11,12 @@
  * Ditto Service Worker
  *
  * Handles incoming push notifications and opens/focuses the app when the user
- * taps one. Two transports deliver here, and they hand over different things
- * (see `src/lib/push/`):
- *
- * - **nostr-push** — a server matched the event, rendered the text, and sent
- *   `{ title, body, icon, badge, data }`. There is nothing left to decide.
- * - **napp** — the host app (Tenna) held the relay subscription open and sends
- *   `{ $type: 'napp.push.payload', event_id, event?, relays }`: the raw Nostr
- *   event, unverified and unrendered. Everything the server would have done —
- *   who deserves a notification, what it says, whose face is on it — happens
- *   here, in `handleNappPush()` below.
+ * taps one. Two transports deliver here — the napp host (Tenna) and the
+ * nostr-push service over Web Push — and both hand over the same thing (see
+ * `src/lib/push/`): `{ $type: 'napp.push.payload', event_id, event?, relays }`,
+ * the raw Nostr event, unverified and unrendered. Who deserves a notification,
+ * what it says, and whose face is on it are all decided here, in
+ * `handleNappPush()` below.
  *
  * `event` is the part that may be missing. On Android it never is, but a push
  * is a message on somebody else's transport and iOS gives the whole of one
@@ -28,14 +24,15 @@
  * relays to look for it on. `fetchEventById()` goes and gets it; when even that
  * fails, the id is still enough for a vaguer notification, which beats none.
  *
- * The napp path has no server to trust, so it re-checks what it can: the event
- * must tag the logged-in user, must not come from them, and must come from
- * someone they follow when "only from people I follow" is on. The user and
+ * Neither transport is trusted to have matched correctly, so the worker
+ * re-checks what it can: the event must match one of the filters the page
+ * asked for, must not come from the user, and must come from someone they
+ * follow when "only from people I follow" is on. The filters, the user and
  * their follows are read from IndexedDB, written by
- * `src/lib/push/nappWorkerState.ts`. What it cannot check is the signature —
- * the host doesn't verify before delivery and a worker has no secp256k1 — so a
- * hostile relay can still put words in a stranger's mouth. Tapping through
- * lands on /notifications, which is rendered from verified events.
+ * `src/lib/push/workerState.ts`. What it cannot check is the signature — Tenna
+ * doesn't verify before delivery and a worker has no secp256k1 — so a hostile
+ * relay can still put words in a stranger's mouth. Tapping through lands on
+ * /notifications, which is rendered from verified events.
  *
  * Spam handling — read this before touching the push handler. The other three
  * notification transports (in-app, Android, iOS) fetch a batch of events and
@@ -44,16 +41,14 @@
  * CONTENT, and the mention-swarm detector (`src/lib/mentionSwarm.ts`, likewise
  * ported), which reads the ENVELOPE — the co-tagged victim set and arrival
  * timing of a burst, the shape a mad-libs generator uses to defeat content
- * clustering. This service worker CANNOT run either: the nostr-push server
- * pushes ONE pre-rendered payload at a time, so there is no thread, no author
- * set, no crowd to measure ECHO/DENSITY against, and — fatal for mention-swarm
- * specifically — the payload is rendered text, not the raw event, so the `p`
- * tags and `created_at` the envelope rule needs are gone before the worker ever
- * sees it. The worker is also spun up per-push and killed shortly after (so no
- * in-memory state survives). What is possible here is a much lighter same-shape
- * burst counter, persisted in IndexedDB across those short-lived invocations —
- * it catches an identical-body DENSITY burst but not a mad-libs swarm, which is
- * an accepted gap in the push transport, not something a rewrite here can close.
+ * clustering. This service worker CANNOT run either: a push carries ONE event
+ * at a time, so there is no thread, no author set, no crowd to measure
+ * ECHO/DENSITY or a swarm's envelope against. The worker is also spun up
+ * per-push and killed shortly after (so no in-memory state survives). What is
+ * possible here is a much lighter same-shape burst counter, persisted in
+ * IndexedDB across those short-lived invocations — it catches an
+ * identical-body DENSITY burst but not a mad-libs swarm, which is an accepted
+ * gap in the push transport, not something a rewrite here can close.
  *
  * It also cannot silently drop a push: Chrome subscribes with
  * `userVisibleOnly: true` and revokes the push subscription after repeated
@@ -168,24 +163,30 @@ async function recordAndCheckBurst(shape) {
   }
 }
 
-// --- napp transport: rendering a raw event ---
+// --- Rendering a raw event ---
 
 /**
- * Notification copy per kind — the same nine entries as
- * `src/lib/notificationTemplates.ts`, which the nostr-push server renders from.
- * Duplicated rather than imported because this file is served verbatim from
- * public/ and never sees the bundler. Keep the two in step.
+ * Notification copy per kind, one entry for every kind in `NOTIFICATION_TYPES`
+ * (`src/lib/notificationKinds.ts`), which the push filters are built from.
+ * This file is served verbatim from public/ and never sees the bundler, so it
+ * can't import that list; keep the two in step. The native apps render the
+ * same kinds in `NostrPoller.java` and `NostrPoller.swift`.
  *
- * English only. The server-rendered path is English too, so no notification
- * Ditto delivers while closed is localized; the in-app notification list is.
+ * English only, as the native notifications are; the in-app notification list
+ * is localized.
  */
 const NAPP_TEMPLATES = [
   { kinds: [7], title: '%s reacted to your post', body: 'content' },
   // Kind 6 content is the reposted event's raw JSON — never show it.
   { kinds: [6, 16], title: '%s reposted your post', body: '' },
   { kinds: [9735], title: '%s zapped you %a sats!', body: '' },
+  // The amount is self-reported until checked on-chain, so it isn't shown.
+  { kinds: [8333], title: '%s sent you an on-chain zap', body: '' },
   { kinds: [1], title: '%s mentioned you', body: 'content' },
   { kinds: [1111], title: '%s commented on your post', body: 'content' },
+  // Voice content is an audio URL, not words.
+  { kinds: [1222], title: '%s sent you a voice message', body: '' },
+  { kinds: [1244], title: '%s replied with a voice message', body: '' },
   { kinds: [8], title: '%s awarded you a badge!', body: 'You received a new badge.' },
   { kinds: [8211], title: '%s sent you a letter!', body: 'You have a new letter waiting for you.' },
   { kinds: [9802], title: '%s highlighted your post', body: 'content' },
@@ -201,8 +202,7 @@ for (const template of NAPP_TEMPLATES) {
  * NIP-25 likes and dislikes. A `+` (or empty) reaction is a like and `-` is a
  * dislike; neither symbol means anything shown on its own, so they get their
  * own title and no body. Any other content is an emoji reaction and falls
- * through to the generic kind 7 template. nostr-push can't do this — its
- * template is fixed per subscription, not per event.
+ * through to the generic kind 7 template.
  */
 const LIKE_TEMPLATE = { kinds: [7], title: '%s liked your post', body: '' };
 const DISLIKE_TEMPLATE = { kinds: [7], title: '%s disliked your post', body: '' };
@@ -262,8 +262,8 @@ function openDb(name, store) {
   });
 }
 
-/** The user and follow set the page last published. Null when unavailable. */
-async function loadNappState() {
+/** The user, filters and follow set the page last published. Null when unavailable. */
+async function loadPushState() {
   try {
     const db = await openDb(STATE_DB, STATE_STORE);
     try {
@@ -523,13 +523,47 @@ function truncateBody(content) {
   return `${text.slice(0, MAX_BODY_LENGTH - 1)}…`;
 }
 
+/**
+ * NIP-01 filter matching, as a relay does it: every condition the filter names
+ * must hold. `limit` and `search` don't narrow a single event and are ignored.
+ */
+function matchFilter(filter, event) {
+  if (!filter || typeof filter !== 'object') return false;
+  if (Array.isArray(filter.ids) && !filter.ids.includes(event.id)) return false;
+  if (Array.isArray(filter.kinds) && !filter.kinds.includes(event.kind)) return false;
+  if (Array.isArray(filter.authors) && !filter.authors.includes(event.pubkey)) return false;
+  if (typeof filter.since === 'number' && event.created_at < filter.since) return false;
+  if (typeof filter.until === 'number' && event.created_at > filter.until) return false;
+
+  const tags = Array.isArray(event.tags) ? event.tags : [];
+  for (const [key, values] of Object.entries(filter)) {
+    if (key[0] !== '#' || key.length !== 2 || !Array.isArray(values)) continue;
+    const name = key[1];
+    const hit = tags.some((t) => Array.isArray(t) && t[0] === name && values.includes(t[1]));
+    if (!hit) return false;
+  }
+  return true;
+}
+
+/** Whether any filter of any subscription matches. */
+function matchesSubscriptions(subscriptions, event) {
+  return subscriptions.some((sub) =>
+    Array.isArray(sub?.filters) && sub.filters.some((filter) => matchFilter(filter, event)));
+}
+
 /** Whether this event is one the logged-in user asked to hear about. */
 function isWanted(event, state) {
   if (!state?.pubkey) return true; // Nothing to check against — show it.
 
-  const tags = Array.isArray(event.tags) ? event.tags : [];
-  const tagsUser = tags.some((t) => Array.isArray(t) && t[0] === 'p' && t[1] === state.pubkey);
-  if (!tagsUser) return false;
+  if (Array.isArray(state.subscriptions)) {
+    if (!matchesSubscriptions(state.subscriptions, event)) return false;
+  } else {
+    // State written by a page from before the filters were stored: every
+    // filter then named the user in `#p`, so that is the check.
+    const tags = Array.isArray(event.tags) ? event.tags : [];
+    const tagsUser = tags.some((t) => Array.isArray(t) && t[0] === 'p' && t[1] === state.pubkey);
+    if (!tagsUser) return false;
+  }
 
   // Commenting on, reacting to, or zapping your own post tags you too.
   if (notificationAuthor(event) === state.pubkey) return false;
@@ -560,9 +594,9 @@ function nappRelays(payload) {
  * happened without saying what, which is the best a push of four kilobytes can
  * do for a note that didn't fit and that no relay would hand over.
  *
- * The one check `isWanted()` makes — that the event tags this user — can't be
- * made here, so this leans on the host having matched our filters, which name
- * the user in `#p`. What it can't stand behind is "only from people I follow",
+ * The check `isWanted()` makes — that the event matches one of our filters —
+ * can't be made here, so this leans on the transport having matched them for
+ * us. What it can't stand behind is "only from people I follow",
  * which the worker enforces for itself whenever the follow set is too big to
  * send. An occasional stranger getting through on this path is the price of
  * saying anything at all.
@@ -608,7 +642,7 @@ async function handleNappPush(payload) {
   const template = templateFor(event);
   if (!template) return; // A kind nothing subscribed to; the relay is confused.
 
-  const state = await loadNappState();
+  const state = await loadPushState();
   if (!isWanted(event, state)) return;
 
   const author = notificationAuthor(event);
@@ -654,10 +688,11 @@ self.addEventListener('push', (event) => {
     payload = { title: 'Ditto', body: event.data.text() };
   }
 
-  // napp hands over a raw Nostr event (or the id of one); nostr-push hands over
-  // rendered text. `$type` is what tells the two apart when a site holds both
-  // kinds of subscription — a host older than Tenna v0.8.1 doesn't send it, and
-  // is recognized by the raw event it puts in `event` instead.
+  // Every transport hands over a raw Nostr event (or the id of one). A host
+  // older than Tenna v0.8.1 doesn't send `$type`, and is recognized by the raw
+  // event it puts in `event` instead. Anything else is rendered text from the
+  // pre-napp nostr-push server, still arriving for a browser that hasn't
+  // opened Ditto since, which moves it over; drawn as sent until then.
   const isNapp = payload
     && (payload.$type === 'napp.push.payload'
       || (typeof payload.event === 'object' && payload.event !== null));

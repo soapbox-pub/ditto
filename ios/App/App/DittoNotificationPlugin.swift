@@ -8,10 +8,12 @@ import UserNotifications
 /// Capacitor plugin that bridges the JS notification configuration to the
 /// native iOS background polling system.
 ///
-/// Mirrors the Android `DittoNotificationPlugin.java` interface:
-/// - Receives `userPubkey`, `relayUrls`, `enabledKinds`, `authors`, and
-///   `notificationStyle` from the JS layer via `configure()`.
-/// - Stores configuration in UserDefaults.
+/// Mirrors the Android `DittoNotificationPlugin.java` interface, and makes the
+/// app a napp push host:
+/// - Receives the same subscriptions (`[{ filters, relays }]`) Tenna and the
+///   nostr-push service take, plus the user, follow set and "only following",
+///   via `setSubscriptions()`.
+/// - Stores them in UserDefaults.
 /// - Schedules / cancels a `BGAppRefreshTask` to periodically poll relays
 ///   and display local notifications via `NostrPoller`.
 ///
@@ -28,7 +30,8 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "DittoNotificationPlugin"
     public let jsName = "DittoNotification"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "configure", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setSubscriptions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getSubscriptions", returnType: CAPPluginReturnPromise),
     ]
 
     // MARK: - Constants
@@ -81,58 +84,67 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
 
     // MARK: - Plugin Methods
 
-    /// Called from JS: `DittoNotification.configure({ ... })`.
-    @objc func configure(_ call: CAPPluginCall) {
+    private static let subscriptionsKey = "\(prefsKey).subscriptions"
+    /// Keys written by builds from before subscriptions, cleared on the next set.
+    private static let legacyKeys = ["relayUrls", "enabledKinds", "authors"]
+    private static let configKeys = ["userPubkey", "subscriptions", "follows", "onlyFollowing", "notificationStyle"]
+
+    /// Called from JS: `DittoNotification.setSubscriptions({ ... })`.
+    ///
+    /// Replaces the watched subscriptions — napp's `NappSubscription[]`, built
+    /// by the JS layer exactly as it is for Tenna and the nostr-push service.
+    /// An empty list stops watching. Also carries what the renderer needs
+    /// beside the filters: the user, the follow set, and "only following".
+    @objc func setSubscriptions(_ call: CAPPluginCall) {
         let userPubkey = call.getString("userPubkey")
         let notificationStyle = call.getString("notificationStyle") ?? "push"
-        let relayUrls = call.getArray("relayUrls")?.compactMap { $0 as? String }
-        let enabledKinds = call.getArray("enabledKinds")?.compactMap { $0 as? Int }
-        let authors = call.getArray("authors")?.compactMap { $0 as? String }
-        let follows = call.getArray("follows")?.compactMap { $0 as? String }
+        let subscriptions = call.getArray("subscriptions") ?? []
+        let follows = call.getArray("follows")?.compactMap { $0 as? String } ?? []
+        let onlyFollowing = call.getBool("onlyFollowing") ?? false
 
         let defaults = UserDefaults.standard
-
-        if let userPubkey, let relayUrls, !relayUrls.isEmpty {
-            // Save configuration.
-            defaults.set(userPubkey, forKey: "\(Self.prefsKey).userPubkey")
-            defaults.set(relayUrls, forKey: "\(Self.prefsKey).relayUrls")
-            defaults.set(notificationStyle, forKey: "\(Self.prefsKey).notificationStyle")
-            if let enabledKinds {
-                defaults.set(enabledKinds, forKey: "\(Self.prefsKey).enabledKinds")
-            }
-            if let authors, !authors.isEmpty {
-                defaults.set(authors, forKey: "\(Self.prefsKey).authors")
-            } else {
-                defaults.removeObject(forKey: "\(Self.prefsKey).authors")
-            }
-            // The full follow set feeds the flood detector's trust exemption
-            // (a followed author's copy of a pitch is never suppressed).
-            // Separate from `authors`, which only narrows the REQ under
-            // "only from people I follow".
-            if let follows, !follows.isEmpty {
-                defaults.set(follows, forKey: "\(Self.prefsKey).follows")
-            } else {
-                defaults.removeObject(forKey: "\(Self.prefsKey).follows")
-            }
-
-            let kindsStr = enabledKinds?.map(String.init).joined(separator: ",") ?? "none"
-            NSLog("[DittoNotification] Configured: pubkey=%@..., style=%@, relays=%d, kinds=%@",
-                  String(userPubkey.prefix(8)), notificationStyle,
-                  relayUrls.count,
-                  kindsStr)
-        } else {
-            // Clear configuration (user logged out).
-            for suffix in ["userPubkey", "relayUrls", "notificationStyle", "enabledKinds", "authors", "follows"] {
-                defaults.removeObject(forKey: "\(Self.prefsKey).\(suffix)")
-            }
-            NSLog("[DittoNotification] Config cleared (user logged out)")
+        for suffix in Self.legacyKeys + Self.configKeys {
+            defaults.removeObject(forKey: "\(Self.prefsKey).\(suffix)")
         }
 
-        // Schedule or cancel background polling based on style + config.
-        let hasConfig = userPubkey != nil && relayUrls != nil && !(relayUrls?.isEmpty ?? true)
-        Self.manageBackgroundRefresh(style: notificationStyle, hasConfig: hasConfig)
+        let hasConfig = userPubkey != nil && !subscriptions.isEmpty
+        if let userPubkey, hasConfig,
+           let data = try? JSONSerialization.data(withJSONObject: subscriptions) {
+            defaults.set(userPubkey, forKey: "\(Self.prefsKey).userPubkey")
+            defaults.set(data, forKey: Self.subscriptionsKey)
+            defaults.set(follows, forKey: "\(Self.prefsKey).follows")
+            defaults.set(onlyFollowing, forKey: "\(Self.prefsKey).onlyFollowing")
+            defaults.set(notificationStyle, forKey: "\(Self.prefsKey).notificationStyle")
+            NSLog("[DittoNotification] Subscriptions set: pubkey=%@..., subscriptions=%d",
+                  String(userPubkey.prefix(8)), subscriptions.count)
+        } else {
+            NSLog("[DittoNotification] Subscriptions cleared")
+        }
 
+        Self.manageBackgroundRefresh(style: notificationStyle, hasConfig: hasConfig)
         call.resolve()
+    }
+
+    /// Called from JS: `DittoNotification.getSubscriptions()`.
+    @objc func getSubscriptions(_ call: CAPPluginCall) {
+        call.resolve(["subscriptions": Self.storedSubscriptions()])
+    }
+
+    private static func storedSubscriptions() -> [[String: Any]] {
+        guard let data = UserDefaults.standard.data(forKey: subscriptionsKey),
+              let parsed = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+        return parsed
+    }
+
+    /// Everything a poll needs, or nil when nothing is configured.
+    private static func pollConfig() -> (userPubkey: String, relays: [NostrPoller.RelayFilters], follows: Set<String>, onlyFollowing: Bool)? {
+        let defaults = UserDefaults.standard
+        guard let userPubkey = defaults.string(forKey: "\(prefsKey).userPubkey") else { return nil }
+        let relays = NostrPoller.relayFilters(from: storedSubscriptions())
+        guard !relays.isEmpty else { return nil }
+        let follows = Set(defaults.stringArray(forKey: "\(prefsKey).follows") ?? [])
+        let onlyFollowing = defaults.bool(forKey: "\(prefsKey).onlyFollowing")
+        return (userPubkey, relays, follows, onlyFollowing)
     }
 
     // MARK: - Background Task Management
@@ -190,22 +202,8 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
     private static func handleBackgroundRefresh(task: BGAppRefreshTask) {
         NSLog("[DittoNotification] Background refresh triggered")
 
-        // Read configuration from UserDefaults.
-        let defaults = UserDefaults.standard
-        guard let userPubkey = defaults.string(forKey: "\(prefsKey).userPubkey"),
-              let relayUrls = defaults.stringArray(forKey: "\(prefsKey).relayUrls"),
-              !relayUrls.isEmpty else {
+        guard let config = pollConfig() else {
             NSLog("[DittoNotification] No config, completing task")
-            task.setTaskCompleted(success: true)
-            return
-        }
-
-        let enabledKinds = defaults.array(forKey: "\(prefsKey).enabledKinds") as? [Int] ?? []
-        let authors = defaults.stringArray(forKey: "\(prefsKey).authors")
-        let follows = defaults.stringArray(forKey: "\(prefsKey).follows").map(Set.init)
-
-        guard !enabledKinds.isEmpty else {
-            NSLog("[DittoNotification] No enabled kinds, completing task")
             task.setTaskCompleted(success: true)
             return
         }
@@ -218,11 +216,10 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
         let pollTask = Task {
             let poller = NostrPoller()
             let count = await poller.poll(
-                userPubkey: userPubkey,
-                relayUrls: relayUrls,
-                enabledKinds: enabledKinds,
-                authors: authors,
-                follows: follows
+                userPubkey: config.userPubkey,
+                relays: config.relays,
+                follows: config.follows,
+                onlyFollowing: config.onlyFollowing
             )
             NSLog("[DittoNotification] Background poll complete: %d notifications", count)
             task.setTaskCompleted(success: true)
@@ -241,25 +238,15 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
     /// Trigger an immediate poll (e.g., when the app enters the foreground
     /// after being backgrounded, to catch up on missed notifications).
     static func pollNow() {
-        let defaults = UserDefaults.standard
-        guard let userPubkey = defaults.string(forKey: "\(prefsKey).userPubkey"),
-              let relayUrls = defaults.stringArray(forKey: "\(prefsKey).relayUrls"),
-              !relayUrls.isEmpty else { return }
-
-        let enabledKinds = defaults.array(forKey: "\(prefsKey).enabledKinds") as? [Int] ?? []
-        let authors = defaults.stringArray(forKey: "\(prefsKey).authors")
-        let follows = defaults.stringArray(forKey: "\(prefsKey).follows").map(Set.init)
-
-        guard !enabledKinds.isEmpty else { return }
+        guard let config = pollConfig() else { return }
 
         Task {
             let poller = NostrPoller()
             await poller.poll(
-                userPubkey: userPubkey,
-                relayUrls: relayUrls,
-                enabledKinds: enabledKinds,
-                authors: authors,
-                follows: follows
+                userPubkey: config.userPubkey,
+                relays: config.relays,
+                follows: config.follows,
+                onlyFollowing: config.onlyFollowing
             )
         }
     }

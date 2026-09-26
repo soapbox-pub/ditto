@@ -1,38 +1,36 @@
 /**
  * Push transport interface.
  *
- * Ditto has two ways to receive notifications while it is closed, and they
- * agree on nothing except that a `push` event ends up in the service worker:
+ * Ditto notifies while closed in one way with three transports. The page builds
+ * one set of subscriptions in napp's shape (`buildPushSubscriptions()`), hands
+ * it to a `PushHost`, and the host keeps those filters watched and turns each
+ * match into a notification:
  *
- * - **nostr-push** (`NostrPushAdapter`) — the Web Push path. A server holds the
- *   relay subscriptions, renders the notification text, and delivers it through
- *   the browser's push service. Needs VAPID, a `PushSubscription`, and the
- *   browser's own notification permission.
- * - **napp** (`NappPushAdapter`) — `window.napp.push`, injected by a host app
- *   (Tenna) that keeps the relay subscriptions open itself and hands the raw
- *   Nostr event to the worker. No server, no VAPID, no web-push permission;
- *   consent and OS permission are the host's business.
+ * - **napp** — `window.napp.push`, injected by a host app (Tenna). Tenna holds
+ *   the relay subscriptions itself on Android and hands them to a push service
+ *   on iOS; either way the raw event reaches `public/sw.js`.
+ * - **nostr-push** — the web. The nostr-push service takes the same
+ *   subscriptions over encrypted RPC and delivers the same raw-event payload
+ *   through Web Push to the same `public/sw.js`.
+ * - **native** — the Capacitor apps. The `DittoNotification` plugin takes the
+ *   same subscriptions; Android holds them open in a foreground service, iOS
+ *   polls them from background refresh, and each renders natively.
  *
- * Both are wrapped behind `PushAdapter` so `usePushNotifications` — and the
- * settings UI above it — never branches on which one is in play. Pick one with
- * `createPushAdapter()`; napp wins when the host provides it.
+ * `PushAdapter` wraps any host, so `usePushNotifications` — and the settings
+ * UI above it — never branches on which one is in play. Pick one with
+ * `createPushAdapter()`.
  */
 
 import type { EncryptedSettings } from '@/hooks/useEncryptedSettings';
+import type { NappSubscription } from '@/lib/push/napp';
 
 /** Per-type notification preferences, as persisted in encrypted settings. */
 export type PushPreferences = NonNullable<EncryptedSettings['notificationPreferences']>;
 
-/** Which transport an adapter speaks. Exposed for logging and diagnostics. */
-export type PushTransport = 'napp' | 'nostr-push';
+/** Which transport a host speaks. Exposed for logging and diagnostics. */
+export type PushTransport = 'napp' | 'nostr-push' | 'native';
 
-/**
- * Everything a transport needs to build (or rebuild) its subscriptions.
- *
- * `relays` and `follows` are only consulted by transports that do their own
- * relay subscribing — nostr-push resolves both server-side, where `$contacts`
- * stands in for the follow set.
- */
+/** Everything needed to build (or rebuild) the subscriptions. */
 export interface PushContext {
   /** Hex pubkey of the logged-in user. Notifications are events tagging them. */
   pubkey: string;
@@ -40,46 +38,66 @@ export interface PushContext {
   prefs?: PushPreferences;
   /** Read relays to watch. */
   relays?: string[];
-  /** The user's follow set, for the "only from people I follow" filter. */
+  /** The user's follow set, for "only from people I follow" and spam exemptions. */
   follows?: string[];
+  /** Native only: 'persistent' holds a relay connection open on Android. */
+  style?: 'push' | 'persistent';
 }
 
-export interface PushAdapter {
+/** What the adapter hands a host alongside the subscriptions. */
+export interface PushSetOptions {
+  context: PushContext;
+  /**
+   * Settles once the service worker's copy of the state is written. A host
+   * that can deliver a push the moment `set()` returns must await it first;
+   * one that has to reach a browser API from the user gesture awaits it after.
+   */
+  workerReady: Promise<void>;
+}
+
+/**
+ * One transport. Everything above it deals in `NappSubscription[]`; a host
+ * only has to get those watched and the matches delivered.
+ */
+export interface PushHost {
   readonly transport: PushTransport;
   /** Whether this transport can run at all in the current environment. */
   readonly supported: boolean;
   /**
-   * Whether the transport needs the caller to prompt for permission before
-   * `enable()`. False when consent belongs to the host app (napp).
+   * Whether the caller must prompt for the browser's notification permission
+   * before `set()`. False when consent belongs to the host app (napp) or to
+   * the post-login setup flow (native).
    */
   readonly needsBrowserPermission: boolean;
+  /** Whether matches are rendered by `public/sw.js`, which needs its state written. */
+  readonly usesServiceWorker: boolean;
   /**
-   * Whether the transport's subscriptions are built from the relay list and
-   * follow set given here, and so go stale when either changes. False for
-   * transports that resolve both server-side (nostr-push expands `$contacts`
-   * itself), which are left alone unless preferences actually change.
+   * Whether on/off follows the synced `notificationsEnabled` setting instead
+   * of this device's own registration. True for the native apps, where the
+   * OS permission is asked at login and push is on unless switched off.
    */
-  readonly ownsSubscriptions: boolean;
+  readonly followsSyncedSetting: boolean;
   /**
    * One-time bring-up: register the service worker, restore prior state, and
-   * pre-fetch anything `enable()` must not await (see `NostrPushAdapter`).
-   * Resolves even when bring-up fails; `isEnabled()` then reports false.
+   * pre-compute anything `set()` must not await. Resolves with whether the
+   * host already holds subscriptions, and never rejects.
    */
-  init(): Promise<void>;
-  /** Whether the transport currently has live subscriptions. */
-  isEnabled(): Promise<boolean>;
+  init(): Promise<boolean>;
   /**
    * Ask for whatever consent this transport requires. Must be reachable from a
-   * user gesture. Returns the resulting permission state; `'granted'` for
-   * transports that prompt elsewhere.
+   * user gesture. `'granted'` for transports that prompt elsewhere.
    */
   requestPermission(): Promise<NotificationPermission>;
-  /** Subscribe. Call from a user gesture, after `requestPermission()`. */
-  enable(context: PushContext): Promise<void>;
-  /** Unsubscribe and forget any server- or host-side registration. */
-  disable(): Promise<void>;
-  /** Re-apply preferences to live subscriptions. No-op when not enabled. */
-  sync(context: PushContext): Promise<void>;
+  /** Replace the watched subscriptions. An empty list watches nothing. */
+  set(subscriptions: NappSubscription[], options: PushSetOptions): Promise<void>;
+  /** Forget everything: subscriptions, and any registration behind them. */
+  clear(): Promise<void>;
+  /**
+   * Called on a regular cadence while enabled, for hosts whose registration
+   * expires. Resolves true when the registration had lapsed and was renewed
+   * without its subscriptions, which the caller must then `set()` again.
+   */
+  keepAlive?(): Promise<boolean>;
   /** Release resources (relay pools, etc). */
   destroy(): void;
 }

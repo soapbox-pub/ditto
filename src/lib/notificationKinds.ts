@@ -1,9 +1,11 @@
 /**
  * Shared notification kind utilities.
  *
- * Centralizes the mapping between notification preference keys and Nostr event
- * kinds so that `useNotifications`, `useHasUnreadNotifications`, push
- * registration, and native notification filtering all stay in sync.
+ * `NOTIFICATION_TYPES` is the one list of what Ditto notifies about: each
+ * preference key and the kinds it covers. The in-app notifications query, the
+ * push filters (`src/lib/push/subscriptions.ts`) and the settings toggles all
+ * read it, so a kind added here reaches every transport at once. Renderers —
+ * `public/sw.js` and the native pollers — still need a template for it.
  */
 
 import type { EncryptedSettings } from '@/hooks/useEncryptedSettings';
@@ -11,8 +13,37 @@ import { LETTER_KIND } from '@/lib/letterTypes';
 
 type NotificationPreferences = NonNullable<EncryptedSettings['notificationPreferences']>;
 
+/** A preference key that switches one notification type on and off. */
+export type NotificationTypeKey = Exclude<keyof NotificationPreferences, 'onlyFollowing'>;
+
+export interface NotificationType {
+  /** The preference that toggles this type. Absent in settings means on. */
+  pref: NotificationTypeKey;
+  /** Event kinds that belong to this type. */
+  kinds: number[];
+}
+
+export const NOTIFICATION_TYPES: readonly NotificationType[] = [
+  { pref: 'reactions', kinds: [7] },
+  { pref: 'reposts', kinds: [6, 16] },
+  { pref: 'zaps', kinds: [9735, 8333] },
+  { pref: 'mentions', kinds: [1] },
+  { pref: 'comments', kinds: [1111, 1222, 1244] },
+  { pref: 'badges', kinds: [8] },
+  { pref: 'letters', kinds: [LETTER_KIND] },
+  { pref: 'highlights', kinds: [9802] },
+  { pref: 'quizzes', kinds: [7849] },
+];
+
 /** All kinds that can appear as notifications. */
-export const ALL_NOTIFICATION_KINDS = [1, 6, 16, 7, 8, 9735, 8333, 9802, 7849, 1111, 1222, 1244, LETTER_KIND] as const;
+export const ALL_NOTIFICATION_KINDS: readonly number[] = NOTIFICATION_TYPES.flatMap((type) => type.kinds);
+
+/** The notification types switched on by these preferences. */
+export function getEnabledNotificationTypes(
+  prefs: NotificationPreferences | undefined | null,
+): NotificationType[] {
+  return NOTIFICATION_TYPES.filter((type) => prefs?.[type.pref] !== false);
+}
 
 /**
  * Derives the set of Nostr kinds to request based on per-type preferences.
@@ -21,18 +52,7 @@ export const ALL_NOTIFICATION_KINDS = [1, 6, 16, 7, 8, 9735, 8333, 9802, 7849, 1
 export function getEnabledNotificationKinds(
   prefs: NotificationPreferences | undefined | null,
 ): number[] {
-  const p = prefs ?? {};
-  const kinds: number[] = [];
-
-  if (p.reactions !== false) kinds.push(7);
-  if (p.reposts !== false) kinds.push(6, 16);
-  if (p.zaps !== false) kinds.push(9735, 8333);
-  if (p.mentions !== false) kinds.push(1);
-  if (p.comments !== false) kinds.push(1111, 1222, 1244);
-  if (p.badges !== false) kinds.push(8);
-  if (p.letters !== false) kinds.push(LETTER_KIND);
-  if (p.highlights !== false) kinds.push(9802);
-  if (p.quizzes !== false) kinds.push(7849);
+  const kinds = getEnabledNotificationTypes(prefs).flatMap((type) => type.kinds);
 
   // Always fall back to all kinds so the query never sends an empty kinds array
   return kinds.length > 0 ? kinds : [...ALL_NOTIFICATION_KINDS];

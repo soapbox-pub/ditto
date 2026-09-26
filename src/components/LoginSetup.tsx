@@ -10,7 +10,7 @@ import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import {
   isIgnoringBatteryOptimizations,
   requestIgnoreBatteryOptimizations,
-} from '@/hooks/useNativeNotifications';
+} from '@/lib/push/native';
 import { cn } from '@/lib/utils';
 
 /**

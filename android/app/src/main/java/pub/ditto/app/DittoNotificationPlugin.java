@@ -12,6 +12,7 @@ import android.util.Log;
 
 import androidx.activity.result.ActivityResult;
 
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -20,13 +21,15 @@ import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Capacitor plugin that allows the JS layer to configure the native
- * notification service with the user's pubkey and relay URLs.
+ * Capacitor plugin that makes the app a napp push host: the JS layer hands it
+ * the same subscriptions Tenna and the nostr-push service take, and it keeps
+ * them watched while Ditto is closed.
  *
  * Supports two notification styles:
  * - "push" (default): no foreground service, relies on push notifications
@@ -102,83 +105,70 @@ public class DittoNotificationPlugin extends Plugin {
         }
     }
 
+    /**
+     * Replace the watched subscriptions — napp's {@code NappSubscription[]},
+     * built by the JS layer ({@code src/lib/push/subscriptions.ts}) exactly as
+     * it is for Tenna and the nostr-push service. An empty list stops watching.
+     *
+     * Also carries what the renderer needs beside the filters: the user (whose
+     * own events are never shown), the follow set (the "only from people I
+     * follow" re-check, and the spam detectors' trust exemption), and the
+     * delivery style.
+     */
     @PluginMethod
-    public void configure(PluginCall call) {
+    public void setSubscriptions(PluginCall call) {
         String userPubkey = call.getString("userPubkey");
         String notificationStyle = call.getString("notificationStyle", "push");
-        String relayUrlsRaw = null;
-        String enabledKindsRaw = null;
-        String authorsRaw = null;
-        String followsRaw = null;
+        boolean onlyFollowing = Boolean.TRUE.equals(call.getBoolean("onlyFollowing", false));
 
+        JSONArray subscriptions = null;
+        JSONArray follows = null;
         try {
-            JSONArray relayUrls = call.getArray("relayUrls");
-            if (relayUrls != null) {
-                relayUrlsRaw = relayUrls.toString();
-            }
+            subscriptions = call.getArray("subscriptions");
+            follows = call.getArray("follows");
         } catch (Exception e) {
-            Log.w(TAG, "Failed to read relayUrls", e);
-        }
-
-        try {
-            JSONArray enabledKinds = call.getArray("enabledKinds");
-            if (enabledKinds != null) {
-                enabledKindsRaw = enabledKinds.toString();
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "Failed to read enabledKinds", e);
-        }
-
-        try {
-            JSONArray authors = call.getArray("authors");
-            if (authors != null) {
-                authorsRaw = authors.toString();
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "Failed to read authors", e);
-        }
-
-        try {
-            JSONArray follows = call.getArray("follows");
-            if (follows != null) {
-                followsRaw = follows.toString();
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "Failed to read follows", e);
+            Log.w(TAG, "Failed to read subscriptions", e);
         }
 
         SharedPreferences prefs = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        boolean hasConfig = userPubkey != null && subscriptions != null && subscriptions.length() > 0;
 
-        if (userPubkey != null && relayUrlsRaw != null) {
-            SharedPreferences.Editor editor = prefs.edit()
+        if (hasConfig) {
+            prefs.edit()
+                    .clear() // drops the pre-subscriptions keys (relayUrls, enabledKinds, authors)
                     .putString("userPubkey", userPubkey)
-                    .putString("relayUrls", relayUrlsRaw)
-                    .putString("notificationStyle", notificationStyle);
-            if (enabledKindsRaw != null) {
-                editor.putString("enabledKinds", enabledKindsRaw);
-            }
-            if (authorsRaw != null) {
-                editor.putString("authors", authorsRaw);
-            } else {
-                editor.remove("authors");
-            }
-            if (followsRaw != null) {
-                editor.putString("follows", followsRaw);
-            } else {
-                editor.remove("follows");
-            }
-            editor.apply();
-            Log.d(TAG, "Configured: pubkey=" + userPubkey.substring(0, 8) + "..., style=" + notificationStyle + ", relays=" + relayUrlsRaw + ", kinds=" + enabledKindsRaw + ", authors=" + (authorsRaw != null ? authorsRaw.length() + " chars" : "all"));
+                    .putString("subscriptions", subscriptions.toString())
+                    .putString("follows", follows != null ? follows.toString() : "[]")
+                    .putBoolean("onlyFollowing", onlyFollowing)
+                    .putString("notificationStyle", notificationStyle)
+                    .apply();
+            Log.d(TAG, "Subscriptions set: pubkey=" + userPubkey.substring(0, 8) + "..., style=" + notificationStyle
+                    + ", subscriptions=" + subscriptions.length());
         } else {
-            // Clear config (user logged out)
+            // Nothing to watch: push switched off, or the user logged out.
             prefs.edit().clear().apply();
-            Log.d(TAG, "Config cleared (user logged out)");
+            Log.d(TAG, "Subscriptions cleared");
         }
 
         // Start or stop the foreground service based on style
-        manageService(notificationStyle, userPubkey != null && relayUrlsRaw != null);
+        manageService(notificationStyle, hasConfig);
 
         call.resolve();
+    }
+
+    /** The subscriptions as stored. */
+    @PluginMethod
+    public void getSubscriptions(PluginCall call) {
+        SharedPreferences prefs = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        JSArray subscriptions;
+        try {
+            subscriptions = new JSArray(prefs.getString("subscriptions", "[]"));
+        } catch (JSONException e) {
+            subscriptions = new JSArray();
+        }
+        JSObject ret = new JSObject();
+        ret.put("subscriptions", subscriptions);
+        call.resolve(ret);
     }
 
     /**
