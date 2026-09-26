@@ -2,6 +2,7 @@ import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { BookMarked, Loader2, Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { LazyFeedItem } from "@/components/LazyFeedItem";
 import { BookFeedItem, BookFeedItemSkeleton } from "@/components/BookFeedItem";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
@@ -118,8 +119,10 @@ export function BooksPage() {
           </div>
         ) : events.length > 0 ? (
           <div>
-            {events.map((event) => (
-              <BookFeedItem key={event.id} event={event} />
+            {events.map((event, i) => (
+              <LazyFeedItem key={event.id} cacheKey={event.id} className="cv-feed-item" initialInView={i < 10}>
+                <BookFeedItem event={event} />
+              </LazyFeedItem>
             ))}
 
             {hasNextPage && (

@@ -8,6 +8,7 @@ import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { nip19 } from 'nostr-tools';
 import { Zap, MoreHorizontal, ClipboardCopy, Crown, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake, HeartHandshake } from 'lucide-react';
 
+import { LazyFeedItem } from '@/components/LazyFeedItem';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { FallbackImage } from '@/components/FallbackImage';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -2997,16 +2998,17 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             </div>
           ) : currentItems.length > 0 ? (
             <div>
-              {currentItems.map((item) => (
-                <NoteCard
-                  key={feedItemKey(item)}
-                  event={item.event}
-                  repostedBy={item.repostedBy}
-                  repostEvent={item.repostEvent}
-                  reactedBy={item.reactedBy}
-                  zappedBy={item.zappedBy}
-                  profileZapRecipient={item.profileZapRecipient}
-                />
+              {currentItems.map((item, i) => (
+                <LazyFeedItem key={feedItemKey(item)} cacheKey={feedItemKey(item)} className="cv-feed-item" initialInView={i < 10}>
+                  <NoteCard
+                    event={item.event}
+                    repostedBy={item.repostedBy}
+                    repostEvent={item.repostEvent}
+                    reactedBy={item.reactedBy}
+                    zappedBy={item.zappedBy}
+                    profileZapRecipient={item.profileZapRecipient}
+                  />
+                </LazyFeedItem>
               ))}
 
               {/* Infinite scroll sentinel */}
@@ -3516,16 +3518,17 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
 
   return (
     <div>
-      {items.map((item) => (
-        <NoteCard
-          key={feedItemKey(item)}
-          event={item.event}
-          repostedBy={item.repostedBy}
-          repostEvent={item.repostEvent}
-          reactedBy={item.reactedBy}
-          zappedBy={item.zappedBy}
-          profileZapRecipient={item.profileZapRecipient}
-        />
+      {items.map((item, i) => (
+        <LazyFeedItem key={feedItemKey(item)} cacheKey={feedItemKey(item)} className="cv-feed-item" initialInView={i < 10}>
+          <NoteCard
+            event={item.event}
+            repostedBy={item.repostedBy}
+            repostEvent={item.repostEvent}
+            reactedBy={item.reactedBy}
+            zappedBy={item.zappedBy}
+            profileZapRecipient={item.profileZapRecipient}
+          />
+        </LazyFeedItem>
       ))}
 
       {hasNextPage && (

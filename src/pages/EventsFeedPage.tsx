@@ -2,6 +2,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { CalendarDays, Loader2 } from "lucide-react";
 import { useMemo } from "react";
+import { LazyFeedItem } from "@/components/LazyFeedItem";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
 import { NoteCard } from "@/components/NoteCard";
@@ -132,8 +133,10 @@ export function EventsFeedPage() {
           </div>
         ) : feedItems.length > 0 ? (
           <div>
-            {feedItems.map((item) => (
-              <NoteCard key={item.event.id} event={item.event} />
+            {feedItems.map((item, i) => (
+              <LazyFeedItem key={item.event.id} cacheKey={item.event.id} className="cv-feed-item" initialInView={i < 10}>
+                <NoteCard event={item.event} />
+              </LazyFeedItem>
             ))}
 
             {hasNextPage && (

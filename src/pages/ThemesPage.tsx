@@ -2,6 +2,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { Loader2, Pencil, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
+import { LazyFeedItem } from "@/components/LazyFeedItem";
 import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { NoteCard } from "@/components/NoteCard";
@@ -154,8 +155,10 @@ export function ThemesPage() {
             </div>
           ) : feedEvents.length > 0 ? (
             <div>
-              {feedEvents.map((event) => (
-                <NoteCard key={event.id} event={event} />
+              {feedEvents.map((event, i) => (
+                <LazyFeedItem key={event.id} cacheKey={event.id} className="cv-feed-item" initialInView={i < 10}>
+                  <NoteCard event={event} />
+                </LazyFeedItem>
               ))}
               {hasNextPage && (
                 <div ref={scrollRef} className="py-4">

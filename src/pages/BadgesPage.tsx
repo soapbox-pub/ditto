@@ -21,6 +21,7 @@ import {
 import { nip19 } from "nostr-tools";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { LazyFeedItem } from "@/components/LazyFeedItem";
 import { AwardBadgeDialog } from "@/components/AwardBadgeDialog";
 import { LoginArea } from "@/components/auth/LoginArea";
 import { BadgeContent } from "@/components/BadgeContent";
@@ -1097,8 +1098,10 @@ function FollowsFeedTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
         </div>
       ) : feedEvents.length > 0 ? (
         <div>
-          {feedEvents.map((event) => (
-            <NoteCard key={event.id} event={event} />
+          {feedEvents.map((event, i) => (
+            <LazyFeedItem key={event.id} cacheKey={event.id} className="cv-feed-item" initialInView={i < 10}>
+              <NoteCard event={event} />
+            </LazyFeedItem>
           ))}
           {hasNextPage && (
             <div ref={scrollRef} className="py-4">
