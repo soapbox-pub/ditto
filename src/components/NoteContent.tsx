@@ -16,7 +16,7 @@ import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { Lightbox, ImageGallery } from '@/components/ImageGallery';
 import { NostrMention } from '@/components/NostrMention';
 import { MediaGate } from '@/components/MediaGate';
-import { CustomEmojiImg } from '@/components/CustomEmoji';
+import { EmojiSourcePopover } from '@/components/EmojiSourcePopover';
 import { buildEmojiMap } from '@/lib/customEmoji';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
@@ -131,11 +131,13 @@ const SHORTCODE_REGEX = /:([a-zA-Z0-9_-]+):/g;
 
 /**
  * Replaces `:shortcode:` patterns in text with inline custom emoji images.
+ * Each is tappable to show which pack it came from (see EmojiSourcePopover).
  */
 function emojify(
   text: string,
   emojiMap: Map<string, string>,
   imgClassName?: string,
+  authorPubkey?: string,
 ): ReactNode[] {
   if (emojiMap.size === 0) return [text];
 
@@ -156,11 +158,12 @@ function emojify(
     }
 
     result.push(
-      <CustomEmojiImg
+      <EmojiSourcePopover
         key={`emoji-${match.index}`}
         name={shortcode}
         url={url}
-        className={imgClassName}
+        imgClassName={imgClassName}
+        authorPubkey={authorPubkey}
       />,
     );
 
@@ -813,7 +816,7 @@ export function NoteContent({
       {groupedTokens.map((token, i) => {
         switch (token.type) {
           case 'text':
-            return <span key={i}>{linkifyFlags(maybeMark(emojify(token.value, emojiMap, isEmojiOnly ? cn('inline object-contain align-text-bottom', isSingleEmoji ? 'h-12 w-12' : 'h-10 w-10') : undefined), highlightText))}</span>;
+            return <span key={i}>{linkifyFlags(maybeMark(emojify(token.value, emojiMap, isEmojiOnly ? cn('inline object-contain align-text-bottom', isSingleEmoji ? 'h-12 w-12' : 'h-10 w-10') : undefined, event.pubkey), highlightText))}</span>;
           case 'image-embed': {
             if (disableEmbeds || disableMediaEmbeds) {
               // In preview contexts (triple-dot menu, quote cards) media is
