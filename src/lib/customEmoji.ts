@@ -1,11 +1,39 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { isLocalNetworkUrl } from '@/lib/sanitizeUrl';
+
+/**
+ * Whether an event-sourced custom emoji image may be loaded: http(s) only,
+ * and never at a loopback/private address — pointing an image at one trips
+ * Chrome's Local Network Access prompt for everyone who views the event.
+ */
+export function isLoadableEmojiUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url) && !isLocalNetworkUrl(url);
+}
+
 /**
  * Checks if a string is a NIP-30 custom emoji shortcode (`:shortcode:` format).
  */
 export function isCustomEmoji(content: string): boolean {
   return /^:[a-zA-Z0-9_-]+:$/.test(content);
 }
+
+/**
+ * Whether a reaction's content is renderable as a glyph. Guards against junk
+ * reactions — a raw URL, a sentence, a wall of text — rendering as a long line
+ * in a reaction slot. A key is renderable when it's a NIP-30 shortcode with a
+ * resolved image URL, or a short unicode glyph (no whitespace, no URL, and at
+ * most a few code points — enough for flags and ZWJ sequences).
+ */
+export function isRenderableReactionKey(key: string, url?: string): boolean {
+  if (isCustomEmoji(key)) return Boolean(url);
+  if (!key) return false;
+  if (/\s/.test(key) || /^\w+:\/\//.test(key) || /^(www\.|https?:)/i.test(key)) return false;
+  return [...key].length <= 8;
+}
+
+/** What a reaction slot shows for content that isn't a renderable glyph. */
+export const JUNK_REACTION_GLYPH = '❓';
 
 /**
  * Extracts the custom emoji URL from a NostrEvent's tags for a given shortcode.

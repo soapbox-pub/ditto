@@ -7,6 +7,7 @@ import { recordEmojiUsage } from "@/hooks/useEmojiUsage";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useTheme } from "@/hooks/useTheme";
 import { getBackgroundThemeMode } from "@/lib/colorUtils";
+import { isLoadableEmojiUrl } from "@/lib/customEmoji";
 import { syncEmojiMartCategories, type EmojiMartCustomCategory } from "@/lib/emojiMartCategories";
 
 /** A native Unicode emoji selection. */
@@ -96,6 +97,9 @@ export function EmojiPicker({ onSelect, customEmojis, height = 280 }: EmojiPicke
 		const groups = new Map<string, EmojiMartCustomCategory>();
 		const usedIds = new Set<string>();
 		for (const e of customEmojis) {
+			// emoji-mart renders these as plain <img>s, so the same load rules as
+			// CustomEmojiImg apply: an unloadable URL never reaches the picker.
+			if (!isLoadableEmojiUrl(e.url)) continue;
 			const key = e.packCoord ?? "";
 			let group = groups.get(key);
 			if (!group) {
@@ -128,7 +132,7 @@ export function EmojiPicker({ onSelect, customEmojis, height = 280 }: EmojiPicke
 		// non-scrolling row — a handful of packs overflows it. Without an icon it
 		// chains each pack onto the first one's button, so the packs share one
 		// nav entry while keeping their own labelled sections in the scroll area.
-		return [...groups.values()];
+		return groups.size > 0 ? [...groups.values()] : undefined;
 	}, [customEmojis]);
 
 	useEffect(() => {

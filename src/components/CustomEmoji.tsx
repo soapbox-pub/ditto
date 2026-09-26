@@ -1,7 +1,15 @@
 import { type ReactNode, useCallback, useState } from 'react';
 
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
-import { isCustomEmoji, getCustomEmojiUrl, buildEmojiMap, type ResolvedEmoji } from '@/lib/customEmoji';
+import {
+  isCustomEmoji,
+  isLoadableEmojiUrl,
+  isRenderableReactionKey,
+  getCustomEmojiUrl,
+  buildEmojiMap,
+  JUNK_REACTION_GLYPH,
+  type ResolvedEmoji,
+} from '@/lib/customEmoji';
 import { cn } from '@/lib/utils';
 
 /** Threshold at or below which we apply nearest-neighbor scaling. */
@@ -31,7 +39,8 @@ export function CustomEmojiImg({ name, url, className = 'inline h-[1.2em] w-[1.2
   const [pixelated, setPixelated] = useState(false);
   // Emoji-pack images are Blossom blobs more often than not; walk the viewer's
   // other servers before the emoji disappears.
-  const { src, onError, failed } = useBlossomFallback(url);
+  // An emoji whose URL isn't safe to load shows its fallback instead.
+  const { src, onError, failed } = useBlossomFallback(isLoadableEmojiUrl(url) ? url : undefined);
 
   const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
@@ -40,7 +49,7 @@ export function CustomEmojiImg({ name, url, className = 'inline h-[1.2em] w-[1.2
     }
   }, []);
 
-  if (failed) return <>{fallback}</>;
+  if (failed || !src) return <>{fallback}</>;
 
   return (
     <img
@@ -90,8 +99,9 @@ export function ReactionEmoji({ content, tags, className }: ReactionEmojiProps) 
     return null;
   }
 
-  // Unicode emoji
-  return <span className={className}>{emoji}</span>;
+  // Unicode emoji — or a placeholder for junk content (a URL, a sentence)
+  // that would otherwise render as a long line of text.
+  return <span className={className}>{isRenderableReactionKey(emoji) ? emoji : JUNK_REACTION_GLYPH}</span>;
 }
 
 /**
@@ -101,7 +111,8 @@ export function RenderResolvedEmoji({ emoji, className }: { emoji: ResolvedEmoji
   if (emoji.url && emoji.name) {
     return <CustomEmojiImg name={emoji.name} url={emoji.url} className={className ?? 'inline h-[1.2em] w-[1.2em] object-contain align-middle'} />;
   }
-  return <span className={cn('inline-block leading-none', className)}>{emoji.content}</span>;
+  const glyph = isRenderableReactionKey(emoji.content) ? emoji.content : JUNK_REACTION_GLYPH;
+  return <span className={cn('inline-block leading-none', className)}>{glyph}</span>;
 }
 
 /** Regex matching `:shortcode:` patterns in text. */

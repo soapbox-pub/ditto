@@ -16,7 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CustomEmojiImg, EmojifiedText } from '@/components/CustomEmoji';
 import { EmojiSourceFooter } from '@/components/EmojiSourceFooter';
-import { isCustomEmoji } from '@/lib/customEmoji';
+import { isCustomEmoji, isRenderableReactionKey, JUNK_REACTION_GLYPH } from '@/lib/customEmoji';
 import { useEventInteractions, type RepostEntry, type QuoteEntry, type ReactionEntry, type ZapEntry } from '@/hooks/useEventInteractions';
 import { useOnchainZaps, type OnchainZapEntry } from '@/hooks/useOnchainZaps';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -236,7 +236,7 @@ function ReactionsTab({ reactions }: { reactions: ReactionEntry[] }) {
                 {url && customName ? (
                   <CustomEmojiImg name={customName} url={url} className="inline-block h-5 w-5 object-contain" />
                 ) : (
-                  <span>{emoji}</span>
+                  <span>{isRenderableReactionKey(emoji) ? emoji : JUNK_REACTION_GLYPH}</span>
                 )}
                 <span className="text-xs text-muted-foreground font-medium tabular-nums">{count}</span>
               </span>
@@ -378,7 +378,9 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
         {entry.emojiUrl && customName ? (
           <CustomEmojiImg name={customName} url={entry.emojiUrl} className="inline-block h-5 w-5 object-contain" />
         ) : (
-          <span className="text-base leading-none">{entry.emoji}</span>
+          <span className="text-base leading-none">
+            {isRenderableReactionKey(entry.emoji) ? entry.emoji : JUNK_REACTION_GLYPH}
+          </span>
         )}
       </div>
 
