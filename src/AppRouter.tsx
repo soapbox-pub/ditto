@@ -12,6 +12,7 @@ import { sidebarItemIcon } from "@/lib/sidebarItems";
 import { Toaster } from "./components/ui/toaster";
 import { MainLayout } from "./components/MainLayout";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { StreakStartedDialog } from "./components/StreakStartedDialog";
 import { VersionCheck } from "./components/VersionCheck";
 import { useCurrentUserProfile } from "./hooks/useCurrentUser";
 import { useProfileUrl } from "./hooks/useProfileUrl";
@@ -146,6 +147,7 @@ export function AppRouter() {
         <BackButtonHandler />
         <ScrollToTop />
         <HighlightSelectionButton />
+        <StreakStartedDialog />
         <BlobbiActionsProvider>
           <BlobbiCompanionGate />
           <Routes>

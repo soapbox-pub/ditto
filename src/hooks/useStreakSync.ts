@@ -2,7 +2,6 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef } from 'react';
-import { useIntl } from 'react-intl';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -10,7 +9,6 @@ import { isSyncDone } from '@/hooks/useInitialSync';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { mergeStreakIntoCache, streakQueryKey } from '@/hooks/useStreak';
-import { useToast } from '@/hooks/useToast';
 import { getEffectiveRelays } from '@/lib/appRelays';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { getStorageKey } from '@/lib/storageKey';
@@ -19,6 +17,7 @@ import {
   buildStreakTags,
   isStreakLive,
   mergeStreaks,
+  notifyStreakStarted,
   parseStreakEvent,
   sameStreak,
   STREAK_KIND,
@@ -80,8 +79,6 @@ export function useStreakSync(): void {
   const { config } = useAppContext();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
-  const { toast } = useToast();
-  const intl = useIntl();
 
   // Other clients publish to the user's write relays, so that's where to look.
   const relays = useMemo(() => {
@@ -91,8 +88,8 @@ export function useStreakSync(): void {
   }, [config.relayMetadata, config.useAppRelays, config.useUserRelays]);
 
   // The effect below lives for the whole login; read changing values through a ref.
-  const latest = useRef({ user, relays, publishEvent, toast, intl });
-  latest.current = { user, relays, publishEvent, toast, intl };
+  const latest = useRef({ user, relays, publishEvent });
+  latest.current = { user, relays, publishEvent };
 
   const pubkey = user?.pubkey;
   const appId = config.appId;
@@ -200,14 +197,7 @@ export function useStreakSync(): void {
 
       if (current && current.start === event.created_at && celebratedStart !== current.start) {
         celebratedStart = current.start;
-        const { toast, intl } = latest.current;
-        toast({
-          title: intl.formatMessage({ id: 'streak.started.title', defaultMessage: 'You started a streak!' }),
-          description: intl.formatMessage({
-            id: 'streak.started.description',
-            defaultMessage: 'Post something creative every day to keep it going.',
-          }),
-        });
+        notifyStreakStarted(pubkey);
       }
     };
 

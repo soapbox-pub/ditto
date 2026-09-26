@@ -147,3 +147,17 @@ export function subscribeStreakActivity(listener: (event: NostrEvent) => void): 
     listeners.delete(listener);
   };
 }
+
+const startedListeners = new Set<(pubkey: string) => void>();
+
+/** Report that a creative event just started a new streak for this user. */
+export function notifyStreakStarted(pubkey: string): void {
+  for (const listener of startedListeners) listener(pubkey);
+}
+
+export function subscribeStreakStarted(listener: (pubkey: string) => void): () => void {
+  startedListeners.add(listener);
+  return () => {
+    startedListeners.delete(listener);
+  };
+}
