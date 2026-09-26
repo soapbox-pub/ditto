@@ -13,6 +13,7 @@ dist-ssr
 *.local
 .eslintcache
 .tsbuildinfo
+.tsbuildinfo-sw
 yarn.lock
 deploy.sh
 

@@ -30,7 +30,7 @@ export function externalUrl(raw: string | undefined | null): string | undefined 
   const safe = sanitizeUrl(raw);
   if (!safe) return undefined;
   try {
-    if (new URL(safe).host === window.location.host) return undefined;
+    if (new URL(safe).host === location.host) return undefined;
   } catch {
     return undefined;
   }

@@ -3,8 +3,8 @@
  *
  * The host app (Tenna) keeps our filters watched while Ditto is closed: as
  * ordinary `REQ`s it holds open on Android, and through a push service on iOS.
- * Matches are delivered to `public/sw.js` as `push` events carrying the raw
- * Nostr event — or, when a push is too small to hold one, its id and the relays
+ * Matches are delivered to the service worker (`src/sw/`) as `push` events
+ * carrying the raw Nostr event — or, when a push is too small to hold one, its id and the relays
  * to fetch it from.
  *
  * Consent is the host's. The first non-empty `set()` prompts the user

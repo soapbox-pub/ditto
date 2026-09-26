@@ -1,4 +1,6 @@
-import { nip19 } from 'nostr-tools';
+// The subpath rather than the root, which drags every NIP into the service
+// worker's bundle.
+import * as nip19 from 'nostr-tools/nip19';
 import type {
   AddressPointer,
   EventPointer,

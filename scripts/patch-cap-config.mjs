@@ -37,7 +37,7 @@ const LOCAL_PLUGINS = ['SandboxPlugin', 'DittoNotificationPlugin', 'DittoDownloa
  *   icons; native apps use their own launcher icons from the platform project.
  * - icon-512.png: PWA install icon, referenced only by manifest.webmanifest.
  *   (icon-192.png stays: it's the runtime notification icon in
- *   usePushNotifications and sw.js.)
+ *   usePushNotifications and the service worker.)
  */
 const NATIVE_EXCLUDES = [
   'bundle.html',

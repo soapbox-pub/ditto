@@ -7,7 +7,7 @@
  *
  * A subscription is nothing new on the wire: it is an ordinary `REQ` the host
  * keeps open on the site's behalf while the site is closed, delivering matches
- * to the site's service worker as `push` events. See `public/sw.js`.
+ * to the site's service worker as `push` events. See `src/sw/worker.ts`.
  */
 
 import type { NostrFilter } from '@nostrify/nostrify';
@@ -46,6 +46,7 @@ export const NAPP_LIMITS = {
 
 /** The push bridge, or undefined when the site isn't running inside a host. */
 export function getNappPush(): NappPush | undefined {
-  if (typeof window === 'undefined') return undefined;
-  return window.napp?.push;
+  // `globalThis`, not `window`: the service worker reads this module's types
+  // and is checked against lib.webworker, which has no `window`.
+  return (globalThis as { napp?: Window['napp'] }).napp?.push;
 }

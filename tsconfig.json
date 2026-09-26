@@ -32,5 +32,9 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  // The service worker's entry needs lib.webworker, which conflicts with
+  // lib.dom; tsconfig.sw.json checks it. Everything it imports is checked by
+  // both.
+  "exclude": ["src/sw/worker.ts"]
 }

@@ -1,0 +1,12 @@
+{
+  // The service worker (`src/sw/`), type-checked against lib.webworker
+  // instead of lib.dom. Anything it imports from `src/lib` is checked here
+  // too, which keeps DOM-only code from creeping into the worker bundle.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "WebWorker"],
+    "tsBuildInfoFile": "./.tsbuildinfo-sw"
+  },
+  "include": ["src/sw"],
+  "exclude": ["src/**/*.test.ts"]
+}

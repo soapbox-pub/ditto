@@ -53,9 +53,9 @@ export function buildPushSubscriptions({ pubkey, prefs, relays = [], follows = [
   if (!relayUrls.length) return [];
 
   // Above the cap the `authors` list is dropped rather than truncated: the
-  // renderer re-checks the follow set (`public/sw.js` against its IndexedDB
-  // copy, the native pollers against theirs), so the filtering still happens,
-  // one hop later. Truncating would instead silently lose notifications from
+  // renderer re-checks the follow set (the service worker in `src/sw/`
+  // against its IndexedDB copy, the native pollers against theirs), so the
+  // filtering still happens, one hop later. Truncating would instead silently lose notifications from
   // everyone past the 500th follow.
   const onlyFollowing = prefs?.onlyFollowing === true;
   const authors = onlyFollowing && follows.length > 0 && follows.length <= NAPP_LIMITS.filterEntries

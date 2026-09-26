@@ -1,5 +1,5 @@
 /**
- * Register `public/sw.js`, which renders every push the napp and nostr-push
+ * Register `/sw.js` (built from `src/sw/`), which renders every push the napp and nostr-push
  * transports deliver. A site with no `push` listener gets nothing, on the web
  * and under Tenna alike, so this has to happen before any subscription does.
  *

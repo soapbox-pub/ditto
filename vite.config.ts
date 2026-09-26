@@ -6,7 +6,7 @@ import path from "node:path";
 
 import react from "@vitejs/plugin-react";
 import { visualizer } from "rollup-plugin-visualizer";
-import { defineConfig, loadEnv, type Plugin } from "vite";
+import { build, defineConfig, loadEnv, type Plugin } from "vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 import { DittoConfigSchema } from "./src/lib/schemas";
@@ -389,6 +389,106 @@ function moneroWorker(): Plugin {
   };
 }
 
+/**
+ * Build `src/sw/worker.ts` into a single self-contained `/sw.js`.
+ *
+ * A second, separate build rather than another input to the app's: the app
+ * build splits shared code into chunks, and a worker that `import`s chunks has
+ * to be registered with `type: 'module'`, which not every browser that does
+ * Web Push supports for service workers. As one IIFE the worker stays a
+ * classic script at a fixed, unhashed root path — the path push subscriptions
+ * were made against, and the only place a `/`-scoped worker can live.
+ *
+ * Emitted during `generateBundle` (default order) like `moneroWorker()`, so
+ * `librejsLicense()` banners it and lists it in the Web Labels. In dev it is
+ * rebuilt on every request, which is cheap and only happens when the browser
+ * checks for a worker update.
+ */
+const SERVICE_WORKER_FILE = "sw.js";
+const SERVICE_WORKER_ENTRY = path.resolve(import.meta.dirname, "src/sw/worker.ts");
+
+async function buildServiceWorker(mode: string): Promise<string> {
+  const dev = mode === "development";
+  const result = await build({
+    configFile: false,
+    mode,
+    logLevel: "warn",
+    publicDir: false,
+    resolve: {
+      alias: [{ find: "@", replacement: path.resolve(import.meta.dirname, "./src") }],
+    },
+    define: {
+      "process.env.NODE_ENV": JSON.stringify(dev ? "development" : "production"),
+    },
+    build: {
+      write: false,
+      target: "esnext",
+      minify: !dev,
+      sourcemap: false,
+      emptyOutDir: false,
+      copyPublicDir: false,
+      reportCompressedSize: false,
+      rollupOptions: {
+        treeshake: {
+          // Nostrify ships no `sideEffects` field, so importing `NSchema` from
+          // its root would otherwise keep every module the root re-exports —
+          // relay pools, signers, their WebSocket and cipher dependencies.
+          // None of them do anything on import.
+          moduleSideEffects: (id: string) => !id.includes("/node_modules/@nostrify/nostrify/"),
+        },
+      },
+      lib: {
+        entry: SERVICE_WORKER_ENTRY,
+        formats: ["iife"],
+        name: "dittoServiceWorker",
+        fileName: () => SERVICE_WORKER_FILE,
+      },
+    },
+  });
+
+  for (const output of Array.isArray(result) ? result : [result]) {
+    if (!("output" in output)) continue;
+    const entry = output.output.find((file) => file.type === "chunk" && file.isEntry);
+    if (entry?.type === "chunk") return entry.code;
+  }
+  throw new Error("Service worker build produced no entry chunk");
+}
+
+function serviceWorker(): Plugin {
+  let mode = "production";
+
+  return {
+    name: "ditto:service-worker",
+
+    configResolved(config) {
+      mode = config.mode;
+    },
+
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (!req.url) return next();
+        const { pathname } = new URL(req.url, "http://localhost");
+        if (pathname !== `/${SERVICE_WORKER_FILE}`) return next();
+
+        buildServiceWorker(mode).then((code) => {
+          res.setHeader("Content-Type", "text/javascript; charset=utf-8");
+          res.setHeader("X-Content-Type-Options", "nosniff");
+          res.setHeader("Cache-Control", "no-cache");
+          res.end(code);
+        }, next);
+      });
+    },
+
+    async generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: SERVICE_WORKER_FILE,
+        source: await buildServiceWorker(mode),
+      });
+    },
+  };
+}
+
 function librejsLicense(): Plugin {
   return {
     name: "ditto:librejs-license",
@@ -513,6 +613,7 @@ export default defineConfig(({ mode }) => {
       : [nodePolyfills({ include: ["http", "https", "fs", "stream", "util", "path"] })]),
     stripWoffFallbacks(),
     moneroWorker(),
+    serviceWorker(),
     librejsLicense(),
     visualizer({
       filename: "dist/bundle.html",

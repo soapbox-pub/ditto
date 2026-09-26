@@ -1,7 +1,7 @@
 /**
  * State the page hands to the service worker.
  *
- * Every push that reaches `public/sw.js` carries a raw Nostr event — from
+ * Every push that reaches the service worker (`src/sw/`) carries a raw Nostr event — from
  * Tenna, which relays whatever the filters matched, unverified, or from the
  * nostr-push service, which does the same over Web Push. Neither decides what
  * deserves a notification, so the worker has to, and for that it needs what it
@@ -15,9 +15,9 @@
  * mode is "a few extra wake-ups" instead of "notifications from most of your
  * follows go missing". The worker checks the set either way.
  *
- * Mirrored by `loadPushState()` in `public/sw.js`. The schema is shared between
- * the two; change both together. The database and key names predate the other
- * transports and are kept so an installed worker keeps finding its state.
+ * Read back by `loadPushState()` in `src/sw/state.ts`. The database and key
+ * names predate the other transports and are kept so an installed worker keeps
+ * finding its state.
  */
 
 import type { NappSubscription } from '@/lib/push/napp';
@@ -39,7 +39,7 @@ export interface PushWorkerState {
   updatedAt: number;
 }
 
-function openStateDb(): Promise<IDBDatabase> {
+export function openStateDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(PUSH_STATE_DB, 1);
     request.onupgradeneeded = () => {

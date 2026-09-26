@@ -6,7 +6,7 @@
  * watched while Ditto is closed. Android holds them open as `REQ`s from a
  * foreground service ("persistent") or polls them from WorkManager ("push");
  * iOS polls them from background refresh. Matches are rendered natively
- * (`NostrPoller.java`, `NostrPoller.swift`) rather than by `public/sw.js`.
+ * (`NostrPoller.java`, `NostrPoller.swift`) rather than by the service worker (`src/sw/`).
  */
 
 import { Capacitor, registerPlugin } from '@capacitor/core';

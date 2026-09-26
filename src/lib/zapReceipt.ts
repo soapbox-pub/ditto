@@ -1,4 +1,4 @@
-import { verifyEvent } from 'nostr-tools';
+import { verifyEvent } from 'nostr-tools/pure';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { decodeBolt11 } from '@/lib/bolt11';

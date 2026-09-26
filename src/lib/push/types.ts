@@ -8,10 +8,10 @@
  *
  * - **napp** — `window.napp.push`, injected by a host app (Tenna). Tenna holds
  *   the relay subscriptions itself on Android and hands them to a push service
- *   on iOS; either way the raw event reaches `public/sw.js`.
+ *   on iOS; either way the raw event reaches the service worker (`src/sw/`).
  * - **nostr-push** — the web. The nostr-push service takes the same
  *   subscriptions over encrypted RPC and delivers the same raw-event payload
- *   through Web Push to the same `public/sw.js`.
+ *   through Web Push to the same service worker.
  * - **native** — the Capacitor apps. The `DittoNotification` plugin takes the
  *   same subscriptions; Android holds them open in a foreground service, iOS
  *   polls them from background refresh, and each renders natively.
@@ -69,7 +69,7 @@ export interface PushHost {
    * the post-login setup flow (native).
    */
   readonly needsBrowserPermission: boolean;
-  /** Whether matches are rendered by `public/sw.js`, which needs its state written. */
+  /** Whether matches are rendered by the service worker (`src/sw/`), which needs its state written. */
   readonly usesServiceWorker: boolean;
   /**
    * Whether on/off follows the synced `notificationsEnabled` setting instead

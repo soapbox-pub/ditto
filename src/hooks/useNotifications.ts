@@ -9,6 +9,7 @@ import { useFollowList } from './useFollowActions';
 import { useZapReceiptCheck } from './useZapReceiptCheck';
 import { LETTER_KIND } from '@/lib/letterTypes';
 import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
+import { getReferencedEventId } from '@/lib/notificationTarget';
 
 const PAGE_SIZE = 20;
 
@@ -96,12 +97,6 @@ export interface NotificationData {
   isFetchingNextPage: boolean;
   /** Fetch the next page. */
   fetchNextPage: () => void;
-}
-
-/** Get the referenced event ID from an event's tags. */
-function getReferencedEventId(event: NostrEvent): string | undefined {
-  const eTag = event.tags.findLast(([name]) => name === 'e');
-  return eTag?.[1];
 }
 
 /**

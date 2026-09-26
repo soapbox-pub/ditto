@@ -5,7 +5,7 @@
  * preference key and the kinds it covers. The in-app notifications query, the
  * push filters (`src/lib/push/subscriptions.ts`) and the settings toggles all
  * read it, so a kind added here reaches every transport at once. Renderers —
- * `public/sw.js` and the native pollers — still need a template for it.
+ * `src/sw/render.ts` and the native pollers — still need a template for it.
  */
 
 import type { EncryptedSettings } from '@/hooks/useEncryptedSettings';

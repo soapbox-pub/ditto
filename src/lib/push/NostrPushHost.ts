@@ -4,7 +4,8 @@
  * The service is a napp host at a distance: it takes the same
  * `NappSubscription[]` Tenna does, watches its relays for matches, and pushes
  * the same `napp.push.payload` — the raw event — through the browser's push
- * service to `public/sw.js`, which renders it exactly as it would under Tenna.
+ * service to the service worker (`src/sw/`), which renders it exactly as it
+ * would under Tenna.
  *
  * This host is the client half. It registers the service worker, subscribes
  * the browser to Web Push with a VAPID key it generates and keeps itself (the
