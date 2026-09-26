@@ -6,6 +6,7 @@ import type { NostrSigner } from '@nostrify/nostrify';
 import { useCurrentUser } from "./useCurrentUser";
 import { useAppContext } from "./useAppContext";
 import { getEffectiveBlossomServers } from "@/lib/appBlossom";
+import { mimeFromExt } from "@/lib/mediaUrls";
 
 /** Every Blossom request gets its own deadline, so one hung server never holds a promise open. */
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -48,12 +49,22 @@ export function useUploadFile() {
         fetch: fetchWithTimeout,
       });
 
-      const tags = await uploader.upload(file);
+      const ext = getFileExtension(file.name);
+
+      // Browsers report an empty type for some files (`.avi`, `.flac`, `.xdc`,
+      // …). Uploaded as-is, the blob gets no usable Content-Type and the `m`
+      // tag is empty, so nothing downstream can tell what it is. Fall back to
+      // the extension.
+      const guessed = file.type ? undefined : mimeFromExt(ext.slice(1));
+      const uploadable = guessed && guessed !== 'application/octet-stream'
+        ? new File([file], file.name, { type: guessed, lastModified: file.lastModified })
+        : file;
+
+      const tags = await uploader.upload(uploadable);
 
       // If the returned URL is missing a file extension, append one from the
       // source file name. Blossom URLs are content-addressed (`/<sha256>`) and
       // may omit the extension. Adding it helps clients infer the media type.
-      const ext = getFileExtension(file.name);
       if (ext) {
         tags[0][1] = appendExtensionIfMissing(tags[0][1], ext);
       }
