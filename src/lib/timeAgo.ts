@@ -1,3 +1,9 @@
+/**
+ * Built once: `toLocaleDateString` with options constructs a fresh
+ * Intl.DateTimeFormat on every call, and every feed card header calls this.
+ */
+const shortDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+
 /** Returns a human-readable relative time string. */
 export function timeAgo(timestamp: number): string {
   const now = Math.floor(Date.now() / 1000);
@@ -9,6 +15,5 @@ export function timeAgo(timestamp: number): string {
   if (diff < 604800) return `${Math.floor(diff / 86400)}d`;
   if (diff < 2592000) return `${Math.floor(diff / 604800)}w`;
 
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return shortDate.format(new Date(timestamp * 1000));
 }
