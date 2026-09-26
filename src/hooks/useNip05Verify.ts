@@ -8,11 +8,17 @@ import { useNip05Resolve } from '@/hooks/useNip05Resolve';
  *
  * Returns `true` only when the identifier resolves to exactly the expected
  * pubkey. Returns `false` while pending or if verification fails.
+ *
+ * Reads only `data` and `isPending` off the query result: TanStack Query tracks
+ * which fields a component reads and re-renders it only when those change, and
+ * spreading the result reads all of them — so every caller (three per NoteCard)
+ * re-rendered on each fetchStatus / failureCount flip.
  */
 export function useNip05Verify(nip05: string | undefined, pubkey: string | undefined) {
-  const { data: resolvedPubkey, ...rest } = useNip05Resolve(nip05);
+  const query = useNip05Resolve(nip05);
+  const resolvedPubkey = query.data;
   return {
-    ...rest,
     data: !!resolvedPubkey && !!pubkey && resolvedPubkey === pubkey,
+    isPending: query.isPending,
   };
 }
