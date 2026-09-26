@@ -4,13 +4,16 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
   type UseMutationResult,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent, NPool } from '@nostrify/nostrify';
+import type { NIndexedDB } from '@nostrify/indexeddb';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { parseAddr } from '@/lib/parseAddr';
 
@@ -81,13 +84,48 @@ export function useHasEmojiPack(coord: string | undefined): boolean {
 }
 
 /**
+ * Read the current user's kind-10030 list for a read-modify-write.
+ *
+ * Kind 10030 is replaceable, so publishing a list rebuilt from a relay miss
+ * replaces every pack and inline emoji the user has. The local event store is
+ * the floor (`fetchFreshEvent` keeps the newer of relay and store), and when
+ * both come back empty we only treat the list as genuinely absent if nothing
+ * this session has seen says otherwise — any cached list, palette, or pack ref
+ * means the read came up short, so we refuse rather than wipe.
+ */
+async function readEmojiListForWrite(
+  nostr: NPool,
+  store: NIndexedDB,
+  queryClient: QueryClient,
+  pubkey: string,
+): Promise<NostrEvent | null> {
+  const prev = await fetchFreshEvent(nostr, { kinds: [KIND_USER_EMOJIS], authors: [pubkey] }, { store });
+  if (prev) return prev;
+
+  const seenList = queryClient.getQueryData<NostrEvent | null>(['emoji-list', pubkey]);
+  const seenEmojis = queryClient.getQueryData<unknown[]>(['custom-emojis', pubkey]);
+  const seenPacks = queryClient.getQueryData<unknown[]>(['my-emoji-packs', pubkey]);
+  if (seenList || (seenEmojis?.length ?? 0) > 0 || (seenPacks?.length ?? 0) > 0) {
+    throw new Error("Couldn't load your current emoji list. Try again in a moment.");
+  }
+  return null;
+}
+
+function invalidateEmojiListCaches(queryClient: QueryClient): void {
+  queryClient.invalidateQueries({ queryKey: ['emoji-list'] });
+  queryClient.invalidateQueries({ queryKey: ['custom-emojis'] });
+  queryClient.invalidateQueries({ queryKey: ['emoji-pack-index'] });
+  queryClient.invalidateQueries({ queryKey: ['my-emoji-packs'] });
+}
+
+/**
  * Add a NIP-30 emoji pack (kind 30030) to the current user's emoji list
  * (kind 10030) by appending its `["a", "30030:pubkey:dtag"]` coordinate.
  *
- * The freshest list is fetched first (read-modify-write via `fetchFreshEvent`)
- * so we append rather than clobber it, and `published_at`/other tags are
- * preserved by passing the fetched event as `prev`. Already-referenced packs
- * are a no-op. On success the emoji-list, palette, and pack-index caches are
+ * The freshest list is read first (see {@link readEmojiListForWrite}) so we
+ * append rather than clobber it, and `published_at`/other tags are preserved
+ * by passing the fetched event as `prev`. Already-referenced packs are a
+ * no-op. On success the emoji-list, palette, and pack-index caches are
  * invalidated so the pack's emojis become usable immediately.
  */
 export function useAddEmojiPack(): UseMutationResult<
@@ -96,6 +134,7 @@ export function useAddEmojiPack(): UseMutationResult<
   { pubkey: string; identifier: string }
 > {
   const { nostr } = useNostr();
+  const { store } = useNostrStorage();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
@@ -106,10 +145,7 @@ export function useAddEmojiPack(): UseMutationResult<
 
       const coord = emojiPackCoord(pubkey, identifier);
 
-      const prev = await fetchFreshEvent(nostr, {
-        kinds: [KIND_USER_EMOJIS],
-        authors: [user.pubkey],
-      });
+      const prev = await readEmojiListForWrite(nostr, store, queryClient, user.pubkey);
 
       // Preserve inline emojis and every other referenced pack.
       const existing = prev?.tags.filter(([n]) => n === 'emoji' || n === 'a') ?? [];
@@ -122,10 +158,7 @@ export function useAddEmojiPack(): UseMutationResult<
         prev: prev ?? undefined,
       });
 
-      queryClient.invalidateQueries({ queryKey: ['emoji-list'] });
-      queryClient.invalidateQueries({ queryKey: ['custom-emojis'] });
-      queryClient.invalidateQueries({ queryKey: ['emoji-pack-index'] });
-      queryClient.invalidateQueries({ queryKey: ['my-emoji-packs'] });
+      invalidateEmojiListCaches(queryClient);
     },
   });
 }
@@ -237,6 +270,7 @@ export function useMyPublishedPacks(): UseQueryResult<MyEmojiPack[]> {
  */
 export function useRemoveEmojiPack(): UseMutationResult<void, Error, { coord: string }> {
   const { nostr } = useNostr();
+  const { store } = useNostrStorage();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
@@ -245,10 +279,7 @@ export function useRemoveEmojiPack(): UseMutationResult<void, Error, { coord: st
     mutationFn: async ({ coord }) => {
       if (!user) throw new Error('Sign in to manage emoji packs.');
 
-      const prev = await fetchFreshEvent(nostr, {
-        kinds: [KIND_USER_EMOJIS],
-        authors: [user.pubkey],
-      });
+      const prev = await readEmojiListForWrite(nostr, store, queryClient, user.pubkey);
       if (!prev) return; // nothing to remove
       if (!prev.tags.some(([n, v]) => n === 'a' && v === coord)) return; // not referenced
 
@@ -256,10 +287,7 @@ export function useRemoveEmojiPack(): UseMutationResult<void, Error, { coord: st
 
       await publishEvent({ kind: KIND_USER_EMOJIS, content: prev.content, tags, prev });
 
-      queryClient.invalidateQueries({ queryKey: ['emoji-list'] });
-      queryClient.invalidateQueries({ queryKey: ['custom-emojis'] });
-      queryClient.invalidateQueries({ queryKey: ['emoji-pack-index'] });
-      queryClient.invalidateQueries({ queryKey: ['my-emoji-packs'] });
+      invalidateEmojiListCaches(queryClient);
     },
   });
 }

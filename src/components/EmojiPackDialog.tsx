@@ -19,6 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAddEmojiPack } from '@/hooks/useEmojiPacks';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useToast } from '@/hooks/useToast';
@@ -156,6 +157,7 @@ function EmojiPackForm({ editEvent, onDone }: { editEvent?: NostrEvent; onDone: 
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { mutateAsync: publishEvent, isPending: publishing } = useNostrPublish();
+  const { mutateAsync: addPack } = useAddEmojiPack();
   const { mutateAsync: uploadFile } = useUploadFile();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -342,10 +344,7 @@ function EmojiPackForm({ editEvent, onDone }: { editEvent?: NostrEvent; onDone: 
       // failed publish: the pack itself is already out.
       if (addToMine && !isEditMode) {
         try {
-          await addPackToMyList(identifier);
-          queryClient.invalidateQueries({ queryKey: ['emoji-list'] });
-          queryClient.invalidateQueries({ queryKey: ['custom-emojis'] });
-          queryClient.invalidateQueries({ queryKey: ['my-emoji-packs'] });
+          await addPack({ pubkey: user.pubkey, identifier });
           toast({ title: 'Emoji pack published', description: `${name.trim()} — added to your emojis` });
         } catch {
           toast({
@@ -371,20 +370,7 @@ function EmojiPackForm({ editEvent, onDone }: { editEvent?: NostrEvent; onDone: 
     } finally {
       setSubmitting(false);
     }
-
-    async function addPackToMyList(id: string) {
-      const list = await fetchFreshEvent(nostr, { kinds: [10030], authors: [user!.pubkey] });
-      const packRef = `30030:${user!.pubkey}:${id}`;
-      const existing = list?.tags.filter(([n]) => n === 'emoji' || n === 'a') ?? [];
-      if (existing.some(([n, v]) => n === 'a' && v === packRef)) return;
-      await publishEvent({
-        kind: 10030,
-        content: list?.content ?? '',
-        tags: [...existing, ['a', packRef]],
-        prev: list ?? undefined,
-      });
-    }
-  }, [user, canPublish, isEditMode, initial, name, about, icon, uploaded, addToMine, nostr, publishEvent, queryClient, toast, onDone]);
+  }, [user, canPublish, isEditMode, initial, name, about, icon, uploaded, addToMine, nostr, publishEvent, addPack, queryClient, toast, onDone]);
 
   if (!user) return null;
 

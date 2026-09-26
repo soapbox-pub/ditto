@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useAddEmojiPack, useRemoveEmojiPack } from '@/hooks/useEmojiPacks';
 import { useToast } from '@/hooks/useToast';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { FallbackImage } from '@/components/FallbackImage';
@@ -60,7 +60,8 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
   const pack = useMemo(() => parseEmojiPack(event), [event]);
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
-  const { mutateAsync: publishEvent } = useNostrPublish();
+  const { mutateAsync: addPack } = useAddEmojiPack();
+  const { mutateAsync: removePack } = useRemoveEmojiPack();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
@@ -108,30 +109,14 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
     });
 
     try {
-      // Get existing kind 10030 tags or start fresh
-      const existingTags = emojiListQuery.data?.tags.filter(
-        ([n]) => n === 'emoji' || n === 'a',
-      ) ?? [];
-
-      let newTags: string[][];
+      // Read-modify-write against the fresh list (never the query cache) so
+      // a stale or missing cached list can't wipe the user's other packs.
       if (isAdded) {
-        // Remove this pack reference
-        newTags = existingTags.filter(
-          ([n, v]) => !(n === 'a' && v === packRef),
-        );
+        await removePack({ coord: packRef });
       } else {
-        // Add this pack reference
-        newTags = [...existingTags, ['a', packRef]];
+        await addPack({ pubkey: event.pubkey, identifier: pack.identifier });
       }
 
-      await publishEvent({
-        kind: 10030,
-        content: '',
-        tags: newTags,
-      });
-
-      queryClient.invalidateQueries({ queryKey: ['emoji-list'] });
-      queryClient.invalidateQueries({ queryKey: ['custom-emojis'] });
       toast({
         title: isAdded ? 'Pack removed' : 'Pack added',
         description: isAdded
@@ -149,7 +134,7 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
     } finally {
       setIsPending(false);
     }
-  }, [user, pack, emojiListQuery.data, isAdded, packRef, publishEvent, queryClient, toast]);
+  }, [user, pack, event.pubkey, isAdded, packRef, addPack, removePack, queryClient, toast]);
 
   if (!pack) return null;
 
