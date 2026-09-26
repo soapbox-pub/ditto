@@ -576,6 +576,31 @@ final class NostrPoller {
                 "comments:\(refId)"
             )
 
+        case 8333:
+            // The amount is self-reported until checked on-chain, so it isn't shown.
+            return (
+                "\(authorName) sent you an on-chain zap",
+                "",
+                Self.categoryZaps,
+                "zaps"
+            )
+
+        case 9802:
+            return (
+                "\(authorName) highlighted your post",
+                contentPreview(event.content, maxLength: 120),
+                Self.categoryMentions,
+                "highlights:\(refId)"
+            )
+
+        case 7849:
+            return (
+                "\(authorName) took your quiz",
+                "",
+                Self.categoryMentions,
+                "quizzes:\(refId)"
+            )
+
         case 8:
             return (
                 "\(authorName) awarded you a badge",

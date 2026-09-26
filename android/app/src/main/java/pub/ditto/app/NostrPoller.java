@@ -263,6 +263,11 @@ public class NostrPoller {
                 return "Sent you a voice message";
             case 1244:
                 return "Replied with a voice message";
+            case 8333:
+                // The amount is self-reported until checked on-chain, so it isn't shown.
+                return "Sent you an on-chain zap";
+            case 7849:
+                return "Took your quiz";
             case 8:
                 return "Awarded you a badge";
             case 8211:
