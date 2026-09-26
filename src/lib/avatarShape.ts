@@ -76,7 +76,7 @@ export const emojiAvatarBorderStyle = shapedAvatarBorderStyle;
 /**
  * In-memory cache: emoji string → data-URL, or `''` when the glyph drew
  * nothing. Failures are cached too: Avatar calls this on every render, and an
- * uncached failure re-ran the 768² pixel scan each time.
+ * uncached failure re-ran the pixel scan each time.
  */
 const emojiMaskCache = new Map<string, string>();
 
@@ -112,8 +112,8 @@ export async function getAvatarMaskUrlAsync(shape: string): Promise<string> {
  *
  * ### Algorithm
  *
- * 1. **Draw large.** Render the emoji at 512 px via `fillText` on an
- *    oversized (768 × 768) scratch canvas so the entire glyph is captured
+ * 1. **Draw large.** Render the emoji at 256 px via `fillText` on an
+ *    oversized (384 × 384) scratch canvas so the entire glyph is captured
  *    even if the OS renders it off-centre or larger than the em-box.
  *
  * 2. **Measure.** Scan every pixel to find the tight axis-aligned bounding
@@ -137,12 +137,15 @@ export function getEmojiMaskUrl(emoji: string): string {
   if (cached !== undefined) return cached;
 
   // ── Pass 1: draw emoji on oversized scratch canvas ──────────────────
-  const fontSize = 512;
-  const scratch = fontSize * 1.5;               // 768 – generous room
+  // The output mask is 256 px, so drawing any larger only adds cost: at 512 px
+  // the glyph raster, readback and scan took ~4x as long for the same mask.
+  const fontSize = 256;
+  const scratch = fontSize * 1.5;               // 384 – generous room
   const c1 = document.createElement('canvas');
   c1.width = scratch;
   c1.height = scratch;
-  const ctx1 = c1.getContext('2d');
+  // Read back once, right away: a CPU-backed canvas avoids a GPU readback.
+  const ctx1 = c1.getContext('2d', { willReadFrequently: true });
   if (!ctx1) return '';
 
   ctx1.textAlign = 'center';
@@ -197,7 +200,7 @@ export function getEmojiMaskUrl(emoji: string): string {
   const c2 = document.createElement('canvas');
   c2.width = out;
   c2.height = out;
-  const ctx2 = c2.getContext('2d');
+  const ctx2 = c2.getContext('2d', { willReadFrequently: true });
   if (!ctx2) return '';
 
   ctx2.drawImage(c1, l, t, cropW, cropH, 0, 0, out, out);
