@@ -5,6 +5,7 @@ import type { AvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
 import { useDecryptedFile } from '@/hooks/useDecryptedFile';
+import { hasAudioMetadata, useAudioMetadata } from '@/hooks/useAudioMetadata';
 import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
 import type { FileEncryption } from '@/lib/encryptedFile';
 import { formatTime } from '@/lib/formatTime';
@@ -31,6 +32,9 @@ interface AudioVisualizerProps {
  * Audio player that renders identically to VideoPlayer — same container,
  * same overlay controls, same progress bar — but the "video surface" is
  * a canvas showing an animated sinewave with the author's avatar centred.
+ * A music file that carries its own tags or cover art (read out of the file,
+ * not the event) shows its cover in place of the avatar and its title,
+ * artist and album across the top.
  */
 export function AudioVisualizer({
   src: originalSrc,
@@ -46,6 +50,14 @@ export function AudioVisualizer({
   // Once decrypted the object URL carries the plaintext type, which is what
   // <source type> needs — the `m` tag describes the plaintext too.
   const mime = decrypted.mime ?? declaredMime;
+
+  // The file's own tags. Read from the resolved bytes: a decrypted object URL
+  // in memory, or a plain URL read by range request for just the tag block.
+  const meta = useAudioMetadata(originalSrc, decrypted.src);
+  const track = hasAudioMetadata(meta) ? meta : undefined;
+  const trackDetails = track ? [track.artist, track.album, track.year].filter(Boolean).join(' · ') : '';
+  const [brokenCover, setBrokenCover] = useState<string>();
+  const coverUrl = track?.coverUrl && brokenCover !== track.coverUrl ? track.coverUrl : undefined;
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -309,14 +321,31 @@ export function AudioVisualizer({
                 : 'ring-border',
             )}
           >
-            <Avatar className="size-20 border-2 border-white/20" shape={avatarShape}>
-              <AvatarImage src={avatarUrl} alt={avatarFallback} />
-              <AvatarFallback className="bg-primary/20 text-primary text-2xl font-semibold">
-                {avatarFallback}
-              </AvatarFallback>
-            </Avatar>
+            {coverUrl ? (
+              <img
+                src={coverUrl}
+                alt=""
+                className="size-20 rounded-full object-cover border-2 border-white/20"
+                onError={() => setBrokenCover(coverUrl)}
+              />
+            ) : (
+              <Avatar className="size-20 border-2 border-white/20" shape={avatarShape}>
+                <AvatarImage src={avatarUrl} alt={avatarFallback} />
+                <AvatarFallback className="bg-primary/20 text-primary text-2xl font-semibold">
+                  {avatarFallback}
+                </AvatarFallback>
+              </Avatar>
+            )}
           </div>
         </div>
+
+        {/* Track title, artist and album, from the file's own tags */}
+        {track && (track.title || trackDetails) && (
+          <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/70 to-transparent px-3 pt-2.5 pb-6 pointer-events-none">
+            {track.title && <p className="truncate text-sm font-semibold text-white">{track.title}</p>}
+            {trackDetails && <p className="truncate text-xs text-white/80">{trackDetails}</p>}
+          </div>
+        )}
 
         {/* Big centred play button before first play — identical to VideoPlayer */}
         {!hasStarted && (
