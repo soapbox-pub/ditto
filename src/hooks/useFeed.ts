@@ -1,6 +1,6 @@
 import { useNostr } from '@nostrify/react';
-import type { NostrEvent } from '@nostrify/nostrify';
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { useInfiniteQuery, useQueryClient, type InfiniteData, type QueryKey } from '@tanstack/react-query';
 import { useAppContext } from './useAppContext';
 import { useCurrentUser } from './useCurrentUser';
 import { useFeedSettings } from './useFeedSettings';
@@ -10,7 +10,11 @@ import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { parseAuthorEvent } from './useAuthor';
 import { useNostrStorage } from './useNostrStorage';
 import { useIsScrollRestore } from './useIsScrollRestore';
+import { getEffectiveRelays } from '@/lib/appRelays';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { fetchFeedPage, type FeedCursor } from '@/lib/feedPager';
+import { withoutBlockedRelays } from '@/lib/relayPolicy';
+import { routeReadRelays } from '@/lib/reqRoutes';
 import {
   getPaginationCursor,
   takeFeedPage,
@@ -55,7 +59,12 @@ interface FeedPage {
   oldestQueryTimestamp: number;
   /** Number of valid events returned by the relay (before client-side filtering). */
   rawCount: number;
+  /** Param for the next page, or undefined at the end of the feed. */
+  nextPageParam?: FeedPageParam;
 }
+
+/** A timestamp cursor, or per-relay cursors for the follows and loved feeds. */
+type FeedPageParam = number | FeedCursor;
 
 interface UseFeedOptions {
   /** Override the kinds list instead of using feed settings. Used by kind-specific pages. */
@@ -132,7 +141,42 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
     }
   })();
 
-  return useInfiniteQuery<FeedPage, Error>({
+  /**
+   * Fetch one page of an authors feed (follows, loved) with per-relay
+   * cursors, so a slow relay's posts are never paged past.
+   */
+  async function fetchAuthorsPage(
+    filter: NostrFilter,
+    cursor: FeedCursor | undefined,
+    signal: AbortSignal,
+    toItems: (events: NostrEvent[], signal: AbortSignal) => Promise<FeedItem[]>,
+  ): Promise<FeedPage> {
+    const readRelays = getEffectiveRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays).relays
+      .filter((r) => r.read)
+      .map((r) => r.url);
+    const page = await fetchFeedPage({
+      relays: withoutBlockedRelays(routeReadRelays([filter], readRelays)),
+      relay: (url) => nostr.relay(url),
+      filter,
+      cursor,
+      signal,
+    });
+
+    // Single-relay REQs skip the AppPool's local mirror, which keeps the
+    // user's own events; save those here as a pool query would have.
+    for (const ev of page.events) {
+      if (ev.pubkey === user?.pubkey) void store.event(ev).catch(() => {});
+    }
+
+    return {
+      items: await toItems(page.events, signal),
+      oldestQueryTimestamp: page.cursor?.boundary ?? page.events.at(-1)?.created_at ?? Math.floor(Date.now() / 1000),
+      rawCount: page.events.length,
+      nextPageParam: page.cursor,
+    };
+  }
+
+  return useInfiniteQuery<FeedPage, Error, InfiniteData<FeedPage>, QueryKey, FeedPageParam | undefined>({
     // NOTE: followList is intentionally excluded from the query key
     // (see earlier comment). kindsKey IS included so the feed
     // refetches when the user changes feed kind settings. This is stable
@@ -153,11 +197,25 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
         }
       }
 
+      /** Unwrap, dedupe and reply-filter raw events, and seed the event cache. */
+      async function toFeedItems(events: NostrEvent[], itemSignal: AbortSignal): Promise<FeedItem[]> {
+        // Unwrap reposts / reactions / zaps so the target event renders
+        // with the wrapper as an overlay header.
+        let items = dedupeFeedItems(await buildFeedItems(events, nostr, itemSignal));
+        // Filter replies if the user has disabled them
+        if (!feedSettings.followsFeedShowReplies) {
+          items = excludeReplies(items);
+        }
+        // Seed event cache so embedded note previews resolve instantly.
+        cacheEvents(items);
+        return items;
+      }
+
       if (tab === 'communities' && communityPubkeys.length > 0) {
         // Communities feed — posts from community members with NIP-05 verification
         const fetchLimit = !feedSettings.followsFeedShowReplies ? PAGE_SIZE * OVER_FETCH_MULTIPLIER : PAGE_SIZE;
         const filter: Record<string, unknown> = { kinds: allKinds, authors: communityPubkeys, limit: fetchLimit, ...tagFilters };
-        if (pageParam) {
+        if (typeof pageParam === 'number') {
           filter.until = pageParam;
         }
 
@@ -257,7 +315,12 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
         // when NoteCard components mount.
         cacheEvents(dedupedItems);
 
-        return { items: dedupedItems, oldestQueryTimestamp: cursor, rawCount: filteredEvents.length };
+        return {
+          items: dedupedItems,
+          oldestQueryTimestamp: cursor,
+          rawCount: filteredEvents.length,
+          nextPageParam: filteredEvents.length ? cursor - 1 : undefined,
+        };
       } else if (tab === 'loved' && user && lovedPubkeys !== undefined) {
         // Loved feed — posts and extra kinds from people on the user's Love
         // List (kind 15683), minus anyone also muted (mute wins). Reposts and
@@ -273,36 +336,9 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
 
         const lovedKinds = allKinds.filter((k) => !isRepostKind(k) && !isReactionKind(k));
         const fetchLimit = !feedSettings.followsFeedShowReplies ? PAGE_SIZE * OVER_FETCH_MULTIPLIER : PAGE_SIZE;
-        const filter: Record<string, unknown> = { kinds: lovedKinds, authors: lovedAuthors, limit: fetchLimit, ...tagFilters };
-        if (pageParam) {
-          filter.until = pageParam;
-        }
+        const filter: NostrFilter = { kinds: lovedKinds, authors: lovedAuthors, limit: fetchLimit, ...tagFilters };
 
-        const rawEvents = await nostr.query(
-          [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
-          { signal },
-        );
-
-        const { events: validEvents, cursor: oldestQueryTimestamp } = takeFeedPage(
-          rawEvents.filter((ev) => ev.created_at <= now),
-          fetchLimit,
-        );
-
-        // Unwrap reposts / reactions / zaps so the target event renders
-        // with the wrapper as an overlay header.
-        const items = await buildFeedItems(validEvents, nostr, signal);
-
-        let dedupedItems = dedupeFeedItems(items);
-
-        // Filter replies if the user has disabled them
-        if (!feedSettings.followsFeedShowReplies) {
-          dedupedItems = excludeReplies(dedupedItems);
-        }
-
-        // Seed event cache so embedded note previews resolve instantly.
-        cacheEvents(dedupedItems);
-
-        return { items: dedupedItems, oldestQueryTimestamp, rawCount: validEvents.length };
+        return fetchAuthorsPage(filter, pageParam as FeedCursor | undefined, signal, toFeedItems);
       } else if (tab === 'follows' && user && followList !== undefined) {
         // Follows feed — posts, reposts, and extra kinds from people you follow,
         // minus anyone you've also muted (mute wins, no wasted bandwidth).
@@ -310,38 +346,9 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
         // If followList is empty (or fully muted), just query own posts
         const authors = filteredFollows.length > 0 ? [...filteredFollows, user.pubkey] : [user.pubkey];
         const fetchLimit = !feedSettings.followsFeedShowReplies ? PAGE_SIZE * OVER_FETCH_MULTIPLIER : PAGE_SIZE;
-        const filter: Record<string, unknown> = { kinds: allKinds, authors, limit: fetchLimit, ...tagFilters };
-        if (pageParam) {
-          filter.until = pageParam;
-        }
+        const filter: NostrFilter = { kinds: allKinds, authors, limit: fetchLimit, ...tagFilters };
 
-        const rawEvents = await nostr.query(
-          [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
-          { signal },
-        );
-
-        // Take only as many events as one relay could return, so the cursor
-        // can't skip notes that only one relay held (see takeFeedPage).
-        const { events: validEvents, cursor: oldestQueryTimestamp } = takeFeedPage(
-          rawEvents.filter((ev) => ev.created_at <= now),
-          fetchLimit,
-        );
-
-        // Unwrap reposts / reactions / zaps so the target event renders
-        // with the wrapper as an overlay header.
-        const items = await buildFeedItems(validEvents, nostr, signal);
-
-        let dedupedItems = dedupeFeedItems(items);
-
-        // Filter replies if the user has disabled them
-        if (!feedSettings.followsFeedShowReplies) {
-          dedupedItems = excludeReplies(dedupedItems);
-        }
-
-        // Seed event cache so embedded note previews resolve instantly.
-        cacheEvents(dedupedItems);
-
-        return { items: dedupedItems, oldestQueryTimestamp, rawCount: validEvents.length };
+        return fetchAuthorsPage(filter, pageParam as FeedCursor | undefined, signal, toFeedItems);
       } else {
         // Global feed — all enabled kinds except reposts / reactions / zaps,
         // which are too noisy without an author filter and require an extra
@@ -355,7 +362,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
         if (tab === 'global' && (!options?.kinds || options?.hotGlobal)) {
           filter.search = 'sort:hot protocol:nostr';
         }
-        if (pageParam) {
+        if (typeof pageParam === 'number') {
           filter.until = pageParam;
         }
 
@@ -374,16 +381,17 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
         // Seed event cache so embedded note previews resolve instantly.
         cacheEvents(items);
 
-        return { items, oldestQueryTimestamp, rawCount: validEvents.length };
+        return {
+          items,
+          oldestQueryTimestamp,
+          rawCount: validEvents.length,
+          nextPageParam: validEvents.length ? oldestQueryTimestamp - 1 : undefined,
+        };
       }
     },
-    getNextPageParam: (lastPage) => {
-      // Use rawCount (pre-filter) to decide if there are more events on the relay.
-      // Reply filtering may discard all items from a page, but that doesn't mean
-      // the relay is exhausted.
-      if (lastPage.rawCount === 0) return undefined;
-      return lastPage.oldestQueryTimestamp - 1;
-    },
+    // Set from the pre-filter page, since reply filtering may discard every
+    // item without the relays being exhausted.
+    getNextPageParam: (lastPage) => lastPage.nextPageParam,
     initialPageParam: undefined as number | undefined,
     enabled: followsReady,
     staleTime: 60 * 1000,
