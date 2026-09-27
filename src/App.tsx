@@ -70,6 +70,8 @@ const hardcodedConfig: AppConfig = {
     showArticles: true,
     showHighlights: true,
     feedIncludeHighlights: true,
+    showTorrents: true,
+    feedIncludeTorrents: true,
     feedIncludeCampaigns: true,
     feedIncludeClassifiedListings: true,
     feedIncludeAttestations: false,

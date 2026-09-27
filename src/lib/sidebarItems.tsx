@@ -22,6 +22,7 @@ import {
   Ghost,
   HandHeart,
   Heart,
+  Magnet,
   HelpCircle,
 
   MessageSquare,
@@ -242,6 +243,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "vines", label: "Shorts", path: "/shorts", icon: Clapperboard, section: "media" },
   { id: "music", label: "Music", path: "/music", icon: Music, section: "media" },
   { id: "podcasts", label: "Podcasts", path: "/podcasts", icon: Podcast, section: "media" },
+  { id: "torrents", label: "Torrents", path: "/torrents", icon: Magnet, section: "media" },
 
   { id: "webxdc", label: "Webxdc", path: "/webxdc", icon: Blocks, section: "tools" },
   { id: "themes", label: "Themes", path: "/themes", icon: Sparkles, section: "personalize" },

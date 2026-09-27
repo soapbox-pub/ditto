@@ -96,6 +96,7 @@ const packsDef = getExtraKindDef("packs")!;
 const articlesDef = getExtraKindDef("articles")!;
 const decksDef = getExtraKindDef("decks")!;
 const highlightsDef = getExtraKindDef("highlights")!;
+const torrentsDef = getExtraKindDef("torrents")!;
 
 /** Polls feed page with a FAB that opens the compose modal (poll mode via + menu). */
 function PollsFeedPage() {
@@ -243,6 +244,17 @@ export function AppRouter() {
                   kind={highlightsDef.kind}
                   title={highlightsDef.label}
                   icon={sidebarItemIcon("highlights", "size-5")}
+                  showFAB={false}
+                />
+              }
+            />
+            <Route
+              path="/torrents"
+              element={
+                <KindFeedPage
+                  kind={torrentsDef.kind}
+                  title={torrentsDef.label}
+                  icon={sidebarItemIcon("torrents", "size-5")}
                   showFAB={false}
                 />
               }

@@ -33,6 +33,8 @@ import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
 import { EmbeddedRelayListCard } from '@/components/EmbeddedRelayListCard';
 import { EmbeddedExternalIdentitiesCard } from '@/components/ExternalIdentitiesContent';
 import { EXTERNAL_IDENTITIES_KIND } from '@/lib/externalIdentities';
+import { EmbeddedTorrentCard } from '@/components/TorrentContent';
+import { TORRENT_COMMENT_KIND, TORRENT_KIND } from '@/lib/torrent';
 import { EmbeddedProfileCard } from '@/components/EmbeddedProfileCard';
 import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
 import { MEMORY_CARD_KIND } from '@/lib/memorycard';
@@ -178,6 +180,12 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, fallbackAuthorHint, cl
   // highlight author's post).
   if (event.kind === 9802) {
     return <EmbeddedHighlightCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Kind 2003 NIP-35 torrents: the content is a pre-formatted release
+  // description, not the author's prose, so it must not reach the tokenizer.
+  if (event.kind === TORRENT_KIND) {
+    return <EmbeddedTorrentCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Kind 1311 NIP-53 live chat messages get a compact card that shows the
@@ -926,9 +934,10 @@ function EmbeddedNoteCard({
   // be fed through the kind-1 tokenizer for preview. Everything else
   // (articles, streams, videos, calendar events, themes, polls, voice
   // messages, unknown custom kinds, …) should prefer a tag-based summary
-  // — otherwise we'd parse JSON or arbitrary content as text.
+  // — otherwise we'd parse JSON or arbitrary content as text. Kind 2004 is a
+  // NIP-35 torrent comment, which works exactly like kind 1.
   const isContentKind =
-    event.kind === 1 || event.kind === 11 || event.kind === 1111 || isPhoto;
+    event.kind === 1 || event.kind === 11 || event.kind === 1111 || event.kind === TORRENT_COMMENT_KIND || isPhoto;
 
   // Attachment counts for indicator chips
   const attachments = useMemo(() => {

@@ -65,10 +65,12 @@ import { REPORT_KIND } from "@/lib/report";
 import { ATTESTATION_KIND } from "@/lib/attestation";
 import { CLASSIFIED_LISTING_KIND } from "@/lib/classifiedListing";
 import { EXTERNAL_IDENTITIES_KIND } from "@/lib/externalIdentities";
+import { TORRENT_COMMENT_KIND, TORRENT_KIND } from "@/lib/torrent";
 import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
 import { RelayListContent } from "@/components/RelayListContent";
 import { ExternalIdentitiesContent } from "@/components/ExternalIdentitiesContent";
+import { TorrentContent } from "@/components/TorrentContent";
 import { PeopleListDetailContent } from "@/components/PeopleListDetailContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
@@ -1315,6 +1317,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isRelayList = event.kind === 10002;
   const isExternalIdentities = event.kind === EXTERNAL_IDENTITIES_KIND;
+  const isTorrent = event.kind === TORRENT_KIND;
   const isEmojiPack = event.kind === 30030;
   const isArticle = event.kind === 30023;
   const isClassifiedListing = event.kind === CLASSIFIED_LISTING_KIND;
@@ -1374,6 +1377,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isPeopleList &&
     !isRelayList &&
     !isExternalIdentities &&
+    !isTorrent &&
     !isEmojiPack &&
     !isArticle &&
     !isClassifiedListing &&
@@ -1414,10 +1418,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isBadgeAward;
 
   // Unknown kinds land in the `isTextNote` branch (negation of every known flag
-  // above). For anything other than real text-note kinds (1 / 11 / 1111) we
-  // render a NIP-31 fallback instead of treating arbitrary content as kind 1.
+  // above). For anything other than real text-note kinds (1 / 11 / 1111, plus
+  // 1311 live chat and 2004 NIP-35 torrent comments) we render a NIP-31
+  // fallback instead of treating arbitrary content as kind 1.
   const isUnknownKind =
-    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111 && event.kind !== 1311;
+    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111 && event.kind !== 1311 && event.kind !== TORRENT_COMMENT_KIND;
 
   const { data: stats } = useEventStats(event.id, event);
   const { data: interactions } = useEventInteractions(event.id);
@@ -2763,6 +2768,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <Top8Content event={event} />
             ) : isHighlight ? (
               <HighlightContent event={event} expanded />
+            ) : isTorrent ? (
+              <TorrentContent event={event} expanded />
             ) : isTarotReading ? (
               <TarotReadingCard event={event} expanded />
             ) : isWebBookmark ? (

@@ -2,6 +2,7 @@ import type { NostrEvent, NPool } from '@nostrify/nostrify';
 import type { InfiniteData, QueryClient } from '@tanstack/react-query';
 import { EventVerifier } from '@/lib/EventVerifier';
 import { EXTERNAL_IDENTITIES_KIND, parseExternalIdentities } from '@/lib/externalIdentities';
+import { normalizeInfoHash, TORRENT_KIND } from '@/lib/torrent';
 import { getGitRootRef } from '@/lib/gitActivity';
 import { isNostrId } from '@/lib/nostrId';
 import { isNsiteKind } from '@/lib/nsiteSubdomain';
@@ -359,6 +360,10 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
   // NIP-39 external identities (kind 10011) with no claim Ditto can link to —
   // unknown platforms and malformed `i` tags are dropped at parse time.
   if (event.kind === EXTERNAL_IDENTITIES_KIND && parseExternalIdentities(event).length === 0) return true;
+
+  // NIP-35 torrents (kind 2003) without a valid `x` info hash — there is no
+  // magnet link to build, so the card would have nothing to offer.
+  if (event.kind === TORRENT_KIND && !event.tags.some(([n, v]) => n === 'x' && normalizeInfoHash(v))) return true;
 
   // NIP-5A manifests (root sites, named sites, and snapshots) with no `path`
   // tags. The spec requires at least one, and without any there are no files

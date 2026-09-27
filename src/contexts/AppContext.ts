@@ -67,6 +67,10 @@ export interface FeedSettings {
   showHighlights: boolean;
   /** Include NIP-84 Highlights (kind 9802) in the follows/global feed */
   feedIncludeHighlights: boolean;
+  /** Show Torrents (kind 2003) link in sidebar */
+  showTorrents: boolean;
+  /** Include NIP-35 torrents (kind 2003) in the follows/global feed */
+  feedIncludeTorrents: boolean;
   /** Include Agora Fundraisers (kind 33863) in the follows/global feed */
   feedIncludeCampaigns: boolean;
   /** Include NIP-99 classified listings (kind 30402) in the follows/global feed */

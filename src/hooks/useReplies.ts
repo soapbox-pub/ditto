@@ -30,7 +30,8 @@ export function useReplies(eventId: string | undefined) {
 
       for (let depth = 0; depth < MAX_FETCH_DEPTH && idsToQuery.length > 0; depth++) {
         const filters: NostrFilter[] = [
-          { kinds: [1, 1111], '#e': idsToQuery, limit: 200 },
+          // Kind 2004 is a NIP-35 torrent comment — NIP-10 threaded like kind 1.
+          { kinds: [1, 1111, 2004], '#e': idsToQuery, limit: 200 },
           { kinds: [1111], '#E': idsToQuery, limit: 200 },
         ];
 

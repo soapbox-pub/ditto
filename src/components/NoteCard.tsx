@@ -20,6 +20,7 @@ import {
   HandHeart,
   Heart,
   Link2,
+  Magnet,
   ListMusic,
   Mail,
   MessageCircle,
@@ -94,6 +95,7 @@ import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
 import { RelayListContent } from "@/components/RelayListContent";
 import { ExternalIdentitiesContent } from "@/components/ExternalIdentitiesContent";
+import { TorrentContent } from "@/components/TorrentContent";
 import { PeopleAvatarStack } from "@/components/PeopleAvatarStack";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
@@ -120,6 +122,7 @@ import { ATTESTATION_KIND } from "@/lib/attestation";
 import { REPORT_KIND, reportTargetNoun } from "@/lib/report";
 import { CLASSIFIED_LISTING_KIND } from "@/lib/classifiedListing";
 import { EXTERNAL_IDENTITIES_KIND } from "@/lib/externalIdentities";
+import { TORRENT_COMMENT_KIND, TORRENT_KIND } from "@/lib/torrent";
 import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { ZapContent } from "@/components/ZapContent";
 import { NsiteCard } from "@/components/NsiteCard";
@@ -473,6 +476,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isRelayList = event.kind === 10002;
   const isExternalIdentities = event.kind === EXTERNAL_IDENTITIES_KIND;
+  const isTorrent = event.kind === TORRENT_KIND;
   const isArticle = event.kind === 30023;
   const isClassifiedListing = event.kind === CLASSIFIED_LISTING_KIND;
   const isPublication = PUBLICATION_KINDS.has(event.kind);
@@ -562,6 +566,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     !isPeopleList &&
     !isRelayList &&
     !isExternalIdentities &&
+    !isTorrent &&
     !isArticle &&
     !isClassifiedListing &&
     !isPublication &&
@@ -611,9 +616,10 @@ const NoteCardImpl = memo(function NoteCardImpl({
   // (1 / 11 / 1111), render a NIP-31 fallback instead of feeding arbitrary
   // content into the kind-1 tokenizer. Kind 1311 (NIP-53 live chat message)
   // is also prose — it carries NIP-21 mentions and q tags — so it renders
-  // through the tokenizer like a text note rather than tombstoning.
+  // through the tokenizer like a text note rather than tombstoning. So is
+  // kind 2004 (NIP-35 torrent comment), which works exactly like kind 1.
   const isUnknownKind =
-    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111 && event.kind !== 1311;
+    isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111 && event.kind !== 1311 && event.kind !== TORRENT_COMMENT_KIND;
 
   // Find all people being replied to (for "Replying to @user1 and @user2")
   const replyToPubkeys = useMemo(() => {
@@ -758,6 +764,8 @@ const NoteCardImpl = memo(function NoteCardImpl({
           <RelayListContent event={event} />
         ) : isExternalIdentities ? (
           <ExternalIdentitiesContent event={event} />
+        ) : isTorrent ? (
+          <TorrentContent event={event} />
         ) : isArticle ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <EmbeddedArticleCard event={event} className="mt-2" />
@@ -2607,6 +2615,12 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     icon: Server,
     action: "updated their",
     noun: "relay list",
+  },
+  [TORRENT_KIND]: {
+    icon: Magnet,
+    action: "shared a",
+    noun: "torrent",
+    nounRoute: "/torrents",
   },
   [EXTERNAL_IDENTITIES_KIND]: {
     icon: Link2,

@@ -43,6 +43,8 @@ export function TestApp({ children }: TestAppProps) {
       showArticles: false,
       showHighlights: false,
       feedIncludeHighlights: false,
+      showTorrents: false,
+      feedIncludeTorrents: false,
       feedIncludeCampaigns: false,
       feedIncludeClassifiedListings: false,
       feedIncludeAttestations: false,

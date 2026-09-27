@@ -221,7 +221,8 @@ export async function downloadUrl(url: string, filename?: string): Promise<'down
 
 /**
  * Schemes `openUrl` will hand off: web pages, the payment URIs Ditto builds,
- * and `nostr:` / `mailto:` links. Anything else — `javascript:`, `data:`,
+ * `nostr:` / `mailto:` links, and the torrent magnet links Ditto builds from
+ * NIP-35 events (handed to the user's torrent client). Anything else — `javascript:`, `data:`,
  * `intent:`, `file:`, other apps' deep links — is refused, since URLs often
  * come from event data.
  */
@@ -235,6 +236,7 @@ const OPENABLE_SCHEMES = new Set([
   'nano:',
   'nostr:',
   'mailto:',
+  'magnet:',
 ]);
 
 /**

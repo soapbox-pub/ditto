@@ -290,6 +290,19 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
       },
     ],
   },
+  {
+    kind: 2003,
+    id: 'torrents',
+    showKey: 'showTorrents',
+    feedKey: 'feedIncludeTorrents',
+    label: 'Torrents',
+    description: 'BitTorrent index entries with magnet links (NIP-35)',
+    route: 'torrents',
+    addressable: false,
+    section: 'media',
+    blurb: 'Torrents indexed on Nostr — a title, a file list, and an info hash, enough to open the magnet link in your torrent client. No files are stored on Nostr itself.',
+    sites: [{ url: 'https://dtan.xyz', name: 'dtan' }],
+  },
   // Social
   {
     kind: 30315,
