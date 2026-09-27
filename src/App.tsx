@@ -2,7 +2,9 @@
 // To add new routes, edit the AppRouter.tsx file.
 
 import { NostrLoginProvider } from "@nostrify/react/login";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { App as CapacitorApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
+import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ActiveAccountSync } from "@/components/ActiveAccountSync";
 import { LogoutCleanup } from "@/components/LogoutCleanup";
 import { RelayAuthPrompt } from "@/components/RelayAuthPrompt";
@@ -42,6 +44,17 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// The Android WebView doesn't deliver `visibilitychange` reliably when the app
+// is backgrounded, so React Query could go on believing it was focused and
+// keep every `refetchInterval` polling — all night, where the
+// persistent-notifications foreground service keeps the process alive. Drive
+// focus from the activity lifecycle instead. Ported from Armada.
+if (Capacitor.isNativePlatform()) {
+  void CapacitorApp.addListener("appStateChange", ({ isActive }) => {
+    focusManager.setFocused(isActive);
+  });
+}
 
 /** Hardcoded fallback values. Always provides every required field. */
 const hardcodedConfig: AppConfig = {

@@ -38,6 +38,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { moneroRecordQueryKeys, useMoneroRecord } from '@/hooks/useMoneroRecord';
+import { isBackgroundQuiet, onBackgroundQuiet } from '@/lib/backgroundQuiet';
 import { shutdownMonero, supportsWebWorkers } from '@/lib/monero/client';
 import { hasWalletCache } from '@/lib/monero/cache';
 import { pickReachableNode } from '@/lib/monero/nodes';
@@ -143,6 +144,12 @@ export function useMoneroBackgroundSync(): void {
     let session: MoneroSession | null = null;
     let detachListener: (() => Promise<void>) | null = null;
     let checkpoint: ReturnType<typeof setInterval> | undefined;
+    // The first catch-up is done and wallet2 was set polling; from then on
+    // `polling` tracks whether it still is (see applyQuiet).
+    let ready = false;
+    let polling = false;
+    /** The quiet stop or start in progress, if any (see applyQuiet). */
+    let transition: Promise<void> = Promise.resolve();
 
     /**
      * Flush wallet2's cache to IndexedDB.
@@ -157,7 +164,7 @@ export function useMoneroBackgroundSync(): void {
      * next open from rescanning, and it never leaves the device.
      */
     const checkpointCache = async () => {
-      if (!session || cancelled) return;
+      if (!session || cancelled || !polling) return;
       try {
         await persistCache(session);
       } catch (error) {
@@ -204,6 +211,10 @@ export function useMoneroBackgroundSync(): void {
 
         await startBackgroundSync(session, SYNC_PERIOD_MS);
         if (cancelled) return;
+        ready = true;
+        polling = true;
+        // Went quiet during the catch-up: stop again right away.
+        applyQuiet();
 
         checkpoint = setInterval(() => void checkpointCache(), CHECKPOINT_MS);
       } catch (error) {
@@ -214,10 +225,44 @@ export function useMoneroBackgroundSync(): void {
       }
     };
 
+    /**
+     * Backgrounded on Android (see `@/lib/backgroundQuiet`), wallet2 stops
+     * polling the node — a persistent-notifications foreground service keeps
+     * the process alive, so it otherwise polled every 30s all night — and
+     * picks up from its last height on resume. Stops and starts run one at a
+     * time, each against the quiet state when its turn comes, so a quick
+     * flip back can't start polling while the stop is still in flight.
+     */
+    const applyQuiet = () => {
+      if (!session || cancelled || !ready) return;
+      const current = session;
+      transition = transition.then(async () => {
+        if (cancelled) return;
+        const quiet = isBackgroundQuiet();
+        if (quiet && polling) {
+          polling = false;
+          await stopBackgroundSync(current);
+          // Flush on the way down: a backgrounded app may be killed before
+          // the next checkpoint, and the cache is what spares a rescan.
+          await persistCache(current);
+        } else if (!quiet && !polling) {
+          polling = true;
+          try {
+            await startBackgroundSync(current, SYNC_PERIOD_MS);
+          } catch (error) {
+            polling = false;
+            console.warn('Monero background sync failed to resume:', error);
+          }
+        }
+      }).catch(() => {});
+    };
+    const unsubscribeQuiet = onBackgroundQuiet(applyQuiet);
+
     const startupTimer = setTimeout(() => void start(), STARTUP_DELAY_MS);
 
     return () => {
       cancelled = true;
+      unsubscribeQuiet();
       clearTimeout(startupTimer);
       clearInterval(checkpoint);
 
@@ -227,6 +272,7 @@ export function useMoneroBackgroundSync(): void {
       void (async () => {
         await detachListener?.().catch(() => {});
         if (!session) return;
+        await transition;
         await stopBackgroundSync(session);
         await closeSession(pubkey);
       })();

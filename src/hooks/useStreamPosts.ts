@@ -10,6 +10,8 @@ import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import { nip19 } from 'nostr-tools';
 import { isNostrId } from '@/lib/nostrId';
+import { createLiveCursor } from '@/lib/backgroundQuiet';
+import { useBackgroundQuiet } from './useBackgroundQuiet';
 
 interface StreamPostsOptions {
   includeReplies: boolean;
@@ -140,6 +142,9 @@ function filterEvent(
 
 /** Number of events to fetch per page. */
 const PAGE_SIZE = 40;
+
+/** Most events asked back for the stretch the stream spent quiet in the background. */
+const RESUME_LIMIT = 200;
 
 /**
  * Stream posts using a direct relay connection.
@@ -410,7 +415,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     commitTimerRef.current = undefined;
     streamMapDirtyRef.current = false;
 
-    const { searchFilter, streamFilter } = paginationFilter;
+    const { searchFilter } = paginationFilter;
 
     // 1. Fetch initial batch with search filters (uses pool, reuses existing connections)
     (async () => {
@@ -446,25 +451,44 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       }
     })();
 
-    // 2. Stream new events WITHOUT search (relays don't support streaming search)
-    // Client-side filtering is applied via useMemo at the end
-    // 
+    return () => {
+      alive = false;
+      ac.abort();
+      clearTimeout(commitTimerRef.current);
+      commitTimerRef.current = undefined;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ingestEvent/flushEventMap/addStreamedEvent are stable ref-based callbacks
+  }, [nostr, paginationFilter]);
+
+  // 2. Stream new events WITHOUT search (relays don't support streaming search)
+  // Client-side filtering is applied via useMemo at the end.
+  //
+  // Backgrounded on Android the stream closes, then resumes from where it
+  // paused (see @/lib/backgroundQuiet); a new filter starts from now.
+  const quiet = useBackgroundQuiet();
+  const cursorRef = useRef(createLiveCursor());
+  useEffect(() => {
+    const { streamFilter } = paginationFilter;
+    const live = cursorRef.current.next(JSON.stringify(streamFilter), quiet);
+    if (!live) return;
+
+    const ac = new AbortController();
+    let alive = true;
+
     // CRITICAL: The pool has eoseTimeout: 500 which aborts req() subscriptions 500ms after
     // the first EOSE. This kills streaming! Solution: Use relay() directly for one relay
     // to avoid the pool's timeout logic.
     (async () => {
       try {
-        const now = Math.floor(Date.now() / 1000);
-        
         // Use Ditto relays directly for streaming to avoid pool's eoseTimeout
         const dittoRelay = nostr.group(DITTO_RELAYS);
-        
+
         for await (const msg of dittoRelay.req(
-          [{ ...streamFilter, since: now, limit: 0 }],
+          [{ ...streamFilter, since: live.since, limit: live.resumed ? RESUME_LIMIT : 0 }],
           { signal: ac.signal }
         )) {
           if (!alive) break;
-          
+
           if (msg[0] === 'EVENT') {
             addStreamedEvent(msg[2]);
           } else if (msg[0] === 'CLOSED') {
@@ -479,11 +503,8 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     return () => {
       alive = false;
       ac.abort();
-      clearTimeout(commitTimerRef.current);
-      commitTimerRef.current = undefined;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- ingestEvent/flushEventMap/addStreamedEvent are stable ref-based callbacks
-  }, [nostr, paginationFilter]);
+  }, [nostr, paginationFilter, addStreamedEvent, quiet]);
 
   /** Fetch the next page of older results. */
   const fetchNextPage = useCallback(async () => {

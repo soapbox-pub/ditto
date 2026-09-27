@@ -1,8 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { useBackgroundQuiet } from '@/hooks/useBackgroundQuiet';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { createLiveCursor } from '@/lib/backgroundQuiet';
 import { ALL_NOTIFICATION_KINDS } from '@/lib/notificationKinds';
 
 /**
@@ -26,9 +28,20 @@ export function NotificationStream(): null {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
+  // Backgrounded on Android the WebView holds no REQ: the native service (or
+  // remote push) watches instead, and resuming refetches what arrived.
+  const quiet = useBackgroundQuiet();
+  const cursorRef = useRef(createLiveCursor());
 
   useEffect(() => {
     if (!user) return;
+    const live = cursorRef.current.next(user.pubkey, quiet);
+    if (!live) return;
+
+    if (live.resumed) {
+      queryClient.invalidateQueries({ queryKey: ['notifications', user.pubkey] });
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread', user.pubkey] });
+    }
 
     const ac = new AbortController();
     const since = Math.floor(Date.now() / 1000);
@@ -59,7 +72,7 @@ export function NotificationStream(): null {
     })();
 
     return () => ac.abort();
-  }, [nostr, user, queryClient]);
+  }, [nostr, user, queryClient, quiet]);
 
   return null;
 }

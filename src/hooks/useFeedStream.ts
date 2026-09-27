@@ -10,6 +10,8 @@ import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isReactionKind, isRepostKind, isZapKind, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { APP_RELAYS, getEffectiveRelays } from '@/lib/appRelays';
+import { createLiveCursor } from '@/lib/backgroundQuiet';
+import { useBackgroundQuiet } from './useBackgroundQuiet';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 /** How far (px) the user must scroll down before new posts start buffering. */
@@ -17,6 +19,9 @@ const SCROLL_THRESHOLD = 200;
 
 /** Cap on relays to subscribe to, matching the inbox-relay fan-out cap. */
 const MAX_STREAM_RELAYS = 10;
+
+/** Most posts asked back for the stretch a stream spent quiet in the background. */
+const RESUME_LIMIT = 200;
 
 /** Which core feed tabs support live auto-refresh. */
 type StreamableTab = 'follows' | 'loved' | 'global' | 'communities';
@@ -67,6 +72,10 @@ export function useFeedStream(options: UseFeedStreamOptions): {
   const { shouldFilterEvent } = useContentFilters();
 
   const [newPostCount, setNewPostCount] = useState(0);
+  // Backgrounded on Android the stream closes, then resumes from where it
+  // paused (see @/lib/backgroundQuiet) so the count still covers that stretch.
+  const quiet = useBackgroundQuiet();
+  const cursorRef = useRef(createLiveCursor());
 
   // IDs already counted, so reconnects / duplicate relays don't double-count.
   // (NPool dedupes only the last 1000 ids per subscription, so we track our own.)
@@ -127,14 +136,21 @@ export function useFeedStream(options: UseFeedStreamOptions): {
     // authors list — an empty array would match everyone.
     if (tab !== 'global' && (!authors || authors.length === 0)) return;
 
+    const live = cursorRef.current.next([tab, authorsKey, kindsKey, relaysKey].join('|'), quiet);
+    if (!live) return;
+
     const ac = new AbortController();
     let alive = true;
-    // Reset on (re)subscribe so a tab switch starts the count fresh.
-    seenRef.current = new Set();
-    setNewPostCount(0);
+    // Reset on a new subscription so a tab switch starts the count fresh; a
+    // resume keeps counting where it left off.
+    if (!live.resumed) {
+      seenRef.current = new Set();
+      setNewPostCount(0);
+    }
 
-    const now = Math.floor(Date.now() / 1000);
-    const filter: NostrFilter = { kinds: streamKinds, since: now, limit: 0 };
+    const filter: NostrFilter = live.resumed
+      ? { kinds: streamKinds, since: live.since, limit: RESUME_LIMIT }
+      : { kinds: streamKinds, since: live.since, limit: 0 };
     if (tab !== 'global' && authors && authors.length > 0) {
       filter.authors = authors;
     }
@@ -193,7 +209,7 @@ export function useFeedStream(options: UseFeedStreamOptions): {
     // streamKinds / authors / relayUrls are stabilized via their *Key deps;
     // filter predicate inputs are read live from filterStateRef.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nostr, tab, authorsKey, kindsKey, relaysKey, enabled]);
+  }, [nostr, tab, authorsKey, kindsKey, relaysKey, enabled, quiet]);
 
   return { newPostCount, reset };
 }
