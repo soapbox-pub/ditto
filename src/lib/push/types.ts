@@ -40,6 +40,11 @@ export interface PushContext {
   relays?: string[];
   /** The user's follow set, for "only from people I follow" and spam exemptions. */
   follows?: string[];
+  /**
+   * Pubkeys on the user's mute list, public and private halves decrypted.
+   * Never sent to a transport; only the service worker gets them.
+   */
+  muted?: string[];
   /** Native only: 'persistent' holds a relay connection open on Android. */
   style?: 'push' | 'persistent';
 }

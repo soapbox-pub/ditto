@@ -4,6 +4,8 @@
  * - Selects and brings up a `PushAdapter` on mount, restoring prior state.
  * - Re-applies the subscriptions whenever what they're built from changes:
  *   the user, their notification preferences, read relays, or follow set.
+ * - Keeps the service worker's copy of the user's muted pubkeys current, so
+ *   web push drops events from them.
  * - Native apps follow the synced `notificationsEnabled` setting (on unless
  *   switched off); elsewhere push is a per-device choice made in settings.
  * - Pings transports whose registration expires, on launch and on return.
@@ -19,6 +21,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
 import { getEffectiveRelays } from '@/lib/appRelays';
 import { createPushAdapter } from '@/lib/push';
 import type { PushContext, PushPreferences } from '@/lib/push/types';
@@ -28,6 +31,7 @@ export function PushNotificationsProvider({ children }: { children: ReactNode })
   const { user } = useCurrentUser();
   const { settings, isLoading: settingsLoading } = useEncryptedSettings();
   const { data: followData } = useFollowList();
+  const { mutedPubkeys, mutedKey } = useMutedAuthorFilter();
 
   // Picked from globals that don't change after load, so it never re-selects.
   // Brought up (and torn down) by the effect below.
@@ -45,12 +49,13 @@ export function PushNotificationsProvider({ children }: { children: ReactNode })
   }, [config.relayMetadata, config.useAppRelays, config.useUserRelays]);
 
   const follows = useMemo(() => followData?.pubkeys ?? [], [followData?.pubkeys]);
+  const muted = useMemo(() => [...mutedPubkeys], [mutedPubkeys]);
   const prefs = settings?.notificationPreferences ?? undefined;
   const style = settings?.notificationStyle ?? 'push';
 
   // Keep the latest context reachable from callbacks without rebuilding them.
   const contextRef = useRef<Omit<PushContext, 'pubkey'>>({});
-  contextRef.current = { prefs, relays, follows, style };
+  contextRef.current = { prefs, relays, follows, muted, style };
 
   // ─── Bring the adapter up ─────────────────────────────────────────────────
 
@@ -128,7 +133,7 @@ export function PushNotificationsProvider({ children }: { children: ReactNode })
       console.error('[push] Failed to re-sync subscriptions:', err);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adapter, ready, enabled, user?.pubkey, followsKey, relaysKey, prefsKey]);
+  }, [adapter, ready, enabled, user?.pubkey, followsKey, relaysKey, prefsKey, mutedKey]);
 
   // Registrations that expire are pinged on launch and whenever Ditto comes
   // back to the foreground; the host rate-limits itself to once a day.

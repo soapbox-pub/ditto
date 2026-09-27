@@ -98,4 +98,13 @@ describe('isWanted', () => {
     expect(isWanted(event(1, [['p', USER]]), { ...state, follows: [AUTHOR] })).toBe(true);
     expect(isWanted(event(1, [['p', USER]]), { ...state, follows: [TARGET] })).toBe(false);
   });
+
+  it('drops events from muted pubkeys, including zaps they send', () => {
+    const state = { pubkey: USER, subscriptions: [{ filters: [{ kinds: [1, 9735], '#p': [USER] }], relays: [] }] };
+    expect(isWanted(event(1, [['p', USER]]), { ...state, muted: [AUTHOR] })).toBe(false);
+    expect(isWanted(event(1, [['p', USER]]), { ...state, muted: [TARGET] })).toBe(true);
+
+    const zap = event(9735, [['p', USER], ['description', JSON.stringify({ pubkey: TARGET, tags: [] })]]);
+    expect(isWanted(zap, { ...state, muted: [TARGET] })).toBe(false);
+  });
 });

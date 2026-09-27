@@ -108,7 +108,17 @@ export class PushAdapter {
       context.prefs?.onlyFollowing === true,
       context.style ?? 'push',
     ]));
-    if (skipIfUnchanged && localStorage.getItem(APPLIED_KEY) === applied) return;
+    // The mute list only reaches the worker, so a change to it alone rewrites
+    // the worker's copy without troubling the host.
+    const workerOnly = this.host.usesServiceWorker ? fingerprint(JSON.stringify(context.muted ?? [])) : '';
+    const [lastApplied, lastWorkerOnly] = (localStorage.getItem(APPLIED_KEY) ?? '').split('.');
+
+    if (skipIfUnchanged && lastApplied === applied) {
+      if (lastWorkerOnly === workerOnly) return;
+      await this.writeWorkerState(context, subscriptions);
+      localStorage.setItem(APPLIED_KEY, `${applied}.${workerOnly}`);
+      return;
+    }
 
     // Started, not awaited: the host decides whether the write must land
     // before its `set()` (a push can arrive the moment that returns) or after
@@ -117,11 +127,11 @@ export class PushAdapter {
       ? this.writeWorkerState(context, subscriptions)
       : Promise.resolve();
     await Promise.all([workerReady, this.host.set(subscriptions, { context, workerReady })]);
-    localStorage.setItem(APPLIED_KEY, applied);
+    localStorage.setItem(APPLIED_KEY, `${applied}.${workerOnly}`);
   }
 
   private async writeWorkerState(
-    { pubkey, prefs, follows = [] }: PushContext,
+    { pubkey, prefs, follows = [], muted = [] }: PushContext,
     subscriptions: NappSubscription[],
   ): Promise<void> {
     try {
@@ -130,6 +140,7 @@ export class PushAdapter {
         subscriptions,
         follows,
         onlyFollowing: prefs?.onlyFollowing === true,
+        muted,
       });
     } catch (err) {
       // Not fatal: without it the worker shows everything the filters matched.

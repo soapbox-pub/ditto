@@ -15,6 +15,9 @@
  * mode is "a few extra wake-ups" instead of "notifications from most of your
  * follows go missing". The worker checks the set either way.
  *
+ * The mute list is here and nowhere else: the filters can't exclude authors,
+ * and handing the transport a list of who the user muted would leak it.
+ *
  * Read back by `loadPushState()` in `src/sw/state.ts`. The database and key
  * names predate the other transports and are kept so an installed worker keeps
  * finding its state.
@@ -35,6 +38,12 @@ export interface PushWorkerState {
   follows: string[];
   /** Whether to drop events from authors outside `follows`. */
   onlyFollowing: boolean;
+  /**
+   * Pubkeys the user has muted. The private half of a mute list is encrypted
+   * and the worker has no signer, so the page hands over the decrypted set —
+   * no more exposed here than in the page's own localStorage cache of it.
+   */
+  muted: string[];
   /** When this record was written (ms). */
   updatedAt: number;
 }

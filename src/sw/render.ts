@@ -152,6 +152,10 @@ export function isWanted(event: NostrEvent, state: Partial<PushWorkerState> | nu
   const author = notificationAuthor(event);
   if (author === state.pubkey) return false;
 
+  // A zap receipt is checked for its sender and its signer both, so muting a
+  // wallet provider silences it too.
+  if (state.muted?.length && (state.muted.includes(author) || state.muted.includes(event.pubkey))) return false;
+
   if (state.onlyFollowing && state.follows?.length) {
     return state.follows.includes(author);
   }
