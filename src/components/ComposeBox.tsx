@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker, BarChart3, Plus, ChevronLeft } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -389,6 +389,9 @@ export function ComposeBox({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { insertAtCursor, insertEmoji: insertEmojiAtCursor } = useInsertText(textareaRef, setContent);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  /** dragenter/dragleave fire for every child element crossed, so count depth to know when the drag truly leaves. */
+  const dragDepthRef = useRef(0);
 
   // Voice recording
   const voiceRecorder = useVoiceRecorder();
@@ -858,6 +861,49 @@ export function ComposeBox({
     }
   }, [handleFileUpload]);
 
+  /** Only react to drags carrying files, so dragging selected text around the textarea still works. */
+  const isFileDrag = (e: React.DragEvent) => e.dataTransfer.types.includes('Files');
+
+  const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (!user || !isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepthRef.current += 1;
+    setIsDraggingFile(true);
+  }, [user]);
+
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (!user || !isFileDrag(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  }, [user]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (!user || !isFileDrag(e)) return;
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setIsDraggingFile(false);
+  }, [user]);
+
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (!user || !isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepthRef.current = 0;
+    setIsDraggingFile(false);
+
+    // Mirror the file picker's `accept` list.
+    const files = Array.from(e.dataTransfer.files).filter((file) =>
+      /^(image|video|audio)\//.test(file.type) || file.name.endsWith('.xdc'),
+    );
+    if (files.length === 0) {
+      toast({
+        title: intl.formatMessage({ id: 'compose.drop.unsupportedTitle', defaultMessage: 'Unsupported file' }),
+        description: intl.formatMessage({ id: 'compose.drop.unsupportedDescription', defaultMessage: 'You can attach images, videos, audio, and .xdc apps.' }),
+        variant: 'destructive',
+      });
+      return;
+    }
+    files.forEach((file) => handleFileUpload(file));
+  }, [user, handleFileUpload, toast, intl]);
+
   /** Start voice recording. */
   const handleStartRecording = useCallback(async () => {
     try {
@@ -1247,12 +1293,28 @@ export function ComposeBox({
   if (!user && compact) return null;
 
   return (
-    <div className={cn(
-      "px-4 pt-3 bg-background/85 flex flex-col",
-      forceExpanded ? "flex-1 min-h-0 rounded-2xl" : "",
-      pickerOpen ? "pb-0" : "pb-3",
-      !forceExpanded && !hideBorder && "border-b border-border",
-    )}>
+    <div
+      className={cn(
+        "relative px-4 pt-3 bg-background/85 flex flex-col",
+        forceExpanded ? "flex-1 min-h-0 rounded-2xl" : "",
+        pickerOpen ? "pb-0" : "pb-3",
+        !forceExpanded && !hideBorder && "border-b border-border",
+      )}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drop-to-upload overlay */}
+      {isDraggingFile && (
+        <div className="pointer-events-none absolute inset-2 z-20 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary bg-background/90 text-primary motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-150">
+          <Paperclip className="size-6" />
+          <span className="text-sm font-medium">
+            <FormattedMessage id="compose.drop.overlay" defaultMessage="Drop to attach" />
+          </span>
+        </div>
+      )}
+
       {/* Preview toggle at top when not controlled and has previewable content */}
       {hasPreviewableContent && controlledPreviewMode === undefined && (
         <div className="flex items-center justify-end mb-3">
