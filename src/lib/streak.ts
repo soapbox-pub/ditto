@@ -105,6 +105,27 @@ export function sameStreak(a: Streak | undefined, b: Streak | undefined): boolea
   return a?.start === b?.start && a?.end === b?.end;
 }
 
+/** Republish a streak whose `end` moved at least this far, in seconds (12h). */
+const REPUBLISH_THRESHOLD = 43_200;
+
+function spanDays(streak: Streak): number {
+  return Math.max(1, Math.ceil((streak.end - streak.start) / 86_400));
+}
+
+/**
+ * Whether `next` is different enough from the recorded streak to be worth a
+ * signature. Small `end` bumps within the same day are skipped: others see a
+ * slightly stale expiry until the next publish, but never a wrong start.
+ * An unchanged streak never is, even a lapsed one.
+ */
+export function streakNeedsPublish(next: Streak, recorded: Streak | undefined, now = nowSeconds()): boolean {
+  if (sameStreak(next, recorded)) return false;
+  if (!recorded || !isStreakLive(recorded, now)) return true;
+  if (next.start !== recorded.start) return true;
+  if (spanDays(next) !== spanDays(recorded)) return true;
+  return next.end - recorded.end >= REPUBLISH_THRESHOLD;
+}
+
 /** Unix time at which the streak breaks unless something new is posted. */
 export function streakExpiresAt(streak: Streak): number {
   return streak.end + STREAK_WINDOW;

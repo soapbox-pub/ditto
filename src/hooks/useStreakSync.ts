@@ -9,6 +9,7 @@ import { isSyncDone } from '@/hooks/useInitialSync';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { mergeStreakIntoCache, streakQueryKey } from '@/hooks/useStreak';
+import { isAppActive, onAppActiveChange } from '@/lib/appActive';
 import { getEffectiveRelays } from '@/lib/appRelays';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { getStorageKey } from '@/lib/storageKey';
@@ -19,9 +20,9 @@ import {
   mergeStreaks,
   notifyStreakStarted,
   parseStreakEvent,
-  sameStreak,
   STREAK_KIND,
   STREAK_WINDOW,
+  streakNeedsPublish,
   subscribeStreakActivity,
   type Streak,
 } from '@/lib/streak';
@@ -66,11 +67,16 @@ function isAbort(error: unknown): boolean {
  * Keep the logged-in user's posting streak (kind 13473) up to date.
  *
  * - Every creative event published through Ditto advances the streak
- *   immediately in the query cache, and a debounced publish records it.
+ *   immediately in the query cache, and a debounced publish records it —
+ *   only when it changed enough to be worth a signature, and never while
+ *   the app is hidden.
  * - A background repair folds in events posted from other clients, which
  *   never touch the streak event. It walks forward only from the last
  *   recorded `end`, and backward from `start` only when that start hasn't
- *   been verified yet, so it's normally one or two tiny queries.
+ *   been verified yet, so it's normally one or two tiny queries. A repair
+ *   never publishes a user's first streak event — that waits for a post —
+ *   and may prompt on its own only once per account on this device; later
+ *   repairs wait in the cache and ride along with the next post.
  */
 export function useStreakSync(): void {
   const { nostr } = useNostr();
@@ -101,10 +107,15 @@ export function useStreakSync(): void {
     const { signal } = controller;
     const filter = { kinds: [STREAK_KIND], authors: [pubkey] };
     const checkedKey = getStorageKey(appId, `streak-checked-start:${pubkey}`);
+    const repairedKey = getStorageKey(appId, `streak-repaired:${pubkey}`);
 
     /** Best known streak: recorded, repaired, and optimistic updates merged. */
     let current = queryClient.getQueryData<Streak | null>(streakQueryKey(pubkey)) ?? undefined;
     let publishTimer: ReturnType<typeof setTimeout> | undefined;
+    /** A publish came due while hidden; run it when the user is back. */
+    let publishDeferred = false;
+    /** The pending publish was asked for by a repair, not a post. */
+    let repairWantsPublish = false;
     let repairing: Promise<void> | undefined;
     let lastRepairAt = 0;
     let celebratedStart: number | undefined;
@@ -124,12 +135,26 @@ export function useStreakSync(): void {
       const recorded = parseStreakEvent(fresh);
       const next = mergeStreaks(recorded, current);
       update(next);
-      if (!next || sameStreak(next, recorded)) return;
+      if (!next || !streakNeedsPublish(next, recorded)) return;
 
+      // The repair allowance is spent by the prompt itself, so a repair that
+      // needed nothing, or never got to ask, doesn't use it up.
+      if (repairWantsPublish) {
+        repairWantsPublish = false;
+        writeStorage(repairedKey, '1');
+      }
       await publishEvent({ kind: STREAK_KIND, content: '', tags: buildStreakTags(next), prev: fresh ?? undefined });
     };
 
     const runPublish = () => {
+      publishTimer = undefined;
+      // A signer prompt while the user is elsewhere is jarring (and on Android
+      // it yanks them into the signer app), so wait until they're back.
+      if (!isAppActive()) {
+        publishDeferred = true;
+        return;
+      }
+      publishDeferred = false;
       publish().catch((error) => {
         if (!isAbort(error)) console.warn('Streak publish failed:', error);
       });
@@ -138,12 +163,6 @@ export function useStreakSync(): void {
     const schedulePublish = () => {
       if (publishTimer) clearTimeout(publishTimer);
       publishTimer = setTimeout(runPublish, PUBLISH_DEBOUNCE_MS);
-    };
-
-    const flush = () => {
-      if (!publishTimer) return;
-      clearTimeout(publishTimer);
-      runPublish();
     };
 
     const repair = (): Promise<void> => {
@@ -161,7 +180,14 @@ export function useStreakSync(): void {
           update(next);
           lastRepairAt = Date.now();
 
-          if (current && !sameStreak(mergeStreaks(recorded, current), recorded)) schedulePublish();
+          // A repair only ever updates a streak the user already has: someone
+          // who has never recorded one gets their first from their next post
+          // here, not a signer prompt while they're just browsing.
+          const merged = mergeStreaks(recorded, current);
+          if (recorded && merged && readStorage(repairedKey) !== '1' && streakNeedsPublish(merged, recorded)) {
+            repairWantsPublish = true;
+            schedulePublish();
+          }
         } finally {
           repairing = undefined;
         }
@@ -207,22 +233,20 @@ export function useStreakSync(): void {
 
     const startTimer = setTimeout(() => whenIdle(runRepair), REPAIR_DELAY_MS);
 
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') flush();
-      else runRepair();
-    };
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    window.addEventListener('pagehide', flush);
+    const unsubscribeActive = onAppActiveChange((active) => {
+      if (!active) return;
+      if (publishDeferred) runPublish();
+      runRepair();
+    });
 
     return () => {
       // A pending publish is dropped rather than flushed: on an account switch
-      // the signer already belongs to someone else. The next repair recovers it.
+      // the signer already belongs to someone else. The next post recovers it.
       controller.abort();
       unsubscribe();
       clearTimeout(startTimer);
       if (publishTimer) clearTimeout(publishTimer);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      window.removeEventListener('pagehide', flush);
+      unsubscribeActive();
     };
   }, [pubkey, appId, nostr, store, queryClient]);
 }
