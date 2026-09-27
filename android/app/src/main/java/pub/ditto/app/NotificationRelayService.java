@@ -25,6 +25,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.net.ConnectException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,6 +35,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+
+import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLPeerUnverifiedException;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -53,10 +58,15 @@ import okhttp3.WebSocketListener;
  *   that relay (plus {@code since}). Events arrive the moment a relay accepts
  *   them — no polling latency.
  * - OkHttp pingInterval keeps sockets alive through NATs and detects silent
- *   drops; failures reconnect with exponential backoff (1s → 5 min cap).
+ *   drops; failures reconnect with exponential backoff (1s → 5 min cap). A
+ *   circuit breaker quarantines a relay after three failures in a row, over
+ *   at least ten minutes, that retrying can't fix (DNS, refused/TLS, HTTP
+ *   error, auth wall) until the network returns, the config changes, or the
+ *   app comes forward.
  * - A network callback reconnects immediately when connectivity returns.
- * - Config changes (login/logout/relay or preference changes) rebuild the
- *   connections via a SharedPreferences listener.
+ * - Config changes (login/logout/relay or preference changes) reach the
+ *   service via a SharedPreferences listener. Open sockets are kept and
+ *   re-REQ'd only if their filters changed; an account switch starts over.
  * - Rich text needs context: the referenced event (for "reacted to your
  *   post: …" snippets and ownership checks) and the author's kind-0 profile
  *   (for the sender's name + avatar). Both resolve through one-shot REQs
@@ -87,6 +97,16 @@ public class NotificationRelayService extends Service {
     // (auth-walled, overloaded, misbehaving proxy) reconnected every 1s
     // forever — a battery-melting hot loop while the phone sleeps.
     private static final long STABLE_CONNECTION_MS = 60_000;
+
+    // A relay is quarantined only after this many permanent-looking failures
+    // in a row (see classifyFailure) that have also kept failing for at least
+    // QUARANTINE_AFTER_MS. The count alone isn't enough: with the backoff
+    // starting at 1s, three strikes land within ~7s, so a relay refusing
+    // connections through a restart would be written off until the app next
+    // came forward. Ten minutes of failing is several retries at the growing
+    // backoff, well past any restart.
+    private static final int PERMANENT_FAILURE_THRESHOLD = 3;
+    private static final long QUARANTINE_AFTER_MS = 10 * 60 * 1_000;
 
     // Referenced-event / profile lookups resolve with whatever arrived once
     // this timeout expires, so a slow relay can't hold a notification hostage.
@@ -121,6 +141,9 @@ public class NotificationRelayService extends Service {
     // backfill batch (reconnect) already arrives as a crowd, so it skips the
     // hold; iOS polls a batch and has no leading edge, so this is Android-only.
     private static final long STASIS_MS = 12_000;
+
+    // The running service, for the app-foreground edge (see onAppForegrounded).
+    private static volatile NotificationRelayService instance;
 
     private OkHttpClient httpClient;
     private NostrPoller poller;
@@ -254,6 +277,22 @@ public class NotificationRelayService extends Service {
 
         registerNetworkCallback();
         registerConfigListener();
+        instance = this;
+    }
+
+    /**
+     * The app came to the foreground: give every quarantined relay one fresh
+     * look. Called from {@link MainActivity#onResume}; only the transition
+     * re-arms, so quarantine still holds for as long as the app stays away.
+     */
+    static void onAppForegrounded() {
+        NotificationRelayService svc = instance;
+        if (svc == null) return;
+        svc.handler.post(() -> {
+            for (RelayConnection rc : svc.connections) {
+                if (rc.quarantined) rc.onFleetEdge();
+            }
+        });
     }
 
     @Override
@@ -278,6 +317,7 @@ public class NotificationRelayService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        if (instance == this) instance = null;
         closeAllConnections();
         unregisterNetworkCallback();
         unregisterConfigListener();
@@ -296,6 +336,7 @@ public class NotificationRelayService extends Service {
 
     private void loadConfigAndReconnect() {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String previousPubkey = userPubkey;
         userPubkey = prefs.getString("userPubkey", null);
 
         follows.clear();
@@ -316,13 +357,43 @@ public class NotificationRelayService extends Service {
             return;
         }
 
-        // Rebuild all connections with the current filters.
-        closeAllConnections();
-        for (String url : relayFilters.keySet()) {
-            RelayConnection rc = new RelayConnection(url);
-            connections.add(rc);
-            rc.connect();
+        // A different account starts over: nothing held for the last one
+        // (sockets, held events, lookups) may carry across.
+        if (previousPubkey != null && !previousPubkey.equals(userPubkey)) {
+            closeAllConnections();
         }
+
+        // Otherwise reuse what's already there. Tearing every socket down on
+        // each config change (a follow, a relay or preference edit) cost a TLS
+        // handshake and a full backfill REQ per relay, and redialed relays
+        // that were down straight out of their retry wait. Now an open socket
+        // keeps going and gets a fresh REQ only if its filters changed; one
+        // waiting out a backoff keeps its wait and picks the new filters up
+        // when it connects; a quarantined one gets one fresh look, since the
+        // change may be what fixes it.
+        Map<String, RelayConnection> existing = new HashMap<>();
+        for (RelayConnection rc : connections) existing.put(rc.relayUrl, rc);
+        connections.clear();
+        for (String url : relayFilters.keySet()) {
+            RelayConnection rc = existing.remove(url);
+            if (rc == null || rc.closed) {
+                rc = new RelayConnection(url);
+                connections.add(rc);
+                rc.connect();
+                continue;
+            }
+            connections.add(rc);
+            if (rc.quarantined) {
+                rc.onFleetEdge();
+            } else if (rc.socketOpen && rc.ws != null
+                    && !filterSignature(relayFilters.get(url)).equals(rc.reqSignature)) {
+                rc.sendMainReq(rc.ws);
+            } else if (rc.ws == null && !rc.retryPending) {
+                rc.connect();
+            }
+        }
+        // Relays the new config no longer names.
+        for (RelayConnection gone : existing.values()) gone.close();
     }
 
     /** Group the subscriptions' filters by the relays they name. */
@@ -409,11 +480,34 @@ public class NotificationRelayService extends Service {
         WebSocket ws;
         long backoffMs = INITIAL_BACKOFF_MS;
         boolean closed = false;
+        // The current socket finished its handshake (main thread only).
+        boolean socketOpen = false;
 
         // When the current connection attempt started (main thread only).
-        // Used by scheduleReconnect to distinguish "stable connection finally
+        // Used by endSession to distinguish "stable connection finally
         // died" (reset backoff) from "relay drops us right away" (keep growing).
         long connectAttemptAt = 0;
+
+        // Circuit breaker (see endSession). Consecutive sessions that ended
+        // permanent-given-conditions, and whether that tally tripped: a
+        // quarantined relay holds no socket and schedules no retry until
+        // onFleetEdge re-arms it. firstPermanentAt is when the current run of
+        // permanent failures began (0 when there is none).
+        int consecutivePermanent = 0;
+        long firstPermanentAt = 0;
+        boolean quarantined = false;
+        // A reconnect is scheduled after a backoff delay; a config reload keeps
+        // the wait instead of redialing (see loadConfigAndReconnect).
+        boolean retryPending = false;
+
+        // This session's main REQ came back CLOSED auth-required. The service
+        // has no signer to answer NIP-42, so the socket can deliver nothing.
+        boolean mainWalled = false;
+        // This session delivered at least one event on the main subscription.
+        boolean deliveredAnything = false;
+        // The filters the main REQ was last sent with, to tell on a config
+        // reload whether this socket needs a fresh REQ.
+        String reqSignature = null;
 
         // Single pending reconnect, cancellable — prevents a queued reconnect
         // and the network callback from racing to open duplicate sockets.
@@ -440,16 +534,24 @@ public class NotificationRelayService extends Service {
             // it, a stale queued reconnect firing after the network callback
             // already reconnected would open a second socket and orphan the
             // first — leaked sockets keep pinging and re-failing forever.
-            if (closed || ws != null || !isNetworkAvailable()) return;
+            retryPending = false;
+            if (closed || quarantined || ws != null || !isNetworkAvailable()) return;
             connectAttemptAt = System.currentTimeMillis();
+            socketOpen = false;
             mainEosed = false;
+            mainWalled = false;
+            deliveredAnything = false;
             backfill.clear();
             Request request = new Request.Builder().url(relayUrl).build();
             ws = httpClient.newWebSocket(request, new WebSocketListener() {
                 @Override
                 public void onOpen(WebSocket webSocket, Response response) {
                     Log.d(TAG, "WS open: " + relayUrl);
-                    sendMainReq(webSocket);
+                    handler.post(() -> {
+                        if (closed || webSocket != ws) return;
+                        socketOpen = true;
+                        sendMainReq(webSocket);
+                    });
                 }
 
                 @Override
@@ -459,21 +561,27 @@ public class NotificationRelayService extends Service {
 
                 @Override
                 public void onFailure(WebSocket webSocket, Throwable t, Response response) {
-                    Log.w(TAG, "WS failure (" + relayUrl + "): " + t.getMessage());
-                    handler.post(RelayConnection.this::scheduleReconnect);
+                    // A non-101 upgrade carries its HTTP status in `response`; a
+                    // real socket failure has none (code 0).
+                    int httpCode = response != null ? response.code() : 0;
+                    Log.w(TAG, "WS failure (" + relayUrl + "): " + t.getMessage()
+                            + (httpCode != 0 ? " [HTTP " + httpCode + "]" : ""));
+                    handler.post(() -> endSession(webSocket, classifyFailure(t, httpCode)));
                 }
 
                 @Override
                 public void onClosed(WebSocket webSocket, int code, String reason) {
-                    handler.post(() -> {
-                        if (!closed) scheduleReconnect();
-                    });
+                    handler.post(() -> endSession(webSocket, null));
                 }
             });
         }
 
         void sendMainReq(WebSocket webSocket) {
             try {
+                // Fresh main subscription (a REQ reusing the id replaces the old
+                // one): its backfill buffers again until the new EOSE.
+                mainEosed = false;
+                backfill.clear();
                 long lastSeen = poller.getLastSeenTimestamp();
                 if (lastSeen == 0) {
                     // Cold start seeds the cursor to NOW, not a rewind: a fresh
@@ -488,6 +596,7 @@ public class NotificationRelayService extends Service {
 
                 List<JSONObject> filters = relayFilters.get(relayUrl);
                 if (filters == null || filters.isEmpty()) return;
+                reqSignature = filterSignature(filters);
 
                 JSONArray req = new JSONArray();
                 req.put("REQ");
@@ -542,23 +651,77 @@ public class NotificationRelayService extends Service {
             } catch (Exception ignored) {}
         }
 
-        void scheduleReconnect() {
-            if (closed) return;
+        /**
+         * The main REQ was closed auth-required. Nothing here can answer
+         * NIP-42, so the socket would sit open delivering nothing while it
+         * pings; end the session now and let the circuit breaker count it.
+         */
+        void onMainWalled() {
+            mainWalled = true;
+            WebSocket socket = ws;
+            if (socket == null) return;
+            try { socket.close(1000, "auth-required"); } catch (Exception ignored) {}
+            endSession(socket, null);
+        }
+
+        /**
+         * {@code socket} is gone (failed to open, or opened then died). Retry
+         * after a growing delay, or — once {@link #PERMANENT_FAILURE_THRESHOLD}
+         * sessions in a row, spanning at least {@link #QUARANTINE_AFTER_MS},
+         * ended in a way retrying can't fix (host doesn't resolve,
+         * connection/TLS refused, an HTTP error instead of an upgrade, or
+         * auth-walled with nothing delivered) — quarantine the relay: no
+         * socket and no retry until {@link #onFleetEdge} re-arms it. Without
+         * this a dead relay was redialed every five minutes forever, and from
+         * one second again on every network change. {@code failure} is the
+         * transport's classification of an onFailure, or null for a close.
+         * Callbacks from a socket that is no longer current are ignored, so an
+         * old socket's late onClosed can't schedule a second reconnect.
+         */
+        void endSession(WebSocket socket, FailureKind failure) {
+            if (closed || socket == null || socket != ws) return;
+            boolean wasOpen = socketOpen;
+            socketOpen = false;
             ws = null;
-            // Only a connection that stayed up for a while earns a backoff
-            // reset; instant drops keep doubling toward the 5-minute cap.
-            if (connectAttemptAt > 0
-                    && System.currentTimeMillis() - connectAttemptAt >= STABLE_CONNECTION_MS) {
-                backoffMs = INITIAL_BACKOFF_MS;
+            long uptime = wasOpen && connectAttemptAt > 0
+                    ? System.currentTimeMillis() - connectAttemptAt : 0;
+            boolean permanent = failure == FailureKind.PERMANENT
+                    || (wasOpen && mainWalled && !deliveredAnything);
+
+            handler.removeCallbacks(reconnectRunnable);
+            retryPending = false;
+            if (permanent) {
+                long now = System.currentTimeMillis();
+                if (consecutivePermanent == 0) firstPermanentAt = now;
+                consecutivePermanent++;
+                if (consecutivePermanent >= PERMANENT_FAILURE_THRESHOLD
+                        && now - firstPermanentAt >= QUARANTINE_AFTER_MS) {
+                    quarantined = true;
+                    Log.w(TAG, "Quarantined " + relayUrl
+                            + "; no retry until a network, config or foreground change");
+                    return;
+                }
+            } else {
+                // Anything retrying might fix breaks the run.
+                consecutivePermanent = 0;
+                firstPermanentAt = 0;
+                if (wasOpen && uptime >= STABLE_CONNECTION_MS) {
+                    // Only a connection that stayed up for a while earns a
+                    // backoff reset; instant drops keep doubling toward the
+                    // 5-minute cap.
+                    backoffMs = INITIAL_BACKOFF_MS;
+                }
             }
             long delay = backoffMs;
             backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
-            handler.removeCallbacks(reconnectRunnable);
             handler.postDelayed(reconnectRunnable, delay);
+            retryPending = true;
         }
 
         void close() {
             closed = true;
+            retryPending = false;
+            socketOpen = false;
             handler.removeCallbacks(reconnectRunnable);
             if (ws != null) {
                 try { ws.close(1000, "service reconfigured"); } catch (Exception ignored) {}
@@ -566,11 +729,57 @@ public class NotificationRelayService extends Service {
             }
         }
 
-        void resetAndConnectNow() {
+        /**
+         * Something changed that could change the outcome — connectivity
+         * returned, the config was rebuilt, or the app came forward. Clear any
+         * quarantine and backoff, and connect now if there's no socket.
+         */
+        void onFleetEdge() {
+            if (closed) return;
+            quarantined = false;
+            consecutivePermanent = 0;
+            firstPermanentAt = 0;
             backoffMs = INITIAL_BACKOFF_MS;
             handler.removeCallbacks(reconnectRunnable);
-            if (ws == null && !closed) connect();
+            retryPending = false;
+            if (ws == null) connect();
         }
+    }
+
+    /** How a socket failure bears on the circuit breaker. */
+    enum FailureKind { PERMANENT, TRANSIENT }
+
+    /**
+     * Classify a socket failure. Deliberately conservative: only a host that
+     * doesn't resolve, a connection refused or failing TLS, and a WebSocket
+     * upgrade answered with an HTTP error are permanent — everything else
+     * (timeouts, protocol errors, a mid-session drop) is retried on the
+     * bounded backoff. {@code httpCode} is the status of a failed upgrade, or 0
+     * when no HTTP response arrived. 408 and 429 mean "try later", so they
+     * stay transient; a relay 503ing or refusing through a restart still
+     * recovers, since quarantine also needs {@link #QUARANTINE_AFTER_MS} of
+     * failing. Ported from Armada.
+     */
+    static FailureKind classifyFailure(Throwable t, int httpCode) {
+        if (httpCode >= 400 && httpCode != 408 && httpCode != 429) {
+            return FailureKind.PERMANENT;
+        }
+        int hops = 0;
+        for (Throwable c = t; c != null && hops < 8; c = c.getCause(), hops++) {
+            if (c instanceof UnknownHostException
+                    || c instanceof ConnectException
+                    || c instanceof SSLHandshakeException
+                    || c instanceof SSLPeerUnverifiedException) {
+                return FailureKind.PERMANENT;
+            }
+        }
+        return FailureKind.TRANSIENT;
+    }
+
+    /** A stable string for a relay's filter list, to detect a changed REQ. */
+    private static String filterSignature(List<JSONObject> filters) {
+        if (filters == null) return "";
+        return new JSONArray(filters).toString();
     }
 
     private static String reqMessage(String subId, JSONObject filter) throws JSONException {
@@ -609,7 +818,11 @@ public class NotificationRelayService extends Service {
 
             if ("CLOSED".equals(type)) {
                 String sub = msg.optString(1);
-                Log.w(TAG, "CLOSED from " + rc.relayUrl + " sub=" + sub + " reason=" + msg.optString(2));
+                String reason = msg.optString(2);
+                Log.w(TAG, "CLOSED from " + rc.relayUrl + " sub=" + sub + " reason=" + reason);
+                if (rc.subMain.equals(sub) && reason.startsWith("auth-required")) {
+                    rc.onMainWalled();
+                }
                 return;
             }
 
@@ -643,6 +856,7 @@ public class NotificationRelayService extends Service {
             }
 
             if (rc.subMain.equals(sub)) {
+                rc.deliveredAnything = true;
                 if (rc.mainEosed) {
                     // Live singleton: hold non-followed senders in stasis so the
                     // crowd forms before any of the burst fires. Backfill (below)
@@ -1027,7 +1241,7 @@ public class NotificationRelayService extends Service {
                 Log.d(TAG, "Network available, reconnecting");
                 handler.post(() -> {
                     for (RelayConnection rc : connections) {
-                        rc.resetAndConnectNow();
+                        rc.onFleetEdge();
                     }
                 });
             }

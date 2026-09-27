@@ -67,6 +67,13 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        // Coming forward re-arms any relay the notification service gave up on.
+        NotificationRelayService.onAppForegrounded();
+    }
+
+    @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         // Handle a share that arrives while the app is already running
