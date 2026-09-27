@@ -22,6 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
+import { ExternalIdentityLinks } from '@/components/ExternalIdentityLinks';
 import { NoteCard } from '@/components/NoteCard';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
@@ -2517,6 +2518,11 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                     {metadata.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                   </a>
                 </div>
+              )}
+
+              {/* Linked accounts on other platforms (NIP-39 kind 10011) */}
+              {supplementary && supplementary.externalIdentities.length > 0 && (
+                <ExternalIdentityLinks identities={supplementary.externalIdentities} className="mt-2" />
               )}
 
                {/* Followers / Following / Loved counts */}

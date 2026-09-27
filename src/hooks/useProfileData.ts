@@ -5,6 +5,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { LOVE_LIST_KIND, loveListPubkeys } from '@/hooks/useLoveList';
 import { mergeStreakIntoCache } from '@/hooks/useStreak';
 import { TOP8_KIND, top8Pubkeys } from '@/hooks/useTop8';
+import { EXTERNAL_IDENTITIES_KIND, type ExternalIdentity, parseExternalIdentities } from '@/lib/externalIdentities';
 import { normalizeTagValue } from '@/lib/hashtag';
 import { STREAK_KIND } from '@/lib/streak';
 
@@ -40,13 +41,18 @@ export interface ProfileSupplementary {
   interests: string[];
   /** Raw kind 10015 event. */
   interestsEvent?: NostrEvent;
+  /** Linked accounts on other platforms (from NIP-39 kind 10011). */
+  externalIdentities: ExternalIdentity[];
+  /** Raw kind 10011 event. */
+  externalIdentitiesEvent?: NostrEvent;
 }
 
 /**
  * Fetch follow list (kind 3), pinned notes (kind 10001), love list
  * (kind 15683), Top 8 (kind 18678, both see NIP.md), and interests
- * (kind 10015) for a pubkey, and seed their posting streak (kind 13473, see
- * NIP.md) into useStreak's cache. Profile tabs (kind 16769) are fetched separately
+ * (kind 10015), and external identities (NIP-39 kind 10011) for a pubkey,
+ * and seed their posting streak (kind 13473, see NIP.md) into useStreak's
+ * cache. Profile tabs (kind 16769) are fetched separately
  * by useProfileTabs to avoid stale-seed race conditions with
  * usePublishProfileTabs.
  */
@@ -57,7 +63,7 @@ export function useProfileSupplementary(pubkey: string | undefined) {
   return useQuery<ProfileSupplementary>({
     queryKey: ['profile-supplementary', pubkey ?? ''],
     queryFn: async () => {
-      if (!pubkey) return { following: [], pinnedIds: [], loved: [], top8: [], interests: [] };
+      if (!pubkey) return { following: [], pinnedIds: [], loved: [], top8: [], interests: [], externalIdentities: [] };
 
       const events = await nostr.query(
         [
@@ -66,6 +72,7 @@ export function useProfileSupplementary(pubkey: string | undefined) {
           { kinds: [LOVE_LIST_KIND], authors: [pubkey], limit: 1 },
           { kinds: [TOP8_KIND], authors: [pubkey], limit: 1 },
           { kinds: [10015], authors: [pubkey], limit: 1 },
+          { kinds: [EXTERNAL_IDENTITIES_KIND], authors: [pubkey], limit: 1 },
           { kinds: [STREAK_KIND], authors: [pubkey], limit: 1 },
         ],
         { signal: AbortSignal.timeout(8000) },
@@ -76,6 +83,7 @@ export function useProfileSupplementary(pubkey: string | undefined) {
       const loveListEvent = latest(events, LOVE_LIST_KIND);
       const top8Event = latest(events, TOP8_KIND);
       const interestsEvent = latest(events, 10015);
+      const externalIdentitiesEvent = latest(events, EXTERNAL_IDENTITIES_KIND);
 
       // Seed pinned notes cache so usePinnedNotes doesn't re-fetch
       queryClient.setQueryData(['pinned-notes', pubkey], kind10001 ?? null);
@@ -113,6 +121,8 @@ export function useProfileSupplementary(pubkey: string | undefined) {
         top8Event,
         interests,
         interestsEvent,
+        externalIdentities: parseExternalIdentities(externalIdentitiesEvent),
+        externalIdentitiesEvent,
       };
     },
     enabled: !!pubkey,
