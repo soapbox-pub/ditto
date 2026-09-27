@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.42.1] - 2026-09-27
+
+Muted means muted: people you've muted can no longer reach you through browser push notifications. Ditto also stops asking your signer to unlock your mute list every time you open the app, so fewer prompts and a faster start when you log in with an extension or remote signer.
+
+### Changed
+- Ditto remembers your mute list between visits instead of asking your signer to unlock it on every load
+
+### Fixed
+- Browser push notifications no longer show activity from people you've muted
+
 ## [2.42.0] - 2026-09-26
 
 Light the fire: posting streaks are here. Post every day and a 🔥 with your day count shows on your profile, with a heads-up before it breaks and a little celebration when a new one starts. Push notifications got smarter too: tap one to jump straight to the post, reply or mark it read from the notification, and see on-chain zaps, voice messages, quiz results, and highlights described properly. Your posts also reach your own relays even when you browse with Ditto's.
