@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.42.2] - 2026-09-27
+
+Profiles now show off the accounts people have linked on other sites, like GitHub, Mastodon, Bluesky, Twitter, Telegram, and Discord, as little icon badges in their profile header. When someone updates their linked accounts it shows up in your feed, with links to the proof posts so you can check the claims yourself.
+
+### Added
+- Profiles show the accounts someone has linked on GitHub, Mastodon, Bluesky, Twitter, Telegram, and Discord
+- Linked account updates appear in feeds, with a page listing each account and a link to its proof post
+- A "Linked Accounts" feed setting to hide those updates
+
 ## [2.42.1] - 2026-09-27
 
 Muted means muted: people you've muted can no longer reach you through browser push notifications. Ditto also stops asking your signer to unlock your mute list every time you open the app, so fewer prompts and a faster start when you log in with an extension or remote signer.
