@@ -427,8 +427,9 @@ an `nsec` sits in `localStorage`, that distinction is the difference between an
 XSS being contained and it being instant key theft. **Do not add
 `unsafe-eval` to make Monero work.**
 
-`monero-ts` ships one call that violates it. `GenUtils.isBrowser()` detects its
-environment by building throwaway functions from source:
+`monero-ts` before 0.11.16 shipped one call that violated it.
+`GenUtils.isBrowser()` detected its environment by building throwaway functions
+from source:
 
 ```js
 new Function("try {return this===window;}catch(e){return false;}")()
@@ -447,27 +448,14 @@ Policy directive because 'unsafe-eval' is not an allowed source of script:
 script-src 'self' 'wasm-unsafe-eval'
 ```
 
-`scripts/patch-monero-csp.mjs` rewrites both calls to equivalent CSP-safe
-expressions, and runs from `postinstall`. It patches two files: the readable
-CommonJS source, and the inlined copy inside the prebuilt webpack bundle
-`dist/monero.worker.js`.
+Ditto used to rewrite these calls with a postinstall patch. The fix landed
+upstream in [woodser/monero-ts#330](https://github.com/woodser/monero-ts/pull/330)
+and shipped in 0.11.16, so the patch is gone — **don't downgrade `monero-ts`
+below 0.11.16.**
 
-It is a postinstall patch rather than a Vite plugin because a Rollup
-`transform` hook would catch both in a production build but miss the dev
-server, where Vite pre-bundles CommonJS deps with esbuild and plugin transforms
-don't run. Every Ditto npm script starts with `npm i`, so the patch is always
-current. The script is idempotent and **exits non-zero if it finds neither the
-original code nor its own replacement**, so a `monero-ts` bump that moves this
-code fails the install loudly instead of shipping a build that dies under CSP.
-
-The same fix is submitted upstream as
-[woodser/monero-ts#330](https://github.com/woodser/monero-ts/pull/330). If it
-lands, bumping `monero-ts` past it makes the script redundant — the patch will
-fail the install, which is the signal to delete it and its `postinstall` entry
-rather than re-point it at new line numbers.
-
-Three other `Function(...)` call sites survive into the bundle and are all
-harmless: lodash's `freeGlobal || freeSelf || Function('return this')()`
+A few other `Function(...)` call sites survive into the bundle and are all
+harmless: webpack's runtime `r.g` global shim returns `globalThis` before it
+reaches `new Function("return this")`; lodash's `freeGlobal || freeSelf || Function('return this')()`
 short-circuits on `self` in every browser and worker; `function-bind`'s shim is
 unreachable because `Function.prototype.bind` is native; and
 `is-generator-function`'s probe is wrapped in a real `try`/`catch`. The last
