@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { isNostrId } from '@/lib/nostrId';
+import { isLocalNetworkUrl } from '@/lib/sanitizeUrl';
 import { fetchAuthorWriteRelays, type OutboxPool } from '@/lib/outbox';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { useCacheFirstSeed } from '@/hooks/useCacheFirstSeed';
@@ -24,11 +25,12 @@ async function queryRelayGroup(
   signal: AbortSignal,
 ): Promise<NostrEvent | null> {
   // Hints come from shared links and events, so keep only well-formed wss:
-  // URLs and cap how many relays one lookup can make us connect to.
+  // URLs on a public host and cap how many relays one lookup can make us
+  // connect to. A loopback/LAN hint is a blind probe of the viewer's network.
   const relays = [...new Set(urls.flatMap((url) => {
     try {
       const parsed = new URL(url);
-      return parsed.protocol === 'wss:' ? [parsed.href] : [];
+      return parsed.protocol === 'wss:' && !isLocalNetworkUrl(parsed.href) ? [parsed.href] : [];
     } catch {
       return [];
     }

@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
 import { Link } from 'react-router-dom';
-import { FormattedMessage, useIntl } from 'react-intl';
-import { Plus, X, Settings, Server, Shield, Zap } from 'lucide-react';
+import { FormattedMessage, FormattedTime, useIntl } from 'react-intl';
+import { AlertTriangle, Plus, X, Settings, Server, Shield, Zap } from 'lucide-react';
 import { HelpTip } from '@/components/HelpTip';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -17,7 +17,16 @@ import { useRelayInfo } from '@/hooks/useRelayInfo';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useToast } from '@/hooks/useToast';
-import { APP_RELAYS } from '@/lib/appRelays';
+import { APP_RELAYS, getEffectiveRelays } from '@/lib/appRelays';
+import {
+  MAX_READ_RELAYS,
+  clearRelaySkip,
+  getReadRelayUrls,
+  getRelayHealthSnapshot,
+  relaySkippedUntil,
+  subscribeRelayHealth,
+} from '@/lib/relayHealth';
+import { isRelayBlocked, relayMatchKey } from '@/lib/relayPolicy';
 import { cn } from '@/lib/utils';
 
 interface Relay {
@@ -108,6 +117,50 @@ function RelayIdentity({ url }: { url: string }) {
   );
 }
 
+/** Why a read relay isn't being read from, if it isn't. */
+function RelayReadStatus({ url, overLimit }: { url: string; overLimit: boolean }) {
+  // Re-render when relay health changes.
+  useSyncExternalStore(subscribeRelayHealth, getRelayHealthSnapshot);
+  const skippedUntil = relaySkippedUntil(url);
+
+  if (skippedUntil) {
+    return (
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-amber-700 dark:text-amber-400">
+        <span className="flex items-center gap-1">
+          <AlertTriangle className="size-3 shrink-0" aria-hidden="true" />
+          <FormattedMessage
+            id="settings.network.relaySkipped"
+            defaultMessage="Not responding. Skipped for reading until {time}."
+            values={{ time: <FormattedTime value={skippedUntil} /> }}
+          />
+        </span>
+        <Button
+          variant="link"
+          size="sm"
+          onClick={() => clearRelaySkip(url)}
+          className="h-auto p-0 text-[11px] text-amber-700 dark:text-amber-400"
+        >
+          <FormattedMessage id="settings.network.relayRetry" defaultMessage="Retry now" />
+        </Button>
+      </div>
+    );
+  }
+
+  if (overLimit) {
+    return (
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        <FormattedMessage
+          id="settings.network.relayOverLimit"
+          defaultMessage="Not read from. Only the first {max} read relays are used."
+          values={{ max: MAX_READ_RELAYS }}
+        />
+      </p>
+    );
+  }
+
+  return null;
+}
+
 export function RelayListManager() {
   const intl = useIntl();
   const { config, updateConfig } = useAppContext();
@@ -117,6 +170,16 @@ export function RelayListManager() {
   const { toast } = useToast();
 
   const [relays, setRelays] = useState<Relay[]>(config.relayMetadata.relays);
+
+  // Which read relays queries actually go to, so the rest can say why not.
+  useSyncExternalStore(subscribeRelayHealth, getRelayHealthSnapshot);
+  const readKeys = new Set(
+    getReadRelayUrls(getEffectiveRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays))
+      .map(relayMatchKey),
+  );
+  const isOverLimit = (relay: Relay, enabled: boolean): boolean =>
+    enabled && relay.read && !readKeys.has(relayMatchKey(relay.url)) &&
+    !relaySkippedUntil(relay.url) && !isRelayBlocked(relay.url);
   const [newRelayUrl, setNewRelayUrl] = useState('');
 
   // Sync local relay state with config when it changes (e.g., from NostrProvider sync)
@@ -329,9 +392,16 @@ export function RelayListManager() {
               key={relay.url}
               className="flex items-center gap-3 py-2.5 px-3 hover:bg-muted/20 transition-colors"
             >
-              <Link to={`/r/${encodeURIComponent(relay.url)}`} className="min-w-0 flex-1">
-                <RelayIdentity url={relay.url} />
-              </Link>
+              <div className="min-w-0 flex-1">
+                <Link to={`/r/${encodeURIComponent(relay.url)}`} className="flex min-w-0">
+                  <RelayIdentity url={relay.url} />
+                </Link>
+                {relay.read && config.useAppRelays && (
+                  <div className="pl-11">
+                    <RelayReadStatus url={relay.url} overLimit={isOverLimit(relay, config.useAppRelays)} />
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-1 text-[10px]">
                 {relay.read && (
                   <span className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 font-medium"><FormattedMessage id="settings.network.read" defaultMessage={"Read"} /></span>
@@ -383,9 +453,16 @@ export function RelayListManager() {
                   key={relay.url}
                   className="flex items-center gap-3 py-2.5 px-3 hover:bg-muted/20 transition-colors"
                 >
-                  <Link to={`/r/${encodeURIComponent(relay.url)}`} className="min-w-0 flex-1">
-                    <RelayIdentity url={relay.url} />
-                  </Link>
+                  <div className="min-w-0 flex-1">
+                    <Link to={`/r/${encodeURIComponent(relay.url)}`} className="flex min-w-0">
+                      <RelayIdentity url={relay.url} />
+                    </Link>
+                    {relay.read && config.useUserRelays && (
+                      <div className="pl-11">
+                        <RelayReadStatus url={relay.url} overLimit={isOverLimit(relay, config.useUserRelays)} />
+                      </div>
+                    )}
+                  </div>
 
                   {/* Settings Popover */}
                   <Popover>

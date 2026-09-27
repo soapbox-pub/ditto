@@ -6,6 +6,7 @@ import type { NostrSigner } from '@nostrify/types';
 import { useAppContext } from '@/hooks/useAppContext';
 import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
 import { getEffectiveRelays, getPublishRelays, DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
+import { getReadRelayUrls, recordRelayFailure, recordRelayOpen } from '@/lib/relayHealth';
 import { routeReadRelays } from '@/lib/reqRoutes';
 import { AppPool } from '@/lib/AppPool';
 import { EventVerifier } from '@/lib/EventVerifier';
@@ -18,7 +19,7 @@ import {
   loadBlockedRelays,
   normalizeRelayUrl,
   onBlockedRelaysChange,
-  relayMatchKey,
+  relayBlockKey,
   requestRelayAuth,
   resetRelayAuthSession,
   setUnblockableRelays,
@@ -222,6 +223,11 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
           return new BlockedRelay(url.href) as unknown as NRelay1;
         }
         const relay: AuthAwareRelay = new AuthAwareRelay(url.href, {
+          // Track which relays answer, so reads skip ones that keep failing.
+          log: (log) => {
+            if (log.ns === 'relay.ws.state' && log.state === 'open') recordRelayOpen(url.href);
+            else if (log.ns === 'relay.ws.error') recordRelayFailure(url.href);
+          },
           // Every read relay receives the same REQ, so a popular event is
           // verified once per connection. Cache by id to pay for it once.
           verifyEvent: verifier.current!.verify,
@@ -258,9 +264,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         return relay;
       },
       reqRouter(filters: NostrFilter[]): Map<URL['href'], NostrFilter[]> {
-        const readRelays = effectiveRelays.current.relays
-          .filter(r => r.read)
-          .map(r => r.url);
+        const readRelays = getReadRelayUrls(effectiveRelays.current);
         const urls = withoutBlockedRelays(routeReadRelays(filters, readRelays));
         return new Map(urls.map((url) => [url, filters]));
       },
@@ -280,14 +284,14 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // takes effect for relays not yet opened. When the blocked set changes,
   // close and forget the affected relays: a newly blocked relay's live
   // connection ends, and an unblocked one is reopened for real on next use.
-  // Pool keys are the URLs as callers wrote them, so compare match keys.
+  // Pool keys are the URLs as callers wrote them, so compare block keys.
   useEffect(() => {
     return onBlockedRelaysChange((changed) => {
       // NPool only exposes its relay map read-only; it is a Map at runtime.
       const relays = pool.current?.relays as Map<string, NRelay1> | undefined;
       if (!relays) return;
       for (const [key, relay] of [...relays]) {
-        const matchKey = relayMatchKey(key);
+        const matchKey = relayBlockKey(key);
         if (matchKey && changed.includes(matchKey)) {
           relays.delete(key);
           void relay.close();

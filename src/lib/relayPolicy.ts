@@ -28,15 +28,32 @@ export function normalizeRelayUrl(url: string): string | undefined {
 }
 
 /**
- * What identifies a relay for blocking: host, port and path, without the
- * scheme or a trailing slash. `ws://x`, `wss://x/` and `WSS://X` are one relay,
- * so a block can't be sidestepped by spelling the URL differently.
+ * What identifies a relay: host, port and path, without the scheme or a
+ * trailing slash. `ws://x`, `wss://x/` and `WSS://X` are one relay.
  */
 export function relayMatchKey(url: string): string | undefined {
   const href = normalizeRelayUrl(url);
   if (!href) return undefined;
   const parsed = new URL(href);
   return `${parsed.host}${parsed.pathname.replace(/\/+$/, '')}${parsed.search}`;
+}
+
+/**
+ * What identifies a relay for blocking: its host and port. A block covers
+ * every path on the host, so `wss://filter.nostr.wine/npub1…` can't slip past
+ * a block of `wss://filter.nostr.wine`.
+ */
+export function relayBlockKey(url: string): string | undefined {
+  const href = normalizeRelayUrl(url);
+  return href ? new URL(href).host : undefined;
+}
+
+/** The URL a block is saved as: the relay's origin, without path or query. */
+export function relayBlockUrl(url: string): string | undefined {
+  const href = normalizeRelayUrl(url);
+  if (!href) return undefined;
+  const parsed = new URL(href);
+  return `${parsed.protocol}//${parsed.host}/`;
 }
 
 // ---------------------------------------------------------------------------
@@ -48,11 +65,11 @@ function blockedCacheKey(pubkey: string): string {
   return `nostr:blocked-relays:${pubkey}`;
 }
 
-/** Blocked relays, by {@link relayMatchKey}, with the URL as written. */
+/** Blocked relays, by {@link relayBlockKey}, with the URL as saved. */
 let blocked = new Map<string, string>();
 
 /**
- * Relays that can't be blocked, by {@link relayMatchKey}: the relays of
+ * Relays that can't be blocked, by {@link relayBlockKey}: the relays of
  * logged-in accounts' remote signers (NIP-46), without which signing would
  * silently stop working.
  */
@@ -64,8 +81,8 @@ const blockedListeners = new Set<(changed: string[]) => void>();
 function toBlockedMap(urls: string[]): Map<string, string> {
   const map = new Map<string, string>();
   for (const url of urls) {
-    const href = normalizeRelayUrl(url);
-    const key = href && relayMatchKey(href);
+    const href = relayBlockUrl(url);
+    const key = href && relayBlockKey(href);
     if (href && key && !map.has(key)) map.set(key, href);
   }
   return map;
@@ -85,7 +102,7 @@ function replaceBlocked(next: Map<string, string>): void {
 
 /**
  * Subscribe to changes in which relays are blocked, with the
- * {@link relayMatchKey}s that were blocked or unblocked. The pool uses this to
+ * {@link relayBlockKey}s that were blocked or unblocked. The pool uses this to
  * drop connections it already has.
  */
 export function onBlockedRelaysChange(listener: (changed: string[]) => void): () => void {
@@ -122,7 +139,7 @@ function readBlockedCache(pubkey: string): BlockedRelaysCache {
  * signer's relay is reconnected, or a logged-out one's connection dropped.
  */
 export function setUnblockableRelays(urls: string[]): void {
-  const next = new Set(urls.map(relayMatchKey).filter((k): k is string => !!k));
+  const next = new Set(urls.map(relayBlockKey).filter((k): k is string => !!k));
   const changed = [...blocked.keys()].filter((key) => exempt.has(key) !== next.has(key));
   exempt = next;
   if (changed.length) {
@@ -146,7 +163,7 @@ export function setBlockedRelays(pubkey: string | undefined, urls: string[], pri
     const cache: BlockedRelaysCache = {
       relays: [...blocked.values()],
       private: privateUrls
-        ? privateUrls.map(normalizeRelayUrl).filter((u): u is string => !!u)
+        ? privateUrls.map(relayBlockUrl).filter((u): u is string => !!u)
         : readBlockedCache(pubkey).private,
     };
     localStorage.setItem(blockedCacheKey(pubkey), JSON.stringify(cache));
@@ -189,7 +206,7 @@ export function getBlockedRelays(): string[] {
  */
 export function isRelayBlocked(url: string): boolean {
   if (!blocked.size) return false;
-  const key = relayMatchKey(url);
+  const key = relayBlockKey(url);
   return key !== undefined && blocked.has(key) && !exempt.has(key);
 }
 

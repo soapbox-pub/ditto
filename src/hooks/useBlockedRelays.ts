@@ -14,7 +14,7 @@ import {
   type Nip51ListContents,
   type Nip51ListEdit,
 } from '@/lib/nip51List';
-import { normalizeRelayUrl, relayMatchKey } from '@/lib/relayPolicy';
+import { normalizeRelayUrl, relayBlockKey, relayBlockUrl } from '@/lib/relayPolicy';
 
 /** NIP-51 blocked relays list. */
 export const BLOCKED_RELAYS_KIND = 10006;
@@ -24,13 +24,13 @@ function isRelayTag(tag: string[]): boolean {
 }
 
 const sameRelay = (a: string[], b: string[]) =>
-  a[0] === b[0] && relayMatchKey(a[1] ?? '') === relayMatchKey(b[1] ?? '');
+  a[0] === b[0] && relayBlockKey(a[1] ?? '') === relayBlockKey(b[1] ?? '');
 
 function relayUrls(tags: string[][]): string[] {
   const byKey = new Map<string, string>();
   for (const tag of tags.filter(isRelayTag)) {
-    const key = relayMatchKey(tag[1])!;
-    if (!byKey.has(key)) byKey.set(key, normalizeRelayUrl(tag[1])!);
+    const key = relayBlockKey(tag[1])!;
+    if (!byKey.has(key)) byKey.set(key, relayBlockUrl(tag[1])!);
   }
   return [...byKey.values()];
 }
@@ -92,7 +92,7 @@ export function useBlockedRelays() {
   });
 
   const blockRelay = (url: string) => {
-    const normalized = normalizeRelayUrl(url);
+    const normalized = relayBlockUrl(url);
     if (!normalized) return Promise.reject(new Error('Invalid relay URL'));
     return edit.mutateAsync((prev, contents) => editNip51List({
       prev,
@@ -106,13 +106,13 @@ export function useBlockedRelays() {
   };
 
   const unblockRelay = (url: string) => {
-    const key = relayMatchKey(url);
+    const key = relayBlockKey(url);
     return edit.mutateAsync((prev, contents) => editNip51List({
       prev,
       contents,
       signer: user!.signer,
       pubkey: user!.pubkey,
-      remove: (tag) => tag[0] === 'relay' && relayMatchKey(tag[1] ?? '') === key,
+      remove: (tag) => tag[0] === 'relay' && relayBlockKey(tag[1] ?? '') === key,
       isEntry: isRelayTag,
       same: sameRelay,
     }));

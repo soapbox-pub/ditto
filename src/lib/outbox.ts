@@ -1,5 +1,7 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
+import { isLocalNetworkUrl } from '@/lib/sanitizeUrl';
+
 /** Minimal shape of the pool needed by the outbox helpers. */
 export type OutboxPool = {
   query: (filters: NostrFilter[], opts?: { signal?: AbortSignal }) => Promise<NostrEvent[]>;
@@ -20,7 +22,9 @@ export function extractWriteRelays(event: NostrEvent): string[] {
     if (name !== 'r' || marker === 'read' || !url) continue;
     try {
       const parsed = new URL(url);
-      if (parsed.protocol === 'wss:') {
+      // Another user's list: a loopback/LAN entry would have us probe the
+      // viewer's own network.
+      if (parsed.protocol === 'wss:' && !isLocalNetworkUrl(parsed.href)) {
         relays.add(parsed.href);
       }
     } catch {

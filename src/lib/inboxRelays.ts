@@ -1,5 +1,7 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
+import { isLocalNetworkUrl } from '@/lib/sanitizeUrl';
+
 /**
  * Extract read (inbox) relay URLs from a NIP-65 (kind 10002) relay list event.
  *
@@ -13,7 +15,9 @@ export function extractReadRelays(event: NostrEvent): string[] {
     if (name !== 'r' || marker === 'write' || !url) continue;
     try {
       const parsed = new URL(url);
-      if (parsed.protocol === 'wss:') {
+      // Another user's list: a loopback/LAN entry would have us probe the
+      // viewer's own network.
+      if (parsed.protocol === 'wss:' && !isLocalNetworkUrl(parsed.href)) {
         relays.add(parsed.href);
       }
     } catch {

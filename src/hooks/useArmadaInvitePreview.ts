@@ -9,6 +9,7 @@ import {
   type ArmadaInvite,
   type ArmadaInvitePreview,
 } from '@/lib/armadaInvite';
+import { isLocalNetworkUrl } from '@/lib/sanitizeUrl';
 
 /**
  * Resolve the public preview (name, icon, channel count) of an Armada/Concord
@@ -38,7 +39,9 @@ export function useArmadaInvitePreview(invite: ArmadaInvite | undefined) {
     queryFn: async (c) => {
       if (!invite || !decoded) return null;
 
-      const relays = decoded.relays.filter((r) => /^wss:\/\//i.test(r)).slice(0, 5);
+      const relays = decoded.relays
+        .filter((r) => /^wss:\/\//i.test(r) && !isLocalNetworkUrl(r))
+        .slice(0, 5);
       const conn = relays.length ? nostr.group(relays) : nostr;
 
       const events = await conn.query(

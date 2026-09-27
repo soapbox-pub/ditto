@@ -13,6 +13,7 @@ import { useIsScrollRestore } from './useIsScrollRestore';
 import { getEffectiveRelays } from '@/lib/appRelays';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { fetchFeedPage, type FeedCursor } from '@/lib/feedPager';
+import { getReadRelayUrls } from '@/lib/relayHealth';
 import { withoutBlockedRelays } from '@/lib/relayPolicy';
 import { routeReadRelays } from '@/lib/reqRoutes';
 import {
@@ -151,9 +152,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
     signal: AbortSignal,
     toItems: (events: NostrEvent[], signal: AbortSignal) => Promise<FeedItem[]>,
   ): Promise<FeedPage> {
-    const readRelays = getEffectiveRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays).relays
-      .filter((r) => r.read)
-      .map((r) => r.url);
+    const readRelays = getReadRelayUrls(getEffectiveRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays));
     const page = await fetchFeedPage({
       relays: withoutBlockedRelays(routeReadRelays([filter], readRelays)),
       relay: (url) => nostr.relay(url),

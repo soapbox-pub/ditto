@@ -44,15 +44,16 @@ export const APP_RELAYS: RelayMetadata = {
  * - `useUserRelays`: when true, the user's personal NIP-65 list is included.
  *
  * When both flags are off the result is empty. When both are on the two lists
- * are merged with app relays first, deduplicated by normalized URL.
+ * are merged with app relays first, deduplicated by normalized URL. A relay in
+ * both lists is read or written if either list says so, so the user marking
+ * an app write-only relay as a read relay makes it one.
  */
 export function getEffectiveRelays(
   userRelays: RelayMetadata,
   useAppRelays: boolean,
   useUserRelays: boolean,
 ): RelayMetadata {
-  const seen = new Set<string>();
-  const mergedRelays: RelayMetadata['relays'][number][] = [];
+  const merged = new Map<string, RelayMetadata['relays'][number]>();
 
   const sources: RelayMetadata['relays'] = [];
   if (useAppRelays) sources.push(...APP_RELAYS.relays);
@@ -60,14 +61,14 @@ export function getEffectiveRelays(
 
   for (const relay of sources) {
     const normalized = normalizeUrl(relay.url);
-    if (!seen.has(normalized)) {
-      seen.add(normalized);
-      mergedRelays.push(relay);
-    }
+    const existing = merged.get(normalized);
+    merged.set(normalized, existing
+      ? { ...existing, read: existing.read || relay.read, write: existing.write || relay.write }
+      : relay);
   }
 
   return {
-    relays: mergedRelays,
+    relays: [...merged.values()],
     updatedAt: userRelays.updatedAt,
   };
 }

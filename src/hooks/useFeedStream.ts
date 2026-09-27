@@ -10,6 +10,7 @@ import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isReactionKind, isRepostKind, isZapKind, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { APP_RELAYS, getEffectiveRelays } from '@/lib/appRelays';
+import { getReadRelayUrls } from '@/lib/relayHealth';
 import { createLiveCursor } from '@/lib/backgroundQuiet';
 import { useBackgroundQuiet } from './useBackgroundQuiet';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
@@ -110,13 +111,11 @@ export function useFeedStream(options: UseFeedStreamOptions): {
   // the pool the home feed queries (app relays by default; user relays when
   // opted in) so stream coverage lines up with pull-to-refresh.
   const relayUrls = useMemo(() => {
-    const effective = getEffectiveRelays(
+    const effective = getReadRelayUrls(getEffectiveRelays(
       config.relayMetadata,
       config.useAppRelays,
       config.useUserRelays,
-    ).relays
-      .filter((r) => r.read)
-      .map((r) => r.url);
+    ));
     const urls = effective.length > 0
       ? effective
       : APP_RELAYS.relays.filter((r) => r.read).map((r) => r.url);
