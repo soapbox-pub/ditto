@@ -64,9 +64,11 @@ import { ReportContent } from "@/components/ReportContent";
 import { REPORT_KIND } from "@/lib/report";
 import { ATTESTATION_KIND } from "@/lib/attestation";
 import { CLASSIFIED_LISTING_KIND } from "@/lib/classifiedListing";
+import { EXTERNAL_IDENTITIES_KIND } from "@/lib/externalIdentities";
 import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
 import { RelayListContent } from "@/components/RelayListContent";
+import { ExternalIdentitiesContent } from "@/components/ExternalIdentitiesContent";
 import { PeopleListDetailContent } from "@/components/PeopleListDetailContent";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
@@ -1312,6 +1314,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isConstellation = event.kind === 30621;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isRelayList = event.kind === 10002;
+  const isExternalIdentities = event.kind === EXTERNAL_IDENTITIES_KIND;
   const isEmojiPack = event.kind === 30030;
   const isArticle = event.kind === 30023;
   const isClassifiedListing = event.kind === CLASSIFIED_LISTING_KIND;
@@ -1370,6 +1373,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isConstellation &&
     !isPeopleList &&
     !isRelayList &&
+    !isExternalIdentities &&
     !isEmojiPack &&
     !isArticle &&
     !isClassifiedListing &&
@@ -2795,6 +2799,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               isConstellation ||
               isPeopleList ||
               isRelayList ||
+              isExternalIdentities ||
               isEmojiPack ? (
               <>
                 {isVine && <VineDetailContent event={event} />}
@@ -2807,6 +2812,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 {isConstellation && <ConstellationContent event={event} />}
                 {isPeopleList && <PeopleListContent event={event} />}
                 {isRelayList && <RelayListContent event={event} expanded />}
+                {isExternalIdentities && <ExternalIdentitiesContent event={event} expanded />}
                 {isEmojiPack && <EmojiPackContent event={event} />}
               </>
             ) : isUnknownKind ? (

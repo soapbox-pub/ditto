@@ -31,6 +31,8 @@ import { ARTICLE_KINDS } from '@/lib/articleHelpers';
 import { PUBLICATION_KINDS } from '@/lib/publications';
 import { EmbeddedPeopleListCard } from '@/components/EmbeddedPeopleListCard';
 import { EmbeddedRelayListCard } from '@/components/EmbeddedRelayListCard';
+import { EmbeddedExternalIdentitiesCard } from '@/components/ExternalIdentitiesContent';
+import { EXTERNAL_IDENTITIES_KIND } from '@/lib/externalIdentities';
 import { EmbeddedProfileCard } from '@/components/EmbeddedProfileCard';
 import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
 import { MEMORY_CARD_KIND } from '@/lib/memorycard';
@@ -255,6 +257,11 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, fallbackAuthorHint, cl
   // `r` tags — so the generic fallback would render an empty shell.
   if (event.kind === 10002) {
     return <EmbeddedRelayListCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-39 external identities (kind 10011) — same story, all `i` tags.
+  if (event.kind === EXTERNAL_IDENTITIES_KIND) {
+    return <EmbeddedExternalIdentitiesCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Profile metadata (kind 0) carries JSON in `content`. The generic fallback

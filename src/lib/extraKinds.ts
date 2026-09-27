@@ -1,7 +1,7 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
-import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, Crown, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, History, Server, Stars, UserCheck, UserRoundPen, Users } from 'lucide-react';
+import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, Crown, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, History, Link2, Server, Stars, UserCheck, UserRoundPen, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -422,6 +422,18 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'social',
     feedOnly: true,
     blurb: 'A relay list announces where someone reads and writes on Nostr. Updates render as a stack of relay icons in the feed, and opening one shows each relay\'s name, capabilities, and read/write markers.',
+  },
+  // Linked accounts (feed-only — NIP-39 kind 10011)
+  {
+    kind: 10011,
+    id: 'linked-accounts',
+    feedKey: 'feedIncludeExternalIdentities',
+    label: 'Linked Accounts',
+    description: 'NIP-39 linked account updates — GitHub, Mastodon, Bluesky, and more',
+    addressable: false,
+    section: 'social',
+    feedOnly: true,
+    blurb: 'Linked accounts connect a Nostr profile to the same person on GitHub, Mastodon, Bluesky, Twitter, Telegram, and Discord. Updates show up in the feed as a row of links, so you notice when someone you follow turns up somewhere new. Each account carries a proof post you can open to check the claim.',
   },
   // Love Lists (feed-only — Ditto custom kind 15683, see NIP.md)
   {
@@ -1067,6 +1079,7 @@ const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: st
   6: RepostIcon,
   16: RepostIcon,
   10002: Server,
+  10011: Link2,
   30000: Users,
   1617: GitPullRequestArrow,
   1618: GitPullRequest,

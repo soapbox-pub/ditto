@@ -6,7 +6,7 @@ import { nip19 } from 'nostr-tools';
 import {
   Award, BarChart3, Bird, Bitcoin, Bookmark, BookOpen, CalendarClock, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Crown, Egg, FileText, Film,
   Flag,
-  GitBranch, GitPullRequest, HandHeart, Heart, History, Mail, MapPin, MessageSquare, Mic, MoonStar, Music, Newspaper,
+  GitBranch, GitPullRequest, HandHeart, Heart, History, Link2, Mail, MapPin, MessageSquare, Mic, MoonStar, Music, Newspaper,
   Video,
   Package, Palette, PartyPopper, Podcast, Quote, Radio, Rocket, ShieldCheck, SmilePlus, Sparkles,
   Server, Stars, UserCheck, Users, Vote, Zap,
@@ -127,6 +127,7 @@ const KIND_LABELS: Record<number, string> = {
   8: 'a badge award',
   16: 'a repost',
   10002: 'a relay list',
+  10011: 'linked accounts',
   20: 'a photo',
   21: 'a video',
   22: 'a short video',
@@ -266,6 +267,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   7516: ChestIcon,
   3: UserCheck,
   10002: Server,
+  10011: Link2,
   30000: Users,
   39089: PartyPopper,
   3367: Palette,
@@ -632,6 +634,19 @@ function AddrCommentContext({ root, className }: { root: CommentRoot; className?
     );
   }
 
+  // Kind 10011 external identities (NIP-39) — only `i` tags.
+  if (root.addr?.kind === 10011) {
+    return (
+      <AuthorListCommentContext
+        pubkey={root.addr.pubkey}
+        kind={10011}
+        icon={Link2}
+        noun={<FormattedMessage id="externalIdentities.commentContextNoun" defaultMessage="linked accounts" />}
+        className={className}
+      />
+    );
+  }
+
   // Kind 33863 fundraisers: attribute to the campaign owner so the row
   // reads "Commenting on @Alice's fundraiser" instead of falling
   // through to the generic title path.
@@ -644,7 +659,7 @@ function AddrCommentContext({ root, className }: { root: CommentRoot; className?
 
 /**
  * Comment context for replaceable list kinds that carry no title of their own —
- * kind 3 follow lists and kind 10002 relay lists. Shows "Commenting on
+ * kind 3 follow lists, kind 10002 relay lists, and kind 10011 linked accounts. Shows "Commenting on
  * @Name's follow list", attributing the list to its author instead of falling
  * through to the generic title path (which would find nothing to show).
  */

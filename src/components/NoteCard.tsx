@@ -19,6 +19,7 @@ import {
   GitPullRequestArrow,
   HandHeart,
   Heart,
+  Link2,
   ListMusic,
   Mail,
   MessageCircle,
@@ -92,6 +93,7 @@ import { EmojiPackContent } from "@/components/EmojiPackContent";
 import { FileMetadataContent } from "@/components/FileMetadataContent";
 import { PeopleListContent } from "@/components/PeopleListContent";
 import { RelayListContent } from "@/components/RelayListContent";
+import { ExternalIdentitiesContent } from "@/components/ExternalIdentitiesContent";
 import { PeopleAvatarStack } from "@/components/PeopleAvatarStack";
 import { FoundLogContent } from "@/components/FoundLogContent";
 import { GeocacheContent } from "@/components/GeocacheContent";
@@ -117,6 +119,7 @@ import { ReportContent } from "@/components/ReportContent";
 import { ATTESTATION_KIND } from "@/lib/attestation";
 import { REPORT_KIND, reportTargetNoun } from "@/lib/report";
 import { CLASSIFIED_LISTING_KIND } from "@/lib/classifiedListing";
+import { EXTERNAL_IDENTITIES_KIND } from "@/lib/externalIdentities";
 import { PUBLICATION_KINDS, MAGAZINE_KIND, MAGAZINE_ISSUE_KIND, EBOOK_KIND } from "@/lib/publications";import { CampaignContent } from "@/components/CampaignContent";
 import { ZapContent } from "@/components/ZapContent";
 import { NsiteCard } from "@/components/NsiteCard";
@@ -469,6 +472,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isFollowUpdate = event.kind === 3;
   const isPeopleList = event.kind === 3 || event.kind === 30000 || event.kind === 39089;
   const isRelayList = event.kind === 10002;
+  const isExternalIdentities = event.kind === EXTERNAL_IDENTITIES_KIND;
   const isArticle = event.kind === 30023;
   const isClassifiedListing = event.kind === CLASSIFIED_LISTING_KIND;
   const isPublication = PUBLICATION_KINDS.has(event.kind);
@@ -557,6 +561,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     !isConstellation &&
     !isPeopleList &&
     !isRelayList &&
+    !isExternalIdentities &&
     !isArticle &&
     !isClassifiedListing &&
     !isPublication &&
@@ -751,6 +756,8 @@ const NoteCardImpl = memo(function NoteCardImpl({
           <PeopleListContent event={event} />
         ) : isRelayList ? (
           <RelayListContent event={event} />
+        ) : isExternalIdentities ? (
+          <ExternalIdentitiesContent event={event} />
         ) : isArticle ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <EmbeddedArticleCard event={event} className="mt-2" />
@@ -2600,6 +2607,11 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     icon: Server,
     action: "updated their",
     noun: "relay list",
+  },
+  [EXTERNAL_IDENTITIES_KIND]: {
+    icon: Link2,
+    action: "updated their",
+    noun: "linked accounts",
   },
   0: {
     icon: UserRoundPen,

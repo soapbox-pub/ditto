@@ -86,6 +86,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   9802: 'highlight',
   2256: 'tarot reading',
   10002: 'relay list',
+  10011: 'linked accounts',
   39701: 'web bookmark',
   15683: 'Love List',
   18678: 'Top 8',

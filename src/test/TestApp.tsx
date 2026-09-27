@@ -123,6 +123,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeBadgeAwards: false,
       feedIncludeVanish: true,
       feedIncludeRelayLists: false,
+      feedIncludeExternalIdentities: false,
       feedIncludeProfileUpdates: false,
       feedIncludeLoveLists: true,
       feedIncludeTop8: true,

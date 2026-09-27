@@ -154,6 +154,7 @@ const hardcodedConfig: AppConfig = {
     feedIncludeBadgeAwards: true,
     feedIncludeVanish: true,
     feedIncludeRelayLists: true,
+    feedIncludeExternalIdentities: true,
     feedIncludeProfileUpdates: true,
     feedIncludeLoveLists: true,
     feedIncludeTop8: true,

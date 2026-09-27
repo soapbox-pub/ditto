@@ -1,6 +1,7 @@
 import type { NostrEvent, NPool } from '@nostrify/nostrify';
 import type { InfiniteData, QueryClient } from '@tanstack/react-query';
 import { EventVerifier } from '@/lib/EventVerifier';
+import { EXTERNAL_IDENTITIES_KIND, parseExternalIdentities } from '@/lib/externalIdentities';
 import { getGitRootRef } from '@/lib/gitActivity';
 import { isNostrId } from '@/lib/nostrId';
 import { isNsiteKind } from '@/lib/nsiteSubdomain';
@@ -354,6 +355,10 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
   // NIP-65 relay lists (kind 10002) with no `r` tags. Clients publish empty
   // ones during onboarding, and there is nothing to render for them.
   if (event.kind === 10002 && !event.tags.some(([n, v]) => n === 'r' && v)) return true;
+
+  // NIP-39 external identities (kind 10011) with no claim Ditto can link to —
+  // unknown platforms and malformed `i` tags are dropped at parse time.
+  if (event.kind === EXTERNAL_IDENTITIES_KIND && parseExternalIdentities(event).length === 0) return true;
 
   // NIP-5A manifests (root sites, named sites, and snapshots) with no `path`
   // tags. The spec requires at least one, and without any there are no files

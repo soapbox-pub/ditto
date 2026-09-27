@@ -198,7 +198,7 @@ export const KIND_LABELS: Record<number, string> = {
   // NIP-29
   10009: 'User groups',
   // NIP-39
-  10011: 'External identities',
+  10011: 'Linked accounts',
   // NIP-51
   10012: 'Favorite relays list',
   // NIP-37
