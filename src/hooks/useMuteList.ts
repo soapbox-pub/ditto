@@ -30,23 +30,41 @@ export function getMuteCacheKey(appId: string): string {
   return getStorageKey(appId, 'muteListCache');
 }
 
-/** Read cached mute items from localStorage for a given user. */
-function getCachedMuteItems(cacheKey: string, pubkey: string): MuteListItem[] | undefined {
+interface CachedMuteList {
+  /**
+   * The kind 10000 the items were read from, when they are all of it. Its
+   * items are then reused instead of asking the signer to decrypt it again.
+   * Absent when they're an optimistic edit or a partial read.
+   */
+  eventId?: string;
+  items: MuteListItem[];
+}
+
+/** Read the cached mute list from localStorage for a given user. */
+function getCachedMuteList(cacheKey: string, pubkey: string): CachedMuteList | undefined {
   try {
     const raw = localStorage.getItem(cacheKey);
     if (!raw) return undefined;
     const cached = JSON.parse(raw);
     if (cached.pubkey !== pubkey || !Array.isArray(cached.items)) return undefined;
-    return cached.items;
+    return { eventId: typeof cached.eventId === 'string' ? cached.eventId : undefined, items: cached.items };
   } catch {
     return undefined;
   }
 }
 
-/** Persist decrypted mute items to localStorage. */
-export function setCachedMuteItems(appId: string, pubkey: string, items: MuteListItem[]): void {
+/** Read cached mute items from localStorage for a given user. */
+function getCachedMuteItems(cacheKey: string, pubkey: string): MuteListItem[] | undefined {
+  return getCachedMuteList(cacheKey, pubkey)?.items;
+}
+
+/**
+ * Persist decrypted mute items to localStorage. Pass `eventId` only when
+ * `items` are the complete, decrypted contents of that event.
+ */
+export function setCachedMuteItems(appId: string, pubkey: string, items: MuteListItem[], eventId?: string): void {
   try {
-    localStorage.setItem(getMuteCacheKey(appId), JSON.stringify({ pubkey, items }));
+    localStorage.setItem(getMuteCacheKey(appId), JSON.stringify({ pubkey, eventId, items }));
   } catch {
     // Storage full or unavailable — non-critical
   }
@@ -155,6 +173,11 @@ export function useMuteList() {
       const event = query.data;
       if (!event || !user) return [];
 
+      // Already decrypted this exact event on an earlier load. Any edit, here
+      // or on another client, produces a new id, so this can't go stale.
+      const cached = getCachedMuteList(cacheKey, user.pubkey);
+      if (cached?.eventId === event.id) return cached.items;
+
       const contents = await readNip51List(event, user.signer, user.pubkey);
 
       // If the private part couldn't be decrypted, keep applying the last
@@ -166,7 +189,7 @@ export function useMuteList() {
       const items = itemsFromContents(contents);
 
       // Persist to localStorage for next page load
-      setCachedMuteItems(config.appId, user.pubkey, items);
+      setCachedMuteItems(config.appId, user.pubkey, items, event.id);
 
       return items;
     },
@@ -211,7 +234,13 @@ export function useMuteList() {
       queryClient.setQueryData<MuteListItem[]>(['muteItems', query.data.id], newItems);
     }
 
-    await publishEvent({ kind: 10000, tags: next.tags, content: next.content, prev: prev ?? undefined });
+    const published = await publishEvent({ kind: 10000, tags: next.tags, content: next.content, prev: prev ?? undefined });
+
+    // Only now are the items known to be exactly that event's, and only when
+    // its private half could be read; otherwise the next load decrypts it.
+    if (!contents.unreadable) {
+      setCachedMuteItems(config.appId, user.pubkey, newItems, published.id);
+    }
   };
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['muteList', user?.pubkey] });

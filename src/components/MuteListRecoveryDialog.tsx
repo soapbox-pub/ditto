@@ -364,17 +364,18 @@ function MuteHistoryContent({ onClose }: { onClose: () => void }) {
     try {
       // Re-publish the old event's content and tags with the current timestamp.
       // The content is already encrypted, so we just re-publish as-is.
-      await publishEvent({
+      const restored = await publishEvent({
         kind: event.kind,
         content: event.content,
         tags: event.tags,
         created_at: Math.floor(Date.now() / 1000),
       });
 
-      // Update the local mute cache with the restored items
+      // Update the local mute cache with the restored items, vouching for the
+      // new event only if the snapshot's private half could be read.
       const summary = summaries?.get(event.id);
       if (summary && user) {
-        setCachedMuteItems(config.appId, user.pubkey, summary.items);
+        setCachedMuteItems(config.appId, user.pubkey, summary.items, summary.decryptionFailed ? undefined : restored.id);
       }
 
       toast({

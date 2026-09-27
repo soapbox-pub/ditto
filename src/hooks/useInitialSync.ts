@@ -316,6 +316,9 @@ export function useInitialSync() {
 
           // Decrypt private items from the content (supports NIP-44 and NIP-04)
           let privateItems: MuteListItem[] = [];
+          // Whether the items below are all of the event, so the cache can
+          // vouch for it and spare the next load a decrypt.
+          let complete = !muteEvent.content;
           if (muteEvent.content) {
             try {
               const isNip04 = muteEvent.content.includes("?iv=");
@@ -336,6 +339,7 @@ export function useInitialSync() {
               if (decrypted) {
                 const tags = JSON.parse(decrypted) as string[][];
                 privateItems = parseMuteTags(tags);
+                complete = true;
               }
             } catch (error) {
               console.error(
@@ -357,7 +361,7 @@ export function useInitialSync() {
           }
 
           queryClient.setQueryData(["muteItems", muteEvent.id], items);
-          setCachedMuteItems(config.appId, user.pubkey, items);
+          setCachedMuteItems(config.appId, user.pubkey, items, complete ? muteEvent.id : undefined);
 
           foundSettings = true;
         }
