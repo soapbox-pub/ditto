@@ -52,6 +52,7 @@
  */
 
 import { isNostrId } from '@/lib/nostrId';
+import { isLocalNetworkUrl } from '@/lib/sanitizeUrl';
 import { isValidZapReceipt } from '@/lib/zapReceipt';
 
 import { notificationShape, recordAndCheckBurst } from './burst';
@@ -116,7 +117,9 @@ function nappRelays(payload: NappPayload): string[] {
     ? payload.relays
     : (typeof payload.relay === 'string' ? [payload.relay] : []);
 
-  return relays.filter((url): url is string => typeof url === 'string' && /^wss?:\/\//i.test(url));
+  // Public wss relays only, as for hints in the page (see appRelays).
+  return relays.filter((url): url is string =>
+    typeof url === 'string' && /^wss:\/\//i.test(url) && !isLocalNetworkUrl(url));
 }
 
 /**
@@ -128,13 +131,17 @@ function nappRelays(payload: NappPayload): string[] {
  * can't be made here, so this leans on the transport having matched them for
  * us. What it can't stand behind is "only from people I follow",
  * which the worker enforces for itself whenever the follow set is too big to
- * send. An occasional stranger getting through on this path is the price of
- * saying anything at all.
+ * send, nor the mute list. An occasional stranger getting through on this
+ * path is the price of saying anything at all — but when the user has muted
+ * anyone or only wants their follows, it arrives silently, so someone they
+ * shut out can't make their phone buzz by posting a note too big to push.
  */
 async function showUnknownEventNotification(eventId: string, relays: string[]): Promise<void> {
   const title = 'New notification';
   const body = 'Open Ditto to see what happened.';
   const isBurst = await recordAndCheckBurst(notificationShape(body));
+  const state = await loadPushState();
+  const quiet = isBurst || !!state?.muted?.length || state?.onlyFollowing === true;
 
   await show(title, {
     body,
@@ -147,8 +154,8 @@ async function showUnknownEventNotification(eventId: string, relays: string[]): 
     // The same tag the full notification would have used, so a later push
     // carrying the event replaces this one instead of doubling it.
     tag: `ditto-event-${eventId}`,
-    renotify: !isBurst,
-    silent: isBurst,
+    renotify: !quiet,
+    silent: quiet,
   });
 }
 
