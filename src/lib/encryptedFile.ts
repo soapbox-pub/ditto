@@ -278,6 +278,16 @@ export async function fetchDecryptedFile(
 }
 
 /**
+ * The type to give a decrypted file's same-origin `blob:` URL. The type is the
+ * sender's claim, and a `blob:` URL of an HTML, SVG or XML type runs script as
+ * Ditto if it's ever opened directly, so those go out as plain bytes.
+ */
+function blobType(mime: string): string {
+  const type = mime.split(';')[0].trim().toLowerCase();
+  return /html|xml|svg|javascript|ecmascript/.test(type) ? 'application/octet-stream' : mime;
+}
+
+/**
  * Decrypt a file to an object URL suitable for `<img>` / `<video>` / `<audio>`.
  * The caller owns the URL and must revoke it.
  */
@@ -290,7 +300,7 @@ export async function decryptFileToObjectUrl(
   // `bytes` already views a private ArrayBuffer from crypto.subtle — hand it
   // straight to the Blob rather than copying a whole video again.
   return {
-    objectUrl: URL.createObjectURL(new Blob([bytes], { type: mime })),
+    objectUrl: URL.createObjectURL(new Blob([bytes], { type: blobType(mime) })),
     mime,
   };
 }
