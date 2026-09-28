@@ -11,8 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useBackgroundQuiet } from '@/hooks/useBackgroundQuiet';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { createLiveCursor } from '@/lib/backgroundQuiet';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { cn } from '@/lib/utils';
@@ -41,7 +43,8 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAutoScrollRef = useRef(true);
 
-  // Fetch existing chat messages
+  // Fetch existing chat messages. New ones arrive via the subscription below,
+  // so there's no polling.
   const { data: messages = [], isLoading } = useQuery<NostrEvent[]>({
     queryKey: ['live-chat', aTag],
     queryFn: async ({ signal }) => {
@@ -52,17 +55,21 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
       return events.sort((a, b) => a.created_at - b.created_at);
     },
     staleTime: 10_000,
-    refetchInterval: 5_000,
   });
 
-  // Subscribe to new messages in real-time
+  // Subscribe to new messages in real-time. Backgrounded the stream closes,
+  // then resumes from where it paused (see @/lib/backgroundQuiet).
+  const quiet = useBackgroundQuiet();
+  const cursorRef = useRef(createLiveCursor());
   useEffect(() => {
+    const live = cursorRef.current.next(aTag, quiet);
+    if (!live) return;
     const controller = new AbortController();
 
     (async () => {
       try {
         for await (const msg of nostr.req(
-          [{ kinds: [1311], '#a': [aTag], since: Math.floor(Date.now() / 1000) }],
+          [{ kinds: [1311], '#a': [aTag], since: live.since }],
           { signal: controller.signal },
         )) {
           if (msg[0] === 'EVENT') {
@@ -79,7 +86,7 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
     })();
 
     return () => controller.abort();
-  }, [nostr, aTag, queryClient]);
+  }, [nostr, aTag, queryClient, quiet]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

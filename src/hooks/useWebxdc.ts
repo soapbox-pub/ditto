@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
-import { NSecSigner } from '@nostrify/nostrify';
+import { NSecSigner, type NostrEvent } from '@nostrify/nostrify';
 
 import type { Webxdc as WebxdcAPI, SendingStatusUpdate, ReceivedStatusUpdate, RealtimeListener } from '@webxdc/types/webxdc';
 import { useCurrentUserProfile } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
+import { useBackgroundQuiet } from './useBackgroundQuiet';
+import { createLiveCursor } from '@/lib/backgroundQuiet';
 
 /**
  * Creates a `Webxdc` API instance backed by Nostr kind 4932 state update events.
@@ -41,7 +43,8 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
   const listenerRef = useRef<((update: ReceivedStatusUpdate<unknown>) => void) | null>(null);
   const lastSerialRef = useRef(0);
 
-  // Query all existing kind 4932 events for this UUID
+  // Query all existing kind 4932 events for this UUID. New ones arrive via
+  // the subscription below, so there's no polling.
   const { data: stateEvents } = useQuery({
     queryKey: ['webxdc-updates', uuid],
     queryFn: async () => {
@@ -53,8 +56,40 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
       // Sort by created_at ascending (oldest first) for serial assignment
       return events.sort((a, b) => a.created_at - b.created_at);
     },
-    refetchInterval: 3000, // Poll for new updates every 3 seconds
   });
+
+  // Stream new kind 4932 events into the query cache. Backgrounded the stream
+  // closes, then resumes from where it paused (see @/lib/backgroundQuiet).
+  const quiet = useBackgroundQuiet();
+  const cursorRef = useRef(createLiveCursor());
+  useEffect(() => {
+    const live = cursorRef.current.next(uuid, quiet);
+    if (!live) return;
+    const controller = new AbortController();
+
+    (async () => {
+      try {
+        for await (const msg of nostr.req(
+          [{ kinds: [4932], '#i': [uuid], since: live.since }],
+          { signal: controller.signal },
+        )) {
+          if (msg[0] === 'EVENT') {
+            const event = msg[2];
+            queryClient.setQueryData<NostrEvent[]>(['webxdc-updates', uuid], (old = []) => {
+              if (old.some((e) => e.id === event.id)) return old;
+              return [...old, event].sort((a, b) => a.created_at - b.created_at);
+            });
+          } else if (msg[0] === 'CLOSED') {
+            break;
+          }
+        }
+      } catch {
+        // Subscription ended (abort or error)
+      }
+    })();
+
+    return () => controller.abort();
+  }, [nostr, uuid, queryClient, quiet]);
 
   // Convert events to ReceivedStatusUpdates with serial numbers
   const updates = useMemo((): ReceivedStatusUpdate<unknown>[] => {
@@ -143,13 +178,10 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
       content: JSON.stringify(update.payload),
       tags,
       created_at: Math.floor(Date.now() / 1000),
-    }).then(() => {
-      // Invalidate the query to pick up the new event
-      queryClient.invalidateQueries({ queryKey: ['webxdc-updates', uuid] });
     }).catch((err) => {
       console.error('Failed to publish webxdc update:', err);
     });
-  }, [uuid, publishSigned, queryClient]);
+  }, [uuid, publishSigned]);
 
   const setUpdateListener = useCallback(async (
     cb: (update: ReceivedStatusUpdate<unknown>) => void,
