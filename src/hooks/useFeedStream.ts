@@ -73,7 +73,7 @@ export function useFeedStream(options: UseFeedStreamOptions): {
   const { shouldFilterEvent } = useContentFilters();
 
   const [newPostCount, setNewPostCount] = useState(0);
-  // Backgrounded on Android the stream closes, then resumes from where it
+  // Backgrounded the stream closes, then resumes from where it
   // paused (see @/lib/backgroundQuiet) so the count still covers that stretch.
   const quiet = useBackgroundQuiet();
   const cursorRef = useRef(createLiveCursor());

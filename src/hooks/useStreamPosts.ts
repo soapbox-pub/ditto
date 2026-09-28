@@ -463,7 +463,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // 2. Stream new events WITHOUT search (relays don't support streaming search)
   // Client-side filtering is applied via useMemo at the end.
   //
-  // Backgrounded on Android the stream closes, then resumes from where it
+  // Backgrounded the stream closes, then resumes from where it
   // paused (see @/lib/backgroundQuiet); a new filter starts from now.
   const quiet = useBackgroundQuiet();
   const cursorRef = useRef(createLiveCursor());

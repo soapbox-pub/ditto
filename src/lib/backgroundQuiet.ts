@@ -1,13 +1,17 @@
 /**
- * Android: while the app is in the background, the WebView goes QUIET.
+ * While the app is in the background, the WebView goes QUIET.
  *
- * With persistent notifications on, the native notification service is a
- * foreground service, so Android never freezes the app's process and the
+ * Android: with persistent notifications on, the native notification service
+ * is a foreground service, so Android never freezes the app's process and the
  * WebView kept running as if it were on screen: its own live REQ for
  * notifications (the same one the service holds), the home feed's new-post
  * stream, and a search page's firehose, all night. None of that shows the
  * user anything from the background — the service (or remote push) is what
  * notifies — so it was battery spent downloading the same relays twice.
+ *
+ * Web and iOS: a hidden browser tab (or an iOS app the OS hasn't suspended
+ * yet) kept the same streams open too. Push, handled by the service worker or
+ * the OS, is what notifies there as well.
  *
  * Going quiet loses nothing: each live stream resumes from where it paused
  * (see {@link createLiveCursor}) and the notification caches refetch on
@@ -20,6 +24,8 @@ import { Capacitor } from '@capacitor/core';
 
 /** Grace before going quiet, so a quick app switch doesn't tear streams down. */
 const QUIET_AFTER_MS = 15_000;
+/** Longer on the web, where flipping between tabs is routine. */
+const WEB_QUIET_AFTER_MS = 60_000;
 
 let quiet = false;
 /** The app is in the background (whether or not it has gone quiet yet). */
@@ -54,25 +60,31 @@ function scheduleQuiet(): void {
   timer = setTimeout(() => {
     timer = undefined;
     if (backgrounded && !mediaPlaying()) set(true);
-  }, QUIET_AFTER_MS);
+  }, Capacitor.isNativePlatform() ? QUIET_AFTER_MS : WEB_QUIET_AFTER_MS);
+}
+
+function setBackgrounded(next: boolean): void {
+  backgrounded = next;
+  if (!next) {
+    if (timer !== undefined) clearTimeout(timer);
+    timer = undefined;
+    set(false);
+    return;
+  }
+  scheduleQuiet();
 }
 
 function install(): void {
   if (installed) return;
   installed = true;
-  if (Capacitor.getPlatform() !== 'android') return;
-  // Capacitor's appStateChange comes from the activity lifecycle; the
-  // WebView's own visibilitychange isn't delivered reliably on Android.
-  void CapacitorApp.addListener('appStateChange', ({ isActive }) => {
-    backgrounded = !isActive;
-    if (isActive) {
-      if (timer !== undefined) clearTimeout(timer);
-      timer = undefined;
-      set(false);
-      return;
-    }
-    scheduleQuiet();
-  });
+  if (Capacitor.isNativePlatform()) {
+    // Capacitor's appStateChange comes from the activity lifecycle; the
+    // WebView's own visibilitychange isn't delivered reliably on Android.
+    void CapacitorApp.addListener('appStateChange', ({ isActive }) => setBackgrounded(!isActive));
+  } else {
+    document.addEventListener('visibilitychange', () => setBackgrounded(document.hidden));
+    if (document.hidden) setBackgrounded(true);
+  }
   // Playback can also START while quiet (lock-screen media controls).
   // Media events don't bubble, hence the capture.
   document.addEventListener('play', () => set(false), true);

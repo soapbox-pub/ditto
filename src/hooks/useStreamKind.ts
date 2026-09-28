@@ -1,6 +1,14 @@
 import { useNostr } from '@nostrify/react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
+
+import { useBackgroundQuiet } from './useBackgroundQuiet';
+import { createLiveCursor } from '@/lib/backgroundQuiet';
+
+/** Batch streamed events into one state commit per this window. */
+const COMMIT_DELAY_MS = 250;
+/** Cap on events backfilled when a paused stream resumes. */
+const RESUME_LIMIT = 100;
 
 /**
  * Generic streaming hook that fetches an initial batch of events for the given
@@ -25,77 +33,91 @@ export function useStreamKind(kind: number | number[]) {
 
   const kindsSet = useMemo(() => new Set(kinds), [kinds]);
 
+  // Deduped events for the current kinds, shared by the initial fetch and the
+  // live stream. Commits to state are batched: a busy stream would otherwise
+  // re-sort and re-render the whole list for every event.
+  const eventMapRef = useRef(new Map<string, NostrEvent>());
+  const commitTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const commit = useCallback(() => {
+    clearTimeout(commitTimerRef.current);
+    commitTimerRef.current = undefined;
+    setEvents(Array.from(eventMapRef.current.values()).sort((a, b) => b.created_at - a.created_at));
+  }, []);
+
+  const addEvent = useCallback((event: NostrEvent): boolean => {
+    if (!kindsSet.has(event.kind)) return false;
+
+    const now = Math.floor(Date.now() / 1000);
+    if (event.created_at > now) return false;
+
+    const key = dedupeKey(event);
+    const existing = eventMapRef.current.get(key);
+    if (existing && existing.created_at >= event.created_at) return false;
+
+    eventMapRef.current.set(key, event);
+    return true;
+  }, [kindsSet]);
+
+  // 1. Fetch initial batch (uses pool, reuses existing connections)
   useEffect(() => {
+    eventMapRef.current = new Map();
+    setEvents([]);
+
     if (kinds.length === 0) {
-      setEvents([]);
       setIsLoading(false);
       return;
     }
 
     const ac = new AbortController();
     let alive = true;
-
-    setEvents([]);
     setIsLoading(true);
 
-    const eventMap = new Map<string, NostrEvent>();
-
-    function isAddressable(k: number): boolean {
-      return k >= 30000 && k < 40000;
-    }
-
-    function dedupeKey(event: NostrEvent): string {
-      if (isAddressable(event.kind)) {
-        const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
-        return `${event.pubkey}:${event.kind}:${dTag}`;
-      }
-      return event.id;
-    }
-
-    function addEvent(event: NostrEvent) {
-      if (!alive) return;
-      if (!kindsSet.has(event.kind)) return;
-
-      const now = Math.floor(Date.now() / 1000);
-      if (event.created_at > now) return;
-
-      const key = dedupeKey(event);
-      const existing = eventMap.get(key);
-      if (existing && existing.created_at >= event.created_at) return;
-
-      eventMap.set(key, event);
-      setEvents(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
-    }
-
-    const filter = { kinds };
-
-    // 1. Fetch initial batch (uses pool, reuses existing connections)
     (async () => {
       try {
         const results = await nostr.query(
-          [{ ...filter, limit: 40 }],
+          [{ kinds, limit: 40 }],
           { signal: ac.signal },
         );
-        for (const event of results) {
-          addEvent(event);
-        }
+        if (!alive) return;
+        for (const event of results) addEvent(event);
+        commit();
       } catch {
         // abort expected
       }
       if (alive) setIsLoading(false);
     })();
 
-    // 2. Stream new events (uses pool, reuses existing connections)
+    return () => {
+      alive = false;
+      ac.abort();
+    };
+  }, [nostr, kinds, addEvent, commit]);
+
+  // 2. Stream new events (uses pool, reuses existing connections).
+  // Backgrounded the stream closes, then resumes from where it paused (see
+  // @/lib/backgroundQuiet); new kinds start from now.
+  const quiet = useBackgroundQuiet();
+  const cursorRef = useRef(createLiveCursor());
+  useEffect(() => {
+    if (kinds.length === 0) return;
+    const live = cursorRef.current.next(kinds.join(','), quiet);
+    if (!live) return;
+
+    const ac = new AbortController();
+    let alive = true;
+
     (async () => {
       try {
-        const now = Math.floor(Date.now() / 1000);
         for await (const msg of nostr.req(
-          [{ ...filter, since: now, limit: 0 }],
+          [{ kinds, since: live.since, limit: live.resumed ? RESUME_LIMIT : 0 }],
           { signal: ac.signal },
         )) {
           if (!alive) break;
           if (msg[0] === 'EVENT') {
-            addEvent(msg[2]);
+            if (addEvent(msg[2]) && commitTimerRef.current === undefined) {
+              commitTimerRef.current = setTimeout(commit, COMMIT_DELAY_MS);
+            }
           } else if (msg[0] === 'CLOSED') {
             break;
           }
@@ -108,8 +130,18 @@ export function useStreamKind(kind: number | number[]) {
     return () => {
       alive = false;
       ac.abort();
+      // Flush anything still batched so pausing doesn't strand it.
+      if (commitTimerRef.current !== undefined) commit();
     };
-  }, [nostr, kinds, kindsSet]);
+  }, [nostr, kinds, addEvent, commit, quiet]);
 
   return { events, isLoading };
+}
+
+function dedupeKey(event: NostrEvent): string {
+  if (event.kind >= 30000 && event.kind < 40000) {
+    const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
+    return `${event.pubkey}:${event.kind}:${dTag}`;
+  }
+  return event.id;
 }

@@ -226,9 +226,9 @@ export function useMoneroBackgroundSync(): void {
     };
 
     /**
-     * Backgrounded on Android (see `@/lib/backgroundQuiet`), wallet2 stops
-     * polling the node — a persistent-notifications foreground service keeps
-     * the process alive, so it otherwise polled every 30s all night — and
+     * Backgrounded (see `@/lib/backgroundQuiet`), wallet2 stops polling the
+     * node — a hidden tab, or an Android process a persistent-notifications
+     * foreground service keeps alive, otherwise polled every 30s all night — and
      * picks up from its last height on resume. Stops and starts run one at a
      * time, each against the quiet state when its turn comes, so a quick
      * flip back can't start polling while the stop is still in flight.
