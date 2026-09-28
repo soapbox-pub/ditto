@@ -128,14 +128,19 @@ export function useStreakSync(): void {
 
     const publish = async () => {
       publishTimer = undefined;
-      const { user, publishEvent } = latest.current;
-      if (signal.aborted || user?.pubkey !== pubkey) return;
+      if (signal.aborted || latest.current.user?.pubkey !== pubkey) return;
 
       const fresh = await fetchFreshEvent(nostr, filter, { store, signal });
       const recorded = parseStreakEvent(fresh);
       const next = mergeStreaks(recorded, current);
       update(next);
       if (!next || !streakNeedsPublish(next, recorded)) return;
+
+      // The fetch can outlast an account switch (its local read ignores the
+      // signal), and publishEvent signs with whoever is current, so check again.
+      signal.throwIfAborted();
+      const { user, publishEvent } = latest.current;
+      if (user?.pubkey !== pubkey) return;
 
       // The repair allowance is spent by the prompt itself, so a repair that
       // needed nothing, or never got to ask, doesn't use it up.
