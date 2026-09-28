@@ -1,5 +1,33 @@
 # Changelog
 
+## [2.42.3] - 2026-09-28
+
+Torrents have landed: browse them in your feed or on their own page, check out the file list, and grab a magnet link with one tap. Audio players now show a track's title, artist, and cover art, and you can drag files straight into the composer. Ditto is also lighter on your battery, going quiet in the background and scrolling more smoothly over themed backgrounds, and it's smarter about which relays it talks to.
+
+### Added
+- Torrents in feeds and on a new Torrents page, with file lists, sizes, links to movie and anime databases, and magnet links
+- Audio players show the track's own title, artist, album, and cover art
+- Drag files into the composer to attach them
+- Event Details shows which of your and the author's relays have a post, and Broadcast only sends it to the ones missing it
+- Relay settings point out read relays that aren't responding, with a button to retry
+
+### Changed
+- Ditto goes quiet in hidden browser tabs and in the background on iOS and Android, saving battery and data
+- Live stream chat and webxdc games update instantly instead of re-downloading everything every few seconds
+- Smoother scrolling on themes with background images, and video thumbnails no longer reload as you scroll
+- Audio players only animate while playing and on screen
+- Posting streaks ask you to sign much less often, and never interrupt you while browsing
+- Relays you list as read relays are always used, relays that keep failing are skipped for a while, and blocking a relay blocks its whole site
+- Links and images from posts can no longer reach devices on your local network
+
+### Fixed
+- Follows and Loved feeds no longer skip posts from slow relays
+- Switching accounts no longer sends your posts to the previous account's relays
+- Logging out turns off push notifications for that account and forgets its mute list on the device
+- Muted users can no longer make your phone buzz with a generic "New notification"
+- Custom emoji packs no longer replace built-in emojis like ❤️ or 🔥 in the picker
+- A posting streak is never signed by the wrong account after switching accounts
+
 ## [2.42.2] - 2026-09-27
 
 Profiles now show off the accounts people have linked on other sites, like GitHub, Mastodon, Bluesky, Twitter, Telegram, and Discord, as little icon badges in their profile header. When someone updates their linked accounts it shows up in your feed, with links to the proof posts so you can check the claims yourself.
