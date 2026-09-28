@@ -43,6 +43,24 @@ interface EmojiMartEmoji {
 }
 
 /**
+ * The emoji-mart id for a custom emoji. emoji-mart keeps one module-global
+ * table of every emoji by id, built-ins included, and a custom emoji written
+ * under a built-in's id (a pack's `heart`, `+1`, `fire`) replaces it — its
+ * image then shows, and gets sent, wherever the user picks that built-in. The
+ * prefix keeps custom ids apart from built-in ones, and the URL hash keeps
+ * two packs' same-named emojis apart. Stable across sessions and devices, so
+ * "Frequently used" keeps its counts.
+ */
+function customPickerId(shortcode: string, url: string): string {
+	let hash = 0x811c9dc5;
+	for (let i = 0; i < url.length; i++) {
+		hash ^= url.charCodeAt(i);
+		hash = Math.imul(hash, 0x01000193);
+	}
+	return `nip30-${shortcode}-${(hash >>> 0).toString(36)}`;
+}
+
+/**
  * Emoji picker that manages the emoji-mart Picker (a Web Component) imperatively.
  *
  * We bypass `@emoji-mart/react` because it creates `new Picker()` inside a
@@ -63,6 +81,8 @@ export function EmojiPicker({ onSelect, customEmojis, height = 280 }: EmojiPicke
 
 	const resolvedTheme = getBackgroundThemeMode();
 	const onSelectRef = useRef(onSelect);
+	/** Shortcode of each custom emoji, by its picker id. */
+	const shortcodesRef = useRef(new Map<string, string>());
 
 	// Keep callback ref up to date without re-creating the picker.
 	onSelectRef.current = onSelect;
@@ -72,10 +92,12 @@ export function EmojiPicker({ onSelect, customEmojis, height = 280 }: EmojiPicke
 	const handleSelect = useCallback((emoji: EmojiMartEmoji) => {
 		if (emoji.src) {
 			// Custom emoji — has an image URL
-			recordEmojiUsage(user?.pubkey, `:${emoji.id}:`, emoji.src, emoji.id);
+			const shortcode = shortcodesRef.current.get(emoji.id);
+			if (!shortcode) return;
+			recordEmojiUsage(user?.pubkey, `:${shortcode}:`, emoji.src, emoji.id);
 			onSelectRef.current({
 				type: "custom",
-				shortcode: emoji.id,
+				shortcode,
 				url: emoji.src,
 			});
 		} else if (emoji.native) {
@@ -96,10 +118,13 @@ export function EmojiPicker({ onSelect, customEmojis, height = 280 }: EmojiPicke
 
 		const groups = new Map<string, EmojiMartCustomCategory>();
 		const usedIds = new Set<string>();
+		const shortcodes = new Map<string, string>();
 		for (const e of customEmojis) {
 			// emoji-mart renders these as plain <img>s, so the same load rules as
 			// CustomEmojiImg apply: an unloadable URL never reaches the picker.
-			if (!isLoadableEmojiUrl(e.url)) continue;
+			// A shortcode outside NIP-30's charset couldn't be written as
+			// `:shortcode:` in a post anyway.
+			if (!isLoadableEmojiUrl(e.url) || !/^[a-zA-Z0-9_-]+$/.test(e.shortcode)) continue;
 			const key = e.packCoord ?? "";
 			let group = groups.get(key);
 			if (!group) {
@@ -119,8 +144,10 @@ export function EmojiPicker({ onSelect, customEmojis, height = 280 }: EmojiPicke
 				};
 				groups.set(key, group);
 			}
+			const id = customPickerId(e.shortcode, e.url);
+			shortcodes.set(id, e.shortcode);
 			group.emojis.push({
-				id: e.shortcode,
+				id,
 				name: e.shortcode,
 				keywords: [e.shortcode],
 				skins: [{ src: e.url }],
@@ -132,6 +159,7 @@ export function EmojiPicker({ onSelect, customEmojis, height = 280 }: EmojiPicke
 		// non-scrolling row — a handful of packs overflows it. Without an icon it
 		// chains each pack onto the first one's button, so the packs share one
 		// nav entry while keeping their own labelled sections in the scroll area.
+		shortcodesRef.current = shortcodes;
 		return groups.size > 0 ? [...groups.values()] : undefined;
 	}, [customEmojis]);
 
