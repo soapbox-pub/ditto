@@ -39,13 +39,15 @@ export function relayMatchKey(url: string): string | undefined {
 }
 
 /**
- * What identifies a relay for blocking: its host and port. A block covers
- * every path on the host, so `wss://filter.nostr.wine/npub1…` can't slip past
- * a block of `wss://filter.nostr.wine`.
+ * What identifies a relay for blocking: its hostname. A block covers every
+ * port and path on the host, so neither `wss://filter.nostr.wine/npub1…`,
+ * `wss://filter.nostr.wine:444` nor `wss://filter.nostr.wine.` (a trailing
+ * dot resolves to the same server) can slip past a block of
+ * `wss://filter.nostr.wine`.
  */
 export function relayBlockKey(url: string): string | undefined {
   const href = normalizeRelayUrl(url);
-  return href ? new URL(href).host : undefined;
+  return href ? new URL(href).hostname.replace(/\.+$/, '') : undefined;
 }
 
 /** The URL a block is saved as: the relay's origin, without path or query. */

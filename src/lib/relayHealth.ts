@@ -1,5 +1,5 @@
 import type { RelayMetadata } from '@/contexts/AppContext';
-import { relayMatchKey, withoutBlockedRelays } from '@/lib/relayPolicy';
+import { normalizeRelayUrl, withoutBlockedRelays } from '@/lib/relayPolicy';
 
 /**
  * Which read relays are answering, so queries stop waiting on ones that
@@ -13,7 +13,10 @@ import { relayMatchKey, withoutBlockedRelays } from '@/lib/relayPolicy';
  * record is kept in localStorage so a cold start doesn't dial dead relays.
  *
  * Browsers report every failure the same way (close code 1006), so a failed
- * connection is all there is to go on. Failures while the device is offline
+ * connection is all there is to go on. Records are keyed by the exact URL
+ * dialled, since the pool opens a socket per URL: a hint like
+ * `wss://relay.damus.io//` that the relay refuses is its own record, and
+ * can't get the user's `wss://relay.damus.io/` skipped. Failures while the device is offline
  * aren't counted, and coming back online clears every skip.
  */
 
@@ -101,7 +104,7 @@ function update(next: Map<string, RelayHealth>): void {
 
 /** Record that a relay's socket opened. */
 export function recordRelayOpen(url: string): void {
-  const key = relayMatchKey(url);
+  const key = normalizeRelayUrl(url);
   if (!key || !health.get(key)?.failures) return;
   const next = new Map(health);
   next.delete(key);
@@ -110,7 +113,7 @@ export function recordRelayOpen(url: string): void {
 
 /** Record that a connection to a relay failed. */
 export function recordRelayFailure(url: string): void {
-  const key = relayMatchKey(url);
+  const key = normalizeRelayUrl(url);
   if (!key || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
   const now = Date.now();
   const prev = health.get(key);
@@ -132,7 +135,7 @@ export function recordRelayFailure(url: string): void {
 
 /** Forget a relay's failures, so it's read from again. */
 export function clearRelaySkip(url: string): void {
-  const key = relayMatchKey(url);
+  const key = normalizeRelayUrl(url);
   if (!key || !health.has(key)) return;
   const next = new Map(health);
   next.delete(key);
@@ -141,7 +144,7 @@ export function clearRelaySkip(url: string): void {
 
 /** When a relay is being skipped for reads, the time it's skipped until (ms). */
 export function relaySkippedUntil(url: string, now = Date.now()): number | undefined {
-  const key = relayMatchKey(url);
+  const key = normalizeRelayUrl(url);
   const skipUntil = key ? health.get(key)?.skipUntil : undefined;
   return skipUntil && skipUntil > now ? skipUntil : undefined;
 }
