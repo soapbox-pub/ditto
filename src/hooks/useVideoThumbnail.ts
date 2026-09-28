@@ -4,6 +4,28 @@ import type Hls from 'hls.js';
 /** Widest thumbnail worth producing: posters render at feed-card width. */
 const MAX_THUMBNAIL_WIDTH = 640;
 
+/** Thumbnails kept across mounts. At ~20-60 KB each this caps out at a few MB. */
+const MAX_CACHED_THUMBNAILS = 100;
+
+/**
+ * Captured thumbnails by video URL, oldest first. `null` records a video that
+ * can't be captured (CORS, blank frame) so it isn't retried. Feed cards unmount
+ * and remount as they scroll in and out of range, and without this every
+ * remount re-downloaded, seeked and re-encoded the same frame.
+ */
+const thumbnailCache = new Map<string, string | null>();
+
+function cacheThumbnail(src: string, url: string | null): void {
+  thumbnailCache.delete(src);
+  thumbnailCache.set(src, url);
+  while (thumbnailCache.size > MAX_CACHED_THUMBNAILS) {
+    const [oldest, oldUrl] = thumbnailCache.entries().next().value as [string, string | null];
+    thumbnailCache.delete(oldest);
+    // An <img> that already loaded this URL keeps showing it after revocation.
+    if (oldUrl) URL.revokeObjectURL(oldUrl);
+  }
+}
+
 /**
  * Draw the video's current frame, downscaled, and encode it as a JPEG object
  * URL. Resolves `undefined` for a tainted canvas (CORS) or a blank frame.
@@ -43,36 +65,33 @@ function captureFrame(video: HTMLVideoElement): Promise<string | undefined> {
  * Works reliably on Android WebView where preload="metadata" doesn't render a visible frame.
  */
 export function useVideoThumbnail(src: string, poster: string | undefined): string | undefined {
-  const [thumbnail, setThumbnail] = useState<string | undefined>(poster);
+  const [thumbnail, setThumbnail] = useState<string | undefined>(
+    () => poster ?? thumbnailCache.get(src) ?? undefined,
+  );
 
   useEffect(() => {
     // Skip if we already have a poster image
     if (poster) return;
     if (!src) return;
 
-    let cancelled = false;
-    /** The object URL this effect created, revoked when it's superseded. */
-    let created: string | undefined;
+    if (thumbnailCache.has(src)) {
+      setThumbnail(thumbnailCache.get(src) ?? undefined);
+      return;
+    }
+    setThumbnail(undefined);
 
+    let cancelled = false;
+
+    // The cache owns the object URL, so a capture that finishes after this
+    // effect is superseded is still kept for the next mount.
     const capture = (video: HTMLVideoElement): Promise<void> =>
       captureFrame(video).then((url) => {
-        if (!url) return;
-        if (cancelled) {
-          URL.revokeObjectURL(url);
-          return;
-        }
-        created = url;
-        setThumbnail(url);
+        cacheThumbnail(src, url ?? null);
+        if (url && !cancelled) setThumbnail(url);
       });
 
     const release = () => {
       cancelled = true;
-      if (created) {
-        const revoked = created;
-        URL.revokeObjectURL(revoked);
-        // Don't leave a dead URL in state for the next source to replace.
-        setThumbnail((current) => (current === revoked ? undefined : current));
-      }
     };
 
     function grabFrameFromUrl(videoSrc: string) {
