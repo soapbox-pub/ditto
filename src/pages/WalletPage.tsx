@@ -20,10 +20,9 @@ import { useWalletCurrency, type WalletCurrency } from '@/hooks/useWalletCurrenc
 
 /**
  * Shape of `location.state` consumed by this page when arriving via a
- * `bitcoin:` deep link. The `DeepLinkHandler` navigates to `/wallet` with
- * `state: { bip21Uri }` so we can auto-open the Send dialog with the URI
- * prefilled. Kept here (rather than exported) because no other route
- * produces this state.
+ * `bitcoin:` deep link. `resolveSchemeUri` (used by `DeepLinkHandler` and
+ * `ProtocolHandlerPage`) navigates to `/wallet` with `state: { bip21Uri }` so
+ * we can auto-open the Send dialog with the URI prefilled.
  */
 interface WalletLocationState {
   bip21Uri?: string;

@@ -115,6 +115,20 @@
       "url": "url"
     }
   },
+  "protocol_handlers": [
+    {
+      "protocol": "bitcoin",
+      "url": "/open?uri=%s"
+    },
+    {
+      "protocol": "monero",
+      "url": "/open?uri=%s"
+    },
+    {
+      "protocol": "nostr",
+      "url": "/open?uri=%s"
+    }
+  ],
   "related_applications": [
     {
       "platform": "play",

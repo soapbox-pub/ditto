@@ -68,6 +68,7 @@ const NotificationsPage = lazy(() => import("./pages/NotificationsPage").then(m 
 const PhotosFeedPage = lazy(() => import("./pages/PhotosFeedPage").then(m => ({ default: m.PhotosFeedPage })));
 const PodcastsFeedPage = lazy(() => import("./pages/PodcastsFeedPage").then(m => ({ default: m.PodcastsFeedPage })));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage").then(m => ({ default: m.PrivacyPolicyPage })));
+const ProtocolHandlerPage = lazy(() => import("./pages/ProtocolHandlerPage").then(m => ({ default: m.ProtocolHandlerPage })));
 const ProfileSettings = lazy(() => import("./pages/ProfileSettings").then(m => ({ default: m.ProfileSettings })));
 const RelayPage = lazy(() => import("./pages/RelayPage").then(m => ({ default: m.RelayPage })));
 const SearchPage = lazy(() => import("./pages/SearchPage").then(m => ({ default: m.SearchPage })));
@@ -310,6 +311,10 @@ export function AppRouter() {
             {/* Landing route for content shared into Ditto from another app's
                 Share button (Android share targets). */}
             <Route path="/share" element={<SharePage />} />
+
+            {/* Landing route for the web manifest's `bitcoin:`, `monero:`,
+                and `nostr:` protocol handlers. */}
+            <Route path="/open" element={<ProtocolHandlerPage />} />
 
             {/* Callback target for remote signers (e.g. Amber, Primal) after NIP-46 approval */}
             <Route path="/remoteloginsuccess" element={<RemoteLoginSuccessPage />} />

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 
-import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
+import { resolveSchemeUri } from '@/lib/schemeUri';
 
 /**
  * Handles deep links on native platforms.
@@ -19,6 +19,9 @@ import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
  *      Monero tab.
  *   3. `nostr:...` NIP-21 URIs — the bech32 identifier (npub, nprofile,
  *      note, nevent, naddr) is resolved to its app route and navigated to.
+ *
+ * Flavours 2 and 3 are resolved by `resolveSchemeUri`, which the web
+ * manifest's `protocol_handlers` also reach via `ProtocolHandlerPage`.
  *
  * Must be rendered inside a `<BrowserRouter>`.
  */
@@ -38,33 +41,11 @@ export function DeepLinkHandler() {
         const raw = event.url?.trim();
         if (!raw) return;
 
-        // BIP-21 `bitcoin:` URIs — open the wallet's Send dialog prefilled.
-        // The scheme check is case-insensitive (BIP-21 doesn't mandate case
-        // and some QR encoders uppercase the entire URI).
-        if (/^bitcoin:/i.test(raw)) {
-          navigate('/wallet', { state: { bip21Uri: raw } });
-          return;
-        }
-
-        // `monero:` URIs — same idea, but the wallet page also has to switch
-        // to the Monero tab before opening its Send dialog.
-        if (/^monero:/i.test(raw)) {
-          navigate('/wallet', { state: { moneroUri: raw } });
-          return;
-        }
-
-        // NIP-21 `nostr:` URIs — resolve the bech32 identifier to its app
-        // route and navigate. NIP-21 mandates a lowercase `nostr:` scheme,
-        // but some QR encoders uppercase the whole URI, so we match the
-        // scheme case-insensitively and normalize it back to lowercase
-        // before handing off (the bech32 body is left untouched, since
-        // `getNostrIdentifierPath` validates it via `nip19.decode`).
-        const nostrScheme = /^nostr:/i.exec(raw);
-        if (nostrScheme) {
-          const normalized = `nostr:${raw.slice(nostrScheme[0].length)}`;
-          const path = getNostrIdentifierPath(normalized);
-          if (path) {
-            navigate(path);
+        // `bitcoin:`, `monero:`, and `nostr:` URIs.
+        if (/^(bitcoin|monero|nostr):/i.test(raw)) {
+          const target = resolveSchemeUri(raw);
+          if (target) {
+            navigate(target.path, { state: target.state });
           }
           return;
         }
