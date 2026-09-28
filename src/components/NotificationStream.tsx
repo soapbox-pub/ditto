@@ -8,13 +8,20 @@ import { createLiveCursor } from '@/lib/backgroundQuiet';
 import { ALL_NOTIFICATION_KINDS } from '@/lib/notificationKinds';
 
 /**
+ * Coalesce a burst of incoming notifications into one refetch. Invalidating
+ * per event cancelled and restarted the same relay queries dozens of times
+ * when a popular post drew a wave of reactions.
+ */
+const INVALIDATE_DEBOUNCE_MS = 1_500;
+
+/**
  * NotificationStream — always-mounted persistent relay subscription for
  * notifications (armada-style websocket listen instead of polling).
  *
  * Opens a single long-lived REQ (`#p: [user.pubkey]`, `since: now`) through
  * the app's relay pool. When a new notification event arrives, it invalidates
- * the `notifications` and `notifications-unread` query caches so the
- * notifications page and the nav-dot badge refetch immediately.
+ * the `notifications` and `notifications-unread` query caches (once per
+ * burst) so the notifications page and the nav-dot badge refetch.
  *
  * The invalidated queries apply the user's per-type preferences, the
  * "only following" authors filter, and the read cursor at refetch time, so
@@ -28,8 +35,8 @@ export function NotificationStream(): null {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
-  // Backgrounded on Android the WebView holds no REQ: the native service (or
-  // remote push) watches instead, and resuming refetches what arrived.
+  // Backgrounded the WebView holds no REQ: the native service (or push)
+  // watches instead, and resuming refetches what arrived.
   const quiet = useBackgroundQuiet();
   const cursorRef = useRef(createLiveCursor());
 
@@ -45,6 +52,12 @@ export function NotificationStream(): null {
 
     const ac = new AbortController();
     const since = Math.floor(Date.now() / 1000);
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+    const invalidate = () => {
+      debounce = undefined;
+      queryClient.invalidateQueries({ queryKey: ['notifications', user.pubkey] });
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread', user.pubkey] });
+    };
 
     (async () => {
       try {
@@ -61,9 +74,8 @@ export function NotificationStream(): null {
             // Ignore own events
             if (ev.pubkey === user.pubkey) continue;
             // New notification arrived — invalidate both the full list and the
-            // unread indicator so the UI updates immediately.
-            queryClient.invalidateQueries({ queryKey: ['notifications', user.pubkey] });
-            queryClient.invalidateQueries({ queryKey: ['notifications-unread', user.pubkey] });
+            // unread indicator, once per burst.
+            if (debounce === undefined) debounce = setTimeout(invalidate, INVALIDATE_DEBOUNCE_MS);
           }
         }
       } catch {
@@ -71,7 +83,10 @@ export function NotificationStream(): null {
       }
     })();
 
-    return () => ac.abort();
+    return () => {
+      ac.abort();
+      clearTimeout(debounce);
+    };
   }, [nostr, user, queryClient, quiet]);
 
   return null;
