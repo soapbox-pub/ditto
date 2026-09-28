@@ -123,7 +123,7 @@ describe('fetchFeedPage', () => {
 
     // Page one is a's alone, and b's slow REQ was reused rather than sent again.
     expect(ids(pages[0])).toEqual(ids(aEvents.slice(0, 10)));
-    expect(b.calls[0].until).toBeUndefined();
+    expect(b.calls[0].until).toBeGreaterThan(boundary);
     expect(b.calls.slice(1).every((f) => f.until !== undefined && f.until <= boundary)).toBe(true);
 
     expectOrderedAndUnique(pages);
@@ -142,5 +142,41 @@ describe('fetchFeedPage', () => {
     expect(pages.length).toBeLessThan(10);
     expectOrderedAndUnique(pages);
     expect(ids(pages.flat())).toEqual(expect.arrayContaining(ids(series('older', 400, 1, 5))));
+  });
+
+  it("doesn't let one relay's future-dated events hold back the others", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const future = series('future', now + 600, 1, 20);
+    const past = series('past', now - 100, 1, 25);
+    // Without an `until` on its first REQ, `a` answers with only future events.
+    const a = fakeRelay([...future, ...past]);
+    const b = fakeRelay(series('b', now - 50, 1, 25));
+
+    const pages = await pageAll({ a, b });
+
+    expect(pages[0].length).toBeGreaterThan(0);
+    expect(a.calls[0].until).toBeLessThanOrEqual(now + 1);
+    expect(pages.flat().some((ev) => ev.id.startsWith('future'))).toBe(false);
+    expectOrderedAndUnique(pages);
+  });
+
+  it('ends a feed that keeps returning empty pages', async () => {
+    const r: FakeRelay = {
+      calls: [],
+      relay: {
+        async *req(filters) {
+          r.calls.push(filters[0]);
+          // Always a full page, all of it future-dated, whatever `until` says.
+          const now = Math.floor(Date.now() / 1000);
+          for (const ev of series(`f${r.calls.length}-`, now + 600, 1, 10)) yield ['EVENT', 'sub', ev];
+          yield ['EOSE', 'sub'];
+        },
+      },
+    };
+
+    const pages = await pageAll({ r });
+
+    expect(pages.length).toBeLessThan(10);
+    expect(pages.flat()).toEqual([]);
   });
 });

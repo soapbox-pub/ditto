@@ -43,6 +43,8 @@ export interface FeedCursor {
   relays: Record<string, RelayCursor>;
   /** Events received but not yet emitted, all at or before `boundary`. */
   buffer: NostrEvent[];
+  /** Pages in a row that emitted nothing. */
+  emptyPages?: number;
 }
 
 export interface FeedPageResult {
@@ -145,6 +147,13 @@ interface FeedPageOptions {
 const MAX_ROUNDS = 3;
 
 /**
+ * Empty pages in a row after which the feed ends. A feed whose relays keep
+ * answering with nothing emittable would otherwise be asked for page after
+ * page while its end stays in view.
+ */
+const MAX_EMPTY_PAGES = 5;
+
+/**
  * Fetch the next page of a feed from several relays, without skipping events.
  *
  * A page ends no lower than the oldest point any responding relay has been
@@ -180,6 +189,11 @@ export async function fetchFeedPage(opts: FeedPageOptions): Promise<FeedPageResu
       !opts.cursor || !cursor || result.late || !result.asked ||
       events.length * 2 >= limit || opts.signal?.aborted
     ) break;
+  }
+
+  if (cursor) {
+    const emptyPages = events.length ? 0 : (opts.cursor?.emptyPages ?? 0) + 1;
+    cursor = emptyPages >= MAX_EMPTY_PAGES ? undefined : { ...cursor, emptyPages };
   }
 
   return { events, cursor };
@@ -226,7 +240,12 @@ async function fetchRound(
     // A relay with a REQ still running keeps its filter, so this round
     // collects that REQ instead of sending another.
     const state = relays[url] ?? {};
-    relays[url] = state.pending ? state : clampToBoundary(state, boundary, prev.boundaryIds);
+    // A relay's first REQ stops at now: its newest page would otherwise be
+    // future-dated events, which set its position above every real one and
+    // hold the page back until the clock catches up.
+    relays[url] = state.pending
+      ? state
+      : clampToBoundary(state.until === undefined && !state.done ? { ...state, until: now } : state, boundary, prev.boundaryIds);
   }
 
   // A relay read down below the last buffered event this page needs can't
