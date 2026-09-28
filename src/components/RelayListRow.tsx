@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useRelayInfo } from '@/hooks/useRelayInfo';
 import type { RelayListEntry } from '@/lib/relayList';
 import { renderRelayUrl } from '@/lib/relayList';
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { isLocalNetworkUrl, sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
 interface RelayListRowProps {
@@ -38,8 +38,10 @@ interface RelayListRowProps {
  */
 export function RelayListRow({ entry, fetchInfo, className }: RelayListRowProps) {
   const intl = useIntl();
-  // Passing `undefined` leaves the query disabled — no request is made.
-  const { data: relayInfo } = useRelayInfo(fetchInfo ? entry.url : undefined);
+  // Passing `undefined` leaves the query disabled — no request is made. A
+  // local-network host is never fetched: the author chose it, and would get
+  // to probe the reader's LAN.
+  const { data: relayInfo } = useRelayInfo(fetchInfo && !isLocalNetworkUrl(entry.url) ? entry.url : undefined);
 
   const prettyUrl = renderRelayUrl(entry.url);
   const relayName = relayInfo?.name?.trim() || prettyUrl;

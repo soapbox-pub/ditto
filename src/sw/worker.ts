@@ -56,7 +56,7 @@ import { isValidZapReceipt } from '@/lib/zapReceipt';
 
 import { notificationShape, recordAndCheckBurst } from './burst';
 import { parseEvent } from './event';
-import { NO_PROFILE, resolveProfile } from './profiles';
+import { NO_PROFILE, notificationImage, resolveProfile } from './profiles';
 import { fetchEventById } from './relays';
 import {
   eventIdPath,
@@ -213,8 +213,10 @@ async function handleLegacyPush(payload: LegacyPayload): Promise<void> {
 
   await show(title, {
     body,
-    icon: payload.icon ?? '/icon-192.png',
-    badge: payload.badge ?? '/badge-96.png',
+    // The payload isn't a signed event, so its images get the same checks
+    // as a profile picture.
+    icon: notificationImage(payload.icon) ?? '/icon-192.png',
+    badge: notificationImage(payload.badge) ?? '/badge-96.png',
     data: payload.data ?? {},
     actions: notificationActions(null),
     requireInteraction: false,

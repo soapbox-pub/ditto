@@ -48,12 +48,17 @@ export function displayHost(url: string): string {
 }
 
 /**
- * Whether a URL points at a loopback, private, or link-local address.
+ * Whether a URL points at a loopback, private, or link-local address, or at a
+ * name that only resolves on a local network.
  *
  * Event-sourced images at such an address (a leaked dev-instance emoji, e.g.
  * `http://localhost:8080/…`) make the page request a local address, which
  * trips Chrome's Local Network Access prompt for everyone who views the event
  * and lets a sender probe viewers' LANs. Unparseable input is not local.
+ *
+ * This goes by the URL alone. A public name that resolves to a private
+ * address (`127.0.0.1.nip.io`, DNS rebinding) isn't caught; only the
+ * browser, which sees the resolved address, can catch that.
  */
 export function isLocalNetworkUrl(raw: string | undefined | null): boolean {
   if (!raw) return false;
@@ -66,12 +71,16 @@ export function isLocalNetworkUrl(raw: string | undefined | null): boolean {
   let h = host
     .replace(/^\[|\]$/g, '') // strip IPv6 brackets
     .replace(/\.$/, ''); // `localhost.` is the same host as `localhost`
-  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local')) return true;
+  if (h === 'localhost' || LOCAL_SUFFIXES.some((suffix) => h.endsWith(suffix))) return true;
+  // A single-label name (`http://router/`) resolves through the LAN's search
+  // domain. IPv4 in any spelling comes back from the parser dotted, and IPv6
+  // has colons, so neither lands here.
+  if (!h.includes('.') && !h.includes(':')) return true;
   if (h === '::1' || h === '::') return true; // loopback / unspecified
   // IPv4 embedded in IPv6 — mapped (::ffff:), NAT64 (64:ff9b::) or the old
   // compatible form (::) — reaches the same host by another spelling, and the
   // URL parser hands it back in hex (::ffff:7f00:1), matching no rule below.
-  const embedded = /^(?:::ffff:|64:ff9b::|::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(h);
+  const embedded = /^(?:::ffff:(?:0:)?|64:ff9b::|::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(h);
   if (embedded) {
     const n = (parseInt(embedded[1], 16) << 16) | parseInt(embedded[2], 16);
     h = [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.');
@@ -85,8 +94,15 @@ export function isLocalNetworkUrl(raw: string | undefined | null): boolean {
     if (a === 172 && b >= 16 && b <= 31) return true; // private
     if (a === 169 && b === 254) return true; // link-local
     if (a === 100 && b >= 64 && b <= 127) return true; // carrier-grade NAT
+    if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking, often internal
+    if (a === 192 && b === 0 && Number(v4[3]) === 0) return true; // IETF protocol assignments
   }
   if (/^f[cd][0-9a-f]*:/.test(h)) return true; // IPv6 unique-local fc00::/7
   if (/^fe[89ab][0-9a-f]*:/.test(h)) return true; // IPv6 link-local fe80::/10
+  if (/^fe[c-f][0-9a-f]*:/.test(h)) return true; // IPv6 site-local fec0::/10 (deprecated, still routed internally)
+  if (/^64:ff9b:1:/.test(h)) return true; // IPv6 local-use NAT64 64:ff9b:1::/48
   return false;
 }
+
+/** Name suffixes that only resolve on a local network. */
+const LOCAL_SUFFIXES = ['.localhost', '.local', '.lan', '.internal', '.intranet', '.home.arpa'];

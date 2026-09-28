@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useAddEmojiPack, useRemoveEmojiPack } from '@/hooks/useEmojiPacks';
+import { emojiPackPicture, useAddEmojiPack, useRemoveEmojiPack } from '@/hooks/useEmojiPacks';
 import { useToast } from '@/hooks/useToast';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { FallbackImage } from '@/components/FallbackImage';
@@ -35,7 +35,7 @@ function parseEmojiPack(event: NostrEvent): EmojiPackData | null {
   if (!identifier) return null;
 
   const name = event.tags.find(([n]) => n === 'name')?.[1] || identifier;
-  const picture = event.tags.find(([n]) => n === 'picture')?.[1];
+  const picture = emojiPackPicture(event);
   const about = event.tags.find(([n]) => n === 'about')?.[1];
 
   const emojis: Array<{ shortcode: string; url: string }> = [];

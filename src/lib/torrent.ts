@@ -1,5 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { isLocalNetworkUrl } from '@/lib/sanitizeUrl';
+
 /**
  * NIP-35 torrent (kind 2003).
  *
@@ -78,6 +80,11 @@ function parseTracker(value: string | undefined): string | undefined {
   try {
     const url = new URL(value.trim());
     if (!TRACKER_PROTOCOLS.has(url.protocol) || !url.hostname) return undefined;
+    // Opening the magnet has the torrent client announce to every tracker,
+    // so one at a local address lets the event's author aim requests at the
+    // viewer's router. `udp:` hosts come back unnormalized (`0x7f.1`), so
+    // they're checked as an http host.
+    if (isLocalNetworkUrl(`http://${url.host}/`)) return undefined;
     return url.href;
   } catch {
     return undefined;

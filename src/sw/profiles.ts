@@ -3,7 +3,7 @@
  * across the worker's short lives.
  */
 
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { isLocalNetworkUrl, sanitizeUrl } from '@/lib/sanitizeUrl';
 
 import { parseEvent } from './event';
 import { idbRequest, openDb, txDone } from './idb';
@@ -116,9 +116,18 @@ async function requestProfile(relays: string[], pubkey: string): Promise<Profile
 
   return {
     name: cleanName(metadata.display_name) ?? cleanName(metadata.name),
-    // Only https: images are worth handing to the host; anything else it refuses.
-    picture: typeof metadata.picture === 'string' ? sanitizeUrl(metadata.picture) ?? null : null,
+    picture: typeof metadata.picture === 'string' ? notificationImage(metadata.picture) : null,
   };
+}
+
+/**
+ * An event-sourced image fit for a notification: https only (anything else
+ * the host refuses), and never at a local-network address, which would let
+ * whoever set it probe the viewer's LAN through the notification's fetch.
+ */
+export function notificationImage(raw: string | undefined): string | null {
+  const url = sanitizeUrl(raw);
+  return url && !isLocalNetworkUrl(url) ? url : null;
 }
 
 export async function resolveProfile(relays: string[], pubkey: string): Promise<Profile> {

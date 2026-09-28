@@ -1,14 +1,15 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { isLocalNetworkUrl } from '@/lib/sanitizeUrl';
+import { isLocalNetworkUrl, sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /**
- * Whether an event-sourced custom emoji image may be loaded: http(s) only,
- * and never at a loopback/private address — pointing an image at one trips
- * Chrome's Local Network Access prompt for everyone who views the event.
+ * Whether an event-sourced custom emoji image may be loaded: https only (CSP
+ * blocks plain http images anyway), and never at a loopback/private address —
+ * pointing an image at one trips Chrome's Local Network Access prompt for
+ * everyone who views the event.
  */
 export function isLoadableEmojiUrl(url: string): boolean {
-  return /^https?:\/\//i.test(url) && !isLocalNetworkUrl(url);
+  return sanitizeUrl(url) !== undefined && !isLocalNetworkUrl(url);
 }
 
 /**

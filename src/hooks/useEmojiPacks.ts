@@ -16,6 +16,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { hasDurableEmojis } from '@/lib/emojiPalette';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { isLoadableEmojiUrl } from '@/lib/customEmoji';
 import { parseAddr } from '@/lib/parseAddr';
 
 /** NIP-30 emoji set (a shareable pack). */
@@ -41,11 +42,8 @@ export function emojiPackName(event: NostrEvent): string {
 
 /** The pack's cover image (`image` or `picture` tag), if any. */
 export function emojiPackPicture(event: NostrEvent): string | undefined {
-  return (
-    event.tags.find((t) => t[0] === 'image')?.[1] ||
-    event.tags.find((t) => t[0] === 'picture')?.[1] ||
-    undefined
-  );
+  const url = event.tags.find((t) => t[0] === 'image')?.[1] || event.tags.find((t) => t[0] === 'picture')?.[1];
+  return url && isLoadableEmojiUrl(url) ? url : undefined;
 }
 
 /** Extract the `["emoji", shortcode, url]` mappings from a kind 30030 event. */
