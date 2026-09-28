@@ -4,6 +4,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import type { AvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
+import { useInView } from '@/hooks/useInView';
 import { useDecryptedFile } from '@/hooks/useDecryptedFile';
 import { hasAudioMetadata, useAudioMetadata } from '@/hooks/useAudioMetadata';
 import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
@@ -31,7 +32,8 @@ interface AudioVisualizerProps {
 /**
  * Audio player that renders identically to VideoPlayer — same container,
  * same overlay controls, same progress bar — but the "video surface" is
- * a canvas showing an animated sinewave with the author's avatar centred.
+ * a canvas showing a sinewave (live waveform while playing) with the
+ * author's avatar centred.
  * A music file that carries its own tags or cover art (read out of the file,
  * not the event) shows its cover in place of the avatar and its title,
  * artist and album across the top.
@@ -66,7 +68,6 @@ export function AudioVisualizer({
   const animFrameRef = useRef<number>(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const idlePhaseRef = useRef(0);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -85,16 +86,20 @@ export function AudioVisualizer({
   // at the original URL would only hand it ciphertext.
   const unplayable = decrypted.encrypted && !decrypted.src;
 
+  // Only animate while the canvas is on screen. The canvas is unmounted while
+  // an encrypted file decrypts; the callback ref picks it up once it appears.
+  const { ref: inViewRef, inView } = useInView({ rootMargin: '100px' });
+  const setCanvasRef = useCallback((node: HTMLCanvasElement | null) => {
+    canvasRef.current = node;
+    inViewRef(node);
+  }, [inViewRef]);
+
   // ── Canvas: sinewave drawing ───────────────────────────────────────────
-  const draw = useCallback(() => {
+  // Draws a single frame. `primaryHsl` is the theme's --primary value, read
+  // once per animation run rather than per frame to avoid a style recalc.
+  const drawFrame = useCallback((primaryHsl: string) => {
     const canvas = canvasRef.current;
-    if (!canvas) {
-      // The canvas is unmounted while an encrypted file decrypts. Keep the
-      // loop alive rather than returning, or it would never resume once the
-      // canvas appears.
-      animFrameRef.current = requestAnimationFrame(draw);
-      return;
-    }
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -113,9 +118,6 @@ export function AudioVisualizer({
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, W, H);
 
-    // Read the theme's --primary HSL value at draw time so the wave always
-    // matches the current color scheme (light / dark / custom theme).
-    const primaryHsl = getComputedStyle(canvas).getPropertyValue('--primary').trim();
     const primaryColor = `hsl(${primaryHsl})`;
     const primaryFaint = `hsl(${primaryHsl} / 0.15)`;
     const primaryMid   = `hsl(${primaryHsl} / 0.85)`;
@@ -164,9 +166,7 @@ export function AudioVisualizer({
         else ctx.lineTo(x, y);
       }
     } else {
-      // Idle animated sine
-      idlePhaseRef.current += 0.03;
-      const phase = idlePhaseRef.current;
+      // Idle sine, drawn as a still frame while paused
       const steps = 300;
       for (let i = 0; i <= steps; i++) {
         const x = (i / steps) * W;
@@ -176,7 +176,7 @@ export function AudioVisualizer({
           : dist < avatarR * 1.6
             ? (dist - avatarR) / (avatarR * 0.6)
             : 1;
-        const y = midY + Math.sin((i / steps) * Math.PI * 4 + phase) * (H * 0.12) * fade;
+        const y = midY + Math.sin((i / steps) * Math.PI * 4) * (H * 0.12) * fade;
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
@@ -184,15 +184,32 @@ export function AudioVisualizer({
 
     ctx.stroke();
     ctx.restore();
-
-    animFrameRef.current = requestAnimationFrame(draw);
   }, [isPlaying]);
 
+  // Run the per-frame loop only while playing and on screen. Otherwise draw a
+  // single still frame, redrawn when the canvas resizes, so an idle player
+  // costs nothing.
   useEffect(() => {
-    cancelAnimationFrame(animFrameRef.current);
-    animFrameRef.current = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(animFrameRef.current);
-  }, [draw]);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const readPrimary = () => getComputedStyle(canvas).getPropertyValue('--primary').trim();
+
+    if (isPlaying && inView) {
+      const primaryHsl = readPrimary();
+      const loop = () => {
+        drawFrame(primaryHsl);
+        animFrameRef.current = requestAnimationFrame(loop);
+      };
+      animFrameRef.current = requestAnimationFrame(loop);
+      return () => cancelAnimationFrame(animFrameRef.current);
+    }
+
+    drawFrame(readPrimary());
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => drawFrame(readPrimary()));
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [drawFrame, isPlaying, inView, unplayable]);
 
   // ── Web Audio API ──────────────────────────────────────────────────────
   const ensureAudioContext = useCallback(() => {
@@ -305,7 +322,7 @@ export function AudioVisualizer({
         <>
         {/* Sinewave canvas — fills the entire box */}
         <canvas
-          ref={canvasRef}
+          ref={setCanvasRef}
           className="absolute inset-0 w-full h-full"
           onClick={handleCanvasClick}
           style={{ cursor: 'pointer' }}
