@@ -74,15 +74,63 @@ export function getEffectiveRelays(
 }
 
 /**
- * Get the relay URLs to publish the user's own events to.
+ * Get the relay URLs to publish an account's own events to.
  *
  * These are the write relays of the effective relay set, plus the write
- * relays of the user's NIP-65 list even when `useUserRelays` is off. Other
- * clients look for the user's events on those relays (NIP-65 outbox model),
- * so they must receive them regardless of which relays this app reads from.
+ * relays of the account's NIP-65 list even when `useUserRelays` is off. Other
+ * clients look for the account's events on those relays (NIP-65 outbox
+ * model), so they must receive them regardless of which relays this app
+ * reads from.
+ *
+ * The stored list is only used when it belongs to `pubkey`. After switching
+ * to an account whose own list hasn't loaded (or that has none), the previous
+ * account's list is still stored; publishing there would tie the two
+ * accounts together. A list of unknown owner (see {@link RelayMetadata.pubkey})
+ * is only used when `useUserRelays` is on, as before owners were recorded.
  */
-export function getPublishRelays(userRelays: RelayMetadata, useAppRelays: boolean): string[] {
-  return getEffectiveRelays(userRelays, useAppRelays, true).relays
+export function getPublishRelays(
+  userRelays: RelayMetadata,
+  useAppRelays: boolean,
+  useUserRelays: boolean,
+  pubkey: string,
+): string[] {
+  const includeUser = userRelays.pubkey === undefined ? useUserRelays : userRelays.pubkey === pubkey;
+  return getEffectiveRelays(userRelays, useAppRelays, includeUser).relays
     .filter((relay) => relay.write)
     .map((relay) => relay.url);
+}
+
+/**
+ * The relay list to store for an account after fetching its NIP-65 event,
+ * or undefined to keep the stored one.
+ *
+ * A newer event replaces the list, as does any event when the stored list
+ * belongs to another account. A stored list of unknown owner that is at
+ * least as new is kept, and claimed for the account when it holds the same
+ * relays as the account's event.
+ */
+export function relayMetadataFromEvent(
+  stored: RelayMetadata,
+  event: { pubkey: string; created_at: number; tags: string[][] },
+): RelayMetadata | undefined {
+  const fetched = event.tags
+    .filter(([name]) => name === 'r')
+    .map(([, url, marker]) => ({
+      url: url.replace(/\/+$/, ''),
+      read: !marker || marker === 'read',
+      write: !marker || marker === 'write',
+    }));
+
+  const otherOwner = stored.pubkey !== undefined && stored.pubkey !== event.pubkey;
+  if ((otherOwner || event.created_at > stored.updatedAt) && fetched.length > 0) {
+    return { relays: fetched, updatedAt: event.created_at, pubkey: event.pubkey };
+  }
+
+  if (stored.pubkey === undefined) {
+    const key = (relays: RelayMetadata['relays']) =>
+      relays.map((r) => `${normalizeUrl(r.url)} ${r.read} ${r.write}`).sort().join('\n');
+    if (key(stored.relays) === key(fetched)) return { ...stored, pubkey: event.pubkey };
+  }
+
+  return undefined;
 }

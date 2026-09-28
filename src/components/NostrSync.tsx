@@ -10,6 +10,7 @@ import { getEmojiUsage, hydrateEmojiUsage, subscribeEmojiUsage } from "@/hooks/u
 import { isSyncDone } from "@/hooks/useInitialSync";
 import { useStreakSync } from "@/hooks/useStreakSync";
 import { parseBlossomServerList } from "@/lib/appBlossom";
+import { relayMetadataFromEvent } from "@/lib/appRelays";
 import { getCachedPrivateBlockedRelays, setBlockedRelays } from "@/lib/relayPolicy";
 import { getStorageKey } from "@/lib/storageKey";
 import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from "@/lib/themeEvent";
@@ -144,30 +145,15 @@ export function NostrSync() {
   });
 
   useEffect(() => {
-    if (!relayListEvent) return;
+    if (!relayListEvent || relayListEvent.pubkey !== user?.pubkey) return;
 
-    // Only update if the event is newer than our stored data
-    if (relayListEvent.created_at > config.relayMetadata.updatedAt) {
-      const fetchedRelays = relayListEvent.tags
-        .filter(([name]) => name === "r")
-        .map(([, url, marker]) => ({
-          url: url.replace(/\/+$/, ""),
-          read: !marker || marker === "read",
-          write: !marker || marker === "write",
-        }));
-
-      if (fetchedRelays.length > 0) {
-        console.log("Syncing relay list from Nostr:", fetchedRelays);
-        updateConfig((current) => ({
-          ...current,
-          relayMetadata: {
-            relays: fetchedRelays,
-            updatedAt: relayListEvent.created_at,
-          },
-        }));
-      }
+    // Take the event if it's newer than the stored list, or the stored list
+    // is another account's.
+    const relayMetadata = relayMetadataFromEvent(config.relayMetadata, relayListEvent);
+    if (relayMetadata) {
+      updateConfig((current) => ({ ...current, relayMetadata }));
     }
-  }, [relayListEvent, config.relayMetadata.updatedAt, updateConfig]);
+  }, [relayListEvent, user?.pubkey, config.relayMetadata, updateConfig]);
 
   // Apply the user's blocked relays (kind 10006) to the relay pool.
   // If the private entries couldn't be decrypted, use the private entries

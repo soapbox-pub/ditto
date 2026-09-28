@@ -58,8 +58,8 @@ export function useEventRelayPresence(event: NostrEvent, enabled: boolean) {
   const [broadcasting, setBroadcasting] = useState(false);
 
   const yourRelays = useMemo(
-    () => (user ? getPublishRelays(config.relayMetadata, config.useAppRelays) : []),
-    [user, config.relayMetadata, config.useAppRelays],
+    () => (user ? getPublishRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays, user.pubkey) : []),
+    [user, config.relayMetadata, config.useAppRelays, config.useUserRelays],
   );
 
   const signed = Boolean(event.id && event.sig);

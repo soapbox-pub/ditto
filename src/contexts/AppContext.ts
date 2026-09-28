@@ -35,6 +35,12 @@ export interface RelayMetadata {
   relays: { url: string; read: boolean; write: boolean }[];
   /** Unix timestamp of when the relay list was last updated */
   updatedAt: number;
+  /**
+   * The account this list was read from or saved by. Unset for a list from
+   * before this was recorded, or one edited while logged out. Another
+   * account's list is never published to.
+   */
+  pubkey?: string;
 }
 
 /** Blossom server list metadata, mirroring RelayMetadata for parity with relay management. */

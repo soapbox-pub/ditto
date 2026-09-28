@@ -117,6 +117,7 @@ export const RelayMetadataSchema = z.object({
     write: z.boolean(),
   })),
   updatedAt: z.number(),
+  pubkey: z.string().optional(),
 });
 
 /** Zod schema for BlossomServerMetadata (BUD-03 kind 10063 server list). */

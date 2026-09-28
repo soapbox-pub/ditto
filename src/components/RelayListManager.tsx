@@ -249,7 +249,7 @@ export function RelayListManager() {
       title: enabled ? intl.formatMessage({ id: 'settings.network.userRelaysEnabled', defaultMessage: "Your relays enabled" }) : intl.formatMessage({ id: 'settings.network.userRelaysDisabled', defaultMessage: "Your relays disabled" }),
       description: enabled
         ? intl.formatMessage({ id: 'settings.network.userRelaysEnabledDescription', defaultMessage: "Your personal relays will be used alongside app relays when enabled." })
-        : intl.formatMessage({ id: 'settings.network.userRelaysDisabledDescription', defaultMessage: "Your personal relays will not be used. Only app relays will be queried." }),
+        : intl.formatMessage({ id: 'settings.network.userRelaysDisabledReadDescription', defaultMessage: "Only app relays will be queried. Your posts still go to your write relays." }),
     });
   };
 
@@ -312,6 +312,7 @@ export function RelayListManager() {
       relayMetadata: {
         relays: newRelays,
         updatedAt: now,
+        pubkey: user?.pubkey,
       },
     }));
 
@@ -433,7 +434,7 @@ export function RelayListManager() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            <FormattedMessage id="settings.network.yourRelaysDescription" defaultMessage={"Your personal relay list. Disabled by default — enable to include your relays in queries and publishes."} /> {user ? <FormattedMessage id="settings.network.yourRelaysSynced" defaultMessage={"Your list is still synced to Nostr when logged in."} /> : <FormattedMessage id="settings.network.yourRelaysLogin" defaultMessage={"Log in to sync your list to Nostr."} />}
+            <FormattedMessage id="settings.network.yourRelaysReadDescription" defaultMessage={"Your personal relay list. Disabled by default — enable to read from your relays too. Your posts always go to your write relays, so others can find them."} /> {user ? <FormattedMessage id="settings.network.yourRelaysSynced" defaultMessage={"Your list is still synced to Nostr when logged in."} /> : <FormattedMessage id="settings.network.yourRelaysLogin" defaultMessage={"Log in to sync your list to Nostr."} />}
           </p>
         </div>
 

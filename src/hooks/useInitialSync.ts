@@ -2,6 +2,7 @@ import { useNostr } from "@nostrify/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { parseBlossomServerList } from "@/lib/appBlossom";
+import { relayMetadataFromEvent } from "@/lib/appRelays";
 import { EncryptedSettingsSchema } from "@/lib/schemas";
 import { getStorageKey } from "@/lib/storageKey";
 import { useAppContext } from "./useAppContext";
@@ -151,25 +152,10 @@ export function useInitialSync() {
           const event = relayEvents[0];
           // Seed into cache so NostrSync can read it without re-fetching
           queryClient.setQueryData(["relayList", user.pubkey], event);
-          if (event.created_at > latest.current.config.relayMetadata.updatedAt) {
-            const fetchedRelays = event.tags
-              .filter(([name]) => name === "r")
-              .map(([, url, marker]) => ({
-                url: url.replace(/\/+$/, ""),
-                read: !marker || marker === "read",
-                write: !marker || marker === "write",
-              }));
-
-            if (fetchedRelays.length > 0) {
-              latest.current.updateConfig((current) => ({
-                ...current,
-                relayMetadata: {
-                  relays: fetchedRelays,
-                  updatedAt: event.created_at,
-                },
-              }));
-              foundSettings = true;
-            }
+          const relayMetadata = relayMetadataFromEvent(latest.current.config.relayMetadata, event);
+          if (relayMetadata) {
+            latest.current.updateConfig((current) => ({ ...current, relayMetadata }));
+            foundSettings = true;
           }
         }
 

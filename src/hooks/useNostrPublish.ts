@@ -6,6 +6,7 @@ import { useAppContext } from "./useAppContext";
 import { useCurrentUser } from "./useCurrentUser";
 import { getPublishRelays } from "@/lib/appRelays";
 import { sendToInboxRelays } from "@/lib/inboxRelays";
+import { withoutBlockedRelays } from "@/lib/relayPolicy";
 import { NO_WRITE_RELAYS } from "@/lib/publishError";
 import { notifyStreakActivity } from "@/lib/streak";
 
@@ -69,8 +70,10 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
         // Bail before bothering the signer if there's nowhere to publish to.
         // `NPool.event()` returns successfully when its event router yields no
         // relays, so without this check the UI reports a post that was never
-        // sent anywhere. Mirrors NostrProvider's own routing.
-        if (getPublishRelays(config.relayMetadata, config.useAppRelays).length === 0) {
+        // sent anywhere — including when every write relay is blocked.
+        // Mirrors NostrProvider's own routing.
+        const publishRelays = getPublishRelays(config.relayMetadata, config.useAppRelays, config.useUserRelays, user.pubkey);
+        if (withoutBlockedRelays(publishRelays).length === 0) {
           throw new Error(NO_WRITE_RELAYS);
         }
 

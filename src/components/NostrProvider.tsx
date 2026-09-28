@@ -268,11 +268,11 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         const urls = withoutBlockedRelays(routeReadRelays(filters, readRelays));
         return new Map(urls.map((url) => [url, filters]));
       },
-      eventRouter(_event: NostrEvent) {
-        // Write relays of the effective set, plus the user's NIP-65 write
+      eventRouter(event: NostrEvent) {
+        // Write relays of the effective set, plus the author's NIP-65 write
         // relays even when personal relays are disabled in settings.
-        const { relayMetadata, useAppRelays } = configRef.current;
-        return withoutBlockedRelays(getPublishRelays(relayMetadata, useAppRelays));
+        const { relayMetadata, useAppRelays, useUserRelays } = configRef.current;
+        return withoutBlockedRelays(getPublishRelays(relayMetadata, useAppRelays, useUserRelays, event.pubkey));
       },
       // Resolve queries quickly once any relay sends EOSE, instead of
       // waiting for every relay to finish.
