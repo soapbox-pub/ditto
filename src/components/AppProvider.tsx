@@ -7,7 +7,7 @@ import {
   getActivePubkey,
   subscribeActivePubkey,
 } from '@/lib/activeAccount';
-import { builtinThemes, buildThemeCssFromCore, resolveTheme, resolveThemeConfig, type ThemeConfig, type ThemesConfig } from '@/themes';
+import { builtinThemes, buildBackgroundCss, buildThemeCssFromCore, resolveTheme, resolveThemeConfig, type ThemeConfig, type ThemesConfig } from '@/themes';
 import { AppConfigSchema } from '@/lib/schemas';
 import { migrateApiUrl } from '@/lib/apiUrls';
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
@@ -255,14 +255,7 @@ function useApplyBackground(theme: Theme, customTheme: ThemeConfig | undefined, 
       document.head.appendChild(style);
     }
 
-    let css: string;
-    if (bgMode === 'tile') {
-      css = `body { background-image: url("${bgUrl}"); background-repeat: repeat; background-size: auto; }`;
-    } else {
-      css = `body { background-image: url("${bgUrl}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
-    }
-
-    style.textContent = css;
+    style.textContent = buildBackgroundCss(bgUrl, bgMode);
 
     return () => {
       document.getElementById(BG_STYLE_ID)?.remove();

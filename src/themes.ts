@@ -533,6 +533,24 @@ export function buildThemeCss(tokens: ThemeTokens): string {
   return `:root { ${vars} }`;
 }
 
+/**
+ * Builds the CSS for a theme background image. `url` must already be
+ * sanitized (theme parsing runs it through `sanitizeUrl`).
+ *
+ * Cover mode paints the image on a fixed `body::before` layer rather than
+ * using `background-attachment: fixed`, which makes Android WebView and
+ * Chrome repaint the whole viewport on every scroll frame. The layer sits at
+ * `z-index: -1` in the root stacking context: above the canvas (html has no
+ * background of its own, so body's color propagates there) and below all
+ * page content.
+ */
+export function buildBackgroundCss(url: string, mode: ThemeBackground['mode'] = 'cover'): string {
+  if (mode === 'tile') {
+    return `body { background-image: url("${url}"); background-repeat: repeat; background-size: auto; }`;
+  }
+  return `body::before { content: ""; position: fixed; inset: 0; z-index: -2147483648; pointer-events: none; background-image: url("${url}"); background-size: cover; background-repeat: no-repeat; background-position: center; }`;
+}
+
 /** Derive full ThemeTokens from CoreThemeColors */
 export function coreToTokens(colors: CoreThemeColors): ThemeTokens {
   return deriveTokensFromCore(colors.background, colors.text, colors.primary);

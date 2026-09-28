@@ -98,7 +98,7 @@ import {
   CSS as DndCSS,
   type DragEndEvent,
 } from '@/lib/sortable';
-import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
+import { buildBackgroundCss, buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
 import { resolveCssFamily, loadBundledFont } from '@/lib/fonts';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
@@ -1817,12 +1817,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         bgEl.id = bgStyleId;
         document.head.appendChild(bgEl);
       }
-      const bgMode = effectiveProfileBackground.mode ?? 'cover';
-      if (bgMode === 'tile') {
-        bgEl.textContent = `body { background-image: url("${effectiveProfileBackground.url}"); background-repeat: repeat; background-size: auto; }`;
-      } else {
-        bgEl.textContent = `body { background-image: url("${effectiveProfileBackground.url}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
-      }
+      bgEl.textContent = buildBackgroundCss(effectiveProfileBackground.url, effectiveProfileBackground.mode);
     } else {
       // No profile background — remove any existing background style
       previousBgEl?.remove();
@@ -1867,12 +1862,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
           document.head.appendChild(newBgEl);
           return newBgEl;
         })();
-        const ownBgMode = ownActiveConfig?.background?.mode ?? 'cover';
-        if (ownBgMode === 'tile') {
-          targetEl.textContent = `body { background-image: url("${ownBgUrl}"); background-repeat: repeat; background-size: auto; }`;
-        } else {
-          targetEl.textContent = `body { background-image: url("${ownBgUrl}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
-        }
+        targetEl.textContent = buildBackgroundCss(ownBgUrl, ownActiveConfig?.background?.mode);
       } else {
         // Own theme has no background — remove the style element
         bgEl?.remove();
