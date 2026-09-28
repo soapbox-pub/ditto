@@ -9,11 +9,15 @@
  * - Native apps follow the synced `notificationsEnabled` setting (on unless
  *   switched off); elsewhere push is a per-device choice made in settings.
  * - Pings transports whose registration expires, on launch and on return.
+ * - Turns web push off when the account it was set up for logs out, so a
+ *   shared device stops showing that account's notifications and drops the
+ *   worker's copy of its follows and decrypted mute list.
  *
  * Renders its children. Must be mounted inside NostrProvider and
  * NostrLoginProvider.
  */
 
+import { useNostrLogin } from '@nostrify/react/login';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { PushNotificationsContext, type PushNotificationsContextType } from '@/contexts/PushNotificationsContext';
@@ -29,6 +33,7 @@ import type { PushContext, PushPreferences } from '@/lib/push/types';
 export function PushNotificationsProvider({ children }: { children: ReactNode }) {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
+  const { logins } = useNostrLogin();
   const { settings, isLoading: settingsLoading } = useEncryptedSettings();
   const { data: followData } = useFollowList();
   const { mutedPubkeys, mutedKey } = useMutedAuthorFilter();
@@ -89,15 +94,20 @@ export function PushNotificationsProvider({ children }: { children: ReactNode })
     return result;
   }, [adapter]);
 
+  // The account web push was last set up for.
+  const pushPubkey = useRef<string | undefined>(undefined);
+
   const enable = useCallback(async (userPubkey: string, prefsOverride?: PushPreferences) => {
     if (!adapter.supported) return;
     const context = contextRef.current;
     await adapter.enable({ ...context, prefs: prefsOverride ?? context.prefs, pubkey: userPubkey });
+    pushPubkey.current = userPubkey;
     setEnabled(true);
   }, [adapter]);
 
   const disable = useCallback(async () => {
     await adapter.disable();
+    pushPubkey.current = undefined;
     setEnabled(false);
   }, [adapter]);
 
@@ -129,11 +139,21 @@ export function PushNotificationsProvider({ children }: { children: ReactNode })
   // nothing, so this costs nothing on an ordinary launch.
   useEffect(() => {
     if (!ready || adapter.followsSyncedSetting || !enabled || !user) return;
+    pushPubkey.current = user.pubkey;
     adapter.sync({ ...contextRef.current, pubkey: user.pubkey }).catch((err) => {
       console.error('[push] Failed to re-sync subscriptions:', err);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adapter, ready, enabled, user?.pubkey, followsKey, relaysKey, prefsKey, mutedKey]);
+
+  // Logging out the account push was set up for turns it off. Switching to
+  // another logged-in account instead moves it over (above). Native follows
+  // the login already, through `nativeWanted`.
+  useEffect(() => {
+    const pubkey = pushPubkey.current;
+    if (!pubkey || adapter.followsSyncedSetting || logins.some((login) => login.pubkey === pubkey)) return;
+    disable().catch((err) => console.error('[push] Failed to disable after logout:', err));
+  }, [adapter, logins, disable]);
 
   // Registrations that expire are pinged on launch and whenever Ditto comes
   // back to the foreground; the host rate-limits itself to once a day.

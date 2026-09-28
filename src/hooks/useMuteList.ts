@@ -70,6 +70,16 @@ export function setCachedMuteItems(appId: string, pubkey: string, items: MuteLis
   }
 }
 
+/** Forget an account's cached mute list (on logout). Its private half is decrypted here. */
+export function clearCachedMuteItems(appId: string, pubkey: string): void {
+  try {
+    const cacheKey = getMuteCacheKey(appId);
+    if (getCachedMuteList(cacheKey, pubkey)) localStorage.removeItem(cacheKey);
+  } catch {
+    // Storage unavailable — nothing cached.
+  }
+}
+
 /** Parse decrypted mute list tags into structured items. */
 export function parseMuteTags(tags: string[][]): MuteListItem[] {
   const items: MuteListItem[] = [];
