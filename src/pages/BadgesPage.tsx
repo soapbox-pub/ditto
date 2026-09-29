@@ -647,7 +647,6 @@ function AcceptedBadgeList({
                   key={ref.aTag}
                   id={ref.aTag}
                    className="items-center rounded-xl hover:bg-accent/30"
-                  draggingClassName="z-10 opacity-80 shadow-lg ring-2 ring-primary/20"
                 >
                   <div className="flex items-center gap-3 p-3">
                     <span className="text-xs font-mono text-muted-foreground w-5 text-center shrink-0">

@@ -1,11 +1,9 @@
 import { Link } from 'react-router-dom';
 import { GripVertical, X } from 'lucide-react';
 import { useIntl } from 'react-intl';
-import {
-  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
-  SortableContext, verticalListSortingStrategy, useSortable, arrayMove, CSS,
-  type DragEndEvent,
-} from '@/lib/sortable';
+import { ReorderList } from '@/components/ReorderList';
+import { useReorderItem } from '@/hooks/useReorderItem';
+import { arrayMove } from '@/lib/sortable';
 import { sidebarItemIcon, itemPath, useItemLabel, isSidebarDivider, isNostrUri, isExternalUri, isNsiteUri } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 import { useCallback } from 'react';
@@ -32,8 +30,7 @@ export interface SidebarNavItemProps {
 export function SidebarNavItem({
   id, active, editing, onRemove, onClick, profilePath, showIndicator, linkClassName, homePage,
 }: SidebarNavItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !editing });
-  const style = { transform: CSS.Transform.toString(transform), transition };
+  const { setNodeRef, handleProps, isDragging } = useReorderItem(id, { disabled: !editing });
   const icon = sidebarItemIcon(id);
   const label = useItemLabel(id);
   const path = itemPath(id, profilePath, homePage);
@@ -42,14 +39,13 @@ export function SidebarNavItem({
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className={cn('flex items-center rounded-full transition-colors relative bg-background/85', isDragging && 'z-10 opacity-80 shadow-lg')}
+      className={cn('flex items-center rounded-full transition-colors relative bg-background/85', isDragging && 'opacity-40')}
     >
       {editing && (
         <button
-          className="flex items-center justify-center w-8 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
-          {...attributes}
-          {...listeners}
+          {...handleProps}
+          aria-label={intl.formatMessage({ id: 'sortable.dragHandle', defaultMessage: 'Drag to reorder, or use the arrow keys' })}
+          className="flex items-center justify-center w-8 self-stretch shrink-0 rounded-full cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <GripVertical className="size-4" />
         </button>
@@ -96,21 +92,19 @@ interface SidebarDividerItemProps {
 }
 
 function SidebarDividerItem({ sortableId, editing, onRemove }: SidebarDividerItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sortableId, disabled: !editing });
-  const style = { transform: CSS.Transform.toString(transform), transition };
+  const { setNodeRef, handleProps, isDragging } = useReorderItem(sortableId, { disabled: !editing });
   const intl = useIntl();
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className={cn('flex items-center rounded-full transition-colors relative', editing && 'bg-background/85', isDragging && 'z-10 opacity-80 shadow-lg')}
+      className={cn('flex items-center rounded-full transition-colors relative', editing && 'bg-background/85', isDragging && 'opacity-40')}
     >
       {editing && (
         <button
-          className="flex items-center justify-center w-8 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
-          {...attributes}
-          {...listeners}
+          {...handleProps}
+          aria-label={intl.formatMessage({ id: 'sortable.dragHandle', defaultMessage: 'Drag to reorder, or use the arrow keys' })}
+          className="flex items-center justify-center w-8 self-stretch shrink-0 rounded-full cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <GripVertical className="size-4" />
         </button>
@@ -131,7 +125,7 @@ function SidebarDividerItem({ sortableId, editing, onRemove }: SidebarDividerIte
   );
 }
 
-// ── DnD-aware nav list ────────────────────────────────────────────────────────
+// ── Reorderable nav list ────────────────────────────────────────────────────────
 
 export interface SidebarNavListProps {
   items: string[];
@@ -150,93 +144,84 @@ export interface SidebarNavListProps {
 export function SidebarNavList({
   items, editing, onRemove, onReorder, isActive, getOnClick, getProfilePath, getShowIndicator, linkClassName, homePage,
 }: SidebarNavListProps) {
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor),
+  // Dividers are keyed by occurrence, not position, so moving an item past one doesn't
+  // rename it (which would mis-key both React and the drop animation).
+  let dividers = 0;
+  const sortableIds = items.map((id) => isSidebarDivider(id) ? `divider-${dividers++}` : id);
+
+  const handleMove = useCallback(
+    (from: number, to: number) => onReorder(arrayMove(items, from, to)),
+    [items, onReorder],
   );
 
-  // Assign unique sortable IDs: regular items use their id, dividers get "divider-{index}"
-  const sortableIds = items.map((id, i) => isSidebarDivider(id) ? `divider-${i}` : id);
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = sortableIds.indexOf(active.id as string);
-    const newIndex = sortableIds.indexOf(over.id as string);
-    if (oldIndex === -1 || newIndex === -1) return;
-    onReorder(arrayMove(items, oldIndex, newIndex));
-  }, [sortableIds, items, onReorder]);
-
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-        {items.map((id, i) => {
-          const sortableId = sortableIds[i];
-          if (isSidebarDivider(id)) {
-            return (
-              <SidebarDividerItem
-                key={sortableId}
-                sortableId={sortableId}
-                editing={editing}
-                onRemove={() => onRemove(id, i)}
-              />
-            );
-          }
-          if (isNostrUri(id)) {
-            return (
-              <NostrEventSidebarItem
-                key={id}
-                id={id}
-                active={isActive(id)}
-                editing={editing}
-                onRemove={(removeId) => onRemove(removeId, i)}
-                onClick={getOnClick?.(id)}
-                linkClassName={linkClassName}
-              />
-            );
-          }
-          if (isNsiteUri(id)) {
-            return (
-              <NsiteSidebarItem
-                key={id}
-                id={id}
-                active={isActive(id)}
-                editing={editing}
-                onRemove={(removeId) => onRemove(removeId, i)}
-                onClick={getOnClick?.(id)}
-                linkClassName={linkClassName}
-              />
-            );
-          }
-          if (isExternalUri(id)) {
-            return (
-              <ExternalContentSidebarItem
-                key={id}
-                id={id}
-                active={isActive(id)}
-                editing={editing}
-                onRemove={(removeId) => onRemove(removeId, i)}
-                onClick={getOnClick?.(id)}
-                linkClassName={linkClassName}
-              />
-            );
-          }
+    <ReorderList ids={sortableIds} onMove={handleMove} disabled={!editing} className="flex flex-col gap-0.5">
+      {items.map((id, i) => {
+        const sortableId = sortableIds[i];
+        if (isSidebarDivider(id)) {
           return (
-            <SidebarNavItem
+            <SidebarDividerItem
+              key={sortableId}
+              sortableId={sortableId}
+              editing={editing}
+              onRemove={() => onRemove(id, i)}
+            />
+          );
+        }
+        if (isNostrUri(id)) {
+          return (
+            <NostrEventSidebarItem
               key={id}
               id={id}
               active={isActive(id)}
               editing={editing}
               onRemove={(removeId) => onRemove(removeId, i)}
               onClick={getOnClick?.(id)}
-              profilePath={getProfilePath?.(id)}
-              showIndicator={getShowIndicator?.(id)}
               linkClassName={linkClassName}
-              homePage={homePage}
             />
           );
-        })}
-      </SortableContext>
-    </DndContext>
+        }
+        if (isNsiteUri(id)) {
+          return (
+            <NsiteSidebarItem
+              key={id}
+              id={id}
+              active={isActive(id)}
+              editing={editing}
+              onRemove={(removeId) => onRemove(removeId, i)}
+              onClick={getOnClick?.(id)}
+              linkClassName={linkClassName}
+            />
+          );
+        }
+        if (isExternalUri(id)) {
+          return (
+            <ExternalContentSidebarItem
+              key={id}
+              id={id}
+              active={isActive(id)}
+              editing={editing}
+              onRemove={(removeId) => onRemove(removeId, i)}
+              onClick={getOnClick?.(id)}
+              linkClassName={linkClassName}
+            />
+          );
+        }
+        return (
+          <SidebarNavItem
+            key={id}
+            id={id}
+            active={isActive(id)}
+            editing={editing}
+            onRemove={(removeId) => onRemove(removeId, i)}
+            onClick={getOnClick?.(id)}
+            profilePath={getProfilePath?.(id)}
+            showIndicator={getShowIndicator?.(id)}
+            linkClassName={linkClassName}
+            homePage={homePage}
+          />
+        );
+      })}
+    </ReorderList>
   );
 }

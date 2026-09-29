@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { GripVertical, Rocket, X } from 'lucide-react';
-import { useSortable, CSS } from '@/lib/sortable';
+import { useIntl } from 'react-intl';
+import { useReorderItem } from '@/hooks/useReorderItem';
 import { nip19 } from 'nostr-tools';
 import { useCallback, useMemo } from 'react';
 
@@ -62,8 +63,8 @@ function NsiteSidebarLabel({ subdomain, parsed }: { subdomain: string; parsed: P
 export function NsiteSidebarItem({
   id, editing, onRemove, onClick, linkClassName,
 }: NsiteSidebarItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !editing });
-  const style = { transform: CSS.Transform.toString(transform), transition };
+  const { setNodeRef, handleProps, isDragging } = useReorderItem(id, { disabled: !editing });
+  const intl = useIntl();
   const navigate = useNavigate();
 
   const subdomain = nsiteUriToSubdomain(id);
@@ -106,14 +107,13 @@ export function NsiteSidebarItem({
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className={cn('flex items-center rounded-full transition-colors relative bg-background/85', isDragging && 'z-10 opacity-80 shadow-lg')}
+      className={cn('flex items-center rounded-full transition-colors relative bg-background/85', isDragging && 'opacity-40')}
     >
       {editing && (
         <button
-          className="flex items-center justify-center w-8 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
-          {...attributes}
-          {...listeners}
+          {...handleProps}
+          aria-label={intl.formatMessage({ id: 'sortable.dragHandle', defaultMessage: 'Drag to reorder, or use the arrow keys' })}
+          className="flex items-center justify-center w-8 self-stretch shrink-0 rounded-full cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <GripVertical className="size-4" />
         </button>

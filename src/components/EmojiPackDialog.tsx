@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ImagePlus, Loader2, Smile, X } from 'lucide-react';
+import { AlertTriangle, GripVertical, ImagePlus, Loader2, Smile, X } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useIntl } from 'react-intl';
 
 import {
   Dialog,
@@ -18,12 +19,15 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
+import { ReorderList } from '@/components/ReorderList';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAddEmojiPack } from '@/hooks/useEmojiPacks';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useReorderItem } from '@/hooks/useReorderItem';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useToast } from '@/hooks/useToast';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { arrayMove } from '@/lib/sortable';
 import { cn } from '@/lib/utils';
 
 /** A single emoji entry in the pack being edited. */
@@ -244,6 +248,11 @@ function EmojiPackForm({ editEvent, onDone }: { editEvent?: NostrEvent; onDone: 
 
   const removeEntry = useCallback((id: string) => {
     setEntries((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
+  // Emoji tags publish in list order, so the order is the pack's.
+  const moveEntry = useCallback((from: number, to: number) => {
+    setEntries((prev) => arrayMove(prev, from, to));
   }, []);
 
   const onDrop = useCallback((e: React.DragEvent) => {
@@ -505,51 +514,24 @@ function EmojiPackForm({ editEvent, onDone }: { editEvent?: NostrEvent; onDone: 
                 dragging ? 'bg-primary/10' : 'bg-secondary/30',
               )}
             >
-              {entries.map((e) => {
-                const invalid = !e.uploading && (!finalShortcode(e.shortcode) || isDuplicate(e.shortcode));
-                return (
-                  <div key={e.id} className="flex items-center gap-2">
-                    <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-background">
-                      {e.uploading ? (
-                        <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                      ) : (
-                        <CustomEmojiImg name={e.shortcode} url={e.url} className="size-7 object-contain" />
-                      )}
-                    </span>
-                    <div
-                      className={cn(
-                        'flex min-w-0 flex-1 items-center rounded-md border bg-background px-2 focus-within:ring-1',
-                        invalid
-                          ? 'border-destructive focus-within:ring-destructive'
-                          : 'border-input focus-within:ring-ring',
-                      )}
-                    >
-                      <span className="text-sm text-muted-foreground">:</span>
-                      <input
-                        value={e.shortcode}
-                        onChange={(ev) => setShortcode(e.id, ev.target.value)}
-                        placeholder="shortcode"
-                        aria-label="Emoji shortcode"
-                        aria-invalid={invalid}
-                        disabled={busy}
-                        className="min-w-0 flex-1 bg-transparent py-1.5 text-sm font-mono outline-none"
-                      />
-                      <span className="text-sm text-muted-foreground">:</span>
-                    </div>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
-                      onClick={() => removeEntry(e.id)}
-                      aria-label={`Remove ${e.shortcode || 'emoji'}`}
-                      disabled={busy}
-                    >
-                      <X className="size-4" />
-                    </Button>
-                  </div>
-                );
-              })}
+              <ReorderList
+                ids={entries.map((e) => e.id)}
+                onMove={moveEntry}
+                disabled={busy || entries.length < 2}
+                className="space-y-1.5"
+              >
+                {entries.map((e) => (
+                  <EmojiEntryRow
+                    key={e.id}
+                    entry={e}
+                    invalid={!e.uploading && (!finalShortcode(e.shortcode) || isDuplicate(e.shortcode))}
+                    sortable={!busy && entries.length > 1}
+                    busy={busy}
+                    onShortcodeChange={setShortcode}
+                    onRemove={removeEntry}
+                  />
+                ))}
+              </ReorderList>
             </div>
           )}
         </div>
@@ -583,5 +565,73 @@ function EmojiPackForm({ editEvent, onDone }: { editEvent?: NostrEvent; onDone: 
         </div>
       </div>
     </ScrollArea>
+  );
+}
+
+interface EmojiEntryRowProps {
+  entry: Entry;
+  invalid: boolean;
+  sortable: boolean;
+  busy: boolean;
+  onShortcodeChange: (id: string, value: string) => void;
+  onRemove: (id: string) => void;
+}
+
+function EmojiEntryRow({ entry: e, invalid, sortable, busy, onShortcodeChange, onRemove }: EmojiEntryRowProps) {
+  const intl = useIntl();
+  const { setNodeRef, handleProps, isDragging } = useReorderItem(e.id, { disabled: !sortable });
+
+  return (
+    <div ref={setNodeRef} className={cn('flex items-center gap-2 transition-opacity', isDragging && 'opacity-40')}>
+      <button
+        {...handleProps}
+        aria-label={intl.formatMessage({ id: 'sortable.dragHandle', defaultMessage: 'Drag to reorder, or use the arrow keys' })}
+        tabIndex={sortable ? 0 : -1}
+        className={cn(
+          '-mr-1 flex h-9 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+          sortable ? 'cursor-grab hover:text-foreground active:cursor-grabbing' : 'cursor-default opacity-40',
+        )}
+      >
+        <GripVertical className="size-4" />
+      </button>
+      <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-background">
+        {e.uploading ? (
+          <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        ) : (
+          <CustomEmojiImg name={e.shortcode} url={e.url} className="size-7 object-contain" />
+        )}
+      </span>
+      <div
+        className={cn(
+          'flex min-w-0 flex-1 items-center rounded-md border bg-background px-2 focus-within:ring-1',
+          invalid
+            ? 'border-destructive focus-within:ring-destructive'
+            : 'border-input focus-within:ring-ring',
+        )}
+      >
+        <span className="text-sm text-muted-foreground">:</span>
+        <input
+          value={e.shortcode}
+          onChange={(ev) => onShortcodeChange(e.id, ev.target.value)}
+          placeholder="shortcode"
+          aria-label="Emoji shortcode"
+          aria-invalid={invalid}
+          disabled={busy}
+          className="min-w-0 flex-1 bg-transparent py-1.5 text-sm font-mono outline-none"
+        />
+        <span className="text-sm text-muted-foreground">:</span>
+      </div>
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+        onClick={() => onRemove(e.id)}
+        aria-label={`Remove ${e.shortcode || 'emoji'}`}
+        disabled={busy}
+      >
+        <X className="size-4" />
+      </Button>
+    </div>
   );
 }

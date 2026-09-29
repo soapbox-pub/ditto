@@ -1,10 +1,10 @@
 import { useCallback } from 'react';
 import { GripVertical } from 'lucide-react';
-import {
-  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
-  SortableContext, verticalListSortingStrategy, useSortable, arrayMove, CSS,
-  type DragEndEvent,
-} from '@/lib/sortable';
+import { useIntl } from 'react-intl';
+
+import { ReorderList } from '@/components/ReorderList';
+import { useReorderItem } from '@/hooks/useReorderItem';
+import { arrayMove } from '@/lib/sortable';
 import { cn } from '@/lib/utils';
 
 // ── Generic sortable list container ──────────────────────────────────────────
@@ -15,45 +15,31 @@ export interface SortableListProps<T> {
   /** Extract a unique stable string id from each item. */
   getItemId: (item: T, index: number) => string;
   /** Called with the reordered items array after a drag completes. */
-  onReorder: (items: T[]) => void;
-  /** Render each item. The wrapper provides the sortable ref, transform, and drag handle. */
+  onReorder?: (items: T[]) => void;
+  /** Called with the moved row's old and new index; for callers that move in place (`useFieldArray`). */
+  onMove?: (from: number, to: number) => void;
+  /** Render each item. Wrap it in `<SortableItem>` for the grip handle. */
   renderItem: (item: T, index: number) => React.ReactNode;
   /** Additional classes on the outer container. */
   className?: string;
 }
 
 /**
- * Generic drag-and-drop sortable list.
- *
- * Reuses the same DnD-kit sensor configuration and vertical sort strategy
- * used by the sidebar edit view. Wrap each child in `<SortableItem>` to
- * get the grip handle and drag styling for free.
+ * Generic drag-and-drop sortable list, on the same {@link ReorderList} machinery as the
+ * sidebar edit view. Wrap each child in `<SortableItem>` to get the grip handle.
  */
-export function SortableList<T>({ items, getItemId, onReorder, renderItem, className }: SortableListProps<T>) {
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor),
-  );
+export function SortableList<T>({ items, getItemId, onReorder, onMove, renderItem, className }: SortableListProps<T>) {
+  const ids = items.map(getItemId);
 
-  const sortableIds = items.map(getItemId);
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = sortableIds.indexOf(active.id as string);
-    const newIndex = sortableIds.indexOf(over.id as string);
-    if (oldIndex === -1 || newIndex === -1) return;
-    onReorder(arrayMove(items, oldIndex, newIndex));
-  }, [sortableIds, items, onReorder]);
+  const handleMove = useCallback((from: number, to: number) => {
+    onMove?.(from, to);
+    onReorder?.(arrayMove(items, from, to));
+  }, [items, onMove, onReorder]);
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-        <div className={className}>
-          {items.map((item, i) => renderItem(item, i))}
-        </div>
-      </SortableContext>
-    </DndContext>
+    <ReorderList ids={ids} onMove={handleMove} className={className}>
+      {items.map((item, i) => renderItem(item, i))}
+    </ReorderList>
   );
 }
 
@@ -66,39 +52,35 @@ export interface SortableItemProps {
   enabled?: boolean;
   /** Additional classes on the wrapper div. */
   className?: string;
-  /** Classes applied while the item is being dragged. */
+  /** Classes on the row left behind while its ghost is being dragged. */
   draggingClassName?: string;
   /** Override the grip handle width class (default: "w-8"). */
   gripClassName?: string;
   children: React.ReactNode;
 }
 
-/**
- * Wraps a single child with `useSortable` and renders a grip-vertical
- * drag handle. Shares the same visual pattern as the sidebar edit view.
- */
+/** Wraps a single child with a grip-vertical drag handle, like the sidebar edit view. */
 export function SortableItem({ id, enabled = true, className, draggingClassName, gripClassName, children }: SortableItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !enabled });
-  const style = { transform: CSS.Transform.toString(transform), transition };
+  const { setNodeRef, handleProps, isDragging } = useReorderItem(id, { disabled: !enabled });
+  const intl = useIntl();
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
       className={cn(
-        'flex transition-colors relative',
+        'flex transition-[colors,opacity] relative',
         className,
-        isDragging && (draggingClassName ?? 'z-10 opacity-80 shadow-lg'),
+        isDragging && (draggingClassName ?? 'opacity-40'),
       )}
     >
       {enabled && (
         <button
+          {...handleProps}
+          aria-label={intl.formatMessage({ id: 'sortable.dragHandle', defaultMessage: 'Drag to reorder, or use the arrow keys' })}
           className={cn(
-            'flex items-center justify-center shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors',
+            'flex items-center justify-center shrink-0 rounded cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             gripClassName ?? 'w-8',
           )}
-          {...attributes}
-          {...listeners}
         >
           <GripVertical className="size-4" />
         </button>
