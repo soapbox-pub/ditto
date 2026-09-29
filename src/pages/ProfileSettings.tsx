@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@/hooks/useSeoMeta';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Loader2, Plus, Trash2, ChevronDown,
   Wallet, Upload, Music, ImageIcon, Film, Mail, Link2, Pencil, Eye, EyeOff, Copy, Check, Download, KeyRound, AlertTriangle, CloudSun, Cake,
@@ -504,15 +504,6 @@ export function ProfileSettings() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { fields, append, remove, move } = useFieldArray({ control: form.control as any, name: 'fields' });
 
-  const handleFieldReorder = useCallback((reordered: typeof fields) => {
-    // Map reordered items back to move() calls by finding the first mismatch
-    const oldIndex = fields.findIndex((f, i) => f.id !== reordered[i]?.id);
-    if (oldIndex === -1) return;
-    const newIndex = reordered.findIndex((f) => f.id === fields[oldIndex].id);
-    if (newIndex === -1) return;
-    move(oldIndex, newIndex);
-  }, [fields, move]);
-
   // Media field upload — dynamic accept attribute per field
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const pendingMediaIndex = useRef<number>(-1);
@@ -879,7 +870,7 @@ export function ProfileSettings() {
               <SortableList
                 items={fields}
                 getItemId={(field) => field.id}
-                onReorder={handleFieldReorder}
+                onMove={move}
                 className="space-y-3"
                 renderItem={(field, index) => (
                   <SortableFieldRow
