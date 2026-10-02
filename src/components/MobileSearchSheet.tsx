@@ -20,6 +20,8 @@ import { useWikipediaSearch, type WikipediaSearchResult } from '@/hooks/useWikip
 import { useArchiveSearch, type ArchiveSearchResult } from '@/hooks/useArchiveSearch';
 import { type SearchEventResult } from '@/hooks/useSearchEvents';
 import { useSearchResults } from '@/hooks/useSearchResults';
+import { BlockedSearchNotice } from '@/components/BlockedSearchNotice';
+import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { SearchEventResultItem } from '@/components/SearchEventResultItem';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
 import { searchSidebarItems, type SidebarItemDef } from '@/lib/sidebarItems';
@@ -36,6 +38,10 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Blocked terms (see blockedTerms.ts) are never sent anywhere; the search
+  // hooks skip them, and the sheet shows BlockedSearchNotice instead.
+  const queryBlocked = containsBlockedTerm(query);
 
   // Wikipedia & Archive search (async, debounced by their hooks at >=2 chars)
   const { data: wikipediaResults } = useWikipediaSearch(query);
@@ -244,7 +250,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
     }
   };
 
-  const hasResults = query.trim().length > 0 && (navItemCount > 0 || hasIdentifier || hasUrlComment || hasCountry || hasWikipedia || hasArchive || resultCount > 0);
+  const hasResults = !queryBlocked && query.trim().length > 0 && (navItemCount > 0 || hasIdentifier || hasUrlComment || hasCountry || hasWikipedia || hasArchive || resultCount > 0);
 
   if (!open) return null;
 
@@ -258,6 +264,12 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
 
       {/* Bottom sheet — sits at the bottom of the screen with safe area clearance */}
       <div className="fixed left-0 right-0 bottom-0 z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200 pb-6">
+
+        {queryBlocked && (
+          <div className="bg-popover/95 rounded-2xl mx-6 mb-0.5 overflow-hidden shadow-lg">
+            <BlockedSearchNotice className="py-8" />
+          </div>
+        )}
 
         {/* Results list — reversed so closest to input = most relevant */}
         {hasResults && (

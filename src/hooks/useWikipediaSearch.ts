@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { useLanguage } from '@/hooks/useLanguage';
+import { containsBlockedTerm } from '@/lib/blockedTerms';
 
 /** A search result from the Wikipedia search API. */
 export interface WikipediaSearchResult {
@@ -68,7 +69,8 @@ export function useWikipediaSearch(query: string) {
   return useQuery({
     queryKey: ['wikipedia-search', locale, query],
     queryFn: ({ signal }) => searchWikipedia(query, locale, signal),
-    enabled: query.trim().length >= 2,
+    // Never send a search for a blocked term (see blockedTerms.ts).
+    enabled: query.trim().length >= 2 && !containsBlockedTerm(query),
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,
     retry: 1,

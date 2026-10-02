@@ -6,6 +6,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { cn } from '@/lib/utils';
 import { getContentWarning } from '@/lib/contentWarning';
+import { isBlockedEvent } from '@/lib/blockedTerms';
 
 interface ContentWarningGuardProps {
   /** The Nostr event to check for content-warning tags. */
@@ -33,8 +34,9 @@ export function ContentWarningGuard({ event, children, className }: ContentWarni
   const [revealed, setRevealed] = useState(false);
   const author = useAuthor(event.pubkey);
 
-  // Author is blocked (see isBlockedProfile) — never reveal.
-  if (author.data?.blocked) {
+  // Author is blocked (see isBlockedProfile), or the event uses a blocked term
+  // (see blockedTerms.ts) — never reveal.
+  if (author.data?.blocked || isBlockedEvent(event)) {
     return null;
   }
 

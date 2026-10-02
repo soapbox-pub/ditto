@@ -19,7 +19,9 @@ import { useInView } from '@/hooks/useInView';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
+import { BlockedSearchNotice } from '@/components/BlockedSearchNotice';
 import { NoteCard } from '@/components/NoteCard';
+import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { NewPostsPill } from '@/components/NewPostsPill';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -126,6 +128,9 @@ export function SearchPage() {
   // search sheet doing navigate('/search?q=...'), or browser back/forward —
   // is reflected immediately without a fragile URL↔state sync.
   const debouncedSearchQuery = searchParams.get('q') ?? '';
+  // Blocked terms (see blockedTerms.ts) are never sent anywhere; the search
+  // hooks skip them, and the page shows BlockedSearchNotice instead.
+  const queryBlocked = containsBlockedTerm(debouncedSearchQuery);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // ── Filter state — all derived from URL params ──────────────────────────
@@ -521,7 +526,7 @@ export function SearchPage() {
           />
 
           {/* Add to feed button (posts tab only) */}
-          {activeTab === 'posts' && user && (
+          {activeTab === 'posts' && user && !queryBlocked && (
             <div className={cn(!debouncedSearchQuery.trim() && !hasActiveFilters ? 'hidden' : undefined)}>
               <Popover open={savePopoverOpen} onOpenChange={(o) => {
                 setSavePopoverOpen(o);
@@ -823,8 +828,10 @@ export function SearchPage() {
       </div>
 
       <PullToRefresh onRefresh={handleRefresh}>
+        {queryBlocked && <BlockedSearchNotice />}
+
         {/* ─── Posts Tab ─── */}
-        {activeTab === 'posts' && (
+        {activeTab === 'posts' && !queryBlocked && (
           <>
             {/* New posts pill — live stream. */}
             <NewPostsPill
@@ -895,7 +902,7 @@ export function SearchPage() {
         )}
 
         {/* ─── Accounts Tab ─── */}
-        {activeTab === 'accounts' && (
+        {activeTab === 'accounts' && !queryBlocked && (
           <>
             <div>
               {debouncedSearchQuery.trim() ? (

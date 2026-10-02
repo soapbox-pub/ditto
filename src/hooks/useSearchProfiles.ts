@@ -5,6 +5,7 @@ import { NSchema as n } from '@nostrify/nostrify';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useDebounce } from '@/hooks/useDebounce';
+import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { isBlockedProfile } from '@/lib/profileSafety';
 
 export interface SearchProfile {
@@ -127,7 +128,8 @@ export function useSearchProfiles(query: string) {
 
       return Array.from(seen.values());
     },
-    enabled: debouncedQuery.trim().length >= 1,
+    // Never send a search for a blocked term (see blockedTerms.ts).
+    enabled: debouncedQuery.trim().length >= 1 && !containsBlockedTerm(debouncedQuery),
     staleTime: 30 * 1000,
     placeholderData: (prev) => prev,
   });
@@ -140,6 +142,7 @@ export function useSearchProfiles(query: string) {
   // relay omitted surface when they were already loaded this session.
   const data = useMemo(() => {
     const query = debouncedQuery.trim();
+    if (containsBlockedTerm(query)) return [];
     if (!query) return relayResults.data ?? [];
 
     const lowerQuery = query.toLowerCase();

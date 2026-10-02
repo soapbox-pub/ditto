@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { containsBlockedTerm } from '@/lib/blockedTerms';
+
 /** A search result from the Internet Archive advanced search API. */
 export interface ArchiveSearchResult {
   /** archive.org item identifier (used in URLs and thumbnails) */
@@ -59,7 +61,8 @@ export function useArchiveSearch(query: string) {
   return useQuery({
     queryKey: ['archive-search', query],
     queryFn: ({ signal }) => searchArchive(query, signal),
-    enabled: query.trim().length >= 2,
+    // Never send a search for a blocked term (see blockedTerms.ts).
+    enabled: query.trim().length >= 2 && !containsBlockedTerm(query),
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,
     retry: 1,

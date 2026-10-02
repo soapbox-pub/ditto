@@ -7,6 +7,7 @@ import { type ResolvedEmoji } from '@/lib/customEmoji';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import { useAppContext } from '@/hooks/useAppContext';
 import { parseAuthorEvent } from '@/hooks/useAuthor';
+import { containsBlockedTerm } from '@/lib/blockedTerms';
 
 export interface TrendingTag {
   tag: string;
@@ -55,7 +56,8 @@ export function useTrendingTags(enabled = true) {
       // Tag format: ['t', hashtag, '', accounts, uses]
       // index 3 = distinct accounts using the hashtag
       // index 4 = total uses of the hashtag
-      const tTags = events[0].tags.filter(([name]) => name === 't');
+      // Drop blocked terms (see blockedTerms.ts) so they're never linked or queried.
+      const tTags = events[0].tags.filter(([name, value]) => name === 't' && !containsBlockedTerm(value));
       return {
         tags: tTags.map(([, tag, , rawAccounts, rawUses]) => ({
           tag: tag.toLowerCase(),

@@ -43,6 +43,7 @@ import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { TabButton } from '@/components/TabButton';
 import type { FeedItem } from '@/lib/feedUtils';
+import { containsBlockedTerm } from '@/lib/blockedTerms';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { SavedFeed } from '@/contexts/AppContext';
 
@@ -648,6 +649,8 @@ function HashtagFeedContent({ tag }: { tag: string }) {
         { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
     },
+    // Never query a blocked term (see blockedTerms.ts).
+    enabled: !containsBlockedTerm(tag),
   });
 
   const derivedEvents = useMemo((): NostrEvent[] => {

@@ -185,6 +185,7 @@ import { extractZapMessage } from "@/hooks/useEventInteractions";
 import { getZapAmountSats, getZapSenderPubkey } from "@/lib/zapHelpers";
 import { extractOnchainZapRecipients } from "@/hooks/useOnchainZaps";
 import { getContentWarning } from "@/lib/contentWarning";
+import { isBlockedEvent } from "@/lib/blockedTerms";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
@@ -686,8 +687,9 @@ const NoteCardImpl = memo(function NoteCardImpl({
     return null;
   }
 
-  // Hide posts by authors blocked by isBlockedProfile
-  if (author.data?.blocked) {
+  // Hide posts by authors blocked by isBlockedProfile, and posts that use a
+  // blocked term themselves (see blockedTerms.ts)
+  if (author.data?.blocked || isBlockedEvent(event)) {
     return null;
   }
 

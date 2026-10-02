@@ -23,6 +23,8 @@ import { useWikipediaSearch, type WikipediaSearchResult } from '@/hooks/useWikip
 import { useArchiveSearch, type ArchiveSearchResult } from '@/hooks/useArchiveSearch';
 import { type SearchEventResult } from '@/hooks/useSearchEvents';
 import { useSearchResults } from '@/hooks/useSearchResults';
+import { BlockedSearchNotice } from '@/components/BlockedSearchNotice';
+import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { SearchEventResultItem } from '@/components/SearchEventResultItem';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
 import { searchSidebarItems, type SidebarItemDef } from '@/lib/sidebarItems';
@@ -57,6 +59,10 @@ export function ProfileSearchDropdown({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  // Blocked terms (see blockedTerms.ts) are never sent anywhere; the search
+  // hooks skip them, and the dropdown shows BlockedSearchNotice instead.
+  const queryBlocked = containsBlockedTerm(query);
 
   // Wikipedia & Archive search (async, debounced by their hooks at >=2 chars)
   const { data: wikipediaResults } = useWikipediaSearch(query);
@@ -105,11 +111,11 @@ export function ProfileSearchDropdown({
   // Show dropdown when we have results, or when text search is enabled and there's a query
   useEffect(() => {
     if (query.trim().length > 0) {
-      if (enableTextSearch || resultCount > 0 || countryMatch || navItems.length > 0 || wikipediaResult || archiveResult) {
+      if (queryBlocked || enableTextSearch || resultCount > 0 || countryMatch || navItems.length > 0 || wikipediaResult || archiveResult) {
         setOpen(true);
       }
     }
-  }, [resultCount, query, enableTextSearch, countryMatch, navItems, wikipediaResult, archiveResult]);
+  }, [resultCount, query, queryBlocked, enableTextSearch, countryMatch, navItems, wikipediaResult, archiveResult]);
 
   // Reset selected index when results change
   useEffect(() => {
@@ -332,7 +338,13 @@ export function ProfileSearchDropdown({
       </div>
 
       {/* Dropdown results — only when text search is not enabled */}
-      {!enableTextSearch && open && (navItemCount > 0 || hasIdentifier || hasCountry || hasWikipedia || hasArchive || resultCount > 0) && (
+      {open && queryBlocked && (
+        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
+          <BlockedSearchNotice className="py-8" />
+        </div>
+      )}
+
+      {!enableTextSearch && open && !queryBlocked && (navItemCount > 0 || hasIdentifier || hasCountry || hasWikipedia || hasArchive || resultCount > 0) && (
         <div
           ref={listRef}
           role="listbox"
@@ -406,7 +418,7 @@ export function ProfileSearchDropdown({
       )}
 
       {/* Text search option */}
-      {enableTextSearch && open && query.trim().length > 0 && (
+      {enableTextSearch && open && !queryBlocked && query.trim().length > 0 && (
         <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
           <div ref={listRef} className="max-h-[320px] overflow-y-auto py-1">
             {/* Search text option */}
@@ -525,7 +537,7 @@ export function ProfileSearchDropdown({
       )}
 
       {/* Empty state — only when text search is not enabled */}
-      {!enableTextSearch && open && query.trim().length > 0 && !isFetching && !hasIdentifier && !hasCountry && !hasWikipedia && !hasArchive && resultCount === 0 && navItemCount === 0 && (
+      {!enableTextSearch && open && !queryBlocked && query.trim().length > 0 && !isFetching && !hasIdentifier && !hasCountry && !hasWikipedia && !hasArchive && resultCount === 0 && navItemCount === 0 && (
         <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
           <div className="py-6 text-center text-sm text-muted-foreground">
             No results found

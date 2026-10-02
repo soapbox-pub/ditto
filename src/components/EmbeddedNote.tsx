@@ -63,6 +63,7 @@ import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, extractVideoUrls, extractA
 import { parseImetaEntries, parseImetaMap } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { getContentWarning } from '@/lib/contentWarning';
+import { isBlockedEvent } from '@/lib/blockedTerms';
 import { ImageGallery } from '@/components/ImageGallery';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { getKindLabel, getKindIcon, getEventFallbackText } from '@/lib/extraKinds';
@@ -1034,8 +1035,9 @@ function EmbeddedNoteCard({
   const hasCW = cwReason !== undefined;
 
   // If policy is "hide", don't render the embedded note at all. Never render
-  // notes by authors blocked by isBlockedProfile.
-  if ((hasCW && config.contentWarningPolicy === 'hide') || author.data?.blocked) {
+  // notes by authors blocked by isBlockedProfile, or that use a blocked term
+  // themselves (see blockedTerms.ts).
+  if ((hasCW && config.contentWarningPolicy === 'hide') || author.data?.blocked || isBlockedEvent(event)) {
     return null;
   }
 

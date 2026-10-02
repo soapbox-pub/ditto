@@ -1,5 +1,6 @@
 import type { NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
+import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { GIT_ACTIVITY_KINDS } from '@/lib/gitActivity';
 import { NSITE_KINDS } from '@/lib/nsiteSubdomain';
 
@@ -11,6 +12,12 @@ const DEV_KINDS = [...ZAPSTORE_KINDS, ...GIT_ACTIVITY_KINDS, 30817, ...NSITE_KIN
  * Blocked relays are not removed here; callers filter them out.
  */
 export function routeReadRelays(filters: NostrFilter[], readRelays: string[]): string[] {
+  // Never send a search for a blocked term anywhere (see blockedTerms.ts).
+  // Search UIs check before querying; this catches any path that doesn't.
+  if (filters.some((f) => containsBlockedTerm(f.search))) {
+    return [];
+  }
+
   // Search queries must go to search relays
   if (filters.some((f) => 'search' in f)) {
     return DITTO_RELAYS;

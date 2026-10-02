@@ -2,6 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useDebounce } from '@/hooks/useDebounce';
+import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { encodeEventAddress, type NAddr, type NEvent } from '@/lib/encodeEvent';
 import { NSITE_NAMED_KIND, NSITE_ROOT_KIND } from '@/lib/nsiteSubdomain';
 
@@ -220,7 +221,8 @@ export function useSearchEvents(query: string) {
 
       return interleaveByType(Array.from(seen.values()));
     },
-    enabled: debouncedQuery.trim().length >= 1,
+    // Never send a search for a blocked term (see blockedTerms.ts).
+    enabled: debouncedQuery.trim().length >= 1 && !containsBlockedTerm(debouncedQuery),
     staleTime: 30 * 1000,
     placeholderData: (prev) => prev,
   });

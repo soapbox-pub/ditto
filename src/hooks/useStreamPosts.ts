@@ -10,6 +10,7 @@ import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import { nip19 } from 'nostr-tools';
 import { isNostrId } from '@/lib/nostrId';
+import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { createLiveCursor } from '@/lib/backgroundQuiet';
 import { useBackgroundQuiet } from './useBackgroundQuiet';
 
@@ -157,6 +158,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { feedSettings } = useFeedSettings();
   const { isMuted } = useMuteFilter();
   const { shouldFilterEvent } = useContentFilters();
+  const queryBlocked = containsBlockedTerm(query);
   const [allEvents, setAllEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   // Buffer for streamed events — held separately until user scrolls back up
@@ -415,6 +417,13 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     commitTimerRef.current = undefined;
     streamMapDirtyRef.current = false;
 
+    // Never send a search for a blocked term (see blockedTerms.ts).
+    if (queryBlocked) {
+      setHasNextPage(false);
+      setIsLoading(false);
+      return;
+    }
+
     const { searchFilter } = paginationFilter;
 
     // 1. Fetch initial batch with search filters (uses pool, reuses existing connections)
@@ -458,7 +467,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       commitTimerRef.current = undefined;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- ingestEvent/flushEventMap/addStreamedEvent are stable ref-based callbacks
-  }, [nostr, paginationFilter]);
+  }, [nostr, paginationFilter, queryBlocked]);
 
   // 2. Stream new events WITHOUT search (relays don't support streaming search)
   // Client-side filtering is applied via useMemo at the end.
@@ -468,6 +477,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const quiet = useBackgroundQuiet();
   const cursorRef = useRef(createLiveCursor());
   useEffect(() => {
+    if (queryBlocked) return;
     const { streamFilter } = paginationFilter;
     const live = cursorRef.current.next(JSON.stringify(streamFilter), quiet);
     if (!live) return;
@@ -504,7 +514,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       alive = false;
       ac.abort();
     };
-  }, [nostr, paginationFilter, addStreamedEvent, quiet]);
+  }, [nostr, paginationFilter, addStreamedEvent, quiet, queryBlocked]);
 
   /** Fetch the next page of older results. */
   const fetchNextPage = useCallback(async () => {

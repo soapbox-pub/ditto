@@ -1,5 +1,7 @@
 import type { NostrMetadata } from '@nostrify/nostrify';
 
+import { containsBlockedTerm, normalizeForMatching } from '@/lib/blockedTerms';
+
 /**
  * Detects profiles that advertise child sexual abuse material (CSAM),
  * sexualize minors, or advertise non-consensual sexual imagery, from the text
@@ -9,29 +11,9 @@ import type { NostrMetadata } from '@nostrify/nostrify';
  * warning — so there is deliberately no way to reveal them. Because of that,
  * matching is conservative: a profile is flagged only by terms that are
  * unambiguous on their own, or by a reference to minors appearing alongside
- * a sexual term in the same profile.
+ * a sexual term in the same profile. The standalone terms live in
+ * `blockedTerms.ts`, shared with search and post filtering.
  */
-
-/** Terms that indicate CSAM on their own. */
-const CSAM_PATTERNS: RegExp[] = [
-  /\bpthc\b/,
-  /\bchild\s*porn/,
-  /\bkidd?(?:ie|y)\s*porn/,
-  /\bjailbait\b/,
-  /\blol[i1]s?\b/,
-  /\blolicon\b/,
-  /\bshota(?:con)?\b/,
-  /\bcunny\b/,
-  // "cp" alone is too ambiguous (copy, C++, ...), but not next to these.
-  /\bcp\s*(?:dumps?|links?|vids?|videos?|pics?|trades?|trading|collections?|archives?|content|groups?|channels?|chats?)\b/,
-  /\b(?:sell|selling|buy|buying|trade|trading|matrix|telegram|session|simplex)\s+cp\b/,
-];
-
-/** Terms for sexual imagery taken without the subject's knowledge. */
-const NONCONSENSUAL_PATTERNS: RegExp[] = [
-  /\bcreep\s*shots?\b/,
-  /\bupskirts?\b/,
-];
 
 /** References to minors. Only flag in combination with {@link SEXUAL_PATTERNS}. */
 const MINOR_PATTERNS: RegExp[] = [
@@ -66,13 +48,13 @@ const SEXUAL_PATTERNS: RegExp[] = [
   /🔞/u,
 ];
 
-/** Lowercased, NFKC-normalized text of the profile's free-text fields. */
+/** Normalized text of the profile's free-text fields. */
 function profileText(metadata: NostrMetadata): string {
-  return [metadata.name, metadata.display_name, metadata.about]
-    .filter((value): value is string => typeof value === 'string')
-    .join('\n')
-    .normalize('NFKC')
-    .toLowerCase();
+  return normalizeForMatching(
+    [metadata.name, metadata.display_name, metadata.about]
+      .filter((value): value is string => typeof value === 'string')
+      .join('\n'),
+  );
 }
 
 /** Whether a profile should be hidden outright. */
@@ -82,8 +64,7 @@ export function isBlockedProfile(metadata: NostrMetadata | undefined): boolean {
   const text = profileText(metadata);
   if (!text) return false;
 
-  if (CSAM_PATTERNS.some((re) => re.test(text))) return true;
-  if (NONCONSENSUAL_PATTERNS.some((re) => re.test(text))) return true;
+  if (containsBlockedTerm(text)) return true;
 
   return MINOR_PATTERNS.some((re) => re.test(text)) &&
     SEXUAL_PATTERNS.some((re) => re.test(text));

@@ -17,6 +17,7 @@ import { isRepostKind } from '@/lib/feedUtils';
 import { buildTagFilterValues } from '@/lib/tagFilterValues';
 import { PageHeader } from '@/components/PageHeader';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { containsBlockedTerm } from '@/lib/blockedTerms';
 
 interface TagFeedPageProps {
   /** The tag value to filter by. */
@@ -95,7 +96,8 @@ export function TagFeedPage({
         signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),
       });
     },
-    enabled: tagFilterValues.length > 0,
+    // Never query a blocked term (see blockedTerms.ts).
+    enabled: tagFilterValues.length > 0 && !containsBlockedTerm(tag),
   });
 
   const filteredEvents = useMemo(() => {
