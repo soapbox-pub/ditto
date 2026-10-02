@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.42.4] - 2026-10-02
+
+A safety-focused update. Ditto now keeps child sexual abuse material out of sight: profiles that advertise it are hidden entirely, searches and hashtags for it are blocked, and posts tagged with it never appear. Posts tagged with adult hashtags are blurred automatically, even in quotes. On the web, Ditto can also open bitcoin and Nostr links for you.
+
+### Added
+- Ditto on the web can open bitcoin and Nostr links clicked elsewhere
+
+### Changed
+- Profiles that advertise child sexual abuse material are hidden everywhere, and their posts never show up
+- Searches and hashtags for child sexual abuse material are blocked, and posts tagged with them are hidden
+- Media in posts tagged with adult hashtags is blurred behind a content warning, including in quoted posts
+
 ## [2.42.3] - 2026-09-28
 
 Torrents have landed: browse them in your feed or on their own page, check out the file list, and grab a magnet link with one tap. Audio players now show a track's title, artist, and cover art, and you can drag files straight into the composer. Ditto is also lighter on your battery, going quiet in the background and scrolling more smoothly over themed backgrounds, and it's smarter about which relays it talks to.
