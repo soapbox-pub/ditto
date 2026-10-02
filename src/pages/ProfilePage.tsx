@@ -6,7 +6,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { nip19 } from 'nostr-tools';
-import { Zap, MoreHorizontal, ClipboardCopy, Crown, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake, HeartHandshake, HeartMinus, HeartPlus, FileJson } from 'lucide-react';
+import { Zap, MoreHorizontal, ClipboardCopy, Crown, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake, HeartHandshake, HeartMinus, HeartPlus, FileJson } from 'lucide-react';
 
 import { LazyFeedItem } from '@/components/LazyFeedItem';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -2563,24 +2563,14 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               {metadata?.nip05 && (
                 <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" />
               )}
-              {metadata?.website && sanitizeUrl(metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`) && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
-                  <Globe className="size-3.5 text-muted-foreground shrink-0" />
-                  <a
-                    href={sanitizeUrl(metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="truncate text-primary hover:underline"
-                  >
-                    {metadata.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                  </a>
-                </div>
-              )}
-
-              {/* Linked accounts on other platforms (NIP-39 kind 10011) */}
-              {supplementary && supplementary.externalIdentities.length > 0 && (
-                <ExternalIdentityLinks identities={supplementary.externalIdentities} className="mt-2" />
-              )}
+              {/* Website and linked accounts on other platforms (NIP-39 kind 10011) */}
+              <ExternalIdentityLinks
+                identities={supplementary?.externalIdentities ?? []}
+                website={metadata?.website
+                  ? sanitizeUrl(metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`)
+                  : undefined}
+                className="mt-1"
+              />
 
                {/* Followers / Following / Loved counts */}
                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
