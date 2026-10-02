@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { decode } from 'nostr-tools/nip19';
+import { decode, nprofileEncode, npubEncode } from 'nostr-tools/nip19';
 
 import { ALL_NOTIFICATION_KINDS } from '@/lib/notificationKinds';
 
-import { isWanted, notificationActions, notificationPath, renderText, templateFor, TEMPLATES } from './render';
+import {
+  isWanted,
+  mentionPubkeys,
+  notificationActions,
+  notificationPath,
+  renderText,
+  resolveMentions,
+  templateFor,
+  TEMPLATES,
+} from './render';
 
 const USER = 'a'.repeat(64);
 const AUTHOR = 'b'.repeat(64);
@@ -35,6 +44,53 @@ describe('templates', () => {
   it('keep a display name with replacement patterns as written', () => {
     const like = event(7, [], '+');
     expect(renderText(like, templateFor(like)!, "$& $'").title).toBe("$& $' liked your post");
+  });
+});
+
+describe('mentions', () => {
+  const NPUB = npubEncode(TARGET);
+  const names = new Map([[TARGET, 'Team Soapbox']]);
+
+  it('name a nostr: mention in the body', () => {
+    const note = event(1, [], `thanks nostr:${NPUB}!`);
+    expect(mentionPubkeys(note.content)).toEqual([TARGET]);
+    expect(renderText(note, templateFor(note)!, 'Alice', names).body).toBe('thanks @Team Soapbox!');
+  });
+
+  it('name an nprofile mention, and one after opening punctuation', () => {
+    const nprofile = nprofileEncode({ pubkey: TARGET, relays: ['wss://relay.ditto.pub'] });
+    expect(resolveMentions(`cc nostr:${nprofile} (nostr:${NPUB})`, names))
+      .toBe('cc @Team Soapbox (@Team Soapbox)');
+  });
+
+  it('leave a mention nobody could name as its raw token', () => {
+    expect(resolveMentions(`hi nostr:${NPUB}`, new Map())).toBe(`hi nostr:${NPUB}`);
+  });
+
+  it('leave bare npubs alone: only NIP-21 URIs are mentions', () => {
+    expect(mentionPubkeys(`hi ${NPUB}`)).toEqual([]);
+    expect(resolveMentions(`hi ${NPUB}`, names)).toBe(`hi ${NPUB}`);
+  });
+
+  it('never rewrite an npub inside a URL', () => {
+    for (const url of [
+      `https://ditto.pub/${NPUB}`,
+      `https://njump.me/nostr:${NPUB}`,
+      `https://example.com/?u=nostr:${NPUB}`,
+      `ditto.pub/nostr:${NPUB}`,
+    ]) {
+      expect(mentionPubkeys(`see ${url}`)).toEqual([]);
+      expect(resolveMentions(`see ${url}`, names)).toBe(`see ${url}`);
+    }
+  });
+
+  it('ignore a token with a bad checksum', () => {
+    expect(mentionPubkeys('nostr:npub1notrealatall')).toEqual([]);
+  });
+
+  it('resolve before truncating, so a long name cannot leave half a token', () => {
+    const note = event(1, [], `${'x'.repeat(100)} nostr:${NPUB}`);
+    expect(renderText(note, templateFor(note)!, 'Alice', names).body).toBe(`${'x'.repeat(100)} @Team Soapbox`);
   });
 });
 

@@ -6,7 +6,7 @@
 
 import type { NostrEvent } from '@nostrify/nostrify';
 import { matchFilters } from 'nostr-tools/filter';
-import { neventEncode } from 'nostr-tools/nip19';
+import { decode as nip19Decode, neventEncode } from 'nostr-tools/nip19';
 
 import { BADGE_DEFINITION_KIND, parseBadgeATag } from '@/lib/badgeUtils';
 import { isNostrId } from '@/lib/nostrId';
@@ -112,17 +112,61 @@ function zapSats(event: NostrEvent): number | null {
   return Number.isFinite(amount) && amount > 0 ? Math.round(amount / 1000) : null;
 }
 
+/**
+ * A NIP-21 `nostr:npub…` / `nostr:nprofile…` mention starting a token, so one
+ * inside a URL (`https://ditto.pub/npub1…`, `…/nostr:npub1…`, `?u=nostr:…`)
+ * stays part of the link. Mirrors `MENTION` in the Android `NotificationContent`.
+ */
+const MENTION = /(?<![^\s([{<"'])nostr:(?:npub1|nprofile1)[023456789acdefghjklmnpqrstuvwxyz]+/gi;
+
+/** Most mentions resolved per note; any beyond keep their raw token. */
+const MAX_MENTIONS = 8;
+
+function mentionPubkey(token: string): string | null {
+  try {
+    const decoded = nip19Decode(token.slice('nostr:'.length).toLowerCase());
+    if (decoded.type === 'npub') return decoded.data;
+    if (decoded.type === 'nprofile') return decoded.data.pubkey;
+  } catch { /* not a valid reference */ }
+  return null;
+}
+
+/** The pubkeys `content` mentions, first occurrence first. */
+export function mentionPubkeys(content: string): string[] {
+  const pubkeys = new Set<string>();
+  for (const [token] of content.matchAll(MENTION)) {
+    const pubkey = mentionPubkey(token);
+    if (pubkey) pubkeys.add(pubkey);
+    if (pubkeys.size === MAX_MENTIONS) break;
+  }
+  return [...pubkeys];
+}
+
+/** `content` with each nameable mention as `@name`; the rest keep their raw token. */
+export function resolveMentions(content: string, names: ReadonlyMap<string, string>): string {
+  if (!names.size) return content;
+  return content.replace(MENTION, (token) => {
+    const pubkey = mentionPubkey(token);
+    const name = pubkey && names.get(pubkey);
+    return name ? `@${name}` : token;
+  });
+}
+
 function truncateBody(content: string): string {
   const text = content.replace(/\s+/g, ' ').trim();
   if (text.length <= MAX_BODY_LENGTH) return text;
   return `${text.slice(0, MAX_BODY_LENGTH - 1)}…`;
 }
 
-/** The title and body for `event` from `template`, naming its author `name`. */
+/**
+ * The title and body for `event` from `template`, naming its author `name` and
+ * the people it mentions by `mentionNames`.
+ */
 export function renderText(
   event: NostrEvent,
   template: NotificationTemplate,
   name: string | null,
+  mentionNames: ReadonlyMap<string, string> = new Map(),
 ): { title: string; body: string } {
   const sats = event.kind === 9735 ? zapSats(event) : null;
   // Function replacements, so a display name containing `$&` or `$'` lands as
@@ -130,7 +174,9 @@ export function renderText(
   const title = template.title
     .replace('%s', () => name ?? ANONYMOUS_NAME)
     .replace('%a', () => (sats === null ? 'some' : sats.toLocaleString('en-US')));
-  const body = template.body === 'content' ? truncateBody(event.content) : template.body;
+  const body = template.body === 'content'
+    ? truncateBody(resolveMentions(event.content, mentionNames))
+    : template.body;
   return { title, body };
 }
 

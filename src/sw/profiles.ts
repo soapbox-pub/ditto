@@ -3,11 +3,13 @@
  * across the worker's short lives.
  */
 
+import type { NostrEvent } from '@nostrify/nostrify';
+
 import { isLocalNetworkUrl, sanitizeUrl } from '@/lib/sanitizeUrl';
 
 import { parseEvent } from './event';
 import { idbRequest, openDb, txDone } from './idb';
-import { requestEventFromAny } from './relays';
+import { requestEventFromAny, requestEventsFromAll } from './relays';
 
 export interface Profile {
   name: string | null;
@@ -104,8 +106,11 @@ async function requestProfile(relays: string[], pubkey: string): Promise<Profile
       return event?.kind === 0 && event.pubkey === pubkey ? event : null;
     },
   );
-  if (!event) return NO_PROFILE;
+  return event ? profileOf(event) : NO_PROFILE;
+}
 
+/** The name and picture a kind 0 declares. */
+function profileOf(event: NostrEvent): Profile {
   let metadata: Record<string, unknown>;
   try {
     metadata = JSON.parse(event.content);
@@ -136,4 +141,44 @@ export async function resolveProfile(relays: string[], pubkey: string): Promise<
   const profile = await requestProfile(relays, pubkey);
   await writeCachedProfile(pubkey, profile);
   return profile;
+}
+
+/**
+ * Profiles for several pubkeys at once — the people a note mentions — with one
+ * REQ per relay for whoever isn't cached. Never rejects; a pubkey nobody
+ * answered for maps to {@link NO_PROFILE}.
+ */
+export async function resolveProfiles(relays: string[], pubkeys: string[]): Promise<Map<string, Profile>> {
+  const profiles = new Map<string, Profile>();
+  const missing: string[] = [];
+  for (const pubkey of pubkeys) {
+    const cached = await readCachedProfile(pubkey);
+    if (cached) profiles.set(pubkey, cached);
+    else missing.push(pubkey);
+  }
+  if (!missing.length || !relays.length) return profiles;
+
+  const wanted = new Set(missing);
+  const events = await requestEventsFromAll(
+    relays,
+    { kinds: [0], authors: missing, limit: missing.length },
+    PROFILE_TIMEOUT_MS,
+    (candidate) => {
+      const event = parseEvent(candidate);
+      return event?.kind === 0 && wanted.has(event.pubkey) ? event : null;
+    },
+  );
+  const newest = new Map<string, NostrEvent>();
+  for (const event of events) {
+    const prev = newest.get(event.pubkey);
+    if (!prev || event.created_at > prev.created_at) newest.set(event.pubkey, event);
+  }
+
+  for (const pubkey of missing) {
+    const event = newest.get(pubkey);
+    const profile = event ? profileOf(event) : NO_PROFILE;
+    profiles.set(pubkey, profile);
+    await writeCachedProfile(pubkey, profile);
+  }
+  return profiles;
 }

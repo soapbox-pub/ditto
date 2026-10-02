@@ -57,12 +57,13 @@ import { isValidZapReceipt } from '@/lib/zapReceipt';
 
 import { notificationShape, recordAndCheckBurst } from './burst';
 import { parseEvent } from './event';
-import { NO_PROFILE, notificationImage, resolveProfile } from './profiles';
+import { NO_PROFILE, notificationImage, resolveProfile, resolveProfiles } from './profiles';
 import { fetchEventById } from './relays';
 import {
   eventIdPath,
   isWanted,
   MARK_READ_ACTION,
+  mentionPubkeys,
   notificationActions,
   type NotificationButton,
   notificationAuthor,
@@ -188,8 +189,16 @@ async function handleNappPush(payload: NappPayload): Promise<void> {
   if (!isWanted(event, state)) return;
 
   const author = notificationAuthor(event);
-  const profile = relays.length ? await resolveProfile(relays, author) : NO_PROFILE;
-  const { title, body } = renderText(event, template, profile.name);
+  const mentioned = template.body === 'content' ? mentionPubkeys(event.content) : [];
+  const [profile, mentionProfiles] = await Promise.all([
+    relays.length ? resolveProfile(relays, author) : NO_PROFILE,
+    resolveProfiles(relays, mentioned),
+  ]);
+  const mentionNames = new Map<string, string>();
+  for (const [pubkey, { name }] of mentionProfiles) {
+    if (name) mentionNames.set(pubkey, name);
+  }
+  const { title, body } = renderText(event, template, profile.name, mentionNames);
 
   const shape = notificationShape(body || title);
   const isBurst = await recordAndCheckBurst(shape);

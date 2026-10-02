@@ -101,6 +101,79 @@ export async function requestEventFromAny<T>(
 }
 
 /**
+ * Ask one relay for every event matching `filter`, over a short-lived socket.
+ * Resolves with what it sent before EOSE, or before the timeout; never rejects.
+ * What comes back is whatever the relay sent: callers validate it.
+ */
+function requestEvents(relay: string, filter: NostrFilter, timeoutMs: number): Promise<unknown[]> {
+  return new Promise((resolve) => {
+    let socket: WebSocket | undefined;
+    let settled = false;
+    const events: unknown[] = [];
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try {
+        socket?.close();
+      } catch { /* already gone */ }
+      resolve(events);
+    };
+
+    const timer = setTimeout(finish, timeoutMs);
+
+    try {
+      socket = new WebSocket(relay);
+    } catch {
+      return finish();
+    }
+
+    const subId = `sw-req-${Math.random().toString(36).slice(2, 10)}`;
+
+    socket.onopen = () => {
+      socket?.send(JSON.stringify(['REQ', subId, filter]));
+    };
+
+    socket.onmessage = (message) => {
+      let frame: unknown;
+      try {
+        frame = JSON.parse(message.data);
+      } catch {
+        return;
+      }
+      if (!Array.isArray(frame) || frame[1] !== subId) return;
+
+      if (frame[0] === 'EVENT' && frame[2] && typeof frame[2] === 'object') {
+        events.push(frame[2]);
+      } else if (frame[0] === 'CLOSED' || frame[0] === 'EOSE') {
+        finish();
+      }
+    };
+
+    socket.onerror = () => finish();
+    socket.onclose = () => finish();
+  });
+}
+
+/**
+ * Ask several relays at once for every event matching `filter`, keeping what
+ * `accept` turns into a `T`. Settles when every relay has answered or the
+ * timeout passes, whichever is first.
+ */
+export async function requestEventsFromAll<T>(
+  relays: string[],
+  filter: NostrFilter,
+  timeoutMs: number,
+  accept: (candidate: unknown) => T | null,
+): Promise<T[]> {
+  const answers = await Promise.all(
+    relays.slice(0, RELAY_FANOUT).map((relay) => requestEvents(relay, filter, timeoutMs)),
+  );
+  return answers.flat().map(accept).filter((accepted): accepted is T => accepted !== null);
+}
+
+/**
  * The event a push was too small to carry. `event_id` and `relays` are what the
  * host sends in its place — see NAPP.md — and this is the fetch they're for.
  */
