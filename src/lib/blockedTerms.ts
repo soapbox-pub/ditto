@@ -5,12 +5,15 @@ import type { NostrEvent } from '@nostrify/nostrify';
  * imagery. Ditto never searches for them, and hides profiles and posts that
  * use them outright, with no way to reveal them. Matching is conservative for
  * that reason: every pattern here is unambiguous on its own.
+ *
+ * Code words are slang used by people trading this material, so they're
+ * blocked even in prose. Plain phrases like "child porn" also appear in posts
+ * and bios that condemn it, so they're only blocked where they can't be
+ * prose: search queries and hashtags.
  */
-const BLOCKED_PATTERNS: RegExp[] = [
+const CODEWORD_PATTERNS: RegExp[] = [
   // CSAM
   /\bpthc\b/,
-  /\bchild\s*porn/,
-  /\bkidd?(?:ie|y)\s*porn/,
   /\bjailbait\b/,
   /\blol[i1]s?\b/,
   /\blolicon\b/,
@@ -24,6 +27,23 @@ const BLOCKED_PATTERNS: RegExp[] = [
   /\bupskirts?\b/,
 ];
 
+/** Plain-English phrases. See {@link CODEWORD_PATTERNS} for where they apply. */
+const PHRASE_PATTERNS: RegExp[] = [
+  /\bchild\s*porn/,
+  /\bkidd?(?:ie|y)\s*porn/,
+];
+
+/**
+ * Remove plain-English phrases from normalized prose, so heuristics that look
+ * for minors and sexual terms separately don't read "child porn" as both.
+ */
+export function stripBlockedPhrases(normalized: string): string {
+  return PHRASE_PATTERNS.reduce(
+    (text, re) => text.replace(new RegExp(re.source, 'g'), ' '),
+    normalized,
+  );
+}
+
 /**
  * Lowercased, NFKC-normalized text for matching. Underscores become spaces so
  * that hashtag spellings like `#cp_dump` match.
@@ -32,15 +52,26 @@ export function normalizeForMatching(text: string): string {
   return text.normalize('NFKC').toLowerCase().replace(/_/g, ' ');
 }
 
-/** Whether text (a search query, hashtag, bio, or post) contains a blocked term. */
+/** Whether a search query or hashtag contains a blocked term (code word or phrase). */
 export function containsBlockedTerm(text: string | undefined): boolean {
   if (!text) return false;
   const normalized = normalizeForMatching(text);
-  return BLOCKED_PATTERNS.some((re) => re.test(normalized));
+  return CODEWORD_PATTERNS.some((re) => re.test(normalized)) ||
+    PHRASE_PATTERNS.some((re) => re.test(normalized));
 }
 
-/** Whether an event's hashtags or content contain a blocked term. */
+/** Whether prose (e.g. a profile bio) contains a blocked code word. */
+export function containsBlockedCodeword(text: string | undefined): boolean {
+  if (!text) return false;
+  const normalized = normalizeForMatching(text);
+  return CODEWORD_PATTERNS.some((re) => re.test(normalized));
+}
+
+/**
+ * Whether an event's hashtags contain a blocked term. Content is deliberately
+ * not checked, so posts that talk about CSAM (to condemn it, or report on it)
+ * aren't hidden.
+ */
 export function isBlockedEvent(event: NostrEvent): boolean {
-  return containsBlockedTerm(event.content) ||
-    event.tags.some(([name, value]) => name === 't' && containsBlockedTerm(value));
+  return event.tags.some(([name, value]) => name === 't' && containsBlockedTerm(value));
 }

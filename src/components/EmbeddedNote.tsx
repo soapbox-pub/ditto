@@ -1035,8 +1035,8 @@ function EmbeddedNoteCard({
   const hasCW = cwReason !== undefined;
 
   // If policy is "hide", don't render the embedded note at all. Never render
-  // notes by authors blocked by isBlockedProfile, or that use a blocked term
-  // themselves (see blockedTerms.ts).
+  // notes by authors blocked by isBlockedProfile, or with a blocked
+  // hashtag (see blockedTerms.ts).
   if ((hasCW && config.contentWarningPolicy === 'hide') || author.data?.blocked || isBlockedEvent(event)) {
     return null;
   }

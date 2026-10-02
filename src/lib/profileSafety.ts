@@ -1,6 +1,6 @@
 import type { NostrMetadata } from '@nostrify/nostrify';
 
-import { containsBlockedTerm, normalizeForMatching } from '@/lib/blockedTerms';
+import { containsBlockedCodeword, normalizeForMatching, stripBlockedPhrases } from '@/lib/blockedTerms';
 
 /**
  * Detects profiles that advertise child sexual abuse material (CSAM),
@@ -11,8 +11,8 @@ import { containsBlockedTerm, normalizeForMatching } from '@/lib/blockedTerms';
  * warning — so there is deliberately no way to reveal them. Because of that,
  * matching is conservative: a profile is flagged only by terms that are
  * unambiguous on their own, or by a reference to minors appearing alongside
- * a sexual term in the same profile. The standalone terms live in
- * `blockedTerms.ts`, shared with search and post filtering.
+ * a sexual term in the same profile. The standalone code words live in
+ * `blockedTerms.ts`, shared with search and hashtag filtering.
  */
 
 /** References to minors. Only flag in combination with {@link SEXUAL_PATTERNS}. */
@@ -64,8 +64,11 @@ export function isBlockedProfile(metadata: NostrMetadata | undefined): boolean {
   const text = profileText(metadata);
   if (!text) return false;
 
-  if (containsBlockedTerm(text)) return true;
+  if (containsBlockedCodeword(text)) return true;
 
-  return MINOR_PATTERNS.some((re) => re.test(text)) &&
-    SEXUAL_PATTERNS.some((re) => re.test(text));
+  // Phrases like "child porn" show up in bios that condemn it; on their own
+  // they shouldn't count as both a reference to minors and a sexual term.
+  const prose = stripBlockedPhrases(text);
+  return MINOR_PATTERNS.some((re) => re.test(prose)) &&
+    SEXUAL_PATTERNS.some((re) => re.test(prose));
 }

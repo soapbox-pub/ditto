@@ -34,7 +34,7 @@ export function ContentWarningGuard({ event, children, className }: ContentWarni
   const [revealed, setRevealed] = useState(false);
   const author = useAuthor(event.pubkey);
 
-  // Author is blocked (see isBlockedProfile), or the event uses a blocked term
+  // Author is blocked (see isBlockedProfile), or the event has a blocked hashtag
   // (see blockedTerms.ts) — never reveal.
   if (author.data?.blocked || isBlockedEvent(event)) {
     return null;

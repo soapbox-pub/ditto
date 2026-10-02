@@ -687,8 +687,8 @@ const NoteCardImpl = memo(function NoteCardImpl({
     return null;
   }
 
-  // Hide posts by authors blocked by isBlockedProfile, and posts that use a
-  // blocked term themselves (see blockedTerms.ts)
+  // Hide posts by authors blocked by isBlockedProfile, and posts with a
+  // blocked hashtag (see blockedTerms.ts)
   if (author.data?.blocked || isBlockedEvent(event)) {
     return null;
   }
