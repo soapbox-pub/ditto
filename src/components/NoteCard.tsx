@@ -686,6 +686,11 @@ const NoteCardImpl = memo(function NoteCardImpl({
     return null;
   }
 
+  // Hide posts by authors blocked by isBlockedProfile
+  if (author.data?.blocked) {
+    return null;
+  }
+
   // NIP-36: If the event has a content-warning and the policy is "hide", skip rendering entirely
   if (
     getContentWarning(event) !== undefined &&

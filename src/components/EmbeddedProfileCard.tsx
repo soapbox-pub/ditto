@@ -7,6 +7,7 @@ import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
 import { FallbackImage } from '@/components/FallbackImage';
 import { encodeEventAddress } from '@/lib/encodeEvent';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { isBlockedProfile } from '@/lib/profileSafety';
 
 interface EmbeddedProfileCardProps {
   event: NostrEvent;
@@ -27,7 +28,7 @@ interface EmbeddedProfileCardProps {
 export function EmbeddedProfileCard({ event, className, disableHoverCards }: EmbeddedProfileCardProps) {
   const metadata: NostrMetadata = useMemo(() => {
     const parsed = n.json().pipe(n.metadata()).safeParse(event.content);
-    return parsed.success ? parsed.data : {};
+    return parsed.success && !isBlockedProfile(parsed.data) ? parsed.data : {};
   }, [event.content]);
 
   const nip19Id = useMemo(() => encodeEventAddress(event), [event]);

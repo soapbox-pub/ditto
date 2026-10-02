@@ -9,6 +9,7 @@ export interface AuthorData {
   pubkey: string;
   event?: NostrEvent;
   metadata?: NostrMetadata;
+  blocked?: boolean;
 }
 
 /**

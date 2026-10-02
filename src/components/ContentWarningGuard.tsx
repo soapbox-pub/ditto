@@ -3,6 +3,7 @@ import { ShieldAlert, Eye } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useAuthor } from '@/hooks/useAuthor';
 import { cn } from '@/lib/utils';
 import { getContentWarning } from '@/lib/contentWarning';
 
@@ -30,6 +31,12 @@ interface ContentWarningGuardProps {
 export function ContentWarningGuard({ event, children, className }: ContentWarningGuardProps) {
   const { config } = useAppContext();
   const [revealed, setRevealed] = useState(false);
+  const author = useAuthor(event.pubkey);
+
+  // Author is blocked (see isBlockedProfile) — never reveal.
+  if (author.data?.blocked) {
+    return null;
+  }
 
   const reason = getContentWarning(event);
 

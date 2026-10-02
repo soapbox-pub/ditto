@@ -6,17 +6,36 @@ import { type QueryClient, queryOptions, useQuery, useQueryClient } from '@tanst
 import { useCacheFirstSeed } from '@/hooks/useCacheFirstSeed';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { fetchAuthorWriteRelays, queryOutboxRelays } from '@/lib/outbox';
+import { isBlockedProfile } from '@/lib/profileSafety';
 
-export type AuthorResult = { event?: NostrEvent; metadata?: NostrMetadata };
+export type AuthorResult = {
+  event?: NostrEvent;
+  metadata?: NostrMetadata;
+  /** The profile is blocked (see `isBlockedProfile`). Its metadata has been stripped. */
+  blocked?: boolean;
+};
 
-/** Parse a kind-0 event into metadata + event, or return just the event on parse failure. */
-export function parseAuthorEvent(event: NostrEvent): { event: NostrEvent; metadata?: NostrMetadata } {
+/**
+ * Parse a kind-0 event into metadata + event, or return just the event on parse failure.
+ *
+ * Profiles flagged by `isBlockedProfile` come back with `blocked: true`, empty
+ * metadata, and an event whose content and tags are blanked. Every kind-0
+ * consumer goes through here, so their name, bio, avatar, and banner never
+ * reach the UI.
+ */
+export function parseAuthorEvent(event: NostrEvent): { event: NostrEvent; metadata?: NostrMetadata; blocked?: boolean } {
+  let metadata: NostrMetadata;
   try {
-    const metadata = n.json().pipe(n.metadata()).parse(event.content);
-    return { metadata, event };
+    metadata = n.json().pipe(n.metadata()).parse(event.content);
   } catch {
     return { event };
   }
+
+  if (isBlockedProfile(metadata)) {
+    return { event: { ...event, content: '{}', tags: [] }, metadata: {}, blocked: true };
+  }
+
+  return { metadata, event };
 }
 
 export function useAuthor(pubkey: string | undefined) {

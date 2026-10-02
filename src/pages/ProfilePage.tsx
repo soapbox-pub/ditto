@@ -64,6 +64,7 @@ import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ReportDialog } from '@/components/ReportDialog';
+import { BlockedProfileNotice } from '@/components/BlockedProfileNotice';
 import { AddToListDialog } from '@/components/AddToListDialog';
 import { MiniAudioPlayer } from '@/components/MiniAudioPlayer';
 import { isAudioUrl, isImageUrl, isVideoUrl } from '@/lib/mediaTypeDetection';
@@ -1522,6 +1523,8 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   // Kind 0 — resolved from the author cache (seeded by the feed query above).
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+  // Flagged by isBlockedProfile: render nothing of this profile (see BlockedProfileNotice).
+  const profileBlocked = !!author.data?.blocked;
   const avatarShape = getAvatarShape(metadata);
   const isEmojiShape = !!avatarShape && isEmoji(avatarShape);
   const profileStatus = useUserStatus(pubkey);
@@ -1681,7 +1684,8 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const profileThemeQuery = useActiveProfileTheme(pubkey);
   const profileTheme = profileThemeQuery.data;
   const profileHasTheme = !!profileTheme?.colors;
-  const profileThemeColors = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.colors : undefined;
+  const applyProfileTheme = !profileBlocked && (showCustomProfileThemes || isOwnProfile);
+  const profileThemeColors = applyProfileTheme ? profileTheme?.colors : undefined;
 
   // First-time custom theme info modal
   const [hasSeenThemeInfo, setHasSeenThemeInfo] = useLocalStorage(getStorageKey(config.appId, 'seen-profile-theme-info'), false);
@@ -1725,9 +1729,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   // the *current* values (e.g. after "Copy Theme" was used) instead of stale closure values.
   const ownThemeRef = useRef({ ownTheme, ownCustomTheme, configuredThemes });
   ownThemeRef.current = { ownTheme, ownCustomTheme, configuredThemes };
-  const profileThemeFont = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.font : undefined;
-  const profileThemeTitleFont = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.titleFont : undefined;
-  const profileThemeBackground = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.background : undefined;
+  const profileThemeFont = applyProfileTheme ? profileTheme?.font : undefined;
+  const profileThemeTitleFont = applyProfileTheme ? profileTheme?.titleFont : undefined;
+  const profileThemeBackground = applyProfileTheme ? profileTheme?.background : undefined;
 
   // Whether we need to override the custom theme on this profile.
   // When the profile has no published theme and the user has a custom app theme,
@@ -2094,7 +2098,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     setSidebarMediaUrl(url);
   }, [selectTab]);
 
-  useLayoutOptions(pubkey ? {
+  useLayoutOptions(pubkey && !profileBlocked ? {
     rightSidebar: <ProfileRightSidebar fields={fields} pubkey={pubkey} onMediaClick={handleSidebarMediaClick} />,
     showFAB: !(activeTab === 'wall' && !profileFollowsMe),
     onFabClick: activeTab === 'wall' ? openWallCompose : undefined,
@@ -2133,6 +2137,14 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         <div className="p-8 text-center text-muted-foreground">
           <p>User not found{npub ? `: ${npub}` : ''}</p>
         </div>
+      </main>
+    );
+  }
+
+  if (profileBlocked) {
+    return (
+      <main className="flex-1 min-w-0">
+        <BlockedProfileNotice />
       </main>
     );
   }

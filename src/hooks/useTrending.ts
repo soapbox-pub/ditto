@@ -6,6 +6,7 @@ import { useNip85EventStats, useNip85AddrStats } from '@/hooks/useNip85Stats';
 import { type ResolvedEmoji } from '@/lib/customEmoji';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import { useAppContext } from '@/hooks/useAppContext';
+import { parseAuthorEvent } from '@/hooks/useAuthor';
 
 export interface TrendingTag {
   tag: string;
@@ -247,11 +248,15 @@ export function useLatestAccounts(enabled = true) {
   return useQuery<NostrEvent[]>({
     queryKey: ['latest-accounts'],
     queryFn: async ({ signal }) => {
+      // Over-fetch so dropping blocked profiles still leaves five.
       const events = await nostr.query(
-        [{ kinds: [0], limit: 5 }],
+        [{ kinds: [0], limit: 10 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
-      return events.sort((a, b) => b.created_at - a.created_at).slice(0, 5);
+      return events
+        .filter((event) => !parseAuthorEvent(event).blocked)
+        .sort((a, b) => b.created_at - a.created_at)
+        .slice(0, 5);
     },
     enabled,
     staleTime: 5 * 60 * 1000,

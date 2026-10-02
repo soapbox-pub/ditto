@@ -62,6 +62,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
 import { parseImetaEntries, parseImetaMap } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { getContentWarning } from '@/lib/contentWarning';
 import { ImageGallery } from '@/components/ImageGallery';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { getKindLabel, getKindIcon, getEventFallbackText } from '@/lib/extraKinds';
@@ -916,6 +917,7 @@ function EmbeddedNoteCard({
   highlightText?: string;
 }) {
   const { config } = useAppContext();
+  const author = useAuthor(event.pubkey);
 
   const neventId = useMemo(
     () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
@@ -1027,12 +1029,13 @@ function EmbeddedNoteCard({
   const isUnknownKind = !isContentKind && !isBlobbiState && !tagMeta && !kindMeta && !videoWithMedia;
   const isKnownKindWithoutPreview = !isContentKind && !isBlobbiState && !tagMeta && !!kindMeta && !videoWithMedia;
 
-  // NIP-36 content-warning check
-  const cwTag = event.tags.find(([name]) => name === 'content-warning');
-  const hasCW = !!cwTag;
+  // NIP-36 content-warning check (also covers sensitive hashtags like #nsfw)
+  const cwReason = getContentWarning(event);
+  const hasCW = cwReason !== undefined;
 
-  // If policy is "hide", don't render the embedded note at all
-  if (hasCW && config.contentWarningPolicy === 'hide') {
+  // If policy is "hide", don't render the embedded note at all. Never render
+  // notes by authors blocked by isBlockedProfile.
+  if ((hasCW && config.contentWarningPolicy === 'hide') || author.data?.blocked) {
     return null;
   }
 
@@ -1059,7 +1062,7 @@ function EmbeddedNoteCard({
       {/* Content — rendered identically to a normal NoteCard, just height-capped */}
       {hasCW && config.contentWarningPolicy === 'blur' ? (
         <p className="text-xs text-muted-foreground italic">
-          Content warning{cwTag?.[1] ? <>{' '}&ldquo;{cwTag[1]}&rdquo;</> : ''}
+          Content warning{cwReason ? <>{' '}&ldquo;{cwReason}&rdquo;</> : ''}
         </p>
       ) : isBlobbiState ? (
         <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>

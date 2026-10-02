@@ -5,6 +5,7 @@ import { NSchema as n } from '@nostrify/nostrify';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useDebounce } from '@/hooks/useDebounce';
+import { isBlockedProfile } from '@/lib/profileSafety';
 
 export interface SearchProfile {
   pubkey: string;
@@ -108,6 +109,7 @@ export function useSearchProfiles(query: string) {
       for (const event of events) {
         try {
           const metadata = n.json().pipe(n.metadata()).parse(event.content);
+          if (isBlockedProfile(metadata)) continue;
           profiles.push({ pubkey: event.pubkey, metadata, event });
         } catch {
           // Skip invalid metadata
