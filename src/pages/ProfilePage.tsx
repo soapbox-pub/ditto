@@ -6,7 +6,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { nip19 } from 'nostr-tools';
-import { Zap, MoreHorizontal, ClipboardCopy, Crown, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake, HeartHandshake } from 'lucide-react';
+import { Zap, MoreHorizontal, ClipboardCopy, Crown, ExternalLink, VolumeX, Volume2, Flag, Bitcoin, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Pencil, Trash2, Eye, EyeOff, RefreshCw, RotateCcw, MessageSquare, Globe, Heart, Mail, Plus, GripVertical, ListPlus, Award, PanelLeft, Cake, HeartHandshake, HeartMinus, HeartPlus, FileJson } from 'lucide-react';
 
 import { LazyFeedItem } from '@/components/LazyFeedItem';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -26,7 +26,7 @@ import { ExternalIdentityLinks } from '@/components/ExternalIdentityLinks';
 import { NoteCard } from '@/components/NoteCard';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
-import { ProfileLoveButton } from '@/components/ProfileLoveButton';
+import { EventJsonDialog } from '@/components/EventJsonDialog';
 import { ProfileNsiteButton } from '@/components/ProfileNsiteButton';
 import { CelebrationOverlay, CELEBRATION_DURATION_MS } from '@/components/CelebrationOverlay';
 import { BirthdayRain, PartyHat } from '@/components/BirthdayRain';
@@ -50,7 +50,7 @@ import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { StreakAtRisk, StreakBadge } from '@/components/StreakBadge';
 import { useInterests } from '@/hooks/useInterests';
 import { normalizeTagValue } from '@/lib/hashtag';
-import { LOVE_LIST_KIND } from '@/hooks/useLoveList';
+import { LOVE_LIST_KIND, useLoveList } from '@/hooks/useLoveList';
 import { TOP8_KIND, useTop8 } from '@/hooks/useTop8';
 import { Top8Grid } from '@/components/Top8Grid';
 import { useWallComments } from '@/hooks/useWallComments';
@@ -119,7 +119,7 @@ import { parseBirthdayFromContent, isBirthdayToday } from '@/lib/birthday';
 import { startBirthdayJingle, stopBirthdayJingle } from '@/lib/birthdayJingle';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { parseAddr } from '@/lib/parseAddr';
-import { impactMedium } from '@/lib/haptics';
+import { impactLight, impactMedium } from '@/lib/haptics';
 import { getStorageKey } from '@/lib/storageKey';
 import { cn } from '@/lib/utils';
 
@@ -155,9 +155,13 @@ interface ProfileMoreMenuProps {
   onOpenChange: (open: boolean) => void;
   isOwnProfile?: boolean;
   authorEvent?: NostrEvent;
+  /** Whether the logged-in user follows this profile (gates the Love List row). */
+  isFollowing: boolean;
+  /** Called when the profile is newly added to the Love List, so the page can celebrate. */
+  onLoved?: () => void;
 }
 
-function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile, authorEvent }: ProfileMoreMenuProps) {
+function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile, authorEvent, isFollowing, onLoved }: ProfileMoreMenuProps) {
   const { toast } = useToast();
   const { user } = useCurrentUser();
   const navigate = useNavigate();
@@ -168,6 +172,12 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const { addToSidebar, removeFromSidebar, orderedItems } = useFeedSettings();
   const { isInTop8, isFull: top8IsFull, addToTop8, removeFromTop8 } = useTop8();
   const inTop8 = isInTop8(pubkey);
+  const { isLoved, addLove, removeLove } = useLoveList();
+  const loved = isLoved(pubkey);
+  // Love is a tier above an ordinary follow, so it's only offered for followed
+  // profiles — but keep it for an already-loved profile even if the follow was
+  // removed, so the love can still be undone.
+  const showLove = !!user && !isOwnProfile && (isFollowing || loved);
   const sidebarId = `nostr:${npubEncoded}`;
   const isInSidebar = orderedItems.includes(sidebarId);
   const [reportOpen, setReportOpen] = useState(false);
@@ -175,6 +185,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [giveBadgeOpen, setGiveBadgeOpen] = useState(false);
   const [followQROpen, setFollowQROpen] = useState(false);
+  const [eventJsonOpen, setEventJsonOpen] = useState(false);
   const zapTriggerRef = useRef<HTMLSpanElement>(null);
   // ZapDialog mounts its own payment-target query, so defer mounting it until
   // the user actually invokes zap instead of on every profile load.
@@ -245,6 +256,24 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     close();
   };
 
+  const handleToggleLove = () => {
+    impactLight();
+    const mutation = loved ? removeLove : addLove;
+    mutation.mutate(pubkey, {
+      onSuccess: () => {
+        if (!loved) onLoved?.();
+        toast({
+          title: loved ? `Removed @${displayName} from your Love List` : `@${displayName} is on your Love List ❤️`,
+          description: loved ? undefined : 'Find their posts in the Loved tab of your feed.',
+        });
+      },
+      onError: () => toast({ title: 'Failed to update Love List', variant: 'destructive' }),
+    });
+    close();
+  };
+
+  const handleViewEventJson = () => openAfterClose(setEventJsonOpen);
+
   const handleToggleSidebar = () => {
     if (isInSidebar) {
       removeFromSidebar(sidebarId);
@@ -298,6 +327,14 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
               icon={<Crown className="size-5" />}
               label={inTop8 ? 'Remove from Top 8' : 'Add to Top 8'}
               onClick={handleToggleTop8}
+            />
+          )}
+          {/* Love List (kind 15683). */}
+          {showLove && (
+            <MenuRow
+              icon={loved ? <HeartMinus className="size-5" /> : <HeartPlus className="size-5" />}
+              label={loved ? 'Remove from Love List' : 'Add to Love List'}
+              onClick={handleToggleLove}
             />
           )}
           <MenuRow
@@ -367,6 +404,20 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
           </>
         )}
 
+        {authorEvent && (
+          <>
+            <Separator />
+
+            <div className="py-1">
+              <MenuRow
+                icon={<FileJson className="size-5" />}
+                label="View Event JSON"
+                onClick={handleViewEventJson}
+              />
+            </div>
+          </>
+        )}
+
         <Separator />
 
         <div className="py-1">
@@ -382,6 +433,14 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     </Dialog>
 
     <ReportDialog pubkey={pubkey} open={reportOpen} onOpenChange={setReportOpen} />
+
+    {authorEvent && (
+      <EventJsonDialog
+        event={authorEvent}
+        open={eventJsonOpen}
+        onOpenChange={setEventJsonOpen}
+      />
+    )}
 
     {addToListOpen && (
       <AddToListDialog
@@ -2459,10 +2518,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       <QrCode className="size-5" />
                     </Button>
                   )}
-                  {/* Love List toggle */}
-                  {!isOwnProfile && (
-                    <ProfileLoveButton pubkey={pubkey} displayName={displayName} isFollowing={isFollowing} onLoved={handleLoved} />
-                  )}
                   {isOwnProfile ? (
                     <Link to="/settings/profile">
                       <Button variant="outline" className="rounded-full font-bold">
@@ -3051,6 +3106,8 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             onOpenChange={setMoreMenuOpen}
             isOwnProfile={isOwnProfile}
             authorEvent={authorEvent}
+            isFollowing={isFollowing}
+            onLoved={handleLoved}
           />
         )}
 
