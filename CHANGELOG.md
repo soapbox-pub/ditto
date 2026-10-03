@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.43.0] - 2026-10-03
+
+Post anything. The composer now takes files of every kind, and 3D models get their own viewer: spin them, flick them, and zoom right in, with a preview on the card before anyone taps. Other files show up as a tidy card with a download button. Profiles show their website with its icon, the Love List toggle moves into the profile menu, and push notifications name the people mentioned instead of showing a code.
+
+### Added
+- Attach any kind of file to a post; files Ditto can't show inline appear as a card with the name, type, size, and a download button
+- 3D models open in an interactive viewer where you can turn, flick, and zoom them, and their cards show a rendered preview
+- View Event JSON from a profile's menu
+
+### Changed
+- Profiles show their website next to their other links, with the site's icon
+- The Love List toggle lives in the profile menu
+- Adult artists whose bios say "Minors DNI" or "18+ only" are no longer hidden as unsafe
+
+### Fixed
+- Push notifications show mentioned users by name instead of a long code
+- Links to profiles in Android notifications are no longer mangled
+
 ## [2.42.4] - 2026-10-02
 
 A safety-focused update. Ditto now keeps child sexual abuse material out of sight: profiles that advertise it are hidden entirely, searches and hashtags for it are blocked, and posts tagged with it never appear. Posts tagged with adult hashtags are blurred automatically, even in quotes. On the web, Ditto can also open bitcoin and Nostr links for you.

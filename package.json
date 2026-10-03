@@ -1,7 +1,7 @@
 {
   "name": "ditto",
   "private": true,
-  "version": "2.42.4",
+  "version": "2.43.0",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
