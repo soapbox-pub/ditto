@@ -164,6 +164,25 @@ export function fileCategory(mime: string | undefined): FileCategory {
   return 'file';
 }
 
+/** 3D formats Ditto can draw, keyed by MIME type. */
+export const RENDERABLE_MODEL_FORMATS = {
+  'model/gltf-binary': 'glb',
+  'model/gltf+json': 'gltf',
+  'model/stl': 'stl',
+  'model/obj': 'obj',
+  'model/x-ply': 'ply',
+  'model/3mf': '3mf',
+  'model/x-fbx': 'fbx',
+  'model/vnd.collada+xml': 'dae',
+} as const;
+
+export type ModelFormat = typeof RENDERABLE_MODEL_FORMATS[keyof typeof RENDERABLE_MODEL_FORMATS];
+
+/** The drawable 3D format of a MIME type, if any. */
+export function modelFormat(mime: string | undefined): ModelFormat | undefined {
+  return mime ? RENDERABLE_MODEL_FORMATS[mime.toLowerCase() as keyof typeof RENDERABLE_MODEL_FORMATS] : undefined;
+}
+
 /**
  * Extensions of non-media files that render as an attachment card even when
  * the note carries no imeta for them — a bare link to `model.glb` is a file,

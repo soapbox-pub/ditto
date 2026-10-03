@@ -1,6 +1,6 @@
 import { encode as blurhashEncode } from 'blurhash';
 
-import { fileCategory } from '@/lib/mediaUrls';
+import { fileCategory, modelFormat } from '@/lib/mediaUrls';
 
 /**
  * NIP-94 metadata worked out from a file in the browser before it's posted,
@@ -12,13 +12,16 @@ export interface FileMeta {
   fields: [string, string][];
   /**
    * A still to upload and attach as the imeta `image` — a video's opening
-   * frame, a font specimen.
+   * frame, a render of a 3D model, a font specimen.
    */
   preview?: File;
 }
 
 /** Longest a single probe may run before it's abandoned. */
 const PROBE_TIMEOUT_MS = 15_000;
+
+/** Largest 3D model parsed for a preview render; bigger ones can take the tab down. */
+const MAX_MODEL_PREVIEW_BYTES = 150 * 1024 * 1024;
 
 /** Largest zip read for its file listing (fflate reads the whole archive). */
 const MAX_ZIP_LIST_BYTES = 64 * 1024 * 1024;
@@ -155,6 +158,19 @@ async function audioMeta(file: File): Promise<FileMeta> {
   }
 }
 
+/** A render of a 3D model on a transparent background. */
+async function modelMeta(file: File, mime: string): Promise<FileMeta> {
+  const format = modelFormat(mime);
+  if (!format || file.size > MAX_MODEL_PREVIEW_BYTES) return { fields: [] };
+  const { renderModelPreview } = await import('@/lib/modelRenderer');
+  const blob = await withTimeout(file.arrayBuffer().then((data) => renderModelPreview(data, format)), 30_000);
+  if (!blob) return { fields: [] };
+  // No blurhash: it has no alpha channel, so a transparent render hashes to a
+  // dark smudge. And no `dim` — that would be the render's, and a model has
+  // no pixel size.
+  return { fields: [], preview: new File([blob], `${baseName(file.name)}-preview.png`, { type: 'image/png' }) };
+}
+
 /** A specimen of a font, drawn in the font itself. */
 async function fontMeta(file: File): Promise<FileMeta> {
   const family = `ditto-preview-${crypto.randomUUID()}`;
@@ -240,6 +256,7 @@ export async function readFileMeta(file: File, mime: string): Promise<FileMeta> 
       case 'image': meta = await imageMeta(file); break;
       case 'video': meta = await videoMeta(file); break;
       case 'audio': meta = await audioMeta(file); break;
+      case 'model': meta = await modelMeta(file, mime); break;
       case 'font': meta = await fontMeta(file); break;
       case 'text':
       case 'spreadsheet':

@@ -145,6 +145,7 @@
     "smol-toml": "^1.6.0",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
+    "three": "^0.186.1",
     "vaul": "^1.1.2",
     "zod": "^4.3.6"
   },
@@ -165,6 +166,7 @@
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.0.1",
     "@webbtc/webln-types": "^3.0.0",
     "@webxdc/types": "^2.1.2",
