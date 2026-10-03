@@ -2,7 +2,9 @@ import { ExternalLink, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
+import { useMediaGate } from '@/components/MediaGate';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
+import { isLocalNetworkUrl, sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
 interface LinkPreviewProps {
@@ -31,12 +33,18 @@ export function LinkPreview({ url, className, hideImage, navigateToComments, sho
   const { data, isLoading } = useLinkPreview(url);
   const navigate = useNavigate();
 
+  // The thumbnail comes from the linked page's metadata, which its author
+  // controls — keep it to well-formed https and off the viewer's LAN.
+  const thumbnail = sanitizeUrl(data?.thumbnail_url);
+  const safeThumbnail = thumbnail && !isLocalNetworkUrl(thumbnail) ? thumbnail : undefined;
+  // Inside a post whose media is gated, the card shows without its thumbnail.
+  const image = useMediaGate().active ? undefined : safeThumbnail;
+
   if (isLoading) {
     return <LinkPreviewSkeleton className={className} />;
   }
 
   const domain = data?.provider_name || displayDomain(url);
-  const image = data?.thumbnail_url;
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();

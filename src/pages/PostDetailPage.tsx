@@ -214,7 +214,7 @@ import { CommentContext } from "@/components/CommentContext";
 import { LiveChatContext } from "@/components/LiveChatContext";
 import { CommunityContent } from "@/components/CommunityContent";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
-import { MediaGateProvider } from "@/components/MediaGate";
+import { MediaGate, MediaGateProvider } from "@/components/MediaGate";
 import { BrokenEventFallback } from "@/components/BrokenEventFallback";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EmojiPackContent } from "@/components/EmojiPackContent";
@@ -1111,14 +1111,16 @@ function VideoDetailContent({ event }: { event: NostrEvent }) {
   return (
     <div className="mt-3">
       {imeta.url && (
-        <VideoPlayer
-          src={imeta.url}
-          poster={imeta.thumbnail}
-          encryption={imeta.encryption}
-          dim={imeta.dim}
-          blurhash={imeta.blurhash}
-          title={title ?? undefined}
-        />
+        <MediaGate className="mt-0">
+          <VideoPlayer
+            src={imeta.url}
+            poster={imeta.thumbnail}
+            encryption={imeta.encryption}
+            dim={imeta.dim}
+            blurhash={imeta.blurhash}
+            title={title ?? undefined}
+          />
+        </MediaGate>
       )}
       {title && (
         <p className="text-[15px] font-semibold leading-snug mt-3 break-words">
@@ -1160,12 +1162,14 @@ function VineDetailContent({ event }: { event: NostrEvent }) {
         </p>
       )}
       {imeta.url && (
-        <VideoPlayer
-          src={imeta.url}
-          poster={imeta.thumbnail}
-          encryption={imeta.encryption}
-          title={vineTitle ?? undefined}
-        />
+        <MediaGate className="mt-0">
+          <VideoPlayer
+            src={imeta.url}
+            poster={imeta.thumbnail}
+            encryption={imeta.encryption}
+            title={vineTitle ?? undefined}
+          />
+        </MediaGate>
       )}
       {hashtags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-2">
@@ -2015,6 +2019,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <ReactionEmoji
                 content={event.content}
                 tags={event.tags}
+                pubkey={event.pubkey}
                 className="h-6 w-6 object-contain"
               />
             </div>
@@ -2671,7 +2676,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             resetKeys={[event.id]}
           >
             <ContentWarningGuard event={event}>
-            <MediaGateProvider pubkey={event.pubkey}>
+            <MediaGateProvider pubkey={event.pubkey} eventId={event.id}>
             {isPhoto ? (
               <PhotoPostContent event={event} variant="detail" fullBleed />
             ) : isVideo ? (

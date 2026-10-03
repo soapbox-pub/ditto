@@ -127,5 +127,11 @@ export function useBlossomFallback(
 ): BlossomFallback<string | undefined> {
   const candidates = useBlossomCandidates(originalUrl, declaredFallbacks);
   const { src, advance, failed, reset } = useSourceWalk(candidates);
+  // A URL with no candidates was refused outright (a local-network address
+  // with nowhere public to mirror it): render nothing rather than fall back
+  // to the very URL that was refused.
+  if (originalUrl && candidates.length === 0) {
+    return { src: '', onError: advance, failed: true, reset };
+  }
   return { src: src ?? originalUrl, onError: advance, failed, reset };
 }

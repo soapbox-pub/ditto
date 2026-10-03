@@ -45,6 +45,7 @@ import { isPeopleListKind } from '@/lib/packUtils';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { NoteContent } from '@/components/NoteContent';
+import { MediaGate, MediaGateProvider } from '@/components/MediaGate';
 import { LiveChatContext } from '@/components/LiveChatContext';
 import { useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -1089,7 +1090,7 @@ function EmbeddedNoteCard({
           Kind {event.kind} &middot; not supported
         </p>
       ) : (
-        <>
+        <MediaGateProvider pubkey={event.pubkey} eventId={event.id}>
           {/* Video kinds title their event via a `title` tag — show it as the
               card's headline above the description and player. */}
           {isVideoKind && (() => {
@@ -1102,6 +1103,7 @@ function EmbeddedNoteCard({
               gallery/player below). Empty content renders nothing. */}
           <EmbedTruncatedContent event={event} expanded={contentExpanded} onOverflowChange={setContentOverflows} highlightText={highlightText} />
           {showMediaPreview && (
+            <MediaGate className="mt-1.5">
             <div onClick={(e) => e.stopPropagation()}>
               {previewMedia.images.length > 0 ? (
                 <ImageGallery
@@ -1124,8 +1126,9 @@ function EmbeddedNoteCard({
                 </div>
               ) : null}
             </div>
+            </MediaGate>
           )}
-        </>
+        </MediaGateProvider>
       )}
 
       {/* Attachment / kind indicator chips + Read more toggle */}

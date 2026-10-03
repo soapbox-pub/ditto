@@ -14,7 +14,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CustomEmojiImg, EmojifiedText } from '@/components/CustomEmoji';
+import { CustomEmojiImg, EmojifiedText, SenderEmojiImg } from '@/components/CustomEmoji';
 import { EmojiSourceFooter } from '@/components/EmojiSourceFooter';
 import { isCustomEmoji, isRenderableReactionKey, JUNK_REACTION_GLYPH } from '@/lib/customEmoji';
 import { useEventInteractions, type RepostEntry, type QuoteEntry, type ReactionEntry, type ZapEntry } from '@/hooks/useEventInteractions';
@@ -387,7 +387,7 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
       {/* Reaction emoji badge */}
       <div className="flex items-center justify-center shrink-0 bg-secondary/60 rounded-full size-8">
         {entry.emojiUrl && customName ? (
-          <CustomEmojiImg name={customName} url={entry.emojiUrl} className="inline-block h-5 w-5 object-contain" />
+          <SenderEmojiImg pubkey={entry.pubkey} name={customName} url={entry.emojiUrl} className="inline-block h-5 w-5 object-contain" />
         ) : (
           <span className="text-base leading-none">
             {isRenderableReactionKey(entry.emoji) ? entry.emoji : JUNK_REACTION_GLYPH}

@@ -1,8 +1,9 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import { ImageOff, Eye } from 'lucide-react';
 import { FormattedMessage } from 'react-intl';
 import { Button } from '@/components/ui/button';
 import { useStrangerMediaGate } from '@/hooks/useStrangerMediaGate';
+import { revealMedia, useMediaRevealed } from '@/lib/revealedMedia';
 import { cn } from '@/lib/utils';
 
 interface MediaGateContextValue {
@@ -19,26 +20,30 @@ const MediaGateContext = createContext<MediaGateContextValue>({
 
 /**
  * Provides a single "hide media from strangers" decision + shared reveal state
- * to every {@link MediaGate} rendered within a post. Because the reveal state
- * is shared, tapping "Show" on any one media block reveals all media in the
- * same post at once.
+ * to every {@link MediaGate} rendered within a post. Tapping "Show" on any one
+ * media block reveals all media in the same post at once.
+ *
+ * The reveal is keyed by event id, so it survives the card remounting and
+ * applies everywhere the same post renders, until the page reloads.
  *
  * Unlike a full-card guard, this only gates the media itself — text, captions,
  * and other non-media content render normally regardless of the setting.
  */
 export function MediaGateProvider({
   pubkey,
+  eventId,
   children,
 }: {
   pubkey: string;
+  eventId: string;
   children: React.ReactNode;
 }) {
   const gated = useStrangerMediaGate(pubkey);
-  const [revealed, setRevealed] = useState(false);
+  const revealed = useMediaRevealed(eventId);
 
   const value = useMemo<MediaGateContextValue>(
-    () => ({ active: gated && !revealed, reveal: () => setRevealed(true) }),
-    [gated, revealed],
+    () => ({ active: gated && !revealed, reveal: () => revealMedia(eventId) }),
+    [gated, revealed, eventId],
   );
 
   return (
@@ -113,5 +118,37 @@ export function MediaGate({ children, className }: MediaGateProps) {
         </Button>
       </div>
     </div>
+  );
+}
+
+/**
+ * A gated link preview: the bare link plus a small button that reveals the
+ * post's media and previews. Nothing about the linked page is fetched.
+ */
+export function HeldLinkPreview({ url, className }: { url: string; className?: string }) {
+  const { reveal } = useMediaGate();
+  return (
+    <span className={cn('inline', className)}>
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary hover:underline break-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {url}
+      </a>
+      {' '}
+      <button
+        type="button"
+        className="inline-flex items-center rounded-full px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors align-middle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={(e) => {
+          e.stopPropagation();
+          reveal();
+        }}
+      >
+        <FormattedMessage id="strangerMedia.showPreview" defaultMessage="Show preview" />
+      </button>
+    </span>
   );
 }

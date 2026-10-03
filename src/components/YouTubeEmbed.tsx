@@ -100,6 +100,9 @@ export function YouTubeEmbed({ videoId, className }: YouTubeEmbedProps) {
             title="YouTube video"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
+            // The page-wide policy is `no-referrer`, but the embedded player
+            // refuses to play (error 153) without a referrer.
+            referrerPolicy="strict-origin-when-cross-origin"
             className="absolute inset-0 w-full h-full"
           />
         ) : (

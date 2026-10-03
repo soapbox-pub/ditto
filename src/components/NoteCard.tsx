@@ -735,7 +735,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         resetKeys={[event.id]}
       >
         <ContentWarningGuard event={event}>
-        <MediaGateProvider pubkey={event.pubkey}>
+        <MediaGateProvider pubkey={event.pubkey} eventId={event.id}>
         {isPhoto ? (
           <PhotoPostContent event={event} fullBleed={!threaded && !threadedLast} />
         ) : isVideo ? (
@@ -1126,6 +1126,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
           <ReactionEmoji
             content={reactedBy.event.content}
             tags={reactedBy.event.tags}
+            pubkey={reactedBy.event.pubkey}
             className="inline-block h-4 w-4 object-contain"
           />
         </span>
@@ -1474,7 +1475,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         header={wrapperHeader}
         icon={
           <div className={cn("flex items-center justify-center rounded-full bg-pink-500/10 shrink-0 text-lg leading-none", iconSize)}>
-            <ReactionEmoji content={event.content} tags={event.tags} className="h-5 w-5 object-contain" />
+            <ReactionEmoji content={event.content} tags={event.tags} pubkey={event.pubkey} className="h-5 w-5 object-contain" />
           </div>
         }
         actorRow={

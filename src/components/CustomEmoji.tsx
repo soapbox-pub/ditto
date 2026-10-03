@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useState } from 'react';
 
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
+import { useStrangerMediaGate } from '@/hooks/useStrangerMediaGate';
 import {
   isCustomEmoji,
   isLoadableEmojiUrl,
@@ -66,6 +67,29 @@ export function CustomEmojiImg({ name, url, className = 'inline h-[1.2em] w-[1.2
   );
 }
 
+/**
+ * {@link CustomEmojiImg} for an emoji someone else chose — a reaction's — held
+ * under the viewer's `hideMediaFromStrangers` setting like the rest of that
+ * person's media. A held emoji is an empty tile the emoji's size, its shortcode in the
+ * tooltip, so a stranger can't put an image (or a tracking pixel) behind a
+ * shortcode the viewer's regulars use.
+ */
+export function SenderEmojiImg({ pubkey, ...props }: CustomEmojiImgProps & { pubkey: string }) {
+  const held = useStrangerMediaGate(pubkey);
+  if (held) {
+    const label = `:${props.name}:`;
+    return (
+      <span
+        role="img"
+        aria-label={label}
+        title={label}
+        className={cn(props.className ?? 'inline-block h-[1.2em] w-[1.2em] align-text-bottom', 'inline-block rounded-sm bg-muted')}
+      />
+    );
+  }
+  return <CustomEmojiImg {...props} />;
+}
+
 interface ReactionEmojiProps {
   /** The reaction content (could be a unicode emoji, `:shortcode:`, `+`, or empty). */
   content: string;
@@ -73,6 +97,8 @@ interface ReactionEmojiProps {
   tags?: string[][];
   /** CSS class name for the wrapper span (used for unicode) or img (used for custom emoji). */
   className?: string;
+  /** The reactor. When set, a custom emoji is held like the rest of their media. */
+  pubkey?: string;
 }
 
 /**
@@ -81,7 +107,7 @@ interface ReactionEmojiProps {
  * For custom emojis (`:shortcode:` format), it looks up the URL from the event's
  * emoji tags and renders an inline image. For unicode emojis, it renders the text directly.
  */
-export function ReactionEmoji({ content, tags, className }: ReactionEmojiProps) {
+export function ReactionEmoji({ content, tags, className, pubkey }: ReactionEmojiProps) {
   // Normalize '+' and empty to thumbs up, '-' to thumbs down
   const emoji = (content === '+' || content === '') ? '👍' : content === '-' ? '👎' : content;
 
@@ -90,7 +116,10 @@ export function ReactionEmoji({ content, tags, className }: ReactionEmojiProps) 
     const url = getCustomEmojiUrl(emoji, tags);
     if (url) {
       const name = emoji.slice(1, -1);
-      return <CustomEmojiImg name={name} url={url} className={className ?? 'inline h-[1.2em] w-[1.2em] object-contain align-text-bottom'} />;
+      const imgClassName = className ?? 'inline h-[1.2em] w-[1.2em] object-contain align-text-bottom';
+      return pubkey
+        ? <SenderEmojiImg pubkey={pubkey} name={name} url={url} className={imgClassName} />
+        : <CustomEmojiImg name={name} url={url} className={imgClassName} />;
     }
   }
 

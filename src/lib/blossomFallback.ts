@@ -1,4 +1,4 @@
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { isLocalNetworkUrl, sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /** SHA-256 hash pattern (64 hex characters) used in Blossom content-addressed URLs. */
 const BLOSSOM_PATH_REGEX = /^\/([a-f0-9]{64})\b/;
@@ -50,6 +50,10 @@ export function blossomAlternatives(originalUrl: string, servers: readonly strin
  * The declared ones are raw event data, so they are sanitized HERE rather than
  * at each call site — a `javascript:` fallback must not reach an `<img src>`
  * by any route.
+ *
+ * Sources on a loopback, private or link-local address are dropped, primary
+ * included: loading one makes every viewer's device probe its own network. A
+ * dropped content-addressed primary still yields its mirrors on public servers.
  */
 export function mediaCandidates(
   url: string,
@@ -57,10 +61,10 @@ export function mediaCandidates(
   servers: readonly string[],
 ): string[] {
   const seen = new Set<string>([url]);
-  const out = [url];
+  const out = isLocalNetworkUrl(url) ? [] : [url];
   for (const raw of declaredFallbacks ?? []) {
     const safe = sanitizeUrl(raw);
-    if (!safe || seen.has(safe)) continue;
+    if (!safe || seen.has(safe) || isLocalNetworkUrl(safe)) continue;
     seen.add(safe);
     out.push(safe);
   }

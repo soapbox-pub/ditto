@@ -17,7 +17,7 @@ import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { Lightbox, ImageGallery } from '@/components/ImageGallery';
 import { NostrMention } from '@/components/NostrMention';
-import { MediaGate } from '@/components/MediaGate';
+import { HeldLinkPreview, MediaGate, useMediaGate } from '@/components/MediaGate';
 import { EmojiSourcePopover } from '@/components/EmojiSourcePopover';
 import { buildEmojiMap } from '@/lib/customEmoji';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
@@ -756,8 +756,11 @@ export function NoteContent({
   // Merge the event's own emoji tags with the viewer's custom emoji collection
   // so shortcodes render even when the published event omitted the tag.
   const { emojis: viewerEmojis } = useCustomEmojis();
+  // A gated sender's own emoji tags would load images from wherever they
+  // point; their shortcodes fall back to the viewer's collection, or stay text.
+  const gated = useMediaGate().active;
   const emojiMap = useMemo(() => {
-    const map = buildEmojiMap(event.tags);
+    const map = gated ? new Map<string, string>() : buildEmojiMap(event.tags);
     // Viewer's collection is a fallback — event tags take priority
     for (const e of viewerEmojis) {
       if (!map.has(e.shortcode)) {
@@ -765,7 +768,7 @@ export function NoteContent({
       }
     }
     return map;
-  }, [event.tags, viewerEmojis]);
+  }, [event.tags, viewerEmojis, gated]);
 
   // Parse imeta tags — used by ImageGallery (dim/blurhash) and inline media embeds
   const imetaMap = useMemo(() => parseImetaMap(event.tags), [event.tags]);
@@ -913,6 +916,10 @@ export function NoteContent({
                   {token.url}
                 </a>
               );
+            }
+            // A gated sender's previews and rich embeds stay bare links.
+            if (gated) {
+              return <HeldLinkPreview key={i} url={token.url} />;
             }
             return <LinkEmbed key={i} url={token.url} className="my-2.5" hideImage={hideEmbedImages} />;
           case 'inline-link':
