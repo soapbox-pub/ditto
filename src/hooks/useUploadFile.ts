@@ -6,7 +6,7 @@ import type { NostrSigner } from '@nostrify/nostrify';
 import { useCurrentUser } from "./useCurrentUser";
 import { useAppContext } from "./useAppContext";
 import { getEffectiveBlossomServers } from "@/lib/appBlossom";
-import { mimeFromExt } from "@/lib/mediaUrls";
+import { bestMime } from "@/lib/mediaUrls";
 
 /** Every Blossom request gets its own deadline, so one hung server never holds a promise open. */
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -52,15 +52,21 @@ export function useUploadFile() {
       const ext = getFileExtension(file.name);
 
       // Browsers report an empty type for some files (`.avi`, `.flac`, `.xdc`,
-      // …). Uploaded as-is, the blob gets no usable Content-Type and the `m`
-      // tag is empty, so nothing downstream can tell what it is. Fall back to
-      // the extension.
-      const guessed = file.type ? undefined : mimeFromExt(ext.slice(1));
-      const uploadable = guessed && guessed !== 'application/octet-stream'
-        ? new File([file], file.name, { type: guessed, lastModified: file.lastModified })
+      // `.glb`, …) and a wrong one for others (Windows calls `.stl` a
+      // certificate trust list). Uploaded as-is, the blob gets no usable
+      // Content-Type and the `m` tag says nothing, so nothing downstream can
+      // tell what it is. Fall back to the extension.
+      const mime = bestMime(file.type, ext.slice(1));
+      const uploadable = mime !== file.type
+        ? new File([file], file.name, { type: mime, lastModified: file.lastModified })
         : file;
 
       const tags = await uploader.upload(uploadable);
+
+      // Servers type what they don't recognise as `octet-stream`; keep ours.
+      const mTag = tags.find(([name]) => name === 'm');
+      if (mTag) mTag[1] = bestMime(mTag[1], ext.slice(1));
+      else tags.push(['m', mime]);
 
       // If the returned URL is missing a file extension, append one from the
       // source file name. Blossom URLs are content-addressed (`/<sha256>`) and

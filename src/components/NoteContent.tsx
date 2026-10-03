@@ -11,6 +11,7 @@ import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { ArmadaInviteEmbed } from '@/components/ArmadaInviteEmbed';
 import { LightningInvoiceCard } from '@/components/LightningInvoiceCard';
 import { VideoFileCard } from '@/components/VideoFileCard';
+import { FileAttachmentCard } from '@/components/FileAttachmentCard';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
@@ -25,7 +26,7 @@ import { useDecryptedFile } from '@/hooks/useDecryptedFile';
 import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
 import { type FileEncryption } from '@/lib/encryptedFile';
 import { COUNTRIES } from '@/lib/countries';
-import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX, isUnplayableVideo, mimeFromExt } from '@/lib/mediaUrls';
+import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX, fileCategory, isFileUrl, isUnplayableVideo, mimeFromExt } from '@/lib/mediaUrls';
 import { parseBlossomUri, resolveBlossomUri, type BlossomUri } from '@/lib/blossomUri';
 import { useBlossomUri } from '@/hooks/useBlossomUri';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -296,6 +297,7 @@ type ContentToken =
   | { type: 'image-embed'; url: string }
   | { type: 'image-gallery'; urls: string[] }
   | { type: 'media-embed'; url: string }
+  | { type: 'file-embed'; url: string }
   | { type: 'link-embed'; url: string }
   | { type: 'inline-link'; url: string }
   | { type: 'mention'; pubkey: string }
@@ -393,7 +395,9 @@ export function NoteContent({
     // URLs declared in an imeta tag are matched to their metadata by exact
     // string, so rewriting one would orphan its dimensions, blurhash and
     // decryption key. An uploaded attachment has no tracking to strip anyway.
-    const imetaUrls = new Set(parseImetaEntries(event.tags).map((entry) => entry.url));
+    const imetaEntries = parseImetaEntries(event.tags);
+    const imetaUrls = new Set(imetaEntries.map((entry) => entry.url));
+    const imetaMimes = new Map(imetaEntries.map((entry) => [entry.url, entry.mime?.toLowerCase()]));
     // Match: BOLT11 invoices | URLs | nostr:-prefixed NIP-19 ids | @-prefixed or bare NIP-19 ids | hashtags
     // BOLT11: optional "lightning:" prefix + lnbc/lntb/lnbcrt/lntbs + bech32 data (case-insensitive)
     // A `nostr:` id can appear anywhere, but a bare one must start at a token
@@ -497,6 +501,35 @@ export function NoteContent({
           result.push({ type: 'media-embed', url });
           lastIndex = index + fullMatch.length;
           // Strip leading whitespace that follows the media URL
+          const remaining = text.substring(lastIndex);
+          const leadingWs = remaining.match(/^\s+/);
+          if (leadingWs) {
+            lastIndex += leadingWs[0].length;
+          }
+          continue;
+        }
+
+        // Extension-less URLs typed by their imeta (Blossom hashes), and files
+        // of every other type: images and players by MIME, everything else as
+        // an attachment card rather than an unfurled "web page".
+        const declaredMime = imetaMimes.get(url);
+        const declared = declaredMime && declaredMime !== 'text/html' ? fileCategory(declaredMime) : undefined;
+        const blockType = declared === 'image'
+          ? 'image-embed'
+          : declared === 'video' || declared === 'audio' || declared === 'webxdc'
+            ? 'media-embed'
+            : declared || isFileUrl(url)
+              ? 'file-embed'
+              : undefined;
+        if (blockType) {
+          if (result.length > 0) {
+            const prev = result[result.length - 1];
+            if (prev.type === 'text') {
+              prev.value = prev.value.replace(/\s+$/, '');
+            }
+          }
+          result.push({ type: blockType, url });
+          lastIndex = index + fullMatch.length;
           const remaining = text.substring(lastIndex);
           const leadingWs = remaining.match(/^\s+/);
           if (leadingWs) {
@@ -656,15 +689,19 @@ export function NoteContent({
     const TEXT_NOTE_KINDS = new Set([1, 11, 1111]);
     if (TEXT_NOTE_KINDS.has(event.kind)) {
       const contentMediaUrls = new Set(
-        result.filter((t): t is { type: 'media-embed'; url: string } => t.type === 'media-embed').map((t) => t.url),
+        result
+          .filter((t): t is { type: 'media-embed' | 'file-embed' | 'image-embed'; url: string } =>
+            t.type === 'media-embed' || t.type === 'file-embed' || t.type === 'image-embed')
+          .map((t) => t.url),
       );
-      for (const { url: rawUrl, mime } of parseImetaEntries(event.tags)) {
+      for (const { url: rawUrl, mime } of imetaEntries) {
         const url = sanitizeUrl(rawUrl);
-        if (!url || contentMediaUrls.has(url)) continue;
-        const isEmbeddableMedia = mime?.startsWith('audio/') || mime?.startsWith('video/')
-          || mime === 'application/x-webxdc' || mime === 'application/vnd.webxdc+zip';
-        if (isEmbeddableMedia) {
+        if (!url || contentMediaUrls.has(url) || contentMediaUrls.has(rawUrl)) continue;
+        const category = mime && mime !== 'text/html' ? fileCategory(mime) : undefined;
+        if (category === 'audio' || category === 'video' || category === 'webxdc') {
           result.push({ type: 'media-embed', url });
+        } else if (category && category !== 'image') {
+          result.push({ type: 'file-embed', url });
         }
       }
     }
@@ -673,7 +710,7 @@ export function NoteContent({
     // Preserve formatting but prevent too much stacking with the card's own spacing.
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
-      const isBlock = token.type === 'image-embed' || token.type === 'media-embed' || token.type === 'link-embed' || token.type === 'nevent-embed'
+      const isBlock = token.type === 'image-embed' || token.type === 'media-embed' || token.type === 'file-embed' || token.type === 'link-embed' || token.type === 'nevent-embed'
         || token.type === 'naddr-embed' || token.type === 'lightning-invoice';
 
       if (isBlock) {
@@ -923,6 +960,24 @@ export function NoteContent({
                 />
               </MediaGate>
             );
+          }
+          case 'file-embed': {
+            const imeta = imetaMap.get(token.url);
+            if (disableEmbeds || disableMediaEmbeds) {
+              return (
+                <a
+                  key={i}
+                  href={token.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline break-all"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {imeta?.alt?.trim() || token.url}
+                </a>
+              );
+            }
+            return <FileAttachmentCard key={i} url={token.url} imeta={imeta} />;
           }
           case 'nevent-embed':
             if (disableNoteEmbeds) {

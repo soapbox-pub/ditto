@@ -3,7 +3,6 @@ import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { Paperclip, Smile, AlertTriangle, X, Loader2, Mic, Square, Sticker, BarChart3, Plus, ChevronLeft } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
-import { encode as blurhashEncode } from 'blurhash';
 import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -42,7 +41,8 @@ import { useAppContext } from '@/hooks/useAppContext';
 import type { EventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
 import { notificationSuccess } from '@/lib/haptics';
-import { extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, mimeFromExt } from '@/lib/mediaUrls';
+import { bestMime, extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, isFileUrl, mimeFromExt } from '@/lib/mediaUrls';
+import { readFileMeta } from '@/lib/fileMetadata';
 import { extractBlossomUris, blossomImetaTag } from '@/lib/blossomUri';
 import { describePublishError } from '@/lib/publishError';
 
@@ -69,54 +69,67 @@ function pollOptionId(): string {
   return Math.random().toString(36).slice(2, 8);
 }
 
+/** Webxdc session details kept per uploaded `.xdc` URL. */
+interface WebxdcMeta {
+  name?: string;
+  iconUrl?: string;
+}
+
 /**
- * For an image File, returns `{ dim: "WxH", blurhash: "..." }`.
- * Decodes to a small canvas (max 64px wide) for speed — large enough
- * for a good blurhash sample but cheap to compute.
- * Returns an empty object for non-image files or if anything fails.
+ * NIP-92 imeta tags for every attachment referenced in `content`: each URL the
+ * user uploaded in this session (whatever its type), every other http media
+ * URL (typed from its extension), and BUD-10 `blossom:` URIs.
  */
-async function getImageMeta(file: File): Promise<{ dim?: string; blurhash?: string }> {
-  if (!file.type.startsWith('image/')) return {};
-  try {
-    const url = URL.createObjectURL(file);
-    try {
-      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const el = new Image();
-        el.onload = () => resolve(el);
-        el.onerror = reject;
-        el.src = url;
-      });
+function buildImetaTags(
+  content: string,
+  uploads: Map<string, string[][]>,
+  webxdcUuids: Map<string, string>,
+  webxdcMetas: Map<string, WebxdcMeta>,
+): string[][] {
+  const tags: string[][] = [];
+  const processed = new Set<string>();
 
-      const naturalWidth = img.naturalWidth;
-      const naturalHeight = img.naturalHeight;
-      if (!naturalWidth || !naturalHeight) return {};
+  const webxdcFields = (url: string): string[] => {
+    const fields: string[] = [];
+    const uuid = webxdcUuids.get(url);
+    if (uuid) fields.push(`webxdc ${uuid}`);
+    const meta = webxdcMetas.get(url);
+    if (meta?.name) fields.push(`summary ${meta.name}`);
+    if (meta?.iconUrl) fields.push(`image ${meta.iconUrl}`);
+    return fields;
+  };
 
-      const dim = `${naturalWidth}x${naturalHeight}`;
-
-      // Downsample for blurhash encoding — 64px wide keeps it fast
-      const SAMPLE_W = 64;
-      const scale = SAMPLE_W / naturalWidth;
-      const sampleW = SAMPLE_W;
-      const sampleH = Math.max(1, Math.round(naturalHeight * scale));
-
-      const canvas = document.createElement('canvas');
-      canvas.width = sampleW;
-      canvas.height = sampleH;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return { dim };
-
-      ctx.drawImage(img, 0, 0, sampleW, sampleH);
-      const { data } = ctx.getImageData(0, 0, sampleW, sampleH);
-
-      // componentX/Y: 4x3 gives a good balance of detail vs hash length
-      const blurhash = blurhashEncode(data, sampleW, sampleH, 4, 3);
-      return { dim, blurhash };
-    } finally {
-      URL.revokeObjectURL(url);
+  // Uploads first, in the order they appear, so a file of any type keeps the
+  // metadata worked out for it when it was attached.
+  const uploadedUrls = [...uploads.keys()]
+    .map((url) => ({ url, index: content.indexOf(url) }))
+    .filter(({ index }) => index !== -1)
+    .sort((a, b) => a.index - b.index);
+  for (const { url } of uploadedUrls) {
+    processed.add(url);
+    const fields = uploads.get(url)!.map(([name, value]) => `${name} ${value}`);
+    if (url.toLowerCase().endsWith('.xdc')) {
+      tags.push(['imeta', ...fields.filter((f) => !f.startsWith('m ')), 'm application/x-webxdc', ...webxdcFields(url)]);
+    } else {
+      tags.push(['imeta', ...fields]);
     }
-  } catch {
-    return {};
   }
+
+  for (const match of content.matchAll(new RegExp(IMETA_MEDIA_URL_REGEX.source, 'gi'))) {
+    const url = match[0];
+    if (processed.has(url)) continue;
+    processed.add(url);
+    const ext = match[1].toLowerCase();
+    tags.push(['imeta', `url ${url}`, `m ${mimeFromExt(ext)}`, ...(ext === 'xdc' ? webxdcFields(url) : [])]);
+  }
+
+  for (const { uri, raw } of extractBlossomUris(content)) {
+    if (processed.has(raw)) continue;
+    processed.add(raw);
+    tags.push(blossomImetaTag(uri, raw));
+  }
+
+  return tags;
 }
 
 /** Root target for a compose action that isn't a Nostr event — a URL or a NIP-73 hashtag-style identifier (e.g. `bitcoin:tx:...`, `isbn:...`, `iso3166:...`). */
@@ -384,7 +397,7 @@ export function ComposeBox({
   /** Maps .xdc URLs to their generated webxdc UUIDs. */
   const [webxdcUuids, setWebxdcUuids] = useState<Map<string, string>>(new Map());
   /** Maps .xdc URLs to extracted metadata (name + icon URL). */
-  const [webxdcMetas, setWebxdcMetas] = useState<Map<string, { name?: string; iconUrl?: string }>>(new Map());
+  const [webxdcMetas, setWebxdcMetas] = useState<Map<string, WebxdcMeta>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { insertAtCursor, insertEmoji: insertEmojiAtCursor } = useInsertText(textareaRef, setContent);
@@ -586,14 +599,15 @@ export function ComposeBox({
       const url = match[0];
       // Skip media URLs that render inline
       // Note: SVGs not excluded - LinkPreview checks content-type and handles both cases
-      if (!IMETA_MEDIA_URL_TEST_REGEX.test(url)) {
+      // Attached files render as file cards, not unfurled pages.
+      if (!IMETA_MEDIA_URL_TEST_REGEX.test(url) && !uploadedFileGroups.has(url) && !isFileUrl(url)) {
         embeds.push({ type: 'link', value: url, index: match.index! });
       }
     }
 
     // Sort by position in content
     return embeds.sort((a, b) => a.index - b.index);
-  }, [content]);
+  }, [content, uploadedFileGroups]);
 
   // Filter out removed embeds
   const visibleEmbeds = useMemo(() => 
@@ -641,10 +655,17 @@ export function ComposeBox({
     });
   }, [content]);
 
-  // Check if content has any previewable content (link previews, images, videos, audio, webxdc, mentions, or custom emojis)
+  // Detect attached files of other types (3D models, documents, archives, …).
+  const hasFileAttachments = useMemo(() => {
+    if (!content) return false;
+    if ([...uploadedFileGroups.keys()].some((url) => content.includes(url))) return true;
+    return (content.match(/https?:\/\/[^\s]+/g) ?? []).some(isFileUrl);
+  }, [content, uploadedFileGroups]);
+
+  // Check if content has any previewable content (link previews, images, videos, audio, webxdc, files, mentions, or custom emojis)
   const hasPreviewableContent = useMemo(() => {
-    return visibleEmbeds.length > 0 || hasPreviewImages || previewVideos.length > 0 || previewAudios.length > 0 || hasWebxdc || hasMentions || hasCustomEmojis || hasBlossomMedia;
-  }, [visibleEmbeds, hasPreviewImages, previewVideos, previewAudios, hasWebxdc, hasMentions, hasCustomEmojis, hasBlossomMedia]);
+    return visibleEmbeds.length > 0 || hasPreviewImages || previewVideos.length > 0 || previewAudios.length > 0 || hasWebxdc || hasFileAttachments || hasMentions || hasCustomEmojis || hasBlossomMedia;
+  }, [visibleEmbeds, hasPreviewImages, previewVideos, previewAudios, hasWebxdc, hasFileAttachments, hasMentions, hasCustomEmojis, hasBlossomMedia]);
 
   // Notify parent of previewable content changes
   useEffect(() => {
@@ -694,50 +715,8 @@ export function ComposeBox({
       }
     }
 
-    // NIP-92: Build imeta tags for uploaded media so preview can render them
-    const mediaUrlMatches = content.matchAll(new RegExp(IMETA_MEDIA_URL_REGEX.source, 'gi'));
-    const processedUrls = new Set<string>();
-    for (const m of mediaUrlMatches) {
-      const url = m[0];
-      if (processedUrls.has(url)) continue;
-      processedUrls.add(url);
-      const ext = m[1].toLowerCase();
-      const isWebxdc = ext === 'xdc';
-      const fileTags = uploadedFileGroups.get(url);
-      if (fileTags) {
-        const imetaFields = fileTags.map(tag => `${tag[0]} ${tag[1]}`);
-        if (isWebxdc) {
-          const filtered = imetaFields.filter(f => !f.startsWith('m '));
-          filtered.push('m application/x-webxdc');
-          const uuid = webxdcUuids.get(url);
-          if (uuid) filtered.push(`webxdc ${uuid}`);
-          const meta = webxdcMetas.get(url);
-          if (meta?.name) filtered.push(`summary ${meta.name}`);
-          if (meta?.iconUrl) filtered.push(`image ${meta.iconUrl}`);
-          tags.push(['imeta', ...filtered]);
-        } else {
-          tags.push(['imeta', ...imetaFields]);
-        }
-      } else {
-        const mimeType = mimeFromExt(ext);
-        const imetaTag = ['imeta', `url ${url}`, `m ${mimeType}`];
-        if (isWebxdc) {
-          const uuid = webxdcUuids.get(url);
-          if (uuid) imetaTag.push(`webxdc ${uuid}`);
-          const meta = webxdcMetas.get(url);
-          if (meta?.name) imetaTag.push(`summary ${meta.name}`);
-          if (meta?.iconUrl) imetaTag.push(`image ${meta.iconUrl}`);
-        }
-        tags.push(imetaTag);
-      }
-    }
-
-    // NIP-92 / BUD-10: imeta for blossom: media URIs so preview matches publish.
-    for (const { uri, raw } of extractBlossomUris(content)) {
-      if (processedUrls.has(raw)) continue;
-      processedUrls.add(raw);
-      tags.push(blossomImetaTag(uri, raw));
-    }
+    // NIP-92: imeta for attachments, so the preview matches what's published.
+    tags.push(...buildImetaTags(content, uploadedFileGroups, webxdcUuids, webxdcMetas));
     
     return {
       id: 'preview',
@@ -761,47 +740,41 @@ export function ComposeBox({
 
   const handleFileUpload = useCallback(async (file: File) => {
     try {
-      // .xdc files are ZIP archives; browsers don't know their MIME type so file.type is ''.
-      // Blossom servers may reject uploads with an empty Content-Type, so we re-wrap the file
-      // with the correct MIME type before uploading.
-      const isXdc = file.name.endsWith('.xdc');
-      const isImage = file.type.startsWith('image/');
+      const dot = file.name.lastIndexOf('.');
+      const ext = dot > 0 ? file.name.slice(dot + 1).toLowerCase() : '';
+      const mime = bestMime(file.type, ext);
+      const isXdc = ext === 'xdc';
 
-      let uploadableFile: File;
-      let resizedDim: string | undefined;
+      // Browsers leave some types blank (`.xdc`, `.glb`, …) or wrong; Blossom
+      // servers may reject an empty Content-Type, and the type decides how the
+      // file is probed below.
+      let uploadableFile = mime === file.type
+        ? file
+        : new File([file], file.name, { type: mime, lastModified: file.lastModified });
 
-      if (isXdc && !file.type) {
-        uploadableFile = new File([file], file.name, { type: 'application/x-webxdc' });
-      } else if (isImage && imageQuality === 'compressed') {
+      if (mime.startsWith('image/') && imageQuality === 'compressed') {
         // Resize & optimize images before uploading for better performance.
-        const resized = await resizeImage(file);
-        uploadableFile = resized.file;
-        resizedDim = resized.dimensions;
-      } else {
-        uploadableFile = file;
+        uploadableFile = (await resizeImage(uploadableFile)).file;
       }
 
-      const tags = await uploadFile(uploadableFile);
-      let [[, url]] = tags;
+      // Probe the file (dimensions, duration, preview render, …) while it uploads.
+      const [tags, meta] = await Promise.all([
+        uploadFile(uploadableFile),
+        readFileMeta(uploadableFile, mime),
+      ]);
+      const [[, url]] = tags;
 
-      // Blossom returns hash-based URLs that may lack the original file extension.
-      // Append the extension so downstream media-URL detection and imeta generation work.
-      if (isXdc && !url.endsWith('.xdc')) {
-        url = url + '.xdc';
-        // Update the url tag in the NIP-94 tags to match
-        const urlTag = tags.find(t => t[0] === 'url');
-        if (urlTag) urlTag[1] = url;
+      // Anything the server already said about the blob wins.
+      const hasTag = (name: string) => tags.some((t) => t[0] === name);
+      for (const [name, value] of meta.fields) {
+        if (!hasTag(name)) tags.push([name, value]);
       }
-
-      // Compute dim + blurhash and inject into NIP-94 tags.
-      // Skip any the server already provided (Nostrify passes "dim" through).
-      if (!isXdc && isImage) {
-        const hasTag = (name: string) => tags.some((t) => t[0] === name);
-        // Use dimensions from resizeImage; compute blurhash from the resized file
-        if (resizedDim && !hasTag('dim')) tags.push(['dim', resizedDim]);
-        if (!hasTag('blurhash')) {
-          const { blurhash } = await getImageMeta(uploadableFile);
-          if (blurhash) tags.push(['blurhash', blurhash]);
+      if (meta.preview && !hasTag('image')) {
+        try {
+          const [[, previewUrl]] = await uploadFile(meta.preview);
+          tags.push(['image', previewUrl]);
+        } catch {
+          // The file is up; a missing preview just means a plainer card.
         }
       }
 
@@ -817,13 +790,13 @@ export function ComposeBox({
         // Extract name and icon from the .xdc archive
         try {
           const { extractWebxdcMeta } = await import('@/lib/webxdcMeta');
-          const meta = await extractWebxdcMeta(file);
-          const metaEntry: { name?: string; iconUrl?: string } = { name: meta.name };
+          const xdcMeta = await extractWebxdcMeta(file);
+          const metaEntry: WebxdcMeta = { name: xdcMeta.name };
 
           // Upload the icon to Blossom if present
-          if (meta.iconFile) {
+          if (xdcMeta.iconFile) {
             try {
-              const iconTags = await uploadFile(meta.iconFile);
+              const iconTags = await uploadFile(xdcMeta.iconFile);
               const [[, iconUrl]] = iconTags;
               metaEntry.iconUrl = iconUrl;
             } catch {
@@ -847,18 +820,14 @@ export function ComposeBox({
     const items = e.clipboardData?.items;
     if (!items) return;
 
-    // Check for image files in clipboard
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.type.startsWith('image/')) {
-        e.preventDefault(); // Prevent default paste behavior for images
-        const file = item.getAsFile();
-        if (file) {
-          await handleFileUpload(file);
-        }
-        break;
-      }
-    }
+    // Pasted files of any type upload as attachments; plain text pastes as usual.
+    const files = Array.from(items)
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => !!file);
+    if (files.length === 0) return;
+    e.preventDefault();
+    await Promise.all(files.map((file) => handleFileUpload(file)));
   }, [handleFileUpload]);
 
   /** Only react to drags carrying files, so dragging selected text around the textarea still works. */
@@ -889,20 +858,8 @@ export function ComposeBox({
     dragDepthRef.current = 0;
     setIsDraggingFile(false);
 
-    // Mirror the file picker's `accept` list.
-    const files = Array.from(e.dataTransfer.files).filter((file) =>
-      /^(image|video|audio)\//.test(file.type) || file.name.endsWith('.xdc'),
-    );
-    if (files.length === 0) {
-      toast({
-        title: intl.formatMessage({ id: 'compose.drop.unsupportedTitle', defaultMessage: 'Unsupported file' }),
-        description: intl.formatMessage({ id: 'compose.drop.unsupportedDescription', defaultMessage: 'You can attach images, videos, audio, and .xdc apps.' }),
-        variant: 'destructive',
-      });
-      return;
-    }
-    files.forEach((file) => handleFileUpload(file));
-  }, [user, handleFileUpload, toast, intl]);
+    Array.from(e.dataTransfer.files).forEach((file) => handleFileUpload(file));
+  }, [user, handleFileUpload]);
 
   /** Start voice recording. */
   const handleStartRecording = useCallback(async () => {
@@ -1093,61 +1050,8 @@ export function ComposeBox({
         }
       }
 
-      // NIP-92: Add imeta tags for media URLs in content
-      const mediaUrlMatches = finalContent.matchAll(new RegExp(IMETA_MEDIA_URL_REGEX.source, 'gi'));
-      const processedUrls = new Set<string>();
-      
-      for (const match of mediaUrlMatches) {
-        const url = match[0];
-        if (processedUrls.has(url)) continue;
-        processedUrls.add(url);
-        
-        const ext = match[1].toLowerCase();
-        const isWebxdc = ext === 'xdc';
-
-        // Build imeta from grouped upload tags if available, otherwise infer
-        const fileTags = uploadedFileGroups.get(url);
-        
-        if (fileTags) {
-          const imetaFields = fileTags.map(tag => `${tag[0]} ${tag[1]}`);
-
-          if (isWebxdc) {
-            // Override MIME type for .xdc files and add webxdc UUID + metadata
-            const filtered = imetaFields.filter(f => !f.startsWith('m '));
-            filtered.push('m application/x-webxdc');
-            const uuid = webxdcUuids.get(url);
-            if (uuid) filtered.push(`webxdc ${uuid}`);
-            const meta = webxdcMetas.get(url);
-            if (meta?.name) filtered.push(`summary ${meta.name}`);
-            if (meta?.iconUrl) filtered.push(`image ${meta.iconUrl}`);
-            tags.push(['imeta', ...filtered]);
-          } else {
-            tags.push(['imeta', ...imetaFields]);
-          }
-        } else {
-          // Fallback: basic imeta tag with URL and inferred mime type
-          const mimeType = mimeFromExt(ext);
-          
-          const imetaTag = ['imeta', `url ${url}`, `m ${mimeType}`];
-          if (isWebxdc) {
-            const uuid = webxdcUuids.get(url);
-            if (uuid) imetaTag.push(`webxdc ${uuid}`);
-            const meta = webxdcMetas.get(url);
-            if (meta?.name) imetaTag.push(`summary ${meta.name}`);
-            if (meta?.iconUrl) imetaTag.push(`image ${meta.iconUrl}`);
-          }
-          tags.push(imetaTag);
-        }
-      }
-
-      // NIP-92 / BUD-10: Add imeta tags for blossom: media URIs in content.
-      for (const { uri, raw } of extractBlossomUris(finalContent)) {
-        if (processedUrls.has(raw)) continue;
-        processedUrls.add(raw);
-        tags.push(blossomImetaTag(uri, raw));
-      }
-
-
+      // NIP-92: imeta for every attachment in the content.
+      tags.push(...buildImetaTags(finalContent, uploadedFileGroups, webxdcUuids, webxdcMetas));
 
       if (replyTo) {
         // Every reply is a NIP-22 comment (kind 1111), kind 1 notes included.
@@ -1238,28 +1142,8 @@ export function ComposeBox({
       tags.push(['endsAt', String(Math.floor(Date.now() / 1000) + pollDuration * 86_400)]);
     }
 
-    // NIP-92: Add imeta tags for media URLs in content
-    const mediaUrlMatches = finalContent.matchAll(new RegExp(IMETA_MEDIA_URL_REGEX.source, 'gi'));
-    const processedUrls = new Set<string>();
-    for (const match of mediaUrlMatches) {
-      const url = match[0];
-      if (processedUrls.has(url)) continue;
-      processedUrls.add(url);
-      const fileTags = uploadedFileGroups.get(url);
-      if (fileTags) {
-        tags.push(['imeta', ...fileTags.map(tag => `${tag[0]} ${tag[1]}`)]);
-      } else {
-        const ext = match[1].toLowerCase();
-        tags.push(['imeta', `url ${url}`, `m ${mimeFromExt(ext)}`]);
-      }
-    }
-
-    // NIP-92 / BUD-10: Add imeta tags for blossom: media URIs in content.
-    for (const { uri, raw } of extractBlossomUris(finalContent)) {
-      if (processedUrls.has(raw)) continue;
-      processedUrls.add(raw);
-      tags.push(blossomImetaTag(uri, raw));
-    }
+    // NIP-92: imeta for every attachment in the content.
+    tags.push(...buildImetaTags(finalContent, uploadedFileGroups, webxdcUuids, webxdcMetas));
 
     tags.push(['alt', `Poll: ${finalContent}`]);
 
@@ -1636,7 +1520,6 @@ export function ComposeBox({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*,video/*,audio/*,.xdc"
                   multiple
                   className="hidden"
                   onChange={(e) => {
