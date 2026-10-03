@@ -70,13 +70,13 @@ export function ImageCropDialog({ open, imageSrc, aspect, title, onCancel, onCro
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onCancel(); }}>
-      <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden">
-        <DialogHeader className="px-5 pt-5 pb-3">
+      <DialogContent className="sm:max-w-lg max-h-[calc(100dvh-2rem)] p-0 gap-0 flex flex-col overflow-y-auto">
+        <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
           <DialogTitle className="text-base">{title ?? <FormattedMessage id="imageCrop.title" defaultMessage={"Crop Image"} />}</DialogTitle>
         </DialogHeader>
 
-        {/* Cropper area */}
-        <div className="relative bg-black" style={{ height: 320 }}>
+        {/* Cropper area — shrinks on short viewports so the footer stays reachable */}
+        <div className="relative bg-black h-80 min-h-32 shrink">
           <Cropper
             image={imageSrc}
             crop={crop}
@@ -93,7 +93,7 @@ export function ImageCropDialog({ open, imageSrc, aspect, title, onCancel, onCro
         </div>
 
         {/* Controls */}
-        <div className="px-5 py-4 space-y-3 border-t">
+        <div className="px-5 py-4 space-y-3 border-t shrink-0">
           <div className="flex items-center gap-3">
             <ZoomOut className="size-4 text-muted-foreground shrink-0" />
             <Slider
@@ -106,16 +106,16 @@ export function ImageCropDialog({ open, imageSrc, aspect, title, onCancel, onCro
             />
             <ZoomIn className="size-4 text-muted-foreground shrink-0" />
           </div>
-          <div className="flex justify-between items-center">
-            <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs gap-1.5 h-8">
+          <div className="flex justify-between items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs gap-1.5 h-8 shrink-0">
               <RotateCcw className="size-3" />
               <FormattedMessage id="imageCrop.reset" defaultMessage={"Reset"} />
             </Button>
-            <p className="text-xs text-muted-foreground"><FormattedMessage id="imageCrop.hint" defaultMessage={"Drag to reposition · Pinch or scroll to zoom"} /></p>
+            <p className="text-xs text-muted-foreground text-right"><FormattedMessage id="imageCrop.hint" defaultMessage={"Drag to reposition · Pinch or scroll to zoom"} /></p>
           </div>
         </div>
 
-        <DialogFooter className="px-5 pb-5 gap-2 flex-row justify-end">
+        <DialogFooter className="px-5 pb-5 gap-2 flex-row justify-end shrink-0">
           <Button variant="outline" onClick={onCancel} disabled={isProcessing} size="sm">
             <FormattedMessage id="common.cancel" defaultMessage={"Cancel"} />
           </Button>
