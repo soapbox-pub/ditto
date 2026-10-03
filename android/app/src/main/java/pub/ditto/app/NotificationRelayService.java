@@ -297,18 +297,41 @@ public class NotificationRelayService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        // onCreate gave up (dataSync budget exhausted) and already called
+        // stopSelf, but onStartCommand still runs. Connecting here would
+        // dereference the never-built httpClient and crash; a sticky restart
+        // would then crash again on every retry.
+        if (httpClient == null) {
+            stopSelf();
+            return START_NOT_STICKY;
+        }
         loadConfigAndReconnect();
         return START_STICKY;
     }
 
     /**
      * Android 15+ calls this when the dataSync foreground-service time budget
-     * runs out. We must stop promptly or the system raises an ANR. Schedule a
-     * retry through BootReceiver — it succeeds once the budget resets (the
-     * user opens the app) when the app is exempt from battery optimizations.
+     * runs out. We must stop promptly or the system crashes the process with
+     * ForegroundServiceDidNotStopInTimeException. Schedule a retry through
+     * BootReceiver — it succeeds once the budget resets (the user opens the
+     * app) when the app is exempt from battery optimizations.
+     */
+    @Override
+    public void onTimeout(int startId, int fgsType) {
+        handleTimeout();
+    }
+
+    /**
+     * The API 34 form. The system never calls it for dataSync (only the
+     * two-argument one above, on Android 15+); overriding only this one is
+     * what let the budget timeout crash the app.
      */
     @Override
     public void onTimeout(int startId) {
+        handleTimeout();
+    }
+
+    private void handleTimeout() {
         Log.w(TAG, "dataSync time budget exhausted; stopping and scheduling retry");
         BootReceiver.scheduleRetry(this, 15 * 60 * 1_000);
         stopSelf();
