@@ -192,7 +192,7 @@ async function handleFetchRequest(
  * A cross-origin iframe is blocked from most capability APIs unless the
  * parent explicitly delegates them via `allow="…"`. We grant every
  * directive that a general-purpose web app might legitimately use so
- * nsites and webxdc apps can access media, sensors, downloads, etc.
+ * nsites and webxdc apps can access media, location, downloads, etc.
  *
  * **Deliberately omitted** — capabilities whose UX or security guarantees
  * make them unsafe to expose to untrusted third-party content:
@@ -205,10 +205,12 @@ async function handleFetchRequest(
  * **Also omitted — require more thought before enabling:**
  *   - `bluetooth`, `hid`, `serial`, `usb` — Raw device APIs (even though user-gesture gated).
  *   - `clipboard-read`                 — Passive clipboard read (allowed by gesture but omitted for now).
+ *   - `accelerometer`, `gyroscope`, `magnetometer`, `ambient-light-sensor`
+ *                                      — Motion sensors aren't gated by any prompt on stock Android,
+ *                                        so the embedded content could read them silently. GrapheneOS
+ *                                        does prompt, but the prompt names Ditto, not the embedded app.
  */
 const SANDBOX_ALLOW = [
-  'accelerometer',
-  'ambient-light-sensor',
   'autoplay',
   'battery',
   'camera',
@@ -219,10 +221,8 @@ const SANDBOX_ALLOW = [
   'fullscreen',
   'gamepad',
   'geolocation',
-  'gyroscope',
   'idle-detection',
   'keyboard-map',
-  'magnetometer',
   'microphone',
   'midi',
   'picture-in-picture',

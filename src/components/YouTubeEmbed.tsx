@@ -98,7 +98,9 @@ export function YouTubeEmbed({ videoId, className }: YouTubeEmbedProps) {
           <iframe
             src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`}
             title="YouTube video"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            // No accelerometer/gyroscope: the player listens for device
+            // orientation (360° video), which trips GrapheneOS's Sensors prompt.
+            allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
             allowFullScreen
             // The page-wide policy is `no-referrer`, but the embedded player
             // refuses to play (error 153) without a referrer.
