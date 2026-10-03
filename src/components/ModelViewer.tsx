@@ -112,10 +112,7 @@ export default function ModelViewer({ url, format, encryption }: ModelViewerProp
       const data = await fetchModel(safe, encryption, abort.signal, (fraction) => {
         if (!disposed) setProgress(fraction);
       });
-      // Relative glTF/OBJ resources resolve next to the model; an encrypted
-      // model's neighbours would be ciphertext, so it gets none.
-      const baseUrl = encryption ? '' : new URL('.', safe).href;
-      const model = await parseModel(data, format, baseUrl);
+      const model = await parseModel(data, format);
       if (disposed) return;
 
       const width = container.clientWidth || 400;

@@ -34,17 +34,29 @@ function defaultMaterial(geometry: THREE.BufferGeometry): THREE.Material {
 }
 
 /**
- * Parse a model file into a scene object. `baseUrl` is where relative
- * resources (glTF buffers and textures, OBJ/FBX textures) are resolved from;
- * without one, a file that references outside resources just renders without
- * them or fails to load.
+ * Loader manager that keeps a model self-contained. A file can name buffers
+ * and textures at any URL, and the loaders would fetch them as given, past
+ * `sanitizeUrl` and `isLocalNetworkUrl`: a model could log the IP of whoever
+ * opens it, or make their browser probe the local network. Only resources
+ * carried in the file itself (data: URIs, and the blob: URLs loaders make
+ * from embedded images) load; anything else becomes an empty data: URI, which
+ * fails without touching the network, so the model renders without it or not
+ * at all.
  */
-export async function parseModel(data: ArrayBuffer, format: ModelFormat, baseUrl = ''): Promise<THREE.Object3D> {
+function selfContainedManager(): THREE.LoadingManager {
+  const manager = new THREE.LoadingManager();
+  manager.setURLModifier((url) => (/^(data|blob):/i.test(url) ? url : 'data:,'));
+  return manager;
+}
+
+/** Parse a model file into a scene object. Outside resources it names are not loaded. */
+export async function parseModel(data: ArrayBuffer, format: ModelFormat): Promise<THREE.Object3D> {
+  const manager = selfContainedManager();
   switch (format) {
     case 'glb':
     case 'gltf': {
-      const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-      const gltf = await loader.parseAsync(data, baseUrl);
+      const loader = new GLTFLoader(manager).setMeshoptDecoder(MeshoptDecoder);
+      const gltf = await loader.parseAsync(data, '');
       return gltf.scene;
     }
     case 'stl': {
@@ -74,11 +86,11 @@ export async function parseModel(data: ArrayBuffer, format: ModelFormat, baseUrl
       return group;
     }
     case '3mf':
-      return new ThreeMFLoader().parse(data);
+      return new ThreeMFLoader(manager).parse(data);
     case 'fbx':
-      return new FBXLoader().parse(data, baseUrl);
+      return new FBXLoader(manager).parse(data, '');
     case 'dae': {
-      const collada = new ColladaLoader().parse(new TextDecoder().decode(data), baseUrl);
+      const collada = new ColladaLoader(manager).parse(new TextDecoder().decode(data), '');
       if (!collada) throw new Error('Unreadable Collada file');
       return collada.scene;
     }
