@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, RotateCcw } from 'lucide-react';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { Loader2 } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
@@ -70,19 +70,29 @@ async function fetchModel(
 /** Seconds per full turn of the idle spin. */
 const AUTO_ROTATE_PERIOD_S = 40;
 
+/** Seconds for the idle spin to come up to speed after the model returns home. */
+const SPIN_FADE_IN_S = 2;
+
+/** Time constant of a flick's slowdown, in seconds: long, so it coasts. */
+const COAST_DECAY_S = 1.8;
+
+/** Fastest a flick sends the model, in radians per second. */
+const MAX_FLICK_SPEED = 6 * Math.PI;
+
+/** How long the model is left alone before it goes home and spins again. */
+const IDLE_RETURN_MS = 5_000;
+
 /**
- * Interactive 3D view of a model attachment: drag to turn it, pinch or scroll
- * to zoom, double-tap to put it back. Turns slowly on its own until touched. Loaded on demand — it pulls in
- * three.js — and only after the viewer asks for it, since models can be large.
+ * Interactive 3D view of a model attachment: drag or flick to turn it, pinch
+ * or scroll to zoom, double-tap to put it back. Turns slowly on its own, and
+ * goes back to that a few seconds after it's let go. Loaded on demand — it
+ * pulls in three.js — and only after the viewer asks for it, since models can
+ * be large.
  */
 export default function ModelViewer({ url, format, encryption }: ModelViewerProps) {
-  const intl = useIntl();
   const containerRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [progress, setProgress] = useState<number>();
-  /** Whether the model has been handled, which is when "reset" means something. */
-  const [touched, setTouched] = useState(false);
-  const resetRef = useRef<(() => void) | undefined>(undefined);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -97,7 +107,6 @@ export default function ModelViewer({ url, format, encryption }: ModelViewerProp
     let cleanup: (() => void) | undefined;
     setStatus('loading');
     setProgress(undefined);
-    setTouched(false);
 
     (async () => {
       const data = await fetchModel(safe, encryption, abort.signal, (fraction) => {
@@ -152,9 +161,17 @@ export default function ModelViewer({ url, format, encryption }: ModelViewerProp
           .normalize();
       };
 
-      let autoRotate = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      // Angular velocity (radians per frame) carried on briefly after a release.
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // `spin`: the idle turntable it opens with. `free`: in the viewer's
+      // hands, or coasting from a flick. `returning`: easing back home after
+      // being left alone, to spin again.
+      let mode: 'spin' | 'free' | 'returning' = 'spin';
+      // The idle spin fades in on its return rather than lurching to speed.
+      let spinLevel = 1;
+      // Radians per second, carried on after a flick and decaying slowly.
       const velocity = { x: 0, y: 0, at: 0 };
+      let lastActivity = performance.now();
       const pointers = new Map<number, { x: number; y: number }>();
 
       // Each drag turns about one axis only, picked from its first few pixels.
@@ -164,33 +181,33 @@ export default function ModelViewer({ url, format, encryption }: ModelViewerProp
       // up-down drag is exactly undone by dragging back.
       const drag = { startX: 0, startY: 0, axis: undefined as 'x' | 'y' | undefined };
 
-      // Double-tap returns the model to where it started.
-      const resetting = { active: false };
       const homeCamera = stage.camera.position.clone();
       const homeTurn = new THREE.Quaternion();
       const lastTap = { at: -Infinity, x: 0, y: 0 };
-      const reset = () => {
-        autoRotate = false;
+      const goHome = () => {
         velocity.x = velocity.y = 0;
-        resetting.active = true;
+        mode = 'returning';
       };
-      resetRef.current = reset;
+      const takeHold = () => {
+        mode = 'free';
+        lastActivity = performance.now();
+      };
 
       const onPointerDown = (e: PointerEvent) => {
-        autoRotate = false;
-        resetting.active = false;
+        takeHold();
         velocity.x = velocity.y = 0;
+        velocity.at = e.timeStamp;
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         canvas.setPointerCapture(e.pointerId);
         drag.startX = e.clientX;
         drag.startY = e.clientY;
         drag.axis = undefined;
-        setTouched(true);
       };
       const onPointerMove = (e: PointerEvent) => {
         const last = pointers.get(e.pointerId);
         if (!last) return;
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        lastActivity = performance.now();
         // Two fingers are a pinch, which the zoom controls handle.
         if (pointers.size !== 1) return;
         if (!drag.axis) {
@@ -205,20 +222,34 @@ export default function ModelViewer({ url, format, encryption }: ModelViewerProp
         const dx = drag.axis === 'x' ? (e.clientX - last.x) * radiansPerPixel : 0;
         const dy = drag.axis === 'y' ? (e.clientY - last.y) * radiansPerPixel : 0;
         rotateBy(dx, dy);
-        velocity.x = dx;
-        velocity.y = dy;
+
+        // Track the drag's speed, smoothed over the last few events, so a
+        // flick carries on at the speed it left the finger.
+        const dt = Math.max(0.004, (e.timeStamp - velocity.at) / 1000);
+        velocity.x = velocity.x * 0.3 + (dx / dt) * 0.7;
+        velocity.y = velocity.y * 0.3 + (dy / dt) * 0.7;
         velocity.at = e.timeStamp;
       };
       const onPointerUp = (e: PointerEvent) => {
         pointers.delete(e.pointerId);
+        lastActivity = performance.now();
         // Only a release while still moving flings the model; not one after a
         // pause, and not a finger lifted mid-pinch.
-        if (pointers.size > 0 || e.timeStamp - velocity.at > 50) velocity.x = velocity.y = 0;
+        if (pointers.size > 0 || e.timeStamp - velocity.at > 80) {
+          velocity.x = velocity.y = 0;
+        } else {
+          const speed = Math.hypot(velocity.x, velocity.y);
+          if (speed > MAX_FLICK_SPEED) {
+            velocity.x *= MAX_FLICK_SPEED / speed;
+            velocity.y *= MAX_FLICK_SPEED / speed;
+          }
+        }
 
-        // A tap is a release that never became a drag.
+        // A tap is a release that never became a drag; two in quick
+        // succession send the model home.
         if (e.type !== 'pointerup' || drag.axis || pointers.size > 0) return;
         if (e.timeStamp - lastTap.at < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) {
-          reset();
+          goHome();
           lastTap.at = -Infinity;
         } else {
           Object.assign(lastTap, { at: e.timeStamp, x: e.clientX, y: e.clientY });
@@ -228,33 +259,48 @@ export default function ModelViewer({ url, format, encryption }: ModelViewerProp
       canvas.addEventListener('pointermove', onPointerMove);
       canvas.addEventListener('pointerup', onPointerUp);
       canvas.addEventListener('pointercancel', onPointerUp);
-      controls.addEventListener('start', () => {
-        autoRotate = false;
-        resetting.active = false;
-        setTouched(true);
-      });
+      // Zooming counts as handling it too.
+      controls.addEventListener('start', takeHold);
+      // Not `takeHold`: the controls end on every release, a double-tap's
+      // included, which would cancel the trip home it just started.
+      controls.addEventListener('end', () => { lastActivity = performance.now(); });
 
       const clock = new THREE.Clock();
 
       renderer.setAnimationLoop(() => {
-        const delta = clock.getDelta();
-        if (resetting.active) {
+        // Clamped so a frame after the tab was hidden doesn't jump.
+        const delta = Math.min(clock.getDelta(), 0.1);
+
+        if (mode === 'returning') {
           // Ease home, the same speed at any frame rate.
-          const t = 1 - Math.exp(-delta * 8);
+          const t = 1 - Math.exp(-delta * 3);
           stage.pivot.quaternion.slerp(homeTurn, t);
           stage.camera.position.lerp(homeCamera, t);
           if (stage.pivot.quaternion.angleTo(homeTurn) < 1e-3 && stage.camera.position.distanceTo(homeCamera) < stage.radius * 1e-3) {
             stage.pivot.quaternion.copy(homeTurn);
             stage.camera.position.copy(homeCamera);
-            resetting.active = false;
+            mode = 'spin';
+            spinLevel = 0;
           }
-        } else if (autoRotate) {
-          stage.pivot.rotateOnWorldAxis(worldUp, (delta * 2 * Math.PI) / AUTO_ROTATE_PERIOD_S);
-        } else if (pointers.size === 0 && (Math.abs(velocity.x) > 1e-4 || Math.abs(velocity.y) > 1e-4)) {
-          rotateBy(velocity.x, velocity.y);
-          velocity.x *= 0.88;
-          velocity.y *= 0.88;
+        } else if (mode === 'spin') {
+          if (!reduceMotion) {
+            spinLevel = Math.min(1, spinLevel + delta / SPIN_FADE_IN_S);
+            stage.pivot.rotateOnWorldAxis(worldUp, (spinLevel * delta * 2 * Math.PI) / AUTO_ROTATE_PERIOD_S);
+          }
+        } else if (pointers.size === 0) {
+          // Coast, slowing gradually.
+          if (velocity.x || velocity.y) {
+            rotateBy(velocity.x * delta, velocity.y * delta);
+            const decay = Math.exp(-delta / COAST_DECAY_S);
+            velocity.x *= decay;
+            velocity.y *= decay;
+            if (Math.hypot(velocity.x, velocity.y) < 0.01) velocity.x = velocity.y = 0;
+          }
+          // Left alone, and no longer spinning faster than the idle spin: go home.
+          const idle = performance.now() - lastActivity > IDLE_RETURN_MS;
+          if (idle && Math.hypot(velocity.x, velocity.y) < (2 * Math.PI) / AUTO_ROTATE_PERIOD_S * 2) goHome();
         }
+
         controls.update();
         renderer.render(stage.scene, stage.camera);
       });
@@ -270,7 +316,6 @@ export default function ModelViewer({ url, format, encryption }: ModelViewerProp
       resize.observe(container);
 
       cleanup = () => {
-        resetRef.current = undefined;
         resize.disconnect();
         canvas.removeEventListener('pointerdown', onPointerDown);
         canvas.removeEventListener('pointermove', onPointerMove);
@@ -314,17 +359,6 @@ export default function ModelViewer({ url, format, encryption }: ModelViewerProp
             </span>
           )}
         </div>
-      )}
-      {status === 'ready' && touched && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); resetRef.current?.(); }}
-          aria-label={intl.formatMessage({ id: 'modelViewer.reset', defaultMessage: 'Reset view' })}
-          title={intl.formatMessage({ id: 'modelViewer.reset', defaultMessage: 'Reset view' })}
-          className="absolute left-3 top-3 z-10 flex size-10 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm backdrop-blur transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <RotateCcw className="size-5" />
-        </button>
       )}
       {status === 'error' && (
         <div className="absolute inset-0 flex items-center justify-center p-4 text-center text-sm text-muted-foreground">
