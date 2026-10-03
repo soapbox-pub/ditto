@@ -68,6 +68,8 @@ export function BackgroundPicker({ value, onChange }: {
           ...customTheme,
           colors: currentColors,
           background: bg,
+          // An edited theme is no longer the creator's work.
+          source: undefined,
         });
       }
     } catch (error) {
@@ -85,6 +87,7 @@ export function BackgroundPicker({ value, onChange }: {
     applyCustomTheme({
       ...customTheme,
       background: undefined,
+      source: undefined,
     });
   };
 
@@ -98,6 +101,7 @@ export function BackgroundPicker({ value, onChange }: {
     applyCustomTheme({
       ...customTheme,
       background: { ...customTheme.background, mode },
+      source: undefined,
     });
   };
 

@@ -1,6 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
-import type { CoreThemeColors, ThemeConfig, ThemeFont, ThemeBackground } from '@/themes';
+import type { CoreThemeColors, ThemeConfig, ThemeFont, ThemeBackground, ThemeSource } from '@/themes';
 import { hslStringToHex, hexToHslString, isValidHex } from '@/lib/colorUtils';
+import { isNostrId } from '@/lib/nostrId';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 // ─── Kind Constants ───────────────────────────────────────────────────
@@ -220,10 +221,41 @@ export interface ActiveProfileTheme {
   titleFont?: ThemeFont;
   /** Optional background */
   background?: ThemeBackground;
+  /** Optional theme name */
+  title?: string;
+  /** Optional description */
+  description?: string;
   /** naddr-style reference to the source theme definition, if any */
   sourceRef?: string;
+  /** The theme's original creator, when it was adopted from another user */
+  source?: ThemeSource;
   /** The original Nostr event */
   event: NostrEvent;
+}
+
+/**
+ * Read the original creator of an adopted theme from a kind 16767 event.
+ * Prefers a well-formed `a` tag (36767:<pubkey>:<d>), falling back to a `p` tag.
+ * Returns undefined when the event's own author is the creator.
+ */
+function parseThemeSource(event: NostrEvent): ThemeSource | undefined {
+  let source: ThemeSource | undefined;
+
+  const aRef = event.tags.find(([n]) => n === 'a')?.[1];
+  if (aRef) {
+    const [kind, pubkey, ...rest] = aRef.split(':');
+    const identifier = rest.join(':');
+    if (kind === String(THEME_DEFINITION_KIND) && isNostrId(pubkey) && identifier) {
+      source = { pubkey, identifier };
+    }
+  }
+
+  if (!source) {
+    const pubkey = event.tags.find(([n]) => n === 'p')?.[1];
+    if (pubkey && isNostrId(pubkey)) source = { pubkey };
+  }
+
+  return source && source.pubkey !== event.pubkey ? source : undefined;
 }
 
 /** Parse and validate a kind 16767 active profile theme event. Returns null if invalid. */
@@ -236,16 +268,17 @@ export function parseActiveProfileTheme(event: NostrEvent): ActiveProfileTheme |
 
   const { font, titleFont } = parseFontTags(event.tags);
   const background = parseBackgroundTag(event.tags);
+  const title = event.tags.find(([n]) => n === 'title')?.[1];
+  const description = event.tags.find(([n]) => n === 'description')?.[1];
   const sourceRef = event.tags.find(([n]) => n === 'a')?.[1];
+  const source = parseThemeSource(event);
 
-  return { colors, font, titleFont, background, sourceRef, event };
+  return { colors, font, titleFont, background, title, description, sourceRef, source, event };
 }
 
-/** Create tags for a kind 16767 active profile theme event. */
+/** Create tags for a kind 16767 active profile theme event. Credits `themeConfig.source` with `a`/`p` tags. */
 export function buildActiveThemeTags(
   themeConfig: ThemeConfig,
-  sourceAuthor?: string,
-  sourceIdentifier?: string,
   description?: string,
 ): string[][] {
   const tags: string[][] = [
@@ -260,9 +293,58 @@ export function buildActiveThemeTags(
   if (description) {
     tags.push(['description', description]);
   }
-  if (sourceAuthor && sourceIdentifier) {
-    tags.push(['a', `${THEME_DEFINITION_KIND}:${sourceAuthor}:${sourceIdentifier}`]);
+  const { source } = themeConfig;
+  if (source) {
+    if (source.identifier) {
+      tags.push(['a', `${THEME_DEFINITION_KIND}:${source.pubkey}:${source.identifier}`]);
+    }
+    tags.push(['p', source.pubkey]);
   }
   return tags;
+}
+
+/**
+ * Turn a theme event (36767 definition or 16767 active theme) into a ThemeConfig
+ * the viewer can adopt, crediting its creator. Returns null if the event is invalid.
+ *
+ * The creator is the definition's author, or for a 16767 the theme's original
+ * source if it was itself adopted, else the 16767's author.
+ */
+export function themeEventToConfig(event: NostrEvent): ThemeConfig | null {
+  if (event.kind === THEME_DEFINITION_KIND) {
+    const def = parseThemeDefinition(event);
+    if (!def) return null;
+    return {
+      colors: def.colors,
+      title: def.title,
+      font: def.font,
+      titleFont: def.titleFont,
+      background: def.background,
+      source: { pubkey: event.pubkey, identifier: def.identifier },
+    };
+  }
+  if (event.kind === ACTIVE_THEME_KIND) {
+    const active = parseActiveProfileTheme(event);
+    if (!active) return null;
+    return activeThemeToConfig(active, active.source ?? { pubkey: event.pubkey });
+  }
+  return null;
+}
+
+/** Convert a parsed kind 16767 into a ThemeConfig, attaching the given source credit. */
+export function activeThemeToConfig(active: ActiveProfileTheme, source: ThemeSource | undefined = active.source): ThemeConfig {
+  return {
+    colors: active.colors,
+    ...(active.title && { title: active.title }),
+    ...(active.font && { font: active.font }),
+    ...(active.titleFont && { titleFont: active.titleFont }),
+    ...(active.background && { background: active.background }),
+    ...(source && { source }),
+  };
+}
+
+/** Whether a kind 16767 is someone wearing another user's theme, rather than a theme they made. */
+export function isAdoptedActiveTheme(event: NostrEvent): boolean {
+  return event.kind === ACTIVE_THEME_KIND && !!parseThemeSource(event);
 }
 

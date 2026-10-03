@@ -1,8 +1,10 @@
 import { useMemo, useState, useEffect, useId } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { cn } from '@/lib/utils';
-import { useTheme } from '@/hooks/useTheme';
 import { getColors, paletteToTheme } from '@/lib/colorMomentUtils';
+import { isNostrId } from '@/lib/nostrId';
+import { startThemePreview } from '@/lib/themePreview';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 type Layout = 'horizontal' | 'vertical' | 'grid' | 'star' | 'checkerboard' | 'diagonalStripes';
@@ -198,10 +200,11 @@ const LAYOUT_MAP: Record<Layout, React.FC<{ colors: string[] }>> = {
   diagonalStripes: DiagonalStripesLayout,
 };
 
-/** Standalone blinking eye button for setting a color moment as the active theme. */
+/** Standalone blinking eye button for trying a color moment's palette as the theme. */
 export function ColorMomentEyeButton({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const colors = useMemo(() => getColors(event.tags), [event.tags]);
-  const { applyCustomTheme } = useTheme();
+  const name = getTag(event.tags, 'name');
   const [isBlinking, setIsBlinking] = useState(false);
   const uid = useId();
 
@@ -215,7 +218,12 @@ export function ColorMomentEyeButton({ event }: { event: NostrEvent }) {
   const handleSetTheme = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsBlinking(true);
-    applyCustomTheme(paletteToTheme(colors));
+    // Try the palette on, crediting the moment's author. Nothing is published until confirmed.
+    startThemePreview({
+      colors: paletteToTheme(colors),
+      ...(name && { title: name }),
+      ...(isNostrId(event.pubkey) && { source: { pubkey: event.pubkey } }),
+    });
   };
 
   if (colors.length === 0) return null;
@@ -238,9 +246,11 @@ export function ColorMomentEyeButton({ event }: { event: NostrEvent }) {
     <button
       onClick={handleSetTheme}
       className="flex items-center gap-1.5 hover:opacity-80 active:scale-95 transition-all shrink-0"
-      title="Set as theme"
+      title={intl.formatMessage({ id: 'themeContent.tryTheme', defaultMessage: 'Try this theme' })}
     >
-      <span className="text-[11px] font-medium text-muted-foreground">Set as theme</span>
+      <span className="text-[11px] font-medium text-muted-foreground">
+        <FormattedMessage id="themeContent.tryTheme" defaultMessage="Try this theme" />
+      </span>
       {/* Eye container — overflow-hidden clips the eyelid, doesn't touch siblings */}
       <div className="relative size-9 rounded-full overflow-hidden" id={uid}>
         <img src={eyeUrl} alt="" className="w-9 h-9" decoding="async" />

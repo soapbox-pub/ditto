@@ -544,7 +544,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
   const handleColorChange = useCallback((key: keyof CoreThemeColors, hex: string) => {
     const hslValue = hexToHslString(hex);
     const newColors = { ...effectiveColors, [key]: hslValue };
-    applyCustomTheme({ ...customTheme, colors: newColors });
+    applyCustomTheme({ ...customTheme, colors: newColors, source: undefined });
   }, [effectiveColors, applyCustomTheme, customTheme]);
 
   /** Open the publish dialog for a new theme */
@@ -876,7 +876,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
                   text: '210 40% 98%',
                   primary: '258 70% 60%',
                 };
-                applyCustomTheme({ ...customTheme, colors: currentColors, font });
+                applyCustomTheme({ ...customTheme, colors: currentColors, font, source: undefined });
               }}
               titleFont={theme === 'custom' ? customTheme?.titleFont : undefined}
               onTitleFontChange={(titleFont) => {
@@ -885,7 +885,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
                   text: '210 40% 98%',
                   primary: '258 70% 60%',
                 };
-                applyCustomTheme({ ...customTheme, colors: currentColors, titleFont });
+                applyCustomTheme({ ...customTheme, colors: currentColors, titleFont, source: undefined });
               }}
             />
 

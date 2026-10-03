@@ -11,6 +11,7 @@ import { builtinThemes, buildBackgroundCss, buildThemeCssFromCore, resolveTheme,
 import { AppConfigSchema } from '@/lib/schemas';
 import { migrateApiUrl } from '@/lib/apiUrls';
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
+import { useThemePreview } from '@/lib/themePreview';
 import { hslToRgb, parseHsl, rgbToHex } from '@/lib/colorUtils';
 import { z } from 'zod';
 
@@ -139,11 +140,16 @@ export function AppProvider(props: AppProviderProps) {
     updateConfig,
   }), [config, updateConfig]);
 
-  // Apply theme effects to document
-  useApplyTheme(config.theme, config.customTheme, config.themes);
-  useApplyFonts(config.theme, config.customTheme, config.themes);
-  useApplyBackground(config.theme, config.customTheme, config.themes);
-  useApplyFavicon(config.theme, config.customTheme, config.themes);
+  // Apply theme effects to document. A live theme preview paints over the
+  // user's own theme without touching the stored config.
+  const preview = useThemePreview();
+  const livePreview = preview?.live ? preview.config : undefined;
+  const effectiveTheme: Theme = livePreview ? 'custom' : config.theme;
+  const effectiveCustomTheme = livePreview ?? config.customTheme;
+  useApplyTheme(effectiveTheme, effectiveCustomTheme, config.themes);
+  useApplyFonts(effectiveTheme, effectiveCustomTheme, config.themes);
+  useApplyBackground(effectiveTheme, effectiveCustomTheme, config.themes);
+  useApplyFavicon(effectiveTheme, effectiveCustomTheme, config.themes);
 
   return (
     <AppContext.Provider value={appContextValue}>

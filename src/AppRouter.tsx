@@ -5,6 +5,7 @@ import { BackButtonHandler } from "@/components/BackButtonHandler";
 import { DeepLinkHandler } from "@/components/DeepLinkHandler";
 import { NativeNavHandler } from "@/components/NativeNavHandler";
 import { HighlightSelectionButton } from "@/components/HighlightSelectionButton";
+import { ThemePreviewBar } from "@/components/ThemePreviewBar";
 import { MinimizedAudioBar } from "@/components/MinimizedAudioBar";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import { BlobbiActionsProvider } from "@/blobbi/companion/interaction/BlobbiActionsProvider";
@@ -149,6 +150,7 @@ export function AppRouter() {
         <BackButtonHandler />
         <ScrollToTop />
         <HighlightSelectionButton />
+        <ThemePreviewBar />
         <StreakStartedDialog />
         <BlobbiActionsProvider>
           <BlobbiCompanionGate />

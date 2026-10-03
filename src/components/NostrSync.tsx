@@ -13,7 +13,7 @@ import { parseBlossomServerList } from "@/lib/appBlossom";
 import { relayMetadataFromEvent } from "@/lib/appRelays";
 import { getCachedPrivateBlockedRelays, setBlockedRelays } from "@/lib/relayPolicy";
 import { getStorageKey } from "@/lib/storageKey";
-import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from "@/lib/themeEvent";
+import { ACTIVE_THEME_KIND, activeThemeToConfig, parseActiveProfileTheme } from "@/lib/themeEvent";
 import { DEFAULT_SIDEBAR_WIDGETS } from "@/lib/sidebarWidgets";
 import type { ThemeConfig } from "@/themes";
 
@@ -618,13 +618,8 @@ export function NostrSync() {
         const parsed = parseActiveProfileTheme(events[0]);
         if (!parsed) return;
 
-        // Convert ActiveProfileTheme to ThemeConfig
-        const remoteTheme: ThemeConfig = {
-          colors: parsed.colors,
-          ...(parsed.font && { font: parsed.font }),
-          ...(parsed.titleFont && { titleFont: parsed.titleFont }),
-          ...(parsed.background && { background: parsed.background }),
-        };
+        // Convert ActiveProfileTheme to ThemeConfig, keeping its title and creator credit
+        const remoteTheme: ThemeConfig = activeThemeToConfig(parsed);
 
         // Update customTheme if it differs from what we have locally.
         // Do NOT change the `theme` value — leave it as light/dark/system/custom.

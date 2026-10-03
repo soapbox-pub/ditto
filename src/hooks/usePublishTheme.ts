@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useNostr } from '@nostrify/react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import type { ThemeConfig } from '@/themes';
@@ -15,6 +16,7 @@ import {
   type ActiveProfileTheme,
 } from '@/lib/themeEvent';
 import { resolveFontUrl } from '@/lib/fontLoader';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 
 /**
  * Resolve font URLs for Nostr publishing.
@@ -37,7 +39,21 @@ function resolveThemeForPublishing(config: ThemeConfig): ThemeConfig {
   };
 }
 
+/** Tags added by the publisher rather than describing the theme. */
+const BOOKKEEPING_TAGS = new Set(['client', 'published_at']);
+
+/** Whether two kind 16767 tag lists describe the same theme, ignoring order and bookkeeping tags. */
+function sameThemeTags(a: string[][], b: string[][]): boolean {
+  const canonical = (tags: string[][]) => tags
+    .filter(([name]) => !BOOKKEEPING_TAGS.has(name))
+    .map((tag) => JSON.stringify(tag))
+    .sort()
+    .join('\n');
+  return canonical(a) === canonical(b);
+}
+
 export function usePublishTheme() {
+  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent, isPending } = useNostrPublish();
   const queryClient = useQueryClient();
@@ -68,20 +84,24 @@ export function usePublishTheme() {
     return identifier;
   }, [user, publishEvent, queryClient]);
 
-  /** Set a theme as the active profile theme (kind 16767). */
+  /**
+   * Set a theme as the active profile theme (kind 16767). The original creator in
+   * `themeConfig.source` is credited on the event. Does nothing when the published
+   * theme already matches, so re-picking the current theme doesn't sign a new event.
+   */
   const setActiveTheme = useCallback(async (opts: {
     themeConfig: ThemeConfig;
-    /** Author of the source theme definition */
-    sourceAuthor?: string;
-    /** d-tag of the source theme definition */
-    sourceIdentifier?: string;
     /** Optional description from the source theme definition */
     description?: string;
   }) => {
     if (!user) throw new Error('Must be logged in');
 
     const resolved = resolveThemeForPublishing(opts.themeConfig);
-    const tags = buildActiveThemeTags(resolved, opts.sourceAuthor, opts.sourceIdentifier, opts.description);
+    const source = resolved.source?.pubkey === user.pubkey ? undefined : resolved.source;
+    const tags = buildActiveThemeTags({ ...resolved, source }, opts.description);
+
+    const prev = await fetchFreshEvent(nostr, { kinds: [ACTIVE_THEME_KIND], authors: [user.pubkey] });
+    if (prev && sameThemeTags(prev.tags, tags)) return;
 
     // Optimistically apply the active theme so it takes effect immediately,
     // before the relay round-trip. Parse a synthetic event from the same tags.
@@ -95,10 +115,11 @@ export function usePublishTheme() {
       kind: ACTIVE_THEME_KIND,
       content: '',
       tags,
+      prev: prev ?? undefined,
     });
 
     queryClient.invalidateQueries({ queryKey: ['activeProfileTheme', user.pubkey] });
-  }, [user, publishEvent, queryClient]);
+  }, [user, nostr, publishEvent, queryClient]);
 
   /** Delete a kind 36767 theme definition. */
   const deleteTheme = useCallback(async (theme: ThemeDefinition) => {

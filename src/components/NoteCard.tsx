@@ -194,6 +194,7 @@ import { isMediaDominantPost } from "@/lib/noteContent";
 import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
 import { publishedAtAction } from "@/lib/publishedAtAction";
+import { isAdoptedActiveTheme } from "@/lib/themeEvent";
 import { parseBadgeSet } from "@/lib/parseBadgeSet";
 import { getEffectiveStreamStatus, getStreamStatusConfig } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
@@ -2359,7 +2360,9 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   16767: {
     icon: Sparkles,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated their", fallback: "updated their" }),
+    // A 16767 is the theme the author is wearing, which may be someone else's
+    // (credited inside the card), so it never claims they created it.
+    action: (event) => event && isAdoptedActiveTheme(event) ? "is using a" : "updated their",
     noun: "theme",
     nounRoute: "/themes",
   },

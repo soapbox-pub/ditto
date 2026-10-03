@@ -474,13 +474,24 @@ The `content` field is unused and MUST be an empty string (`""`).
 | `f`     | No       | Font declaration. See [Font Tag](#font-tag).                                          |
 | `bg`    | No       | Background media. See [Background Tag](#background-tag).                              |
 | `title` | No       | Human-readable name for the theme                                                     |
+| `description` | No | Description of the theme                                                              |
+| `a`     | No       | `36767:<pubkey>:<d>` of the theme definition this theme was adopted from              |
+| `p`     | No       | Pubkey of the theme's original creator, when it was adopted from another user         |
 | `alt`   | Yes      | NIP-31 human-readable fallback                                                        |
+
+### Attribution
+
+Because other clients look up a user's active theme by `authors: [pubkey]`, adopting someone else's theme copies its tags into a 16767 signed by the adopter. The adopter is wearing the theme, not claiming it:
+
+- When the theme was adopted from another user, include a `p` tag with the creator's pubkey, plus an `a` tag if it came from a kind 36767 definition. Copying another user's 16767 carries its `a`/`p` tags forward, or credits that user if it has none.
+- A 16767 whose `a`/`p` creator differs from the event author SHOULD be displayed as "<title> by <creator>", and SHOULD NOT be listed as a new theme in theme galleries.
+- Clients drop the attribution once the user edits the theme's colors, fonts, or background.
 
 ### Client Behavior
 
 - When visiting a profile, clients query `{ kinds: [16767], authors: [pubkey], limit: 1 }` to get the active theme.
 - Clients read the `c` tags to extract colors, `f` tags for fonts, and `bg` tag for the background.
-- Setting a new active theme publishes a new kind 16767 event (replacing the old one).
+- Setting a new active theme publishes a new kind 16767 event (replacing the old one). Clients SHOULD let users preview themes locally and only publish once one is chosen, and SHOULD NOT republish when the chosen theme matches the current event.
 - To remove the active theme, publish a kind 5 deletion event targeting kind 16767.
 
 ---

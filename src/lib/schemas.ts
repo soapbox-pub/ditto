@@ -79,6 +79,12 @@ export const ThemeBackgroundSchema = z.object({
   blurhash: z.string().optional(),
 });
 
+/** Zod schema for ThemeSource */
+export const ThemeSourceSchema = z.object({
+  pubkey: z.string().regex(/^[0-9a-f]{64}$/),
+  identifier: z.string().optional(),
+});
+
 /** Zod schema for the full ThemeConfig */
 export const ThemeConfigSchema = z.object({
   title: z.string().optional(),
@@ -86,6 +92,7 @@ export const ThemeConfigSchema = z.object({
   font: ThemeFontSchema.optional(),
   titleFont: ThemeFontSchema.optional(),
   background: ThemeBackgroundSchema.optional(),
+  source: ThemeSourceSchema.optional(),
 });
 
 /** Zod schema for ThemesConfig (light + dark theme configs) */

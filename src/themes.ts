@@ -40,6 +40,16 @@ export interface ThemeBackground {
   blurhash?: string;
 }
 
+// ─── Source Attribution ───────────────────────────────────────────────
+
+/** The original creator of a theme the user adopted from someone else. */
+export interface ThemeSource {
+  /** Hex pubkey of the theme's author */
+  pubkey: string;
+  /** d-tag of the author's kind 36767 theme definition, when the theme came from one */
+  identifier?: string;
+}
+
 // ─── ThemeConfig ──────────────────────────────────────────────────────
 
 /**
@@ -58,6 +68,8 @@ export interface ThemeConfig {
   titleFont?: ThemeFont;
   /** Optional background media */
   background?: ThemeBackground;
+  /** Who made this theme, when it was adopted from another user. Cleared on edit. */
+  source?: ThemeSource;
 }
 
 /**

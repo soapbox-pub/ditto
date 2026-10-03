@@ -96,6 +96,60 @@ export function useUploadFile() {
   });
 }
 
+/**
+ * Copy a remote file onto the user's own Blossom servers and return the new
+ * URL, so content borrowed from someone else (e.g. an adopted theme's
+ * background) keeps working if the original owner deletes or swaps it.
+ *
+ * Tries a server-side BUD-04 mirror first, which only works for Blossom blob
+ * URLs (it needs the sha256 in the path); otherwise downloads the file and
+ * uploads it. Files already on one of the user's servers are returned as-is.
+ */
+export function useRehostFile() {
+  const { user } = useCurrentUser();
+  const { config } = useAppContext();
+
+  return useMutation({
+    mutationFn: async (sourceUrl: string): Promise<string> => {
+      if (!user) {
+        throw new Error('Must be logged in to upload files');
+      }
+
+      const servers = getEffectiveBlossomServers(
+        config.blossomServerMetadata,
+        config.useAppBlossomServers,
+      );
+
+      const sourceOrigin = originOf(sourceUrl);
+      if (servers.some((s) => originOf(s) === sourceOrigin)) return sourceUrl;
+
+      const uploader = new BlossomUploader({ servers, signer: user.signer, fetch: fetchWithTimeout });
+
+      let tags: string[][];
+      try {
+        tags = await uploader.mirror(sourceUrl);
+      } catch {
+        const response = await fetchWithTimeout(sourceUrl);
+        if (!response.ok) throw new Error(`Failed to download ${sourceUrl}: ${response.status}`);
+        const blob = await response.blob();
+        const name = new URL(sourceUrl).pathname.split('/').pop() || 'file';
+        tags = await uploader.upload(new File([blob], name, { type: blob.type }));
+      }
+
+      const url = tags[0][1];
+
+      // Same as useUploadFile: the uploader stops at the first server, so copy to the rest in the background.
+      const uploadedOrigin = originOf(url);
+      const mirrorServers = servers.filter((s) => originOf(s) !== uploadedOrigin);
+      if (mirrorServers.length > 0) {
+        mirrorToServers(url, mirrorServers, user.signer).catch(() => {});
+      }
+
+      return url;
+    },
+  });
+}
+
 function originOf(url: string): string | undefined {
   try {
     return new URL(url).origin;

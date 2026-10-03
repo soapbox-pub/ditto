@@ -115,6 +115,8 @@ export function FontPicker({ value, onChange, placeholder = 'Default (Inter)', p
         ...customTheme,
         colors: currentColors,
         font,
+        // An edited theme is no longer the creator's work.
+        source: undefined,
       });
     }
   };

@@ -22,6 +22,7 @@ import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useTheme } from "@/hooks/useTheme";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
 import { useThemeFeed } from "@/hooks/useThemeFeed";
+import { isAdoptedActiveTheme } from "@/lib/themeEvent";
 import { deduplicateEvents } from "@/lib/deduplicateEvents";
 
 type ThemesTab = "my-themes" | "follows" | "global";
@@ -78,7 +79,9 @@ export function ThemesPage() {
     enabled: activeTab !== "my-themes",
   });
 
-  const feedEvents = deduplicateEvents(rawData?.pages as NostrEvent[][]);
+  // Someone wearing another user's theme isn't a new theme — keep those out of the gallery.
+  const feedEvents = deduplicateEvents(rawData?.pages as NostrEvent[][])
+    .filter((event) => !isAdoptedActiveTheme(event));
 
   const handleRefresh = usePageRefresh(["theme-feed", feedTab]);
 

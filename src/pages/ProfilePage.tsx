@@ -99,7 +99,7 @@ import {
   CSS as DndCSS,
   type DragEndEvent,
 } from '@/lib/sortable';
-import { buildBackgroundCss, buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig, type ThemeFont, type ThemeBackground } from '@/themes';
+import { buildBackgroundCss, buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeFont, type ThemeBackground } from '@/themes';
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
 import { resolveCssFamily, loadBundledFont } from '@/lib/fonts';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
@@ -118,6 +118,8 @@ import { tryNpubEncode } from '@/lib/safeNip19';
 import { parseBirthdayFromContent, isBirthdayToday } from '@/lib/birthday';
 import { startBirthdayJingle, stopBirthdayJingle } from '@/lib/birthdayJingle';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { themeEventToConfig } from '@/lib/themeEvent';
+import { startThemePreview, usePageThemeOverride } from '@/lib/themePreview';
 import { parseAddr } from '@/lib/parseAddr';
 import { impactLight, impactMedium } from '@/lib/haptics';
 import { getStorageKey } from '@/lib/storageKey';
@@ -1782,7 +1784,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
   const [dismissedThemeSnapshot, setDismissedThemeSnapshot] = useLocalStorage<string | null>(getStorageKey(config.appId, 'dismissed-share-theme-snapshot'), null);
 
   // Temporarily apply the visited user's theme globally while on their profile
-  const { theme: ownTheme, customTheme: ownCustomTheme, themes: configuredThemes, applyCustomTheme } = useTheme();
+  const { theme: ownTheme, customTheme: ownCustomTheme, themes: configuredThemes } = useTheme();
 
   // Keep a ref to the latest own theme values so the cleanup function reads
   // the *current* values (e.g. after "Copy Theme" was used) instead of stale closure values.
@@ -1848,6 +1850,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     [profileThemeColors, profileThemeTitleFont, effectiveProfileFont],
   );
   const effectiveProfileBackground = profileThemeColors ? profileThemeBackground : undefined;
+  usePageThemeOverride(!!effectiveProfileColors);
 
   useLayoutEffect(() => {
     if (!effectiveProfileColors) return;
@@ -2296,13 +2299,9 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                   <DropdownMenuItem
                     onClick={() => {
                       if (!profileTheme) return;
-                      const themeConfig: ThemeConfig = {
-                        colors: profileTheme.colors,
-                        font: profileTheme.font,
-                        background: profileTheme.background,
-                      };
-                      applyCustomTheme(themeConfig);
-                      toast({ title: 'Theme applied', description: 'This profile\'s theme is now your app theme.' });
+                      // The theme is already on screen here, so only ask for confirmation.
+                      const themeConfig = themeEventToConfig(profileTheme.event);
+                      if (themeConfig) startThemePreview(themeConfig, { live: false });
                     }}
                     className="cursor-pointer"
                   >
