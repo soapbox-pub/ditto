@@ -22,6 +22,8 @@ const CODEWORD_PATTERNS: RegExp[] = [
   // "cp" alone is too ambiguous (copy, C++, ...), but not next to these.
   /\bcp\s*(?:dumps?|links?|vids?|videos?|pics?|trades?|trading|collections?|archives?|content|groups?|channels?|chats?)\b/,
   /\b(?:sell|selling|buy|buying|trade|trading|matrix|telegram|session|simplex)\s+cp\b/,
+  // Not "cp fans": in Chinese fandom slang, "cp" is a shipped couple.
+  /\bcp\s*(?:gooners?|gooning)\b/,
   // Sexual imagery taken without the subject's knowledge
   /\bcreep\s*shots?\b/,
   /\bupskirts?\b/,
