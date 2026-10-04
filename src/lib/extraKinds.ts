@@ -1,7 +1,7 @@
 import type { FeedSettings } from '@/contexts/AppContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
-import { Bird, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, Crown, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, History, Link2, Server, Stars, UserCheck, UserRoundPen, Users } from 'lucide-react';
+import { Bird, Box, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, Crown, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, History, Link2, Server, Stars, UserCheck, UserRoundPen, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -589,6 +589,19 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'whimsy',
     blurb: 'PlayStation 1 memory cards, published block-by-block to Nostr. Browse cards shared by others, watch their animated save icons, and open a card to see all 16 blocks. Titles, regions and icons are decoded straight from the raw save bytes.',
   },
+  // Simple Nostr Objects (feed-only — no dedicated page)
+  {
+    kind: 33331,
+    id: 'sno',
+    feedKey: 'feedIncludeSno',
+    label: '3D Objects',
+    description: 'Simple Nostr Objects: small 3D models carried in the event itself',
+    addressable: true,
+    section: 'whimsy',
+    feedOnly: true,
+    blurb: 'Little 3D objects built on a lattice and published straight to Nostr, no file to fetch. Spin them around right in your feed.',
+    sites: [{ url: 'https://onosendai.tech', name: 'ONOSENDAI' }],
+  },
   // Blobbi (feed-only — dedicated page at /blobbi)
   {
     kind: 31124,
@@ -1088,6 +1101,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
  */
 const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: string }>>> = {
   0: UserRoundPen,
+  33331: Box,
   3: UserCheck,
   6: RepostIcon,
   16: RepostIcon,

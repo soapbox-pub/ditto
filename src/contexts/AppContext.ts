@@ -245,6 +245,8 @@ export interface FeedSettings {
   feedIncludeLoveLists: boolean;
   /** Include Top 8 updates (kind 18678, see NIP.md) in the follows/global feed */
   feedIncludeTop8: boolean;
+  /** Include Simple Nostr Objects (kind 33331 3D objects) in the follows/global feed */
+  feedIncludeSno: boolean;
   /** Include Blobbi pet updates (kind 31124) in the follows/global feed */
   feedIncludeBlobbi: boolean;
   /** Include tarot readings (kind 2256, NIP-TR) in the follows/global feed */

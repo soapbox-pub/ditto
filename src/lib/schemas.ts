@@ -221,6 +221,7 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeZapstoreApps: z.boolean().optional(),
   feedIncludeZapstoreReleases: z.boolean().optional(),
   feedIncludeAppHandlers: z.boolean().optional(),
+  feedIncludeSno: z.boolean().optional(),
   feedIncludeBlobbi: z.boolean().optional(),
   feedIncludeTarot: z.boolean().optional(),
   showBadgeAwards: z.boolean().optional(),
