@@ -43,16 +43,14 @@
     <meta name="theme-color" content="#161b2e" media="(prefers-color-scheme: dark)">
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
     <link rel="manifest" href="/manifest.webmanifest">
-    <style>@keyframes ditto-spin{to{transform:rotate(360deg)}}</style>
   </head>
-  <body style="margin:0;background:hsl(228 20% 10%)">
-    <!-- Pre-React loading screen. Lives OUTSIDE #root so React doesn't
-         touch it. Removed by main.tsx once the app has mounted. -->
-    <div id="preloader" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:hsl(228 20% 10%)">
-      <div style="display:flex;flex-direction:column;align-items:center;gap:24px">
-        <div data-logo style="width:48px;height:48px;background:hsl(258 70% 60%);-webkit-mask:url(/logo.svg) center/contain no-repeat;mask:url(/logo.svg) center/contain no-repeat"></div>
-        <div data-spinner style="width:24px;height:24px;border:2.5px solid hsl(258 70% 60% / 0.25);border-top-color:hsl(258 70% 60%);border-radius:50%;animation:ditto-spin .7s linear infinite"></div>
-      </div>
+  <body>
+    <!-- Pre-React loading screen, styled in src/index.css. Lives OUTSIDE #root
+         so React doesn't touch it. Removed by main.tsx once the app has
+         mounted. -->
+    <div id="preloader">
+      <div class="preloader-logo"></div>
+      <div class="preloader-spinner"></div>
     </div>
     <!-- Blocking script: reads theme from localStorage and applies it
          before first paint so the preloader matches the user's theme. -->

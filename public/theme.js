@@ -2,8 +2,8 @@
 // @source: https://gitlab.com/soapbox-pub/ditto
 //
 // Reads the saved theme from localStorage and applies it to <html> and the
-// preloader background before first paint. Runs as a blocking <script> so
-// there's no flash of the wrong theme.
+// preloader colors (the --preloader-* variables in src/index.css) before first
+// paint. Runs as a blocking <script> so there's no flash of the wrong theme.
 //
 // The @license/@license-end pair is for GNU LibreJS. This file is copied
 // verbatim from public/, so the vite.config.ts plugin that banners the bundled
@@ -62,18 +62,10 @@
     colors = builtins.dark;
   }
 
-  document.documentElement.className = theme;
-  document.body.style.background = colors.bg;
-  var p = document.getElementById('preloader');
-  if (p) {
-    p.style.background = colors.bg;
-    var logo = p.querySelector('[data-logo]');
-    if (logo) logo.style.background = colors.primary;
-    var spinner = p.querySelector('[data-spinner]');
-    if (spinner) {
-      spinner.style.borderColor = colors.primary.replace(')', ' / 0.25)');
-      spinner.style.borderTopColor = colors.primary;
-    }
-  }
+  var root = document.documentElement;
+  root.className = theme;
+  root.style.setProperty('--preloader-bg', colors.bg);
+  root.style.setProperty('--preloader-primary', colors.primary);
+  root.style.setProperty('--preloader-track', colors.primary.replace(')', ' / 0.25)'));
 })();
 // @license-end

@@ -90,7 +90,11 @@ createRoot(document.getElementById("root")!).render(
   </ErrorBoundary>
 );
 
-// Remove the HTML preloader after React has painted.
+// Remove the HTML preloader, and the colors theme.js set for it, after React
+// has painted.
 requestAnimationFrame(() => {
   document.getElementById('preloader')?.remove();
+  for (const prop of ['--preloader-bg', '--preloader-primary', '--preloader-track']) {
+    document.documentElement.style.removeProperty(prop);
+  }
 });

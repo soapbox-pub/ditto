@@ -78,6 +78,46 @@
   }
 }
 
+/* ── Pre-React loading screen ──────────────────────────────────────────────
+   The #preloader markup is in index.html. public/theme.js sets the
+   --preloader-* variables from the saved theme before first paint; the
+   fallbacks are the builtin dark theme. This sheet is render-blocking, so
+   nothing paints before these rules apply. */
+#preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: var(--preloader-bg, hsl(228 20% 10%));
+}
+
+.preloader-logo {
+  width: 48px;
+  height: 48px;
+  background: var(--preloader-primary, hsl(258 70% 60%));
+  -webkit-mask: url(/logo.svg) center/contain no-repeat;
+  mask: url(/logo.svg) center/contain no-repeat;
+}
+
+.preloader-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid var(--preloader-track, hsl(258 70% 60% / 0.25));
+  border-top-color: var(--preloader-primary, hsl(258 70% 60%));
+  border-radius: 50%;
+  animation: preloader-spin 0.7s linear infinite;
+}
+
+@keyframes preloader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @layer utilities {
   /* ── Feed item render skipping ────────────────────────────────────────────
      Applied to each feed-item wrapper so the browser skips layout/paint/style

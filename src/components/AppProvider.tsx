@@ -187,9 +187,6 @@ function useApplyTheme(theme: Theme, customTheme: ThemeConfig | undefined, theme
       }
       el.textContent = css;
       document.documentElement.className = resolved;
-      // Now that CSS variables are set, the inline body background from
-      // theme.js is no longer needed — bg-background will resolve correctly.
-      document.body.removeAttribute('style');
     }
 
     apply();

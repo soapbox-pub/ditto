@@ -93,10 +93,9 @@ A synchronous `<script>` tag in `index.html:43` runs before React mounts. It:
 2. Resolves `"system"` via `matchMedia`
 3. Handles legacy presets (`"black"`, `"pink"`)
 4. Sets `document.documentElement.className` to the theme name
-5. Sets `document.body.style.background` to the correct background color
-6. Updates preloader colors (logo and spinner) to match
+5. Sets the `--preloader-bg`, `--preloader-primary`, and `--preloader-track` custom properties on `<html>`, which color the preloader (background, logo, and spinner)
 
-This prevents any visible flash between the hardcoded dark defaults in `index.html:32` and the user's actual theme.
+The preloader's styles live in `src/index.css`, with the builtin dark theme as the variables' fallbacks. That stylesheet is render-blocking, so the preloader never paints unstyled, and the script runs before first paint, so there is no flash between the dark defaults and the user's actual theme. `main.tsx` removes the preloader and these properties once React has painted.
 
 #### Stage 2: React Provider (`src/components/AppProvider.tsx`)
 
@@ -107,7 +106,6 @@ Three private hooks run during the provider's lifecycle:
 - Build a full CSS string from `CoreThemeColors` via `buildThemeCssFromCore()`
 - Inject/update a `<style id="theme-vars">` element with all 19 CSS custom properties
 - Set `document.documentElement.className` to the resolved theme
-- Remove the inline body style left by `theme.js`
 - When mode is `"system"`, attach a `matchMedia` change listener
 
 **`useApplyFonts`** (line 133) - Loads and applies custom fonts via `loadAndApplyFont()` from `src/lib/fontLoader.ts`.
@@ -378,6 +376,6 @@ The `AppProvider` deserializer (`src/components/AppProvider.tsx:32`) validates e
 | `src/components/ThemeSelector.tsx` | Full settings UI for theme management |
 | `src/components/SidebarThemeDropdown.tsx` | Compact theme picker dropdown |
 | `public/theme.js` | Pre-React blocking script for flash prevention |
-| `index.html` | Hardcoded dark defaults, preloader, blocking script tag |
+| `index.html` | Preloader markup, blocking script tag |
 | `tailwind.config.ts` | CSS custom property to Tailwind color mapping |
-| `src/index.css` | Base styles using theme tokens |
+| `src/index.css` | Base styles using theme tokens, preloader styles |
