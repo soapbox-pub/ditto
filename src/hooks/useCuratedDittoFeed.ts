@@ -10,6 +10,7 @@ const CURATED_KINDS = [
   20,    // Photos (NIP-68)
   21,    // Videos (NIP-71)
   22,    // Short Videos (NIP-71)
+  34235, // Addressable Videos (NIP-71)
   34236, // Divines (addressable short videos)
   36787, // Music Tracks
   34139, // Music Playlists

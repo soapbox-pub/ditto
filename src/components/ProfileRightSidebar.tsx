@@ -41,7 +41,7 @@ import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { TOP8_KIND } from '@/hooks/useTop8';
 
 /** Media-native kinds shown in the sidebar (excludes kind 1 text notes and kind 1111 comments). */
-const SIDEBAR_MEDIA_KINDS = [20, 21, 22, 34236, 36787, 34139, 30054, 30055];
+const SIDEBAR_MEDIA_KINDS = [20, 21, 22, 34235, 34236, 36787, 34139, 30054, 30055];
 
 /** Maximum number of media tiles shown in the sidebar. */
 const SIDEBAR_MEDIA_LIMIT = 9;
@@ -197,7 +197,7 @@ function extractMedia(events: NostrEvent[], cwPolicy: string, blossomServers: st
 }
 
 /** Event kinds that are inherently video content. */
-const VIDEO_KINDS = new Set([34236, 21, 22]);
+const VIDEO_KINDS = new Set([34235, 34236, 21, 22]);
 
 /** Detect whether a media item is a video using mime type, file extension, or event kind. */
 function isVideoItem(item: MediaItem): boolean {

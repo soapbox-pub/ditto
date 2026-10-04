@@ -53,6 +53,7 @@ import { getExtraKindDef } from "@/lib/extraKinds";
 import type { FeedItem } from "@/lib/feedUtils";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { sidebarItemIcon } from "@/lib/sidebarItems";
+import { encodeEventAddress } from "@/lib/encodeEvent";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { timeAgo } from "@/lib/timeAgo";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,11 @@ const videosDef = getExtraKindDef("videos")!;
 
 /** Items per page for video feeds — enough to fill the horizontal row with overflow. */
 const VIDEO_PAGE_SIZE = 12;
+
+/** NIP-71 normal videos: regular (21) and addressable (34235). */
+const NORMAL_VIDEO_KINDS = [21, 34235];
+/** All NIP-71 video kinds shown on this page: normal videos plus shorts (22). */
+const VIDEO_KINDS = [...NORMAL_VIDEO_KINDS, 22];
 
 type FeedTab = "follows" | "global";
 
@@ -242,8 +248,8 @@ function VideoGridCard({ event }: { event: NostrEvent }) {
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
-  const noteId = nip19.noteEncode(event.id);
-  const { onClick, onAuxClick } = useOpenPost(`/${noteId}`);
+  const encodedId = useMemo(() => encodeEventAddress(event), [event]);
+  const { onClick, onAuxClick } = useOpenPost(`/${encodedId}`);
 
   return (
     <div
@@ -868,11 +874,11 @@ export function VideosFeedPage() {
   }, [feedTab]);
 
   // ── Follows: chronological, small page ──
-  const followsQuery = useFeed("follows", { kinds: [21, 22] });
+  const followsQuery = useFeed("follows", { kinds: VIDEO_KINDS });
 
   // ── Global: sort:hot, limit 8/page ──
   const globalQuery = useInfiniteHotFeed(
-    [21, 22],
+    VIDEO_KINDS,
     feedTab === "global",
     VIDEO_PAGE_SIZE,
   );
@@ -896,7 +902,7 @@ export function VideosFeedPage() {
     return events.filter((event) => {
       if (seen.has(event.id)) return false;
       seen.add(event.id);
-      if (![21, 22].includes(event.kind)) return false;
+      if (!VIDEO_KINDS.includes(event.kind)) return false;
       if (isMuted(event)) return false;
       if (hideCW && getContentWarning(event) !== undefined) return false;
       return !!parseVideoImeta(event.tags).url;
@@ -904,7 +910,7 @@ export function VideosFeedPage() {
   }, [rawData?.pages, isMuted, feedTab, config.contentWarningPolicy]);
 
   const normalVideos = useMemo(
-    () => videoEvents.filter((e) => e.kind === 21),
+    () => videoEvents.filter((e) => NORMAL_VIDEO_KINDS.includes(e.kind)),
     [videoEvents],
   );
   const shorts = useMemo(

@@ -506,7 +506,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isPollVote = event.kind === 1018;
   const isRepost = event.kind === 6 || event.kind === 16;
   const isPhoto = event.kind === 20;
-  const isVideo = event.kind === 21;
+  const isVideo = event.kind === 21 || event.kind === 34235;
   const isMusicTrack = event.kind === 36787;
   const isMusicPlaylist = event.kind === 34139;
   const isPodcastEpisode = event.kind === 30054;

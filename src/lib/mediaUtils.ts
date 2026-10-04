@@ -9,7 +9,7 @@ import { mimeFromExt } from '@/lib/mediaUrls';
 export type MediaType = 'image' | 'video' | 'audio';
 
 /** Event kinds that are inherently video content (vines, horizontal video, vertical video). */
-const VIDEO_KINDS = new Set([34236, 21, 22]);
+const VIDEO_KINDS = new Set([34235, 34236, 21, 22]);
 /** Event kinds that are inherently audio content (music tracks, podcast episodes/trailers). */
 const AUDIO_KINDS = new Set([36787, 34139, 30054, 30055, 1222]);
 

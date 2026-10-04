@@ -67,6 +67,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   20: 'photo',
   21: 'video',
   22: 'video',
+  34235: 'video',
   62: 'request to vanish',
   1063: 'file',
   1068: 'poll',

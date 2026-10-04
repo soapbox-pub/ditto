@@ -22,6 +22,7 @@ export const STREAK_KINDS: ReadonlySet<number> = new Set([
   20, // Photo
   21, // Video
   22, // Short video
+  34235, // Addressable video
   34236, // Short (vine)
   1222, // Voice message
   1244, // Voice reply

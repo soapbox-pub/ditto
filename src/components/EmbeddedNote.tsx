@@ -939,9 +939,10 @@ function EmbeddedNoteCard({
 
   const isBlobbiState = event.kind === 31124;
   const isPhoto = event.kind === 20;
-  // NIP-71 videos (21 normal, 22 short) and kind 34236 vines carry their
-  // video in imeta tags — render the actual player, not an alt-text card.
-  const isVideoKind = event.kind === 21 || event.kind === 22 || event.kind === 34236;
+  // NIP-71 videos (21 normal, 22 short, 34235 addressable) and kind 34236
+  // vines carry their video in imeta tags — render the actual player, not an
+  // alt-text card.
+  const isVideoKind = event.kind === 21 || event.kind === 22 || event.kind === 34235 || event.kind === 34236;
   // Kinds whose `content` is a human-readable body/caption and can safely
   // be fed through the kind-1 tokenizer for preview. Everything else
   // (articles, streams, videos, calendar events, themes, polls, voice

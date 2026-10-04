@@ -182,7 +182,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'videos',
     showKey: 'showVideos',
     label: 'Videos',
-    description: 'Video posts (NIP-71 kinds 21 & 22) and live streams',
+    description: 'Video posts (NIP-71) and live streams',
     route: 'videos',
     addressable: false,
     section: 'media',
@@ -193,8 +193,10 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
         kind: 21,
         showKey: 'showVideos',
         feedKey: 'feedIncludeNormalVideos',
+        // NIP-71 addressable videos share the toggle with their regular counterpart.
+        extraFeedKinds: [34235],
         label: 'Videos',
-        description: 'Normal videos (NIP-71 kind 21)',
+        description: 'Normal videos (NIP-71 kinds 21 and 34235)',
         addressable: false,
       },
       {
@@ -1071,6 +1073,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   6: 'repost',
   7: 'reaction',
   16: 'repost',
+  34235: 'video',
   10002: 'relay list',
   30000: 'follow set',
   1617: 'patch',

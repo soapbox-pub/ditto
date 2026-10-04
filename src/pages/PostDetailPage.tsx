@@ -1337,7 +1337,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isReaction = event.kind === 7;
   const isRepost = event.kind === 6 || event.kind === 16;
   const isPhoto = event.kind === 20;
-  const isVideo = event.kind === 21 || event.kind === 22;
+  const isVideo = event.kind === 21 || event.kind === 22 || event.kind === 34235;
   const isCommunity = event.kind === 34550;
   const isGitRepo = event.kind === 30617;
   const isRepoState = event.kind === 30618;
