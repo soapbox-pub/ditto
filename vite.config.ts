@@ -593,8 +593,6 @@ interface StaticRouteMeta {
   title: string;
   description: string;
   image: string;
-  /** Crawler-facing copy, injected as visually hidden text at the top of <body>. */
-  body: string;
 }
 
 const STATIC_ROUTES: Record<string, StaticRouteMeta> = staticRoutes;
@@ -625,11 +623,7 @@ function renderStaticRoute(template: string, meta: StaticRouteMeta, url: string)
   html = setMetaContent(html, "name", "twitter:title", meta.title);
   html = setMetaContent(html, "name", "twitter:description", meta.description);
   html = setMetaContent(html, "name", "twitter:image", meta.image);
-  return html.replace(
-    /<body[^>]*>/,
-    (tag) =>
-      `${tag}\n    <div data-seo style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap">${escapeHtml(meta.body)}</div>`,
-  );
+  return html;
 }
 
 function staticRoutePages(): Plugin {
