@@ -83,6 +83,18 @@
     "image": "https://blossom.ditto.pub/40c87e22d190eebfa7ea988cefe13061f0477d2bb4bba89da2dc63394a2a9057.jpg",
     "body": "Manage your Nostr relay connections and network topology with Ditto's network settings. Configure relay management for Nostr, set connection timeouts, and optimize your decentralized social media network. Choose which Nostr relays you read from and write to — your connection to the decentralized web starts here. Ditto puts you in charge of your own infrastructure. No single server stands between you and your audience on the open Nostr protocol."
   },
+  "/settings/data": {
+    "title": "Import & Export Settings – Ditto",
+    "description": "Back up your events and restore them to the Nostr network.",
+    "image": "https://blossom.ditto.pub/40c87e22d190eebfa7ea988cefe13061f0477d2bb4bba89da2dc63394a2a9057.jpg",
+    "body": "Back up your entire Nostr history with Ditto's import and export tools. Nostr has no single server holding your posts — your history is spread across the relays you publish to. Ditto gathers every event you've published into one local archive you can download as a signed JSONL file, and pushes a saved archive back out to your relays whenever you need it. Own your data, move between relays freely, and never lose your posts, profile, or follows to a disappearing server."
+  },
+  "/settings/letters": {
+    "title": "Letter Preferences – Ditto",
+    "description": "Customize your default letter stationery, font, and inbox settings.",
+    "image": "https://blossom.ditto.pub/40c87e22d190eebfa7ea988cefe13061f0477d2bb4bba89da2dc63394a2a9057.jpg",
+    "body": "Set up your Ditto letters just the way you like them. Choose the default stationery and font for every new letter, and decide who can reach your inbox — everyone, or only the people you follow. Letter preferences are stored encrypted on Nostr, so your settings follow you to every device without anyone else being able to read them."
+  },
   "/lists": {
     "title": "Lists – Ditto",
     "description": "Organize your contacts into lists on Ditto.",
@@ -220,5 +232,95 @@
     "description": "Get help using Ditto.",
     "image": "https://blossom.ditto.pub/73144b915dfd1245175ef0e7744401364322f7ccb7985dbf64ac8f487d5e3df8.jpg",
     "body": "Get help using Ditto with the Nostr getting started guide. Learn how to use Ditto, understand what is Nostr, and follow a Nostr beginner tutorial for the decentralized social web. Decentralized social media help for Nostr key management, Nostr onboarding, profile setup, relay connections, and feature discovery. Your journey into the open web starts here — learn how to set up your profile, connect relays, customize your experience, and discover the features that make Ditto the most fun you've had on the internet in years."
+  },
+  "/blobbi": {
+    "title": "Blobbi – Ditto",
+    "description": "Care for your virtual pet companion on Nostr.",
+    "image": "https://blossom.ditto.pub/e10e78908fa2d55b9fd38266bcee37e37801738cff46a2c211a387d46ded5bc6.jpg",
+    "body": "Meet Blobbi, the virtual pet that lives on Nostr. Hatch an egg, then feed, bathe, and tuck in your Blobbi as it grows from baby to adult. Earn XP by keeping it happy and clean, complete quests, decorate its rooms, and let it follow you around Ditto as your companion. Your Blobbi's state is stored on the decentralized Nostr network, so your pet belongs to you — not to an app that can shut down. A Tamagotchi for the open web, and a little friend who's always glad to see you."
+  },
+  "/letters": {
+    "title": "Letters – Ditto",
+    "description": "Send and receive beautiful encrypted letters.",
+    "image": "https://blossom.ditto.pub/e9188842fdfd6cf6f6a4202d953e13ac37ec9d3d12226c559fec5c791aa259f8.jpg",
+    "body": "Write letters again. Ditto Letters lets you send beautiful, private letters to friends on Nostr, decorated with stationery, frames, and stickers. Every letter is end-to-end encrypted, so only you and the person you wrote to can read it. Browse your inbox as a pile of envelopes, open them like real mail, and keep a record of everything you've sent. Slow, personal, and delightful — correspondence for the decentralized web."
+  },
+  "/quizzes": {
+    "title": "Quizzes – Ditto",
+    "description": "Take, create, and share quizzes on Ditto.",
+    "image": "https://blossom.ditto.pub/9577849a0c45729864a1fd9fd218472b321af64657dc74174cd607f1f0d26a0a.jpg",
+    "body": "Personality tests, trivia, and sorting quizzes on Nostr. Create your own quiz on Ditto, share it with your followers, and see which results your friends got. All scoring is transparent and declared in the quiz itself, so there's no hidden server deciding who you are. Which Ditto feature are you? Find out, post your result, and challenge your friends to beat it — the old-school internet quiz, reborn on the open web."
+  },
+  "/tarot": {
+    "title": "Tarot – Ditto",
+    "description": "Draw your daily three-card tarot spread on Ditto.",
+    "image": "https://blossom.ditto.pub/e3a70c0144282e88c39169faf41daa2a5b5ecd236954cfd9eaf70614b8268471.jpg",
+    "body": "Draw your daily tarot reading on Ditto. Pull a three-card spread — past, present, and future — once a day, or three major arcana for the week ahead. Each reading is sealed and published to Nostr, so you can share your fortune with friends and look back on what the cards said. Read the meanings of every card and see what fate has in store. Mystical, playful, and decentralized."
+  },
+  "/memory-cards": {
+    "title": "Memory Cards – Ditto",
+    "description": "PlayStation 1 memory cards shared over Nostr.",
+    "image": "https://blossom.ditto.pub/2a12659e16fce2f111aca2a8bb83c1da327d6f83e32c171359c89320521bb8ea.jpg",
+    "body": "Your old PlayStation saves, preserved on Nostr. Upload a PS1 memory card and Ditto publishes it block by block to the decentralized network, decoding titles, regions, and animated save icons straight from the raw bytes. Browse cards shared by friends and strangers, open one to see all 16 blocks, copy individual saves to your own card, or download the whole thing as a .mcd file for your emulator. Retro gaming meets the open web."
+  },
+  "/top-8": {
+    "title": "Top 8 – Ditto",
+    "description": "Curate your eight favorite people on Ditto.",
+    "image": "https://blossom.ditto.pub/a1c484b706e2e80396b9a9b00b51d024f5afca069dc5ddfbb375d6037a342a0a.jpg",
+    "body": "The Top 8 is back. Pick your eight favorite people on Nostr, drag them into order, and show them off on your Ditto profile — just like the MySpace days. Your followers see when you shuffle the ranks, so choose wisely. Your Top 8 is published to Nostr, so it follows you across the decentralized web. Friendship drama sold separately."
+  },
+  "/highlights": {
+    "title": "Highlights – Ditto",
+    "description": "Discover the passages people are highlighting on Nostr.",
+    "image": "https://blossom.ditto.pub/21163b68fbedeab321f91fa7a8463495b09018ac0ff285478b5e97314bdcc187.jpg",
+    "body": "See what people are reading on Ditto. Highlights are excerpts people find valuable — a paragraph from a long-form article, a passage from a blog post, or a quote from anywhere on the web — shared to Nostr. Browse highlights from people you follow or the whole network, discover new writers and articles through the lines that resonated with readers, and follow the conversation back to the source."
+  },
+  "/wallet": {
+    "title": "Wallet – Ditto",
+    "description": "Your Bitcoin and Monero wallet on Ditto.",
+    "image": "https://blossom.ditto.pub/85dd31eb53ca4ef052365d90bd9aac5f220a8dd23fd9989b822f327b1dd4d18e.jpg",
+    "body": "A wallet built into your Nostr identity. Ditto derives a Bitcoin Taproot address straight from your Nostr key, so you can receive and send bitcoin without setting up a separate account. Add an encrypted Monero wallet for private payments, stored safely on Nostr and readable only by you. Open payment links directly in the send dialog. Self-custodial money for the open web — no bank, no middleman, no permission needed."
+  },
+  "/torrents": {
+    "title": "Torrents – Ditto",
+    "description": "Browse torrents indexed on Nostr.",
+    "image": "https://blossom.ditto.pub/ff6f9ba5895e28075eff86cd596d5a6c2879073062f21940ef53d7c121bf5d09.jpg",
+    "body": "A decentralized torrent index on Nostr. Ditto lists torrents published to the network with a title, a file list, and an info hash — enough to open the magnet link in your favorite torrent client. No files are stored on Nostr itself, and there's no central tracker site to take down. Browse what people are sharing across the open web."
+  },
+  "/archive": {
+    "title": "Archive – Ditto",
+    "description": "Treasures from the Internet Archive.",
+    "image": "https://blossom.ditto.pub/65cf001267e0b89ede19bc6996fb4d3de69abc642732d3f76f9ad1e7b075192f.jpg",
+    "body": "Explore the best of the Internet Archive on Ditto. Play classic games like The Oregon Trail and Doom II right in your browser, watch public-domain films and vintage cartoons, listen to old-time radio and live music, read classic books, and even boot Windows 95. Search the whole archive.org collection and discuss any item with the Nostr community. The internet's attic, curated for the open web."
+  },
+  "/bluesky": {
+    "title": "Bluesky – Ditto",
+    "description": "Popular posts from Bluesky, on Ditto.",
+    "image": "https://blossom.ditto.pub/6f2bd04ade1201a222dfdfb3eaf72275536e91c5a4cc14cc95e796dc86adc3d1.jpg",
+    "body": "Explore popular posts from Bluesky without leaving Ditto. Scroll trending discussions, images, and links from the ATmosphere, search for Bluesky accounts, and react to or reply to any post from your Nostr account. Ditto bridges the open social web so you can follow the conversation wherever it happens — Nostr, Bluesky, and the fediverse, all in one place."
+  },
+  "/wikipedia": {
+    "title": "Wikipedia – Ditto",
+    "description": "Today's featured Wikipedia content, on Ditto.",
+    "image": "https://blossom.ditto.pub/e289f7e38aa5ce9cbc107227e236b6790d654a045fd716b5639cec6bd39211f6.jpg",
+    "body": "Read today's featured content from Wikipedia on Ditto: the featured article, trending articles, on this day, and in the news, in your own language. Search all of Wikipedia and open any article to discuss it with the Nostr community. Knowledge from the free encyclopedia, conversation from the free social web."
+  },
+  "/changelog": {
+    "title": "Changelog – Ditto",
+    "description": "What's new in Ditto.",
+    "image": "https://blossom.ditto.pub/d49b5cae4263402452f25393cb0170d6aa2c600bc276779024a6e83544b3e258.jpg",
+    "body": "See what's new in Ditto. The changelog lists every release of the open source Nostr client — new features, improvements, and fixes — with the latest version at the top. Ditto ships often, and every change is built in the open. Catch up on what changed and discover features you might have missed."
+  },
+  "/privacy": {
+    "title": "Privacy Policy – Ditto",
+    "description": "How your data is handled on Ditto and the Nostr network.",
+    "image": "https://blossom.ditto.pub/c4d9eb1f4d70d7dcbcb44d373d960f8eb10bb7dbf9e4405676ff6b933466a417.jpg",
+    "body": "Ditto's privacy policy explains how your data is handled on the Nostr network: what Nostr is and how relays work, what data Ditto collects, how your private keys and direct messages are protected, how file uploads and analytics work, which third-party services are involved, and how to remove your data. Ditto is built so that you own your identity and your content."
+  },
+  "/safety": {
+    "title": "Child Safety Policy – Ditto",
+    "description": "Ditto's zero-tolerance policy on child sexual abuse and exploitation.",
+    "image": "https://blossom.ditto.pub/c4d9eb1f4d70d7dcbcb44d373d960f8eb10bb7dbf9e4405676ff6b933466a417.jpg",
+    "body": "Ditto has zero tolerance for child sexual abuse and exploitation (CSAE). This policy describes the content and behavior that is prohibited, how Ditto detects and prevents it, the enforcement actions it takes, how to report CSAE content, how Ditto cooperates with law enforcement, and how these commitments apply on a decentralized network like Nostr."
   }
 }
