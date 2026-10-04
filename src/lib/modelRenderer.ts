@@ -109,7 +109,7 @@ export interface ModelStage {
 }
 
 /** Light a model, centre it at the origin, and frame it from a three-quarter view. */
-export function stageModel(model: THREE.Object3D, format: ModelFormat, renderer: THREE.WebGLRenderer, aspect: number): ModelStage {
+export function stageModel(model: THREE.Object3D, format: ModelFormat | undefined, renderer: THREE.WebGLRenderer, aspect: number): ModelStage {
   const scene = new THREE.Scene();
 
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -123,7 +123,7 @@ export function stageModel(model: THREE.Object3D, format: ModelFormat, renderer:
   key.position.set(3, 5, 4);
   scene.add(key);
 
-  if (Z_UP_FORMATS.has(format)) model.rotation.x = -Math.PI / 2;
+  if (format && Z_UP_FORMATS.has(format)) model.rotation.x = -Math.PI / 2;
 
   // Centre on the origin; models arrive in arbitrary units and offsets.
   const pivot = new THREE.Group();
@@ -135,10 +135,11 @@ export function stageModel(model: THREE.Object3D, format: ModelFormat, renderer:
   const radius = Number.isFinite(sphere.radius) && sphere.radius > 0 ? sphere.radius : 1;
   model.position.sub(sphere.center);
 
-  // Point clouds sized in model units, not the default 0.01.
+  // Point clouds sized in model units, not the default 0.01. A model can ask
+  // for bigger points with `userData.pointsPerRadius`.
   model.traverse((child) => {
     if (child instanceof THREE.Points && child.material instanceof THREE.PointsMaterial) {
-      child.material.size = radius / 200;
+      child.material.size = radius / (child.userData.pointsPerRadius ?? 200);
     }
   });
 
@@ -187,10 +188,26 @@ export async function renderModelPreview(
   width = 1200,
   height = 900,
 ): Promise<Blob | undefined> {
+  try {
+    return await renderStill(await parseModel(data, format), format, width, height);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Render a still of a scene object as a PNG, framed the way the interactive
+ * viewer opens. Resolves `undefined` when WebGL isn't available.
+ */
+export async function renderStill(
+  model: THREE.Object3D,
+  format: ModelFormat | undefined,
+  width: number,
+  height: number,
+): Promise<Blob | undefined> {
   let renderer: THREE.WebGLRenderer | undefined;
   let stage: ModelStage | undefined;
   try {
-    const model = await parseModel(data, format);
     const canvas = document.createElement('canvas');
     // Transparent, so the still sits on whatever the card behind it is, as the live viewer does.
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });

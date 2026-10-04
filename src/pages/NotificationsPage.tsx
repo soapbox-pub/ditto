@@ -137,6 +137,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   37381: 'Magic deck',
   37516: 'treasure',
   37849: 'quiz',
+  33331: '3D object',
   7849: 'quiz result',
   30621: 'constellation',
   39089: 'follow pack',

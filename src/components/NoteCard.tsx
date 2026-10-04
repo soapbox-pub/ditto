@@ -2,6 +2,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import {
   Award,
   Bird,
+  Box,
   Camera,
   CircleCheck,
   CircleDashed,
@@ -80,6 +81,7 @@ import {
   ColorMomentEyeButton,
 } from "@/components/ColorMomentContent";
 import { MemoryCardContent } from "@/components/MemoryCardContent";
+import { SnoContent } from "@/components/SnoContent";
 import { BrokenEventFallback } from "@/components/BrokenEventFallback";
 import { CommentContext } from "@/components/CommentContext";
 import { LiveChatContext } from "@/components/LiveChatContext";
@@ -176,6 +178,7 @@ import { useAuthor } from "@/hooks/useAuthor";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useLoveList, LOVE_LIST_KIND } from "@/hooks/useLoveList";
 import { TOP8_KIND } from "@/hooks/useTop8";
+import { SNO_KIND } from "@/lib/sno";
 import { useNip05Verify } from "@/hooks/useNip05Verify";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
@@ -472,6 +475,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
   const isMemoryCard = event.kind === 38192;
+  const isSno = event.kind === SNO_KIND;
   const isBirdDetection = event.kind === 2473;
   const isBirdex = event.kind === 12473;
   const isConstellation = event.kind === 30621;
@@ -563,6 +567,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     !isFoundLog &&
     !isColor &&
     !isMemoryCard &&
+    !isSno &&
     !isBirdDetection &&
     !isBirdex &&
     !isConstellation &&
@@ -761,6 +766,8 @@ const NoteCardImpl = memo(function NoteCardImpl({
           <ColorMomentContent event={event} />
         ) : isMemoryCard ? (
           <MemoryCardContent event={event} />
+        ) : isSno ? (
+          <SnoContent event={event} />
         ) : isBirdDetection ? (
           <BirdDetectionContent event={event} />
         ) : isBirdex ? (
@@ -2334,6 +2341,11 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     // No nounRoute — /top-8 is the viewer's own editor, not an index of the
     // author's list, so linking the noun there would be a bait-and-switch.
     noun: "Top 8",
+  },
+  [SNO_KIND]: {
+    icon: Box,
+    action: (event) => publishedAtAction(event, { created: "built a", updated: "updated a", fallback: "built a" }),
+    noun: "3D object",
   },
   37516: {
     icon: ChestIcon,

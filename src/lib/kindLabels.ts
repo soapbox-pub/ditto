@@ -375,6 +375,8 @@ export const KIND_LABELS: Record<number, string> = {
   32267: 'Zapstore app',
   // Corny Chat
   32388: 'User room favorites',
+  33331: '3D object',
+
   33388: 'High scores',
   // Fundraisers
   33863: 'Fundraiser',

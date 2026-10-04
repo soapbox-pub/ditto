@@ -22,6 +22,8 @@ import { EmbeddedRelayListCard } from '@/components/EmbeddedRelayListCard';
 import { EmbeddedProfileCard } from '@/components/EmbeddedProfileCard';
 import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
 import { MEMORY_CARD_KIND } from '@/lib/memorycard';
+import { EmbeddedSnoCard } from '@/components/EmbeddedSnoCard';
+import { SNO_KIND } from '@/lib/sno';
 import { isPeopleListKind } from '@/lib/packUtils';
 import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
 import { EmbeddedPublicationCard } from '@/components/EmbeddedPublicationCard';
@@ -179,6 +181,12 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
   // pill prominent.
   if (event.kind === CAMPAIGN_KIND) {
     return <EmbeddedCampaignCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Simple Nostr Objects (kind 33331) carry a 3D object as JSON in content;
+  // show a rendered still instead of the raw payload.
+  if (event.kind === SNO_KIND) {
+    return <EmbeddedSnoCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Memory-card blocks (kind 38192) decode to a save icon + title instead of

@@ -133,6 +133,8 @@ import { LoveListContent } from "@/components/LoveListContent";
 import { Top8Content } from "@/components/Top8Content";
 import { LOVE_LIST_KIND } from "@/hooks/useLoveList";
 import { TOP8_KIND } from "@/hooks/useTop8";
+import { SnoContent } from "@/components/SnoContent";
+import { SNO_KIND } from "@/lib/sno";
 import { VanishEventContent } from "@/components/VanishEventContent";
 import { parseFirstImeta } from '@/lib/imeta';
 import { type FileEncryption } from '@/lib/encryptedFile';
@@ -1316,6 +1318,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isGeocache = event.kind === 37516;
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
+  const isSno = event.kind === SNO_KIND;
   const isBirdDetection = event.kind === 2473;
   const isBirdex = event.kind === 12473;
   const isConstellation = event.kind === 30621;
@@ -1377,6 +1380,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isGeocache &&
     !isFoundLog &&
     !isColor &&
+    !isSno &&
     !isBirdDetection &&
     !isConstellation &&
     !isPeopleList &&
@@ -2804,6 +2808,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </Suspense>
             ) : isBadgeAward ? (
               <BadgeAwardCard event={event} />
+            ) : isSno ? (
+              <SnoContent event={event} expanded className="mt-3" />
             ) : isVine ||
               isPoll ||
               isGeocache ||

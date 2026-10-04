@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { FormattedMessage } from 'react-intl';
 import * as THREE from 'three';
@@ -90,17 +90,33 @@ const IDLE_RETURN_MS = 5_000;
  * be large.
  */
 export default function ModelViewer({ url, format, encryption }: ModelViewerProps) {
+  const load = useCallback<ModelLoader>(async (signal, onProgress) => {
+    const safe = sanitizeUrl(url);
+    if (!safe) throw new Error('Unsafe model URL');
+    return parseModel(await fetchModel(safe, encryption, signal, onProgress), format);
+  }, [url, format, encryption]);
+
+  return <ModelScene load={load} format={format} />;
+}
+
+/** Produces the object to show. Memoize it: a new one reloads the viewer. */
+export type ModelLoader = (signal: AbortSignal, onProgress: (fraction: number) => void) => Promise<THREE.Object3D>;
+
+interface ModelSceneProps {
+  load: ModelLoader;
+  /** The file format, for its axis conventions; omit for objects already Y-up. */
+  format?: ModelFormat;
+}
+
+/** The interactive viewer around whatever `load` produces. */
+export function ModelScene({ load, format }: ModelSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [progress, setProgress] = useState<number>();
 
   useEffect(() => {
     const container = containerRef.current;
-    const safe = sanitizeUrl(url);
-    if (!container || !safe) {
-      setStatus('error');
-      return;
-    }
+    if (!container) return;
 
     const abort = new AbortController();
     let disposed = false;
@@ -109,10 +125,9 @@ export default function ModelViewer({ url, format, encryption }: ModelViewerProp
     setProgress(undefined);
 
     (async () => {
-      const data = await fetchModel(safe, encryption, abort.signal, (fraction) => {
+      const model = await load(abort.signal, (fraction) => {
         if (!disposed) setProgress(fraction);
       });
-      const model = await parseModel(data, format);
       if (disposed) return;
 
       const width = container.clientWidth || 400;
@@ -335,7 +350,7 @@ export default function ModelViewer({ url, format, encryption }: ModelViewerProp
       abort.abort();
       cleanup?.();
     };
-  }, [url, format, encryption]);
+  }, [load, format]);
 
   return (
     <div

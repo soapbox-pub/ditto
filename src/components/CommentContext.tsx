@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { FormattedMessage } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import {
-  Award, BarChart3, Bird, Bitcoin, Bookmark, BookOpen, CalendarClock, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Crown, Egg, FileText, Film,
+  Award, BarChart3, Bird, Bitcoin, Bookmark, BookOpen, Box, CalendarClock, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Crown, Egg, FileText, Film,
   Flag,
   GitBranch, GitPullRequest, HandHeart, Heart, History, Link2, Magnet, Mail, MapPin, MessageSquare, Mic, MoonStar, Music, Newspaper,
   Video,
@@ -205,6 +205,7 @@ const KIND_LABELS: Record<number, string> = {
   33863: 'a fundraiser',
   37849: 'a quiz',
   7849: 'a quiz result',
+  33331: 'a 3D object',
 };
 
 /** Kind-specific icons — matches sidebar and NoteCard icons. */
@@ -286,6 +287,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   33863: HandHeart,
   37849: ClipboardList,
   7849: ClipboardCheck,
+  33331: Box,
 };
 
 /**
@@ -333,6 +335,7 @@ const KIND_SUFFIXES: Partial<Record<number, string>> = {
   30055: 'trailer',
   34139: 'playlist',
   39701: 'bookmark',
+  33331: '3D object',
 };
 
 /** Postfix that replaces the default pattern (e.g. "Ditto on Zapstore" instead of "Ditto Zapstore app"). */

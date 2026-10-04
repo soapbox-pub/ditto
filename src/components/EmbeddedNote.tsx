@@ -38,6 +38,8 @@ import { TORRENT_COMMENT_KIND, TORRENT_KIND } from '@/lib/torrent';
 import { EmbeddedProfileCard } from '@/components/EmbeddedProfileCard';
 import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
 import { MEMORY_CARD_KIND } from '@/lib/memorycard';
+import { EmbeddedSnoCard } from '@/components/EmbeddedSnoCard';
+import { SNO_KIND } from '@/lib/sno';
 import { EmbeddedTarotReadingCard } from '@/components/tarot/EmbeddedTarotReadingCard';
 import { TAROT_READING_KIND } from '@/lib/tarot/cards';
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
@@ -242,6 +244,12 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, fallbackAuthorHint, cl
   // status comment through the kind-1 tokenizer.
   if (EMBEDDED_GIT_KINDS.has(event.kind)) {
     return <EmbeddedGitCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Simple Nostr Objects (kind 33331) carry a 3D object as JSON in content;
+  // show a rendered still instead of the raw payload.
+  if (event.kind === SNO_KIND) {
+    return <EmbeddedSnoCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Memory-card blocks (kind 38192) decode to a save icon + title instead of
