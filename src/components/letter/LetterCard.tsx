@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { Mail, MailOpen, Loader2, Lock, MoreHorizontal, Link2, Trash2, Braces } from 'lucide-react';
 import { useAuthor } from '@/hooks/useAuthor';
+import { FallbackImage } from '@/components/FallbackImage';
 import { useDecryptLetter } from '@/hooks/useLetters';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -175,7 +176,7 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
           <div className="bg-card px-4 pb-5 pt-1">
             <div className="flex items-center gap-3">
               {avatar ? (
-                <img src={avatar} alt="" className="w-9 h-9 rounded-full object-cover ring-2 ring-background shrink-0" decoding="async" />
+                <FallbackImage src={avatar} imeta={author.data?.imeta?.picture} alt="" className="w-9 h-9 rounded-full object-cover ring-2 ring-background shrink-0" decoding="async" />
               ) : (
                 <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-sm font-semibold text-secondary-foreground shrink-0">
                   {displayName.charAt(0).toUpperCase()}

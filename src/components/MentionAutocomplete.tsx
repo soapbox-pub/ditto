@@ -3,6 +3,7 @@ import { nip19 } from 'nostr-tools';
 import { UserRoundCheck } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
+import { parseProfileImeta } from '@/lib/profileImeta';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
@@ -319,7 +320,7 @@ function MentionItem({
     >
       <div className="relative shrink-0">
         <Avatar shape={getAvatarShape(metadata)} className="size-8">
-          <AvatarImage src={metadata.picture} alt={displayName} />
+          <AvatarImage src={metadata.picture} imeta={parseProfileImeta(profile.event.tags, metadata)?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-xs">
             {displayName[0]?.toUpperCase() || '?'}
           </AvatarFallback>

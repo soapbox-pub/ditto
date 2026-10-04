@@ -316,7 +316,7 @@ export function ComposeBox({
   initialContent = '',
   initialMode = 'post',
 }: ComposeBoxProps) {
-  const { user, metadata, event: userEvent, isLoading: isProfileLoading } = useCurrentUserProfile();
+  const { user, metadata, imeta: userImeta, event: userEvent, isLoading: isProfileLoading } = useCurrentUserProfile();
   const avatarShape = getAvatarShape(metadata);
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   // NIP-24 birthday — the current user's own avatar wears a party hat all day.
@@ -1236,7 +1236,7 @@ export function ComposeBox({
           ) : (
             <Link to={userProfileUrl} className="relative shrink-0 mt-0.5">
               <Avatar shape={avatarShape} className="size-12">
-                <AvatarImage src={metadata?.picture} alt={metadata?.name} />
+                <AvatarImage src={metadata?.picture} imeta={userImeta?.picture} alt={metadata?.name} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
                   {(metadata?.name || metadata?.display_name || 'Anonymous')[0]?.toUpperCase() ?? '?'}
                 </AvatarFallback>

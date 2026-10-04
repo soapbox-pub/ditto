@@ -114,7 +114,7 @@ function Top8Row({ pubkey, rank, onRemove }: Top8RowProps) {
         <ProfileHoverCard pubkey={pubkey} asChild>
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <Avatar shape={avatarShape} className="size-10 shrink-0">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
+              <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
               <AvatarFallback>{displayName[0]?.toUpperCase()}</AvatarFallback>
             </Avatar>
             <span className="truncate font-medium">{displayName}</span>

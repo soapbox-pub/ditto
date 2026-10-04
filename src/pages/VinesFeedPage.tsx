@@ -618,7 +618,7 @@ export function VineCard({
 									shape={avatarShape}
 									className="size-11 border-2 border-white shadow-lg"
 								>
-									<AvatarImage src={metadata?.picture} alt={displayName} />
+									<AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
 									<AvatarFallback className="bg-primary/80 text-white text-sm font-bold">
 										{displayName[0]?.toUpperCase()}
 									</AvatarFallback>

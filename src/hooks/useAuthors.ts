@@ -4,11 +4,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { parseAuthorEvent } from '@/hooks/useAuthor';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
+import type { ProfileImeta } from '@/lib/profileImeta';
 
 export interface AuthorData {
   pubkey: string;
   event?: NostrEvent;
   metadata?: NostrMetadata;
+  /** imeta describing the `picture` and `banner`. */
+  imeta?: ProfileImeta;
   blocked?: boolean;
 }
 

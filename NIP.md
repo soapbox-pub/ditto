@@ -684,6 +684,55 @@ The `shape` field is added to the JSON content of a kind 0 event alongside stand
 
 ---
 
+## Kind 0 Extension: Picture and Banner `imeta`
+
+### Summary
+
+A kind 0 MAY carry [NIP-92](https://github.com/nostr-protocol/nips/blob/master/92.md) `imeta` tags describing the files named by its `picture` and `banner` fields, exactly as a note describes its attachments. This gives profile images what every other attached image already has: declared `fallback` hosts, a `blurhash` placeholder, `dim`, `alt`, and — with the encryption properties proposed for NIP-94 in [nostr-protocol/nips#2437](https://github.com/nostr-protocol/nips/pull/2437) — an encrypted avatar or banner, whose blob on the media server is ciphertext.
+
+### Event Structure
+
+```json
+{
+  "kind": 0,
+  "content": "{\"name\":\"Luna\",\"picture\":\"https://blossom.example/1f2e…a9.jpg\",\"banner\":\"https://blossom.example/7c3d…04\"}",
+  "tags": [
+    ["imeta",
+      "url https://blossom.example/1f2e…a9.jpg",
+      "m image/jpeg",
+      "x 1f2e…a9",
+      "size 48213",
+      "dim 400x400",
+      "blurhash LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+      "fallback https://mirror.example/1f2e…a9.jpg"
+    ],
+    ["imeta",
+      "url https://blossom.example/7c3d…04",
+      "m image/webp",
+      "x 7c3d…04",
+      "ox 9b81…e2",
+      "encryption-algorithm aes-gcm",
+      "decryption-key 5f0c…",
+      "decryption-nonce 8a21…"
+    ]
+  ]
+}
+```
+
+### Tags
+
+- An `imeta` tag describes a profile field only when its `url` equals that field's value exactly. Tags whose `url` matches neither field are ignored.
+- Fields are as in NIP-94. When encrypted, `m` is the plaintext type, `x` the ciphertext hash, and `ox` the plaintext hash, which clients SHOULD verify after decrypting.
+
+### Client Behavior
+
+- Clients SHOULD try declared `fallback` URLs when the primary fails to load.
+- Clients MUST NOT render an encrypted image's URL directly. They fetch it, decrypt it, and display the plaintext, or show the usual placeholder (initial, gradient) if they can't.
+- Since kind 0 is replaceable, clients publishing a new kind 0 SHOULD carry over the `imeta` tags for a `picture` and `banner` that haven't changed, and drop the tags for images no longer in use.
+- Clients that don't support this extension see the `picture` and `banner` URLs as usual. An unencrypted image renders normally, and an encrypted one fails to load like any broken image.
+
+---
+
 ## Kind 38192: PlayStation Memory Card
 
 ### Summary

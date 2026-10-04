@@ -60,7 +60,7 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
       <div className="flex items-center gap-3 mb-3">
         <Link to={profileUrl}>
           <Avatar shape={avatarShape} className="size-10">
-            <AvatarImage src={metadata?.picture} alt={displayName} />
+            <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
             <AvatarFallback className="bg-primary/20 text-primary text-sm">
               {displayName[0]?.toUpperCase()}
             </AvatarFallback>

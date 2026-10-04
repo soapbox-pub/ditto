@@ -1259,7 +1259,7 @@ function MutedUserProfile({ pubkey }: { pubkey: string }) {
   return (
     <div className="flex items-center gap-2.5 min-w-0">
       <Avatar shape={avatarShape} className="size-7 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
           {displayName[0]?.toUpperCase() ?? '?'}
         </AvatarFallback>

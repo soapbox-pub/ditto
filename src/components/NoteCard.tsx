@@ -202,6 +202,7 @@ import { BLANK_POSTER } from "@/lib/blankPoster";
 import { encodeEventAddress } from "@/lib/encodeEvent";
 import { isNsiteKind } from "@/lib/nsiteSubdomain";
 import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
+import { parseProfileImeta } from "@/lib/profileImeta";
 
 
 /** Profile card for use in feeds (kind 0). */
@@ -210,7 +211,7 @@ function ProfileCardContent({ event }: { event: NostrEvent }) {
   try { metadata = JSON.parse(event.content); } catch { /* ignore */ }
   return (
     <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-      <ProfileCard pubkey={event.pubkey} metadata={metadata} showNip05={false} />
+      <ProfileCard pubkey={event.pubkey} metadata={metadata} imeta={parseProfileImeta(event.tags, metadata)} showNip05={false} />
     </div>
   );
 }
@@ -991,7 +992,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         onClick={(e) => e.stopPropagation()}
       >
         <Avatar shape={avatarShape} className={threaded || threadedLast ? "size-10" : "size-11"}>
-          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase()}
           </AvatarFallback>
@@ -1268,7 +1269,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
             <ProfileHoverCard pubkey={zapSenderPubkey} asChild>
               <Link to={zapSenderUrl} className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
                 <Avatar shape={zapSenderShape} className="size-11">
-                  <AvatarImage src={zapSenderMeta?.picture} alt={zapSenderName} />
+                  <AvatarImage src={zapSenderMeta?.picture} imeta={zapSender.data?.imeta?.picture} alt={zapSenderName} />
                   <AvatarFallback className="bg-primary/20 text-primary text-sm">
                     {zapSenderName[0]?.toUpperCase()}
                   </AvatarFallback>
@@ -1378,7 +1379,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
                 onClick={(e) => e.stopPropagation()}
               >
                 <Avatar shape={recipientShape} className="size-11">
-                  <AvatarImage src={recipientMeta?.picture} alt={recipientName} />
+                  <AvatarImage src={recipientMeta?.picture} imeta={recipient.data?.imeta?.picture} alt={recipientName} />
                   <AvatarFallback className="bg-primary/20 text-primary text-sm">
                     {recipientName[0]?.toUpperCase()}
                   </AvatarFallback>
@@ -1480,7 +1481,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
           </div>
         }
         actorRow={
-          <ActorRow pubkey={event.pubkey} profileUrl={profileUrl} avatarShape={avatarShape} picture={metadata?.picture}
+          <ActorRow pubkey={event.pubkey} profileUrl={profileUrl} avatarShape={avatarShape} picture={metadata?.picture} pictureImeta={author.data?.imeta?.picture}
             displayName={displayName} authorEvent={author.data?.event} isLoading={author.isLoading} label="reacted" timestampLabel={timeAgo(event.created_at)} />
         }
         threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
@@ -1501,7 +1502,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
           </div>
         }
         actorRow={
-          <ActorRow pubkey={event.pubkey} profileUrl={profileUrl} avatarShape={avatarShape} picture={metadata?.picture}
+          <ActorRow pubkey={event.pubkey} profileUrl={profileUrl} avatarShape={avatarShape} picture={metadata?.picture} pictureImeta={author.data?.imeta?.picture}
             displayName={displayName} authorEvent={author.data?.event} isLoading={author.isLoading} label="reposted" timestampLabel={timeAgo(event.created_at)} />
         }
         threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
@@ -1538,7 +1539,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
           </div>
         }
         actorRow={
-          <ActorRow pubkey={zapSenderPubkey} profileUrl={zapSenderUrl} avatarShape={zapSenderShape} picture={zapSenderMeta?.picture}
+          <ActorRow pubkey={zapSenderPubkey} profileUrl={zapSenderUrl} avatarShape={zapSenderShape} picture={zapSenderMeta?.picture} pictureImeta={zapSender.data?.imeta?.picture}
             displayName={zapSenderName} authorEvent={zapSender.data?.event} isLoading={zapSender.isLoading}
             label={isMultiRecipientOnchainZap ? `zapped ${zapRecipients.length} people` : "zapped"}
             timestampLabel={timeAgo(event.created_at)}
@@ -1572,7 +1573,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
           <ProfileHoverCard pubkey={event.pubkey} asChild>
             <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
               <Avatar shape={avatarShape} className={iconSize}>
-                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">{displayName[0]?.toUpperCase()}</AvatarFallback>
               </Avatar>
             </Link>

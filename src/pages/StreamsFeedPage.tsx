@@ -205,7 +205,7 @@ function StreamCardAuthor({ pubkey }: { pubkey: string }) {
   return (
     <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
       <Avatar shape={avatarShape} className="size-9">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-xs">
           {displayName[0]?.toUpperCase()}
         </AvatarFallback>

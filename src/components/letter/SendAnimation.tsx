@@ -12,6 +12,8 @@ import { useId, useRef, useEffect, useLayoutEffect, useCallback, useState, useMe
 import { hexToRgb, rgbToHex, darkenHex, blendHex } from '@/lib/colorUtils';
 import { impactMedium } from '@/lib/haptics';
 import { useEnvelopeDimensions } from '@/hooks/useEnvelopeDimensions';
+import { FallbackImage } from '@/components/FallbackImage';
+import type { ImetaEntry } from '@/lib/imeta';
 
 // ---------------------------------------------------------------------------
 // Easing + animation driver
@@ -117,6 +119,7 @@ interface SendAnimationProps {
   letterWidth: number;
   recipientName: string;
   recipientPicture?: string;
+  recipientPictureImeta?: ImetaEntry;
   /** Background hex color of the stationery (used for envelope) */
   bgColor: string;
   /** Primary hex color of the stationery (used for wax seal) */
@@ -132,7 +135,7 @@ interface SendAnimationProps {
 
 export function SendAnimation({
   letterElement, letterWidth,
-  recipientName, recipientPicture,
+  recipientName, recipientPicture, recipientPictureImeta,
   bgColor, primaryColor, textColor,
   onComplete,
 }: SendAnimationProps) {
@@ -480,7 +483,7 @@ export function SendAnimation({
                 }}
               >
                 {recipientPicture ? (
-                  <img src={recipientPicture} alt="" className="w-full h-full object-cover" decoding="async" />
+                  <FallbackImage src={recipientPicture} imeta={recipientPictureImeta} alt="" className="w-full h-full object-cover" decoding="async" />
                 ) : (
                   <img src="/logo.svg" alt="" style={{ width: 44, height: 44, opacity: 0.5 }} decoding="async" />
                 )}

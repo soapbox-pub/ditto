@@ -15,6 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { useAwardBadge } from '@/hooks/useAwardBadge';
 import { useToast } from '@/hooks/useToast';
+import { parseProfileImeta } from '@/lib/profileImeta';
 
 interface AwardBadgeDialogProps {
   open: boolean;
@@ -121,7 +122,7 @@ export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: A
                     className="inline-flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
                   >
                     <Avatar className="size-5">
-                      <AvatarImage src={profile.metadata.picture} alt={name} />
+                      <AvatarImage src={profile.metadata.picture} imeta={parseProfileImeta(profile.event.tags, profile.metadata)?.picture} alt={name} />
                       <AvatarFallback className="bg-primary/20 text-[9px] text-primary">
                         {name[0]?.toUpperCase()}
                       </AvatarFallback>
@@ -200,7 +201,7 @@ function SearchResultItem({ profile, onSelect }: { profile: SearchProfile; onSel
       className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-secondary/30 transition-colors"
     >
       <Avatar className="size-10 shrink-0">
-        <AvatarImage src={profile.metadata.picture} alt={name} />
+        <AvatarImage src={profile.metadata.picture} imeta={parseProfileImeta(profile.event.tags, profile.metadata)?.picture} alt={name} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {name[0]?.toUpperCase()}
         </AvatarFallback>

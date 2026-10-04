@@ -3,11 +3,15 @@ import { useNostrLogin } from '@nostrify/react/login';
 import { useQuery } from '@tanstack/react-query';
 import { NSchema as n, NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 
+import { parseProfileImeta, type ProfileImeta } from '@/lib/profileImeta';
+
 export interface Account {
   id: string;
   pubkey: string;
   event?: NostrEvent;
   metadata: NostrMetadata;
+  /** imeta describing the `picture` and `banner`. */
+  imeta?: ProfileImeta;
 }
 
 export function useLoggedInAccounts() {
@@ -26,7 +30,7 @@ export function useLoggedInAccounts() {
         const event = events.find((e) => e.pubkey === pubkey);
         try {
           const metadata = n.json().pipe(n.metadata()).parse(event?.content);
-          return { id, pubkey, metadata, event };
+          return { id, pubkey, metadata, event, imeta: event && parseProfileImeta(event.tags, metadata) };
         } catch {
           return { id, pubkey, metadata: {}, event };
         }

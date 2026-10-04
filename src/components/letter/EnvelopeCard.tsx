@@ -23,6 +23,7 @@
 import { useMemo, useState } from 'react';
 import { Clock, MoreHorizontal } from 'lucide-react';
 import { useAuthor } from '@/hooks/useAuthor';
+import { FallbackImage } from '@/components/FallbackImage';
 import { useDecryptLetter } from '@/hooks/useLetters';
 import { resolveStationery, DEFAULT_STATIONERY_COLOR, type Letter } from '@/lib/letterTypes';
 import { hexLuminance, darkenHex, lightenHex, blendHex } from '@/lib/colorUtils';
@@ -219,7 +220,7 @@ export function EnvelopeCard({ letter, mode, index, onClick, minimal }: Envelope
             }}
           >
             {avatar ? (
-              <img src={avatar} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+              <FallbackImage src={avatar} imeta={author.data?.imeta?.picture} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <img

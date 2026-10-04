@@ -97,7 +97,7 @@ function SelectedRecipient({ pubkey, onClear }: { pubkey: string; onClear?: () =
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-muted/60 min-w-0">
       <Avatar className="size-6 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/15 text-[10px] font-bold text-primary">
           {displayName[0]?.toUpperCase() || '?'}
         </AvatarFallback>
@@ -337,6 +337,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
           letterWidth={animLetterW}
           recipientName={recipientName}
           recipientPicture={recipientAuthor.data?.metadata?.picture}
+          recipientPictureImeta={recipientAuthor.data?.imeta?.picture}
           bgColor={bgColor}
           primaryColor={primaryColor}
           textColor={textColor}

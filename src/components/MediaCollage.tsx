@@ -125,7 +125,7 @@ function AudioThumb({ pubkey }: { pubkey: string }) {
         <div className="absolute size-16 rounded-full border border-primary animate-ping" style={{ animationDuration: '2.3s', animationDelay: '0.5s' }} />
       </div>
       <Avatar shape={avatarShape} className="size-12 relative ring-2 ring-primary/40">
-        <AvatarImage src={metadata?.picture} alt={name} />
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={name} />
         <AvatarFallback className="text-base">{name[0]?.toUpperCase()}</AvatarFallback>
       </Avatar>
     </div>

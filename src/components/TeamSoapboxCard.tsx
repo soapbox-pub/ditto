@@ -104,7 +104,7 @@ export function TeamSoapboxCard({ className }: { className?: string }) {
                   const shape = getAvatarShape(member?.metadata);
                   return (
                     <Avatar key={pk} shape={shape} className="size-8 ring-2 ring-background">
-                      <AvatarImage src={member?.metadata?.picture} alt={name} />
+                      <AvatarImage src={member?.metadata?.picture} imeta={member?.imeta?.picture} alt={name} />
                       <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                         {name[0]?.toUpperCase()}
                       </AvatarFallback>

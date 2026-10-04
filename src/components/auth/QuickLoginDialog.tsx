@@ -83,7 +83,7 @@ export function QuickLoginDialog({
           ) : (
             <>
               <Avatar shape={getAvatarShape(metadata)} className="size-20">
-                <AvatarImage src={picture} alt={displayName} />
+                <AvatarImage src={picture} imeta={author.data?.imeta?.picture} alt={displayName} />
                 <AvatarFallback className="text-xl">
                   {displayName.slice(0, 2).toUpperCase()}
                 </AvatarFallback>

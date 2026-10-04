@@ -135,7 +135,7 @@ export function EmbeddedPublicationCard({
                   onClick={(e) => e.stopPropagation()}
                 >
                   <Avatar shape={avatarShape} className="size-5 shrink-0">
-                    <AvatarImage src={metadata?.picture} alt={displayName} />
+                    <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
                     <AvatarFallback className="bg-primary/20 text-[10px] text-primary">
                       {displayName[0]?.toUpperCase()}
                     </AvatarFallback>

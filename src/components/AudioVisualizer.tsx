@@ -9,6 +9,7 @@ import { useDecryptedFile } from '@/hooks/useDecryptedFile';
 import { hasAudioMetadata, useAudioMetadata } from '@/hooks/useAudioMetadata';
 import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
 import type { FileEncryption } from '@/lib/encryptedFile';
+import type { ImetaEntry } from '@/lib/imeta';
 import { formatTime } from '@/lib/formatTime';
 
 interface AudioVisualizerProps {
@@ -21,6 +22,8 @@ interface AudioVisualizerProps {
   encryption?: FileEncryption;
   /** Avatar image URL for the circle in the centre */
   avatarUrl?: string;
+  /** The kind 0's imeta for `avatarUrl` (`author.data?.imeta?.picture`). */
+  avatarImeta?: ImetaEntry;
   /** Fallback display letter for the avatar */
   avatarFallback?: string;
   /** Avatar mask shape, forwarded from the author's profile metadata */
@@ -43,6 +46,7 @@ export function AudioVisualizer({
   mime: declaredMime,
   encryption,
   avatarUrl,
+  avatarImeta,
   avatarFallback = '?',
   avatarShape,
   className,
@@ -347,7 +351,7 @@ export function AudioVisualizer({
               />
             ) : (
               <Avatar className="size-20 border-2 border-white/20" shape={avatarShape}>
-                <AvatarImage src={avatarUrl} alt={avatarFallback} />
+                <AvatarImage src={avatarUrl} imeta={avatarImeta} alt={avatarFallback} />
                 <AvatarFallback className="bg-primary/20 text-primary text-2xl font-semibold">
                   {avatarFallback}
                 </AvatarFallback>

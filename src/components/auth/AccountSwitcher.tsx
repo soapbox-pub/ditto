@@ -48,7 +48,7 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
             <Skeleton className='w-10 h-10 rounded-full shrink-0' />
           ) : (
             <Avatar shape={getAvatarShape(currentUser.metadata)} className='w-10 h-10'>
-              <AvatarImage src={currentUser.metadata.picture} alt={getDisplayName(currentUser)} />
+              <AvatarImage src={currentUser.metadata.picture} imeta={currentUser.imeta?.picture} alt={getDisplayName(currentUser)} />
               <AvatarFallback>{getDisplayName(currentUser).charAt(0)}</AvatarFallback>
             </Avatar>
           )}
@@ -73,7 +73,7 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
             className='flex items-center gap-2 cursor-pointer p-2 rounded-md'
           >
             <Avatar shape={getAvatarShape(user.metadata)} className='w-8 h-8'>
-              <AvatarImage src={user.metadata.picture} alt={getDisplayName(user)} />
+              <AvatarImage src={user.metadata.picture} imeta={user.imeta?.picture} alt={getDisplayName(user)} />
               <AvatarFallback>{getDisplayName(user)?.charAt(0) || <UserIcon />}</AvatarFallback>
             </Avatar>
             <div className='flex-1 truncate'>

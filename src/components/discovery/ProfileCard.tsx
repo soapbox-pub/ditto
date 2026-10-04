@@ -39,7 +39,7 @@ export function ProfileCard({ pubkey, subtitle, className }: ProfileCardProps) {
       className={cn('w-[110px] shrink-0 flex flex-col items-center cursor-pointer group', className)}
     >
       <Avatar shape={avatarShape} className="size-20 border-2 border-border group-hover:border-primary/40 transition-colors">
-        <AvatarImage src={sanitizeUrl(metadata?.picture)} alt={displayName} />
+        <AvatarImage src={sanitizeUrl(metadata?.picture)} imeta={author.data?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-lg font-semibold">
           {displayName[0]?.toUpperCase()}
         </AvatarFallback>

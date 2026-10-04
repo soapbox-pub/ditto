@@ -325,7 +325,7 @@ function StreamAuthorRow({ event, participants }: { event: NostrEvent; participa
       <ProfileHoverCard pubkey={showPubkey} asChild>
         <Link to={showProfileUrl}>
           <Avatar shape={avatarShape} className="size-10">
-            <AvatarImage src={showMetadata?.picture} alt={showName} />
+            <AvatarImage src={showMetadata?.picture} imeta={showAuthor.data?.imeta?.picture} alt={showName} />
             <AvatarFallback className="bg-primary/20 text-primary text-sm">
               {showName[0]?.toUpperCase()}
             </AvatarFallback>
@@ -378,7 +378,7 @@ function ParticipantRow({ pubkey, role }: { pubkey: string; role?: string }) {
       <ProfileHoverCard pubkey={pubkey} asChild>
         <Link to={profileUrl} className="shrink-0">
           <Avatar shape={avatarShape} className="size-7">
-            <AvatarImage src={metadata?.picture} alt={displayName} />
+            <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
             <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
               {displayName[0]?.toUpperCase()}
             </AvatarFallback>

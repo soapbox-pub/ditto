@@ -13,6 +13,7 @@ import { QrScannerDialog } from '@/components/QrScannerDialog';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { useAuthor } from '@/hooks/useAuthor';
+import { parseProfileImeta } from '@/lib/profileImeta';
 import { useMoneroAddresses } from '@/hooks/useMoneroAddresses';
 import { useMoneroWallet } from '@/hooks/useMoneroWallet';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
@@ -967,6 +968,7 @@ function SelectedRecipientChip({
   const author = useAuthor(profile ? undefined : pubkey);
   const metadata = profile?.metadata ?? author.data?.metadata;
   const tags = profile?.event.tags ?? author.data?.event?.tags ?? [];
+  const imeta = profile ? parseProfileImeta(profile.event.tags, profile.metadata) : author.data?.imeta;
 
   const displayName = pubkey
     ? metadata?.name || metadata?.display_name || intl.formatMessage({
@@ -979,7 +981,7 @@ function SelectedRecipientChip({
     <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 px-2 py-1.5 w-full min-w-0 max-w-full">
       {pubkey ? (
         <Avatar shape={getAvatarShape(metadata)} className="size-9 shrink-0">
-          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarImage src={metadata?.picture} imeta={imeta?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}
           </AvatarFallback>
@@ -1049,7 +1051,7 @@ function ProfileRow({
     >
       <div className="relative shrink-0">
         <Avatar shape={getAvatarShape(metadata)} className="size-9">
-          <AvatarImage src={metadata.picture} alt={displayName} />
+          <AvatarImage src={metadata.picture} imeta={parseProfileImeta(profile.event.tags, metadata)?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}
           </AvatarFallback>
@@ -1141,7 +1143,7 @@ function IdentifierRow({
     return (
       <div data-recipient-item className={cn(ROW_CLASS, 'cursor-default opacity-70')}>
         <Avatar shape={getAvatarShape(metadata)} className="size-9 shrink-0">
-          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}
           </AvatarFallback>
@@ -1172,7 +1174,7 @@ function IdentifierRow({
       className={cn(ROW_CLASS, isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60')}
     >
       <Avatar shape={getAvatarShape(metadata)} className="size-9 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0]?.toUpperCase() || '?'}
         </AvatarFallback>

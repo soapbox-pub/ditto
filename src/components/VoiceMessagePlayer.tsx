@@ -59,6 +59,7 @@ export function VoiceMessagePlayer({ event, className }: VoiceMessagePlayerProps
       <AudioVisualizer
         src={audioUrl}
         avatarUrl={avatarUrl}
+        avatarImeta={author.data?.imeta?.picture}
         avatarFallback={displayName[0]?.toUpperCase() ?? '?'}
         avatarShape={getAvatarShape(metadata)}
         className={className}

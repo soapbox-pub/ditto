@@ -545,7 +545,7 @@ function BookReviewCard({ event, review }: { event: NostrEvent; review: BookRevi
           <ProfileHoverCard pubkey={event.pubkey} asChild>
             <Link to={profileUrl} className="shrink-0">
               <Avatar shape={avatarShape} className="size-10">
-                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
                   {displayName[0]?.toUpperCase()}
                 </AvatarFallback>

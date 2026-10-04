@@ -19,6 +19,7 @@ import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { BadgeShowcaseGrid } from '@/components/BadgeShowcaseGrid';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import type { ProfileImeta } from '@/lib/profileImeta';
 
 // The emoji picker (data + UI) is ~500 kB raw; lazy-load it so it only
 // downloads when the avatar-shape dialog is actually opened.
@@ -96,6 +97,8 @@ export interface ProfileField {
 export interface ProfileCardProps {
   pubkey?: string;
   metadata: Partial<NostrMetadata>;
+  /** The kind 0's imeta for `picture` and `banner`. Entries for edited URLs are ignored. */
+  imeta?: ProfileImeta;
   onChange?: (patch: Partial<NostrMetadata>) => void;
   onPickImage?: (field: 'picture' | 'banner') => void;
   /** Called when user picks an avatar shape (emoji string, or empty to clear). */
@@ -112,6 +115,7 @@ export interface ProfileCardProps {
 export function ProfileCard({
   pubkey,
   metadata,
+  imeta,
   onChange,
   onPickImage,
   onAvatarShape,
@@ -198,7 +202,7 @@ export function ProfileCard({
       >
         {/* An <img> rather than a CSS background so a dead Blossom server can
             be detected and the banner walked to a mirror. */}
-        <FallbackImage src={bannerUrl} className="absolute inset-0 size-full object-cover" />
+        <FallbackImage src={bannerUrl} imeta={imeta?.banner} className="absolute inset-0 size-full object-cover" />
         {!metadata.banner && <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />}
         {editable && !metadata.banner && (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -235,7 +239,7 @@ export function ProfileCard({
                       <button type="button" className="relative shrink-0 cursor-pointer group outline-none">
                         <div style={hasCustomShape ? shapedAvatarBorderStyle : undefined}>
                           <Avatar shape={shape} className={cn("shadow-sm", hasCustomShape ? "size-[88px]" : "size-24 border-4 border-background")}>
-                            <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
+                            <AvatarImage src={metadata.picture} imeta={imeta?.picture} alt={displayName} className="object-cover" />
                             <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
                               {metadata.picture ? initial : <Plus className="size-8 text-muted-foreground" strokeWidth={4} />}
                             </AvatarFallback>
@@ -325,7 +329,7 @@ export function ProfileCard({
           ) : (
             <div className="relative shrink-0" style={hasCustomShape ? shapedAvatarBorderStyle : undefined}>
               <Avatar shape={shape} className={cn("shadow-sm", hasCustomShape ? "size-[88px]" : "size-24 border-4 border-background")}>
-                <AvatarImage src={metadata.picture} alt={displayName} className="object-cover" />
+                <AvatarImage src={metadata.picture} imeta={imeta?.picture} alt={displayName} className="object-cover" />
                 <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
                   {initial}
                 </AvatarFallback>

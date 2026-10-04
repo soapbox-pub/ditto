@@ -35,6 +35,7 @@ import { ZapSuccessScreen } from '@/components/ZapSuccessScreen';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { QrScannerDialog } from '@/components/QrScannerDialog';
 import { getAvatarShape } from '@/lib/avatarShape';
+import { parseProfileImeta } from '@/lib/profileImeta';
 import { cn } from '@/lib/utils';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -1357,7 +1358,7 @@ function SelectedRecipientChip({
     <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 pl-2 pr-2 py-1.5 w-full min-w-0 max-w-full">
       {pubkey ? (
         <Avatar shape={getAvatarShape(metadata)} className="size-9 shrink-0">
-          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarImage src={metadata?.picture} imeta={parseProfileImeta(tags, metadata)?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}
           </AvatarFallback>
@@ -1424,7 +1425,7 @@ function ProfileRow({
     >
       <div className="relative shrink-0">
         <Avatar shape={getAvatarShape(metadata)} className="size-9">
-          <AvatarImage src={metadata.picture} alt={displayName} />
+          <AvatarImage src={metadata.picture} imeta={parseProfileImeta(profile.event.tags, metadata)?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}
           </AvatarFallback>
@@ -1529,7 +1530,7 @@ function IdentifierRow({
       )}
     >
       <Avatar shape={getAvatarShape(metadata)} className="size-9 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0]?.toUpperCase() || '?'}
         </AvatarFallback>

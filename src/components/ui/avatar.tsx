@@ -1,6 +1,7 @@
 import * as React from "react"
 
-import { useBlossomFallback } from "@/hooks/useBlossomFallback"
+import { useProfileImageSource } from "@/hooks/useProfileImageSource"
+import type { ImetaEntry } from "@/lib/imeta"
 import { cn } from "@/lib/utils"
 import { type AvatarShape, isEmoji, getAvatarMaskUrl, isValidAvatarShape } from "@/lib/avatarShape"
 
@@ -74,23 +75,32 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
 )
 Avatar.displayName = "Avatar"
 
+export interface AvatarImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+  /**
+   * The kind 0's imeta entry for this picture (`author.data?.imeta?.picture`):
+   * declared fallback hosts, and decryption for an encrypted picture. Ignored
+   * unless its `url` is `src`, so it's safe to pass while `src` is being edited.
+   */
+  imeta?: ImetaEntry
+}
+
 /**
  * Renders the <img> immediately with absolute positioning so it covers
  * the fallback. No hidden Image() verification — the browser renders
  * the image progressively as it downloads.
  */
-const AvatarImage = React.forwardRef<
-  HTMLImageElement,
-  React.ImgHTMLAttributes<HTMLImageElement>
->(({ className, onError, src: rawSrc, ...props }, ref) => {
+const AvatarImage = React.forwardRef<HTMLImageElement, AvatarImageProps>(
+  ({ className, onError, src: rawSrc, imeta, ...props }, ref) => {
   const hasSrcRef = React.useContext(AvatarHasSrcContext)
   // A picture uploaded through the app is a content-addressed Blossom URL
   // naming whichever server won the upload race, and the same bytes were
-  // mirrored to the others (BUD-04). Walk those before showing the initial:
-  // one server going down must not blank every avatar it happened to win.
-  // The walk restarts on its own when the picture changes.
-  const { src, onError: advance, failed } = useBlossomFallback(
+  // mirrored to the others (BUD-04). Walk the profile's declared fallbacks and
+  // then those before showing the initial: one server going down must not
+  // blank every avatar it happened to win. An encrypted picture shows the
+  // initial until it's decrypted. Either restarts when the picture changes.
+  const { src, onError: advance, failed } = useProfileImageSource(
     typeof rawSrc === "string" ? rawSrc : undefined,
+    imeta,
   )
 
   const showImage = !failed && !!src

@@ -25,7 +25,7 @@ const hiddenStyle: React.CSSProperties = {
 export function MobileBottomNav() {
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { user, metadata } = useCurrentUserProfile();
+  const { user, metadata, imeta } = useCurrentUserProfile();
   const hasUnread = useHasUnreadNotifications();
   const { scrollContainer, noArcs } = useLayoutSnapshot();
   const { hidden } = useScrollDirection(scrollContainer);
@@ -133,7 +133,7 @@ export function MobileBottomNav() {
               )}
             >
               <Avatar shape={getAvatarShape(metadata)} className="size-5">
-                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarImage src={metadata?.picture} imeta={imeta?.picture} alt={displayName} />
                 <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
                   {displayName?.[0]?.toUpperCase() || <User className="size-3" />}
                 </AvatarFallback>

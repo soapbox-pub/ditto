@@ -1215,7 +1215,7 @@ export function ProfilePreview({ pubkey }: { pubkey: string }) {
       className="flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors"
     >
       <Avatar shape={avatarShape} className="size-12 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary">
           <User className="size-5" />
         </AvatarFallback>

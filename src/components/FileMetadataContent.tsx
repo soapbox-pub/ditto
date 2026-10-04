@@ -76,6 +76,7 @@ function AudioFileContent({
         mime={mime}
         encryption={encryption}
         avatarUrl={metadata?.picture}
+        avatarImeta={author.data?.imeta?.picture}
         avatarFallback={displayName[0]?.toUpperCase() ?? '?'}
         avatarShape={getAvatarShape(metadata)}
       />

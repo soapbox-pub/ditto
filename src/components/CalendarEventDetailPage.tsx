@@ -132,7 +132,7 @@ function PersonRow({ pubkey, label, size = 'md' }: { pubkey: string; label?: str
   return (
     <Link to={profileUrl} className="flex items-center gap-3 group">
       <Avatar shape={avatarShape} className={cn(avatarCls, 'ring-2 ring-background')}>
-        <AvatarImage src={metadata?.picture} />
+        <AvatarImage src={metadata?.picture} imeta={data?.imeta?.picture} />
         <AvatarFallback className={cn('bg-muted text-muted-foreground', fallbackCls)}>
           {name.charAt(0).toUpperCase()}
         </AvatarFallback>

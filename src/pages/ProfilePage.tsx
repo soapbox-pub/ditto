@@ -11,6 +11,10 @@ import { Zap, MoreHorizontal, ClipboardCopy, Crown, ExternalLink, VolumeX, Volum
 import { LazyFeedItem } from '@/components/LazyFeedItem';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { FallbackImage } from '@/components/FallbackImage';
+import { BlurhashPlaceholder } from '@/components/BlurhashPlaceholder';
+import { useProfileImageSource } from '@/hooks/useProfileImageSource';
+import { isValidBlurhash } from '@/lib/blurhash';
+import type { ImetaEntry } from '@/lib/imeta';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -57,7 +61,7 @@ import { useWallComments } from '@/hooks/useWallComments';
 import { FlatThreadedReplyList } from '@/components/ThreadedReplyList';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 
-import { openUrl } from '@/lib/downloadFile';
+import { downloadDecryptedUrl, openUrl } from '@/lib/downloadFile';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { BioContent } from '@/components/BioContent';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
@@ -525,7 +529,7 @@ function FollowingUserRow({ pubkey, onNavigate }: { pubkey: string; onNavigate?:
       ) : (
         <>
           <Avatar shape={avatarShape} className="size-10 shrink-0">
-            <AvatarImage src={metadata?.picture} alt={displayName} />
+            <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
             <AvatarFallback className="bg-primary/20 text-primary text-sm">
               {displayName[0]?.toUpperCase()}
             </AvatarFallback>
@@ -905,8 +909,12 @@ function PinnedLabel({ isOwn, onUnpin }: { isOwn: boolean; onUnpin: () => void }
 
 // ----- Profile Image Lightbox -----
 
-function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose: () => void }) {
+function ProfileImageLightbox({ imageUrl, imeta, onClose }: { imageUrl: string; imeta?: ImetaEntry; onClose: () => void }) {
   const [isLoaded, setIsLoaded] = useState(false);
+  // Same source as the avatar/banner it was opened from: declared fallbacks,
+  // and an encrypted image decrypted (shared, so usually already done).
+  const source = useProfileImageSource(imageUrl, imeta);
+  const encryption = source.imeta?.encryption;
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -1009,7 +1017,9 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    openUrl(imageUrl);
+    // The URL of an encrypted image is ciphertext — save the plaintext instead.
+    if (encryption) void downloadDecryptedUrl(imageUrl, encryption).catch(() => {});
+    else openUrl(imageUrl);
   };
 
   return createPortal(
@@ -1045,23 +1055,24 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
         </div>
 
         <div className="relative z-[1] flex items-center justify-center w-full h-full px-4 py-16 sm:px-16">
-          {!isLoaded && (
+          {!isLoaded && !source.failed && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
             </div>
           )}
-          <img
-            key={imageUrl}
-            src={imageUrl}
+          {source.src && !source.failed && <img
+            key={source.src}
+            src={source.src}
             alt=""
             className={cn(
               'max-w-full max-h-full object-contain rounded-lg select-none transition-opacity duration-300',
               isLoaded ? 'opacity-100' : 'opacity-0',
             )}
             onLoad={() => setIsLoaded(true)}
+            onError={source.onError}
             draggable={false}
             decoding="async"
-          />
+          />}
         </div>
       </div>
     </div>,
@@ -1597,6 +1608,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     }
   }, [pubkey, queryClient]);
   const metadataEvent = author.data?.event;
+  const bannerImeta = author.data?.imeta?.banner;
   const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
 
   // NIP-24 birthday — parse from the raw kind 0 content and celebrate all day
@@ -2236,13 +2248,20 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             {author.isLoading ? (
               <Skeleton className="w-full h-full rounded-none" />
             ) : (
+              <>
+              {isValidBlurhash(bannerImeta?.blurhash) && (
+                <BlurhashPlaceholder hash={bannerImeta.blurhash} className="absolute inset-0" />
+              )}
               <FallbackImage
                 src={metadata?.banner}
-                className="w-full h-full object-cover cursor-pointer"
+                imeta={bannerImeta}
+                placeholder={null}
+                className="relative w-full h-full object-cover cursor-pointer"
                 onClick={() => setLightboxImage(metadata!.banner!)}
                 decoding="async"
                 fallback={<div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />}
               />
+              </>
             )}
 
             {/* Custom theme indicator — shown when profile has a theme (active or disabled) */}
@@ -2453,7 +2472,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                   >
                     <div style={isEmojiShape ? emojiAvatarBorderStyle : undefined}>
                       <Avatar shape={avatarShape} className={cn(isEmojiShape ? 'size-[88px] md:size-[120px]' : 'size-24 md:size-32 border-4 border-background', metadata?.picture && 'cursor-pointer')}>
-                        <AvatarImage src={metadata?.picture} alt={displayName} />
+                        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
                         <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
                           {displayName[0].toUpperCase()}
                         </AvatarFallback>
@@ -3130,6 +3149,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
         {lightboxImage && (
           <ProfileImageLightbox
             imageUrl={lightboxImage}
+            imeta={lightboxImage === metadata?.picture ? author.data?.imeta?.picture : author.data?.imeta?.banner}
             onClose={() => setLightboxImage(null)}
           />
         )}

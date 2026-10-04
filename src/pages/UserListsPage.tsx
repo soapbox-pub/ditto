@@ -48,7 +48,7 @@ function MiniAvatar({ pubkey }: { pubkey: string }) {
   const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
   return (
     <Avatar shape={avatarShape} className="size-7 border-2 border-background shrink-0">
-      <AvatarImage src={metadata?.picture} alt={displayName} />
+      <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
       <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
         {displayName[0]?.toUpperCase()}
       </AvatarFallback>

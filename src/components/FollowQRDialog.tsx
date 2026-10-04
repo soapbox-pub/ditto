@@ -68,7 +68,7 @@ export function FollowQRDialog({ open, onOpenChange }: FollowQRDialogProps) {
         {/* Avatar + name */}
         <div className="flex flex-col items-center gap-2">
           <Avatar shape={getAvatarShape(metadata)} className="size-16 ring-2 ring-secondary">
-            <AvatarImage src={metadata?.picture} alt={displayName} />
+            <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
             <AvatarFallback className="text-xl font-semibold">
               {displayName.charAt(0).toUpperCase()}
             </AvatarFallback>

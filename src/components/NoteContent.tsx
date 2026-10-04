@@ -963,6 +963,7 @@ export function NoteContent({
                   imeta={imeta}
                   isAudio={isAudio}
                   authorMetadata={authorMetadata}
+                  authorPictureImeta={author.data?.imeta?.picture}
                   authorDisplayName={authorDisplayName}
                 />
               </MediaGate>
@@ -1074,6 +1075,7 @@ export function NoteContent({
                   raw={token.raw}
                   artist={authorDisplayName}
                   avatarUrl={authorMetadata?.picture}
+                  avatarImeta={author.data?.imeta?.picture}
                   avatarFallback={authorDisplayName[0]?.toUpperCase() ?? '?'}
                   avatarShape={getAvatarShape(authorMetadata)}
                 />
@@ -1152,11 +1154,12 @@ function InlineImage({ url, encryption, onClick }: {
  * object URL first — including the poster, which the sender encrypts under the
  * same key as the file itself.
  */
-function MediaEmbed({ url, imeta, isAudio, authorMetadata, authorDisplayName }: {
+function MediaEmbed({ url, imeta, isAudio, authorMetadata, authorPictureImeta, authorDisplayName }: {
   url: string;
   imeta?: ImetaEntry;
   isAudio: boolean;
   authorMetadata?: NostrMetadata;
+  authorPictureImeta?: ImetaEntry;
   authorDisplayName: string;
 }) {
   if (isAudio) {
@@ -1166,6 +1169,7 @@ function MediaEmbed({ url, imeta, isAudio, authorMetadata, authorDisplayName }: 
         mime={imeta?.mime}
         encryption={imeta?.encryption}
         avatarUrl={authorMetadata?.picture}
+        avatarImeta={authorPictureImeta}
         avatarFallback={authorDisplayName[0]?.toUpperCase() ?? '?'}
         avatarShape={getAvatarShape(authorMetadata)}
       />
@@ -1197,6 +1201,7 @@ interface BlossomEmbedProps {
   raw: string;
   artist?: string;
   avatarUrl?: string;
+  avatarImeta?: ImetaEntry;
   avatarFallback?: string;
   avatarShape?: ReturnType<typeof getAvatarShape>;
 }
@@ -1208,7 +1213,7 @@ interface BlossomEmbedProps {
  * (pdf, bin, …) fall back to a download link. If no server can serve the blob,
  * a plain link to the first candidate is shown.
  */
-function BlossomEmbed({ uri, raw, artist, avatarUrl, avatarFallback, avatarShape }: BlossomEmbedProps) {
+function BlossomEmbed({ uri, raw, artist, avatarUrl, avatarImeta, avatarFallback, avatarShape }: BlossomEmbedProps) {
   const { src, onError, failed } = useBlossomUri(uri);
   const [loaded, setLoaded] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -1281,6 +1286,7 @@ function BlossomEmbed({ uri, raw, artist, avatarUrl, avatarFallback, avatarShape
         src={src}
         mime={mime}
         avatarUrl={avatarUrl}
+        avatarImeta={avatarImeta}
         avatarFallback={avatarFallback}
         avatarShape={avatarShape}
       />

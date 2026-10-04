@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmojifiedText } from "@/components/CustomEmoji";
 import { ProfileHoverCard } from "@/components/ProfileHoverCard";
 import { cn } from "@/lib/utils";
+import type { ImetaEntry } from "@/lib/imeta";
 
 /* ──── Shared activity card shell for reaction / repost / zap / poll vote / follow update ──── */
 
@@ -78,6 +79,7 @@ export interface ActorRowProps {
   profileUrl: string;
   avatarShape: Parameters<typeof Avatar>[0]['shape'];
   picture?: string;
+  pictureImeta?: ImetaEntry;
   displayName: string;
   authorEvent?: NostrEvent;
   isLoading?: boolean;
@@ -88,7 +90,7 @@ export interface ActorRowProps {
   timestampLabel: string;
 }
 
-export function ActorRow({ pubkey, profileUrl, avatarShape, picture, displayName, authorEvent, isLoading, label, extra, timestampLabel }: ActorRowProps) {
+export function ActorRow({ pubkey, profileUrl, avatarShape, picture, pictureImeta, displayName, authorEvent, isLoading, label, extra, timestampLabel }: ActorRowProps) {
   if (isLoading) {
     return (
       <div className="flex items-center gap-2">
@@ -102,7 +104,7 @@ export function ActorRow({ pubkey, profileUrl, avatarShape, picture, displayName
       <ProfileHoverCard pubkey={pubkey} asChild>
         <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
           <Avatar shape={avatarShape} className="size-6">
-            <AvatarImage src={picture} alt={displayName} />
+            <AvatarImage src={picture} imeta={pictureImeta} alt={displayName} />
             <AvatarFallback className="bg-primary/20 text-primary text-[8px]">{displayName[0]?.toUpperCase()}</AvatarFallback>
           </Avatar>
         </Link>

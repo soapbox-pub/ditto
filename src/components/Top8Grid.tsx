@@ -53,7 +53,7 @@ export function Top8Tile({ pubkey, rank, size, static: isStatic }: Top8TileProps
             !isStatic && 'group-hover:scale-[1.03]',
           )}
         >
-          <AvatarImage src={metadata?.picture} alt={displayName} className="object-cover" />
+          <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} className="object-cover" />
           <AvatarFallback className="rounded-lg text-lg font-bold">
             {displayName[0]?.toUpperCase()}
           </AvatarFallback>

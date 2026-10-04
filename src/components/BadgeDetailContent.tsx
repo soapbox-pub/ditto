@@ -27,6 +27,8 @@ import { useComments } from '@/hooks/useComments';
 import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { parseBadgeDefinition } from '@/lib/parseBadgeDefinition';
+import type { ImetaEntry } from '@/lib/imeta';
+import type { ProfileImeta } from '@/lib/profileImeta';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { useCardTilt } from '@/hooks/useCardTilt';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -148,7 +150,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
         <div className="flex items-center gap-3">
           <Link to={`/${npub}`}>
             <Avatar shape={avatarShape} className="size-11">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
+              <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-sm">
                 {displayName[0]?.toUpperCase()}
               </AvatarFallback>
@@ -290,7 +292,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
 function AwardedToTab({ awardedPubkeys, previewPubkeys, membersMap, membersLoading, awardsLoading }: {
   awardedPubkeys: string[];
   previewPubkeys: string[];
-  membersMap: Map<string, { metadata?: NostrMetadata }> | undefined;
+  membersMap: Map<string, { metadata?: NostrMetadata; imeta?: ProfileImeta }> | undefined;
   membersLoading: boolean;
   awardsLoading: boolean;
 }) {
@@ -317,7 +319,7 @@ function AwardedToTab({ awardedPubkeys, previewPubkeys, membersMap, membersLoadi
     <div className="divide-y divide-border">
       {previewPubkeys.map((pk) => {
         const member = membersMap?.get(pk);
-        return <AwardeeCard key={pk} pubkey={pk} metadata={member?.metadata} />;
+        return <AwardeeCard key={pk} pubkey={pk} metadata={member?.metadata} pictureImeta={member?.imeta?.picture} />;
       })}
       {awardedPubkeys.length > previewPubkeys.length && (
         <div className="px-4 py-3 text-sm text-muted-foreground text-center">
@@ -467,7 +469,7 @@ function CommentsTab({ event, orderedReplies, commentsLoading }: {
 
 // ─── Shared components ─────────────────────────────────────────────────────────
 
-function AwardeeCard({ pubkey, metadata }: { pubkey: string; metadata?: NostrMetadata }) {
+function AwardeeCard({ pubkey, metadata, pictureImeta }: { pubkey: string; metadata?: NostrMetadata; pictureImeta?: ImetaEntry }) {
   const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
   const about = metadata?.about;
   const avatarShape = getAvatarShape(metadata);
@@ -479,7 +481,7 @@ function AwardeeCard({ pubkey, metadata }: { pubkey: string; metadata?: NostrMet
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
       <Avatar shape={avatarShape} className="size-11 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={pictureImeta} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0]?.toUpperCase()}
         </AvatarFallback>

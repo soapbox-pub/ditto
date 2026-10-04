@@ -37,6 +37,8 @@ import { parseAuthorEvent } from '@/hooks/useAuthor';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { useUploadFile } from '@/hooks/useUploadFile';
+import { useUploadProfileImage } from '@/hooks/useUploadProfileImage';
+import { profileImetaTags } from '@/lib/profileImeta';
 
 import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
@@ -441,11 +443,15 @@ function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploadi
 
 export function ProfileSettings() {
   const intl = useIntl();
-  const { user, metadata, event } = useCurrentUserProfile();
+  const { user, metadata, event, imeta: profileImeta } = useCurrentUserProfile();
   const { config } = useAppContext();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent, isPending } = useNostrPublish();
-  const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
+  const { mutateAsync: uploadFile, isPending: isUploadingMedia } = useUploadFile();
+  const { upload: uploadProfileImage, isPending: isUploadingImage } = useUploadProfileImage();
+  const isUploading = isUploadingMedia || isUploadingImage;
+  // imeta for every picture/banner uploaded this session, offered to the kind 0 on save.
+  const uploadedImeta = useRef<string[][]>([]);
   const { toast } = useToast();
 
   const [cropState, setCropState] = useState<CropState | null>(null);
@@ -603,7 +609,8 @@ export function ProfileSettings() {
 
   const uploadImage = async (file: File, field: 'picture' | 'banner') => {
     try {
-      const [[, url]] = await uploadFile(file);
+      const { url, imeta } = await uploadProfileImage(file);
+      uploadedImeta.current.unshift(imeta);
       form.setValue(field, url, { shouldDirty: true });
       toast({
         title: intl.formatMessage({ id: 'settings.profile.uploaded', defaultMessage: "Uploaded" }),
@@ -709,7 +716,11 @@ export function ProfileSettings() {
       }
 
       if (previous === undefined || canonical(data) !== canonical(previous)) {
-        await publishEvent({ kind: 0, content: JSON.stringify(data) });
+        await publishEvent({
+          kind: 0,
+          content: JSON.stringify(data),
+          tags: profileImetaTags(data, [...uploadedImeta.current, ...(event?.tags ?? [])]),
+        });
         queryClient.invalidateQueries({ queryKey: ['logins'] });
         queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
       }
@@ -813,6 +824,7 @@ export function ProfileSettings() {
           <ProfileCard
             pubkey={user.pubkey}
             metadata={cardMetadata}
+            imeta={profileImeta}
             onChange={handleCardChange}
             onPickImage={handlePickImage}
             onAvatarShape={(shape) => form.setValue('shape', shape, { shouldDirty: true })}
@@ -1090,7 +1102,13 @@ function BirthdaySection() {
         delete data.birthday;
       }
 
-      const published = await publishEvent({ kind: 0, content: JSON.stringify(data), prev: prev ?? undefined });
+      const published = await publishEvent({
+        kind: 0,
+        content: JSON.stringify(data),
+        // Keep the picture and banner's imeta — the images haven't changed.
+        tags: profileImetaTags(data, prev?.tags ?? []),
+        prev: prev ?? undefined,
+      });
       // Seed the author cache with the published event instead of
       // invalidating it — a refetch can race relay propagation and clobber
       // the cache with the old profile, blanking the birthday we just saved

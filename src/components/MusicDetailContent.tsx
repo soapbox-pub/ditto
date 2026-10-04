@@ -140,7 +140,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
           {!parsed?.artist && (
             <Link to={profileUrl} className="flex items-center gap-2 group" onClick={(e) => e.stopPropagation()}>
               <Avatar shape={avatarShape} className="size-6">
-                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
                 <AvatarFallback className="bg-primary/20 text-primary text-[10px]">{displayName[0]?.toUpperCase()}</AvatarFallback>
               </Avatar>
               <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{displayName}</span>
@@ -447,7 +447,7 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
 
           <Link to={profileUrl} className="flex items-center gap-2 group">
             <Avatar shape={avatarShape} className="size-6">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
+              <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-[10px]">{displayName[0]?.toUpperCase()}</AvatarFallback>
             </Avatar>
             <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{displayName}</span>

@@ -15,6 +15,7 @@ import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { useAuthor } from '@/hooks/useAuthor';
+import { parseProfileImeta } from '@/lib/profileImeta';
 import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useWikipediaSearch, type WikipediaSearchResult } from '@/hooks/useWikipediaSearch';
 import { useArchiveSearch, type ArchiveSearchResult } from '@/hooks/useArchiveSearch';
@@ -493,7 +494,7 @@ function MobileNip05Item({
       onMouseDown={(e) => e.preventDefault()}
     >
       <Avatar shape={getAvatarShape(metadata)} className="size-9 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0]?.toUpperCase() || '?'}
         </AvatarFallback>
@@ -537,7 +538,7 @@ function MobilePubkeyItem({
       onMouseDown={(e) => e.preventDefault()}
     >
       <Avatar shape={getAvatarShape(metadata)} className="size-9 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0]?.toUpperCase() || '?'}
         </AvatarFallback>
@@ -822,7 +823,7 @@ function SearchProfileItem({
     >
       <div className="relative shrink-0">
         <Avatar shape={getAvatarShape(metadata)} className="size-9">
-          <AvatarImage src={metadata.picture} alt={displayName} />
+          <AvatarImage src={metadata.picture} imeta={parseProfileImeta(profile.event.tags, metadata)?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}
           </AvatarFallback>

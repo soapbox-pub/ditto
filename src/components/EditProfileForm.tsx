@@ -24,7 +24,8 @@ import { Loader2, Upload, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-re
 import { NSchema as n } from '@nostrify/nostrify';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { useQueryClient } from '@tanstack/react-query';
-import { useUploadFile } from '@/hooks/useUploadFile';
+import { useUploadProfileImage } from '@/hooks/useUploadProfileImage';
+import { profileImetaTags } from '@/lib/profileImeta';
 import {
   Collapsible,
   CollapsibleContent,
@@ -59,7 +60,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
 
   const { user, metadata, event } = useCurrentUserProfile();
   const { mutateAsync: publishEvent, isPending } = useNostrPublish();
-  const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
+  const { upload: uploadProfileImage, isPending: isUploading } = useUploadProfileImage();
+  // imeta for every image uploaded this session, offered to the kind 0 on save.
+  const uploadedImeta = useRef<string[][]>([]);
   const { toast } = useToast();
 
   // Crop dialog state
@@ -164,7 +167,8 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
   // Upload an image file and record its URL on the form.
   const uploadImage = async (file: File, field: 'picture' | 'banner') => {
     try {
-      const [[, url]] = await uploadFile(file);
+      const { url, imeta } = await uploadProfileImage(file);
+      uploadedImeta.current.unshift(imeta);
       form.setValue(field, url);
       notifyChange();
       toast({
@@ -263,6 +267,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       const published = await publishEvent({
         kind: 0,
         content: JSON.stringify(data),
+        tags: profileImetaTags(data, [...uploadedImeta.current, ...(event?.tags ?? [])]),
       });
 
       // Optimistically seed the author cache from the freshly-signed event so

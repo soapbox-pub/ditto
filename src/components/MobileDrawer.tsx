@@ -50,7 +50,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const clipStyle = drawerClipStyle(clipId);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, metadata, event: currentUserEvent } = useCurrentUserProfile();
+  const { user, metadata, imeta, event: currentUserEvent } = useCurrentUserProfile();
   const currentUserAvatarShape = getAvatarShape(metadata);
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const { logout } = useLoginActions();
@@ -155,7 +155,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 style={{ minHeight: `calc(3rem + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)))`, paddingTop: `var(--safe-area-inset-top, env(safe-area-inset-top, 0px))` }}
               >
                 <Avatar shape={currentUserAvatarShape} className="size-7 shrink-0">
-                  <AvatarImage src={metadata?.picture} alt={displayName} />
+                  <AvatarImage src={metadata?.picture} imeta={imeta?.picture} alt={displayName} />
                   <AvatarFallback className="bg-primary/20 text-primary text-xs">
                     {displayName[0].toUpperCase()}
                   </AvatarFallback>
@@ -266,7 +266,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                       className="flex items-center gap-3 w-full px-3 py-2 hover:bg-secondary/60 transition-colors"
                     >
                       <Avatar shape={getAvatarShape(account.metadata)} className="size-7 shrink-0">
-                        <AvatarImage src={account.metadata.picture} alt={getDisplayName(account)} />
+                        <AvatarImage src={account.metadata.picture} imeta={account.imeta?.picture} alt={getDisplayName(account)} />
                         <AvatarFallback className="bg-primary/20 text-primary text-xs">
                           {getDisplayName(account).charAt(0).toUpperCase()}
                         </AvatarFallback>

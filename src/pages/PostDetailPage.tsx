@@ -252,6 +252,7 @@ import { getDisplayName } from "@/lib/getDisplayName";
 import { parseAddr } from "@/lib/parseAddr";
 import { getParentEventId, getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
 import { shareOrCopy } from "@/lib/share";
+import { parseProfileImeta } from "@/lib/profileImeta";
 import { cn } from "@/lib/utils";
 
 interface PostDetailPageProps {
@@ -719,7 +720,7 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
         ) : (
           <>
             <Avatar shape={avatarShape} className="size-6 shrink-0">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
+              <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                 {displayName[0]?.toUpperCase()}
               </AvatarFallback>
@@ -2038,6 +2039,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                       <Avatar shape={avatarShape} className="size-6">
                         <AvatarImage
                           src={metadata?.picture}
+                          imeta={author.data?.imeta?.picture}
                           alt={displayName}
                         />
                         <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
@@ -2134,6 +2136,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                       <Avatar shape={avatarShape} className="size-6">
                         <AvatarImage
                           src={metadata?.picture}
+                          imeta={author.data?.imeta?.picture}
                           alt={displayName}
                         />
                         <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
@@ -2216,7 +2219,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                       <ProfileHoverCard pubkey={zapSenderPubkeyRaw} asChild>
                         <Link to={zapSenderProfileUrl} className="shrink-0">
                           <Avatar shape={zapSenderShape} className="size-6">
-                            <AvatarImage src={zapSenderMeta?.picture} alt={zapSenderDisplayName} />
+                            <AvatarImage src={zapSenderMeta?.picture} imeta={zapSenderAuthor.data?.imeta?.picture} alt={zapSenderDisplayName} />
                             <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                               {zapSenderDisplayName[0]?.toUpperCase()}
                             </AvatarFallback>
@@ -2294,7 +2297,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 <ProfileHoverCard pubkey={event.pubkey} asChild>
                   <Link to={profileUrl} className="shrink-0">
                     <Avatar shape={avatarShape} className="size-6">
-                      <AvatarImage src={metadata?.picture} alt={displayName} />
+                      <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
                       <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                         {displayName[0]?.toUpperCase()}
                       </AvatarFallback>
@@ -2357,7 +2360,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         try { parsedMeta = JSON.parse(event.content); } catch { /* ignore */ }
         return (
           <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
-            <ProfileCard pubkey={event.pubkey} metadata={parsedMeta} />
+            <ProfileCard pubkey={event.pubkey} metadata={parsedMeta} imeta={parseProfileImeta(event.tags, parsedMeta)} />
 
             {/* Date row */}
             <div className="py-2 sidebar:py-2.5 mt-3 text-xs sidebar:text-sm text-muted-foreground">
@@ -2518,7 +2521,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <ProfileHoverCard pubkey={event.pubkey} asChild>
                 <Link to={profileUrl} className="shrink-0">
                   <Avatar shape={avatarShape} className="size-10">
-                    <AvatarImage src={metadata?.picture} alt={displayName} />
+                    <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
                     <AvatarFallback className="bg-primary/20 text-primary text-sm">{displayName[0]?.toUpperCase()}</AvatarFallback>
                   </Avatar>
                 </Link>
@@ -2611,7 +2614,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 <ProfileHoverCard pubkey={event.pubkey} asChild>
                   <Link to={profileUrl} className="relative shrink-0">
                     <Avatar shape={avatarShape} className="size-11">
-                      <AvatarImage src={metadata?.picture} alt={displayName} />
+                      <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
                       <AvatarFallback className="bg-primary/20 text-primary text-sm">
                         {displayName[0].toUpperCase()}
                       </AvatarFallback>

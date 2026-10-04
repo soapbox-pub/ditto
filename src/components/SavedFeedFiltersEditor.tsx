@@ -591,6 +591,7 @@ export function AuthorChip({ pubkey, onRemove }: { pubkey: string; onRemove: () 
     <span className="inline-flex items-center gap-1.5 pl-1.5 pr-1 py-0.5 rounded-full bg-secondary border border-border text-xs max-w-[160px]">
       <FallbackImage
         src={picture}
+        imeta={author.data?.imeta?.picture}
         className="size-4 rounded-full shrink-0 object-cover"
         decoding="async"
         fallback={<User className="size-3 shrink-0 text-muted-foreground" />}

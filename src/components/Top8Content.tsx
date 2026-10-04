@@ -147,7 +147,7 @@ export function Top8Compact({ event, className }: Top8CompactProps) {
               <ProfileHoverCard pubkey={event.pubkey} asChild>
                 <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
                   <Avatar shape={avatarShape} className="size-5">
-                    <AvatarImage src={metadata?.picture} alt={displayName} />
+                    <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
                     <AvatarFallback className="text-[10px]">{displayName[0]?.toUpperCase()}</AvatarFallback>
                   </Avatar>
                 </Link>

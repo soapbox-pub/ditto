@@ -6,11 +6,14 @@ import { type QueryClient, queryOptions, useQuery, useQueryClient } from '@tanst
 import { useCacheFirstSeed } from '@/hooks/useCacheFirstSeed';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { fetchAuthorWriteRelays, queryOutboxRelays } from '@/lib/outbox';
+import { parseProfileImeta, type ProfileImeta } from '@/lib/profileImeta';
 import { isBlockedProfile } from '@/lib/profileSafety';
 
 export type AuthorResult = {
   event?: NostrEvent;
   metadata?: NostrMetadata;
+  /** imeta describing the `picture` and `banner` — pass to `AvatarImage` / `FallbackImage`. */
+  imeta?: ProfileImeta;
   /** The profile is blocked (see `isBlockedProfile`). Its metadata has been stripped. */
   blocked?: boolean;
 };
@@ -23,7 +26,7 @@ export type AuthorResult = {
  * consumer goes through here, so their name, bio, avatar, and banner never
  * reach the UI.
  */
-export function parseAuthorEvent(event: NostrEvent): { event: NostrEvent; metadata?: NostrMetadata; blocked?: boolean } {
+export function parseAuthorEvent(event: NostrEvent): AuthorResult & { event: NostrEvent } {
   let metadata: NostrMetadata;
   try {
     metadata = n.json().pipe(n.metadata()).parse(event.content);
@@ -35,7 +38,7 @@ export function parseAuthorEvent(event: NostrEvent): { event: NostrEvent; metada
     return { event: { ...event, content: '{}', tags: [] }, metadata: {}, blocked: true };
   }
 
-  return { metadata, event };
+  return { metadata, event, imeta: parseProfileImeta(event.tags, metadata) };
 }
 
 export function useAuthor(pubkey: string | undefined) {

@@ -43,7 +43,9 @@ import { useNostrPublish } from "@/hooks/useNostrPublish";
 import { OnboardingContext } from "@/hooks/useOnboarding";
 import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
-import { useUploadFile } from "@/hooks/useUploadFile";
+import { useUploadProfileImage } from "@/hooks/useUploadProfileImage";
+import { profileImetaTags } from "@/lib/profileImeta";
+import type { ImetaEntry } from "@/lib/imeta";
 import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
 import { isAnimatedImage, METADATA_SCAN_BYTES } from "@/lib/imageMetadata";
 import { getActivePubkey, subscribeActivePubkey } from "@/lib/activeAccount";
@@ -665,7 +667,9 @@ function ProfileStep({
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent, isPending: isPublishing } =
     useNostrPublish();
-  const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
+  const { upload: uploadProfileImage, isPending: isUploading } = useUploadProfileImage();
+  // imeta for every picture/banner uploaded here, offered to the kind 0 on publish.
+  const uploadedImeta = useRef<string[][]>([]);
   const pickInputRef = useRef<HTMLInputElement>(null);
   const pendingField = useRef<"picture" | "banner">("picture");
 
@@ -691,7 +695,8 @@ function ProfileStep({
   const uploadImage = useCallback(
     async (file: File, field: "picture" | "banner") => {
       try {
-        const [[, url]] = await uploadFile(file);
+        const { url, imeta } = await uploadProfileImage(file);
+        uploadedImeta.current.unshift(imeta);
         setProfileData((prev) => ({ ...prev, [field]: url }));
       } catch {
         toast({
@@ -701,7 +706,7 @@ function ProfileStep({
         });
       }
     },
-    [uploadFile],
+    [uploadProfileImage],
   );
 
   const handleFileChosen = useCallback(
@@ -776,7 +781,7 @@ function ProfileStep({
         for (const key in data) {
           if (data[key] === "") delete data[key];
         }
-        await publishEvent({ kind: 0, content: JSON.stringify(data), tags: [] });
+        await publishEvent({ kind: 0, content: JSON.stringify(data), tags: profileImetaTags(data, uploadedImeta.current) });
         queryClient.invalidateQueries({ queryKey: ["logins"] });
         queryClient.invalidateQueries({ queryKey: ["author", user.pubkey] });
       } catch {
@@ -1283,6 +1288,7 @@ function PackCard({
                 <MiniAvatar
                   key={pk}
                   src={member?.metadata?.picture}
+                  imeta={member?.imeta?.picture}
                   name={name}
                 />
               );
@@ -1300,10 +1306,10 @@ function PackCard({
 }
 
 /** Tiny avatar used in pack member stacks. */
-function MiniAvatar({ src, name, metadata }: { src?: string; name: string; metadata?: NostrMetadata }) {
+function MiniAvatar({ src, imeta, name, metadata }: { src?: string; imeta?: ImetaEntry; name: string; metadata?: NostrMetadata }) {
   return (
     <Avatar className="size-7 ring-2 ring-background" shape={getAvatarShape(metadata)}>
-      <AvatarImage src={src} alt={name} />
+      <AvatarImage src={src} imeta={imeta} alt={name} />
       <AvatarFallback className="bg-primary/15 text-primary text-[10px]">
         {name[0]?.toUpperCase()}
       </AvatarFallback>

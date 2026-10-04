@@ -6,6 +6,7 @@ import { nip19 } from 'nostr-tools';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
+import { parseProfileImeta } from '@/lib/profileImeta';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { type SearchProfile } from '@/hooks/useSearchProfiles';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
@@ -661,7 +662,7 @@ function Nip05IdentifierItem({
       onMouseDown={(e) => e.preventDefault()}
     >
       <Avatar shape={getAvatarShape(metadata)} className="size-10 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0]?.toUpperCase() || '?'}
         </AvatarFallback>
@@ -705,7 +706,7 @@ function PubkeyIdentifierItem({
       onMouseDown={(e) => e.preventDefault()}
     >
       <Avatar shape={getAvatarShape(metadata)} className="size-10 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0]?.toUpperCase() || '?'}
         </AvatarFallback>
@@ -1000,7 +1001,7 @@ function ProfileItem({
     >
       <div className="relative shrink-0">
         <Avatar shape={getAvatarShape(metadata)} className="size-10">
-          <AvatarImage src={metadata.picture} alt={displayName} />
+          <AvatarImage src={metadata.picture} imeta={parseProfileImeta(profile.event.tags, metadata)?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}
           </AvatarFallback>

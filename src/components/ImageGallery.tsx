@@ -1093,6 +1093,7 @@ function LightboxSlot({
           mime={meta?.mime}
           encryption={meta?.encryption}
           avatarUrl={authorMeta?.picture}
+          avatarImeta={author.data?.imeta?.picture}
           avatarFallback={fallback[0]?.toUpperCase()}
           avatarShape={getAvatarShape(authorMeta)}
           className="w-full max-w-lg"

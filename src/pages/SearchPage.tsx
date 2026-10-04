@@ -26,6 +26,7 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 import { NewPostsPill } from '@/components/NewPostsPill';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
+import { parseProfileImeta } from '@/lib/profileImeta';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -948,7 +949,7 @@ function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metad
     >
       <div className="relative shrink-0">
         <Avatar shape={profileAvatarShape} className="size-11">
-          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarImage src={metadata?.picture} imeta={parseProfileImeta(tags, metadata)?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}
           </AvatarFallback>
@@ -1038,7 +1039,7 @@ function FollowItem({ pubkey }: { pubkey: string }) {
     >
       <div className="relative shrink-0">
         <Avatar shape={avatarShape} className="size-11">
-          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase() || '?'}
           </AvatarFallback>

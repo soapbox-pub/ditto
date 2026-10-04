@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
+import { parseProfileImeta } from '@/lib/profileImeta';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
@@ -132,7 +133,7 @@ function ProfileSnapshotCard({
         {/* Avatar */}
         <Avatar shape={avatarShape} className="size-11 shrink-0 ring-2 ring-background">
           {metadata?.picture ? (
-            <AvatarImage src={metadata.picture} alt={displayName} />
+            <AvatarImage src={metadata.picture} imeta={parseProfileImeta(event.tags, metadata)?.picture} alt={displayName} />
           ) : null}
           <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
             {displayName[0]?.toUpperCase()}

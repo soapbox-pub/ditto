@@ -550,7 +550,7 @@ function ActorAvatar({ pubkey }: { pubkey: string }) {
         style={isEmojiShape ? emojiAvatarBorderStyle : undefined}
       >
         <Avatar className={cn("size-7", !isEmojiShape && "ring-2 ring-background")} shape={shape}>
-          {metadata?.picture && <AvatarImage src={metadata.picture} alt={name} />}
+          {metadata?.picture && <AvatarImage src={metadata.picture} imeta={author.data?.imeta?.picture} alt={name} />}
           <AvatarFallback className="text-[10px]">{name.slice(0, 2).toUpperCase()}</AvatarFallback>
         </Avatar>
       </Link>
@@ -800,7 +800,7 @@ function ZapRecipientCard({
           <ProfileHoverCard pubkey={recipientPubkey} asChild>
             <Link to={recipientUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
               <Avatar shape={recipientShape} className="size-11">
-                <AvatarImage src={recipientMeta?.picture} alt={recipientName} />
+                <AvatarImage src={recipientMeta?.picture} imeta={recipient.data?.imeta?.picture} alt={recipientName} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
                   {recipientName[0]?.toUpperCase()}
                 </AvatarFallback>

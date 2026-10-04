@@ -87,7 +87,7 @@ export function PeopleAvatarStack({
                     shape={shape}
                     className={cn(sizeClasses[size], 'ring-2 ring-background')}
                   >
-                    <AvatarImage src={member?.metadata?.picture} alt={displayName} />
+                    <AvatarImage src={member?.metadata?.picture} imeta={member?.imeta?.picture} alt={displayName} />
                     <AvatarFallback className={cn('bg-primary/20 text-primary', fallbackTextClasses[size])}>
                       {displayName[0]?.toUpperCase()}
                     </AvatarFallback>

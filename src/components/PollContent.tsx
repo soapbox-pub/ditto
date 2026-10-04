@@ -18,6 +18,7 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { rollbackQuery } from '@/lib/optimisticEvent';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
+import type { ProfileImeta } from '@/lib/profileImeta';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 interface PollOption {
@@ -99,7 +100,7 @@ function VoterAvatarsButton({
 }: {
   votes: NostrEvent[];
   totalVotes: number;
-  authorsMap?: Map<string, { pubkey: string; metadata?: import('@nostrify/nostrify').NostrMetadata }>;
+  authorsMap?: Map<string, { pubkey: string; metadata?: import('@nostrify/nostrify').NostrMetadata; imeta?: ProfileImeta }>;
   onClick: () => void;
   className?: string;
 }) {
@@ -113,7 +114,7 @@ function VoterAvatarsButton({
           const name = metadata?.name || metadata?.display_name || 'Anonymous';
           return (
             <Avatar key={vote.pubkey} shape={avatarShape} className="size-5 ring-1 ring-background">
-              <AvatarImage src={metadata?.picture} alt={name} />
+              <AvatarImage src={metadata?.picture} imeta={authorData?.imeta?.picture} alt={name} />
               <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
                 {name[0]?.toUpperCase()}
               </AvatarFallback>
@@ -366,7 +367,7 @@ interface PollVotersModalProps {
   options: PollOption[];
   pollType: string;
   initialOptionId?: string | null;
-  authorsMap?: Map<string, { pubkey: string; event?: NostrEvent; metadata?: import('@nostrify/nostrify').NostrMetadata }>;
+  authorsMap?: Map<string, { pubkey: string; event?: NostrEvent; metadata?: import('@nostrify/nostrify').NostrMetadata; imeta?: ProfileImeta }>;
 }
 
 function PollVotersModal({ open, onOpenChange, allVotes, options, pollType, initialOptionId, authorsMap }: PollVotersModalProps) {
@@ -502,7 +503,7 @@ interface VoterRowProps {
   vote: NostrEvent;
   optionLabelMap: Map<string, string>;
   pollType: string;
-  authorsMap?: Map<string, { pubkey: string; event?: NostrEvent; metadata?: import('@nostrify/nostrify').NostrMetadata }>;
+  authorsMap?: Map<string, { pubkey: string; event?: NostrEvent; metadata?: import('@nostrify/nostrify').NostrMetadata; imeta?: ProfileImeta }>;
 }
 
 function VoterRow({ vote, optionLabelMap, pollType, authorsMap }: VoterRowProps) {
@@ -548,7 +549,7 @@ function VoterRow({ vote, optionLabelMap, pollType, authorsMap }: VoterRowProps)
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
       <Avatar shape={avatarShape} className="size-10 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={authorData?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0].toUpperCase()}
         </AvatarFallback>

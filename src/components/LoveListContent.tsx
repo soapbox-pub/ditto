@@ -159,7 +159,7 @@ function LovedNameRow({ pubkey, compact }: { pubkey: string; compact?: boolean }
                 shape={avatarShape}
                 className={cn(compact ? 'size-7' : 'size-8', 'ring-1 ring-[#C48686]/40')}
               >
-                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
                 <AvatarFallback className="bg-[#E74C3C]/15 text-[#A93226] text-xs font-bold">
                   {displayName[0]?.toUpperCase()}
                 </AvatarFallback>
@@ -445,7 +445,7 @@ export function LoveListCompact({ event, className }: LoveListCompactProps) {
               <ProfileHoverCard pubkey={event.pubkey} asChild>
                 <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
                   <Avatar shape={avatarShape} className="size-5">
-                    <AvatarImage src={metadata?.picture} alt={displayName} />
+                    <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
                     <AvatarFallback className="bg-[#E74C3C]/15 text-[#A93226] text-[10px]">
                       {displayName[0]?.toUpperCase()}
                     </AvatarFallback>

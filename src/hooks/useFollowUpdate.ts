@@ -5,6 +5,7 @@ import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useAuthors } from '@/hooks/useAuthors';
 import { usePeopleListDiff } from '@/hooks/usePeopleListDiff';
 import { isNostrId } from '@/lib/nostrId';
+import type { ProfileImeta } from '@/lib/profileImeta';
 
 /** Most people to show across both sections before collapsing into "and N more". */
 export const MAX_FOLLOW_ACTIONS = 3;
@@ -35,7 +36,7 @@ export interface FollowUpdate {
   removedCount: number;
   /** Most recent follows, for the `latest` fallback. */
   latest: string[];
-  peopleMeta: Map<string, { metadata?: NostrMetadata }> | undefined;
+  peopleMeta: Map<string, { metadata?: NostrMetadata; imeta?: ProfileImeta }> | undefined;
 }
 
 /** Verb that follows the author's name for each mode, e.g. "chad started following". */

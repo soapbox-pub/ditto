@@ -51,7 +51,7 @@ export function StreakStartedDialog() {
 }
 
 function StreakStartedBody({ pubkey, onClose }: { pubkey: string; onClose: () => void }) {
-  const { metadata, event } = useCurrentUserProfile();
+  const { metadata, event, imeta } = useCurrentUserProfile();
   const { data: supplementary } = useProfileSupplementary(pubkey);
   const { data: userStats } = useNip85UserStats(pubkey);
   const { data: streak } = useStreak(pubkey, { enabled: false });
@@ -73,14 +73,14 @@ function StreakStartedBody({ pubkey, onClose }: { pubkey: string; onClose: () =>
 
       <div className="mx-auto w-80 max-w-full overflow-hidden rounded-xl border bg-card">
         <div className="h-14 bg-secondary">
-          <FallbackImage src={metadata?.banner} className="size-full object-cover" loading="lazy" decoding="async" />
+          <FallbackImage src={metadata?.banner} imeta={imeta?.banner} className="size-full object-cover" loading="lazy" decoding="async" />
         </div>
 
         <div className="-mt-10 flex flex-col gap-2 px-3 pb-3">
           <div className="flex items-end justify-between">
             <Link to={profileUrl} onClick={onClose} className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <Avatar shape={getAvatarShape(metadata)} className="size-20 border-3 border-card">
-                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarImage src={metadata?.picture} imeta={imeta?.picture} alt={displayName} />
                 <AvatarFallback className="bg-primary/20 text-2xl text-primary">
                   {displayName[0]?.toUpperCase()}
                 </AvatarFallback>

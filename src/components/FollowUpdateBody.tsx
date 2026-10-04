@@ -11,6 +11,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { NUKE_THRESHOLD, type FollowUpdate } from '@/hooks/useFollowUpdate';
 import { getDisplayName } from '@/lib/getDisplayName';
+import type { ProfileImeta } from '@/lib/profileImeta';
 import { cn } from '@/lib/utils';
 
 type Tone = 'follow' | 'unfollow';
@@ -105,13 +106,13 @@ function Rows({
   tone: Tone;
   pubkeys: string[];
   overflow?: number;
-  peopleMeta: Map<string, { metadata?: NostrMetadata }> | undefined;
+  peopleMeta: Map<string, { metadata?: NostrMetadata; imeta?: ProfileImeta }> | undefined;
 }) {
   return (
     <div>
       <ul className="mt-3 space-y-3">
         {pubkeys.map((pk) => (
-          <PersonRow key={pk} tone={tone} pubkey={pk} metadata={peopleMeta?.get(pk)?.metadata} />
+          <PersonRow key={pk} tone={tone} pubkey={pk} metadata={peopleMeta?.get(pk)?.metadata} imeta={peopleMeta?.get(pk)?.imeta} />
         ))}
       </ul>
       {overflow > 0 && (
@@ -131,10 +132,12 @@ function PersonRow({
   tone,
   pubkey,
   metadata,
+  imeta,
 }: {
   tone: Tone;
   pubkey: string;
   metadata: NostrMetadata | undefined;
+  imeta?: ProfileImeta;
 }) {
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
@@ -159,7 +162,7 @@ function PersonRow({
         className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <Avatar shape={getAvatarShape(metadata)} className={cn('size-12', !isFollow && 'grayscale opacity-70')}>
-          <AvatarImage src={metadata?.picture} alt={name} />
+          <AvatarImage src={metadata?.picture} imeta={imeta?.picture} alt={name} />
           <AvatarFallback className="bg-primary/20 text-primary text-base">
             {name[0]?.toUpperCase()}
           </AvatarFallback>

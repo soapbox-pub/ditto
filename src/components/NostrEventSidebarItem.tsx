@@ -45,7 +45,7 @@ function ProfileSidebarIcon({ pubkey, className }: { pubkey: string; className?:
 
   return (
     <Avatar shape={shape} className={cn('size-6 shrink-0', className)}>
-      <AvatarImage src={metadata?.picture} alt={metadata?.name} />
+      <AvatarImage src={metadata?.picture} imeta={data?.imeta?.picture} alt={metadata?.name} />
       <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
         {(metadata?.name?.[0] || '?').toUpperCase()}
       </AvatarFallback>

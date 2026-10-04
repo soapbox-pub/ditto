@@ -6,6 +6,7 @@ import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nos
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
 import { FallbackImage } from '@/components/FallbackImage';
 import { encodeEventAddress } from '@/lib/encodeEvent';
+import { parseProfileImeta } from '@/lib/profileImeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { isBlockedProfile } from '@/lib/profileSafety';
 
@@ -33,6 +34,7 @@ export function EmbeddedProfileCard({ event, className, disableHoverCards }: Emb
 
   const nip19Id = useMemo(() => encodeEventAddress(event), [event]);
   const banner = useMemo(() => sanitizeUrl(metadata.banner), [metadata.banner]);
+  const bannerImeta = useMemo(() => parseProfileImeta(event.tags, metadata)?.banner, [event.tags, metadata]);
 
   return (
     <EmbeddedCardShell
@@ -53,6 +55,7 @@ export function EmbeddedProfileCard({ event, className, disableHoverCards }: Emb
         <div className="overflow-hidden rounded-lg empty:hidden">
           <FallbackImage
             src={banner}
+            imeta={bannerImeta}
             className="max-h-[100px] w-full object-cover"
             loading="lazy"
             decoding="async"

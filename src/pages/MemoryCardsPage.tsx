@@ -79,7 +79,7 @@ function AuthorRow({ pubkey, size = 'sm' }: { pubkey: string; size?: 'sm' | 'md'
   const inner = (
     <span className="inline-flex min-w-0 items-center gap-1.5">
       <Avatar className={avatarClass}>
-        {metadata?.picture && <AvatarImage src={sanitizeUrl(metadata.picture)} alt="" />}
+        {metadata?.picture && <AvatarImage src={sanitizeUrl(metadata.picture)} imeta={author.data?.imeta?.picture} alt="" />}
         <AvatarFallback className="text-[10px]">{name[0]?.toUpperCase() ?? '?'}</AvatarFallback>
       </Avatar>
       <span className="truncate text-sm text-muted-foreground">{name}</span>

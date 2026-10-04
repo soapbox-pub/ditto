@@ -56,7 +56,7 @@ function ModeratorRow({ pubkey }: { pubkey: string }) {
   return (
     <Link to={profileUrl} className="flex items-center gap-3 group py-1.5">
       <Avatar shape={avatarShape} className="size-9 ring-2 ring-background">
-        <AvatarImage src={metadata?.picture} />
+        <AvatarImage src={metadata?.picture} imeta={data?.imeta?.picture} />
         <AvatarFallback className="bg-muted text-muted-foreground text-xs">
           {name.charAt(0).toUpperCase()}
         </AvatarFallback>
@@ -187,7 +187,7 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Created by</p>
         <Link to={ownerProfileUrl} className="flex items-center gap-3 group">
           <Avatar shape={ownerAvatarShape} className={cn('size-10 ring-2 ring-background')}>
-            <AvatarImage src={ownerMetadata?.picture} />
+            <AvatarImage src={ownerMetadata?.picture} imeta={ownerAuthor.data?.imeta?.picture} />
             <AvatarFallback className="bg-muted text-muted-foreground">
               {ownerName.charAt(0).toUpperCase()}
             </AvatarFallback>

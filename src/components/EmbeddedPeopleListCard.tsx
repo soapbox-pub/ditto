@@ -110,7 +110,7 @@ export function EmbeddedPeopleListCard({ event, className, disableHoverCards }: 
                   shape={shape}
                   className="size-5 ring-1 ring-background"
                 >
-                  <AvatarImage src={member?.metadata?.picture} alt={name} />
+                  <AvatarImage src={member?.metadata?.picture} imeta={member?.imeta?.picture} alt={name} />
                   <AvatarFallback className="bg-primary/20 text-primary text-[9px]">
                     {name[0]?.toUpperCase()}
                   </AvatarFallback>

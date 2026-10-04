@@ -35,6 +35,7 @@ import type { NostrEvent, NostrFilter, NostrMetadata } from '@nostrify/nostrify'
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
+import type { ProfileImeta } from '@/lib/profileImeta';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -201,7 +202,7 @@ export function PeopleListFeedTab({ pubkeys, tabKey }: { pubkeys: string[]; tabK
 
 interface MembersTabProps {
   pubkeys: string[];
-  membersMap: Map<string, { metadata?: NostrMetadata }> | undefined;
+  membersMap: Map<string, { metadata?: NostrMetadata; imeta?: ProfileImeta }> | undefined;
   membersLoading: boolean;
   followedPubkeys: Set<string>;
   currentUserPubkey: string | undefined;
@@ -243,6 +244,7 @@ export function PeopleListMembersTab({
             key={pk}
             pubkey={pk}
             metadata={member?.metadata}
+            imeta={member?.imeta}
             isFollowed={isFollowed}
             isSelf={pk === currentUserPubkey}
             canRemove={canRemove}
@@ -483,7 +485,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
         <div className="flex items-center gap-3">
           <Link to={`/${authorNpub}`}>
             <Avatar shape={authorAvatarShape} className="size-11">
-              <AvatarImage src={authorMetadata?.picture} alt={authorName} />
+              <AvatarImage src={authorMetadata?.picture} imeta={author.data?.imeta?.picture} alt={authorName} />
               <AvatarFallback className="bg-primary/20 text-primary text-sm">
                 {authorName[0]?.toUpperCase()}
               </AvatarFallback>
@@ -724,6 +726,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
 interface MemberCardProps {
   pubkey: string;
   metadata?: NostrMetadata;
+  imeta?: ProfileImeta;
   isFollowed: boolean;
   isSelf: boolean;
   /** When true, renders a "remove" button that removes the member from the list/pack. */
@@ -737,6 +740,7 @@ interface MemberCardProps {
 export function MemberCard({
   pubkey,
   metadata,
+  imeta,
   isFollowed,
   isSelf,
   canRemove,
@@ -795,7 +799,7 @@ export function MemberCard({
     >
       <Link to={`/${npub}`} className="shrink-0" onClick={(e) => e.stopPropagation()}>
         <Avatar shape={avatarShape} className="size-11">
-          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarImage src={metadata?.picture} imeta={imeta?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase()}
           </AvatarFallback>

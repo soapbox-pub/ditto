@@ -39,7 +39,7 @@ export function LeftSidebar() {
   const intl = useIntl();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, metadata, event: currentUserEvent, isLoading: isProfileLoading } = useCurrentUserProfile();
+  const { user, metadata, imeta, event: currentUserEvent, isLoading: isProfileLoading } = useCurrentUserProfile();
   const currentUserAvatarShape = getAvatarShape(metadata);
   const { currentUser, otherUsers, setLogin } = useLoggedInAccounts();
   const { logout } = useLoginActions();
@@ -150,7 +150,7 @@ export function LeftSidebar() {
                   <Skeleton className="size-10 shrink-0 rounded-full" />
                 ) : (
                   <Avatar shape={currentUserAvatarShape} className="size-10 shrink-0">
-                    <AvatarImage src={metadata?.picture} alt={metadata?.name} />
+                    <AvatarImage src={metadata?.picture} imeta={imeta?.picture} alt={metadata?.name} />
                     <AvatarFallback className="bg-primary/20 text-primary text-sm">
                       {(metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" }))[0]?.toUpperCase() ?? '?'}
                     </AvatarFallback>
@@ -179,7 +179,7 @@ export function LeftSidebar() {
               <Link to={userProfileUrl} onClick={() => setAccountPopoverOpen(false)} className="block p-4 border-b border-border hover:bg-secondary/60 transition-colors">
                 <div className="flex items-center gap-3">
                   <Avatar shape={currentUserAvatarShape} className="size-11 shrink-0">
-                    <AvatarImage src={currentUser.metadata.picture} alt={getDisplayName(currentUser)} />
+                    <AvatarImage src={currentUser.metadata.picture} imeta={currentUser.imeta?.picture} alt={getDisplayName(currentUser)} />
                     <AvatarFallback className="bg-primary/20 text-primary text-sm">{getDisplayName(currentUser).charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col min-w-0">
@@ -280,7 +280,7 @@ export function LeftSidebar() {
                   {otherUsers.map((account) => (
                     <button key={account.id} onClick={() => { setLogin(account.id); setAccountPopoverOpen(false); }} className="flex items-center gap-3 w-full px-4 py-3 hover:bg-secondary/60 transition-colors">
                       <Avatar shape={getAvatarShape(account.metadata)} className="size-9 shrink-0">
-                        <AvatarImage src={account.metadata.picture} alt={getDisplayName(account)} />
+                        <AvatarImage src={account.metadata.picture} imeta={account.imeta?.picture} alt={getDisplayName(account)} />
                         <AvatarFallback className="bg-primary/20 text-primary text-xs">{getDisplayName(account).charAt(0).toUpperCase()}</AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col min-w-0">

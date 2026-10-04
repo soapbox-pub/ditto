@@ -31,7 +31,7 @@ function RSVPAvatar({ pubkey, size = 'sm' }: { pubkey: string; size?: AvatarSize
     <Tooltip>
       <TooltipTrigger asChild>
         <Avatar shape={avatarShape} className={cn(sizeClasses[size], 'ring-2 ring-background')}>
-          <AvatarImage src={metadata?.picture} />
+          <AvatarImage src={metadata?.picture} imeta={data?.imeta?.picture} />
           <AvatarFallback className="bg-muted text-muted-foreground">
             {initial}
           </AvatarFallback>

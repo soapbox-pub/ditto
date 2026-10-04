@@ -64,7 +64,7 @@ export function FollowUpdateCard({
     <ProfileHoverCard pubkey={event.pubkey} asChild>
       <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
         <Avatar shape={avatarShape} className={iconSize}>
-          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase()}
           </AvatarFallback>

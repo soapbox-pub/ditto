@@ -19,7 +19,9 @@ import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useUserLists } from '@/hooks/useUserLists';
 import { useFollowPackActions } from '@/hooks/useFollowPacks';
 import { toast } from '@/hooks/useToast';
+import { parseProfileImeta } from '@/lib/profileImeta';
 import type { NostrMetadata } from '@nostrify/nostrify';
+import type { ImetaEntry } from '@/lib/imeta';
 
 interface EditMembersDialogProps {
   open: boolean;
@@ -169,6 +171,7 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
                     key={pk}
                     pubkey={pk}
                     metadata={membersMap?.get(pk)?.metadata}
+                    pictureImeta={membersMap?.get(pk)?.imeta?.picture}
                     isMember
                     isPending={pendingPubkeys.has(pk)}
                     onToggle={handleToggle}
@@ -191,6 +194,7 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
                 key={profile.pubkey}
                 pubkey={profile.pubkey}
                 metadata={profile.metadata}
+                pictureImeta={parseProfileImeta(profile.event.tags, profile.metadata)?.picture}
                 isMember={existingMembers.has(profile.pubkey)}
                 isPending={pendingPubkeys.has(profile.pubkey)}
                 isSelected={idx === selectedIdx}
@@ -210,6 +214,7 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
 interface MemberRowProps {
   pubkey: string;
   metadata?: NostrMetadata;
+  pictureImeta?: ImetaEntry;
   isMember: boolean;
   isPending: boolean;
   isSelected?: boolean;
@@ -217,7 +222,7 @@ interface MemberRowProps {
   onToggle: (pubkey: string, metadata: NostrMetadata | undefined) => void;
 }
 
-function MemberRow({ pubkey, metadata, isMember, isPending, isSelected, onMouseEnter, onToggle }: MemberRowProps) {
+function MemberRow({ pubkey, metadata, pictureImeta, isMember, isPending, isSelected, onMouseEnter, onToggle }: MemberRowProps) {
   const name = metadata?.name || metadata?.display_name || 'Anonymous';
 
   return (
@@ -231,7 +236,7 @@ function MemberRow({ pubkey, metadata, isMember, isPending, isSelected, onMouseE
       onMouseEnter={onMouseEnter}
     >
       <Avatar shape={getAvatarShape(metadata)} className="size-9 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={name} />
+        <AvatarImage src={metadata?.picture} imeta={pictureImeta} alt={name} />
         <AvatarFallback className="bg-primary/20 text-primary text-xs">
           {name[0]?.toUpperCase()}
         </AvatarFallback>

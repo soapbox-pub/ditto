@@ -146,7 +146,7 @@ export function ZapSuccessScreen({
       {/* Recipient card */}
       <div className="mx-auto flex items-center gap-3 rounded-full border border-border/70 bg-muted/40 pl-2 pr-4 py-2 max-w-full">
         <Avatar shape={avatarShape} className="size-8 shrink-0">
-          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarImage src={metadata?.picture} imeta={author?.imeta?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-xs">
             {displayName[0]?.toUpperCase()}
           </AvatarFallback>

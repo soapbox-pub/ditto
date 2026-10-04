@@ -726,7 +726,7 @@ function EmbeddedZapCard({ event, className, disableHoverCards }: { event: Nostr
           <MaybeHoverCard pubkey={senderPubkey} disabled={disableHoverCards}>
             <Link to={senderProfileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
               <Avatar shape={senderShape} className="size-5">
-                <AvatarImage src={senderMeta?.picture} alt={senderName} />
+                <AvatarImage src={senderMeta?.picture} imeta={sender.data?.imeta?.picture} alt={senderName} />
                 <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                   {senderName[0]?.toUpperCase()}
                 </AvatarFallback>
@@ -846,7 +846,7 @@ function EmbeddedOnchainZapCard({ event, className, disableHoverCards }: { event
         <MaybeHoverCard pubkey={senderPubkey} disabled={disableHoverCards}>
           <Link to={senderProfileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
             <Avatar shape={senderShape} className="size-5">
-              <AvatarImage src={senderMeta?.picture} alt={senderName} />
+              <AvatarImage src={senderMeta?.picture} imeta={sender.data?.imeta?.picture} alt={senderName} />
               <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                 {senderName[0]?.toUpperCase()}
               </AvatarFallback>

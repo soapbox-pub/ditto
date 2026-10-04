@@ -210,7 +210,7 @@ function ChatMessage({ event }: { event: NostrEvent }) {
     <div className="group flex items-start gap-2 py-1 px-1 rounded hover:bg-secondary/40 transition-colors">
       <Link to={profileUrl} className="shrink-0 mt-0.5" onClick={(e) => e.stopPropagation()}>
         <Avatar shape={avatarShape} className="size-6">
-          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-[9px]">
             {displayName[0]?.toUpperCase()}
           </AvatarFallback>

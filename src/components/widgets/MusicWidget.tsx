@@ -163,7 +163,7 @@ function MusicCard({ event }: { event: NostrEvent }) {
         {/* Author row */}
         <div className="flex items-center gap-1.5 pt-0.5">
           <Avatar shape={avatarShape} className="size-4">
-            <AvatarImage src={metadata?.picture} alt={displayName} />
+            <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
             <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
               {displayName[0]?.toUpperCase()}
             </AvatarFallback>

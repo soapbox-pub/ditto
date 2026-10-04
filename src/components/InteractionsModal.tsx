@@ -325,7 +325,7 @@ function RepostRow({ entry }: { entry: RepostEntry }) {
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
       <Avatar shape={avatarShape} className="size-10 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0].toUpperCase()}
         </AvatarFallback>
@@ -364,7 +364,7 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
       <Avatar shape={avatarShape} className="size-10 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0].toUpperCase()}
         </AvatarFallback>
@@ -418,7 +418,7 @@ function ZapRow({ zap }: { zap: UnifiedZap }) {
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
       <Avatar shape={avatarShape} className="size-10 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0].toUpperCase()}
         </AvatarFallback>
@@ -493,7 +493,7 @@ function QuoteRow({ quote }: { quote: QuoteEntry }) {
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
       <Avatar shape={avatarShape} className="size-10 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
         <AvatarFallback className="bg-primary/20 text-primary text-sm">
           {displayName[0].toUpperCase()}
         </AvatarFallback>

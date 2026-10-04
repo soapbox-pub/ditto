@@ -59,6 +59,7 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
       <div className="h-16 bg-secondary relative">
         <FallbackImage
           src={metadata?.banner}
+          imeta={author.data?.imeta?.banner}
           className="w-full h-full object-cover"
           loading="lazy"
           decoding="async"
@@ -75,7 +76,7 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
         <div className="-mt-8 mb-2">
           <Link to={profileUrl} onClick={(e) => e.stopPropagation()}>
             <Avatar shape={avatarShape} className="size-16 border-3 border-background">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
+              <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-lg">
                 {displayName[0]?.toUpperCase()}
               </AvatarFallback>

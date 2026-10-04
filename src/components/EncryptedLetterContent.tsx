@@ -113,7 +113,7 @@ function SealAvatar({ pubkey }: { pubkey: string }) {
     <ProfileHoverCard pubkey={pubkey} asChild>
       <Link to={profileUrl} onClick={(e) => e.stopPropagation()}>
         <Avatar shape={avatarShape} className="size-12 ring-2 ring-amber-900/30 shadow-lg">
-          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
           <AvatarFallback className="bg-amber-900/20 text-amber-900 text-sm font-bold">
             {displayName[0]?.toUpperCase()}
           </AvatarFallback>
@@ -507,7 +507,7 @@ export function EncryptedLetterCompact({ event, className }: EncryptedLetterComp
                   onClick={(e) => e.stopPropagation()}
                 >
                   <Avatar shape={avatarShape} className="size-5">
-                    <AvatarImage src={metadata?.picture} alt={displayName} />
+                    <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
                     <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                       {displayName[0]?.toUpperCase()}
                     </AvatarFallback>
