@@ -1868,6 +1868,8 @@ function parseVideoImeta(tags: string[][]): {
   url?: string;
   thumbnail?: string;
   duration?: string;
+  dim?: string;
+  blurhash?: string;
   encryption?: FileEncryption;
 } {
   const entry = parseFirstImeta(tags);
@@ -1876,6 +1878,8 @@ function parseVideoImeta(tags: string[][]): {
       url: entry.url,
       thumbnail: entry.thumbnail,
       duration: entry.duration,
+      dim: entry.dim,
+      blurhash: entry.blurhash,
       encryption: entry.encryption,
     };
   }
@@ -1900,9 +1904,9 @@ function fmtDuration(seconds: string | undefined): string | undefined {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-/** Inline video player for NIP-71 kind 21 events. */
+/** Inline video player for NIP-71 kind 21 and 34235 events. */
 function VideoContent({ event }: { event: NostrEvent }) {
-  const { url, thumbnail, duration, encryption } = useMemo(
+  const { url, thumbnail, duration, dim, blurhash, encryption } = useMemo(
     () => parseVideoImeta(event.tags),
     [event.tags],
   );
@@ -1917,8 +1921,16 @@ function VideoContent({ event }: { event: NostrEvent }) {
     <div className="mt-2 space-y-2">
       {title && <p className="font-semibold text-[15px]">{title}</p>}
       <MediaGate className="mt-0">
-        <div className="relative rounded-xl overflow-hidden bg-muted">
-          <VideoPlayer src={url} poster={thumbnail} encryption={encryption} title={title ?? undefined} />
+        <div className="relative">
+          <VideoPlayer
+            src={url}
+            poster={thumbnail}
+            encryption={encryption}
+            dim={dim}
+            blurhash={blurhash}
+            title={title ?? undefined}
+            className="mt-0"
+          />
           {formattedDuration && (
             <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-medium pointer-events-none">
               {formattedDuration}
