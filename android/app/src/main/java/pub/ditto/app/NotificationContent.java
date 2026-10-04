@@ -56,11 +56,14 @@ final class NotificationContent {
      * A NIP-21 {@code nostr:npub…}/{@code nostr:nprofile…} mention starting a
      * token, so one inside a URL ({@code https://ditto.pub/npub1…},
      * {@code …/nostr:npub1…}) stays part of the link. Mirrors {@code MENTION}
-     * in {@code src/sw/render.ts}.
+     * in {@code src/sw/render.ts}. JS's {@code \s} is spelled out because
+     * Android's regex engine rejects {@code UNICODE_CHARACTER_CLASS}.
      */
+    private static final String JS_WHITESPACE =
+            "\\t\\n\\u000B\\f\\r \\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF";
     private static final Pattern MENTION = Pattern.compile(
-            "(?<![^\\s(\\[{<\"'])nostr:(npub1|nprofile1)([023456789acdefghjklmnpqrstuvwxyz]+)",
-            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CHARACTER_CLASS);
+            "(?<![^" + JS_WHITESPACE + "(\\[{<\"'])nostr:(npub1|nprofile1)([023456789acdefghjklmnpqrstuvwxyz]+)",
+            Pattern.CASE_INSENSITIVE);
 
     private static final String BECH32_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
