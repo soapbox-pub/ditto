@@ -9,7 +9,8 @@
  *    SandboxPlugin) are not included. This script appends them after sync so
  *    the Capacitor bridge eagerly registers them at startup.
  *
- * 2. Prune web-only files (bundle analysis report, hosting 404 page) that
+ * 2. Prune web-only files (bundle analysis report, hosting 404 page, per-route
+ *    link-preview pages) that
  *    `cap sync` copies verbatim from dist/ into the native web asset dirs,
  *    where they only inflate the APK/IPA.
  *
@@ -17,8 +18,8 @@
  * Typically run after `npx cap sync`.
  */
 
-import { readFileSync, writeFileSync, rmSync, existsSync } from 'fs';
-import { resolve } from 'path';
+import { readFileSync, writeFileSync, rmSync, existsSync, readdirSync } from 'fs';
+import { dirname, resolve } from 'path';
 
 /** Local plugin class names to ensure are registered. */
 const LOCAL_PLUGINS = ['SandboxPlugin', 'DittoNotificationPlugin', 'DittoDownloadPlugin'];
@@ -46,7 +47,21 @@ const NATIVE_EXCLUDES = [
   'favicon.ico',
   'apple-touch-icon.png',
   'icon-512.png',
+  'sitemap.xml',
+  ...staticRoutePages(),
 ];
+
+/**
+ * The per-route copies of index.html (settings.html, settings/profile.html,
+ * ...) that the staticRoutePages() plugin in vite.config.ts emits for link
+ * unfurling. Native always loads index.html.
+ */
+function staticRoutePages() {
+  const routes = JSON.parse(readFileSync(resolve('static-routes.json'), 'utf-8'));
+  return Object.keys(routes)
+    .filter((route) => route !== '/')
+    .map((route) => `${route.slice(1)}.html`);
+}
 
 const platforms = ['ios/App/App', 'android/app/src/main/assets'];
 
@@ -87,6 +102,11 @@ for (const dir of webAssetDirs) {
     if (existsSync(filePath)) {
       rmSync(filePath);
       console.log(`Pruned ${filePath}`);
+    }
+    // Drop a subdirectory (settings/) once its last pruned file is gone.
+    const parent = dirname(filePath);
+    if (parent !== resolve(dir) && existsSync(parent) && readdirSync(parent).length === 0) {
+      rmSync(parent, { recursive: true });
     }
   }
 }

@@ -10,6 +10,7 @@ import { build, defineConfig, loadEnv, type Plugin } from "vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 import { DittoConfigSchema } from "./src/lib/schemas";
+import staticRoutes from "./static-routes.json";
 
 /**
  * Load and validate the build-time ditto.json configuration file.
@@ -568,6 +569,113 @@ function librejsLicense(): Plugin {
 }
 
 /**
+ * Per-route copies of index.html carrying that route's Open Graph metadata,
+ * so a link to `/settings` unfurls as "Settings – Ditto" with its own card
+ * instead of the generic homepage one. This replaces the HTML rewriting
+ * ditto-server used to do at request time for the same fixed routes.
+ *
+ * `/settings` is emitted as `settings.html` and `/settings/profile` as
+ * `settings/profile.html`; nsite gateways (and Netlify, Caddy `try_files`,
+ * etc.) resolve an extensionless path to its `.html` file. index.html gets the
+ * `/` entry, and 404.html — the fallback for every other path, i.e. every
+ * NIP-19 link — keeps the template's generic metadata.
+ *
+ * The images live on Blossom rather than in `public/`, so they cost nothing
+ * in the repo or the APK/IPA. Every one is a 1200×630 JPEG, which is what the
+ * template's `og:image:*` and `twitter:card` tags already declare. To add or
+ * change one, upload it to blossom.ditto.pub and put its URL in
+ * static-routes.json.
+ *
+ * The site origin is read from the template's `og:url`, so it stays in one
+ * place.
+ */
+interface StaticRouteMeta {
+  title: string;
+  description: string;
+  image: string;
+  /** Crawler-facing copy, injected as visually hidden text at the top of <body>. */
+  body: string;
+}
+
+const STATIC_ROUTES: Record<string, StaticRouteMeta> = staticRoutes;
+
+/** `/settings/profile` → `settings/profile.html`. */
+function staticRouteFileName(route: string): string {
+  return route === "/" ? "index.html" : `${route.slice(1)}.html`;
+}
+
+/**
+ * Replace the `content` of a `<meta>` tag the template already has. Throws
+ * if it's missing, so a template edit that drops a tag fails the build rather
+ * than silently shipping pages without it.
+ */
+function setMetaContent(html: string, attr: "name" | "property", key: string, value: string): string {
+  const pattern = new RegExp(`(<meta ${attr}="${key}" content=")[^"]*(")`);
+  if (!pattern.test(html)) throw new Error(`index.html has no <meta ${attr}="${key}"> to fill in`);
+  return html.replace(pattern, (_match, open: string, close: string) => `${open}${escapeHtml(value)}${close}`);
+}
+
+function renderStaticRoute(template: string, meta: StaticRouteMeta, url: string): string {
+  let html = template.replace(/<title>[^<]*<\/title>/, () => `<title>${escapeHtml(meta.title)}</title>`);
+  html = setMetaContent(html, "name", "description", meta.description);
+  html = setMetaContent(html, "property", "og:title", meta.title);
+  html = setMetaContent(html, "property", "og:description", meta.description);
+  html = setMetaContent(html, "property", "og:image", meta.image);
+  html = setMetaContent(html, "property", "og:url", url);
+  html = setMetaContent(html, "name", "twitter:title", meta.title);
+  html = setMetaContent(html, "name", "twitter:description", meta.description);
+  html = setMetaContent(html, "name", "twitter:image", meta.image);
+  return html.replace(
+    /<body[^>]*>/,
+    (tag) =>
+      `${tag}\n    <div data-seo style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap">${escapeHtml(meta.body)}</div>`,
+  );
+}
+
+function staticRoutePages(): Plugin {
+  return {
+    name: "ditto:static-route-pages",
+    apply: "build",
+
+    generateBundle: {
+      // After Vite has injected the script and stylesheet tags into index.html.
+      order: "post",
+      handler(_options, bundle) {
+        const index = bundle["index.html"];
+        if (index?.type !== "asset" || typeof index.source !== "string") {
+          throw new Error("index.html missing from the bundle");
+        }
+        const template = index.source;
+
+        const ogUrl = template.match(/<meta property="og:url" content="([^"]*)"/)?.[1];
+        if (!ogUrl) throw new Error('index.html has no <meta property="og:url">');
+        const origin = new URL(ogUrl).origin;
+
+        this.emitFile({ type: "asset", fileName: "404.html", source: template });
+
+        for (const [route, meta] of Object.entries(STATIC_ROUTES)) {
+          const html = renderStaticRoute(template, meta, `${origin}${route}`);
+          if (route === "/") {
+            index.source = html;
+          } else {
+            this.emitFile({ type: "asset", fileName: staticRouteFileName(route), source: html });
+          }
+        }
+
+        const urls = Object.keys(STATIC_ROUTES)
+          .map((route) => `  <url><loc>${escapeHtml(`${origin}${route}`)}</loc></url>`)
+          .join("\n");
+        this.emitFile({
+          type: "asset",
+          fileName: "sitemap.xml",
+          source: `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
+        });
+      },
+    },
+  };
+}
+
+/**
  * `npm run build:profile`: a production build that can be profiled. Two
  * differences, each of which a profile of the normal build is missing:
  *
@@ -615,6 +723,7 @@ export default defineConfig(({ mode }) => {
     moneroWorker(),
     serviceWorker(),
     librejsLicense(),
+    staticRoutePages(),
     visualizer({
       filename: "dist/bundle.html",
       template: "treemap",

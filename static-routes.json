@@ -1,0 +1,224 @@
+{
+  "/": {
+    "title": "Ditto — Your content. Your vibe. Your rules.",
+    "description": "The most fun you've had on the internet in years.",
+    "image": "https://blossom.ditto.pub/c4d9eb1f4d70d7dcbcb44d373d960f8eb10bb7dbf9e4405676ff6b933466a417.jpg",
+    "body": "Ditto is an open source, decentralized social media platform built on the Nostr protocol. It is the leading alternative to Twitter, Facebook, and Big Tech social media — a customizable social network with no ads, no tracking, and no algorithms you're forced into. Ditto lets you own your data on a free speech social media platform where your content, your identity, and your connections belong entirely to you. Built on the free and open Nostr protocol, Ditto is a censorship-resistant social media experience that bridges Nostr, Mastodon, and Bluesky through Mostr and Bridgy Fed, making it the ultimate open web social platform and fediverse-compatible social network. Ditto brings back MySpace-style profile customization with custom themes, background images, fonts, and color palettes — the old internet is back. Explore infinite content types including posts, articles, photos, short-form video (Shorts), livestreams, music, podcasts, polls, events, games, geocaching (Treasures), Magic: The Gathering decks, emoji packs, books, world maps, and more. Comment on anything — posts, links, profiles, countries, books, treasures. Ditto is a self-hosted social media platform you can deploy on a $5 VPS, GitHub Pages, Netlify, or a Raspberry Pi. Edit and customize the entire UI with Shakespeare AI. Zap creators with Bitcoin Lightning and Cashu micropayments. No email, no phone number — just you and a Nostr key. Because we think fun requires freedom. Your content. Your vibe. Your rules."
+  },
+  "/feed": {
+    "title": "Feed – Ditto",
+    "description": "Your personalized feed on Ditto.",
+    "image": "https://blossom.ditto.pub/59a47eb1ba9c9ddcbfd32a19084a288395e95a241f3a8648b3259a42e54f2bef.jpg",
+    "body": "Your Ditto feed is a decentralized social feed powered by the Nostr protocol — a personalized, customizable timeline free from opaque algorithms and advertising. As a Nostr feed reader and open source news feed, Ditto gives you an algorithm-free social feed where you control what appears in your chronological social media feed. Follow friends, creators, and communities across the decentralized web and see their notes, photos, videos, articles, music, and more in one beautifully customizable timeline. Unlike Big Tech social media, there are no ads in your timeline. Customize your feed preferences, mute noise, and discover fresh voices from across the interoperable Nostr ecosystem. Ditto's decentralized timeline aggregates Nostr content from your selected relays, giving you a personalized social feed that travels with you across every compatible Nostr app on the open web."
+  },
+  "/notifications": {
+    "title": "Notifications – Ditto",
+    "description": "Stay updated with your latest notifications on Ditto.",
+    "image": "https://blossom.ditto.pub/0c4b8395fc47f82a261a216fbdd28d6d9cff22a4d767e0681d0fcf7fc46f5f64.jpg",
+    "body": "Stay connected with Nostr notifications on Ditto — a decentralized social notification system that keeps you updated in real time. Receive zap notifications when someone tips you with Bitcoin Lightning, reaction notifications for emoji responses, mention alerts when you're tagged in Nostr conversations, and follow alerts when new people discover your profile. Ditto delivers real-time social media alerts through the Nostr protocol for reactions, replies, reposts, zaps, mentions, and new followers. Fine-tune which alerts matter most to you and let the rest fade into the background. Whether someone zapped your note, commented on your photo, or found your geocache, Ditto's decentralized notification system makes sure you never miss a moment on the open social web."
+  },
+  "/search": {
+    "title": "Search – Ditto",
+    "description": "Search for people, notes, and content on Ditto.",
+    "image": "https://blossom.ditto.pub/2a94676c0f1e7b8b5b9ff2569d28b7fe81b762fa53ce66d5bc61e3e2042eee15.jpg",
+    "body": "Search the decentralized web from one place with Nostr search on Ditto. Find Nostr users, search Nostr posts, and discover content across the entire open web. Ditto's decentralized social search lets you search across Mastodon, Bluesky, and Nostr simultaneously using the Mostr bridge — a true cross-protocol social search experience. Find Nostr accounts, discover fediverse users from Nostr, and search the decentralized web for articles, photos, music, emoji packs, communities, and more. Search by language, discover new accounts as they join, and explore content that exists outside the walled gardens of Big Tech social media. The entire open web, at your fingertips."
+  },
+  "/trends": {
+    "title": "Trends – Ditto",
+    "description": "Discover what's trending on Ditto.",
+    "image": "https://blossom.ditto.pub/89a57d3b0592a789c7caf2ca86a9703b716af7d07a319ff86a0e9a7669012452.jpg",
+    "body": "Discover trending Nostr topics and see what the decentralized web is talking about right now. Ditto Trends surfaces trending hashtags on Nostr, trending posts on decentralized social media, hot topics, rising posts, and controversial posts across the Nostr network. Explore decentralized trending content driven by organic momentum from real people — no corporate curation, no algorithmic manipulation. Browse trending hashtags, viral posts, and emerging communities that reflect the genuine pulse of an open social ecosystem. The fastest-growing creators and the most engaging notes on the Nostr network, all in one place."
+  },
+  "/settings": {
+    "title": "Settings – Ditto",
+    "description": "Manage your Ditto settings.",
+    "image": "https://blossom.ditto.pub/40c87e22d190eebfa7ea988cefe13061f0477d2bb4bba89da2dc63394a2a9057.jpg",
+    "body": "Take full control of your Ditto settings — your command center for customizing the Nostr client experience. Configure your decentralized social media platform with profile appearance, feed preferences, relay connections, wallet configuration, and notification controls. Ditto settings let you customize every aspect of your Nostr experience because your social media should bend to your will — not the other way around. Every toggle, slider, and option exists to serve you on the open web."
+  },
+  "/settings/profile": {
+    "title": "Profile Settings – Ditto",
+    "description": "Edit your profile on Ditto.",
+    "image": "https://blossom.ditto.pub/40c87e22d190eebfa7ea988cefe13061f0477d2bb4bba89da2dc63394a2a9057.jpg",
+    "body": "Customize your Nostr profile with Ditto's profile settings — the ultimate MySpace-style profile customization experience for the decentralized web. Create a custom social media profile theme with background images, custom fonts, and color palettes. Ditto brings back chaotic profiles and personalized social media profiles with a decentralized profile design editor. Edit your display name, bio, avatar, and banner. Apply custom profile themes that transform your profile into a unique world of color and personality — your profile is a planet you inhabit. Powered by Nostr, your profile is portable and follows you across every compatible Nostr app on the open web. Build themes with Shakespeare AI and share your custom creations for others to browse and copy."
+  },
+  "/settings/feed": {
+    "title": "Feed Settings – Ditto",
+    "description": "Customize your feed preferences.",
+    "image": "https://blossom.ditto.pub/40c87e22d190eebfa7ea988cefe13061f0477d2bb4bba89da2dc63394a2a9057.jpg",
+    "body": "Customize your social media feed with Ditto's feed settings. Configure Nostr feed preferences including content curation settings, timeline sorting options, and decentralized feed configuration. Shape your timeline exactly the way you want it — choose which content types appear, how posts are sorted, and which voices are amplified or muted. No black-box algorithm overriding your choices. Ditto gives you transparent, user-controlled feed curation built on the open Nostr protocol."
+  },
+  "/settings/content": {
+    "title": "Content Settings – Ditto",
+    "description": "Manage content and moderation preferences.",
+    "image": "https://blossom.ditto.pub/40c87e22d190eebfa7ea988cefe13061f0477d2bb4bba89da2dc63394a2a9057.jpg",
+    "body": "Manage content moderation settings and sensitive media filters on Ditto. Decentralized content filtering puts Nostr content preferences in your hands — not a faceless trust-and-safety committee. Set your own boundaries for what you see with granular control over moderation, sensitive media, and content filtering. Because your social experience runs on Nostr's decentralized infrastructure, you decide what content appears in your feed. Browse with confidence on the open web."
+  },
+  "/settings/wallet": {
+    "title": "Wallet Settings – Ditto",
+    "description": "Configure your wallet and payment settings.",
+    "image": "https://blossom.ditto.pub/40c87e22d190eebfa7ea988cefe13061f0477d2bb4bba89da2dc63394a2a9057.jpg",
+    "body": "Configure your Bitcoin Lightning wallet for social media payments on Ditto. Wallet settings let you set up zap wallet settings for sending and receiving tips, configure Cashu wallet integration for Nostr, and unlock the full power of decentralized payments on the open web. Zap creators with Bitcoin Lightning micropayments, tip friends with Bitcoin tips on social media, and participate in the circular economy of the Nostr ecosystem. Sending and receiving sats is seamless, instant, and borderless — a built-in wallet for the decentralized social web."
+  },
+  "/settings/notifications": {
+    "title": "Notification Settings – Ditto",
+    "description": "Control your notification preferences.",
+    "image": "https://blossom.ditto.pub/40c87e22d190eebfa7ea988cefe13061f0477d2bb4bba89da2dc63394a2a9057.jpg",
+    "body": "Control your Nostr notification preferences and customize alerts on Ditto. Configure zap notification settings, reaction alerts, and mention notifications. Choose exactly which events trigger alerts — reactions, replies, zaps, follows, mentions, and more. Filter out the noise and keep only the signals that matter. Ditto respects your focus by letting you define the boundaries of your attention on the decentralized social web."
+  },
+  "/settings/advanced": {
+    "title": "Advanced Settings – Ditto",
+    "description": "Advanced configuration options.",
+    "image": "https://blossom.ditto.pub/40c87e22d190eebfa7ea988cefe13061f0477d2bb4bba89da2dc63394a2a9057.jpg",
+    "body": "Advanced Nostr configuration for power users. Manage Nostr relay settings, protocol settings for decentralized social media, and developer options. Advanced settings expose relay management, protocol-level preferences, and fine-grained controls that let you tune every aspect of your Ditto experience. Built for the curious, the technical, and anyone who believes their tools should never limit them on the open web."
+  },
+  "/settings/magic": {
+    "title": "Magic Settings – Ditto",
+    "description": "Configure Magic Deck settings.",
+    "image": "https://blossom.ditto.pub/40c87e22d190eebfa7ea988cefe13061f0477d2bb4bba89da2dc63394a2a9057.jpg",
+    "body": "Configure your Magic: The Gathering deck settings on Ditto. Magic settings let you customize MTG Nostr integration, trading card game social media preferences, and Magic deck display options. Whether you're a seasoned commander player or a casual collector, these controls shape how your decks are presented and shared across the Nostr network. Build, customize, and showcase your Magic: The Gathering collection on the decentralized social web."
+  },
+  "/settings/network": {
+    "title": "Network Settings – Ditto",
+    "description": "Manage relay and network preferences.",
+    "image": "https://blossom.ditto.pub/40c87e22d190eebfa7ea988cefe13061f0477d2bb4bba89da2dc63394a2a9057.jpg",
+    "body": "Manage your Nostr relay connections and network topology with Ditto's network settings. Configure relay management for Nostr, set connection timeouts, and optimize your decentralized social media network. Choose which Nostr relays you read from and write to — your connection to the decentralized web starts here. Ditto puts you in charge of your own infrastructure. No single server stands between you and your audience on the open Nostr protocol."
+  },
+  "/lists": {
+    "title": "Lists – Ditto",
+    "description": "Organize your contacts into lists on Ditto.",
+    "image": "https://blossom.ditto.pub/f6af6758f76b8954ad371e1d2468c9e93c186733a5c64b2aa1295df108ecec35.jpg",
+    "body": "Create and manage Nostr contact lists and curated follow lists on Ditto. Organize the people you follow into Nostr follow packs and build social media lists for a decentralized experience. Create topical Nostr feeds for friends, creators, news sources, developers, artists, or any group you can imagine. Lists help you slice through the noise and focus on the voices that matter. Built on Nostr, your lists are portable and interoperable across the open ecosystem — take them with you to any compatible Nostr app on the decentralized web."
+  },
+  "/events": {
+    "title": "Events – Ditto",
+    "description": "Discover and manage events on Ditto.",
+    "image": "https://blossom.ditto.pub/b43e2f1e9ae349d004d161446b005974b9459764a9f720e6b8a3a44ec890ecb6.jpg",
+    "body": "Discover Nostr events and browse the decentralized event calendar on Ditto. Find Bitcoin meetups, crypto conferences, community gatherings, and Nostr calendar events happening across the decentralized web. RSVP, share event details with friends, and explore upcoming happenings in your area. From local Bitcoin meetups to global Nostr conferences, the open social calendar lives on Ditto. Decentralized event discovery for community gatherings on the Nostr network."
+  },
+  "/photos": {
+    "title": "Photos – Ditto",
+    "description": "Browse photos shared on Ditto.",
+    "image": "https://blossom.ditto.pub/c4d9eb1f4d70d7dcbcb44d373d960f8eb10bb7dbf9e4405676ff6b933466a417.jpg",
+    "body": "Share and browse photos on Ditto — a decentralized photo gallery and Instagram alternative built on Nostr. Nostr photo sharing lets you share photos with friends and creators across the open web in a beautiful, immersive gallery. Upload your snapshots, landscapes, art, and moments to an open source photo platform where decentralized image sharing means no compression algorithms crushing your work and no platform claiming ownership. Your photos live on your terms, visible to anyone on the Nostr protocol — the open web's answer to centralized photo platforms."
+  },
+  "/videos": {
+    "title": "Videos – Ditto",
+    "description": "Watch videos shared on Ditto.",
+    "image": "https://blossom.ditto.pub/e268d65151f5d64d55f07e7806bcdef7359c921df22ec144e129140936d5c305.jpg",
+    "body": "Watch and share videos on Ditto — a Nostr video platform and decentralized video sharing experience. Ditto is a YouTube alternative built on the decentralized web, bringing long-form video content and livestreams to the Nostr ecosystem. No ads interrupting your viewing, no demonetization threats, no centralized platform deciding who gets seen. Open source video platform for creators who value freedom — just people sharing moving pictures on an open protocol that guarantees your Nostr livestream and video content can never be silenced."
+  },
+  "/shorts": {
+    "title": "Shorts – Ditto",
+    "description": "Short-form video clips on Ditto.",
+    "image": "https://blossom.ditto.pub/7127683347c2a0681b5e9f3753f1958a14d402a9a61214e88dce2590003382cf.jpg",
+    "body": "Shorts on Ditto are short-form video clips on the Nostr protocol — a TikTok alternative and decentralized short video platform. Create, share, and discover Nostr shorts: bite-sized video content on the decentralized web without surrendering your data to a centralized platform. Short video social media meets the open web with clips that capture a moment and let it rip across the Nostr network. The spirit of spontaneous creativity, alive and well on decentralized short videos."
+  },
+  "/music": {
+    "title": "Music – Ditto",
+    "description": "Listen to music shared on Ditto.",
+    "image": "https://blossom.ditto.pub/b61f3c272f8fb8ab8ea6a3607085b90b536bde6790e08f6035462e62c40c2ae3.jpg",
+    "body": "Discover and listen to music on Ditto — a Nostr music platform and decentralized music sharing experience. Ditto is a Spotify alternative for the decentralized web, giving musicians a stage where tracks, albums, and playlists live outside the grip of streaming monopolies. Zap artists directly with Bitcoin Lightning micropayments for independent music on social media. Decentralized music discovery lets you build playlists that travel with you across the open Nostr network. Experience music the way the open web intended — free, interoperable, and rewarding for creators."
+  },
+  "/podcasts": {
+    "title": "Podcasts – Ditto",
+    "description": "Discover and listen to podcasts on Ditto.",
+    "image": "https://blossom.ditto.pub/b2a9072c4f243d07630b54adbd1ebe63963513440feefece8e2370d52799e603.jpg",
+    "body": "Discover and listen to Nostr podcasts on Ditto — a decentralized podcast platform and open source podcast app. Browse podcast discovery on Nostr with episodes, trailers, and podcast feeds from creators who value open distribution. Subscribe, listen, and zap podcasters directly with Bitcoin — no middleman taking a cut, no platform deciding who gets recommended. A Bitcoin podcast platform for curious minds. Decentralized audio content that respects both creators and listeners on the open web."
+  },
+  "/polls": {
+    "title": "Polls – Ditto",
+    "description": "Participate in polls on Ditto.",
+    "image": "https://blossom.ditto.pub/baa7e3912ba633489f4ab0e0c9b5b5ee7b408dee8b153a7fa6a2885afda46102.jpg",
+    "body": "Create and participate in Nostr polls on Ditto — decentralized voting polls for interactive social media. Create polls on Nostr with custom options and watch the results roll in from across the open social web. Interactive polls on social media let you gauge opinions, spark debates, and engage your audience with community polls on the decentralized web. No bots, no manipulation — just real voices casting real votes on the Nostr protocol."
+  },
+  "/treasures": {
+    "title": "Treasures – Ditto",
+    "description": "Discover treasures on Ditto.",
+    "image": "https://blossom.ditto.pub/0e92b13b7c63c86da70e0eb6085dd47b098ad0fb44f781c72614472bef80410a.jpg",
+    "body": "Nostr geocaching and decentralized treasure hunting on Ditto. Treasures is a real-world treasure game that brings geocaching to social media through the Nostr protocol. Hide treasures, publish clues, and track who finds them in a Bitcoin geocaching game where every discovery is logged permanently on the open protocol. Treasure hunt on Nostr with a community of explorers — adventure, exploration, and discovery on the decentralized web. This is what makes Ditto more carnival than platform."
+  },
+  "/colors": {
+    "title": "Colors – Ditto",
+    "description": "Explore color themes and palettes.",
+    "image": "https://blossom.ditto.pub/57f812492c1c621055bf6693632807d70b5e5a598d246f65d758f891e8221f09.jpg",
+    "body": "Create, share, and discover color moments on Nostr with Ditto. Share color palettes, explore abstract art on social media, and express creative ideas through a visual language on the decentralized web. Apply palettes to your profile, remix other people's creations, and explore color palette sharing that transcends text. In a world of black-and-white square interfaces, Ditto dares to be chromatic with creative expression on the decentralized Nostr network."
+  },
+  "/packs": {
+    "title": "Packs – Ditto",
+    "description": "Browse and share emoji packs on Ditto.",
+    "image": "https://blossom.ditto.pub/b97c680bee4a9c888ee5bbade36cb8c85b3f486f760dc6d9d23cb3ba27f1400c.jpg",
+    "body": "Browse, install, and share Nostr emoji packs and follow packs on Ditto. Custom emoji for social media meets the decentralized web with community emoji packs you can install and use across every Nostr-compatible app. Create your own packs from original art, reaction images, or anything your imagination conjures. A decentralized emoji marketplace that's open, interoperable, and endlessly expressive. Follow packs on Nostr help you discover and share curated lists of accounts to follow on the open web."
+  },
+  "/webxdc": {
+    "title": "WebXDC – Ditto",
+    "description": "Run WebXDC apps on Ditto.",
+    "image": "https://blossom.ditto.pub/2c7e37da5574920fa4544c75b3f32601bdb211dd7691c2869c9c93e2dc192c7e.jpg",
+    "body": "Run WebXDC apps on Nostr with Ditto — decentralized web apps and sandboxed web applications inside social media. Nostr mini apps and embedded web apps let you play games, use tools, and run creative toys directly inside the platform. Imagine clicking a link and instantly playing a game in your browser — no downloads, no accounts, no friction. WebXDC on Ditto is part of the interoperable microapp ecosystem that makes games inside social media and Nostr unlike anything else on the internet."
+  },
+  "/articles": {
+    "title": "Articles – Ditto",
+    "description": "Read long-form articles published on Ditto.",
+    "image": "https://blossom.ditto.pub/d71be09d6c1a3db07e586d4858ca58c77f54e8bf6568ffe78e97678f9031b43c.jpg",
+    "body": "Read and publish Nostr long-form content on Ditto — a decentralized blogging platform and Medium alternative. Blog on Nostr with long-form articles, essays, guides, and journalism. Open source blogging on the decentralized web means censorship-resistant blogging where no paywall gatekeeping and no platform censorship can silence your ideas. Articles published to the Nostr protocol can never be unpublished. Zap authors directly with Bitcoin Lightning for essays and journalism on Nostr that moves you. Long-form writing deserves a home on the open web."
+  },
+  "/decks": {
+    "title": "Decks – Ditto",
+    "description": "View your Magic Decks.",
+    "image": "https://blossom.ditto.pub/28573551000e5e2b232dae683dae28fdea76ab14b5dbb02e2840f71aaedc50b6.jpg",
+    "body": "Build, showcase, and share Magic: The Gathering decks on Nostr with Ditto. MTG deck sharing on social media meets the decentralized web — build MTG decks on Nostr, tag your favorite cards, and publish your creations for other players to discover and remix. A decentralized Magic deck builder for commander decks, trading card game decks, and collections. Trading card games meet social networking in a way only an open protocol can enable."
+  },
+  "/emojis": {
+    "title": "Emojis – Ditto",
+    "description": "Browse and manage custom emojis on Ditto.",
+    "image": "https://blossom.ditto.pub/cfda5d060a22ce7d2247c2b5285de0b96ad78f40d70ae42f2fbf7fcec4d3c314.jpg",
+    "body": "Browse and manage custom emoji on Nostr with Ditto. Emoji packs for decentralized social media let you react to posts with expressive, hand-crafted icons that go far beyond the Unicode standard. Install custom emoji packs from a community emoji library and manage your collection. AIM-style custom emojis bring personality back to social media reactions on the decentralized web. On Nostr, your reactions are as unique as your personality."
+  },
+  "/development": {
+    "title": "Development – Ditto",
+    "description": "Developer tools and information.",
+    "image": "https://blossom.ditto.pub/6addb15137eb4bbdf7c8be2059c39e0af4505fedaccff3d3f8d4a8df74b65c3e.jpg",
+    "body": "Nostr developer tools and resources for building on the open web. Ditto's development page provides Nostr API documentation, developer resources, and tools for open source Nostr development. Explore APIs, inspect relay connections, and experiment with Nostr protocol development. Build on Nostr with Ditto's developer tools. The future of interoperable social applications is open source, and it starts here."
+  },
+  "/themes": {
+    "title": "Themes – Ditto",
+    "description": "Customize Ditto with themes.",
+    "image": "https://blossom.ditto.pub/a777bba51e85290a36048dc5b49d2a7bd1495cb839f19c7a4ce05996239ea152.jpg",
+    "body": "Browse and apply custom social media themes on Ditto — Nostr profile themes that bring back the MySpace-style customization era. The old internet is back with unhinged themes, Y2K aesthetic social media designs, and colorful profile themes for the decentralized web. Community themes on Nostr let you transform your profile with colors, typography, backgrounds, and decentralized social media customization. Pumpkins and serif fonts, neon cyberpunk, pastel dreamscapes — themes are published to Nostr and shared freely across the open web. Customize your Ditto experience with themes that make every profile a unique world."
+  },
+  "/bookmarks": {
+    "title": "Bookmarks – Ditto",
+    "description": "Your saved notes and content.",
+    "image": "https://blossom.ditto.pub/ad9adb0e896c1982d6a5f6d77697dcc9daf9f5fdf1547a4fb51c36570a86c561.jpg",
+    "body": "Save posts and bookmark content on Nostr with Ditto. Nostr bookmarks let you save posts, bookmark articles, save photos, music, and any content you want to revisit later on the decentralized web. Your saved content lives on the Nostr protocol, so your decentralized bookmarks follow you across every compatible app. Build a personal library of the best content on the open web — always available, always yours."
+  },
+  "/ai-chat": {
+    "title": "AI Chat – Ditto",
+    "description": "Chat with AI on Ditto.",
+    "image": "https://blossom.ditto.pub/c17d35c0d7a93e7643e7f9422b86975a6e357c00a391a2a05c5503d622bc29f5.jpg",
+    "body": "Chat with AI on Nostr using Ditto's AI Chat — a decentralized AI assistant and AI chatbot built into social media. Converse with language models directly inside the platform. Ask questions, brainstorm ideas, draft posts, or have fun with an AI companion on the decentralized web. A language model integrated into social media for the open web — intelligence meets the Nostr protocol."
+  },
+  "/world": {
+    "title": "World – Ditto",
+    "description": "Explore the world on Ditto.",
+    "image": "https://blossom.ditto.pub/16692f96f06ca326e18407aad978a3876ee5dd6f6991e876febf2baae289dca3.jpg",
+    "body": "Explore the Nostr world map on Ditto — geographic Nostr content plotted across the globe. Ditto World is a map-based social media experience for the decentralized web. Explore Nostr by location, discover geocaches, events, people, and places. Comment on countries with Nostr through Agora decentralized discussions. Decentralized geosocial content lets you see what's happening near you or explore far-flung corners of the open web. The world is bigger than your timeline, and Ditto proves it."
+  },
+  "/badges": {
+    "title": "Badges – Ditto",
+    "description": "Collect and award badges on Ditto.",
+    "image": "https://blossom.ditto.pub/1c05e913082a36fb0978cb57dfb85d4231402b27b828026f59a0a3279f4c6d51.jpg",
+    "body": "Collect and award Nostr badges on Ditto — achievement badges on the decentralized web. Social media badges let you earn recognition and award it to others through the Nostr badge protocol. Create custom badges for your community, award them to members, and display your collection on your profile. Earn badges on Nostr with gamified social reputation that's portable, verifiable, and owned by you. No platform can take away what the open protocol guarantees."
+  },
+  "/books": {
+    "title": "Books – Ditto",
+    "description": "Discover books on Ditto.",
+    "image": "https://blossom.ditto.pub/36c89b20958cc7922b579d3f01688f8cd39dd5e197a2c727ad71548658e3a4b7.jpg",
+    "body": "Discover Nostr book reviews and join a decentralized book community on Ditto — a Goodreads alternative for the open web. Rate books on Nostr, read and write reviews, and share book recommendations with friends across the Nostr network. Ditto Books connects readers and writers in an open ecosystem where opinions travel freely. Every review is permanently yours on the decentralized web — share literary recommendations and build your reading community on the Nostr protocol."
+  },
+  "/help": {
+    "title": "Help – Ditto",
+    "description": "Get help using Ditto.",
+    "image": "https://blossom.ditto.pub/73144b915dfd1245175ef0e7744401364322f7ccb7985dbf64ac8f487d5e3df8.jpg",
+    "body": "Get help using Ditto with the Nostr getting started guide. Learn how to use Ditto, understand what is Nostr, and follow a Nostr beginner tutorial for the decentralized social web. Decentralized social media help for Nostr key management, Nostr onboarding, profile setup, relay connections, and feature discovery. Your journey into the open web starts here — learn how to set up your profile, connect relays, customize your experience, and discover the features that make Ditto the most fun you've had on the internet in years."
+  }
+}

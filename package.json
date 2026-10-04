@@ -6,9 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "npm i --silent --no-audit --no-fund && vite",
-    "build": "npm i --silent --no-audit --no-fund && vite build -l error && cp dist/index.html dist/404.html && npm run librejs:check && echo 'Project built successfully!'",
+    "build": "npm i --silent --no-audit --no-fund && vite build -l error && npm run librejs:check && echo 'Project built successfully!'",
     "build:profile": "VITE_PROFILE=1 npm run build",
-    "test": "npm i --silent --no-audit --no-fund && tsc --noEmit && tsc --noEmit -p tsconfig.sw.json && eslint --cache && vitest run --reporter=dot --silent && vite build -l error && cp dist/index.html dist/404.html && npm run librejs:check && echo 'All tests passed!'",
+    "test": "npm i --silent --no-audit --no-fund && tsc --noEmit && tsc --noEmit -p tsconfig.sw.json && eslint --cache && vitest run --reporter=dot --silent && vite build -l error && npm run librejs:check && echo 'All tests passed!'",
     "librejs:check": "node scripts/check-librejs.mjs",
     "cap:sync": "npx cap sync && node scripts/patch-cap-config.mjs",
     "i18n:extract": "formatjs extract 'src/**/*.{ts,tsx}' --out-file i18n-extract.json",
