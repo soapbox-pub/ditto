@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.43.1] - 2026-10-03
+
+Try before you vibe. Any theme can now be previewed before you commit to it, and the themes you adopt credit the person who made them. Dragging to reorder your sidebar, profile fields, and emoji packs feels smoother and scrolls along with you. Hiding media from strangers now covers quotes, link previews, and custom emoji, and Android stops crashing after long days of notifications.
+
+### Added
+- Try any theme with a preview before using it; nothing is saved until you choose "Use this theme"
+- Themes you adopt credit their creator, and you can keep your own copy of the theme's background
+
+### Changed
+- Reordering the sidebar, profile fields, badges, and emoji packs is smoother, auto-scrolls at the edges, and emoji packs get a drag handle per emoji
+- "Hide media from people you don't follow" also covers quoted posts, video detail views, link previews, embeds, and custom emoji
+- Ditto no longer shares which page you came from with other sites, and never loads media from your local network
+
+### Fixed
+- Android no longer crash-loops the notification service after a long day of use
+- Embedded YouTube videos and apps no longer trigger a motion-sensor permission prompt
+- The crop dialog's Apply button stays on screen on short screens
+- Dragging a profile field up several rows lands it where you dropped it
+- 3D models can no longer load files from outside sites or your local network
+
 ## [2.43.0] - 2026-10-03
 
 Post anything. The composer now takes files of every kind, and 3D models get their own viewer: spin them, flick them, and zoom right in, with a preview on the card before anyone taps. Other files show up as a tidy card with a download button. Profiles show their website with its icon, the Love List toggle moves into the profile menu, and push notifications name the people mentioned instead of showing a code.
