@@ -1,5 +1,3 @@
-import { NSchema as n } from '@nostrify/nostrify';
-
 /**
  * Branded type for a validated 32-byte Nostr identifier (pubkey or event id):
  * a 64-character lowercase hex string.
@@ -13,8 +11,8 @@ export type HexId = string & { readonly __brand: 'HexId' };
 /**
  * Canonical validator for 32-byte Nostr identifiers — pubkeys and event ids.
  *
- * Backed by Nostrify's {@link NSchema.id} so the rest of the stack inherits
- * any future tightening upstream (e.g. case rules or whitespace handling).
+ * The same test as Nostrify's `NSchema.id()`, without Zod: the npanel preview
+ * script imports this, and Zod would be a third of it.
  *
  * Use this **at the parse layer** whenever a pubkey or event id is extracted
  * from untrusted event content (tag values, JSON-parsed content, URL params)
@@ -30,7 +28,5 @@ export type HexId = string & { readonly __brand: 'HexId' };
  * wrappers from `@/lib/safeNip19` for non-throwing encodes at the render site.
  */
 export function isNostrId(value: unknown): value is HexId {
-  return idSchema.safeParse(value).success;
+  return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
 }
-
-const idSchema = n.id();

@@ -522,7 +522,8 @@ async function buildNpanelPreview(mode: string): Promise<string> {
     build: {
       write: false,
       target: "es2022",
-      minify: false,
+      // Half the bytes, and half of what QuickJS parses on every preview.
+      minify: mode !== "development",
       sourcemap: false,
       emptyOutDir: false,
       copyPublicDir: false,
