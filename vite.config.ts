@@ -491,16 +491,16 @@ function serviceWorker(): Plugin {
 }
 
 /**
- * Build `src/npanel/preview.ts` into `/.npanel/preview.js`: the script npanel
- * runs to show crawlers Ditto's link previews. One self-contained ES
- * module, since npanel runs only what's in `/.npanel/` and resolves no
- * packages. Text it draws, the emoji of avatar shapes and color moments
- * included, is in the fonts installed on the gateway.
+ * Build `src/npanel/preview.ts` into `/.well-known/npanel/preview.js`: the
+ * script npanel runs to show crawlers Ditto's link previews. One
+ * self-contained ES module, since npanel's scripts import nothing. Text it
+ * draws, the emoji of avatar shapes and color moments included, is in the
+ * fonts installed on the gateway.
  *
  * Emitted during `generateBundle` like `serviceWorker()`, so
  * `librejsLicense()` banners it.
  */
-const NPANEL_PREVIEW_FILE = ".npanel/preview.js";
+const NPANEL_PREVIEW_FILE = ".well-known/npanel/preview.js";
 const NPANEL_PREVIEW_ENTRY = path.resolve(import.meta.dirname, "src/npanel/preview.ts");
 
 async function buildNpanelPreview(mode: string): Promise<string> {

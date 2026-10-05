@@ -1,11 +1,11 @@
 /**
  * Ditto's link previews, for npanel to show crawlers.
  *
- * npanel runs this for a crawler asking for a page like `/npub1…`,
- * `/nevent1…`, `/naddr1…` or `/name@domain`, in a QuickJS sandbox with an
- * `OffscreenCanvas` that draws text in the gateway's fonts. It's built into
- * `dist/.npanel/preview.js` by `vite.config.ts`. What it returns is all a
- * crawler gets: `null` leaves the page as published.
+ * npanel runs this for a crawler asking for one of the pages `routes` names —
+ * `/npub1…`, `/nevent1…`, `/naddr1…` or `/name@domain` — in a QuickJS sandbox
+ * with an `OffscreenCanvas` that draws text in the gateway's fonts. It's built
+ * into `dist/.well-known/npanel/preview.js` by `vite.config.ts`. What it
+ * returns is all a crawler gets: `null` leaves the page as published.
  *
  * Every kind Ditto renders has a preview (`kinds.ts`), with the event's own
  * title, description and image, and the event as an article a search engine
@@ -33,6 +33,17 @@ interface Context {
 const COLOR_MOMENT_KIND = 3367;
 
 export default {
+  /**
+   * The pages previewed, as URLPattern pathnames: one segment that is a NIP-19
+   * entity or a NIP-05 name, with or without an `@` in front, as `preview`
+   * reads it. Everything else is never run for, and keeps one page for
+   * everyone.
+   */
+  routes: [
+    String.raw`/:id((?:@|%40)?n(?:pub|profile|ote|event|addr)1[02-9ac-hj-np-z]+){/}?`,
+    String.raw`/:name((?:@|%40)?[\w.+-]+(?:@|%40)[\w-]+(?:\.[\w-]+)+){/}?`,
+  ],
+
   async preview(request: Request, { nostr, signal }: Context): Promise<Preview | null> {
     const url = new URL(request.url);
     const page: Page = { url: url.href, origin: url.origin, appName: appName() };

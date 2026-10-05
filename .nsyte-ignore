@@ -1,3 +1,0 @@
-# nsyte leaves out dotfiles it has no rule for. npanel runs the link-preview
-# script in .npanel/, so it's published too.
-!dist/.npanel/**
