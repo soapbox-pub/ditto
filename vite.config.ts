@@ -490,6 +490,80 @@ function serviceWorker(): Plugin {
   };
 }
 
+/**
+ * Build `src/npanel/preview.ts` into `/.npanel/preview.js`: the script npanel
+ * runs to show crawlers Ditto's link previews. One self-contained ES
+ * module, since npanel runs only what's in `/.npanel/` and resolves no
+ * packages. Text it draws, the emoji of avatar shapes and color moments
+ * included, is in the fonts installed on the gateway.
+ *
+ * Emitted during `generateBundle` like `serviceWorker()`, so
+ * `librejsLicense()` banners it.
+ */
+const NPANEL_PREVIEW_FILE = ".npanel/preview.js";
+const NPANEL_PREVIEW_ENTRY = path.resolve(import.meta.dirname, "src/npanel/preview.ts");
+
+async function buildNpanelPreview(mode: string): Promise<string> {
+  const result = await build({
+    configFile: false,
+    mode,
+    logLevel: "warn",
+    publicDir: false,
+    resolve: {
+      alias: [{ find: "@", replacement: path.resolve(import.meta.dirname, "./src") }],
+      // npanel's sandbox has no DOM, like a worker: a package whose `browser`
+      // build reaches for `document` is given its plain one.
+      conditions: ["worker", "module", "import", "default"],
+    },
+    // For the app's name, which previews' titles carry.
+    define: {
+      "import.meta.env.DITTO_CONFIG": JSON.stringify(JSON.stringify(dittoConfig ?? null)),
+    },
+    build: {
+      write: false,
+      target: "es2022",
+      minify: false,
+      sourcemap: false,
+      emptyOutDir: false,
+      copyPublicDir: false,
+      reportCompressedSize: false,
+      lib: {
+        entry: NPANEL_PREVIEW_ENTRY,
+        formats: ["es"],
+        fileName: () => "preview.js",
+      },
+    },
+  });
+
+  for (const output of Array.isArray(result) ? result : [result]) {
+    if (!("output" in output)) continue;
+    const entry = output.output.find((file) => file.type === "chunk" && file.isEntry);
+    if (entry?.type === "chunk") return entry.code;
+  }
+  throw new Error("npanel preview build produced no entry chunk");
+}
+
+function npanelPreview(): Plugin {
+  let mode = "production";
+
+  return {
+    name: "ditto:npanel-preview",
+    apply: "build",
+
+    configResolved(config) {
+      mode = config.mode;
+    },
+
+    async generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: NPANEL_PREVIEW_FILE,
+        source: await buildNpanelPreview(mode),
+      });
+    },
+  };
+}
+
 function librejsLicense(): Plugin {
   return {
     name: "ditto:librejs-license",
@@ -716,6 +790,7 @@ export default defineConfig(({ mode }) => {
     stripWoffFallbacks(),
     moneroWorker(),
     serviceWorker(),
+    npanelPreview(),
     librejsLicense(),
     staticRoutePages(),
     visualizer({

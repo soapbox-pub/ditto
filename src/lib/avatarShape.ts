@@ -136,17 +136,36 @@ export function getEmojiMaskUrl(emoji: string): string {
   const cached = emojiMaskCache.get(emoji);
   if (cached !== undefined) return cached;
 
+  const mask = drawEmojiMask(emoji, (width, height) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    return canvas;
+  });
+  const url = mask ? mask.toDataURL('image/png') : '';
+  emojiMaskCache.set(emoji, url);
+  return url;
+}
+
+type MaskCanvas = HTMLCanvasElement | OffscreenCanvas;
+type MaskContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+
+/**
+ * The mask itself, as described above, on a canvas from `createCanvas`:
+ * an `OffscreenCanvas` works as well as an element, which is how npanel's
+ * link-preview script (`src/npanel/preview.ts`) cuts avatars the same way.
+ * `null` when the glyph draws nothing.
+ */
+export function drawEmojiMask<C extends MaskCanvas>(emoji: string, createCanvas: (width: number, height: number) => C, out = 256): C | null {
   // ── Pass 1: draw emoji on oversized scratch canvas ──────────────────
   // The output mask is 256 px, so drawing any larger only adds cost: at 512 px
   // the glyph raster, readback and scan took ~4x as long for the same mask.
   const fontSize = 256;
   const scratch = fontSize * 1.5;               // 384 – generous room
-  const c1 = document.createElement('canvas');
-  c1.width = scratch;
-  c1.height = scratch;
+  const c1 = createCanvas(scratch, scratch);
   // Read back once, right away: a CPU-backed canvas avoids a GPU readback.
-  const ctx1 = c1.getContext('2d', { willReadFrequently: true });
-  if (!ctx1) return '';
+  const ctx1 = c1.getContext('2d', { willReadFrequently: true }) as MaskContext | null;
+  if (!ctx1) return null;
 
   ctx1.textAlign = 'center';
   ctx1.textBaseline = 'middle';
@@ -171,10 +190,7 @@ export function getEmojiMaskUrl(emoji: string): string {
       }
     }
   }
-  if (r < l || b < t) {                         // nothing drawn
-    emojiMaskCache.set(emoji, '');
-    return '';
-  }
+  if (r < l || b < t) return null;               // nothing drawn
 
   // ── Pass 3: square the bounding box ─────────────────────────────────
   let cropW = r - l + 1;
@@ -196,12 +212,9 @@ export function getEmojiMaskUrl(emoji: string): string {
   if (l < 0) l = 0;
 
   // ── Pass 4: redraw cropped region onto output canvas ────────────────
-  const out = 256;
-  const c2 = document.createElement('canvas');
-  c2.width = out;
-  c2.height = out;
-  const ctx2 = c2.getContext('2d', { willReadFrequently: true });
-  if (!ctx2) return '';
+  const c2 = createCanvas(out, out);
+  const ctx2 = c2.getContext('2d', { willReadFrequently: true }) as MaskContext | null;
+  if (!ctx2) return null;
 
   ctx2.drawImage(c1, l, t, cropW, cropH, 0, 0, out, out);
 
@@ -215,8 +228,5 @@ export function getEmojiMaskUrl(emoji: string): string {
     // d[i+3] (alpha) kept as-is
   }
   ctx2.putImageData(img, 0, 0);
-
-  const url = c2.toDataURL('image/png');
-  emojiMaskCache.set(emoji, url);
-  return url;
+  return c2;
 }

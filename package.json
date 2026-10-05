@@ -125,6 +125,8 @@
     "input-otp": "^1.4.2",
     "lucide-react": "^1.8.0",
     "mediabunny": "^1.60.0",
+    "micromark": "^4.0.3",
+    "micromark-extension-gfm": "^3.0.0",
     "monero-ts": "^0.11.16",
     "nostr-tools": "^2.13.0",
     "qr-scanner": "^1.4.2",
