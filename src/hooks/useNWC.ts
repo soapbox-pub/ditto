@@ -1,8 +1,20 @@
 import { useState, useCallback } from 'react';
 import { useSecureLocalStorage } from '@/hooks/useSecureLocalStorage';
 import { useToast } from '@/hooks/useToast';
-import { LN } from '@getalby/sdk';
+import { LN, nwc } from '@getalby/sdk';
 import { assertInvoiceAmount } from '@/lib/bolt11';
+
+/**
+ * The wallet received a payment request but never answered it. Unlike other
+ * failures this is not a verdict: the payment may yet succeed, so the invoice
+ * must not be paid again by any route until the user has checked their wallet.
+ */
+export class NWCPaymentPendingError extends Error {
+  constructor() {
+    super('Your wallet has not confirmed the payment yet');
+    this.name = 'NWCPaymentPendingError';
+  }
+}
 
 export interface NWCConnection {
   connectionString: string;
@@ -193,24 +205,20 @@ export function useNWCInternal(userPubkey?: string) {
       throw new Error(`Failed to create NWC client: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
+    // No timeout of our own: the SDK gives up on publishing after 5 s and on
+    // the wallet's reply after 60 s. A shorter cutoff here abandoned payments
+    // the wallet was still routing, so the caller went on to submit the same
+    // invoice again and the wallet refused it as a duplicate.
     try {
-      let timeoutId: NodeJS.Timeout | undefined;
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('Payment timeout after 15 seconds')), 15000);
-      });
-
-      const paymentPromise = client.pay(invoice);
-
-      try {
-        const response = await Promise.race([paymentPromise, timeoutPromise]) as { preimage: string };
-        if (timeoutId) clearTimeout(timeoutId);
-        return response;
-      } catch (error) {
-        if (timeoutId) clearTimeout(timeoutId);
-        throw error;
-      }
+      return await client.pay(invoice);
     } catch (error) {
       console.error('NWC payment failed:', error);
+
+      // The request reached the wallet but no answer came back. The payment
+      // may still be in flight, so it must not be retried or re-submitted.
+      if (error instanceof nwc.Nip47ReplyTimeoutError) {
+        throw new NWCPaymentPendingError();
+      }
 
       if (error instanceof Error) {
         if (error.message.includes('timeout')) {
@@ -225,6 +233,8 @@ export function useNWCInternal(userPubkey?: string) {
       }
 
       throw new Error('Payment failed with unknown error');
+    } finally {
+      client.close();
     }
   }, []);
 

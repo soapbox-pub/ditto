@@ -4,13 +4,13 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
 import { useNWC } from '@/hooks/useNWCContext';
-import type { NWCConnection } from '@/hooks/useNWC';
+import { NWCPaymentPendingError, type NWCConnection } from '@/hooks/useNWC';
 import { nip57 } from 'nostr-tools';
 import type { Event } from 'nostr-tools';
 import type { WebLNProvider } from '@webbtc/webln-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { notificationSuccess } from '@/lib/haptics';
-import { assertInvoiceAmount, invoiceCommitsTo } from '@/lib/bolt11';
+import { assertInvoiceAmount, decodeBolt11, invoiceCommitsTo } from '@/lib/bolt11';
 import { resolveLnurlPay, type LnurlPayParams } from '@/lib/lnurlPay';
 
 /**
@@ -46,6 +46,68 @@ export function useZaps(
       setInvoice(null);
     };
   }, []);
+
+  /** Pay an already-validated invoice through WebLN, showing it on failure. */
+  const payWithWebLN = async (payInvoice: string, paidSats: number) => {
+    if (!webln) return;
+
+    setIsZapping(true);
+    try {
+      // For native WebLN, we may need to enable it first
+      let webLnProvider = webln;
+      if (webln.enable && typeof webln.enable === 'function') {
+        const enabledProvider = await webln.enable();
+        // Some implementations return the provider, others return void
+        // Cast to WebLNProvider to handle both cases
+        const provider = enabledProvider as WebLNProvider | undefined;
+        if (provider) {
+          webLnProvider = provider;
+        }
+      }
+
+      await webLnProvider.sendPayment(payInvoice);
+
+      // Clear states immediately on success
+      setIsZapping(false);
+      setInvoice(null);
+      notificationSuccess();
+
+      // Invalidate zap queries to refresh counts
+      queryClient.invalidateQueries({ queryKey: ['zaps'] });
+
+      if (onZapSuccess) {
+        onZapSuccess({ amountSats: paidSats });
+      } else {
+        toast({
+          title: 'Zap successful!',
+          description: `You sent ${paidSats} sats to the author.`,
+        });
+      }
+    } catch (weblnError) {
+      console.error('WebLN payment failed:', weblnError);
+
+      const errorMessage = weblnError instanceof Error ? weblnError.message : 'Unknown WebLN error';
+      toast({
+        title: 'WebLN payment failed',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+
+      setInvoice(payInvoice);
+      setIsZapping(false);
+    }
+  };
+
+  /**
+   * Pay the invoice currently on screen through WebLN. This pays that exact
+   * invoice rather than starting a new zap, which would request a fresh
+   * invoice and send it to the NWC wallet again.
+   */
+  const payInvoiceWithWebLN = async () => {
+    if (!invoice) return;
+    const paidSats = Math.round((decodeBolt11(invoice).amountMsat ?? 0) / 1000);
+    await payWithWebLN(invoice, paidSats);
+  };
 
   const zap = async (amount: number, comment: string) => {
     if (amount <= 0) {
@@ -251,64 +313,35 @@ export function useZaps(
             }
             return;
           } catch (nwcError) {
-            console.error('NWC payment failed, falling back:', nwcError);
+            console.error('NWC payment failed:', nwcError);
 
-            // Show specific NWC error to user for debugging
+            if (nwcError instanceof NWCPaymentPendingError) {
+              toast({
+                title: 'Zap pending',
+                description: 'Your wallet has not confirmed this zap yet, so it may still go through. Check your wallet before zapping again.',
+              });
+              setIsZapping(false);
+              return;
+            }
+
+            // The wallet has now seen this invoice, so don't hand the same
+            // invoice to WebLN behind the user's back: WebLN is often the same
+            // wallet (e.g. an extension connected over NWC), which rejects it
+            // as a duplicate. Show the invoice and let the user choose.
             const errorMessage = nwcError instanceof Error ? nwcError.message : 'Unknown NWC error';
             toast({
               title: 'NWC payment failed',
-              description: `${errorMessage}. Falling back to other payment methods...`,
+              description: errorMessage,
               variant: 'destructive',
             });
+            setInvoice(newInvoice);
+            setIsZapping(false);
+            return;
           }
         }
 
         if (webln) { // Try WebLN next
-          try {
-            // For native WebLN, we may need to enable it first
-            let webLnProvider = webln;
-            if (webln.enable && typeof webln.enable === 'function') {
-              const enabledProvider = await webln.enable();
-              // Some implementations return the provider, others return void
-              // Cast to WebLNProvider to handle both cases
-              const provider = enabledProvider as WebLNProvider | undefined;
-              if (provider) {
-                webLnProvider = provider;
-              }
-            }
-
-            await webLnProvider.sendPayment(newInvoice);
-
-            // Clear states immediately on success
-            setIsZapping(false);
-            setInvoice(null);
-            notificationSuccess();
-
-            // Invalidate zap queries to refresh counts
-            queryClient.invalidateQueries({ queryKey: ['zaps'] });
-
-            if (onZapSuccess) {
-              onZapSuccess({ amountSats: paidSats });
-            } else {
-              toast({
-                title: 'Zap successful!',
-                description: `You sent ${paidSats} sats to the author.`,
-              });
-            }
-          } catch (weblnError) {
-            console.error('WebLN payment failed, falling back:', weblnError);
-
-            // Show specific WebLN error to user for debugging
-            const errorMessage = weblnError instanceof Error ? weblnError.message : 'Unknown WebLN error';
-            toast({
-              title: 'WebLN payment failed',
-              description: `${errorMessage}. Falling back to other payment methods...`,
-              variant: 'destructive',
-            });
-
-            setInvoice(newInvoice);
-            setIsZapping(false);
-          }
+          await payWithWebLN(newInvoice, paidSats);
         } else { // Default - show QR code and manual Lightning URI
           setInvoice(newInvoice);
           setIsZapping(false);
@@ -339,6 +372,7 @@ export function useZaps(
 
   return {
     zap,
+    payInvoiceWithWebLN,
     isZapping,
     invoice,
     setInvoice,

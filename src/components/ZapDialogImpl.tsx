@@ -385,7 +385,7 @@ export function ZapDialogImpl({
     [],
   );
 
-  const { zap, isZapping, invoice, setInvoice } = useZaps(
+  const { zap, payInvoiceWithWebLN, isZapping, invoice, setInvoice } = useZaps(
     target,
     webln,
     activeNWC,
@@ -551,9 +551,7 @@ export function ZapDialogImpl({
   };
 
   const payWithWebLN = () => {
-    if (amountSats > 0) {
-      zap(amountSats, comment.trim());
-    }
+    payInvoiceWithWebLN();
   };
 
   const lightningContentProps: LightningZapContentProps = {
