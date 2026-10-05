@@ -11,6 +11,7 @@ import {
   type FeedItem,
 } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 /** Extended FeedItem with pagination metadata. */
@@ -373,7 +374,11 @@ export function useTabFeed(
       // Unwrap reposts / reactions / zaps the same way the home and profile
       // feeds do, so kind 7 / 9735 events render as overlay headers on the
       // target post rather than as standalone activity cards.
-      const items = await buildFeedItems(validEvents, nostr, querySignal);
+      let items = await buildFeedItems(validEvents, nostr, querySignal);
+      // A saved feed without authors is a public feed.
+      if (!queryFilter.authors) {
+        items = items.filter((item) => !isHiddenFromPublicFeeds(item.event));
+      }
       const sorted = dedupeFeedItems(items);
       return { items: sorted, oldestQueryTimestamp, rawCount: validEvents.length, fetchLimit: PAGE_SIZE };
     },

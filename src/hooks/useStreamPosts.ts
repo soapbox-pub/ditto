@@ -11,6 +11,7 @@ import { DITTO_RELAYS } from '@/lib/appRelays';
 import { nip19 } from 'nostr-tools';
 import { isNostrId } from '@/lib/nostrId';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import { createLiveCursor } from '@/lib/backgroundQuiet';
 import { useBackgroundQuiet } from './useBackgroundQuiet';
 
@@ -562,6 +563,8 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     if (isMuted(event)) return false;
     if (shouldFilterEvent(event)) return false;
     if (authorSet && !authorSet.has(event.pubkey)) return false;
+    // Without an authors filter this is a public feed.
+    if (!authorSet && isHiddenFromPublicFeeds(event)) return false;
     return filterEvent(event, options, query);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- using specific options fields instead of the whole object for granular reactivity
   }, [options.includeReplies, options.mediaType, protocolsKey, query, isMuted, authorSet, shouldFilterEvent, authorPubkeysKey, clientTagsKey]);

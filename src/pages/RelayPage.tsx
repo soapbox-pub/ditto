@@ -22,6 +22,7 @@ import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useRelayInfo, type RelayInfoDocument } from '@/hooks/useRelayInfo';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isRepostKind } from '@/lib/feedUtils';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import {
   AuthAwareRelay,
   claimRelayAuthPrompt,
@@ -121,7 +122,7 @@ export function RelayPage() {
 
   const filteredEvents = useMemo(() => {
     if (!events) return events;
-    return events.filter((e) => !isMuted(e));
+    return events.filter((e) => !isMuted(e) && !isHiddenFromPublicFeeds(e));
   }, [events, isMuted]);
 
   useSeoMeta({

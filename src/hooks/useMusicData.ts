@@ -3,6 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { parseMusicTrack } from '@/lib/musicHelpers';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 
 /** A music artist derived from track events. */
 export interface MusicArtist {
@@ -51,10 +52,12 @@ export function useMusicData(options: UseMusicDataOptions = {}) {
         filter.authors = authors;
       }
 
-      return nostr.query(
+      const events = await nostr.query(
         [filter as { kinds: number[]; limit: number; authors?: string[] }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
+      // Without an authors filter this is a public feed.
+      return filter.authors ? events : events.filter((ev) => !isHiddenFromPublicFeeds(ev));
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,

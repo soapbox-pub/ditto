@@ -7,6 +7,7 @@ import { useFollowList } from './useFollowActions';
 import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { BADGE_AWARD_KIND, BADGE_DEFINITION_KIND, BADGE_PROFILE_KIND, BADGE_PROFILE_KIND_LEGACY } from '@/lib/badgeUtils';
 import { TEAM_SOAPBOX_PACK } from '@/lib/helpContent';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 
 const PAGE_SIZE = 20;
 
@@ -78,6 +79,8 @@ export function useBadgeFeed(tab: 'follows' = 'follows') {
       const seen = new Set<string>();
       return events
         .filter((event) => {
+          // Without an authors filter this is a public feed.
+          if (!authors && isHiddenFromPublicFeeds(event)) return false;
           if (seen.has(event.id)) return false;
           seen.add(event.id);
           return true;

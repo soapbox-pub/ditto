@@ -13,6 +13,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { timeAgo } from '@/lib/timeAgo';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
@@ -44,7 +45,8 @@ export function PhotoWidget() {
     queryKey: ['widget-photo', authorsKey],
     queryFn: async () => {
       const events = await nostr.query([{ kinds: [20], limit: 1, ...(authors ? { authors } : {}) }]);
-      return events[0] ?? null;
+      // Without an authors filter this is a public feed.
+      return (authors ? events[0] : events.find((e) => !isHiddenFromPublicFeeds(e))) ?? null;
     },
     staleTime: 5 * 60_000,
     enabled: user ? followPubkeys !== undefined : curatorFollows !== undefined,

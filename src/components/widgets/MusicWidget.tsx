@@ -18,6 +18,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import { parseMusicTrack, toAudioTrack } from '@/lib/musicHelpers';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { timeAgo } from '@/lib/timeAgo';
@@ -39,7 +40,8 @@ export function MusicWidget() {
     queryKey: ['widget-music', authorsKey],
     queryFn: async () => {
       const events = await nostr.query([{ kinds: [36787], limit: 1, ...(authors ? { authors } : {}) }]);
-      return events[0] ?? null;
+      // Without an authors filter this is a public feed.
+      return (authors ? events[0] : events.find((e) => !isHiddenFromPublicFeeds(e))) ?? null;
     },
     staleTime: 5 * 60_000,
     enabled: user ? followPubkeys !== undefined : curatorFollows !== undefined,

@@ -4,6 +4,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useBackgroundQuiet } from './useBackgroundQuiet';
 import { createLiveCursor } from '@/lib/backgroundQuiet';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 
 /** Batch streamed events into one state commit per this window. */
 const COMMIT_DELAY_MS = 250;
@@ -47,6 +48,8 @@ export function useStreamKind(kind: number | number[]) {
 
   const addEvent = useCallback((event: NostrEvent): boolean => {
     if (!kindsSet.has(event.kind)) return false;
+    // Kind streams have no authors filter, so they're public feeds.
+    if (isHiddenFromPublicFeeds(event)) return false;
 
     const now = Math.floor(Date.now() / 1000);
     if (event.created_at > now) return false;

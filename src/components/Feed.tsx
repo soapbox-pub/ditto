@@ -44,6 +44,7 @@ import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { TabButton } from '@/components/TabButton';
 import type { FeedItem } from '@/lib/feedUtils';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { SavedFeed } from '@/contexts/AppContext';
 
@@ -655,7 +656,7 @@ function HashtagFeedContent({ tag }: { tag: string }) {
 
   const derivedEvents = useMemo((): NostrEvent[] => {
     if (!events) return [];
-    return events.filter((e) => !isMuted(e));
+    return events.filter((e) => !isMuted(e) && !isHiddenFromPublicFeeds(e));
   }, [events, isMuted]);
 
   // Retain the last non-empty list across key changes / refetches; resets when
@@ -716,7 +717,7 @@ function GeotagFeedContent({ tag }: { tag: string }) {
 
   const derivedEvents = useMemo((): NostrEvent[] => {
     if (!events) return [];
-    return events.filter((e) => !isMuted(e));
+    return events.filter((e) => !isMuted(e) && !isHiddenFromPublicFeeds(e));
   }, [events, isMuted]);
 
   // Retain the last non-empty list across key changes / refetches; resets when

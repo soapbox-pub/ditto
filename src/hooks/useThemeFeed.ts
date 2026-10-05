@@ -5,6 +5,7 @@ import { useCurrentUser } from './useCurrentUser';
 import { useFollowList } from './useFollowActions';
 import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { THEME_DEFINITION_KIND, ACTIVE_THEME_KIND } from '@/lib/themeEvent';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 
 const PAGE_SIZE = 20;
 
@@ -48,6 +49,8 @@ export function useThemeFeed(tab: 'follows' | 'global' = 'global') {
       const seen = new Set<string>();
       const themeEvents = events
         .filter((event) => {
+          // Without an authors filter this is a public feed.
+          if (!authors && isHiddenFromPublicFeeds(event)) return false;
           if (seen.has(event.id)) return false;
           seen.add(event.id);
           return true;

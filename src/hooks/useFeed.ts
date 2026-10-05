@@ -27,6 +27,7 @@ import {
   type FeedItem,
 } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import { getStorageKey } from '@/lib/storageKey';
 
 const PAGE_SIZE = 15;
@@ -374,6 +375,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
         const oldestQueryTimestamp = getPaginationCursor(validEvents);
 
         const items = validEvents
+          .filter((ev) => !isHiddenFromPublicFeeds(ev))
           .sort((a, b) => b.created_at - a.created_at)
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
 

@@ -63,6 +63,7 @@ import { VineCard } from "@/pages/VinesFeedPage";
 import { parseFirstImeta } from '@/lib/imeta';
 import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
 import { useDecryptedFile } from '@/hooks/useDecryptedFile';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 
 const videosDef = getExtraKindDef("videos")!;
 
@@ -426,7 +427,7 @@ function useClassifiedStreams(tab: FeedTab): {
   const { data: allEvents, isLoading } = useAllStreams();
 
   const classified = useMemo<ClassifiedStreams>(() => {
-    if (tab === "global") return classifyStreams(allEvents);
+    if (tab === "global") return classifyStreams(allEvents.filter((e) => !isHiddenFromPublicFeeds(e)));
 
     // Follows tab — filter to followed authors + self (minus muted), client-side.
     // Check both the event publisher AND p-tag participants, because

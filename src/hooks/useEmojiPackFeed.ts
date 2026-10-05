@@ -6,6 +6,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
 import { KIND_EMOJI_SET } from '@/hooks/useEmojiPacks';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 
 const PAGE_SIZE = 20;
 
@@ -55,6 +56,8 @@ export function useEmojiPackFeed(tab: 'follows' | 'global' = 'global') {
       return events
         .filter((event) => {
           if (seen.has(event.id) || !hasEmoji(event)) return false;
+          // Without an authors filter this is a public feed.
+          if (!authors && isHiddenFromPublicFeeds(event)) return false;
           seen.add(event.id);
           return true;
         })

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
-import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNip85EventStats, useNip85AddrStats } from '@/hooks/useNip85Stats';
 import { type ResolvedEmoji } from '@/lib/customEmoji';
@@ -8,6 +8,7 @@ import { DITTO_RELAYS } from '@/lib/appRelays';
 import { useAppContext } from '@/hooks/useAppContext';
 import { parseAuthorEvent } from '@/hooks/useAuthor';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 
 export interface TrendingTag {
   tag: string;
@@ -140,7 +141,7 @@ export function useSortedPosts(sort: SortMode, limit = 5, enabled = true) {
         [{ kinds: [1], search: `sort:${sort} protocol:nostr`, limit }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
-      return events;
+      return events.filter((event) => !isHiddenFromPublicFeeds(event));
     },
     enabled,
     staleTime: 5 * 60 * 1000,
@@ -148,6 +149,11 @@ export function useSortedPosts(sort: SortMode, limit = 5, enabled = true) {
 }
 
 const SORTED_PAGE_SIZE = 20;
+
+/** Drop events hidden from public feeds (see `isHiddenFromPublicFeeds`) from every page. */
+function selectPublicFeedPages(data: InfiniteData<NostrEvent[]>): InfiniteData<NostrEvent[]> {
+  return { ...data, pages: data.pages.map((page) => page.filter((event) => !isHiddenFromPublicFeeds(event))) };
+}
 
 /**
  * Fetches sorted posts with infinite scroll pagination.
@@ -182,6 +188,9 @@ export function useInfiniteSortedPosts(sort: SortMode, enabled = true) {
       return oldest - 1;
     },
     initialPageParam: undefined as number | undefined,
+    // Filter in `select`, not the queryFn, so the page cursor still comes from
+    // the unfiltered relay page.
+    select: selectPublicFeedPages,
     enabled,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
@@ -236,6 +245,9 @@ export function useInfiniteHotFeed(
       return lastPage[lastPage.length - 1].created_at - 1;
     },
     initialPageParam: undefined as number | undefined,
+    // Filter in `select`, not the queryFn, so the page cursor still comes from
+    // the unfiltered relay page.
+    select: selectPublicFeedPages,
     enabled,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,

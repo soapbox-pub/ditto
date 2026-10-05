@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useDebounce } from '@/hooks/useDebounce';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import { encodeEventAddress, type NAddr, type NEvent } from '@/lib/encodeEvent';
 import { NSITE_NAMED_KIND, NSITE_ROOT_KIND } from '@/lib/nsiteSubdomain';
 
@@ -209,6 +210,7 @@ export function useSearchEvents(query: string) {
       // Deduplicate by addressable coordinate (kind:pubkey:d), keeping newest.
       const seen = new Map<string, SearchEventResult>();
       for (const event of events) {
+        if (isHiddenFromPublicFeeds(event)) continue;
         const result = parseEvent(event);
         if (!result) continue;
         const dTag = getTag(event, 'd') ?? '';

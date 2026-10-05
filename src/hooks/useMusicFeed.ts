@@ -1,8 +1,9 @@
 import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import type { NostrFilter } from '@nostrify/nostrify';
+import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAYS } from '@/lib/appRelays';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
 import type { MusicSort, MusicScope } from '@/components/music/MusicSortFilterBar';
@@ -106,6 +107,14 @@ export function useMusicFeed({ kind, sort, scope, genre, enabled = true }: UseMu
       return lastPage[lastPage.length - 1].created_at - 1;
     },
     initialPageParam: undefined as number | undefined,
+    // Without an authors filter this is a public feed. Filtered in `select`
+    // so the page cursor still comes from the unfiltered relay page.
+    select: followingAuthors
+      ? undefined
+      : (data: InfiniteData<NostrEvent[], number | undefined>) => ({
+        ...data,
+        pages: data.pages.map((page) => page.filter((event) => !isHiddenFromPublicFeeds(event))),
+      }),
     enabled: enabled && !!isFollowsReady,
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,

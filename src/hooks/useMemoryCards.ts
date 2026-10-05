@@ -11,6 +11,7 @@ import {
 } from '@/lib/memorycard';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 
 /** One relay round-trip cap for memory-card queries. */
 const QUERY_TIMEOUT = 8000;
@@ -56,7 +57,15 @@ export function useMemoryCardGallery(tab: GalleryTab = 'global') {
         [filter],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(QUERY_TIMEOUT)]) },
       );
-      return groupCards(events);
+      const cards = groupCards(events);
+      if (filter.authors) return cards;
+
+      // Without an authors filter this is a public feed: drop every card
+      // with a hidden block, not just the block.
+      const hidden = new Set(
+        events.filter(isHiddenFromPublicFeeds).map((e) => e.pubkey + '|' + (cardIdOf(e) || '?')),
+      );
+      return cards.filter((c) => !hidden.has(c.pubkey + '|' + c.cardId));
     },
   });
 }

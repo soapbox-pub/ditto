@@ -1,38 +1,15 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { NSFW_HASHTAGS } from '@/lib/nsfw';
+
 /**
  * Hashtags (`t` tags) that mark a post as sensitive even without an
  * explicit NIP-36 `content-warning` tag. Some clients (and users) only
  * tag posts with `#nsfw` or similar, so treat those as content warnings.
  * Matched case-insensitively.
- *
- * The adult-content entries mirror `DEFAULT_NSFW_HASHTAGS` in ditto-relay's
- * `src/nsfw.ts`, which drives the relay's NSFW classification. Keep the two
- * in sync.
  */
 const SENSITIVE_HASHTAGS = new Set([
-  // General adult-content markers.
-  'nsfw',
-  'adult',
-  'nude',
-  'nudes',
-  'nudity',
-  'sex',
-  'xxx',
-  'onlyfans',
-  'porn',
-  'porno',
-  // Anatomy and acts that are overwhelmingly adult as hashtags.
-  'boobs',
-  'tits',
-  'pussy',
-  'cock',
-  'milf',
-  'slut',
-  'fetish',
-  // Anime/manga adult tags.
-  'hentai',
-  'loli',
+  ...NSFW_HASHTAGS,
   // Non-adult sensitive content.
   'nsfl',
   'gore',

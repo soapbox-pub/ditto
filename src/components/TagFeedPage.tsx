@@ -18,6 +18,7 @@ import { buildTagFilterValues } from '@/lib/tagFilterValues';
 import { PageHeader } from '@/components/PageHeader';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 
 interface TagFeedPageProps {
   /** The tag value to filter by. */
@@ -102,7 +103,7 @@ export function TagFeedPage({
 
   const filteredEvents = useMemo(() => {
     if (!events) return events;
-    return events.filter((e) => !isMuted(e));
+    return events.filter((e) => !isMuted(e) && !isHiddenFromPublicFeeds(e));
   }, [events, isMuted]);
 
   return (

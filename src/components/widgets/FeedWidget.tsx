@@ -19,6 +19,7 @@ import { useFollowList } from '@/hooks/useFollowActions';
 import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { timeAgo } from '@/lib/timeAgo';
+import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 
 interface FeedWidgetProps {
   /** Event kind(s) to fetch. */
@@ -53,7 +54,9 @@ export function FeedWidget({ kinds, feedPath, feedLabel, limit = 5, emptyMessage
   const { data: events, isLoading } = useQuery({
     queryKey: ['widget-feed', kindsKey, authorsKey, limit],
     queryFn: async () => {
-      return nostr.query([{ kinds, limit, ...(authors ? { authors } : {}) }]);
+      const events = await nostr.query([{ kinds, limit, ...(authors ? { authors } : {}) }]);
+      // Without an authors filter this is a public feed.
+      return authors ? events : events.filter((event) => !isHiddenFromPublicFeeds(event));
     },
     staleTime: 5 * 60_000,
     // Don't run until the appropriate follow list is resolved
