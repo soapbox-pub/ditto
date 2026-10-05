@@ -10,7 +10,9 @@
  * Every kind Ditto renders has a preview (`kinds.ts`), with the event's own
  * title, description and image, and the event as an article a search engine
  * can read. Profiles with a theme or an avatar shape, themes and color
- * moments get images drawn the way ditto-server drew them (`draw.ts`).
+ * moments get images drawn the way ditto-server drew them (`draw.ts`). A
+ * bird detection is titled for who heard what, with the bird's picture from
+ * Wikipedia (`species.ts`).
  */
 
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
@@ -21,9 +23,10 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { getColors } from '@/lib/colorMomentUtils';
 import { ACTIVE_THEME_KIND, parseActiveProfileTheme, parseThemeDefinition, THEME_DEFINITION_KIND } from '@/lib/themeEvent';
 
-import { eventPreview, type Page, type Preview, profilePreview, readProfile } from './card';
+import { displayName, eventPreview, type Page, type Preview, profilePreview, readProfile } from './card';
 import { DEFAULT_COLORS, drawPalette, drawProfile, drawTheme, type Layout, LAYOUTS } from './draw';
-import { isHex64, read, SUPPORTED, tag } from './kinds';
+import { birdNames, isHex64, read, SUPPORTED, tag } from './kinds';
+import { heard, species, wikidataId } from './species';
 
 interface Context {
   nostr: NRelay;
@@ -31,6 +34,7 @@ interface Context {
 }
 
 const COLOR_MOMENT_KIND = 3367;
+const BIRD_DETECTION_KIND = 2473;
 
 export default {
   /**
@@ -63,9 +67,23 @@ export default {
     if (!parts) return null;
     // The profile of whoever it's attributed to: the one fetched beside it
     // when that's theirs, or theirs fetched now — a repost's is its original
-    // author's, a zap's its sender's.
-    const author = found.profile?.pubkey === parts.author ? found.profile : await first({ kinds: [0], authors: [parts.author] });
-    const preview = eventPreview(event.kind, parts, readProfile(author, parts.author), page);
+    // author's, a zap's its sender's. A bird detection's species is looked
+    // up beside it.
+    const wikidata = event.kind === BIRD_DETECTION_KIND ? wikidataId(event) : undefined;
+    const [author, sighted] = await Promise.all([
+      found.profile?.pubkey === parts.author ? found.profile : first({ kinds: [0], authors: [parts.author] }),
+      wikidata ? species(wikidata, signal) : undefined,
+    ]);
+    const attributed = readProfile(author, parts.author);
+    if (event.kind === BIRD_DETECTION_KIND) {
+      // Who heard what, with the bird's picture.
+      const names = birdNames(event);
+      const name = sighted?.name ?? names.common ?? names.scientific;
+      if (name) parts.title = heard(displayName(attributed), name);
+      parts.image = sighted?.image ?? parts.image;
+      parts.summary = sighted?.extract ?? parts.summary;
+    }
+    const preview = eventPreview(event.kind, parts, attributed, page);
 
     switch (event.kind) {
       case ACTIVE_THEME_KIND:

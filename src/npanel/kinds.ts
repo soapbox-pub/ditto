@@ -761,13 +761,19 @@ function deck(p: Parts, e: NostrEvent): void {
   p.extra = list(cards, cards.length);
 }
 
-function bird(p: Parts, e: NostrEvent): void {
+/** A bird detection's species, by its common and scientific names. */
+export function birdNames(e: NostrEvent): { common?: string; scientific?: string } {
   // Its `alt` reads `Bird detection: Common Name (Scientific name)`.
-  const alt = p.fallback;
+  const alt = tag(e, 'alt');
   const named = alt && alt.lastIndexOf(': ') >= 0 ? alt.slice(alt.lastIndexOf(': ') + 2).trim() : undefined;
   const paren = named?.indexOf(' (') ?? -1;
   const common = (named && (paren >= 0 ? named.slice(0, paren) : named).trim()) || undefined;
   const scientific = tag(e, 'n') ?? (named && paren >= 0 ? named.slice(paren + 2).replace(/\)+$/, '').trim() : undefined);
+  return { common, scientific };
+}
+
+function bird(p: Parts, e: NostrEvent): void {
+  const { common, scientific } = birdNames(e);
   p.title = common ?? scientific ?? 'Bird sighting';
   p.fallback = undefined;
   if (common) {
