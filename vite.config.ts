@@ -527,6 +527,12 @@ async function buildNpanelPreview(mode: string): Promise<string> {
       emptyOutDir: false,
       copyPublicDir: false,
       reportCompressedSize: false,
+      rolldownOptions: {
+        // A package is only what's used of it. Barrels like Nostrify's would
+        // otherwise run every module they re-export — AES tables, a relay
+        // pool — on every preview, for a tenth of a second of nothing.
+        treeshake: { moduleSideEffects: (id: string) => !id.includes("/node_modules/") },
+      },
       lib: {
         entry: NPANEL_PREVIEW_ENTRY,
         formats: ["es"],
