@@ -11,7 +11,7 @@
  * — never reaches a description or the page.
  */
 
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import * as nip19 from 'nostr-tools/nip19';
 import { verifyEvent } from 'nostr-tools/pure';
 
@@ -58,6 +58,21 @@ export function contentSource(content: Content): string {
   return content.kind === 'hidden' ? '' : content.source;
 }
 
+/**
+ * Text without the custom emoji (NIP-30) an event's or a profile's `emoji`
+ * tags define: drawn as images in the app, they're only `:shortcodes:` in a
+ * title or a description.
+ */
+export function withoutEmoji(text: string, tags: string[][]): string {
+  const codes = new Set(tags.filter(([name, code]) => name === 'emoji' && code).map(([, code]) => code));
+  if (!codes.size) return text;
+  // Mastodon sets each apart with zero-width spaces, which go with it.
+  return text
+    .replace(/[\u200B\uFEFF]*:([\w-]+):[\u200B\uFEFF]*/g, (whole, code: string) => (codes.has(code) ? ' ' : whole))
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
 /** Content's words, for a description, if it has any worth one. */
 export function contentText(content: Content): string | undefined {
   let words: string;
@@ -93,10 +108,100 @@ export interface Parts {
   lead: string;
   /** Markup for after the content. Already escaped. */
   extra: string;
+  /** Its `emoji` tags, whose `:shortcodes:` a description leaves out. */
+  emoji?: string[][];
+  /** Others it names, beside its author: their profiles are fetched for {@link named}. */
+  people?: string[];
+  /** Its title and fallback once people's names are known: "Alex reacted 👍 to Sam's post". */
+  named?: (name: Name) => { title?: string; fallback?: string };
 }
 
-/** An event's parts, or undefined for a kind that isn't previewed — or one that is, but malformed in a way its app would refuse to show. */
-export function read(e: NostrEvent): Parts | undefined {
+/** Someone's name, if their profile gives one. */
+export type Name = (pubkey: string) => string | undefined;
+
+/** Someone's name, or a shortened npub for someone without one. */
+export function who(name: Name, pubkey: string): string {
+  return name(pubkey) ?? shortNpub(pubkey);
+}
+
+/**
+ * Where the event another is about is found, for the kinds whose preview is
+ * made of it: what was reacted to, voted in, closed, awarded or found.
+ */
+export function reference(e: NostrEvent): NostrFilter | undefined {
+  switch (e.kind) {
+    case 6: case 16: {
+      // A repost that carries its event needs nothing fetched. One of an
+      // addressable event is of its newest version, by its address.
+      if (parseEvent(e.content)) return undefined;
+      const id = lastId(e);
+      return address(e) ?? (id ? { ids: [id] } : undefined);
+    }
+    case 7: case 1018: case 9735: {
+      const id = lastId(e);
+      return id ? { ids: [id] } : undefined;
+    }
+    case 1630: case 1631: case 1632: case 1633: {
+      const ids = all(e, 'e');
+      const id = (ids.find((t) => t[2] === 'root') ?? ids[0])?.[0];
+      return isHex64(id) ? { ids: [id] } : undefined;
+    }
+    case 1619: {
+      const id = tag(e, 'E');
+      return isHex64(id) ? { ids: [id] } : undefined;
+    }
+    case 8: return address(e, 30009);
+    case 7516: return address(e, 37516);
+    default: return undefined;
+  }
+}
+
+/** The last `e` tag's id, as NIP-25 and NIP-18 name what an event is about. */
+function lastId(e: NostrEvent): string | undefined {
+  return all(e, 'e').map((t) => t[0]).filter(isHex64).pop();
+}
+
+/** A filter for the addressable event an `a` tag names: of the kind given, or any. */
+function address(e: NostrEvent, kind?: number): NostrFilter | undefined {
+  for (const [a] of all(e, 'a')) {
+    const [kindText, pubkey, ...rest] = a?.split(':') ?? [];
+    const k = Number(kindText);
+    if (/^\d+$/.test(kindText ?? '') && (kind === undefined ? k >= 30000 && k < 40000 : k === kind) && isHex64(pubkey)) {
+      return { kinds: [k], authors: [pubkey], '#d': [rest.join(':')], limit: 1 };
+    }
+  }
+  return undefined;
+}
+
+/** What a preview says of the event another is about. */
+interface About {
+  author: string;
+  title?: string;
+  text?: string;
+  image?: string;
+}
+
+function about(ref: NostrEvent | undefined, kinds?: number[]): About | undefined {
+  if (!ref || ref.kind === 6 || ref.kind === 16 || (kinds && !kinds.includes(ref.kind))) return undefined;
+  const parts = read(ref);
+  if (!parts) return undefined;
+  const text = mapOpt(parts.summary ?? contentText(parts.content) ?? parts.fallback, (t) => withoutEmoji(t, parts.emoji ?? []) || undefined);
+  return { author: parts.author, title: parts.title, text, image: parts.image };
+}
+
+/** The event another is about, as a title names it: “Its title”, or whose post it is. */
+function label(of: About, name: Name): string {
+  return of.title ? `“${clamp(of.title, 80)}”` : `${who(name, of.author)}'s post`;
+}
+
+/** Adds to what {@link Parts.named} gives. */
+function naming(p: Parts, fn: (name: Name) => { title?: string; fallback?: string }): void {
+  const before = p.named;
+  p.named = (n) => ({ ...before?.(n), ...fn(n) });
+}
+
+/** An event's parts, or undefined for a kind that isn't previewed — or one that is, but malformed in a way its app would refuse to show. `ref` is the event {@link reference} names, where it was found. */
+export function read(e: NostrEvent, ref?: NostrEvent): Parts | undefined {
   const content = truncate(e.content, MAX_CONTENT);
   const media = mediaOf(e, content);
   const p: Parts = {
@@ -112,6 +217,7 @@ export function read(e: NostrEvent): Parts | undefined {
     content: text(content),
     lead: '',
     extra: '',
+    emoji: e.tags.filter(([name]) => name === 'emoji'),
   };
 
   switch (e.kind) {
@@ -134,21 +240,21 @@ export function read(e: NostrEvent): Parts | undefined {
     case 30402: if (!classified(p, e, content)) return undefined; break;
     case 33953: case 34609: case 39731: publication(p, e); break;
     case 31922: case 31923: calendar(p, e); break;
-    case 34550: p.title = tag(e, 'name') ?? tag(e, 'd'); break;
-    case 31985: bookReview(p, e); break;
+    case 34550: community(p, e); break;
+    case 31985: if (!bookReview(p, e)) return undefined; break;
     case 30030: emojiPack(p, e); break;
     case 30009:
       p.title = tag(e, 'name') ?? tag(e, 'd');
       p.fallback ??= 'A badge';
       break;
-    case 8: badgeAward(p, e); break;
+    case 8: badgeAward(p, e, ref); break;
     case 10008: case 30008: badges(p, e); break;
     case 33863: if (!fundraiser(p, e, content)) return undefined; break;
     case 30617: repository(p, e); break;
     case 30618: repositoryState(p, e); break;
     case 1617: patch(p, e, content); break;
-    case 1618: case 1619: case 1621: gitText(p, e, content); break;
-    case 1630: case 1631: case 1632: case 1633: gitStatus(p, e); break;
+    case 1618: case 1619: case 1621: gitText(p, e, content, ref); break;
+    case 1630: case 1631: case 1632: case 1633: gitStatus(p, e, ref); break;
     case 30817:
       p.title ??= mapOpt(tag(e, 'd'), (d) => `NIP ${d}`);
       p.content = markdown(content);
@@ -159,25 +265,26 @@ export function read(e: NostrEvent): Parts | undefined {
     case 3063: asset(p, e); break;
     case 31990: handler(p, e, content); break;
     case 31871: attestation(p, e); break;
-    case 6: case 16: return repost(e);
-    case 7: if (!reaction(p, e)) return undefined; break;
-    case 9735: zap(p, e); break;
+    case 6: case 16: return repost(e, ref);
+    case 7: if (!reaction(p, e, ref)) return undefined; break;
+    case 9735: zap(p, e, ref); break;
     case 8333: onchainZap(p, e); break;
     case 9802: highlight(p, e, content); break;
     case 1068: poll(p, e); break;
-    case 1018:
-      p.summary = 'Voted in a poll';
-      p.content = HIDDEN;
-      p.lead = mapOpt(target(e), (link) => paragraph(`Voted in ${link}`)) ?? '';
-      break;
+    case 1018: pollVote(p, e, ref); break;
     case 1984: report(p, e); break;
     case 3: case 30000: case 39089: peopleList(p, e); break;
     case 10002: relayList(p, e); break;
     case 10011: identities(p, e); break;
-    case 15683: case 18678:
+    case 15683: case 18678: {
+      const list = e.kind === 15683 ? 'love list' : 'Top 8';
       p.title = e.kind === 15683 ? 'Love list' : 'Top 8';
+      // Its `alt` says what any love list is; the people on it say what this one is.
+      p.fallback = undefined;
       people(p, e);
+      naming(p, (name) => ({ title: `${who(name, e.pubkey)}'s ${list}` }));
       break;
+    }
     case 30315: status(p, e); break;
     case 39701: bookmark(p, e); break;
     case 16767: case 36767: if (!theme(p, e)) return undefined; break;
@@ -189,10 +296,7 @@ export function read(e: NostrEvent): Parts | undefined {
     case 38192: memoryCard(p, e, content); break;
     case 3367: colorMoment(p, e, content); break;
     case 37516: geocache(p, e); break;
-    case 7516:
-      p.title = 'Found a geocache';
-      p.lead = mapOpt(coordinate(e), (link) => paragraph(`Logged a find at ${link}`)) ?? '';
-      break;
+    case 7516: geocacheFind(p, e, ref); break;
     case 37381: deck(p, e); break;
     case 2473: bird(p, e); break;
     case 12473: birdex(p, e); break;
@@ -252,6 +356,7 @@ function voice(p: Parts, e: NostrEvent, content: string): void {
   const duration = Number(first && field(first, 'duration'));
   p.summary = Number.isFinite(duration) && duration > 0 ? `Voice message, ${clock(Math.floor(duration))}` : 'Voice message';
   p.content = HIDDEN;
+  naming(p, (name) => ({ title: `${e.kind === 1244 ? 'Voice reply' : 'Voice message'} from ${who(name, e.pubkey)}` }));
 }
 
 function track(p: Parts, e: NostrEvent, content: string): void {
@@ -360,10 +465,17 @@ function calendar(p: Parts, e: NostrEvent): void {
   }
 }
 
-function bookReview(p: Parts, e: NostrEvent): void {
+/** The ISBN a book review (Bookstr) is of, by its `d`. Ditto shows no review without one. */
+export function reviewedIsbn(e: NostrEvent): string | undefined {
   const d = tag(e, 'd');
-  const isbn = d?.startsWith('isbn:') ? d.slice(5) : undefined;
-  p.title = isbn ? `Book review (ISBN ${isbn})` : 'Book review';
+  return d?.startsWith('isbn:') ? d.slice(5).trim() || undefined : undefined;
+}
+
+function bookReview(p: Parts, e: NostrEvent): boolean {
+  const isbn = reviewedIsbn(e);
+  if (!isbn) return false;
+  p.title = `Book review (ISBN ${isbn})`;
+  naming(p, (name) => ({ title: `${who(name, e.pubkey)} reviewed a book (ISBN ${isbn})` }));
   // The rating is a fraction of five stars.
   const rating = Number(tag(e, 'rating'));
   if (tag(e, 'rating') !== undefined && rating >= 0 && rating <= 1) {
@@ -373,6 +485,16 @@ function bookReview(p: Parts, e: NostrEvent): void {
     const review = contentText(p.content);
     p.summary = review ? `${stars} — ${review}` : stars;
   }
+  return true;
+}
+
+function community(p: Parts, e: NostrEvent): void {
+  p.title = tag(e, 'name') ?? tag(e, 'd');
+  // NIP-72 puts nothing in its content; what some apps put there is their own JSON.
+  p.summary = tag(e, 'description') ?? tag(e, 'about');
+  p.image = urlTag(e, 'image') ?? urlTag(e, 'picture') ?? urlTag(e, 'banner');
+  p.content = HIDDEN;
+  p.fallback = 'A community';
 }
 
 function emojiPack(p: Parts, e: NostrEvent): void {
@@ -400,20 +522,34 @@ function badgeName(address: string | undefined): string | undefined {
   return colon < 0 ? undefined : rest.slice(colon + 1);
 }
 
-function badgeAward(p: Parts, e: NostrEvent): void {
-  const badge = all(e, 'a').map((t) => badgeName(t[0])).find((name) => name);
+function badgeAward(p: Parts, e: NostrEvent, ref: NostrEvent | undefined): void {
+  // Its definition, by the address the award names, is the badge's own word for itself.
+  const definition = ref?.kind === 30009 ? ref : undefined;
+  const badge = (definition && (tag(definition, 'name') ?? tag(definition, 'd'))) ?? all(e, 'a').map((t) => badgeName(t[0])).find((name) => name);
   p.title = badge ? `Awarded the ${badge} badge` : 'Badge award';
   p.content = HIDDEN;
+  if (definition) {
+    p.image = urlTag(definition, 'image') ?? urlTag(definition, 'thumb') ?? p.image;
+    p.summary = tag(definition, 'description');
+  }
   people(p, e);
+  const recipients = [...new Set(values(e, 'p').filter(isHex64))];
+  const what = badge ? `the “${clamp(badge, 80)}” badge` : 'a badge';
+  naming(p, (name) => ({
+    title: recipients.length === 1
+      ? `${who(name, e.pubkey)} awarded ${who(name, recipients[0])} ${what}`
+      : `${who(name, e.pubkey)} awarded ${what}${recipients.length ? ` to ${count(recipients.length, 'person', 'people')}` : ''}`,
+  }));
 }
 
 function badges(p: Parts, e: NostrEvent): void {
   const names = all(e, 'a').map((t) => badgeName(t[0])).filter((name): name is string => name !== undefined);
   const set = e.kind === 30008 && tag(e, 'd') !== 'profile_badges';
   p.title = set ? p.title ?? tag(e, 'name') ?? tag(e, 'd') : 'Badges';
-  p.fallback = count(names.length, 'badge', 'badges');
+  p.fallback = names.length ? `${names.slice(0, 8).join(', ')}${names.length > 8 ? ` and ${thousands(names.length - 8)} more` : ''}` : 'No badges';
   p.content = HIDDEN;
   p.extra = list(names.map(escape), names.length);
+  if (!set) naming(p, (name) => ({ title: `${who(name, e.pubkey)}'s badges` }));
 }
 
 function fundraiser(p: Parts, e: NostrEvent, content: string): boolean {
@@ -464,16 +600,32 @@ function stripPatchPrefix(subject: string): string {
   return match && match[1].toUpperCase().includes('PATCH') ? match[2].trim() : subject;
 }
 
-function gitText(p: Parts, e: NostrEvent, content: string): void {
+function gitText(p: Parts, e: NostrEvent, content: string, ref: NostrEvent | undefined): void {
   const firstLine = content.split('\n').map((l) => l.trim().replace(/^#+/, '').trim()).find(Boolean);
   p.title = tag(e, 'subject') ?? mapOpt(firstLine, (l) => clamp(l, 120));
   p.content = markdown(content);
   p.fallback = e.kind === 1618 ? 'A pull request' : e.kind === 1619 ? 'A pull request update' : 'An issue';
+  // An update is to the pull request it names, whose subject is its own.
+  const pr = e.kind === 1619 && !p.title ? about(ref, [1618]) : undefined;
+  if (pr?.title) {
+    const subject = pr.title;
+    naming(p, (name) => ({ title: `${who(name, e.pubkey)} updated “${clamp(subject, 120)}”` }));
+  }
 }
 
-function gitStatus(p: Parts, e: NostrEvent): void {
+function gitStatus(p: Parts, e: NostrEvent, ref: NostrEvent | undefined): void {
   p.title = ({ 1630: 'Marked open', 1631: 'Marked applied', 1632: 'Closed' } as Record<number, string>)[e.kind] ?? 'Marked as a draft';
   p.lead = mapOpt(target(e), (link) => paragraph(`On ${link}`)) ?? '';
+  // What was closed or merged, by its subject.
+  const of = about(ref, [1617, 1618, 1621]);
+  if (!of?.title) return;
+  const subject = `“${clamp(of.title, 120)}”`;
+  const did = e.kind === 1630 ? `marked ${subject} open`
+    : e.kind === 1631 ? `${ref?.kind === 1621 ? 'resolved' : 'merged'} ${subject}`
+    : e.kind === 1632 ? `closed ${subject}`
+    : `marked ${subject} as a draft`;
+  p.fallback = of.text;
+  naming(p, (name) => ({ title: `${who(name, e.pubkey)} ${did}` }));
 }
 
 function nsite(p: Parts, e: NostrEvent): void {
@@ -500,8 +652,13 @@ function release(p: Parts, e: NostrEvent, content: string): void {
 
 function asset(p: Parts, e: NostrEvent): void {
   const url = urlTag(e, 'url');
-  p.title = (url && fileName(url)) ?? tag(e, 'm');
-  p.summary = mapOpt(tag(e, 'version'), (v) => `Version ${v}`);
+  const app = tag(e, 'i');
+  const version = tag(e, 'version');
+  const size = tag(e, 'size');
+  p.title = tag(e, 'filename') ?? (url && fileName(url)) ?? app ?? tag(e, 'm');
+  const release = app && version ? `${app} ${version}` : app ?? mapOpt(version, (v) => `Version ${v}`);
+  const facts = [release, tag(e, 'f'), size && /^\d+$/.test(size) ? bytes(Number(size)) : undefined].filter((f): f is string => !!f);
+  p.summary = facts.length ? facts.join(' · ') : undefined;
   p.image = undefined;
   p.content = HIDDEN;
   if (url) p.extra = paragraph(webLink(url, url));
@@ -530,9 +687,11 @@ function attestation(p: Parts, e: NostrEvent): void {
  * what it says it is: the reposter's word for what its author wrote is no
  * better than anyone's, but the author's signature is.
  */
-function repost(e: NostrEvent): Parts {
+function repost(e: NostrEvent, ref: NostrEvent | undefined): Parts {
   const inner = parseEvent(truncate(e.content, MAX_CONTENT));
-  const reposted = inner && inner.kind !== 6 && inner.kind !== 16 && verifyEvent(inner) ? inner : undefined;
+  // One that carries no event is of the one it names, as its relays have it.
+  const reposted = inner ? (inner.kind !== 6 && inner.kind !== 16 && verifyEvent(inner) ? inner : undefined)
+    : ref && ref.kind !== 6 && ref.kind !== 16 ? ref : undefined;
   const parts = reposted && read(reposted);
   if (parts) {
     parts.lead = paragraph(`Reposted by ${personLink(e.pubkey)}`) + parts.lead;
@@ -548,7 +707,7 @@ function repost(e: NostrEvent): Parts {
   };
 }
 
-function reaction(p: Parts, e: NostrEvent): boolean {
+function reaction(p: Parts, e: NostrEvent, ref: NostrEvent | undefined): boolean {
   const content = e.content.trim();
   let shown: string;
   let image: string | undefined;
@@ -567,12 +726,18 @@ function reaction(p: Parts, e: NostrEvent): boolean {
   } else {
     return false;
   }
-  p.summary = `Reacted ${shown}`;
-  p.image = image;
+  // What was reacted to says what the reaction is about: its words and its picture.
+  const of = about(ref);
+  p.summary = of?.text ?? `Reacted ${shown}`;
+  p.image = of?.image ?? image;
+  // A reaction's emoji is what it says.
+  p.emoji = [];
   p.video = undefined;
   p.audio = undefined;
   p.content = HIDDEN;
   p.lead = mapOpt(target(e), (link) => paragraph(`Reacted ${escape(shown)} to ${link}`)) ?? '';
+  if (of) p.people = [of.author];
+  naming(p, (name) => ({ title: `${who(name, e.pubkey)} reacted ${shown}${of ? ` to ${label(of, name)}` : ''}` }));
   return true;
 }
 
@@ -580,37 +745,53 @@ function reaction(p: Parts, e: NostrEvent): boolean {
  * A zap receipt (NIP-57) is signed by the recipient's wallet, but is the
  * sender's: the zap request it carries is theirs, and signed by them.
  */
-function zap(p: Parts, e: NostrEvent): void {
+function zap(p: Parts, e: NostrEvent, ref: NostrEvent | undefined): void {
   const candidate = parseEvent(tag(e, 'description') ?? '');
   const request = candidate && candidate.kind === 9734 && verifyEvent(candidate) ? candidate : undefined;
   const sats = mapOpt(tag(e, 'bolt11'), bolt11Sats);
-  const zapped = sats !== undefined ? `Zapped ${thousands(sats)} ${sats === 1 ? 'sat' : 'sats'}` : 'Zapped';
+  const amount = sats !== undefined ? ` ${thousands(sats)} ${sats === 1 ? 'sat' : 'sats'}` : '';
+  const zapped = `Zapped${amount}`;
   const recipient = tag(e, 'p');
   let lead = escape(zapped);
   if (recipient && isHex64(recipient)) lead += ` to ${personLink(recipient)}`;
   const link = target(e);
   if (link) lead += ` for ${link}`;
+  // What was zapped, when the sender said nothing of it.
+  const of = about(ref);
 
   p.title = zapped;
   p.summary = undefined;
+  p.fallback = of?.text;
   p.lead = paragraph(lead);
-  p.image = undefined;
+  p.image = of?.image;
   p.video = undefined;
   p.audio = undefined;
   p.content = request ? text(truncate(request.content, MAX_CONTENT)) : HIDDEN;
   if (request) p.author = request.pubkey;
+  const to = isHex64(recipient) ? recipient : undefined;
+  if (to) p.people = [to];
+  // Only a signed request says who sent it: a receipt is its recipient's wallet's.
+  naming(p, (name) => ({
+    title: request
+      ? `${who(name, request.pubkey)} zapped${to ? ` ${who(name, to)}` : ''}${amount}`
+      : to ? `${who(name, to)} was zapped${amount}` : zapped,
+  }));
 }
 
 /** An on-chain zap names an amount only its transaction can vouch for, and a preview can't look, so it says none. */
 function onchainZap(p: Parts, e: NostrEvent): void {
   p.title = 'Sent an on-chain zap';
   p.summary = undefined;
-  const recipients = values(e, 'p').filter(isHex64);
+  const recipients = [...new Set(values(e, 'p').filter(isHex64))];
   let lead = 'Sent an on-chain zap';
   if (recipients.length) lead += ` to ${recipients.slice(0, MAX_LIST).map(personLink).join(', ')}`;
   const link = coordinate(e) ?? target(e);
   if (link) lead += ` for ${link}`;
   p.lead = paragraph(lead);
+  if (recipients.length === 1) p.people = recipients;
+  naming(p, (name) => ({
+    title: `${who(name, e.pubkey)} sent ${recipients.length === 1 ? `${who(name, recipients[0])} ` : ''}an on-chain zap`,
+  }));
 }
 
 function highlight(p: Parts, e: NostrEvent, content: string): void {
@@ -627,12 +808,30 @@ function highlight(p: Parts, e: NostrEvent, content: string): void {
 }
 
 function poll(p: Parts, e: NostrEvent): void {
-  p.title = 'Poll';
+  // Its question is its title, and its options what it says.
+  const question = withoutReferences(e.content).trim();
+  p.title = question ? clamp(question, 120) : 'Poll';
   const options = all(e, 'option').map((t) => t[1]?.trim() ?? '').filter(Boolean);
-  if (options.length) p.fallback = options.join(' · ');
+  if (options.length) {
+    p.summary ??= options.join(' · ');
+    // The title says it all, unless it was cut short.
+    if (question && p.title === question) p.content = HIDDEN;
+  }
   p.extra = list(options.map(escape), options.length);
   const ends = tag(e, 'endsAt');
   if (ends && /^-?\d+$/.test(ends)) p.extra += paragraph(`Ends ${date(Number(ends))}`);
+}
+
+function pollVote(p: Parts, e: NostrEvent, ref: NostrEvent | undefined): void {
+  // The poll says what was asked, and what the options a vote names are.
+  const poll = ref?.kind === 1068 ? ref : undefined;
+  const question = mapOpt(poll && withoutReferences(poll.content).trim(), (q) => (q ? clamp(q, 100) : undefined));
+  const chosen = new Set(values(e, 'response'));
+  const picked = poll ? all(poll, 'option').filter((t) => chosen.has(t[0]?.trim() ?? '')).map((t) => t[1]?.trim()).filter((o): o is string => !!o) : [];
+  p.summary = picked.length ? `Voted ${picked.map((o) => `“${clamp(o, 60)}”`).join(', ')}` : 'Voted in a poll';
+  p.content = HIDDEN;
+  p.lead = mapOpt(target(e), (link) => paragraph(`Voted in ${link}`)) ?? '';
+  naming(p, (name) => ({ title: `${who(name, e.pubkey)} voted in ${question ? `“${question}”` : 'a poll'}` }));
 }
 
 function report(p: Parts, e: NostrEvent): void {
@@ -643,44 +842,68 @@ function report(p: Parts, e: NostrEvent): void {
   const labels: Record<string, string> = {
     nudity: 'nudity', malware: 'malware', profanity: 'hateful speech', illegal: 'illegal content', spam: 'spam', impersonation: 'impersonation',
   };
-  const label = reason ? labels[reason] : undefined;
-  p.title = label ? `Reported for ${label}` : 'Report';
+  const why = reason ? labels[reason] : undefined;
+  p.title = why ? `Reported for ${why}` : 'Report';
   const reported = tag(e, 'p');
   p.lead = reported && isHex64(reported) ? paragraph(`Reported ${personLink(reported)}`) : '';
   p.image = undefined;
   p.video = undefined;
+  if (!isHex64(reported)) return;
+  p.people = [reported];
+  naming(p, (name) => ({ title: `${who(name, e.pubkey)} reported ${who(name, reported)}${why ? ` for ${why}` : ''}` }));
 }
 
 function peopleList(p: Parts, e: NostrEvent): void {
   p.title = e.kind === 3 ? 'Follows' : p.title ?? tag(e, 'name') ?? tag(e, 'd');
   people(p, e);
+  if (e.kind === 3) naming(p, (name) => ({ title: `People ${who(name, e.pubkey)} follows` }));
 }
 
-/** The people an event names, listed, and counted for its description. */
+/** The most people a description names. */
+const MAX_NAMED = 8;
+
+/** The people an event names: listed, and named in its description, as many as have names. */
 function people(p: Parts, e: NostrEvent): void {
   const pubkeys = [...new Set(values(e, 'p').filter(isHex64))];
   p.fallback ??= count(pubkeys.length, 'person', 'people');
   p.content = HIDDEN;
   p.extra = list(pubkeys.map(personLink), pubkeys.length);
+  const first = pubkeys.slice(0, MAX_NAMED);
+  p.people = [...(p.people ?? []), ...first];
+  naming(p, (name) => {
+    const names = first.map(name).filter((n): n is string => !!n);
+    return names.length ? { fallback: andList(names, pubkeys.length - names.length) } : {};
+  });
+}
+
+/** `A, B and C`, or `A, B, C and 5 more`. */
+function andList(items: string[], more: number): string {
+  if (more > 0) return `${items.join(', ')} and ${thousands(more)} more`;
+  return items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}` : items[0] ?? '';
 }
 
 function relayList(p: Parts, e: NostrEvent): void {
   const relays = all(e, 'r').map((t) => [t[0]?.trim() ?? '', t[1]] as const).filter(([r]) => r);
   p.title = 'Relays';
   p.fallback = count(relays.length, 'relay', 'relays');
+  // A relay is known by its host.
+  const hosts = relays.map(([relay]) => relay.replace(/^wss?:\/\//i, '').replace(/\/+$/, '')).filter(Boolean);
+  if (hosts.length) p.fallback = andList(hosts.slice(0, MAX_NAMED), hosts.length - Math.min(hosts.length, MAX_NAMED));
   p.content = HIDDEN;
   p.extra = list(
     relays.map(([relay, marker]) => (marker === 'read' || marker === 'write' ? `<code>${escape(relay)}</code> (${marker} only)` : `<code>${escape(relay)}</code>`)),
     relays.length,
   );
+  naming(p, (name) => ({ title: `${who(name, e.pubkey)}'s relays` }));
 }
 
 function identities(p: Parts, e: NostrEvent): void {
   const accounts = values(e, 'i');
   p.title = 'Linked accounts';
-  p.fallback = count(accounts.length, 'account', 'accounts');
+  p.fallback = accounts.length ? andList(accounts.slice(0, MAX_NAMED), accounts.length - Math.min(accounts.length, MAX_NAMED)) : 'No linked accounts';
   p.content = HIDDEN;
   p.extra = list(accounts.map(escape), accounts.length);
+  naming(p, (name) => ({ title: `${who(name, e.pubkey)}'s linked accounts` }));
 }
 
 function status(p: Parts, e: NostrEvent): void {
@@ -688,6 +911,9 @@ function status(p: Parts, e: NostrEvent): void {
   p.title = d === 'general' ? 'Status' : d === 'music' ? 'Listening to' : `${clamp(d, 40)} status`;
   const url = urlTag(e, 'r');
   if (url) p.extra = paragraph(webLink(url, url));
+  if (d === 'general' || d === 'music') {
+    naming(p, (name) => ({ title: d === 'music' ? `${who(name, e.pubkey)} is listening to` : `${who(name, e.pubkey)}'s status` }));
+  }
 }
 
 function bookmark(p: Parts, e: NostrEvent): void {
@@ -745,6 +971,17 @@ function geocache(p: Parts, e: NostrEvent): void {
   }
 }
 
+function geocacheFind(p: Parts, e: NostrEvent, ref: NostrEvent | undefined): void {
+  p.title = 'Found a geocache';
+  p.lead = mapOpt(coordinate(e), (link) => paragraph(`Logged a find at ${link}`)) ?? '';
+  // The cache found: its name, its picture, and what it says of itself.
+  const cache = about(ref, [37516]);
+  p.image ??= cache?.image;
+  p.fallback = cache?.text;
+  const found = cache?.title ? `“${clamp(cache.title, 80)}”` : 'a geocache';
+  naming(p, (name) => ({ title: `${who(name, e.pubkey)} found ${found}` }));
+}
+
 function deck(p: Parts, e: NostrEvent): void {
   p.image = urlTag(e, 'banner') ?? p.image;
   const commanders = values(e, 'C');
@@ -789,6 +1026,7 @@ function birdex(p: Parts, e: NostrEvent): void {
   p.fallback = count(species.size, 'species', 'species');
   p.content = HIDDEN;
   p.extra = list(names.map((n) => `<i>${escape(n)}</i>`), names.length);
+  naming(p, (name) => ({ title: `${who(name, e.pubkey)}'s Birdex` }));
 }
 
 function sno(p: Parts, e: NostrEvent, content: string): void {
@@ -841,6 +1079,12 @@ function encrypted(p: Parts, e: NostrEvent): void {
   p.audio = undefined;
   p.content = HIDDEN;
   p.lead = recipient && isHex64(recipient) && e.kind !== 33301 ? paragraph(`${what} to ${personLink(recipient)}`) : paragraph(what);
+  if (e.kind === 33301) return;
+  // One to oneself names no one else.
+  const to = isHex64(recipient) && recipient !== e.pubkey ? recipient : undefined;
+  if (to) p.people = [to];
+  const thing = e.kind === 4 ? 'a direct message' : 'a letter';
+  naming(p, (name) => ({ title: `${who(name, e.pubkey)} sent ${to ? `${who(name, to)} ` : ''}${thing}` }));
 }
 
 function vanish(p: Parts, e: NostrEvent): void {

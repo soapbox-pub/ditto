@@ -10,9 +10,13 @@
  * Every kind Ditto renders has a preview (`kinds.ts`), with the event's own
  * title, description and image, and the event as an article a search engine
  * can read. Profiles with a theme or an avatar shape, themes and color
- * moments get images drawn the way ditto-server drew them (`draw.ts`). A
- * bird detection is titled for who heard what, with the bird's picture from
- * Wikipedia (`species.ts`).
+ * moments get images drawn the way ditto-server drew them (`draw.ts`).
+ *
+ * A preview says who did what: "Alex reacted 👍 to Sam's post", with the
+ * post's words and picture. So it fetches the event a reaction, vote, award
+ * or status change is about, and the profiles of the people its title names.
+ * A bird detection gets the bird's picture from Wikipedia (`species.ts`), a
+ * book review the book's title and cover from Open Library (`books.ts`).
  */
 
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
@@ -23,9 +27,11 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { getColors } from '@/lib/colorMomentUtils';
 import { ACTIVE_THEME_KIND, parseActiveProfileTheme, parseThemeDefinition, THEME_DEFINITION_KIND } from '@/lib/themeEvent';
 
-import { displayName, eventPreview, type Page, type Preview, profilePreview, readProfile } from './card';
+import { book } from './books';
+import { eventPreview, type Page, type Preview, profilePreview, readProfile } from './card';
 import { DEFAULT_COLORS, drawPalette, drawProfile, drawTheme, type Layout, LAYOUTS } from './draw';
-import { birdNames, isHex64, read, SUPPORTED, tag } from './kinds';
+import { escape } from './html';
+import { birdNames, isHex64, paragraph, read, reference, reviewedIsbn, SUPPORTED, tag, who } from './kinds';
 import { heard, species, wikidataId } from './species';
 
 interface Context {
@@ -35,6 +41,7 @@ interface Context {
 
 const COLOR_MOMENT_KIND = 3367;
 const BIRD_DETECTION_KIND = 2473;
+const BOOK_REVIEW_KIND = 31985;
 
 export default {
   /**
@@ -63,27 +70,45 @@ export default {
       return profile(event, theme, page);
     }
 
-    const parts = read(event);
-    if (!parts) return null;
-    // The profile of whoever it's attributed to: the one fetched beside it
-    // when that's theirs, or theirs fetched now — a repost's is its original
-    // author's, a zap's its sender's. A bird detection's species is looked
-    // up beside it.
+    // At once: the event it's about, for a kind whose preview is made of one
+    // — what was reacted to, voted in, closed, awarded or found — and what
+    // Wikipedia says of a bird heard, or Open Library of a book reviewed.
+    const filter = reference(event);
     const wikidata = event.kind === BIRD_DETECTION_KIND ? wikidataId(event) : undefined;
-    const [author, sighted] = await Promise.all([
-      found.profile?.pubkey === parts.author ? found.profile : first({ kinds: [0], authors: [parts.author] }),
+    const isbn = event.kind === BOOK_REVIEW_KIND ? reviewedIsbn(event) : undefined;
+    const [ref, sighted, reviewed] = await Promise.all([
+      filter ? first(filter) : undefined,
       wikidata ? species(wikidata, signal) : undefined,
+      isbn ? book(isbn, signal) : undefined,
     ]);
-    const attributed = readProfile(author, parts.author);
+
+    const parts = read(event, ref);
+    if (!parts) return null;
     if (event.kind === BIRD_DETECTION_KIND) {
       // Who heard what, with the bird's picture.
       const names = birdNames(event);
-      const name = sighted?.name ?? names.common ?? names.scientific;
-      if (name) parts.title = heard(displayName(attributed), name);
+      const bird = sighted?.name ?? names.common ?? names.scientific;
+      if (bird) parts.named = (name) => ({ title: heard(who(name, event.pubkey), bird) });
       parts.image = sighted?.image ?? parts.image;
       parts.summary = sighted?.extract ?? parts.summary;
     }
-    const preview = eventPreview(event.kind, parts, attributed, page);
+    if (reviewed) {
+      // Who reviewed what, with its cover.
+      const what = reviewed.author ? `${reviewed.title} by ${reviewed.author}` : reviewed.title;
+      parts.named = (name) => ({ title: `${who(name, event.pubkey)} reviewed ${what}` });
+      parts.lead = paragraph(escape(what)) + parts.lead;
+      parts.image = reviewed.cover ?? parts.image;
+    }
+
+    // The profiles of whoever it's attributed to — a repost's original
+    // author, a zap's sender — and of the others its title names, in one
+    // query, but for the one fetched beside it.
+    const pubkeys = [...new Set([parts.author, ...(parts.people ?? [])])];
+    const wanted = pubkeys.filter((pubkey) => pubkey !== found.profile?.pubkey);
+    const profiles = wanted.length ? await nostr.query([{ kinds: [0], authors: wanted, limit: wanted.length }], { signal }) : [];
+    if (found.profile) profiles.push(found.profile);
+    const profileOf = (pubkey: string) => readProfile(newest(profiles.filter((p) => p.pubkey === pubkey)), pubkey);
+    const preview = eventPreview(event.kind, parts, profileOf(parts.author), page, pubkeys.map(profileOf));
 
     switch (event.kind) {
       case ACTIVE_THEME_KIND:
@@ -166,6 +191,10 @@ async function subject(
     default:
       return undefined;
   }
+}
+
+function newest(events: NostrEvent[]): NostrEvent | undefined {
+  return events.reduce<NostrEvent | undefined>((a, b) => (!a || b.created_at > a.created_at ? b : a), undefined);
 }
 
 function mapEvent(event: NostrEvent | undefined): { event: NostrEvent } | undefined {

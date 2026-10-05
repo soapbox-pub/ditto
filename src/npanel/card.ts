@@ -8,7 +8,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import * as nip19 from 'nostr-tools/nip19';
 
 import { escape, renderMarkdown, renderText, safeUrl } from './html';
-import { clamp, contentSource, contentText, date, MAX_CONTENT, parseObject, type Audio, type Parts, shortNpub, truncate, type Video } from './kinds';
+import { clamp, contentSource, contentText, date, MAX_CONTENT, parseObject, type Audio, type Parts, shortNpub, truncate, type Video, withoutEmoji } from './kinds';
 
 const MAX_TITLE = 200;
 const MAX_DESCRIPTION = 200;
@@ -50,7 +50,9 @@ export interface Profile {
 export function readProfile(event: NostrEvent | undefined, pubkey: string): Profile {
   const fields = event && event.pubkey === pubkey && event.kind === 0 ? parseObject(event.content) : {};
   const field = (key: string) => (typeof fields[key] === 'string' ? (fields[key] as string).trim() || undefined : undefined);
-  const name = field('display_name') ?? field('displayName') ?? field('name');
+  // A name that's all custom emoji keeps its shortcodes: they're all it has.
+  const named = field('display_name') ?? field('displayName') ?? field('name');
+  const name = named && event ? withoutEmoji(named, event.tags) || named : named;
   const about = field('about');
   const nip05 = field('nip05');
   return {
@@ -97,12 +99,18 @@ export function profilePreview(profile: Profile, page: Page): Preview {
   };
 }
 
-/** A preview from what {@link read} made of an event, and the profile of whoever it's attributed to. */
-export function eventPreview(kind: number, parts: Parts, profile: Profile, page: Page): Preview {
+/**
+ * A preview from what {@link read} made of an event, the profile of whoever
+ * it's attributed to, and those of the others it names, where they were found.
+ */
+export function eventPreview(kind: number, parts: Parts, profile: Profile, page: Page, people: Profile[] = []): Preview {
   const author = displayName(profile);
-  const description = describe(parts.summary ?? contentText(parts.content) ?? parts.fallback);
+  const name = (pubkey: string) => (pubkey === profile.pubkey ? profile : people.find((p) => p.pubkey === pubkey))?.name;
+  const named = parts.named?.(name);
+  const description = describe(mapText(parts.summary ?? contentText(parts.content) ?? named?.fallback ?? parts.fallback, (text) => withoutEmoji(text, parts.emoji ?? [])));
   const style = parts.content.kind === 'markdown' ? 'article' : parts.video ? 'video' : parts.audio ? 'audio' : 'post';
-  const title = parts.title ? clamp(parts.title, MAX_TITLE) : undefined;
+  const headline = named?.title ?? parts.title;
+  const title = headline ? clamp(headline, MAX_TITLE) : undefined;
 
   let body = '<article>\n<header>\n';
   if (title) body += `<h1>${escape(title)}</h1>\n`;
@@ -163,6 +171,10 @@ export function eventPreview(kind: number, parts: Parts, profile: Profile, page:
       author: person(profile, page),
     }),
   };
+}
+
+function mapText(text: string | undefined, fn: (text: string) => string): string | undefined {
+  return text === undefined ? undefined : fn(text);
 }
 
 /** Text cut to a description's length, on one line. */

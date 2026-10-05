@@ -3,7 +3,7 @@ import { finalizeEvent, getPublicKey } from 'nostr-tools/pure';
 import { describe, expect, it } from 'vitest';
 
 import { eventPreview, type Page, type Preview, profilePreview, readProfile } from './card';
-import { bolt11Sats, read, SUPPORTED } from './kinds';
+import { bolt11Sats, read, reference, shortNpub, SUPPORTED } from './kinds';
 
 const SECRET = new Uint8Array(32).fill(3);
 const OTHER = new Uint8Array(32).fill(4);
@@ -196,7 +196,7 @@ describe('previews', () => {
     const receipt = zapReceipt();
     expect(read(receipt)!.author).toBe(getPublicKey(OTHER));
     const p = preview(receipt);
-    expect(p.title).toBe('Zapped 21 sats');
+    expect(p.title).toBe(`${shortNpub(getPublicKey(OTHER))} zapped ${shortNpub(PUBKEY)} 21 sats`);
     expect(p.description).toBe('Great post!');
     expect(p.body).not.toContain('9734');
 
@@ -250,6 +250,7 @@ describe('previews', () => {
     expect(read(sign(36767, [['d', 't']], ''))).toBeUndefined();
     expect(read(sign(7, [], ':unknown:'))).toBeUndefined();
     expect(read(sign(7, [], 'not a reaction at all'))).toBeUndefined();
+    expect(read(sign(31985, [['d', 'super-mario-galaxy']], '{"title":"Super Mario Galaxy"}'))).toBeUndefined();
   });
 
   it('reactions', () => {
@@ -258,6 +259,46 @@ describe('previews', () => {
     expect(p.image).toBe('https://cdn.example/wave.png');
     expect(p.body).toContain('to <a href="/note1');
     expect(card(7, [], '-').description).toBe('Reacted 👎');
+  });
+
+  it('says who did what, to what', () => {
+    const alex = readProfile(sign(0, [], '{"name":"Alex"}'), getPublicKey(SECRET));
+    const sam = readProfile(signed(OTHER, 0, [], '{"name":"Sam"}'), getPublicKey(OTHER));
+    const named = (event: NostrEvent, ref?: NostrEvent) => {
+      const parts = read(event, ref)!;
+      return eventPreview(event.kind, parts, parts.author === sam.pubkey ? sam : alex, PAGE, [alex, sam]);
+    };
+
+    const post = signed(OTHER, 1, [['imeta', 'url https://cdn.example/cat.png', 'm image/png']], 'My cat');
+    const reaction = sign(7, [['e', post.id], ['p', post.pubkey]], '+');
+    expect(reference(reaction)).toEqual({ ids: [post.id] });
+    const reacted = named(reaction, post);
+    expect([reacted.title, reacted.description, reacted.image]).toEqual(["Alex reacted 👍 to Sam's post", 'My cat', 'https://cdn.example/cat.png']);
+
+    // A repost that carries nothing is of the event it names.
+    const repost = sign(16, [['e', post.id]], '');
+    expect(reference(repost)).toEqual({ ids: [post.id] });
+    expect(named(repost, post).description).toBe('My cat');
+    expect(reference(sign(6, [['e', post.id]], JSON.stringify(post)))).toBeUndefined();
+
+    const poll = signed(OTHER, 1068, [['option', 'y', 'Yes'], ['option', 'n', 'No']], 'Tabs?');
+    const vote = named(sign(1018, [['e', poll.id], ['response', 'n']], ''), poll);
+    expect([vote.title, vote.description]).toEqual(['Alex voted in “Tabs?”', 'Voted “No”']);
+
+    const issue = signed(OTHER, 1621, [['subject', 'It breaks']], 'When I click');
+    expect(named(sign(1632, [['e', issue.id, '', 'root']], ''), issue).title).toBe('Alex closed “It breaks”');
+    expect(named(sign(1631, [['e', issue.id, '', 'root']], ''), issue).title).toBe('Alex resolved “It breaks”');
+
+    const badge = signed(OTHER, 30009, [['d', 'brave'], ['name', 'Bravery'], ['description', 'For courage'], ['image', 'https://cdn.example/b.png']], '');
+    const award = sign(8, [['a', `30009:${badge.pubkey}:brave`], ['p', badge.pubkey]], '');
+    expect(reference(award)).toEqual({ kinds: [30009], authors: [badge.pubkey], '#d': ['brave'], limit: 1 });
+    const awarded = named(award, badge);
+    expect([awarded.title, awarded.description, awarded.image]).toEqual(['Alex awarded Sam the “Bravery” badge', 'For courage', 'https://cdn.example/b.png']);
+
+    expect(named(sign(3, [['p', sam.pubkey], ['p', PUBKEY]], '')).description).toBe('Sam and 1 more');
+    expect(named(sign(3, [['p', sam.pubkey]], '')).title).toBe('People Alex follows');
+    expect(named(sign(10002, [['r', 'wss://relay.example/'], ['r', 'wss://other.example']], '')).description).toBe('relay.example and other.example');
+    expect(named(sign(8211, [['p', sam.pubkey]], 'c2VjcmV0?iv=YWJj')).title).toBe('Alex sent Sam a letter');
   });
 
   it('audio', () => {
@@ -314,7 +355,7 @@ describe('previews', () => {
 
   it('polls and highlights', () => {
     const poll = card(1068, [['option', 'a', 'Yes'], ['option', 'b', 'No <b>']], 'Should we?');
-    expect([poll.title, poll.description]).toEqual(['Poll', 'Should we?']);
+    expect([poll.title, poll.description]).toEqual(['Should we?', 'Yes · No <b>']);
     expect(poll.body).toContain('<li>No &lt;b&gt;</li>');
 
     const highlight = card(9802, [['r', 'https://example.com/a', 'source'], ['comment', 'So true']], 'The quoted part');
