@@ -3182,8 +3182,8 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               </div>
               <p className="text-xs text-muted-foreground">
                 You can change this anytime in{' '}
-                <Link to="/settings/content" className="text-primary hover:underline" onClick={() => setThemeInfoOpen(false)}>
-                  Content Settings
+                <Link to="/settings/personalize" className="text-primary hover:underline" onClick={() => setThemeInfoOpen(false)}>
+                  Personalize settings
                 </Link>.
               </p>
             </div>

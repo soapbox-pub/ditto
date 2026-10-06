@@ -502,6 +502,14 @@ export function NostrSync() {
         changed = true;
       }
 
+      if (
+        encryptedSettings.quickReactions !== undefined &&
+        JSON.stringify(encryptedSettings.quickReactions) !== JSON.stringify(current.quickReactions ?? [])
+      ) {
+        updates.quickReactions = encryptedSettings.quickReactions;
+        changed = true;
+      }
+
       // Return the same reference if nothing changed to prevent re-render
       return changed ? updates : current;
     });

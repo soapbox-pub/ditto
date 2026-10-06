@@ -17,8 +17,10 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEmojiUsage } from '@/hooks/useEmojiUsage';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useQuickReactions } from '@/hooks/useQuickReactions';
 import { cn } from '@/lib/utils';
 import { impactMedium } from '@/lib/haptics';
+import type { QuickReaction } from '@/contexts/AppContext';
 import type { EventStats } from '@/hooks/useTrending';
 import type { ResolvedEmoji } from '@/lib/customEmoji';
 
@@ -70,7 +72,8 @@ export function QuickReactMenu({
   const { nostr } = useNostr();
   const { mutate: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
-  const { trackEmojiUsage, getTopEmojis } = useEmojiUsage();
+  const { trackEmojiUsage } = useEmojiUsage();
+  const quickEmojis = useQuickReactions();
   const { feedSettings } = useFeedSettings();
   const { emojis: allCustomEmojis } = useCustomEmojis();
   const customEmojisEnabled = feedSettings.showCustomEmojis !== false;
@@ -78,28 +81,6 @@ export function QuickReactMenu({
 
   const [showFullPicker, setShowFullPicker] = useState(false);
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
-
-  // Build a lookup map from shortcode -> url for custom emojis
-  const customEmojiMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const e of customEmojis) {
-      map.set(e.shortcode, e.url);
-    }
-    return map;
-  }, [customEmojis]);
-
-  // Get user's most-used emojis (or defaults), filtering out
-  // custom emoji shortcodes that are no longer in the user's collection
-  const quickEmojis = useMemo(() => {
-    const top = getTopEmojis(8);
-    return top
-      .filter((emoji) => {
-        if (!isCustomEmoji(emoji)) return true;
-        const shortcode = emoji.slice(1, -1);
-        return customEmojiMap.has(shortcode);
-      })
-      .slice(0, 6);
-  }, [getTopEmojis, customEmojiMap]);
 
   /** Publish a reaction with a native Unicode emoji string. */
   const publishReaction = useCallback((emoji: string, emojiTag?: [string, string, string]) => {
@@ -180,19 +161,15 @@ export function QuickReactMenu({
    * from the full picker are tracked by EmojiPicker itself, so only the quick
    * row records usage here.
    */
-  const handleQuickSelect = useCallback((emoji: string) => {
-    if (isCustomEmoji(emoji)) {
-      const shortcode = emoji.slice(1, -1);
-      const url = customEmojiMap.get(shortcode);
-      if (url) {
-        trackEmojiUsage(emoji, url);
-        publishReaction(emoji, ['emoji', shortcode, url]);
-        return;
-      }
+  const handleQuickSelect = useCallback(({ emoji, url }: QuickReaction) => {
+    if (isCustomEmoji(emoji) && url) {
+      trackEmojiUsage(emoji, url);
+      publishReaction(emoji, ['emoji', emoji.slice(1, -1), url]);
+      return;
     }
     trackEmojiUsage(emoji);
     publishReaction(emoji);
-  }, [publishReaction, customEmojiMap, trackEmojiUsage]);
+  }, [publishReaction, trackEmojiUsage]);
 
   /** Handle selection from the full EmojiPicker (native or custom). */
   const handlePickerSelect = useCallback((selection: EmojiSelection) => {
@@ -231,15 +208,16 @@ export function QuickReactMenu({
       onClick={(e) => e.stopPropagation()}
     >
       {/* Quick emoji buttons */}
-      {quickEmojis.map((emoji) => {
+      {quickEmojis.map((reaction) => {
+        const { emoji } = reaction;
         const isCustom = isCustomEmoji(emoji);
         const shortcode = isCustom ? emoji.slice(1, -1) : undefined;
-        const customUrl = shortcode ? customEmojiMap.get(shortcode) : undefined;
+        const customUrl = isCustom ? reaction.url : undefined;
 
         return (
           <button
             key={emoji}
-            onClick={() => handleQuickSelect(emoji)}
+            onClick={() => handleQuickSelect(reaction)}
             className={cn(
               'flex items-center justify-center size-9 rounded-full text-xl transition-all focus:outline-none hover:bg-secondary hover:scale-110 active:scale-95',
               selectedEmoji === emoji && 'bg-secondary scale-110',

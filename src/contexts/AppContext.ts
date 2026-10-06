@@ -288,6 +288,14 @@ export interface SavedFeed {
   createdAt: number;
 }
 
+/** An emoji pinned to the quick-react row. */
+export interface QuickReaction {
+  /** The emoji itself, or `:shortcode:` for a custom NIP-30 emoji. */
+  emoji: string;
+  /** Custom emoji image URL, kept so the pin survives removing its pack. */
+  url?: string;
+}
+
 export interface AppConfig {
   /** Application display name used in page titles, UI text, and branding. Default: "Ditto". */
   appName: string;
@@ -404,6 +412,12 @@ export interface AppConfig {
    * resolves to the same page — see `lib/trackingParams.ts`.
    */
   stripTrackingParams: boolean;
+  /**
+   * Emojis the user pinned to the front of the quick-react row, in order (at
+   * most 6). Slots left over fill with their most-used emojis. Unset or empty
+   * means the row is learned entirely from usage.
+   */
+  quickReactions?: QuickReaction[];
   /** Image upload quality: "compressed" resizes/optimizes, "original" uploads as-is. Default: "compressed". */
   imageQuality: 'compressed' | 'original';
   /** Hex pubkey of the curator whose follow list defines the Ditto feed. */

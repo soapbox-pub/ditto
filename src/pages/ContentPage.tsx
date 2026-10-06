@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { RotateCcw } from 'lucide-react';
-import { HideStrangerMediaSection, LinkPrivacySection, MuteSettingsInternals, SensitiveContentSection, ThemePreferencesSection, VideoAutoplaySection } from '@/components/ContentSettings';
+import { HideStrangerMediaSection, LinkPrivacySection, MuteSettingsInternals, SensitiveContentSection, VideoAutoplaySection } from '@/components/ContentSettings';
 import { MuteListRecoveryDialog } from '@/components/MuteListRecoveryDialog';
 import { PageHeader } from '@/components/PageHeader';
 import { IntroImage } from '@/components/IntroImage';
@@ -102,7 +102,6 @@ export function ContentPage() {
           </div>
           <div className="px-3 py-4 space-y-5">
             <VideoAutoplaySection />
-            <ThemePreferencesSection />
           </div>
         </div>
 

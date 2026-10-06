@@ -31,6 +31,13 @@ const settingsSections: SettingsSection[] = [
     requiresAuth: true,
   },
   {
+    id: 'personalize',
+    label: defineMessage({ id: 'settings.sections.personalize.label', defaultMessage: 'Personalize' }),
+    description: defineMessage({ id: 'settings.sections.personalize.description', defaultMessage: 'Your theme, quick reactions, and custom emojis' }),
+    illustration: '/theme-intro.png',
+    path: '/settings/personalize',
+  },
+  {
     id: 'feed',
     label: defineMessage({ id: 'settings.sections.feed.label', defaultMessage: 'Home Feed' }),
     description: defineMessage({ id: 'settings.sections.feed.description', defaultMessage: 'Choose what types of posts appear in your home feed' }),

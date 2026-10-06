@@ -47,6 +47,7 @@ const BooksPage = lazy(() => import("./pages/BooksPage").then(m => ({ default: m
 const ChangelogPage = lazy(() => import("./pages/ChangelogPage").then(m => ({ default: m.ChangelogPage })));
 const ClientFeedPage = lazy(() => import("./pages/ClientFeedPage").then(m => ({ default: m.ClientFeedPage })));
 const ContentPage = lazy(() => import("./pages/ContentPage").then(m => ({ default: m.ContentPage })));
+const PersonalizePage = lazy(() => import("./pages/PersonalizePage").then(m => ({ default: m.PersonalizePage })));
 const ContentSettingsPage = lazy(() => import("./pages/ContentSettingsPage").then(m => ({ default: m.ContentSettingsPage })));
 const CSAEPolicyPage = lazy(() => import("./pages/CSAEPolicyPage").then(m => ({ default: m.CSAEPolicyPage })));
 const DataSettingsPage = lazy(() => import("./pages/DataSettingsPage").then(m => ({ default: m.DataSettingsPage })));
@@ -173,6 +174,7 @@ export function AppRouter() {
             <Route path="/settings/profile" element={<ProfileSettings />} />
             <Route path="/settings/feed" element={<ContentSettingsPage />} />
             <Route path="/settings/content" element={<ContentPage />} />
+            <Route path="/settings/personalize" element={<PersonalizePage />} />
             <Route path="/settings/wallet" element={<WalletSettingsPage />} />
             <Route
               path="/settings/notifications"

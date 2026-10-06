@@ -7,7 +7,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { useCurrentUser } from './useCurrentUser';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
-import type { Theme, FeedSettings, ContentWarningPolicy, SavedFeed, WidgetConfig } from '@/contexts/AppContext';
+import type { Theme, FeedSettings, ContentWarningPolicy, QuickReaction, SavedFeed, WidgetConfig } from '@/contexts/AppContext';
 import type { ThemeConfig } from '@/themes';
 import type { ContentFilter } from './useContentFilters';
 import type { LetterPreferences } from '@/lib/letterTypes';
@@ -114,6 +114,8 @@ export interface EncryptedSettings {
   autoplayVideos?: boolean;
   /** Whether tracking parameters are stripped from links, published and shown (see AppConfig) */
   stripTrackingParams?: boolean;
+  /** Emojis pinned to the quick-react row (see AppConfig). Empty means fully learned. */
+  quickReactions?: QuickReaction[];
   /** Sentry DSN for error reporting (empty string = disabled) */
   sentryDsn?: string;
   /** How to display monetary amounts ("usd" or "sats"). */

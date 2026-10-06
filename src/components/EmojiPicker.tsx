@@ -31,6 +31,8 @@ interface EmojiPickerProps {
 	customEmojis?: CustomEmoji[];
 	/** Picker height (px number or CSS length, e.g. '100%'). Defaults to 280px. */
 	height?: number | string;
+	/** Count picks toward the usage table behind the quick-react row. Default: true. */
+	recordUsage?: boolean;
 }
 
 interface EmojiMartEmoji {
@@ -72,7 +74,7 @@ function customPickerId(shortcode: string, url: string): string {
  * Custom NIP-30 emojis are added via emoji-mart's `custom` prop, one section
  * per source pack, between the frequent row and the standard categories.
  */
-export function EmojiPicker({ onSelect, customEmojis, height = 280 }: EmojiPickerProps) {
+export function EmojiPicker({ onSelect, customEmojis, height = 280, recordUsage = true }: EmojiPickerProps) {
 	useTheme(); // subscribe to theme changes so resolvedTheme stays fresh
 	const isMobile = useIsMobile();
 	const { user } = useCurrentUser();
@@ -94,7 +96,7 @@ export function EmojiPicker({ onSelect, customEmojis, height = 280 }: EmojiPicke
 			// Custom emoji — has an image URL
 			const shortcode = shortcodesRef.current.get(emoji.id);
 			if (!shortcode) return;
-			recordEmojiUsage(user?.pubkey, `:${shortcode}:`, emoji.src, emoji.id);
+			if (recordUsage) recordEmojiUsage(user?.pubkey, `:${shortcode}:`, emoji.src, emoji.id);
 			onSelectRef.current({
 				type: "custom",
 				shortcode,
@@ -102,13 +104,13 @@ export function EmojiPicker({ onSelect, customEmojis, height = 280 }: EmojiPicke
 			});
 		} else if (emoji.native) {
 			// Native Unicode emoji
-			recordEmojiUsage(user?.pubkey, emoji.native, undefined, emoji.id);
+			if (recordUsage) recordEmojiUsage(user?.pubkey, emoji.native, undefined, emoji.id);
 			onSelectRef.current({
 				type: "native",
 				emoji: emoji.native,
 			});
 		}
-	}, [user?.pubkey]);
+	}, [user?.pubkey, recordUsage]);
 
 	// One emoji-mart category per source pack, so the picker's sticky heading
 	// answers "which pack is this emoji from?". Emojis inlined on the kind-10030

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { Theme, ContentWarningPolicy } from '@/contexts/AppContext';
+import type { Theme, ContentWarningPolicy, QuickReaction } from '@/contexts/AppContext';
 import type { CoreThemeColors, ThemeConfig, ThemesConfig } from '@/themes';
 
 // ─── Theme Schemas ───────────────────────────────────────────────────
@@ -263,6 +263,18 @@ export const SavedFeedSchema = z.object({
  * Uses ThemeConfigCompatSchema for the customTheme field so legacy
  * 19-token color objects still parse successfully.
  */
+/** Most emojis that can be pinned to the quick-react row. */
+export const MAX_QUICK_REACTIONS = 6;
+
+export const QuickReactionSchema = z.object({
+  emoji: z.string().min(1).max(256),
+  url: z.string().optional(),
+}) satisfies z.ZodType<QuickReaction>;
+
+/** Pinned quick reactions; extras from a longer list are dropped rather than failing the parse. */
+export const QuickReactionsSchema = z.array(QuickReactionSchema)
+  .transform((arr) => arr.slice(0, MAX_QUICK_REACTIONS));
+
 export const AppConfigSchema = z.object({
   appName: z.string().optional(),
   appId: z.string().optional(),
@@ -311,6 +323,7 @@ export const AppConfigSchema = z.object({
   ).optional().default([]),
   autoplayVideos: z.boolean(),
   stripTrackingParams: z.boolean().optional(),
+  quickReactions: QuickReactionsSchema.optional(),
   imageQuality: z.enum(['compressed', 'original']),
   curatorPubkey: z.string().regex(/^[0-9a-f]{64}$/).optional(),
   sandboxDomain: z.string().optional(),
@@ -410,6 +423,7 @@ export const EncryptedSettingsSchema = z.looseObject({
   }).optional(),
   autoplayVideos: z.boolean().optional(),
   stripTrackingParams: z.boolean().optional(),
+  quickReactions: QuickReactionsSchema.optional(),
   corsProxy: z.string().optional(),
   faviconUrl: z.string().optional(),
   linkPreviewUrl: z.string().optional(),
