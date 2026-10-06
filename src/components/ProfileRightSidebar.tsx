@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Check, Copy, Crown, QrCode, ExternalLink, Bitcoin, ShieldAlert, Mail } from 'lucide-react';
 import { LinkFooter } from '@/components/LinkFooter';
 import { BlurhashPlaceholder } from '@/components/BlurhashPlaceholder';
+import { MountOnOpen } from '@/components/MountOnOpen';
 import { cn } from '@/lib/utils';
 import { BLANK_POSTER } from '@/lib/blankPoster';
 import { isValidBlurhash } from '@/lib/blurhash';
@@ -346,6 +347,7 @@ function BitcoinQRModal({ address }: { address: string }) {
 /** A single profile field row. Handles $BTC specially. */
 function ProfileFieldRow({ field }: { field: ProfileField }) {
   const [copied, setCopied] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const { toast } = useToast();
   const isBtc = field.label === '$BTC';
 
@@ -365,13 +367,16 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
           </div>
           <span className="font-semibold text-sm">Bitcoin</span>
           <div className="ml-auto flex items-center gap-1">
-            <Dialog>
+            <Dialog open={qrOpen} onOpenChange={setQrOpen}>
               <DialogTrigger asChild>
                 <button className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-primary">
                   <QrCode className="size-4" />
                 </button>
               </DialogTrigger>
-              <BitcoinQRModal address={field.value} />
+              {/* The modal draws its QR code on mount; a closed dialog still mounts it. */}
+              <MountOnOpen open={qrOpen}>
+                <BitcoinQRModal address={field.value} />
+              </MountOnOpen>
             </Dialog>
             <a
               href={`https://mempool.space/address/${field.value}`}

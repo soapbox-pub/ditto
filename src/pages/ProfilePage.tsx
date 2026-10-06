@@ -88,6 +88,7 @@ import { useProfileTabs } from '@/hooks/useProfileTabs';
 import { usePublishProfileTabs } from '@/hooks/usePublishProfileTabs';
 
 import { FollowQRDialog } from '@/components/FollowQRDialog';
+import { MountOnOpen } from '@/components/MountOnOpen';
 import { ProfileRecoveryDialog } from '@/components/ProfileRecoveryDialog';
 import { GiveBadgeDialog } from '@/components/GiveBadgeDialog';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
@@ -730,6 +731,7 @@ function parseNostrUri(value: string): { type: 'note'; eventId: string } | { typ
 
 function ProfileFieldInline({ field }: { field: { label: string; value: string } }) {
   const [copied, setCopied] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const { toast } = useToast();
   const isBtc = field.label === '$BTC';
   const safeUrl = sanitizeUrl(field.value);
@@ -758,13 +760,16 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
           >
             {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
           </button>
-          <Dialog>
+          <Dialog open={qrOpen} onOpenChange={setQrOpen}>
             <DialogTrigger asChild>
               <button className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-primary" title="Show QR code">
                 <QrCode className="size-4" />
               </button>
             </DialogTrigger>
-            <BitcoinQRModal address={field.value} />
+            {/* The modal draws its QR code on mount; a closed dialog still mounts it. */}
+            <MountOnOpen open={qrOpen}>
+              <BitcoinQRModal address={field.value} />
+            </MountOnOpen>
           </Dialog>
           <a
             href={`https://mempool.space/address/${field.value}`}
