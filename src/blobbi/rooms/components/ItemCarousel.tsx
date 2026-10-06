@@ -2,13 +2,14 @@
  * ItemCarousel — Single-focus carousel for room items.
  *
  * Fixed-size slots prevent layout reflow on item switch.
- * Mobile: focused item only. Desktop: prev/next previews.
+ * Mobile: focused item only. sm+: tappable prev/next previews.
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { cn } from '@/lib/utils';
-import { ROOM_CONTROL_SURFACE_SUBTLE, ROOM_GUIDE_HIGHLIGHT } from '../lib/room-layout';
+import { ROOM_CONTROL_SURFACE, ROOM_GUIDE_HIGHLIGHT } from '../lib/room-layout';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,18 +30,28 @@ interface ItemCarouselProps {
   highlightId?: string | null;
   /** When set, seeds the initial index to this item's position. */
   initialItemId?: string | null;
-  /** Optional pointer-down handler forwarded to the center (focused) item.
-   *  Used by KitchenBar for food drag-to-feed. Receives the currently focused
-   *  entry so the caller doesn't need to track index state.  After pointerdown,
-   *  the drag hook owns the lifecycle via global window listeners — the button
-   *  does not need onPointerMove / onPointerUp / onPointerCancel. */
+  /**
+   * Lets the focused item be dragged into the room. After pointerdown the
+   * drag hook owns the gesture through window listeners; a plain tap still
+   * uses the item through the click.
+   */
   centerPointerHandlers?: {
+    canDrag: (entry: CarouselEntry) => boolean;
     onPointerDown: (e: React.PointerEvent, entry: CarouselEntry) => void;
   };
-  className?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
+
+const ARROW_CLASS = cn(
+  'size-[2.3em] rounded-full flex items-center justify-center shrink-0',
+  ROOM_CONTROL_SURFACE,
+  'text-foreground/70 hover:text-foreground hover:bg-background/80',
+  'transition-all duration-200 active:scale-90 motion-reduce:active:scale-100',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+);
+
+const PREVIEW_CLASS = 'hidden sm:flex items-center justify-center size-[2.6em] shrink-0 rounded-full select-none opacity-60 hover:opacity-90 transition-opacity duration-200';
 
 export function ItemCarousel({
   items,
@@ -51,15 +62,9 @@ export function ItemCarousel({
   highlightId,
   centerPointerHandlers,
   initialItemId,
-  className,
 }: ItemCarouselProps) {
-  const [index, setIndex] = useState(() => {
-    if (initialItemId) {
-      const i = items.findIndex(item => item.id === initialItemId);
-      if (i !== -1) return i;
-    }
-    return 0;
-  });
+  const intl = useIntl();
+  const [index, setIndex] = useState(() => Math.max(0, items.findIndex(item => item.id === initialItemId)));
   const count = items.length;
 
   // Realign when initialItemId changes after mount (e.g. Blobbi switch causes
@@ -70,141 +75,88 @@ export function ItemCarousel({
     if (target !== -1) setIndex(target);
   }, [initialItemId]); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally omits items to avoid fighting user navigation
 
-  // Clamp or preserve index when items change.
-  // Only reset when the focused item no longer exists or the index is out of
-  // bounds — not on every reference change (which happens every render if the
-  // parent rebuilds the array).
-  useEffect(() => {
-    setIndex((prev) => {
-      if (count === 0) return 0;
-      if (prev < count && items[prev]) return prev; // still valid
-      return Math.min(prev, count - 1);              // clamp to new bounds
-    });
-  }, [items, count]);
-
-  // Clamp synchronously: the effect above resets state *after* render, so on
-  // the first render with a shorter items array the stale index can exceed
-  // the new length. Using the clamped value for all reads below prevents the
-  // out-of-bounds access that would otherwise crash.
+  // Reads clamp: the list can shrink under the stored index
   const safeIndex = count === 0 ? 0 : Math.min(index, count - 1);
 
-  const prev = useCallback(() => {
-    setIndex(i => {
-      const clamped = Math.min(i, count - 1);
-      const n = (clamped - 1 + count) % count;
-      onFocusChange?.(items[n]);
-      return n;
-    });
-  }, [count, items, onFocusChange]);
+  const step = useCallback((dir: 1 | -1) => {
+    const n = (safeIndex + dir + count) % count;
+    setIndex(n);
+    onFocusChange?.(items[n]);
+  }, [safeIndex, count, items, onFocusChange]);
 
-  const next = useCallback(() => {
-    setIndex(i => {
-      const clamped = Math.min(i, count - 1);
-      const n = (clamped + 1) % count;
-      onFocusChange?.(items[n]);
-      return n;
-    });
-  }, [count, items, onFocusChange]);
-
-  // ─── Guide highlight logic ──────────────────────────────────────────────
-  // Determine if the highlight target is currently focused, or which arrow
-  // direction leads to it via the shortest path in the circular list.
+  // Guide: which arrow leads to the highlighted item the short way round
   const highlightArrow = useMemo<'left' | 'right' | null>(() => {
     if (!highlightId || count < 2) return null;
     const targetIdx = items.findIndex(i => i.id === highlightId);
     if (targetIdx === -1 || targetIdx === safeIndex) return null;
-
     const rightDist = (targetIdx - safeIndex + count) % count;
     const leftDist = (safeIndex - targetIdx + count) % count;
     return rightDist <= leftDist ? 'right' : 'left';
   }, [highlightId, items, safeIndex, count]);
 
-  const isHighlightFocused = !!highlightId && items[safeIndex]?.id === highlightId;
-
   if (count === 0) {
     return (
-      <div className={cn('flex items-center justify-center h-12 sm:h-14', className)}>
-        <p className="text-xs text-muted-foreground/50">Nothing here yet</p>
+      <div className="flex items-center justify-center h-[3.6em]">
+        <p className="text-[0.8em] text-muted-foreground">
+          <FormattedMessage id="blobbiRoom.carousel.empty" defaultMessage="Nothing here yet" />
+        </p>
       </div>
     );
   }
 
   const current = items[safeIndex];
-  const prevItem = items[(safeIndex - 1 + count) % count];
-  const nextItem = items[(safeIndex + 1) % count];
   const isThisActive = activeItemId === current.id;
   const showPreviews = count >= 3;
+  const draggable = !!centerPointerHandlers && !disabled && centerPointerHandlers.canDrag(current);
+
+  const arrow = (dir: 1 | -1) => (
+    <button
+      onClick={() => step(dir)}
+      disabled={disabled}
+      className={cn(ARROW_CLASS, disabled && 'opacity-30 pointer-events-none', highlightArrow === (dir === 1 ? 'right' : 'left') && ROOM_GUIDE_HIGHLIGHT)}
+      aria-label={dir === 1
+        ? intl.formatMessage({ id: 'blobbiRoom.carousel.next', defaultMessage: 'Next item' })
+        : intl.formatMessage({ id: 'blobbiRoom.carousel.previous', defaultMessage: 'Previous item' })}
+    >
+      {dir === 1 ? <ChevronRight className="size-[1.3em]" /> : <ChevronLeft className="size-[1.3em]" />}
+    </button>
+  );
+  const preview = (dir: 1 | -1) => showPreviews && (
+    <button type="button" onClick={() => step(dir)} disabled={disabled} tabIndex={-1} aria-hidden className={PREVIEW_CLASS}>
+      <span className="text-[1.5em] leading-none block">{items[(safeIndex + dir + count) % count].icon}</span>
+    </button>
+  );
 
   return (
-    <div className={cn('flex items-center justify-center gap-2', className)}>
-      <button
-        onClick={prev}
-        disabled={disabled}
-        className={cn(
-          'size-7 sm:size-8 rounded-full flex items-center justify-center shrink-0',
-          ROOM_CONTROL_SURFACE_SUBTLE,
-          'text-muted-foreground/60 hover:text-foreground/80 hover:bg-background/70',
-          'transition-all duration-200 active:scale-90',
-          disabled && 'opacity-30 pointer-events-none',
-          highlightArrow === 'left' && ROOM_GUIDE_HIGHLIGHT,
-        )}
-        aria-label="Previous item"
-      >
-        <ChevronLeft className="size-4" />
-      </button>
-
-      {showPreviews && (
-        <div className="hidden sm:flex items-center justify-center w-10 h-12 shrink-0 overflow-hidden pointer-events-none select-none">
-          <div className="opacity-20 scale-[0.6]">
-            <span className="text-2xl leading-none block">{prevItem.icon}</span>
-          </div>
-        </div>
-      )}
+    <div className="flex items-center justify-center gap-[0.4em]">
+      {arrow(-1)}
+      {preview(-1)}
 
       <button
-        onClick={centerPointerHandlers ? undefined : () => onUse(current.id)}
-        onPointerDown={centerPointerHandlers ? (e: React.PointerEvent<HTMLButtonElement>) => centerPointerHandlers.onPointerDown(e, current) : undefined}
+        onClick={() => onUse(current.id)}
+        onPointerDown={draggable ? (e: React.PointerEvent<HTMLButtonElement>) => centerPointerHandlers?.onPointerDown(e, current) : undefined}
         disabled={disabled}
-        data-food-drag={centerPointerHandlers ? '' : undefined}
+        data-room-drag={draggable ? '' : undefined}
+        aria-label={intl.formatMessage({ id: 'blobbiRoom.carousel.use', defaultMessage: 'Use {item}' }, { item: current.label })}
         className={cn(
           'relative flex flex-col items-center justify-center shrink-0 overflow-hidden',
-          'w-18 h-16 sm:w-24 sm:h-[5.5rem] rounded-2xl',
-          'transition-all duration-200 active:scale-95',
+          'w-[5.25em] h-[4.75em] rounded-[1em]',
+          'hover:bg-foreground/5 transition-all duration-200 active:scale-95 motion-reduce:active:scale-100',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           disabled && !isThisActive && 'opacity-50 pointer-events-none',
-          isHighlightFocused && ROOM_GUIDE_HIGHLIGHT,
-          centerPointerHandlers && 'touch-none',
+          highlightId === current.id && ROOM_GUIDE_HIGHLIGHT,
+          draggable && 'touch-none cursor-grab',
         )}
       >
-        <span className="text-3xl sm:text-5xl leading-none">{current.icon}</span>
-        <span className="text-[10px] sm:text-xs font-medium text-foreground/80 mt-0.5 w-16 sm:w-20 text-center truncate">
+        <span className="text-[2.6em] leading-none">{current.icon}</span>
+        <span className="text-[0.8em] font-medium text-foreground mt-[0.3em] w-[6em] text-center truncate">
           {current.label}
         </span>
         {isThisActive && <Loader2 className="size-3.5 animate-spin text-primary absolute bottom-0.5" />}
       </button>
 
-      {showPreviews && (
-        <div className="hidden sm:flex items-center justify-center w-10 h-12 shrink-0 overflow-hidden pointer-events-none select-none">
-          <div className="opacity-20 scale-[0.6]">
-            <span className="text-2xl leading-none block">{nextItem.icon}</span>
-          </div>
-        </div>
-      )}
-
-      <button
-        onClick={next}
-        disabled={disabled}
-        className={cn(
-          'size-7 sm:size-8 rounded-full flex items-center justify-center shrink-0',
-          ROOM_CONTROL_SURFACE_SUBTLE,
-          'text-muted-foreground/60 hover:text-foreground/80 hover:bg-background/70',
-          'transition-all duration-200 active:scale-90',
-          disabled && 'opacity-30 pointer-events-none',
-          highlightArrow === 'right' && ROOM_GUIDE_HIGHLIGHT,
-        )}
-        aria-label="Next item"
-      >
-        <ChevronRight className="size-4" />
-      </button>
+      {preview(1)}
+      {arrow(1)}
     </div>
   );
 }

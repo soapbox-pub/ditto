@@ -1,13 +1,21 @@
 import { describe, it, expect } from 'vitest';
 
+import { serializeProfileContent } from '@blobbi-kit/core/missions';
+
 import {
   parseRoomFurnitureContent,
+  migrateV1Placement,
+  rebaseRoomDraft,
+  roomFurnitureUpdate,
+  RoomFurnitureTooNewError,
   MAX_FURNITURE_PER_ROOM,
-  type RoomFurnitureContent,
+  ROOM_FURNITURE_KEY,
+  type FurniturePlacement,
 } from './room-furniture-schema';
+import { isValidRoomId } from './room-config';
+import { MAX_FURNITURE_ID_LENGTH } from './sno-furniture';
 import {
   resolveFurniture,
-  getFurnitureAsset,
   canPlaceInRoom,
   getAvailableFurnitureForRoom,
   getAvailableFurnitureByCategory,
@@ -15,574 +23,330 @@ import {
 } from './furniture-registry';
 import { getEffectiveRoomFurniture } from './room-furniture-effective';
 import { DEFAULT_ROOM_FURNITURE } from './room-furniture-defaults';
+import { ROOM_GRID, WALL_HEIGHT, snapCenter } from './room-geometry';
+import { OFFICIAL_MODEL_IDS } from './room-scene/official-models';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Profile content with version 1 under the key older clients own. */
 function makeContent(roomFurniture: unknown): string {
   return JSON.stringify({ room_furniture: roomFurniture });
 }
 
 function validPlacement(overrides?: Record<string, unknown>): Record<string, unknown> {
-  return {
-    id: 'official:plant-small',
-    x: 0.5,
-    y: 0.7,
-    layer: 'floor',
-    ...overrides,
-  };
+  return { id: 'official:plant-small', at: 'floor', x: 4, y: 4, ...overrides };
 }
 
-// ─── Parser: Basic Parsing ────────────────────────────────────────────────────
+function v2(byRoom: Record<string, unknown>): string {
+  return JSON.stringify({ [ROOM_FURNITURE_KEY]: { v: 2, by_room: byRoom } });
+}
+
+function v1(byRoom: Record<string, unknown>): string {
+  return makeContent({ v: 1, by_room: byRoom });
+}
+
+function interactions(placements: FurniturePlacement[] | undefined) {
+  return (placements ?? []).map((p) => resolveFurniture(p.id)?.interaction).filter(Boolean);
+}
+
+// ─── Parser ───────────────────────────────────────────────────────────────────
 
 describe('parseRoomFurnitureContent', () => {
-  it('returns undefined for empty/null/undefined input', () => {
+  it('returns undefined for empty, non-JSON, or missing content', () => {
     expect(parseRoomFurnitureContent(undefined)).toBeUndefined();
-    expect(parseRoomFurnitureContent(null)).toBeUndefined();
     expect(parseRoomFurnitureContent('')).toBeUndefined();
-    expect(parseRoomFurnitureContent('   ')).toBeUndefined();
-  });
-
-  it('returns undefined for non-JSON content', () => {
     expect(parseRoomFurnitureContent('not json')).toBeUndefined();
+    expect(parseRoomFurnitureContent(JSON.stringify({ other: 1 }))).toBeUndefined();
   });
 
-  it('returns undefined if room_furniture key is missing', () => {
-    expect(parseRoomFurnitureContent(JSON.stringify({ missions: {} }))).toBeUndefined();
+  it('returns undefined for unknown versions', () => {
+    expect(parseRoomFurnitureContent(makeContent({ v: 3, by_room: {} }))).toBeUndefined();
+    expect(parseRoomFurnitureContent(JSON.stringify({ [ROOM_FURNITURE_KEY]: { v: 1, by_room: {} } }))).toBeUndefined();
   });
 
-  it('returns undefined if room_furniture is not an object', () => {
-    expect(parseRoomFurnitureContent(makeContent('string'))).toBeUndefined();
-    expect(parseRoomFurnitureContent(makeContent(42))).toBeUndefined();
-    expect(parseRoomFurnitureContent(makeContent([]))).toBeUndefined();
-    expect(parseRoomFurnitureContent(makeContent(null))).toBeUndefined();
-  });
-
-  it('returns undefined if version is not 1', () => {
-    expect(parseRoomFurnitureContent(makeContent({ v: 2, by_room: {} }))).toBeUndefined();
-    expect(parseRoomFurnitureContent(makeContent({ v: 0, by_room: {} }))).toBeUndefined();
-    expect(parseRoomFurnitureContent(makeContent({ by_room: {} }))).toBeUndefined();
-  });
-
-  it('returns undefined if by_room is not an object', () => {
-    expect(parseRoomFurnitureContent(makeContent({ v: 1, by_room: 'bad' }))).toBeUndefined();
-    expect(parseRoomFurnitureContent(makeContent({ v: 1, by_room: [] }))).toBeUndefined();
-  });
-
-  it('parses valid minimal content', () => {
-    const result = parseRoomFurnitureContent(makeContent({ v: 1, by_room: {} }));
-    expect(result).toEqual({ v: 1, by_room: {} });
-  });
-
-  it('parses a valid placement', () => {
-    const content = makeContent({
-      v: 1,
-      by_room: { home: [validPlacement()] },
+  it('prefers room_furniture_v2 over room_furniture', () => {
+    const content = JSON.stringify({
+      [ROOM_FURNITURE_KEY]: { v: 2, by_room: { home: [validPlacement({ x: 2 })] } },
+      room_furniture: { v: 1, by_room: { home: [{ id: 'official:plant-tall', x: 0.5, y: 0.8, layer: 'floor' }] } },
     });
-    const result = parseRoomFurnitureContent(content);
-    expect(result?.by_room.home).toHaveLength(1);
-    expect(result?.by_room.home?.[0]).toEqual({
-      id: 'official:plant-small',
-      x: 0.5,
-      y: 0.7,
-      layer: 'floor',
+    expect(parseRoomFurnitureContent(content)?.by_room.home).toEqual([validPlacement({ x: 2 })]);
+  });
+
+  it('falls back to room_furniture when room_furniture_v2 is malformed', () => {
+    const content = JSON.stringify({
+      [ROOM_FURNITURE_KEY]: 'nope',
+      room_furniture: { v: 2, by_room: { home: [validPlacement()] } },
     });
+    expect(parseRoomFurnitureContent(content)?.by_room.home).toEqual([validPlacement()]);
   });
 
-  it('preserves explicit empty array (user cleared room)', () => {
-    const content = makeContent({
-      v: 1,
-      by_room: { home: [] },
+  it('shows defaults rather than room_furniture when room_furniture_v2 is from a newer version', () => {
+    const content = JSON.stringify({
+      [ROOM_FURNITURE_KEY]: { v: 3, by_room: {} },
+      room_furniture: { v: 2, by_room: { home: [validPlacement()] } },
     });
-    const result = parseRoomFurnitureContent(content);
-    expect(result?.by_room.home).toEqual([]);
+    expect(parseRoomFurnitureContent(content)).toBeUndefined();
   });
 
-  it('explicit empty array parsed through effective resolver returns [] not defaults', () => {
-    const content = makeContent({
-      v: 1,
-      by_room: { home: [] },
-    });
-    const parsed = parseRoomFurnitureContent(content)!;
-    const result = getEffectiveRoomFurniture('home', parsed);
-    expect(result).toEqual([]);
-    expect(result).not.toBe(DEFAULT_ROOM_FURNITURE.home);
+  it('parses a v2 placement with every field', () => {
+    const parsed = parseRoomFurnitureContent(v2({
+      home: [validPlacement({ rot: 3, scale: 1.5, content: { imageUrl: 'https://example.com/a.jpg' } })],
+    }));
+    expect(parsed?.by_room.home).toEqual([{
+      id: 'official:plant-small', at: 'floor', x: 4, y: 4, rot: 3, scale: 1.5,
+      content: { imageUrl: 'https://example.com/a.jpg' },
+    }]);
   });
 
-  it('parses all optional fields', () => {
-    const content = makeContent({
-      v: 1,
-      by_room: {
-        home: [validPlacement({
-          scale: 1.5,
-          flip: true,
-          variant: 'gold',
-          content: { imageUrl: 'https://blossom.example.com/abc123.jpg' },
-        })],
-      },
-    });
-    const result = parseRoomFurnitureContent(content);
-    const p = result?.by_room.home?.[0];
-    expect(p?.scale).toBe(1.5);
-    expect(p?.flip).toBe(true);
-    expect(p?.variant).toBe('gold');
-    expect(p?.content?.imageUrl).toBe('https://blossom.example.com/abc123.jpg');
-  });
-});
-
-// ─── Parser: Validation Rules ─────────────────────────────────────────────────
-
-describe('parseRoomFurnitureContent validation', () => {
-  it('rejects items with invalid ID format', () => {
-    const content = makeContent({
-      v: 1,
-      by_room: { home: [validPlacement({ id: 'no-namespace' })] },
-    });
-    const result = parseRoomFurnitureContent(content);
-    expect(result?.by_room.home).toEqual([]);
+  it('parses wall placements and clamps them to the wall', () => {
+    const parsed = parseRoomFurnitureContent(v2({
+      home: [validPlacement({ id: 'official:clock-wall', at: 'left', x: 99, y: 99, rot: 1 })],
+    }));
+    const p = parsed?.by_room.home?.[0];
+    expect(p).toMatchObject({ at: 'left', x: ROOM_GRID, y: WALL_HEIGHT });
+    // Rotation only applies to floor items
+    expect(p?.rot).toBeUndefined();
   });
 
-  it('rejects items with empty namespace or slug', () => {
-    const bad = [':slug', 'ns:', ':', '', 'UPPER:case', 'ns:UPPER'];
-    for (const id of bad) {
-      const content = makeContent({
-        v: 1,
-        by_room: { home: [validPlacement({ id })] },
-      });
-      const result = parseRoomFurnitureContent(content);
-      expect(result?.by_room.home).toEqual([]);
-    }
+  it('preserves an explicit empty array (user cleared the room)', () => {
+    const parsed = parseRoomFurnitureContent(v2({ home: [] }));
+    expect(parsed?.by_room.home).toEqual([]);
+    expect(getEffectiveRoomFurniture('home', parsed)).toEqual([]);
   });
 
-  it('accepts valid namespaced IDs', () => {
-    const good = ['official:plant-small', 'custom:my-item', 'nostr:abc123'];
-    for (const id of good) {
-      const content = makeContent({
-        v: 1,
-        by_room: { home: [validPlacement({ id })] },
-      });
-      const result = parseRoomFurnitureContent(content);
-      expect(result?.by_room.home).toHaveLength(1);
-    }
+  it('drops invalid items and keeps valid ones', () => {
+    const parsed = parseRoomFurnitureContent(v2({
+      home: [
+        validPlacement({ id: 'no-namespace' }),
+        validPlacement({ at: 'ceiling' }),
+        validPlacement({ x: Infinity }),
+        validPlacement({ x: 'a' }),
+        validPlacement(),
+      ],
+    }));
+    expect(parsed?.by_room.home).toHaveLength(1);
   });
 
-  it('rejects items with non-finite coordinates', () => {
-    const badCoords = [NaN, Infinity, -Infinity, undefined, 'string'];
-    for (const x of badCoords) {
-      const content = makeContent({
-        v: 1,
-        by_room: { home: [validPlacement({ x: x as number })] },
-      });
-      const result = parseRoomFurnitureContent(content);
-      expect(result?.by_room.home).toEqual([]);
-    }
+  it('accepts sno: IDs, up to a length', () => {
+    const long = `sno:naddr1${'q'.repeat(MAX_FURNITURE_ID_LENGTH)}`;
+    const parsed = parseRoomFurnitureContent(v2({ home: [validPlacement({ id: 'sno:naddr1abc' }), validPlacement({ id: long })] }));
+    expect(parsed?.by_room.home?.map((p) => p.id)).toEqual(['sno:naddr1abc']);
   });
 
-  it('clamps coordinates to [0, 1]', () => {
-    const content = makeContent({
-      v: 1,
-      by_room: { home: [validPlacement({ x: -0.5, y: 1.5 })] },
-    });
-    const result = parseRoomFurnitureContent(content);
-    expect(result?.by_room.home?.[0]?.x).toBe(0);
-    expect(result?.by_room.home?.[0]?.y).toBe(1);
+  it('clamps scale and ignores invalid rotation', () => {
+    const parsed = parseRoomFurnitureContent(v2({
+      home: [validPlacement({ scale: 9, rot: 5 }), validPlacement({ scale: 0.1, rot: 2.5 })],
+    }));
+    expect(parsed?.by_room.home?.[0]).toMatchObject({ scale: 2 });
+    expect(parsed?.by_room.home?.[0].rot).toBeUndefined();
+    expect(parsed?.by_room.home?.[1]).toMatchObject({ scale: 0.5 });
+    expect(parsed?.by_room.home?.[1].rot).toBeUndefined();
   });
 
-  it('rejects items with invalid layer', () => {
-    const content = makeContent({
-      v: 1,
-      by_room: { home: [validPlacement({ layer: 'ceiling' })] },
-    });
-    const result = parseRoomFurnitureContent(content);
-    expect(result?.by_room.home).toEqual([]);
-  });
-
-  it('clamps scale to [0.5, 2.0]', () => {
-    const content = makeContent({
-      v: 1,
-      by_room: { home: [validPlacement({ scale: 0.1 }), validPlacement({ scale: 5.0 })] },
-    });
-    const result = parseRoomFurnitureContent(content);
-    expect(result?.by_room.home?.[0]?.scale).toBe(0.5);
-    expect(result?.by_room.home?.[1]?.scale).toBe(2.0);
-  });
-
-  it('ignores non-finite scale values', () => {
-    const content = makeContent({
-      v: 1,
-      by_room: { home: [validPlacement({ scale: NaN })] },
-    });
-    const result = parseRoomFurnitureContent(content);
-    expect(result?.by_room.home?.[0]?.scale).toBeUndefined();
-  });
-
-  it('ignores non-boolean flip values', () => {
-    const content = makeContent({
-      v: 1,
-      by_room: { home: [validPlacement({ flip: 'yes' })] },
-    });
-    const result = parseRoomFurnitureContent(content);
-    expect(result?.by_room.home?.[0]?.flip).toBeUndefined();
-  });
-
-  it('ignores empty or too-long variant strings', () => {
-    const content = makeContent({
-      v: 1,
-      by_room: { home: [validPlacement({ variant: '' })] },
-    });
-    const result = parseRoomFurnitureContent(content);
-    expect(result?.by_room.home?.[0]?.variant).toBeUndefined();
-
-    const longVariant = 'a'.repeat(33);
-    const content2 = makeContent({
-      v: 1,
-      by_room: { home: [validPlacement({ variant: longVariant })] },
-    });
-    const result2 = parseRoomFurnitureContent(content2);
-    expect(result2?.by_room.home?.[0]?.variant).toBeUndefined();
-  });
-
-  it('rejects non-https imageUrls', () => {
-    const badUrls = ['http://insecure.com/img.jpg', 'javascript:alert(1)', 'data:image/png;base64,...', 'ftp://files.com/img'];
-    for (const url of badUrls) {
-      const content = makeContent({
-        v: 1,
-        by_room: { home: [validPlacement({ content: { imageUrl: url } })] },
-      });
-      const result = parseRoomFurnitureContent(content);
-      expect(result?.by_room.home?.[0]?.content).toBeUndefined();
-    }
-  });
-
-  it('accepts valid https imageUrls', () => {
-    const content = makeContent({
-      v: 1,
-      by_room: { home: [validPlacement({ content: { imageUrl: 'https://cdn.example.com/photo.jpg' } })] },
-    });
-    const result = parseRoomFurnitureContent(content);
-    expect(result?.by_room.home?.[0]?.content?.imageUrl).toBe('https://cdn.example.com/photo.jpg');
+  it('rejects non-https image URLs', () => {
+    const parsed = parseRoomFurnitureContent(v2({
+      home: [validPlacement({ content: { imageUrl: 'javascript:alert(1)' } })],
+    }));
+    expect(parsed?.by_room.home?.[0].content).toBeUndefined();
   });
 
   it('skips invalid room IDs', () => {
-    const content = makeContent({
-      v: 1,
-      by_room: { invalid_room: [validPlacement()], home: [validPlacement()] },
-    });
-    const result = parseRoomFurnitureContent(content);
-    expect(result?.by_room.home).toHaveLength(1);
-    expect((result?.by_room as Record<string, unknown>)['invalid_room']).toBeUndefined();
+    const parsed = parseRoomFurnitureContent(v2({ attic: [validPlacement()], constructor: [validPlacement()], home: [validPlacement()] }));
+    expect(Object.keys(parsed?.by_room ?? {})).toEqual(['home']);
+    expect(isValidRoomId('toString')).toBe(false);
+  });
+
+  it(`keeps the first ${MAX_FURNITURE_PER_ROOM} valid items per room`, () => {
+    const items = [validPlacement({ id: 'bad' }), ...Array.from({ length: 25 }, (_, i) => validPlacement({ x: i % 8 }))];
+    const parsed = parseRoomFurnitureContent(v2({ home: items }));
+    expect(parsed?.by_room.home).toHaveLength(MAX_FURNITURE_PER_ROOM);
+    expect(parsed?.by_room.home?.[0].x).toBe(0);
   });
 });
 
-// ─── Parser: Per-Room Cap ─────────────────────────────────────────────────────
+// ─── v1 migration ─────────────────────────────────────────────────────────────
 
-describe('parseRoomFurnitureContent per-room cap', () => {
-  it(`drops items beyond ${MAX_FURNITURE_PER_ROOM} per room`, () => {
-    const placements = Array.from({ length: 25 }, (_, i) =>
-      validPlacement({ x: i / 25 }),
-    );
-    const content = makeContent({
-      v: 1,
-      by_room: { home: placements },
-    });
-    const result = parseRoomFurnitureContent(content);
-    expect(result?.by_room.home).toHaveLength(MAX_FURNITURE_PER_ROOM);
+describe('v1 migration', () => {
+  it('converts a v1 room to v2', () => {
+    const parsed = parseRoomFurnitureContent(v1({
+      home: [
+        { id: 'official:shelf-wall', x: 0.27, y: 0.3, layer: 'back' },
+        { id: 'official:plant-tall', x: 0.88, y: 0.72, layer: 'front', flip: true },
+      ],
+    }));
+    expect(parsed?.v).toBe(2);
+    const [shelf, plant, toybox] = parsed!.by_room.home!;
+    expect(shelf.at).toBe('left');
+    expect(shelf.y).toBeGreaterThan(0);
+    expect(shelf.y).toBeLessThanOrEqual(WALL_HEIGHT);
+    expect(plant.at).toBe('floor');
+    expect(plant).not.toHaveProperty('flip');
+    // Version 1 rooms get their room's piece
+    expect(toybox).toMatchObject({ id: 'official:toybox', at: 'floor' });
+    expect(parsed!.by_room.home).toHaveLength(3);
   });
 
-  it('keeps the first 20 valid items, not the last', () => {
-    const placements = Array.from({ length: 25 }, (_, i) =>
-      validPlacement({ x: i / 25 }),
-    );
-    const content = makeContent({
-      v: 1,
-      by_room: { home: placements },
-    });
-    const result = parseRoomFurnitureContent(content);
-    // First item should have x = 0/25 = 0
-    expect(result?.by_room.home?.[0]?.x).toBe(0);
-    // Last kept item should have x = 19/25
-    expect(result?.by_room.home?.[19]?.x).toBeCloseTo(19 / 25);
+  it('gives each room its piece only if it has none and has space', () => {
+    const bed = { id: 'official:bed-round', x: 0.5, y: 0.8, layer: 'floor' };
+    const full = Array.from({ length: MAX_FURNITURE_PER_ROOM }, () => ({ id: 'official:plant-small', x: 0.5, y: 0.8, layer: 'floor' }));
+    const parsed = parseRoomFurnitureContent(v1({ rest: [bed], kitchen: full, care: [] }));
+    expect(interactions(parsed?.by_room.rest)).toEqual(['bed']);
+    expect(interactions(parsed?.by_room.kitchen)).toEqual([]);
+    expect(interactions(parsed?.by_room.care)).toEqual(['bath']);
   });
 
-  it('invalid items do not count toward the cap', () => {
-    const placements: unknown[] = [
-      validPlacement({ id: 'bad-no-namespace' }),  // invalid, skipped
-      ...Array.from({ length: 20 }, (_, i) => validPlacement({ x: i / 20 })),
-    ];
-    const content = makeContent({
-      v: 1,
-      by_room: { home: placements },
-    });
-    const result = parseRoomFurnitureContent(content);
-    // 20 valid items (the invalid one was skipped, not counted)
-    expect(result?.by_room.home).toHaveLength(20);
+  it('puts wall pieces on a wall whatever their layer', () => {
+    expect(migrateV1Placement({ id: 'official:clock-wall', x: 0.2, y: 0.8, layer: 'floor' })?.at).toBe('left');
+  });
+
+  it('puts right-side wall items on the right wall', () => {
+    expect(migrateV1Placement({ id: 'official:clock-wall', x: 0.8, y: 0.2, layer: 'back' })?.at).toBe('right');
+  });
+
+  it('keeps floor items inside the room', () => {
+    for (const x of [0, 0.5, 1]) {
+      for (const y of [0.6, 0.8, 1]) {
+        const p = migrateV1Placement({ id: 'official:rug-round', x, y, layer: 'floor' })!;
+        expect(p.x).toBeGreaterThanOrEqual(0);
+        expect(p.x).toBeLessThanOrEqual(ROOM_GRID);
+        expect(p.y).toBeGreaterThanOrEqual(0);
+        expect(p.y).toBeLessThanOrEqual(ROOM_GRID);
+      }
+    }
+  });
+
+  it('rejects v1 items without a valid layer', () => {
+    expect(migrateV1Placement({ id: 'official:rug-round', x: 0.5, y: 0.5, layer: 'sky' })).toBeUndefined();
   });
 });
 
-// ─── Furniture Registry ───────────────────────────────────────────────────────
+// ─── Saving ───────────────────────────────────────────────────────────────────
 
-describe('resolveFurniture', () => {
-  it('resolves known official IDs', () => {
-    const def = resolveFurniture('official:plant-small');
-    expect(def).toBeDefined();
-    expect(def?.id).toBe('official:plant-small');
-    expect(def?.label).toBe('Small Plant');
-  });
+describe('roomFurnitureUpdate', () => {
+  const plant = { id: 'official:plant-small', at: 'floor', x: 2, y: 2 } as const;
 
-  it('returns undefined for unknown official IDs', () => {
-    expect(resolveFurniture('official:nonexistent')).toBeUndefined();
-  });
-
-  it('returns undefined for unimplemented namespaces', () => {
-    expect(resolveFurniture('custom:user-item')).toBeUndefined();
-    expect(resolveFurniture('nostr:event-id')).toBeUndefined();
-  });
-
-  it('returns undefined for malformed IDs', () => {
-    expect(resolveFurniture('no-colon')).toBeUndefined();
-    expect(resolveFurniture('')).toBeUndefined();
-    expect(resolveFurniture(':empty-ns')).toBeUndefined();
-  });
-});
-
-describe('getFurnitureAsset', () => {
-  it('returns default asset when no variant', () => {
-    const def = resolveFurniture('official:picture-frame')!;
-    expect(getFurnitureAsset(def)).toBe('/furniture/frame-wood.svg');
-  });
-
-  it('returns variant-specific asset', () => {
-    // Test with a synthetic definition since no official items currently use variants
-    const def: Parameters<typeof getFurnitureAsset>[0] = {
-      id: 'test:frame',
-      category: 'frames',
-      label: 'Test',
-      asset: '/furniture/frame-wood.svg',
-      aspectRatio: 0.8,
-      baseWidth: 0.1,
-      allowedLayers: ['back'],
-      defaultLayer: 'back',
-      flippable: false,
-      variants: ['wood', 'gold', 'black'],
-    };
-    expect(getFurnitureAsset(def, 'gold')).toBe('/furniture/frame-gold.svg');
-    expect(getFurnitureAsset(def, 'black')).toBe('/furniture/frame-black.svg');
-  });
-
-  it('falls back to default asset for invalid variant', () => {
-    const def: Parameters<typeof getFurnitureAsset>[0] = {
-      id: 'test:frame',
-      category: 'frames',
-      label: 'Test',
-      asset: '/furniture/frame-wood.svg',
-      aspectRatio: 0.8,
-      baseWidth: 0.1,
-      allowedLayers: ['back'],
-      defaultLayer: 'back',
-      flippable: false,
-      variants: ['wood', 'gold'],
-    };
-    expect(getFurnitureAsset(def, 'chrome')).toBe('/furniture/frame-wood.svg');
-  });
-
-  it('returns default asset for items without variants', () => {
-    const def = resolveFurniture('official:plant-small')!;
-    expect(getFurnitureAsset(def, 'anything')).toBe('/furniture/plant-small.svg');
-  });
-});
-
-describe('canPlaceInRoom', () => {
-  it('returns true for items with no room restriction', () => {
-    const def = resolveFurniture('official:plant-small')!;
-    expect(canPlaceInRoom(def, 'home')).toBe(true);
-    expect(canPlaceInRoom(def, 'rest')).toBe(true);
-    expect(canPlaceInRoom(def, 'kitchen')).toBe(true);
-  });
-
-  it('returns true for allowed rooms', () => {
-    const def = resolveFurniture('official:bed-single')!;
-    expect(canPlaceInRoom(def, 'rest')).toBe(true);
-    expect(canPlaceInRoom(def, 'home')).toBe(true);
-  });
-
-  it('returns false for non-allowed rooms', () => {
-    const def = resolveFurniture('official:bed-single')!;
-    expect(canPlaceInRoom(def, 'kitchen')).toBe(false);
-    expect(canPlaceInRoom(def, 'care')).toBe(false);
-  });
-});
-
-describe('getAvailableFurnitureForRoom', () => {
-  it('returns all unrestricted items plus room-specific items', () => {
-    const available = getAvailableFurnitureForRoom('home');
-    // Should include plant (no restriction) and bed (home allowed)
-    expect(available.some(d => d.id === 'official:plant-small')).toBe(true);
-    expect(available.some(d => d.id === 'official:bed-single')).toBe(true);
-  });
-
-  it('excludes items restricted to other rooms', () => {
-    const available = getAvailableFurnitureForRoom('kitchen');
-    // Bed is restricted to rest and home
-    expect(available.some(d => d.id === 'official:bed-single')).toBe(false);
-  });
-});
-
-describe('OFFICIAL_FURNITURE integrity', () => {
-  it('all items have unique IDs', () => {
-    const ids = OFFICIAL_FURNITURE.map(f => f.id);
-    expect(new Set(ids).size).toBe(ids.length);
-  });
-
-  it('all IDs match the namespaced format', () => {
-    for (const def of OFFICIAL_FURNITURE) {
-      expect(def.id).toMatch(/^official:[a-z][a-z0-9-]*$/);
-    }
-  });
-
-  it('all items have positive aspectRatio and baseWidth', () => {
-    for (const def of OFFICIAL_FURNITURE) {
-      expect(def.aspectRatio).toBeGreaterThan(0);
-      expect(def.baseWidth).toBeGreaterThan(0);
-      expect(def.baseWidth).toBeLessThanOrEqual(1);
-    }
-  });
-
-  it('defaultLayer is in allowedLayers', () => {
-    for (const def of OFFICIAL_FURNITURE) {
-      expect(def.allowedLayers).toContain(def.defaultLayer);
-    }
-  });
-
-  it('wall-only items have shadow: none', () => {
-    const wallOnly = OFFICIAL_FURNITURE.filter(
-      (def) => def.allowedLayers.length === 1 && def.allowedLayers[0] === 'back',
-    );
-    expect(wallOnly.length).toBeGreaterThan(0);
-    for (const def of wallOnly) {
-      expect(def.shadow).toBe('none');
-    }
-  });
-
-  it('items with shadow: wide are not wall-only', () => {
-    const wideShadow = OFFICIAL_FURNITURE.filter((def) => def.shadow === 'wide');
-    expect(wideShadow.length).toBeGreaterThan(0);
-    for (const def of wideShadow) {
-      expect(def.allowedLayers).not.toEqual(['back']);
-    }
-  });
-
-  it('items with shadow: none are wall-mounted or flat (rug) or bed', () => {
-    const noShadow = OFFICIAL_FURNITURE.filter((def) => def.shadow === 'none');
-    for (const def of noShadow) {
-      const isWallOnly = def.allowedLayers.length === 1 && def.allowedLayers[0] === 'back';
-      const isFlat = def.id.includes('rug');
-      const isBed = def.id.includes('bed');
-      expect(isWallOnly || isFlat || isBed).toBe(true);
-    }
-  });
-
-  it('shadowOffsetY is only set on items with visible shadows', () => {
-    const withOffset = OFFICIAL_FURNITURE.filter((def) => def.shadowOffsetY);
-    for (const def of withOffset) {
-      expect(def.shadow).not.toBe('none');
-    }
-  });
-
-  it('negative renderOrder is only used on rug or bed items', () => {
-    const negativeOrder = OFFICIAL_FURNITURE.filter((def) => (def.renderOrder ?? 0) < 0);
-    expect(negativeOrder.length).toBeGreaterThan(0);
-    for (const def of negativeOrder) {
-      const isRug = def.id.includes('rug');
-      const isBed = def.id.includes('bed');
-      expect(isRug || isBed).toBe(true);
-    }
-  });
-
-  it('floor items sort as: rugs → beds → default, regardless of array order', () => {
-    const rug = resolveFurniture('official:rug-round')!;
-    const bed = resolveFurniture('official:bed-single')!;
-    const table = resolveFurniture('official:table-side')!;
-
-    expect(rug.renderOrder).toBeDefined();
-    expect(bed.renderOrder).toBeDefined();
-
-    const rugOrder = rug.renderOrder!;
-    const bedOrder = bed.renderOrder!;
-    const tableOrder = table.renderOrder ?? 0;
-
-    expect(rugOrder).toBeLessThan(bedOrder);
-    expect(bedOrder).toBeLessThan(tableOrder);
-  });
-});
-
-// ─── Effective Furniture Resolver ─────────────────────────────────────────────
-
-describe('getEffectiveRoomFurniture', () => {
-  it('returns defaults when no saved furniture', () => {
-    const result = getEffectiveRoomFurniture('home', undefined);
-    expect(result).toBe(DEFAULT_ROOM_FURNITURE.home);
-  });
-
-  it('returns saved furniture over defaults', () => {
-    const saved: RoomFurnitureContent = {
-      v: 1,
-      by_room: {
-        home: [{ id: 'official:clock-wall', x: 0.3, y: 0.2, layer: 'back' }],
+  it('replaces only the saved room, keeping what this version does not understand', () => {
+    const content = JSON.stringify({
+      [ROOM_FURNITURE_KEY]: {
+        v: 2,
+        future: true,
+        by_room: { attic: [validPlacement()], home: [validPlacement({ glow: 1 })], kitchen: [validPlacement({ x: 9, at: 'ceiling' })] },
       },
-    };
-    const result = getEffectiveRoomFurniture('home', saved);
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe('official:clock-wall');
+    });
+    expect(roomFurnitureUpdate(content, 'rest', [plant])).toEqual({
+      [ROOM_FURNITURE_KEY]: {
+        v: 2,
+        future: true,
+        by_room: { attic: [validPlacement()], home: [validPlacement({ glow: 1 })], kitchen: [validPlacement({ x: 9, at: 'ceiling' })], rest: [plant] },
+      },
+    });
   });
 
-  it('returns empty array for rooms with no defaults and no saved data', () => {
-    // Remove defaults for care to test — but since it has defaults, test a hypothetical
-    const saved: RoomFurnitureContent = { v: 1, by_room: {} };
-    // With explicit saved empty by_room, getEffective should check saved.by_room.home
-    // which is undefined, so falls back to defaults
-    const result = getEffectiveRoomFurniture('home', saved);
-    expect(result).toBe(DEFAULT_ROOM_FURNITURE.home);
+  it('converts every version 1 room on the first save, and leaves room_furniture alone', () => {
+    const legacy = { v: 1, by_room: { home: [{ id: 'official:plant-tall', x: 0.5, y: 0.8, layer: 'floor' }] } };
+    const content = JSON.stringify({ room_furniture: legacy, missions: { daily: [] } });
+    const saved = JSON.parse(serializeProfileContent(content, roomFurnitureUpdate(content, 'rest', [plant])));
+    expect(saved.room_furniture).toEqual(legacy);
+    expect(saved.missions).toEqual({ daily: [] });
+    expect(saved[ROOM_FURNITURE_KEY].by_room.rest).toEqual([plant]);
+    expect(saved[ROOM_FURNITURE_KEY].by_room.home).toEqual(parseRoomFurnitureContent(content)?.by_room.home);
   });
 
-  it('returns saved even if empty array (user explicitly cleared)', () => {
-    const saved: RoomFurnitureContent = {
-      v: 1,
-      by_room: { home: [] },
-    };
-    // Empty array is truthy — user explicitly cleared their room
-    // Wait: [] is truthy in JS, but the effective resolver checks `if (saved)` on the array
-    // Let's verify: `const saved = parsedFurniture?.by_room[roomId]` → [] is truthy
-    const result = getEffectiveRoomFurniture('home', saved);
-    expect(result).toEqual([]);
+  it('refuses to overwrite rooms stored in a newer version', () => {
+    const content = JSON.stringify({ [ROOM_FURNITURE_KEY]: { v: 3, by_room: { home: [] } } });
+    expect(() => roomFurnitureUpdate(content, 'rest', [plant])).toThrow(RoomFurnitureTooNewError);
   });
 });
 
-// ─── getAvailableFurnitureByCategory ──────────────────────────────────────────
+describe('rebaseRoomDraft', () => {
+  const at = (x: number): FurniturePlacement => ({ id: 'official:plant-small', at: 'floor', x, y: 1 });
+  const [a, b, c, d] = [at(1), at(2), at(3), at(4)];
 
-describe('getAvailableFurnitureByCategory', () => {
-  it('returns categories in display order with expected labels', () => {
-    const groups = getAvailableFurnitureByCategory('home');
-    const labels = groups.map((g) => g.label);
-    // Home has all categories available
-    expect(labels).toEqual(['Furniture', 'Decor', 'Plants', 'Clocks', 'Frames']);
+  it('keeps pieces added and drops pieces removed since the draft started', () => {
+    expect(rebaseRoomDraft([a, b], [a, b, c], [b, d])).toEqual([d, b, c]);
   });
 
-  it('filters room-restricted furniture from ineligible rooms', () => {
-    // Kitchen has no room-restricted furniture items (bed is rest/home only)
-    // but it does have unrestricted items in all other categories
-    const groups = getAvailableFurnitureByCategory('kitchen');
-    // Verify furniture category items don't include room-restricted bed
-    const furnitureGroup = groups.find((g) => g.category === 'furniture');
-    const furnitureIds = furnitureGroup?.items.map((i) => i.id) ?? [];
-    expect(furnitureIds).not.toContain('official:bed-single');
+  it('keeps pieces added elsewhere over the draft’s own when the room overflows', () => {
+    const draft = Array.from({ length: MAX_FURNITURE_PER_ROOM }, (_, i) => ({ ...at(i), y: 2 }));
+    expect(rebaseRoomDraft([], draft, [d])).toEqual([d, ...draft.slice(0, MAX_FURNITURE_PER_ROOM - 1)]);
   });
 
-  it('excludes room-restricted clocks from ineligible rooms', () => {
-    const groups = getAvailableFurnitureByCategory('kitchen');
-    const clockGroup = groups.find((g) => g.category === 'clocks');
-    const clockIds = clockGroup?.items.map((i) => i.id) ?? [];
-    // These clocks are restricted to rest/home
-    expect(clockIds).not.toContain('official:clock-bedside');
-    expect(clockIds).not.toContain('official:clock-alarm');
-    expect(clockIds).not.toContain('official:clock-table-digital');
+  it('keeps a piece the draft moved even if it was removed elsewhere', () => {
+    expect(rebaseRoomDraft([a], [at(5)], [])).toEqual([at(5)]);
+  });
+
+  it('is the draft when nothing changed elsewhere', () => {
+    expect(rebaseRoomDraft([a, b], [b], [a, b])).toEqual([b]);
+  });
+});
+
+// ─── Geometry ─────────────────────────────────────────────────────────────────
+
+describe('snapCenter', () => {
+  it('centers odd footprints on tiles and even footprints on tile edges', () => {
+    expect(snapCenter(3.2, 1)).toBe(3.5);
+    expect(snapCenter(3.2, 2)).toBe(3);
+  });
+
+  it('keeps the footprint inside the room', () => {
+    expect(snapCenter(0, 3)).toBe(1.5);
+    expect(snapCenter(ROOM_GRID, 2)).toBe(ROOM_GRID - 1);
+  });
+});
+
+// ─── Registry ─────────────────────────────────────────────────────────────────
+
+describe('furniture registry', () => {
+  it('resolves official IDs and rejects unknown ones', () => {
+    expect(resolveFurniture('official:plant-small')?.label.defaultMessage).toBe('Small Plant');
+    expect(resolveFurniture('official:nope')).toBeUndefined();
+    expect(resolveFurniture('custom:thing')).toBeUndefined();
+    expect(resolveFurniture('nocolon')).toBeUndefined();
+  });
+
+  it('has unique IDs and a 3D model for every official item', () => {
+    const ids = OFFICIAL_FURNITURE.map((f) => f.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.filter((id) => !OFFICIAL_MODEL_IDS.includes(id))).toEqual([]);
+  });
+
+  it('only marks floor pieces as small or as surfaces', () => {
+    for (const def of OFFICIAL_FURNITURE) {
+      if (def.small || def.surface) expect(def.mount).toBe('floor');
+    }
+  });
+
+  it('filters room-restricted items', () => {
+    const bed = resolveFurniture('official:bed-single')!;
+    expect(canPlaceInRoom(bed, 'rest')).toBe(true);
+    expect(canPlaceInRoom(bed, 'kitchen')).toBe(false);
+    expect(getAvailableFurnitureForRoom('kitchen').some((d) => d.id === 'official:fridge')).toBe(true);
+    expect(getAvailableFurnitureForRoom('home').some((d) => d.id === 'official:fridge')).toBe(false);
+  });
+
+  it('groups the catalog by category in display order', () => {
+    const groups = getAvailableFurnitureByCategory('home').map((g) => g.category);
+    expect(groups).toEqual(['furniture', 'decor', 'plants', 'clocks', 'frames']);
+  });
+});
+
+// ─── Defaults ─────────────────────────────────────────────────────────────────
+
+describe('DEFAULT_ROOM_FURNITURE', () => {
+  it('uses known items allowed in their room, inside the room', () => {
+    for (const [room, placements] of Object.entries(DEFAULT_ROOM_FURNITURE)) {
+      for (const p of placements ?? []) {
+        const def = resolveFurniture(p.id);
+        expect(def, p.id).toBeDefined();
+        expect(canPlaceInRoom(def!, room as never), `${p.id} in ${room}`).toBe(true);
+        expect(def!.mount === 'wall', p.id).toBe(p.at !== 'floor');
+        expect(p.x).toBeGreaterThanOrEqual(0);
+        expect(p.x).toBeLessThanOrEqual(ROOM_GRID);
+      }
+    }
+  });
+
+  it('is used when nothing is saved', () => {
+    expect(getEffectiveRoomFurniture('home', undefined)).toBe(DEFAULT_ROOM_FURNITURE.home);
   });
 });

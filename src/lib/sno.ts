@@ -100,6 +100,13 @@ export const BUILTIN_PALETTE: Rgb[] = Array.from({ length: 256 }, (_, i) => hexT
 
 const BUILTIN_PALETTE_NAME = 'cyberspace-neon-256';
 
+/**
+ * Farthest a vertex may lie from the origin, in model units. Keeps positions
+ * finite in 32-bit floats, so a hostile object can't become a NaN that can't
+ * be bounded, placed or picked.
+ */
+const MAX_VERTEX_UNITS = 1 << 20;
+
 function isInt(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value);
 }
@@ -219,7 +226,7 @@ export function parseSno(content: string): SnoObject {
   const positions: number[] = new Array(vertexCount * 3);
   for (let i = 0; i < vertexCount; i++) {
     const vertex: unknown = p.vertices[i];
-    if (!Array.isArray(vertex) || vertex.length !== 3 || !vertex.every(isInt)) fail('malformed vertex');
+    if (!Array.isArray(vertex) || vertex.length !== 3 || !vertex.every((v) => isIntIn(v, -MAX_VERTEX_UNITS, MAX_VERTEX_UNITS))) fail('malformed vertex');
     const tick = ticks?.[i] ?? [0, 0, 0];
     for (let a = 0; a < 3; a++) {
       positions[i * 3 + a] = (vertex[a] as number) * TICKS_PER_UNIT + tick[a];

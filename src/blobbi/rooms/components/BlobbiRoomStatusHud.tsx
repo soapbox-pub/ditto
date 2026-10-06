@@ -1,12 +1,12 @@
 /**
  * BlobbiRoomStatusHud — Compact horizontal stat indicators for the room HUD.
  *
- * Renders as a row of segmented ring stat icons near the top of the room,
- * absolutely positioned so it does not affect the Blobbi stage layout.
- * Keeps stat guide click behavior, glow animations, and care-state badges.
+ * A gently arced row of segmented ring stat icons in the room's HUD. Tapping
+ * one starts the stat guide; low stats glow and get a warning badge.
  */
 
 import { useMemo, type CSSProperties } from 'react';
+import { defineMessages, useIntl } from 'react-intl';
 import {
   Utensils, Gamepad2, Heart, Droplets, Zap, AlertTriangle,
 } from 'lucide-react';
@@ -15,43 +15,34 @@ import { SegmentedRing } from '@/blobbi/ui/StatIndicator';
 import { getVisibleStats } from '@blobbi-kit/core/blobbi-decay';
 import { getBlobbiStatDisplayState } from '@blobbi-kit/core/blobbi-segments';
 import { cn } from '@/lib/utils';
+import { ROOM_META } from '../lib/room-config';
 import { ROOM_CONTROL_SURFACE_SUBTLE } from '../lib/room-layout';
+import { STAT_ROOM_MAP } from '../lib/stat-guide-config';
 
 import type { CareState } from '@blobbi-kit/core/blobbi-segments';
 import type { BlobbiCompanion, BlobbiStats } from '@blobbi-kit/core/blobbi';
 
-// ─── Colour maps ──────────────────────────────────────────────────────────────
+// ─── Stat styles ──────────────────────────────────────────────────────────────
 
-const STAT_COLOR_MAP: Record<string, 'orange' | 'yellow' | 'green' | 'blue' | 'violet'> = {
-  hunger: 'orange',
-  happiness: 'yellow',
-  health: 'green',
-  hygiene: 'blue',
-  energy: 'violet',
+const STAT_STYLE: Record<string, { text: string; bg: string; hex: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }> }> = {
+  hunger: { text: 'text-orange-500', bg: 'bg-orange-500/10', hex: '#f97316', icon: Utensils },
+  happiness: { text: 'text-yellow-500', bg: 'bg-yellow-500/10', hex: '#eab308', icon: Gamepad2 },
+  health: { text: 'text-green-500', bg: 'bg-green-500/10', hex: '#22c55e', icon: Heart },
+  hygiene: { text: 'text-blue-500', bg: 'bg-blue-500/10', hex: '#3b82f6', icon: Droplets },
+  energy: { text: 'text-violet-500', bg: 'bg-violet-500/10', hex: '#8b5cf6', icon: Zap },
 };
 
-const STAT_COLORS: Record<string, string> = {
-  orange: 'text-orange-500', yellow: 'text-yellow-500', green: 'text-green-500',
-  blue: 'text-blue-500', violet: 'text-violet-500',
-};
-
-const STAT_BG_COLORS: Record<string, string> = {
-  orange: 'bg-orange-500/10', yellow: 'bg-yellow-500/10', green: 'bg-green-500/10',
-  blue: 'bg-blue-500/10', violet: 'bg-violet-500/10',
-};
-
-const STAT_RING_HEX: Record<string, string> = {
-  orange: '#f97316', yellow: '#eab308', green: '#22c55e',
-  blue: '#3b82f6', violet: '#8b5cf6',
-};
-
-const STAT_ICON_MAP: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
-  hunger: Utensils, happiness: Gamepad2, health: Heart, hygiene: Droplets, energy: Zap,
-};
+const STAT_LABELS = defineMessages({
+  hunger: { id: 'blobbiRoom.stat.hunger', defaultMessage: 'Hunger' },
+  happiness: { id: 'blobbiRoom.stat.happiness', defaultMessage: 'Happiness' },
+  health: { id: 'blobbiRoom.stat.health', defaultMessage: 'Health' },
+  hygiene: { id: 'blobbiRoom.stat.hygiene', defaultMessage: 'Hygiene' },
+  energy: { id: 'blobbiRoom.stat.energy', defaultMessage: 'Energy' },
+});
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
-export interface BlobbiRoomStatusHudProps {
+interface BlobbiRoomStatusHudProps {
   companion: BlobbiCompanion;
   currentStats: {
     hunger: number;
@@ -83,18 +74,12 @@ export function BlobbiRoomStatusHud({
   currentStats,
   onGuide,
 }: BlobbiRoomStatusHudProps) {
+  const intl = useIntl();
   const allStats = useMemo(() =>
     getVisibleStats(companion.stage).map(stat => {
       const value = currentStats[stat] ?? 100;
       const display = getBlobbiStatDisplayState({ stage: companion.stage, stat: stat as keyof BlobbiStats, value });
-      return {
-        stat,
-        value,
-        careState: display.careState,
-        filled: display.filled,
-        max: display.max,
-        color: STAT_COLOR_MAP[stat],
-      };
+      return { stat, value, careState: display.careState, filled: display.filled, max: display.max };
     }),
   [companion.stage, currentStats]);
 
@@ -103,58 +88,50 @@ export function BlobbiRoomStatusHud({
   const count = allStats.length;
 
   return (
-    <div
-      className="flex items-start justify-center gap-2 sm:gap-3"
-      style={{ animation: 'stat-glow-clock 2s linear infinite' } as CSSProperties}
-    >
-      {allStats.map((s, i) => (
-        <div key={s.stat} style={{ transform: `translateY(${getArcOffset(i, count)}px)` }}>
-          <button
-            type="button"
-            className={cn('transition-transform duration-200 active:scale-90', onGuide && 'cursor-pointer')}
-            onClick={onGuide ? () => onGuide(s.stat as keyof BlobbiStats) : undefined}
-          >
-            <StatIndicator
-              stat={s.stat}
-              value={s.value}
-              color={s.color}
-              careState={s.careState}
-              filled={s.filled}
-              max={s.max}
-            />
-          </button>
-        </div>
-      ))}
+    <div className="flex items-start justify-center gap-[0.6em] motion-safe:animate-[stat-glow-clock_2s_linear_infinite] motion-reduce:[--stat-glow-intensity:1]">
+      {allStats.map((s, i) => {
+        const stat = s.stat as keyof BlobbiStats;
+        const name = STAT_LABELS[stat] ? intl.formatMessage(STAT_LABELS[stat]) : s.stat;
+        const percent = Math.round(s.value);
+        // Tapping takes you to the room that restores the stat (see BlobbiPage handleGuide)
+        const room = STAT_ROOM_MAP[stat];
+        const label = onGuide && room
+          ? intl.formatMessage(
+            { id: 'blobbiRoom.hud.statGuide', defaultMessage: '{stat} {percent}%, go to the {room}' },
+            { stat: name, percent, room: intl.formatMessage(ROOM_META[room].label) },
+          )
+          : intl.formatMessage(
+            { id: 'blobbiRoom.hud.stat', defaultMessage: '{stat} {percent}%' },
+            { stat: name, percent },
+          );
+        return (
+          <div key={s.stat} style={{ transform: `translateY(${getArcOffset(i, count) / 16}em)` }}>
+            <button
+              type="button"
+              className={cn(
+                'rounded-full transition-transform duration-200 active:scale-90 motion-reduce:active:scale-100',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                onGuide && 'cursor-pointer',
+              )}
+              aria-label={label}
+              title={name}
+              onClick={onGuide ? () => onGuide(stat) : undefined}
+            >
+              <StatIndicator stat={s.stat} careState={s.careState} filled={s.filled} max={s.max} />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 // ─── Stat Indicator ───────────────────────────────────────────────────────────
 
-function StatIndicator({
-  stat,
-  value,
-  color,
-  careState = 'good',
-  filled,
-  max,
-}: {
-  stat: string;
-  value: number | undefined;
-  color: 'orange' | 'yellow' | 'green' | 'blue' | 'violet';
-  careState?: CareState;
-  filled?: number;
-  max?: number;
-}) {
-  const displayValue = value ?? 0;
-  const showBadge = careState === 'attention' || careState === 'urgent';
-  const showPulse = careState === 'urgent';
-  const badgeColor = careState === 'urgent' ? 'text-red-500' : 'text-amber-500';
-  const ringHex = STAT_RING_HEX[color];
-  const IconComponent = STAT_ICON_MAP[stat];
-
-  const hasSegments = filled !== undefined && max !== undefined;
+function StatIndicator({ stat, careState, filled, max }: { stat: string; careState: CareState; filled: number; max: number }) {
+  const style = STAT_STYLE[stat];
   const isLow = careState === 'attention' || careState === 'urgent';
+  const Icon = style?.icon;
 
   const glowStyle: CSSProperties | undefined =
     careState === 'attention'
@@ -166,40 +143,22 @@ function StatIndicator({
   return (
     <div
       className={cn(
-        'relative size-10 sm:size-12 rounded-full flex items-center justify-center',
+        'relative size-[2.75em] rounded-full flex items-center justify-center',
         ROOM_CONTROL_SURFACE_SUBTLE, 'border border-border/20 shadow-sm',
-        STAT_BG_COLORS[color],
-        isLow && STAT_COLORS[color],
-        showPulse && 'animate-pulse',
+        style?.bg,
+        isLow && style?.text,
+        careState === 'urgent' && 'motion-safe:animate-pulse',
       )}
       style={glowStyle}
     >
       <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
-        {hasSegments ? (
-          <SegmentedRing
-            filled={filled}
-            max={max}
-            fillHex={ringHex}
-            strokeWidth={2.5}
-            gapDeg={16}
-          />
-        ) : (
-          <>
-            <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/15" />
-            <circle
-              cx="18" cy="18" r="15" fill="none" strokeWidth="2.5" strokeLinecap="round"
-              stroke={ringHex}
-              strokeDasharray={`${displayValue * 0.94} 100`}
-              className="transition-all duration-500"
-            />
-          </>
-        )}
+        <SegmentedRing filled={filled} max={max} fillHex={style?.hex ?? 'currentColor'} strokeWidth={2.5} gapDeg={16} />
       </svg>
       <div className="relative">
-        {IconComponent && <IconComponent className={cn('size-4 sm:size-5', STAT_COLORS[color])} strokeWidth={2.5} />}
-        {showBadge && (
+        {Icon && <Icon className={cn('size-[1.15em]', style.text)} strokeWidth={2.5} />}
+        {isLow && (
           <AlertTriangle
-            className={cn('absolute -top-1 -right-1.5 size-2.5', badgeColor)}
+            className={cn('absolute -top-[0.3em] -right-[0.4em] size-[0.65em]', careState === 'urgent' ? 'text-red-500' : 'text-amber-500')}
             strokeWidth={3}
           />
         )}

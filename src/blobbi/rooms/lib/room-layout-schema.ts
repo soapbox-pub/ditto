@@ -52,19 +52,10 @@ export interface RoomLayoutsContent {
 
 // ─── Room Stage Constants ─────────────────────────────────────────────────────
 
-/** Floor occupies the bottom 28% of the room viewport */
-export const ROOM_FLOOR_RATIO = 0.28;
-
 /**
  * Body-bottom inset: the percentage of the visual container that is empty space
- * below the visible body. Used to shift the container down so the visible body
- * bottom lands exactly at the room's ground line.
- *
- * Coordinate model:
- *   - The ground line is at `top: (1 - ROOM_FLOOR_RATIO) * 100%` of the shell.
- *   - The Blobbi container is positioned so its TOP edge is at the ground line,
- *     then shifted UP by `100% - bodyBottomInset` of its own height.
- *   - Result: the visible body bottom sits at the ground line.
+ * below the visible body. Used to shift the art down so the visible body
+ * bottom, not the art's empty margin, stands on the floor.
  *
  * Per-form adult insets are derived from SVG viewBox analysis:
  *   ViewBox: 0 0 200 200. Body bottom varies by form.
@@ -116,11 +107,6 @@ export function getBlobbiBodyBottomInset(stage: string, adultForm?: string): num
       return BABY_BODY_BOTTOM_INSET;
   }
 }
-
-// ─── Defaults ─────────────────────────────────────────────────────────────────
-
-// Re-export from dedicated file to maintain backward compatibility
-export { DEFAULT_ROOM_LAYOUTS } from './room-layout-defaults';
 
 // ─── Validation Helpers ───────────────────────────────────────────────────────
 
@@ -224,8 +210,3 @@ function parseSurface(
 
   return { style: style as WallStyle | FloorStyle, palette, variant, angle };
 }
-
-// ─── Effective Layout Helper ──────────────────────────────────────────────────
-
-// Re-export from dedicated file to maintain backward compatibility
-export { getEffectiveRoomLayout } from './room-layout-effective';

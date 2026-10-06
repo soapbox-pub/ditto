@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Box } from "lucide-react";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
 import { BackButtonHandler } from "@/components/BackButtonHandler";
 import { DeepLinkHandler } from "@/components/DeepLinkHandler";
@@ -99,6 +100,7 @@ const articlesDef = getExtraKindDef("articles")!;
 const decksDef = getExtraKindDef("decks")!;
 const highlightsDef = getExtraKindDef("highlights")!;
 const torrentsDef = getExtraKindDef("torrents")!;
+const snoDef = getExtraKindDef("sno")!;
 
 /** Polls feed page with a FAB that opens the compose modal (poll mode via + menu). */
 function PollsFeedPage() {
@@ -269,6 +271,18 @@ export function AppRouter() {
                   kind={decksDef.kind}
                   title={decksDef.label}
                   icon={sidebarItemIcon("decks", "size-5")}
+                />
+              }
+            />
+            <Route
+              path="/objects"
+              element={
+                <KindFeedPage
+                  kind={snoDef.kind}
+                  title={snoDef.label}
+                  kindDef={snoDef}
+                  icon={<Box className="size-5" />}
+                  showFAB={false}
                 />
               }
             />

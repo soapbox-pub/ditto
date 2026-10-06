@@ -858,7 +858,7 @@ Kind 11125 stores Blobbi owner profile data such as achievements, XP, level, own
 
 Pre-existing `storage` tags (written by earlier Ditto versions) and legacy `coins` tags (from the pre-reset onboarding economy) are **preserved opaquely as unknown extension tags**. They are not in the managed tag set, so profile republishes carry them through tag-for-tag, in order, without parsing, normalizing, or deleting them — and a republish can never create or mutate them. Consumable inventory and the Coin balance are no longer part of Ditto's active kind 11125 model.
 
-This is scoped to *consumable* inventory and the Coin balance only. Other item-like concepts are unaffected and live elsewhere: room customization (`room_layouts`, `room_furniture` in `content`, documented below), owned Blobbis (`has` tags), and any host-specific cosmetic or accessory extension tags — such as Blobbi Island's `inv` tag, which Ditto neither writes nor interprets — remain independent of this event's consumable-inventory semantics.
+This is scoped to *consumable* inventory and the Coin balance only. Other item-like concepts are unaffected and live elsewhere: room customization (`room_layouts`, `room_furniture_v2` in `content`, documented below), owned Blobbis (`has` tags), and any host-specific cosmetic or accessory extension tags — such as Blobbi Island's `inv` tag, which Ditto neither writes nor interprets — remain independent of this event's consumable-inventory semantics.
 
 #### Kind 11125 `content` JSON — `missions` field
 
@@ -931,19 +931,23 @@ The `content` of kind 11125 MAY include a `room_layouts` field for per-room visu
 
 Clients MUST fall back to built-in defaults for any room without a valid layout entry.
 
-#### Kind 11125 `content` JSON — `room_furniture` field
+#### Kind 11125 `content` JSON — `room_furniture_v2` field
 
-The `content` of kind 11125 MAY include a `room_furniture` field for per-room decorative furniture placements:
+The `content` of kind 11125 MAY include a `room_furniture_v2` field for per-room decorative furniture placements.
+
+It has its own key, separate from version 1's `room_furniture`, because clients that only understand version 1 rewrite `room_furniture` whole when they save a room; under a shared key they would wipe every other room. Writers MUST write `room_furniture_v2` and MUST NOT modify `room_furniture`. When saving a room, writers SHOULD replace only that room's array and keep every other room, field and placement in `room_furniture_v2` as stored, including any they don't understand. Writers MUST NOT save when `room_furniture_v2.v` is a number greater than the version they write. The first write converts every version 1 room (see below).
+
+A room is a square floor of 8×8 tiles with two back walls meeting in a corner. Tile coordinates: the floor spans `x` and `z` from 0 to 8; the **left** wall stands at `x = 0` (running along `z`), the **right** wall at `z = 0` (running along `x`); walls are 5 tiles high.
 
 ```json
 {
-  "room_furniture": {
-    "v": 1,
+  "room_furniture_v2": {
+    "v": 2,
     "by_room": {
       "home": [
-        { "id": "official:plant-small", "x": 0.85, "y": 0.72, "layer": "front", "scale": 0.9 },
-        { "id": "official:clock-wall", "x": 0.5, "y": 0.18, "layer": "back" },
-        { "id": "official:picture-frame", "x": 0.3, "y": 0.3, "layer": "back", "content": { "imageUrl": "https://cdn.example.com/photo.jpg" } }
+        { "id": "official:bed-single", "at": "floor", "x": 1.5, "y": 3, "rot": 1 },
+        { "id": "official:clock-wall", "at": "right", "x": 3, "y": 3.5 },
+        { "id": "official:picture-frame", "at": "left", "x": 4.5, "y": 3, "content": { "imageUrl": "https://cdn.example.com/photo.jpg" } }
       ]
     }
   }
@@ -954,31 +958,39 @@ The `content` of kind 11125 MAY include a `room_furniture` field for per-room de
 
 | Field     | Type | Description |
 |-----------|------|-------------|
-| `v`       | `1`  | Schema version. MUST be `1`. |
+| `v`       | `2`  | Schema version. Writers MUST write `2`. |
 | `by_room` | `Partial<Record<BlobbiRoomId, FurniturePlacement[]>>` | Per-room placement arrays keyed by room ID. |
 
 **`FurniturePlacement` fields:**
 
 | Field     | Required | Description |
 |-----------|----------|-------------|
-| `id`      | Yes      | Namespaced furniture ID. MUST match `/^[a-z][a-z0-9]*:[a-z][a-z0-9-]*$/` (e.g. `official:plant-small`). |
-| `x`       | Yes      | Horizontal position, normalized 0–1 (0 = left edge, 1 = right edge). Clamped to [0, 1]. |
-| `y`       | Yes      | Vertical position, normalized 0–1 (0 = top of room, 1 = bottom). Clamped to [0, 1]. |
-| `layer`   | Yes      | Rendering layer: `back` (wall-mounted), `floor` (behind Blobbi), or `front` (in front of Blobbi). |
+| `id`      | Yes      | Namespaced furniture ID. MUST match `/^[a-z][a-z0-9]*:[a-z][a-z0-9-]*$/` (e.g. `official:plant-small`) and be at most 256 characters. |
+| `at`      | Yes      | `floor`, `left` (wall), or `right` (wall). |
+| `x`       | Yes      | Center of the item, in tiles. Floor: world `x`. Wall: distance along the wall from the corner. Clamped to [0, 8]. |
+| `y`       | Yes      | Floor: world `z`, clamped to [0, 8]. Wall: height of the item's center, clamped to [0, 5]. |
+| `rot`     | No       | Floor items only: quarter turns clockwise seen from above, `1`–`3`. Default `0`. |
 | `scale`   | No       | Size multiplier. Clamped to [0.5, 2.0]. Default `1`. |
-| `flip`    | No       | Horizontal mirror. Boolean. Default `false`. |
-| `variant` | No       | Named variant string (1–32 chars), validated against the item's definition at render time. |
 | `content` | No       | Dynamic per-instance content. See below. |
+
+Clients snap items to the tile grid when rendering, so stored positions need not be exact. Small items (lamps, plants, table clocks) placed over a table stand on it.
+
+**Version 1 (read-only):** When `room_furniture_v2` is absent or invalid, readers SHOULD fall back to `room_furniture` — except when `room_furniture_v2.v` is a number greater than the version they read, where they SHOULD show defaults instead: stale version 1 rooms would mislead, and saving is refused anyway. Earlier clients wrote it as `"v": 1` with screen-space placements: `x`/`y` normalized 0–1 across a front-facing room, a `layer` of `back` (wall), `floor`, or `front`, and optional `flip`/`variant`. Readers SHOULD convert these: `back` items, and wall pieces on any layer, go on the left or right wall by which half of the screen they were in (or, for items that now stand on the floor, on the floor against that wall); other items go on the floor. Rooms converted from version 1 that lack their room's usable piece (the kitchen's fridge, the care room's bathtub, the bedroom's bed, the home's toy box) get it added in a clear floor spot. Writers MUST NOT write version 1.
 
 **`FurnitureContent` fields:**
 
 | Field      | Required | Description |
 |------------|----------|-------------|
-| `imageUrl` | No       | Image URL for picture frames. MUST be a valid `https:` URL; non-https URLs are rejected. |
+| `imageUrl` | No       | Image URL for picture frames. MUST be a valid `https:` URL; non-https URLs are rejected. Clients drawing frames with WebGL can only show images served with CORS headers (Blossom servers send them); others show a blank card. |
+
+**ID namespaces:**
+
+- `official:<slug>` — an item from the client's built-in catalog.
+- `sno:<naddr>` — a Simple Nostr Object (kind 33331, Cyberspace DECK-0003) named by a relay-less `naddr` of its address. Clients fetch it with an `authors` filter on the decoded pubkey, render it in 3D, and skip the placement if it can't be fetched, fails SNO validation, is encrypted, or is too big to draw (Ditto's limits: 60,000 vertices and 100,000 faces across the object and everything it places). Clients that don't render 3D objects SHOULD skip these placements.
 
 **Per-room cap:** A maximum of 20 placements per room is enforced. Excess items beyond the cap are dropped (first 20 kept).
 
-**Parser behavior:** Unrecognized room IDs are skipped. Items with an invalid `id`, non-finite `x`/`y`, or unrecognized `layer` are silently dropped. Invalid optional fields (`scale`, `flip`, `variant`, `content`) are ignored (treated as absent). `imageUrl` values that are not valid `https:` URLs are rejected. The parser never throws — malformed data falls back to defaults. If `v` is not `1`, the entire `room_furniture` object is ignored.
+**Parser behavior:** Unrecognized room IDs are skipped. Items with an invalid `id`, non-finite `x`/`y`, or unrecognized `at` are silently dropped, as are known items on a surface they don't mount on (a wall piece on the floor, or a floor piece on a wall). Invalid optional fields (`rot`, `scale`, `content`) are ignored (treated as absent). `imageUrl` values that are not valid `https:` URLs are rejected. The parser never throws — malformed data falls back to defaults. If `room_furniture_v2.v` is not `2`, that object is ignored; if `room_furniture.v` is not `1`, so is that one (clients MAY also accept `2` there).
 
 Clients MUST fall back to built-in defaults for any room without a valid furniture entry.
 

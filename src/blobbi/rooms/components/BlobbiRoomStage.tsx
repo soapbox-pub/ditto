@@ -1,25 +1,18 @@
 /**
- * BlobbiRoomStage — Absolutely positioned Blobbi visual overlay for room display.
+ * BlobbiRoomStage — the Blobbi visual standing in the room.
  *
- * Uses the room's shell coordinate system directly:
- * - Ground line at `top: (1 - ROOM_FLOOR_RATIO) * 100%` of the shell.
- * - Blobbi body bottom is anchored to this ground line.
- * - Blobbi name floats above the visual and bobs with the Blobbi.
- * - An animated shadow ellipse sits at the ground line below the Blobbi.
- *
- * Sizing uses percentage-of-room-width so Blobbi scales proportionally with
- * the room canvas (same coordinate system as furniture).
- *
- * This component must be rendered inside an `absolute inset-0` wrapper that
- * shares the same positioning parent as the wall/floor background layers.
- *
- * Stats are rendered separately by BlobbiRoomStatusHud in the top HUD area.
+ * Rendered inside a room anchor (see BlobbiRoomShell): the shell moves the
+ * anchor to the Blobbi's feet on screen each frame and sets `--anchor-px`
+ * (screen px per tile there), which scales the BLOBBI_BOX_PX art box to the
+ * Blobbi's size at that spot in the 3D room. The body bottom is aligned to the anchor using
+ * the per-form body inset, and the name floats above it at a readable size.
+ * The 3D scene draws the Blobbi's shadow.
  */
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { ReactionSparkles, ReactionBubbles } from '@/blobbi/ui/ReactionOverlays';
 import { FloatingSocialHearts } from '@/blobbi/ui/FloatingSocialHearts';
-import { ROOM_FLOOR_RATIO, getBlobbiBodyBottomInset } from '../lib/room-layout-schema';
+import { getBlobbiBodyBottomInset } from '../lib/room-layout-schema';
 import { cn } from '@/lib/utils';
 
 import type { BlobbiCompanion } from '@blobbi-kit/core/blobbi';
@@ -30,7 +23,7 @@ import type { InteractionReactionState } from '@/blobbi/ui/hooks/useInteractionR
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
-export interface BlobbiRoomStageProps {
+interface BlobbiRoomStageProps {
   companion: BlobbiCompanion;
   currentStats: {
     hunger: number;
@@ -40,7 +33,6 @@ export interface BlobbiRoomStageProps {
     energy: number;
   };
   isSleeping: boolean;
-  isEgg: boolean;
   statusRecipe: BlobbiVisualRecipe | undefined;
   statusRecipeLabel: string | undefined;
   effectiveEmotion: BlobbiEmotion;
@@ -48,12 +40,50 @@ export interface BlobbiRoomStageProps {
   blobbiReaction: BlobbiReactionState;
   /** Temporary interaction reaction (sparkles, bubbles, hearts, body animation). */
   interactionReaction?: InteractionReactionState;
-  stageRef: React.RefObject<HTMLDivElement | null>;
 }
 
-// ─── Ground line position (% from top of shell) ──────────────────────────────
+/** Side of the Blobbi's art box before the room scales it. */
+const BLOBBI_BOX_PX = 200;
 
-const GROUND_LINE_PCT = (1 - ROOM_FLOOR_RATIO) * 100;
+/**
+ * Art box scale: the room's px-per-tile at the Blobbi's feet (`--anchor-px`)
+ * times the box size in tiles (`--blobbi-tiles`), both set by the shell.
+ */
+const SCALE = `calc(var(--anchor-px, 100) * var(--blobbi-tiles, 2) / ${BLOBBI_BOX_PX})`;
+
+/**
+ * A Blobbi standing on its anchor point: a BLOBBI_BOX_PX art box scaled by
+ * the room to its size at that spot, with the body bottom (not the art's
+ * empty margin) on the floor, and its name tag, unscaled so it stays
+ * readable, floating above.
+ */
+function Standing({ companion, nameTag, children }: { companion: BlobbiCompanion; nameTag?: React.ReactNode; children: React.ReactNode }) {
+  // How much of the art box is empty below the body
+  const inset = getBlobbiBodyBottomInset(companion.stage, companion.adultType ?? undefined);
+  return (
+    <div className="absolute left-0 top-0 pointer-events-none">
+      <div
+        className="absolute bottom-0 left-0"
+        style={{
+          width: BLOBBI_BOX_PX,
+          height: BLOBBI_BOX_PX,
+          transformOrigin: 'bottom left',
+          transform: `scale(${SCALE}) translate(-50%, ${inset}%)`,
+        }}
+      >
+        {children}
+      </div>
+      {nameTag && companion.stage !== 'egg' && (
+        <div
+          className="absolute left-0 bottom-0 pointer-events-none"
+          style={{ transform: `translate(-50%, calc(${SCALE} * ${-(BLOBBI_BOX_PX * (1 - inset / 100))}px - 4px))` }}
+        >
+          {nameTag}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -61,118 +91,87 @@ export function BlobbiRoomStage({
   companion,
   currentStats,
   isSleeping,
-  isEgg,
   statusRecipe,
   statusRecipeLabel,
   effectiveEmotion,
   hasDevOverride,
   blobbiReaction,
   interactionReaction,
-  stageRef,
 }: BlobbiRoomStageProps) {
-  // Body-bottom inset: how much of the visual box is empty below the body
-  const bodyBottomInset = getBlobbiBodyBottomInset(companion.stage, companion.adultType ?? undefined);
-
-  // Bob animation duration — shared between the Blobbi bob and the shadow breathe
   const bobDuration = `${4 - (currentStats.happiness / 100) * 1.5}s`;
 
   return (
-    <div ref={stageRef} className="absolute inset-0 pointer-events-none">
-      {/* Blobbi anchor: full-width at the ground line.
-          Uses inset-x-0 so descendant percentage widths resolve against
-          room canvas width — keeping Blobbi proportional with furniture.
-          Vertical alignment:
-          1. Body wrapper translateY(-100%) → wrapper bottom = ground line.
-          2. Then translateY(+bodyBottomInset%) → compensates for SVG whitespace
-             below the visible body, so the BODY bottom lands at the ground line.
-       */}
+    <Standing
+      companion={companion}
+      nameTag={
+        <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-background/80 backdrop-blur-sm border border-border/30 shadow-sm px-2.5 py-0.5 text-sm font-semibold text-foreground">
+          <span
+            className="size-2 rounded-full ring-1 ring-foreground/10"
+            style={{ background: companion.visualTraits.baseColor }}
+            aria-hidden
+          />
+          {companion.name}
+        </span>
+      }
+    >
       <div
-        className="absolute inset-x-0"
-        style={{ top: `${GROUND_LINE_PCT}%` }}
+        className="relative size-full"
+        style={!isSleeping ? { animation: `blobbi-bob ${bobDuration} ease-in-out infinite` } : undefined}
       >
-        {/* Ground shadow — radial-gradient ellipse at the ground line, behind the Blobbi.
-            Breathes in sync with the bob: contracts when Blobbi is up, expands when down.
-            Centered at 50% of anchor (= room center) via left + translateX(-50%).
-            Uses aspect-ratio for height so it doesn't depend on anchor's auto height. */}
         <div
-          className="absolute z-0 pointer-events-none"
-          aria-hidden
-          style={{
-            top: 4,
-            left: '50%',
-            transformOrigin: 'center center',
-            background: 'radial-gradient(ellipse, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.13) 38%, transparent 68%)',
-            width: isEgg ? '22%' : '28%',
-            aspectRatio: isEgg ? '4' : '4.5',
-            ...(!isSleeping
-              ? { animation: `blobbi-shadow-breathe ${bobDuration} ease-in-out infinite` }
-              : { transform: 'translateX(-50%)' }
-            ),
-          }}
-        />
-        {/* Body alignment wrapper: block fills anchor width, shifted up vertically.
-            Children's % widths resolve against this (= room width). */}
-        <div
-          className="relative z-10"
-          style={{ transform: `translateY(calc(-100% + ${bodyBottomInset}%))` }}
+          data-blobbi-visual
+          className={cn('relative size-full transition-all duration-500', interactionReaction?.bodyAnimation)}
+          style={!isSleeping ? { animation: `blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite` } : undefined}
         >
-          {/* Bob wrapper: full-width flex container that centers the Blobbi horizontally */}
-          <div
-            className="relative w-full flex justify-center"
-            style={!isSleeping ? {
-              animation: `blobbi-bob ${bobDuration} ease-in-out infinite`,
-            } : undefined}
-          >
-            {/* Blobbi name — floating label above the visual, bobs but does not sway */}
-            {!isEgg && (
-              <div
-                className="absolute bottom-full left-1/2 mb-1 pointer-events-none"
-                style={{ transform: 'translateX(-50%)' }}
-              >
-                <span
-                  className="whitespace-nowrap text-sm font-bold drop-shadow-sm"
-                  style={{ color: companion.visualTraits.baseColor }}
-                >
-                  {companion.name}
-                </span>
-              </div>
-            )}
-            {/* Sway wrapper (rotate animation) — separate from bob to avoid transform conflict.
-                width: 30% resolves against the bob wrapper (w-full = canvas width),
-                so Blobbi scales proportionally with the room canvas. */}
-            <div
-              data-blobbi-visual
-              className={cn(
-                'relative transition-all duration-500 pointer-events-none',
-                interactionReaction?.bodyAnimation,
-              )}
-              style={{
-                width: isEgg ? '24%' : '30%',
-                aspectRatio: '1',
-                ...(!isSleeping ? {
-                  animation: `blobbi-sway ${6 - (currentStats.happiness / 100) * 2}s ease-in-out infinite`,
-                } : undefined),
-              }}
-            >
-              <div className="absolute inset-0 -m-16 sm:-m-20 bg-primary/5 rounded-full blur-3xl" />
-              <BlobbiStageVisual
-                companion={companion}
-                size="lg"
-                animated={!isSleeping}
-                reaction={blobbiReaction}
-                recipe={hasDevOverride ? undefined : statusRecipe}
-                recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
-                emotion={effectiveEmotion}
-                className="!size-full"
-              />
-              {/* Interaction reaction overlays — sparkles, bubbles, hearts */}
-              <ReactionSparkles active={interactionReaction?.sparkles ?? false} />
-              <ReactionBubbles active={interactionReaction?.bubbles ?? false} showBackdrop={false} />
-              <FloatingSocialHearts active={interactionReaction?.hearts ?? false} />
-            </div>
-          </div>
+          <BlobbiStageVisual
+            companion={companion}
+            size="lg"
+            animated={!isSleeping}
+            reaction={blobbiReaction}
+            recipe={hasDevOverride ? undefined : statusRecipe}
+            recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
+            emotion={effectiveEmotion}
+            className="!size-full"
+          />
+          {/* Interaction reaction overlays — sparkles, bubbles, hearts */}
+          <ReactionSparkles active={interactionReaction?.sparkles ?? false} />
+          <ReactionBubbles active={interactionReaction?.bubbles ?? false} showBackdrop={false} />
+          <FloatingSocialHearts active={interactionReaction?.hearts ?? false} />
         </div>
       </div>
-    </div>
+    </Standing>
+  );
+}
+
+// ─── Visiting Blobbi ──────────────────────────────────────────────────────────
+
+/**
+ * Another of the user's Blobbis, visiting the room. Same sizing as the
+ * user's Blobbi; happy and showering hearts while `meeting`.
+ */
+export function BlobbiGuestStage({ companion, meeting }: { companion: BlobbiCompanion; meeting: boolean }) {
+  const asleep = companion.state === 'sleeping';
+  return (
+    <Standing
+      companion={companion}
+      nameTag={
+        <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-background/70 backdrop-blur-sm border border-border/30 px-2 py-px text-xs font-medium text-foreground/80">
+          {companion.name}
+        </span>
+      }
+    >
+      <div className="relative size-full" style={{ animation: 'blobbi-bob 3.4s ease-in-out infinite' }}>
+        <div className="relative size-full" style={{ animation: 'blobbi-sway 5s ease-in-out infinite' }}>
+          <BlobbiStageVisual
+            companion={companion}
+            size="lg"
+            animated
+            emotion={meeting ? 'happy' : asleep ? undefined : 'neutral'}
+            className="!size-full"
+          />
+          <FloatingSocialHearts active={meeting} />
+        </div>
+      </div>
+    </Standing>
   );
 }

@@ -7,6 +7,7 @@
  */
 
 import { Home, Refrigerator, Cross, Moon, Shirt, type LucideIcon } from 'lucide-react';
+import { defineMessages, type MessageDescriptor } from 'react-intl';
 
 // ─── Room IDs ─────────────────────────────────────────────────────────────────
 
@@ -14,52 +15,33 @@ export type BlobbiRoomId = 'home' | 'kitchen' | 'care' | 'rest' | 'closet';
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
-export interface BlobbiRoomMeta {
-  id: BlobbiRoomId;
-  label: string;
-  description: string;
-  icon: LucideIcon;
-}
+const roomLabels = defineMessages({
+  home: { id: 'blobbiRoom.room.home', defaultMessage: 'Home' },
+  kitchen: { id: 'blobbiRoom.room.kitchen', defaultMessage: 'Kitchen' },
+  care: { id: 'blobbiRoom.room.care', defaultMessage: 'Care Room' },
+  rest: { id: 'blobbiRoom.room.rest', defaultMessage: 'Bedroom' },
+  closet: { id: 'blobbiRoom.room.closet', defaultMessage: 'Closet' },
+});
 
-export const ROOM_META: Record<BlobbiRoomId, BlobbiRoomMeta> = {
-  home: {
-    id: 'home',
-    label: 'Home',
-    description: 'Main living room',
-    icon: Home,
-  },
-  kitchen: {
-    id: 'kitchen',
-    label: 'Kitchen',
-    description: 'Feed your Blobbi',
-    icon: Refrigerator,
-  },
-  care: {
-    id: 'care',
-    label: 'Care Room',
-    description: 'Hygiene, care, and medicine',
-    icon: Cross,
-  },
-  rest: {
-    id: 'rest',
-    label: 'Bedroom',
-    description: 'Rest and recharge',
-    icon: Moon,
-  },
-  closet: {
-    id: 'closet',
-    label: 'Closet',
-    description: 'Wardrobe and accessories',
-    icon: Shirt,
-  },
+/** `label` is a message descriptor; format it with `intl.formatMessage` / `<FormattedMessage>`. */
+export const ROOM_META: Record<BlobbiRoomId, { label: MessageDescriptor; icon: LucideIcon }> = {
+  home: { label: roomLabels.home, icon: Home },
+  kitchen: { label: roomLabels.kitchen, icon: Refrigerator },
+  care: { label: roomLabels.care, icon: Cross },
+  rest: { label: roomLabels.rest, icon: Moon },
+  closet: { label: roomLabels.closet, icon: Shirt },
 };
 
 // ─── Default Order ────────────────────────────────────────────────────────────
 
+/**
+ * Same order as the stat rings (hunger, happiness, health + hygiene, energy),
+ * so each ring's room sits under it from left to right.
+ */
 export const DEFAULT_ROOM_ORDER: BlobbiRoomId[] = [
-  'care',
   'kitchen',
   'home',
+  'care',
   'rest',
   // 'closet', — re-enable when wardrobe is ready
 ];
@@ -68,7 +50,8 @@ export const DEFAULT_INITIAL_ROOM: BlobbiRoomId = 'home';
 
 /** Validate a string as a room ID (for parsing persisted values) */
 export function isValidRoomId(value: string | undefined): value is BlobbiRoomId {
-  return !!value && value in ROOM_META;
+  // Own keys only: `in` would also accept 'constructor', 'toString', ...
+  return !!value && Object.prototype.hasOwnProperty.call(ROOM_META, value);
 }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
@@ -91,9 +74,3 @@ export function getPreviousRoom(
   return order[(idx - 1 + order.length) % order.length];
 }
 
-export function getRoomIndex(
-  room: BlobbiRoomId,
-  order: BlobbiRoomId[] = DEFAULT_ROOM_ORDER,
-): number {
-  return order.indexOf(room);
-}

@@ -1,72 +1,53 @@
 /**
- * BlobbiRoomHero — Flex spacer for the room layout.
+ * BlobbiRoomHero — "Out exploring" state for the room stage.
  *
- * This component now serves two purposes:
- * 1. Provides a flex-1 spacer above the bottom bar so the room layout works.
- * 2. Shows the "out exploring" state when Blobbi is an active floating companion.
- *
- * The actual Blobbi visual, stats crown, and name are rendered by BlobbiRoomStage
- * (absolutely positioned against the shell). The room indicator is rendered by
- * the shell's room header overlay.
+ * Shown over the stage area while the Blobbi is the active floating companion.
  */
 
-import { memo } from 'react';
 import { Footprints, Loader2 } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 
 import { cn } from '@/lib/utils';
 import type { BlobbiCompanion } from '@blobbi-kit/core/blobbi';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
-export interface BlobbiRoomHeroProps {
+interface BlobbiRoomHeroProps {
   companion: BlobbiCompanion;
-  isActiveFloatingCompanion: boolean;
   isUpdatingCompanion: boolean;
   handleSetAsCompanion: () => Promise<void>;
-  className?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-/**
- * Memoized so that high-frequency drag-state updates in the parent
- * (BlobbiDashboard) do not propagate into the Blobbi visual subtree.
- * All props from the parent are stable references during food drag,
- * so memo effectively short-circuits the entire subtree.
- */
-export const BlobbiRoomHero = memo(function BlobbiRoomHero({
-  companion,
-  isActiveFloatingCompanion,
-  isUpdatingCompanion,
-  handleSetAsCompanion,
-  className,
-}: BlobbiRoomHeroProps) {
-  if (isActiveFloatingCompanion) {
-    return (
-      <div className={cn('flex flex-col items-center justify-center gap-4 text-center flex-1 px-4', className)}>
-        <Footprints className="size-12 text-muted-foreground/30" />
-        <p className="text-muted-foreground text-sm">
-          {companion.name} is out exploring right now.
+export function BlobbiRoomHero({ companion, isUpdatingCompanion, handleSetAsCompanion }: BlobbiRoomHeroProps) {
+  return (
+    <div className="flex-1 flex items-center justify-center px-4 pointer-events-auto">
+      <div className="flex flex-col items-center gap-4 text-center max-w-xs rounded-3xl bg-background/80 backdrop-blur-md border border-border/40 shadow-lg px-6 py-8">
+        <Footprints className="size-10 text-muted-foreground" aria-hidden />
+        <p className="text-foreground text-base">
+          <FormattedMessage
+            id="blobbiRoom.hero.exploring"
+            defaultMessage="{name} is out exploring right now."
+            values={{ name: companion.name }}
+          />
         </p>
         <button
           onClick={handleSetAsCompanion}
           disabled={isUpdatingCompanion}
           className={cn(
             'flex items-center justify-center gap-2 px-6 py-3 rounded-full text-white font-semibold transition-all duration-300 ease-out text-sm',
-            'hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
+            'hover:brightness-110 active:scale-95 motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             isUpdatingCompanion && 'opacity-50 pointer-events-none',
           )}
           style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b)' }}
         >
           {isUpdatingCompanion ? <Loader2 className="size-4 animate-spin" /> : <Footprints className="size-4" />}
-          <span>Bring {companion.name} home</span>
+          <span>
+            <FormattedMessage id="blobbiRoom.hero.bringHome" defaultMessage="Bring {name} home" values={{ name: companion.name }} />
+          </span>
         </button>
       </div>
-    );
-  }
-
-  // Invisible flex spacer — occupies the visual area so the bottom bar
-  // stays at the bottom. The actual Blobbi rendering happens in BlobbiRoomStage
-  // which is absolutely positioned against the shell.
-  return <div className={cn('flex-1 min-h-0', className)} />;
-});
+    </div>
+  );
+}

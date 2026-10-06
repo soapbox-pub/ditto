@@ -6,17 +6,12 @@
  * No persistence -- purely local React state.
  */
 
-import type { BlobbiRoomId } from './room-config';
-import { ROOM_FLOOR_RATIO } from './room-layout-schema';
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface PoopInstance {
   id: string;
-  room: BlobbiRoomId;
-  source: 'overfeed' | 'time';
-  createdAt: number;
-  position: { bottom: number; left: number };
+  /** Floor position in tiles. */
+  position: { x: number; z: number };
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -25,104 +20,56 @@ export const OVERFEED_THRESHOLD = 95;
 /** Probability (0-1) that overfeeding produces a poop. */
 export const OVERFEED_CHANCE = 0.4;
 const HOURS_PER_POOP = 2;
-export const XP_PER_POOP = 5;
 const MAX_POOPS = 3;
 
-/** Poop `bottom` must stay within the canvas floor region: [POOP_BOTTOM_MIN, POOP_BOTTOM_MAX]. */
-const POOP_BOTTOM_MIN = 2;
-const POOP_BOTTOM_MAX = ROOM_FLOOR_RATIO * 100 - 2; // ≈ 26
-
-const SAFE_POSITIONS: Array<{ bottom: number; left: number }> = [
-  { bottom: 10, left: 8 },
-  { bottom: 6, left: 78 },
-  { bottom: 16, left: 14 },
-  { bottom: 13, left: 82 },
-  { bottom: 4, left: 20 },
-  { bottom: 8, left: 72 },
-].map(({ bottom, left }) => ({
-  bottom: Math.max(POOP_BOTTOM_MIN, Math.min(bottom, POOP_BOTTOM_MAX)),
-  left,
-}));
+/** Spots on the floor (tiles, see room-geometry.ts), toward the open front of the room. */
+const SAFE_POSITIONS: Array<{ x: number; z: number }> = [
+  { x: 2.5, z: 6.8 },
+  { x: 6.8, z: 2.6 },
+  { x: 4.2, z: 7.2 },
+  { x: 7.2, z: 4.6 },
+  { x: 3.2, z: 5.6 },
+  { x: 5.8, z: 3.4 },
+];
 
 // ─── Generation ───────────────────────────────────────────────────────────────
 
 let _idCounter = 0;
-function nextPoopId(): string {
-  return `poop_${++_idCounter}_${Date.now()}`;
+
+function makePoop(index: number): PoopInstance {
+  return { id: `poop_${++_idCounter}_${Date.now()}`, position: SAFE_POSITIONS[index % SAFE_POSITIONS.length] };
 }
 
-function pickPosition(index: number): { bottom: number; left: number } {
-  return SAFE_POSITIONS[index % SAFE_POSITIONS.length];
-}
-
+/** The mess waiting when the page opens: maybe one from overfeeding, then one per HOURS_PER_POOP since the last feed. */
 export function generateInitialPoops(
   hunger: number,
   lastFeedTimestamp: number | undefined,
 ): PoopInstance[] {
-  const poops: PoopInstance[] = [];
-  const now = Date.now();
-  let posIndex = 0;
-
-  if (hunger >= OVERFEED_THRESHOLD && Math.random() < OVERFEED_CHANCE) {
-    poops.push({
-      id: nextPoopId(),
-      room: 'kitchen',
-      source: 'overfeed',
-      createdAt: now,
-      position: pickPosition(posIndex++),
-    });
-  }
-
+  let count = hunger >= OVERFEED_THRESHOLD && Math.random() < OVERFEED_CHANCE ? 1 : 0;
   if (lastFeedTimestamp) {
-    const hoursSinceFeed = (now - lastFeedTimestamp) / (1000 * 60 * 60);
-    const count = Math.min(Math.floor(hoursSinceFeed / HOURS_PER_POOP), MAX_POOPS - poops.length);
-    for (let i = 0; i < count; i++) {
-      poops.push({
-        id: nextPoopId(),
-        room: 'kitchen',
-        source: 'time',
-        createdAt: now - i * 1000,
-        position: pickPosition(posIndex++),
-      });
-    }
+    const hoursSinceFeed = (Date.now() - lastFeedTimestamp) / (1000 * 60 * 60);
+    count += Math.floor(hoursSinceFeed / HOURS_PER_POOP);
   }
-
-  return poops;
+  return Array.from({ length: Math.min(count, MAX_POOPS) }, (_, i) => makePoop(i));
 }
 
-/** Add a single poop in the kitchen (capped at MAX_POOPS). */
-export function addPoop(
-  poops: PoopInstance[],
-  source: PoopInstance['source'] = 'overfeed',
-): PoopInstance[] {
-  if (poops.length >= MAX_POOPS) return poops;
-  return [
-    ...poops,
-    {
-      id: nextPoopId(),
-      room: 'kitchen',
-      source,
-      createdAt: Date.now(),
-      position: pickPosition(poops.length),
-    },
-  ];
+/** Add one poop (capped at MAX_POOPS). */
+export function addPoop(poops: PoopInstance[]): PoopInstance[] {
+  return poops.length >= MAX_POOPS ? poops : [...poops, makePoop(poops.length)];
 }
 
-export function getPoopsInRoom(poops: PoopInstance[], room: BlobbiRoomId): PoopInstance[] {
-  return poops.filter(p => p.room === room);
+// ─── On screen ────────────────────────────────────────────────────────────────
+
+/** The poop under a screen point (see PoopOverlay). */
+export function poopAt(x: number, y: number): HTMLElement | undefined {
+  return [...document.querySelectorAll<HTMLElement>('[data-poop-id]')].find((el) => {
+    const r = el.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  });
 }
 
-export function removePoop(
-  poops: PoopInstance[],
-  poopId: string,
-): { remaining: PoopInstance[]; xpReward: number } {
-  const remaining = poops.filter(p => p.id !== poopId);
-  return {
-    remaining,
-    xpReward: remaining.length < poops.length ? XP_PER_POOP : 0,
-  };
-}
-
-export function hasAnyPoop(poops: PoopInstance[]): boolean {
-  return poops.length > 0;
+/** Mark the poop under the shovel `data-hovered` (none for `null`). */
+export function markPoopUnder(point: { x: number; y: number } | null) {
+  document.querySelectorAll('[data-poop-id][data-hovered]').forEach((el) => el.removeAttribute('data-hovered'));
+  if (point) poopAt(point.x, point.y)?.setAttribute('data-hovered', '');
 }

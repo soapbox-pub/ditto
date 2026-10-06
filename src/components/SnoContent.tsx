@@ -1,14 +1,18 @@
 import { lazy, Suspense, useState } from 'react';
-import { Box, Loader2, Lock, Rotate3d } from 'lucide-react';
+import { Box, Loader2, Lock, Rotate3d, Sofa } from 'lucide-react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useSnoPreview, useSnoTree } from '@/hooks/useSnoTree';
 import { isEncryptedSno } from '@/lib/sno';
 import { cn } from '@/lib/utils';
 
 const SnoViewer = lazy(() => import('@/components/SnoViewer'));
+const AddToBlobbiRoomDialog = lazy(() =>
+  import('@/components/AddToBlobbiRoomDialog').then((m) => ({ default: m.AddToBlobbiRoomDialog })),
+);
 
 interface SnoContentProps {
   event: NostrEvent;
@@ -33,6 +37,8 @@ export function SnoContent({ event, expanded, className }: SnoContentProps) {
   const intl = useIntl();
   const { object, root, error, isLoading } = useSnoTree(event);
   const [viewing, setViewing] = useState(!!expanded);
+  const { user } = useCurrentUser();
+  const [addOpen, setAddOpen] = useState(false);
 
   const preview = useSnoPreview(event.id, root, !viewing);
 
@@ -104,6 +110,23 @@ export function SnoContent({ event, expanded, className }: SnoContentProps) {
             </span>
           </button>
         </div>
+      )}
+      {user && (
+        <div className="flex items-center justify-end gap-2 border-t border-border px-3 py-2">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setAddOpen(true); }}
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Sofa className="size-4" />
+            <FormattedMessage id="sno.addToBlobbiRoom" defaultMessage="Add to Blobbi room" />
+          </button>
+        </div>
+      )}
+      {addOpen && (
+        <Suspense fallback={null}>
+          <AddToBlobbiRoomDialog event={event} name={name} open={addOpen} onOpenChange={setAddOpen} />
+        </Suspense>
       )}
     </div>
   );

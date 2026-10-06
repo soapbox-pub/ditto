@@ -20,9 +20,11 @@ export default {
 			}
 		},
 		screens: {
+			// Keep ascending: Tailwind emits screen variants in this order, so a
+			// smaller breakpoint listed later would override a larger one.
 			'sm': '640px',
-			'sidebar': '900px',
 			'md': '768px',
+			'sidebar': '900px',
 			'lg': '1024px',
 			'xl': '1280px',
 			'2xl': '1536px',

@@ -591,13 +591,14 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'whimsy',
     blurb: 'PlayStation 1 memory cards, published block-by-block to Nostr. Browse cards shared by others, watch their animated save icons, and open a card to see all 16 blocks. Titles, regions and icons are decoded straight from the raw save bytes.',
   },
-  // Simple Nostr Objects (feed-only — no dedicated page)
+  // Simple Nostr Objects (feed toggle only; their own feed is at /objects)
   {
     kind: 33331,
     id: 'sno',
     feedKey: 'feedIncludeSno',
     label: '3D Objects',
     description: 'Simple Nostr Objects: small 3D models carried in the event itself',
+    route: 'objects',
     addressable: true,
     section: 'whimsy',
     feedOnly: true,

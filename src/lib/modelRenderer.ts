@@ -108,15 +108,31 @@ export interface ModelStage {
   dispose: () => void;
 }
 
-/** Light a model, centre it at the origin, and frame it from a three-quarter view. */
-export function stageModel(model: THREE.Object3D, format: ModelFormat | undefined, renderer: THREE.WebGLRenderer, aspect: number): ModelStage {
-  const scene = new THREE.Scene();
-
+/** The soft studio reflections models are lit with. Costly: build once per renderer. */
+function studioEnvironment(renderer: THREE.WebGLRenderer): THREE.Texture {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const room = new RoomEnvironment();
   const envMap = pmrem.fromScene(room, 0.04).texture;
-  scene.environment = envMap;
   room.dispose();
+  pmrem.dispose();
+  return envMap;
+}
+
+/**
+ * Light a model, centre it at the origin, and frame it from a three-quarter
+ * view. Pass `environment` to reuse one built earlier on the same renderer;
+ * the stage then leaves it alone on dispose.
+ */
+export function stageModel(
+  model: THREE.Object3D,
+  format: ModelFormat | undefined,
+  renderer: THREE.WebGLRenderer,
+  aspect: number,
+  environment?: THREE.Texture,
+): ModelStage {
+  const scene = new THREE.Scene();
+  const envMap = environment ?? studioEnvironment(renderer);
+  scene.environment = envMap;
 
   scene.add(new THREE.HemisphereLight(0xffffff, 0x8890a0, 0.6));
   const key = new THREE.DirectionalLight(0xffffff, 1.2);
@@ -155,8 +171,7 @@ export function stageModel(model: THREE.Object3D, format: ModelFormat | undefine
     pivot,
     radius,
     dispose: () => {
-      envMap.dispose();
-      pmrem.dispose();
+      if (!environment) envMap.dispose();
       disposeObject(scene);
     },
   };
@@ -196,36 +211,78 @@ export async function renderModelPreview(
 }
 
 /**
- * Render a still of a scene object as a PNG, framed the way the interactive
- * viewer opens. Resolves `undefined` when WebGL isn't available.
+ * Renders PNG stills of scene objects, framed the way the interactive viewer
+ * opens, one after another on a single WebGL context. Making many stills
+ * this way skips a new context, shader compiles and lighting per still.
  */
+export interface StillRenderer {
+  /** A still of `model` (consumed: its resources are freed), or `undefined` if rendering failed. */
+  render(model: THREE.Object3D, format: ModelFormat | undefined, width: number, height: number): Promise<Blob | undefined>;
+  /** Release the WebGL context. */
+  dispose(): void;
+}
+
+/** A still renderer, or `undefined` without WebGL. */
+export function createStillRenderer(): StillRenderer | undefined {
+  let renderer: THREE.WebGLRenderer;
+  try {
+    // Transparent, so the still sits on whatever the card behind it is, as the live viewer does.
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  } catch {
+    return undefined;
+  }
+  renderer.setClearColor(0x000000, 0);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  let environment: THREE.Texture;
+  try {
+    environment = studioEnvironment(renderer);
+  } catch {
+    // Browsers allow only a few live contexts: don't hold on to this one
+    renderer.dispose();
+    renderer.forceContextLoss();
+    return undefined;
+  }
+  const canvas = renderer.domElement;
+
+  return {
+    async render(model, format, width, height) {
+      let stage: ModelStage | undefined;
+      try {
+        // Resizing reallocates the drawing buffer even at the same size
+        if (canvas.width !== width || canvas.height !== height) renderer.setSize(width, height, false);
+        stage = stageModel(model, format, renderer, width / height, environment);
+        // Compile off the main thread where the browser can (KHR_parallel_shader_compile)
+        await renderer.compileAsync(stage.scene, stage.camera);
+        renderer.render(stage.scene, stage.camera);
+        return await new Promise<Blob | undefined>((resolve) => {
+          canvas.toBlob((blob) => resolve(blob ?? undefined), 'image/png');
+        });
+      } catch {
+        return undefined;
+      } finally {
+        stage?.dispose();
+      }
+    },
+    dispose() {
+      environment.dispose();
+      renderer.dispose();
+      renderer.forceContextLoss();
+    },
+  };
+}
+
+/** A single still; see {@link createStillRenderer} for many. Resolves `undefined` without WebGL. */
 export async function renderStill(
   model: THREE.Object3D,
   format: ModelFormat | undefined,
   width: number,
   height: number,
 ): Promise<Blob | undefined> {
-  let renderer: THREE.WebGLRenderer | undefined;
-  let stage: ModelStage | undefined;
+  const stills = createStillRenderer();
+  if (!stills) return undefined;
   try {
-    const canvas = document.createElement('canvas');
-    // Transparent, so the still sits on whatever the card behind it is, as the live viewer does.
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
-    renderer.setSize(width, height, false);
-    renderer.setClearColor(0x000000, 0);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-
-    stage = stageModel(model, format, renderer, width / height);
-    renderer.render(stage.scene, stage.camera);
-
-    return await new Promise<Blob | undefined>((resolve) => {
-      canvas.toBlob((blob) => resolve(blob ?? undefined), 'image/png');
-    });
-  } catch {
-    return undefined;
+    return await stills.render(model, format, width, height);
   } finally {
-    stage?.dispose();
-    renderer?.dispose();
-    renderer?.forceContextLoss();
+    stills.dispose();
   }
 }

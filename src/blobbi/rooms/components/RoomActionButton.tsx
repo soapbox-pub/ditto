@@ -1,14 +1,14 @@
 /**
  * RoomActionButton — Unified circular action button for room bottom bars.
  *
- * Responsive: size-10/size-14 circle, size-5/size-6 icons.
+ * Sized in em from the room's ROOM_UI_SCALE, so it grows with the room; the
+ * icon is sized by the button.
  * Hover: soft glow (brightness + drop-shadow), no scale/translate.
  */
 
-import { forwardRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ROOM_GUIDE_HIGHLIGHT } from '../lib/room-layout';
+import { ROOM_ACTION_SLOT, ROOM_GUIDE_HIGHLIGHT } from '../lib/room-layout';
 
 interface RoomActionButtonProps {
   icon: React.ReactNode;
@@ -18,16 +18,14 @@ interface RoomActionButtonProps {
   onClick: () => void;
   disabled?: boolean;
   loading?: boolean;
-  badge?: React.ReactNode;
   /** When true, the button pulses with a guide-glow animation. */
   glow?: boolean;
   className?: string;
-  /** Pointer/touch event passthrough for drag interactions. */
-  onMouseDown?: React.MouseEventHandler<HTMLButtonElement>;
-  onTouchStart?: React.TouchEventHandler<HTMLButtonElement>;
+  /** For dragging out of the button (the shovel). */
+  onPointerDown?: React.PointerEventHandler<HTMLButtonElement>;
 }
 
-export const RoomActionButton = forwardRef<HTMLButtonElement, RoomActionButtonProps>(function RoomActionButton({
+export function RoomActionButton({
   icon,
   label,
   color,
@@ -35,45 +33,40 @@ export const RoomActionButton = forwardRef<HTMLButtonElement, RoomActionButtonPr
   onClick,
   disabled,
   loading,
-  badge,
   glow,
   className,
-  onMouseDown,
-  onTouchStart,
-}, ref) {
+  onPointerDown,
+}: RoomActionButtonProps) {
   return (
     <button
-      ref={ref}
       onClick={onClick}
       disabled={disabled}
-      onMouseDown={onMouseDown}
-      onTouchStart={onTouchStart}
+      onPointerDown={onPointerDown}
       className={cn(
-        'flex flex-col items-center gap-1 transition-all duration-300 ease-out shrink-0 translate-y-1',
-        'active:scale-95',
+        'flex flex-col items-center gap-[0.3em] transition-all duration-300 ease-out rounded-2xl',
+        ROOM_ACTION_SLOT,
+        'active:scale-95 motion-reduce:active:scale-100',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         disabled && 'opacity-50 pointer-events-none',
         className,
       )}
     >
-      <div className="relative">
-        <div
-          className={cn(
-            'size-10 sm:size-14 rounded-full flex items-center justify-center',
-            'bg-background/50 backdrop-blur-[2px] border border-border/20 shadow-sm transition-shadow duration-200',
-            'hover:shadow-[0_0_12px_var(--glow)]',
-            color,
-            glow && ROOM_GUIDE_HIGHLIGHT,
-          )}
-          style={{
-            '--glow': `color-mix(in srgb, ${glowHex} 50%, transparent)`,
-            backgroundImage: `radial-gradient(circle at 40% 35%, color-mix(in srgb, ${glowHex} 14%, transparent), color-mix(in srgb, ${glowHex} 4%, transparent) 70%)`,
-          } as React.CSSProperties}
-        >
-          {loading ? <Loader2 className="size-5 sm:size-6 animate-spin" /> : <span className="[&>svg]:size-5 sm:[&>svg]:size-6">{icon}</span>}
-        </div>
-        {badge && <div className="absolute -top-0.5 -right-0.5">{badge}</div>}
+      <div
+        className={cn(
+          'size-[3.6em] rounded-full flex items-center justify-center',
+          'bg-background/70 backdrop-blur-sm border border-border/30 shadow-sm transition-shadow duration-200',
+          'hover:shadow-[0_0_12px_var(--glow)]',
+          color,
+          glow && ROOM_GUIDE_HIGHLIGHT,
+        )}
+        style={{
+          '--glow': `color-mix(in srgb, ${glowHex} 50%, transparent)`,
+          backgroundImage: `radial-gradient(circle at 40% 35%, color-mix(in srgb, ${glowHex} 14%, transparent), color-mix(in srgb, ${glowHex} 4%, transparent) 70%)`,
+        } as React.CSSProperties}
+      >
+        {loading ? <Loader2 className="size-[1.5em] animate-spin" /> : <span className="[&>svg]:size-[1.5em]">{icon}</span>}
       </div>
-      <span className="text-[10px] sm:text-xs font-medium text-muted-foreground bg-background/50 backdrop-blur-[2px] rounded-full px-1.5 py-px">{label}</span>
+      <span className="text-[0.8em] font-medium text-foreground/80 whitespace-nowrap">{label}</span>
     </button>
   );
-});
+}

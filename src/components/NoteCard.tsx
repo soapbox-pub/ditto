@@ -2358,6 +2358,7 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
     icon: Box,
     action: (event) => publishedAtAction(event, { created: "built a", updated: "updated a", fallback: "built a" }),
     noun: "3D object",
+    nounRoute: "/objects",
   },
   37516: {
     icon: ChestIcon,

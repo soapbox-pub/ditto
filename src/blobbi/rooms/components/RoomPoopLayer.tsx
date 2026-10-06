@@ -1,124 +1,77 @@
 /**
- * RoomPoopLayer — Poop rendering and shovel button components.
+ * RoomPoopLayer — poop on the room floor, and the shovel that cleans it up.
  *
- * All poops spawn in the kitchen. `PoopOverlay` renders them in every
- * room so the mess follows the Blobbi around. Cleaning is only possible
- * in the kitchen via `InteractivePoopOverlay` + drag-to-clean shovel.
- *
- * - `PoopOverlay`: display-only poop emojis, shown in all rooms
- * - `InteractivePoopOverlay`: poop emojis with drag hit-test refs (kitchen)
- * - `ShovelButton`: draggable shovel action button (kitchen only)
+ * Poop follows the Blobbi into every room; the shovel lives in the kitchen.
+ * The shovel is dragged with useRoomDrag: while it moves, the poop under it
+ * is marked `data-hovered` (straight on the DOM, so nothing re-renders), and
+ * letting go over one cleans it.
  */
 
 import { Shovel } from 'lucide-react';
+import { useIntl } from 'react-intl';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/useToast';
 
-import type { PoopState } from './BlobbiRoomShell';
-import type { BlobbiRoomId } from '../lib/room-config';
-import { getPoopsInRoom } from '../lib/poop-system';
+import type { PoopInstance } from '../lib/poop-system';
 import { RoomActionButton } from './RoomActionButton';
-import type { ShovelDrag } from '../hooks/useShovelDrag';
 
-// ─── PoopOverlay (passive, any room) ──────────────────────────────────────────
+/** Poop stands on its floor anchor, sized with the room (see BlobbiRoomShell anchors). */
+const POOP_CLASS = 'absolute bottom-0 left-0 block -translate-x-1/2 leading-none transition-transform duration-200 data-[hovered]:scale-150 data-[hovered]:drop-shadow-lg';
+const POOP_STYLE: React.CSSProperties = { fontSize: 'clamp(18px, calc(var(--anchor-px, 40) * 0.55px), 44px)' };
 
-/**
- * Static poop display. Shows all poops regardless of which room they
- * spawned in — the mess follows the Blobbi everywhere.
- */
-export function PoopOverlay({ poopStateRef }: { poopStateRef: React.MutableRefObject<PoopState | null> }) {
-  const poopState = poopStateRef.current;
-  if (!poopState || poopState.poops.length === 0) return null;
-  const poops = poopState.poops;
-
-  return (
-    <>
-      {poops.map((poop) => (
-        <div
-          key={poop.id}
-          className="absolute z-10 pointer-events-none select-none"
-          style={{ bottom: `${poop.position.bottom}%`, left: `${poop.position.left}%` }}
-        >
-          <span className="text-2xl sm:text-3xl block">💩</span>
-        </div>
-      ))}
-    </>
-  );
+export function PoopOverlay({ poops }: { poops: PoopInstance[] }) {
+  return poops.map((poop) => (
+    <div
+      key={poop.id}
+      data-anchor="floor"
+      data-x={poop.position.x}
+      data-z={poop.position.z}
+      className="absolute left-0 top-0 pointer-events-none select-none"
+    >
+      <span data-poop-id={poop.id} className={POOP_CLASS} style={POOP_STYLE}>💩</span>
+    </div>
+  ));
 }
-
-// ─── InteractivePoopOverlay (kitchen) ─────────────────────────────────────────
-
-/**
- * Interactive poop display. Renders poops assigned to `roomId`,
- * registers refs for drag hit-testing, and shows the drag ghost.
- */
-export function InteractivePoopOverlay({ drag, poopStateRef, roomId }: { drag: ShovelDrag; poopStateRef: React.MutableRefObject<PoopState | null>; roomId: BlobbiRoomId }) {
-  const poopState = poopStateRef.current;
-  const poops = poopState ? getPoopsInRoom(poopState.poops, roomId) : [];
-  if (poops.length === 0 && !drag.isDragging) return null;
-
-  return (
-    <>
-      {poops.map((poop) => (
-        <div
-          key={poop.id}
-          ref={(el) => {
-            if (el) drag.poopRefs.current.set(poop.id, el);
-            else drag.poopRefs.current.delete(poop.id);
-          }}
-          className={cn(
-            'absolute z-10 transition-transform duration-200 pointer-events-none select-none',
-            drag.hoveredPoopId === poop.id && drag.isDragging && 'scale-150',
-          )}
-          style={{ bottom: `${poop.position.bottom}%`, left: `${poop.position.left}%` }}
-        >
-          <span className={cn('text-2xl sm:text-3xl block', drag.isDragging && 'drop-shadow-lg')}>
-            💩
-          </span>
-        </div>
-      ))}
-
-      {drag.isDragging && drag.dragPos && (
-        <div
-          className="fixed z-[60] pointer-events-none"
-          style={{ left: drag.dragPos.x, top: drag.dragPos.y, transform: 'translate(-50%, -50%)' }}
-        >
-          <div className="size-14 sm:size-20 rounded-full flex items-center justify-center text-amber-600 bg-amber-500/15 ring-2 ring-amber-500/40 shadow-lg">
-            <Shovel className="size-7 sm:size-9" />
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-// ─── ShovelButton (kitchen only) ──────────────────────────────────────────────
 
 interface ShovelButtonProps {
-  drag: ShovelDrag;
-  guideActionGlow?: string | null;
+  hasPoop: boolean;
+  /** The shovel is out, being dragged. */
+  dragging: boolean;
+  onPointerDown: (e: React.PointerEvent) => void;
+  /** Click or keyboard activation with poop around: clean one up without dragging. */
+  onClean?: () => void;
+  glow?: boolean;
 }
 
-/**
- * Draggable shovel action button. Kitchen only.
- */
-export function ShovelButton({ drag, guideActionGlow }: ShovelButtonProps) {
+export function ShovelButton({ hasPoop, dragging, onPointerDown, onClean, glow }: ShovelButtonProps) {
+  const intl = useIntl();
   return (
     <RoomActionButton
-      ref={drag.shovelRef}
-      icon={<Shovel className="size-7 sm:size-9" />}
-      label="Shovel"
+      icon={<Shovel />}
+      label={intl.formatMessage({ id: 'blobbiRoom.shovel.label', defaultMessage: 'Shovel' })}
       color="text-stone-500"
       glowHex="#78716c"
       onClick={() => {
-        if (!drag.anyPoop) {
-          toast({ title: 'Nothing to clean!', description: 'Your Blobbi hasn\'t made a mess.' });
+        if (hasPoop) onClean?.();
+        else {
+          toast({
+            title: intl.formatMessage({ id: 'blobbiRoom.shovel.nothing', defaultMessage: 'Nothing to clean!' }),
+            description: intl.formatMessage({ id: 'blobbiRoom.shovel.nothingDescription', defaultMessage: 'Your Blobbi hasn’t made a mess.' }),
+          });
         }
       }}
-      onMouseDown={drag.anyPoop ? drag.onMouseDown : undefined}
-      onTouchStart={drag.anyPoop ? drag.onTouchStart : undefined}
-      className={cn(drag.anyPoop && 'touch-none', drag.isDragging && 'opacity-30')}
-      glow={drag.anyPoop && guideActionGlow === 'clean'}
+      onPointerDown={hasPoop ? onPointerDown : undefined}
+      className={cn(hasPoop && 'touch-none', dragging && 'opacity-30')}
+      glow={hasPoop && glow}
     />
+  );
+}
+
+/** The shovel under the finger while dragging. */
+export function ShovelGhost() {
+  return (
+    <div className="size-14 sm:size-20 rounded-full flex items-center justify-center text-amber-600 bg-amber-500/15 ring-2 ring-amber-500/40 shadow-lg">
+      <Shovel className="size-7 sm:size-9" />
+    </div>
   );
 }

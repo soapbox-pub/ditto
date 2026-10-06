@@ -10,20 +10,11 @@
     /* Mobile chrome dimensions — referenced by layout utility classes below */
     --top-bar-height: 2.5rem;   /* MobileTopBar h-10 = 40px */
     --bottom-nav-height: 2.75rem; /* MobileBottomNav h-11 = 44px */
-    /* Blobbi room canvas: vertical space reserved for the bottom dock */
-    --blobbi-room-dock-height: 82px; /* Desktop: pt-2.5 + carousel(48) + pb-6(24) */
   }
 
   .dark {
     --success: 142 60% 22%;
     --success-foreground: 138 60% 94%;
-  }
-
-  /* Mobile: Blobbi room dock includes bottom-nav clearance + safe-area */
-  @media (max-width: 899px) {
-    :root {
-      --blobbi-room-dock-height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 74px);
-    }
   }
 }
 
@@ -952,11 +943,6 @@
   50% { transform: translateY(-8px); }
 }
 
-@keyframes blobbi-shadow-breathe {
-  0%, 100% { transform: translateX(-50%) scaleX(1); }
-  50% { transform: translateX(-50%) scaleX(0.92); }
-}
-
 @keyframes blobbi-sway {
   0%, 100% { transform: rotate(0deg); }
   25% { transform: rotate(1.5deg); }
@@ -1044,7 +1030,7 @@
 /* Guide pulse — gentle scale throb for guided controls */
 @keyframes guide-pulse {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
+  50% { transform: scale(1.03); }
 }
 
 /* Guide ring pulse — box-shadow glow for transform-positioned controls (no transform!) */
@@ -1054,9 +1040,19 @@
     filter: brightness(1);
   }
   50% {
-    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.28), 0 0 14px hsl(var(--primary) / 0.45);
-    filter: brightness(1.12);
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.16), 0 0 10px hsl(var(--primary) / 0.22);
+    filter: brightness(1);
   }
+}
+
+/* An item on the Blobbi room floor being eaten or used: nibbled smaller, then gone */
+@keyframes blobbi-consume {
+  0% { transform: scale(1) rotate(0deg); opacity: 1; }
+  20% { transform: scale(0.9) rotate(-8deg); }
+  40% { transform: scale(0.78) rotate(6deg); }
+  60% { transform: scale(0.6) rotate(-5deg); }
+  80% { transform: scale(0.38) rotate(4deg); opacity: 1; }
+  100% { transform: scale(0); opacity: 0; }
 }
 
 /* Room navigation arrow nudge — subtle horizontal pulse */

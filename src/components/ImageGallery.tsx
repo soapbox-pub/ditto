@@ -809,8 +809,11 @@ function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZo
   const pinchStart = useRef<{ dist: number; midX: number; midY: number; scale: number; panX: number; panY: number } | null>(null);
   // Pan tracking (single finger when zoomed)
   const panStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
-  // Double-tap
-  const lastTap = useRef(0);
+  // Double-tap: the in-progress touch (null once it moves, multi-touches, or
+  // runs long) and the last completed tap.
+  const tapStart = useRef<{ x: number; y: number; t: number } | null>(null);
+  const lastTap = useRef<{ x: number; y: number; t: number } | null>(null); // t = lift time
+  const lastTouchEnd = useRef(0);
   // Mouse drag when zoomed
   const mouseDrag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
 
@@ -881,37 +884,50 @@ function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZo
         panY: panY.current,
       };
       panStart.current = null;
+      tapStart.current = null;
     } else if (e.touches.length === 1) {
       if (scale.current > 1) {
         // Single finger pan when zoomed
         panStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, panX: panX.current, panY: panY.current };
       }
-      // Double-tap to zoom
-      const now = Date.now();
-      if (now - lastTap.current < 300) {
-        e.preventDefault();
-        if (scale.current > 1) {
-          scale.current = 1; panX.current = 0; panY.current = 0;
-        } else {
-          scale.current = 2.5;
-          // Zoom toward tap point
-          const rect = wrapRef.current?.getBoundingClientRect();
-          if (rect) {
-            const cx = e.touches[0].clientX - rect.left - rect.width / 2;
-            const cy = e.touches[0].clientY - rect.top - rect.height / 2;
-            panX.current = -cx * (scale.current - 1) / scale.current;
-            panY.current = -cy * (scale.current - 1) / scale.current;
-            clampPan();
-          }
-        }
-        applyTransform(true);
-        notifyZoom();
-      }
-      lastTap.current = now;
+      tapStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
     }
   };
 
+  /** Toggle between fit and zoomed-in, keeping the point under (clientX, clientY) fixed. */
+  function toggleZoomAt(clientX: number, clientY: number) {
+    if (scale.current > 1) {
+      scale.current = 1; panX.current = 0; panY.current = 0;
+    } else {
+      const img = imgRef.current;
+      const container = containerRef.current;
+      if (!img || !container) return;
+      // Zoom enough to fill the screen, like native photo viewers, but always
+      // at least 2x so already-filling images still visibly zoom.
+      const fill = Math.max(
+        container.offsetWidth / img.offsetWidth,
+        container.offsetHeight / img.offsetHeight,
+      );
+      const s = Math.min(MAX_SCALE, Math.max(2, fill));
+      // With transform `translate(pan) scale(s)` around the centre, a point at
+      // offset c from the centre lands at c*s + pan; pan = -c*(s-1) pins it.
+      const rect = container.getBoundingClientRect();
+      const cx = clientX - rect.left - rect.width / 2;
+      const cy = clientY - rect.top - rect.height / 2;
+      scale.current = s;
+      panX.current = -cx * (s - 1);
+      panY.current = -cy * (s - 1);
+      clampPan();
+    }
+    applyTransform(true);
+    notifyZoom();
+  }
+
   const handleTouchMove = (e: TouchEvent) => {
+    const tap = tapStart.current;
+    if (tap && Math.hypot(e.touches[0].clientX - tap.x, e.touches[0].clientY - tap.y) > 10) {
+      tapStart.current = null;
+    }
     if (e.touches.length === 2 && pinchStart.current) {
       e.preventDefault();
       const p = pinchStart.current;
@@ -939,6 +955,25 @@ function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZo
     if (e.touches.length < 2) pinchStart.current = null;
     if (e.touches.length === 0) {
       panStart.current = null;
+      lastTouchEnd.current = Date.now();
+
+      // Double-tap to zoom: two quick, stationary taps close together
+      const tap = tapStart.current;
+      tapStart.current = null;
+      if (tap && Date.now() - tap.t < 300) {
+        const prev = lastTap.current;
+        if (prev && tap.t - prev.t < 300 && Math.hypot(tap.x - prev.x, tap.y - prev.y) < 40) {
+          // Suppress the emulated click/dblclick so the backdrop doesn't react
+          e.preventDefault();
+          lastTap.current = null;
+          toggleZoomAt(tap.x, tap.y);
+          return;
+        }
+        lastTap.current = { x: tap.x, y: tap.y, t: Date.now() };
+      } else {
+        lastTap.current = null;
+      }
+
       // Snap back to min scale if under-pinched
       if (scale.current < MIN_SCALE) {
         scale.current = MIN_SCALE; panX.current = 0; panY.current = 0;
@@ -989,6 +1024,13 @@ function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZo
     clampPan();
     applyTransform(true);
   };
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    // Touch double-taps are handled in handleTouchEnd; skip emulated dblclicks.
+    if (Date.now() - lastTouchEnd.current < 800) return;
+    if (!(e.target instanceof HTMLImageElement)) return;
+    e.stopPropagation();
+    toggleZoomAt(e.clientX, e.clientY);
+  };
 
   // Register non-passive touch/wheel listeners
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1012,6 +1054,7 @@ function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZo
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onDoubleClick={handleDoubleClick}
       style={{ cursor: scale.current > 1 ? 'grab' : 'default' }}
     >
       <div ref={wrapRef} style={{ transformOrigin: 'center center', willChange: 'transform', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

@@ -239,6 +239,11 @@
     "description": "Browse torrents indexed on Nostr.",
     "image": "https://blossom.ditto.pub/ff6f9ba5895e28075eff86cd596d5a6c2879073062f21940ef53d7c121bf5d09.jpg"
   },
+  "/objects": {
+    "title": "3D Objects – Ditto",
+    "description": "Little 3D objects published straight to Nostr. Spin them around, or add them to your Blobbi's room.",
+    "image": "https://ditto.pub/og-image.jpg"
+  },
   "/archive": {
     "title": "Archive – Ditto",
     "description": "Treasures from the Internet Archive.",

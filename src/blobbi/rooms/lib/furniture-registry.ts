@@ -1,31 +1,36 @@
 /**
  * Furniture Registry — official furniture catalog and ID resolver.
  *
- * All official furniture items are app-defined and ship with the bundle.
- * The resolver maps namespaced IDs to their definitions at render time.
+ * All official furniture items are app-defined and ship with the bundle; each
+ * has a 3D model in room-scene/official-models.ts. The resolver maps
+ * namespaced IDs to their definitions at render time.
  *
- * Architecture for future extensibility:
+ * Namespaces:
  * - `official:*` — resolved from the static OFFICIAL_FURNITURE array below.
- * - `custom:*` — future: user-created definitions (not implemented yet).
- * - `nostr:*` — future: definitions from Nostr events (not implemented yet).
+ * - `sno:<naddr>` — a Simple Nostr Object (kind 33331) from the network.
  *
- * Unknown or unresolvable IDs return undefined — the render layer should
- * handle this gracefully (skip or show a placeholder).
+ * Unknown or unresolvable IDs return undefined — the render layer skips them.
  */
 
+import { defineMessages, type MessageDescriptor } from 'react-intl';
+
 import type { BlobbiRoomId } from './room-config';
-import type { FurnitureLayer } from './room-furniture-schema';
+import { parseSnoFurnitureId } from './sno-furniture';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-/** Visual style for clock furniture items */
-export type ClockStyle = 'classic' | 'modern' | 'cute' | 'digital-bedside' | 'analog-table' | 'cute-alarm' | 'digital-wall' | 'flip-wall' | 'digital-table';
-
 /** Catalog category for grouping furniture items in the editor */
-export type FurnitureCategory = 'furniture' | 'decor' | 'plants' | 'clocks' | 'frames';
+export type FurnitureCategory = 'furniture' | 'decor' | 'plants' | 'clocks' | 'frames' | 'objects';
 
-/** Ground shadow style for rendered furniture items */
-export type FurnitureShadow = 'none' | 'narrow' | 'wide';
+/**
+ * How an item is mounted. `floor` items take up their footprint; `rug`s lie
+ * flat under everything and only collide with other rugs; `wall` items hang
+ * on either back wall.
+ */
+export type FurnitureMount = 'floor' | 'rug' | 'wall';
+
+/** What tapping the item does outside the editor. */
+export type FurnitureInteraction = 'fridge' | 'bed' | 'bath' | 'toys';
 
 /** Definition of a furniture item in the registry */
 export interface FurnitureDefinition {
@@ -33,534 +38,127 @@ export interface FurnitureDefinition {
   id: string;
   /** Catalog category for grouping in the editor */
   category: FurnitureCategory;
-  /** Human-readable label for the editor catalog */
-  label: string;
-  /** Asset path relative to public/ (served by Vite static) */
-  asset: string;
-  /** Intrinsic aspect ratio (width / height) for proportional sizing */
-  aspectRatio: number;
-  /** Default render width as fraction of room width (before scale) */
-  baseWidth: number;
-  /** Allowed rendering layers */
-  allowedLayers: FurnitureLayer[];
-  /** Default layer when first placed */
-  defaultLayer: FurnitureLayer;
+  /** Human-readable label for the editor catalog (format with react-intl) */
+  label: MessageDescriptor;
+  mount: FurnitureMount;
+  /** Small enough to stand on a `surface` item (a lamp on a table). */
+  small?: boolean;
+  /** Small items can be placed on top of it. */
+  surface?: boolean;
   /** Which rooms this can be placed in (undefined = all rooms) */
   allowedRooms?: BlobbiRoomId[];
-  /** Whether horizontal flip is supported */
-  flippable: boolean;
-  /** Render priority within the same layer. Lower values render first (behind). Default 0. */
-  renderOrder?: number;
-  /** Ground shadow style: 'none' for wall-mounted/flat items, 'wide' for beds/tables, 'narrow' (default) for normal floor items */
-  shadow?: FurnitureShadow;
-  /** Optional CSS translateY offset for the ground shadow element (default '45%'). Escape hatch for items whose SVG visual base does not align with the viewBox bottom edge. Only meaningful when shadow is not 'none'. */
-  shadowOffsetY?: string;
   /** Whether this item is a picture frame that accepts uploaded image content */
   isFrame?: boolean;
-  /** CSS inset (top right bottom left) for positioning the custom image inside the frame */
-  frameImageInset?: string;
-  /** CSS border-radius for the image window (e.g. "50%" for oval frames) */
-  frameImageRadius?: string;
-  /** Available named variants (e.g. frame color options) */
-  variants?: string[];
-  /** Whether this item renders a dynamic real-time clock */
-  isClock?: boolean;
-  /** Analog (rotating hands) or digital (HH:mm text) */
-  clockKind?: 'analog' | 'digital';
-  /** Visual style — selects the clock face renderer */
-  clockStyle?: ClockStyle;
+  interaction?: FurnitureInteraction;
 }
 
 // ─── Official Furniture Catalog ───────────────────────────────────────────────
 
+const furnitureLabels = defineMessages({
+  bedSingle: { id: 'blobbiRoom.furniture.bedSingle', defaultMessage: 'Bed' },
+  bedRound: { id: 'blobbiRoom.furniture.bedRound', defaultMessage: 'Round Bed' },
+  bedCushion: { id: 'blobbiRoom.furniture.bedCushion', defaultMessage: 'Cushion Bed' },
+  bedBasket: { id: 'blobbiRoom.furniture.bedBasket', defaultMessage: 'Basket Bed' },
+  fridge: { id: 'blobbiRoom.furniture.fridge', defaultMessage: 'Fridge' },
+  oven: { id: 'blobbiRoom.furniture.oven', defaultMessage: 'Oven' },
+  bathtub: { id: 'blobbiRoom.furniture.bathtub', defaultMessage: 'Bathtub' },
+  toybox: { id: 'blobbiRoom.furniture.toybox', defaultMessage: 'Toy Box' },
+  wardrobe: { id: 'blobbiRoom.furniture.wardrobe', defaultMessage: 'Wardrobe' },
+  sink: { id: 'blobbiRoom.furniture.sink', defaultMessage: 'Sink' },
+  tableSide: { id: 'blobbiRoom.furniture.tableSide', defaultMessage: 'Side Table' },
+  cabinetSmall: { id: 'blobbiRoom.furniture.cabinetSmall', defaultMessage: 'Small Cabinet' },
+  counter: { id: 'blobbiRoom.furniture.counter', defaultMessage: 'Counter' },
+  shelfBooks: { id: 'blobbiRoom.furniture.shelfBooks', defaultMessage: 'Bookshelf' },
+  shelfWall: { id: 'blobbiRoom.furniture.shelfWall', defaultMessage: 'Wall Shelf' },
+  shelfFloating: { id: 'blobbiRoom.furniture.shelfFloating', defaultMessage: 'Floating Shelf' },
+  rugRound: { id: 'blobbiRoom.furniture.rugRound', defaultMessage: 'Round Rug' },
+  rugRectangle: { id: 'blobbiRoom.furniture.rugRectangle', defaultMessage: 'Rectangle Rug' },
+  mirror: { id: 'blobbiRoom.furniture.mirror', defaultMessage: 'Mirror' },
+  towelRack: { id: 'blobbiRoom.furniture.towelRack', defaultMessage: 'Towel Rack' },
+  rugRunner: { id: 'blobbiRoom.furniture.rugRunner', defaultMessage: 'Runner Rug' },
+  rugPaw: { id: 'blobbiRoom.furniture.rugPaw', defaultMessage: 'Paw Rug' },
+  lampFloor: { id: 'blobbiRoom.furniture.lampFloor', defaultMessage: 'Floor Lamp' },
+  lampTable: { id: 'blobbiRoom.furniture.lampTable', defaultMessage: 'Table Lamp' },
+  lampWall: { id: 'blobbiRoom.furniture.lampWall', defaultMessage: 'Wall Sconce' },
+  lampString: { id: 'blobbiRoom.furniture.lampString', defaultMessage: 'String Lights' },
+  plantSmall: { id: 'blobbiRoom.furniture.plantSmall', defaultMessage: 'Small Plant' },
+  plantTall: { id: 'blobbiRoom.furniture.plantTall', defaultMessage: 'Tall Plant' },
+  plantCactus: { id: 'blobbiRoom.furniture.plantCactus', defaultMessage: 'Cactus' },
+  plantFern: { id: 'blobbiRoom.furniture.plantFern', defaultMessage: 'Fern' },
+  plantHanging: { id: 'blobbiRoom.furniture.plantHanging', defaultMessage: 'Hanging Plant' },
+  clockWall: { id: 'blobbiRoom.furniture.clockWall', defaultMessage: 'Wall Clock' },
+  clockWallModern: { id: 'blobbiRoom.furniture.clockWallModern', defaultMessage: 'Modern Clock' },
+  clockWallCute: { id: 'blobbiRoom.furniture.clockWallCute', defaultMessage: 'Cute Clock' },
+  clockWallDigital: { id: 'blobbiRoom.furniture.clockWallDigital', defaultMessage: 'Digital Wall Clock' },
+  clockWallFlip: { id: 'blobbiRoom.furniture.clockWallFlip', defaultMessage: 'Flip Wall Clock' },
+  clockTable: { id: 'blobbiRoom.furniture.clockTable', defaultMessage: 'Table Clock' },
+  clockBedside: { id: 'blobbiRoom.furniture.clockBedside', defaultMessage: 'Bedside Clock' },
+  clockAlarm: { id: 'blobbiRoom.furniture.clockAlarm', defaultMessage: 'Alarm Clock' },
+  clockTableDigital: { id: 'blobbiRoom.furniture.clockTableDigital', defaultMessage: 'Table Digital Clock' },
+  pictureFrame: { id: 'blobbiRoom.furniture.pictureFrame', defaultMessage: 'Picture Frame' },
+  pictureFrameGold: { id: 'blobbiRoom.furniture.pictureFrameGold', defaultMessage: 'Gold Frame' },
+  pictureFrameSquare: { id: 'blobbiRoom.furniture.pictureFrameSquare', defaultMessage: 'Square Frame' },
+  pictureFrameOval: { id: 'blobbiRoom.furniture.pictureFrameOval', defaultMessage: 'Oval Frame' },
+  snoObject: { id: 'blobbiRoom.furniture.snoObject', defaultMessage: '3D object' },
+});
+
+const BEDROOM: BlobbiRoomId[] = ['rest', 'home'];
+
 export const OFFICIAL_FURNITURE: readonly FurnitureDefinition[] = [
-  // ─── Plants ─────────────────────────────────────────────────────────────
-  {
-    id: 'official:plant-small',
-    category: 'plants',
-    label: 'Small Plant',
-    asset: '/furniture/plant-small.svg',
-    aspectRatio: 0.7,
-    baseWidth: 0.08,
-    allowedLayers: ['floor', 'front'],
-    defaultLayer: 'front',
-    flippable: true,
-    shadow: 'narrow',
-  },
-  {
-    id: 'official:plant-tall',
-    category: 'plants',
-    label: 'Tall Plant',
-    asset: '/furniture/plant-tall.svg',
-    aspectRatio: 0.5,
-    baseWidth: 0.09,
-    allowedLayers: ['floor', 'front'],
-    defaultLayer: 'front',
-    flippable: true,
-    shadow: 'narrow',
-  },
+  // Furniture
+  { id: 'official:bed-single', category: 'furniture', label: furnitureLabels.bedSingle, mount: 'floor', allowedRooms: BEDROOM, interaction: 'bed' },
+  { id: 'official:bed-round', category: 'furniture', label: furnitureLabels.bedRound, mount: 'floor', allowedRooms: BEDROOM, interaction: 'bed' },
+  { id: 'official:bed-cushion', category: 'furniture', label: furnitureLabels.bedCushion, mount: 'floor', allowedRooms: BEDROOM, interaction: 'bed' },
+  { id: 'official:bed-basket', category: 'furniture', label: furnitureLabels.bedBasket, mount: 'floor', allowedRooms: BEDROOM, interaction: 'bed' },
+  { id: 'official:fridge', category: 'furniture', label: furnitureLabels.fridge, mount: 'floor', allowedRooms: ['kitchen'], interaction: 'fridge' },
+  { id: 'official:oven', category: 'furniture', label: furnitureLabels.oven, mount: 'floor', allowedRooms: ['kitchen'] },
+  { id: 'official:bathtub', category: 'furniture', label: furnitureLabels.bathtub, mount: 'floor', allowedRooms: ['care'], interaction: 'bath' },
+  { id: 'official:toybox', category: 'furniture', label: furnitureLabels.toybox, mount: 'floor', interaction: 'toys' },
+  { id: 'official:wardrobe', category: 'furniture', label: furnitureLabels.wardrobe, mount: 'floor' },
+  { id: 'official:sink', category: 'furniture', label: furnitureLabels.sink, mount: 'floor', allowedRooms: ['care'] },
+  { id: 'official:table-side', category: 'furniture', label: furnitureLabels.tableSide, mount: 'floor', surface: true },
+  { id: 'official:cabinet-small', category: 'furniture', label: furnitureLabels.cabinetSmall, mount: 'floor', surface: true },
+  { id: 'official:counter', category: 'furniture', label: furnitureLabels.counter, mount: 'floor', surface: true, allowedRooms: ['kitchen'] },
+  { id: 'official:shelf-books', category: 'furniture', label: furnitureLabels.shelfBooks, mount: 'floor' },
+  { id: 'official:shelf-wall', category: 'furniture', label: furnitureLabels.shelfWall, mount: 'wall' },
+  { id: 'official:shelf-floating', category: 'furniture', label: furnitureLabels.shelfFloating, mount: 'wall' },
 
-  // ─── Furniture ──────────────────────────────────────────────────────────
-  {
-    id: 'official:lamp-floor',
-    category: 'decor',
-    label: 'Floor Lamp',
-    asset: '/furniture/lamp-floor.svg',
-    aspectRatio: 0.3,
-    baseWidth: 0.06,
-    allowedLayers: ['floor', 'front'],
-    defaultLayer: 'front',
-    flippable: false,
-    shadow: 'narrow',
-  },
-  {
-    id: 'official:rug-round',
-    category: 'decor',
-    label: 'Round Rug',
-    asset: '/furniture/rug-round.svg',
-    aspectRatio: 1.8,
-    baseWidth: 0.25,
-    allowedLayers: ['floor'],
-    defaultLayer: 'floor',
-    flippable: false,
-    shadow: 'none',
-    renderOrder: -20,
-  },
-  {
-    id: 'official:shelf-wall',
-    category: 'furniture',
-    label: 'Wall Shelf',
-    asset: '/furniture/shelf-wall.svg',
-    aspectRatio: 2.5,
-    baseWidth: 0.15,
-    allowedLayers: ['back'],
-    defaultLayer: 'back',
-    flippable: false,
-    shadow: 'none',
-  },
-  {
-    id: 'official:clock-wall',
-    category: 'clocks',
-    label: 'Wall Clock',
-    asset: '/furniture/clock-wall.svg',
-    aspectRatio: 1,
-    baseWidth: 0.07,
-    allowedLayers: ['back'],
-    defaultLayer: 'back',
-    flippable: false,
-    shadow: 'none',
-    isClock: true,
-    clockKind: 'analog',
-    clockStyle: 'classic',
-  },
-  {
-    id: 'official:clock-wall-modern',
-    category: 'clocks',
-    label: 'Modern Clock',
-    asset: '/furniture/clock-wall-modern.svg',
-    aspectRatio: 1,
-    baseWidth: 0.07,
-    allowedLayers: ['back'],
-    defaultLayer: 'back',
-    flippable: false,
-    shadow: 'none',
-    isClock: true,
-    clockKind: 'analog',
-    clockStyle: 'modern',
-  },
-  {
-    id: 'official:clock-wall-cute',
-    category: 'clocks',
-    label: 'Cute Clock',
-    asset: '/furniture/clock-wall-cute.svg',
-    aspectRatio: 1,
-    baseWidth: 0.08,
-    allowedLayers: ['back'],
-    defaultLayer: 'back',
-    flippable: false,
-    shadow: 'none',
-    isClock: true,
-    clockKind: 'analog',
-    clockStyle: 'cute',
-  },
-  {
-    id: 'official:clock-table',
-    category: 'clocks',
-    label: 'Table Clock',
-    asset: '/furniture/clock-table.svg',
-    aspectRatio: 100 / 110,
-    baseWidth: 0.06,
-    allowedLayers: ['floor', 'front'],
-    defaultLayer: 'front',
-    flippable: false,
-    shadow: 'narrow',
-    isClock: true,
-    clockKind: 'analog',
-    clockStyle: 'analog-table',
-  },
-  {
-    id: 'official:clock-bedside',
-    category: 'clocks',
-    label: 'Bedside Clock',
-    asset: '/furniture/clock-bedside.svg',
-    aspectRatio: 2,
-    baseWidth: 0.09,
-    allowedLayers: ['floor', 'front'],
-    defaultLayer: 'front',
-    allowedRooms: ['rest', 'home'],
-    flippable: false,
-    shadow: 'narrow',
-    isClock: true,
-    clockKind: 'digital',
-    clockStyle: 'digital-bedside',
-  },
-  {
-    id: 'official:clock-alarm',
-    category: 'clocks',
-    label: 'Alarm Clock',
-    asset: '/furniture/clock-alarm.svg',
-    aspectRatio: 100 / 115,
-    baseWidth: 0.07,
-    allowedLayers: ['floor', 'front'],
-    defaultLayer: 'front',
-    allowedRooms: ['rest', 'home'],
-    flippable: false,
-    shadow: 'narrow',
-    isClock: true,
-    clockKind: 'analog',
-    clockStyle: 'cute-alarm',
-  },
-  {
-    id: 'official:clock-wall-digital',
-    category: 'clocks',
-    label: 'Digital Wall Clock',
-    asset: '/furniture/clock-wall-digital.svg',
-    aspectRatio: 2.2,
-    baseWidth: 0.12,
-    allowedLayers: ['back'],
-    defaultLayer: 'back',
-    flippable: false,
-    shadow: 'none',
-    isClock: true,
-    clockKind: 'digital',
-    clockStyle: 'digital-wall',
-  },
-  {
-    id: 'official:clock-wall-flip',
-    category: 'clocks',
-    label: 'Flip Wall Clock',
-    asset: '/furniture/clock-wall-flip.svg',
-    aspectRatio: 2,
-    baseWidth: 0.12,
-    allowedLayers: ['back'],
-    defaultLayer: 'back',
-    flippable: false,
-    shadow: 'none',
-    isClock: true,
-    clockKind: 'digital',
-    clockStyle: 'flip-wall',
-  },
-  {
-    id: 'official:clock-table-digital',
-    category: 'clocks',
-    label: 'Table Digital Clock',
-    asset: '/furniture/clock-table-digital.svg',
-    aspectRatio: 2,
-    baseWidth: 0.08,
-    allowedLayers: ['floor', 'front'],
-    defaultLayer: 'front',
-    allowedRooms: ['rest', 'home'],
-    flippable: false,
-    shadow: 'narrow',
-    isClock: true,
-    clockKind: 'digital',
-    clockStyle: 'digital-table',
-  },
-  {
-    id: 'official:bed-single',
-    category: 'furniture',
-    label: 'Bed',
-    asset: '/furniture/bed-single.svg',
-    aspectRatio: 4 / 3,
-    baseWidth: 0.22,
-    allowedLayers: ['floor'],
-    defaultLayer: 'floor',
-    allowedRooms: ['rest', 'home'],
-    flippable: true,
-    shadow: 'none',
-    renderOrder: -10,
-  },
-  {
-    id: 'official:table-side',
-    category: 'furniture',
-    label: 'Side Table',
-    asset: '/furniture/table-side.svg',
-    aspectRatio: 0.9,
-    baseWidth: 0.08,
-    allowedLayers: ['floor', 'front'],
-    defaultLayer: 'floor',
-    flippable: true,
-    shadow: 'wide',
-  },
+  // Decor
+  { id: 'official:rug-round', category: 'decor', label: furnitureLabels.rugRound, mount: 'rug' },
+  { id: 'official:rug-rectangle', category: 'decor', label: furnitureLabels.rugRectangle, mount: 'rug' },
+  { id: 'official:mirror', category: 'decor', label: furnitureLabels.mirror, mount: 'wall' },
+  { id: 'official:towel-rack', category: 'decor', label: furnitureLabels.towelRack, mount: 'wall' },
+  { id: 'official:rug-runner', category: 'decor', label: furnitureLabels.rugRunner, mount: 'rug' },
+  { id: 'official:rug-paw', category: 'decor', label: furnitureLabels.rugPaw, mount: 'rug' },
+  { id: 'official:lamp-floor', category: 'decor', label: furnitureLabels.lampFloor, mount: 'floor' },
+  { id: 'official:lamp-table', category: 'decor', label: furnitureLabels.lampTable, mount: 'floor', small: true },
+  { id: 'official:lamp-wall', category: 'decor', label: furnitureLabels.lampWall, mount: 'wall' },
+  { id: 'official:lamp-string', category: 'decor', label: furnitureLabels.lampString, mount: 'wall' },
 
-  // ─── Picture Frames ─────────────────────────────────────────────────────
-  {
-    id: 'official:picture-frame',
-    category: 'frames',
-    label: 'Picture Frame',
-    asset: '/furniture/frame-wood.svg',
-    aspectRatio: 0.8,
-    baseWidth: 0.1,
-    allowedLayers: ['back'],
-    defaultLayer: 'back',
-    flippable: false,
-    shadow: 'none',
-    isFrame: true,
-    frameImageInset: '12% 15% 12% 15%',
-  },
-  {
-    id: 'official:picture-frame-gold',
-    category: 'frames',
-    label: 'Gold Frame',
-    asset: '/furniture/frame-gold.svg',
-    aspectRatio: 0.8,
-    baseWidth: 0.11,
-    allowedLayers: ['back'],
-    defaultLayer: 'back',
-    flippable: false,
-    shadow: 'none',
-    isFrame: true,
-    frameImageInset: '12% 15% 12% 15%',
-  },
-  {
-    id: 'official:picture-frame-square',
-    category: 'frames',
-    label: 'Square Frame',
-    asset: '/furniture/frame-square.svg',
-    aspectRatio: 1,
-    baseWidth: 0.1,
-    allowedLayers: ['back'],
-    defaultLayer: 'back',
-    flippable: false,
-    shadow: 'none',
-    isFrame: true,
-    frameImageInset: '12.5% 12.5% 12.5% 12.5%',
-  },
-  {
-    id: 'official:picture-frame-oval',
-    category: 'frames',
-    label: 'Oval Frame',
-    asset: '/furniture/frame-oval.svg',
-    aspectRatio: 70 / 90,
-    baseWidth: 0.09,
-    allowedLayers: ['back'],
-    defaultLayer: 'back',
-    flippable: false,
-    shadow: 'none',
-    isFrame: true,
-    frameImageInset: '8.9% 11.4% 8.9% 11.4%',
-    frameImageRadius: '50%',
-  },
+  // Plants
+  { id: 'official:plant-small', category: 'plants', label: furnitureLabels.plantSmall, mount: 'floor', small: true },
+  { id: 'official:plant-tall', category: 'plants', label: furnitureLabels.plantTall, mount: 'floor' },
+  { id: 'official:plant-cactus', category: 'plants', label: furnitureLabels.plantCactus, mount: 'floor', small: true },
+  { id: 'official:plant-fern', category: 'plants', label: furnitureLabels.plantFern, mount: 'floor' },
+  { id: 'official:plant-hanging', category: 'plants', label: furnitureLabels.plantHanging, mount: 'wall' },
 
-  // ─── Beds ───────────────────────────────────────────────────────────────
-  {
-    id: 'official:bed-round',
-    category: 'furniture',
-    label: 'Round Bed',
-    asset: '/furniture/bed-round.svg',
-    aspectRatio: 1.6,
-    baseWidth: 0.20,
-    allowedLayers: ['floor'],
-    defaultLayer: 'floor',
-    allowedRooms: ['rest', 'home'],
-    flippable: false,
-    shadow: 'none',
-    renderOrder: -10,
-  },
-  {
-    id: 'official:bed-cushion',
-    category: 'furniture',
-    label: 'Cushion Bed',
-    asset: '/furniture/bed-cushion.svg',
-    aspectRatio: 1.5,
-    baseWidth: 0.18,
-    allowedLayers: ['floor'],
-    defaultLayer: 'floor',
-    allowedRooms: ['rest', 'home'],
-    flippable: true,
-    shadow: 'none',
-    renderOrder: -10,
-  },
-  {
-    id: 'official:bed-basket',
-    category: 'furniture',
-    label: 'Basket Bed',
-    asset: '/furniture/bed-basket.svg',
-    aspectRatio: 1.3,
-    baseWidth: 0.16,
-    allowedLayers: ['floor'],
-    defaultLayer: 'floor',
-    allowedRooms: ['rest', 'home'],
-    flippable: true,
-    shadow: 'none',
-    renderOrder: -10,
-  },
+  // Clocks
+  { id: 'official:clock-wall', category: 'clocks', label: furnitureLabels.clockWall, mount: 'wall' },
+  { id: 'official:clock-wall-modern', category: 'clocks', label: furnitureLabels.clockWallModern, mount: 'wall' },
+  { id: 'official:clock-wall-cute', category: 'clocks', label: furnitureLabels.clockWallCute, mount: 'wall' },
+  { id: 'official:clock-wall-digital', category: 'clocks', label: furnitureLabels.clockWallDigital, mount: 'wall' },
+  { id: 'official:clock-wall-flip', category: 'clocks', label: furnitureLabels.clockWallFlip, mount: 'wall' },
+  { id: 'official:clock-table', category: 'clocks', label: furnitureLabels.clockTable, mount: 'floor', small: true },
+  { id: 'official:clock-bedside', category: 'clocks', label: furnitureLabels.clockBedside, mount: 'floor', small: true, allowedRooms: BEDROOM },
+  { id: 'official:clock-alarm', category: 'clocks', label: furnitureLabels.clockAlarm, mount: 'floor', small: true, allowedRooms: BEDROOM },
+  { id: 'official:clock-table-digital', category: 'clocks', label: furnitureLabels.clockTableDigital, mount: 'floor', small: true, allowedRooms: BEDROOM },
 
-  // ─── Rugs ──────────────────────────────────────────────────────────────
-  {
-    id: 'official:rug-rectangle',
-    category: 'decor',
-    label: 'Rectangle Rug',
-    asset: '/furniture/rug-rectangle.svg',
-    aspectRatio: 1.6,
-    baseWidth: 0.28,
-    allowedLayers: ['floor'],
-    defaultLayer: 'floor',
-    flippable: false,
-    shadow: 'none',
-    renderOrder: -20,
-  },
-  {
-    id: 'official:rug-runner',
-    category: 'decor',
-    label: 'Runner Rug',
-    asset: '/furniture/rug-runner.svg',
-    aspectRatio: 3.0,
-    baseWidth: 0.30,
-    allowedLayers: ['floor'],
-    defaultLayer: 'floor',
-    flippable: false,
-    shadow: 'none',
-    renderOrder: -20,
-  },
-  {
-    id: 'official:rug-paw',
-    category: 'decor',
-    label: 'Paw Rug',
-    asset: '/furniture/rug-paw.svg',
-    aspectRatio: 1.0,
-    baseWidth: 0.18,
-    allowedLayers: ['floor'],
-    defaultLayer: 'floor',
-    flippable: false,
-    shadow: 'none',
-    renderOrder: -20,
-  },
-
-  // ─── More Plants ────────────────────────────────────────────────────────
-  {
-    id: 'official:plant-hanging',
-    category: 'plants',
-    label: 'Hanging Plant',
-    asset: '/furniture/plant-hanging.svg',
-    aspectRatio: 0.7,
-    baseWidth: 0.09,
-    allowedLayers: ['back'],
-    defaultLayer: 'back',
-    flippable: true,
-    shadow: 'none',
-  },
-  {
-    id: 'official:plant-cactus',
-    category: 'plants',
-    label: 'Cactus',
-    asset: '/furniture/plant-cactus.svg',
-    aspectRatio: 0.5,
-    baseWidth: 0.06,
-    allowedLayers: ['floor', 'front'],
-    defaultLayer: 'front',
-    flippable: false,
-    shadow: 'narrow',
-  },
-  {
-    id: 'official:plant-fern',
-    category: 'plants',
-    label: 'Fern',
-    asset: '/furniture/plant-fern.svg',
-    aspectRatio: 0.8,
-    baseWidth: 0.10,
-    allowedLayers: ['floor', 'front'],
-    defaultLayer: 'front',
-    flippable: true,
-    shadow: 'narrow',
-  },
-
-  // ─── Lamps / Lights ────────────────────────────────────────────────────
-  {
-    id: 'official:lamp-table',
-    category: 'decor',
-    label: 'Table Lamp',
-    asset: '/furniture/lamp-table.svg',
-    aspectRatio: 0.6,
-    baseWidth: 0.05,
-    allowedLayers: ['floor', 'front'],
-    defaultLayer: 'front',
-    flippable: false,
-    shadow: 'narrow',
-  },
-  {
-    id: 'official:lamp-wall',
-    category: 'decor',
-    label: 'Wall Sconce',
-    asset: '/furniture/lamp-wall.svg',
-    aspectRatio: 0.6,
-    baseWidth: 0.05,
-    allowedLayers: ['back'],
-    defaultLayer: 'back',
-    flippable: true,
-    shadow: 'none',
-  },
-  {
-    id: 'official:lamp-string',
-    category: 'decor',
-    label: 'String Lights',
-    asset: '/furniture/lamp-string.svg',
-    aspectRatio: 4.0,
-    baseWidth: 0.25,
-    allowedLayers: ['back'],
-    defaultLayer: 'back',
-    flippable: false,
-    shadow: 'none',
-  },
-
-  // ─── Shelves / Storage ─────────────────────────────────────────────────
-  {
-    id: 'official:shelf-books',
-    category: 'furniture',
-    label: 'Bookshelf',
-    asset: '/furniture/shelf-books.svg',
-    aspectRatio: 0.5,
-    baseWidth: 0.10,
-    allowedLayers: ['back'],
-    defaultLayer: 'back',
-    flippable: false,
-    shadow: 'none',
-  },
-  {
-    id: 'official:shelf-floating',
-    category: 'furniture',
-    label: 'Floating Shelf',
-    asset: '/furniture/shelf-floating.svg',
-    aspectRatio: 3.0,
-    baseWidth: 0.14,
-    allowedLayers: ['back'],
-    defaultLayer: 'back',
-    flippable: false,
-    shadow: 'none',
-  },
-  {
-    id: 'official:cabinet-small',
-    category: 'furniture',
-    label: 'Small Cabinet',
-    asset: '/furniture/cabinet-small.svg',
-    aspectRatio: 70 / 90,
-    baseWidth: 0.09,
-    allowedLayers: ['floor', 'front'],
-    defaultLayer: 'floor',
-    flippable: true,
-    shadow: 'narrow',
-  },
-] as const satisfies readonly FurnitureDefinition[];
+  // Frames
+  { id: 'official:picture-frame', category: 'frames', label: furnitureLabels.pictureFrame, mount: 'wall', isFrame: true },
+  { id: 'official:picture-frame-gold', category: 'frames', label: furnitureLabels.pictureFrameGold, mount: 'wall', isFrame: true },
+  { id: 'official:picture-frame-square', category: 'frames', label: furnitureLabels.pictureFrameSquare, mount: 'wall', isFrame: true },
+  { id: 'official:picture-frame-oval', category: 'frames', label: furnitureLabels.pictureFrameOval, mount: 'wall', isFrame: true },
+];
 
 // ─── Lookup Index ─────────────────────────────────────────────────────────────
 
@@ -568,13 +166,18 @@ const officialIndex = new Map<string, FurnitureDefinition>(
   OFFICIAL_FURNITURE.map((def) => [def.id, def]),
 );
 
+/** Whether an ID names built-in furniture (as opposed to a network object). */
+export function isOfficialFurnitureId(id: string): boolean {
+  return id.startsWith('official:');
+}
+
 // ─── Resolver ─────────────────────────────────────────────────────────────────
 
 /**
  * Resolve a namespaced furniture ID to its definition.
  *
- * Currently only resolves `official:*` IDs. Future namespaces (`custom:*`,
- * `nostr:*`) will add branches here without changing the call site API.
+ * Resolves `official:*` IDs from the catalog and `sno:<naddr>` IDs (Simple
+ * Nostr Objects) to a generic 3D-object definition.
  *
  * Returns undefined for unknown or unresolvable IDs.
  */
@@ -582,34 +185,16 @@ export function resolveFurniture(id: string): FurnitureDefinition | undefined {
   const colonIdx = id.indexOf(':');
   if (colonIdx <= 0) return undefined;
 
-  const namespace = id.slice(0, colonIdx);
-
-  switch (namespace) {
+  switch (id.slice(0, colonIdx)) {
     case 'official':
       return officialIndex.get(id);
-    // Future: case 'custom': / case 'nostr':
+    case 'sno':
+      return parseSnoFurnitureId(id)
+        ? { id, category: 'objects', label: furnitureLabels.snoObject, mount: 'floor' }
+        : undefined;
     default:
       return undefined;
   }
-}
-
-/**
- * Get the asset path for a furniture item, accounting for variants.
- * For items with variants, returns the variant-specific asset path.
- * Falls back to the default asset if variant is invalid.
- */
-export function getFurnitureAsset(def: FurnitureDefinition, variant?: string): string {
-  if (!def.variants || !variant || !def.variants.includes(variant)) {
-    return def.asset;
-  }
-  // Convention: variant asset = base path with variant suffix before extension.
-  // e.g. "/furniture/frame-wood.svg" with variant "gold" → "/furniture/frame-gold.svg"
-  const extIdx = def.asset.lastIndexOf('.');
-  if (extIdx <= 0) return def.asset;
-
-  const basePath = def.asset.slice(0, def.asset.lastIndexOf('-'));
-  const ext = def.asset.slice(extIdx);
-  return `${basePath}-${variant}${ext}`;
 }
 
 /**
@@ -631,13 +216,14 @@ export function getAvailableFurnitureForRoom(roomId: BlobbiRoomId): FurnitureDef
 // ─── Category Helpers ─────────────────────────────────────────────────────────
 
 /** Display labels for each category */
-const CATEGORY_LABELS: Record<FurnitureCategory, string> = {
-  furniture: 'Furniture',
-  decor: 'Decor',
-  plants: 'Plants',
-  clocks: 'Clocks',
-  frames: 'Frames',
-};
+export const CATEGORY_LABELS: Record<FurnitureCategory, MessageDescriptor> = defineMessages({
+  furniture: { id: 'blobbiRoom.category.furniture', defaultMessage: 'Furniture' },
+  decor: { id: 'blobbiRoom.category.decor', defaultMessage: 'Decor' },
+  plants: { id: 'blobbiRoom.category.plants', defaultMessage: 'Plants' },
+  clocks: { id: 'blobbiRoom.category.clocks', defaultMessage: 'Clocks' },
+  frames: { id: 'blobbiRoom.category.frames', defaultMessage: 'Frames' },
+  objects: { id: 'blobbiRoom.category.objects', defaultMessage: '3D Objects' },
+});
 
 /** Display order for categories in the catalog */
 const CATEGORY_ORDER: readonly FurnitureCategory[] = ['furniture', 'decor', 'plants', 'clocks', 'frames'];
@@ -645,7 +231,7 @@ const CATEGORY_ORDER: readonly FurnitureCategory[] = ['furniture', 'decor', 'pla
 /** A category group with its display label and available items */
 export interface FurnitureCategoryGroup {
   category: FurnitureCategory;
-  label: string;
+  label: MessageDescriptor;
   items: FurnitureDefinition[];
 }
 
