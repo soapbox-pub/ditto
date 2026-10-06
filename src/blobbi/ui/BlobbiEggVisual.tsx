@@ -16,7 +16,7 @@ import { useMemo, useRef } from 'react';
 import { EggGraphic, type EggReactionState, type EggStatusEffects, type EggTourVisualState } from '@/blobbi/egg';
 import { toEggGraphicVisualBlobbi } from '@/blobbi/core/lib/blobbi-egg-adapter';
 import { cn } from '@/lib/utils';
-import { usePauseOffscreenAnimations } from './lib/usePauseOffscreenAnimations';
+import { useBlobbiSvgAnimations } from './lib/useBlobbiSvgAnimations';
 import type { BlobbiCompanion } from '@blobbi-kit/core';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ export function BlobbiEggVisual({
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
   const containerRef = useRef<HTMLDivElement>(null);
-  usePauseOffscreenAnimations(containerRef);
+  useBlobbiSvgAnimations(containerRef);
   
   return (
     <div

@@ -23,7 +23,7 @@ import { useRef, type RefObject } from 'react';
 import { cn } from '@/lib/utils';
 
 import { useBlobbiEyes, type BlobbiLookMode } from './lib/useBlobbiEyes';
-import { usePauseOffscreenAnimations } from './lib/usePauseOffscreenAnimations';
+import { useBlobbiSvgAnimations } from './lib/useBlobbiSvgAnimations';
 import { useExternalEyeOffset } from './lib/useExternalEyeOffset';
 import type { ExternalEyeOffset, BlobbiReactionState, BlobbiRenderMode } from './lib/types';
 import type { BlobbiVisualRecipe } from './lib/recipe';
@@ -87,7 +87,7 @@ export function BlobbiAdultVisual({
 
   // ── Eye hooks ──────────────────────────────────────────────────────────────
 
-  usePauseOffscreenAnimations(containerRef);
+  useBlobbiSvgAnimations(containerRef);
 
   useBlobbiEyes(containerRef, {
     isSleeping,
