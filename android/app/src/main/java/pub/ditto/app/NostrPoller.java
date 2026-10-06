@@ -163,13 +163,17 @@ public class NostrPoller {
 
         // Post immediately without the avatar — never block a notification on
         // an image fetch. Re-posts silently in place once the avatar loads.
+        long t = ServiceProfiler.begin("notify.post");
         postCombinedNotification(false);
+        ServiceProfiler.end("notify.post", t);
 
         if (authorPicture != null && !authorPicture.isEmpty()) {
             loadAvatar(authorPicture, httpClient, bitmap -> {
                 if (bitmap != null) {
                     entry.avatar = bitmap;
+                    long tRepost = ServiceProfiler.begin("notify.post avatar");
                     postCombinedNotification(true);
+                    ServiceProfiler.end("notify.post avatar", tRepost);
                 }
             });
         }
@@ -510,14 +514,18 @@ public class NostrPoller {
     private void loadAvatar(String url, OkHttpClient httpClient, BitmapCallback cb) {
         Bitmap cached = avatarCache.get(url);
         if (cached != null) {
+            ServiceProfiler.count("avatar.cache hit");
             cb.onBitmap(cached);
             return;
         }
+        ServiceProfiler.count("avatar.fetch");
+        long fetchStart = ServiceProfiler.now();
         try {
             Request request = new Request.Builder().url(url).build();
             httpClient.newCall(request).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, java.io.IOException e) {
+                    ServiceProfiler.count("avatar.fetch failure");
                     handler.post(() -> cb.onBitmap(null));
                 }
 
@@ -527,10 +535,19 @@ public class NostrPoller {
                     try {
                         if (response.isSuccessful() && response.body() != null) {
                             byte[] bytes = response.body().bytes();
+                            if (ServiceProfiler.ON) {
+                                ServiceProfiler.elapsed("avatar.fetch roundtrip", fetchStart);
+                                ServiceProfiler.units("avatar.bytes", bytes.length);
+                            }
+                            long tDecode = ServiceProfiler.begin("avatar.decode");
                             Bitmap raw = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
                             if (raw != null) {
+                                if (ServiceProfiler.ON) {
+                                    ServiceProfiler.peak("avatar.decoded px", (long) raw.getWidth() * raw.getHeight());
+                                }
                                 result = circleCrop(raw);
                             }
+                            ServiceProfiler.end("avatar.decode", tDecode);
                         }
                     } catch (Exception ignored) {
                     } finally {

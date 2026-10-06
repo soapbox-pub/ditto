@@ -151,6 +151,10 @@ public class NotificationRelayService extends Service {
 
     private final List<RelayConnection> connections = new ArrayList<>();
 
+    // Frames posted to the handler and not yet handled (profiling builds only).
+    private final java.util.concurrent.atomic.AtomicInteger pendingFrames =
+            new java.util.concurrent.atomic.AtomicInteger();
+
     // Config (from SharedPreferences, written by DittoNotificationPlugin).
     private String userPubkey;
     // Relay URL → the filters to REQ there, from every subscription naming it.
@@ -358,6 +362,15 @@ public class NotificationRelayService extends Service {
     // ── Config ────────────────────────────────────────────────────────────────
 
     private void loadConfigAndReconnect() {
+        long t = ServiceProfiler.begin("config.reload");
+        try {
+            loadConfigAndReconnectInner();
+        } finally {
+            ServiceProfiler.end("config.reload", t);
+        }
+    }
+
+    private void loadConfigAndReconnectInner() {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String previousPubkey = userPubkey;
         userPubkey = prefs.getString("userPubkey", null);
@@ -383,6 +396,7 @@ public class NotificationRelayService extends Service {
         // A different account starts over: nothing held for the last one
         // (sockets, held events, lookups) may carry across.
         if (previousPubkey != null && !previousPubkey.equals(userPubkey)) {
+            ServiceProfiler.count("config.reload account switch");
             closeAllConnections();
         }
 
@@ -400,6 +414,7 @@ public class NotificationRelayService extends Service {
         for (String url : relayFilters.keySet()) {
             RelayConnection rc = existing.remove(url);
             if (rc == null || rc.closed) {
+                ServiceProfiler.count("config.reload new relay");
                 rc = new RelayConnection(url);
                 connections.add(rc);
                 rc.connect();
@@ -407,16 +422,23 @@ public class NotificationRelayService extends Service {
             }
             connections.add(rc);
             if (rc.quarantined) {
+                ServiceProfiler.count("config.reload unquarantine");
                 rc.onFleetEdge();
             } else if (rc.socketOpen && rc.ws != null
                     && !filterSignature(relayFilters.get(url)).equals(rc.reqSignature)) {
+                ServiceProfiler.count("config.reload re-REQ");
                 rc.sendMainReq(rc.ws);
             } else if (rc.ws == null && !rc.retryPending) {
                 rc.connect();
+            } else {
+                ServiceProfiler.count("config.reload kept");
             }
         }
         // Relays the new config no longer names.
-        for (RelayConnection gone : existing.values()) gone.close();
+        for (RelayConnection gone : existing.values()) {
+            ServiceProfiler.count("config.reload dropped relay");
+            gone.close();
+        }
     }
 
     /** Group the subscriptions' filters by the relays they name. */
@@ -475,7 +497,56 @@ public class NotificationRelayService extends Service {
         }
     }
 
+    /** Sizes worth watching over a long-running window (profiling builds). */
+    private Map<String, Long> profileGauges() {
+        Map<String, Long> g = new java.util.LinkedHashMap<>();
+        long open = 0, quarantined = 0, retrying = 0;
+        for (RelayConnection rc : connections) {
+            if (rc.socketOpen) open++;
+            if (rc.quarantined) quarantined++;
+            if (rc.retryPending) retrying++;
+        }
+        g.put("connections", (long) connections.size());
+        g.put("openSockets", open);
+        g.put("quarantined", quarantined);
+        g.put("retryPending", retrying);
+        g.put("notifiedIds", (long) notifiedIds.size());
+        g.put("eventCache", (long) eventCache.size());
+        g.put("profileCache", (long) profileCache.size());
+        g.put("recentEvents", (long) recentEvents.size());
+        g.put("stasisBuffer", (long) stasisBuffer.size());
+        g.put("follows", (long) follows.size());
+        g.put("handlerQueue", (long) pendingFrames.get());
+        return g;
+    }
+
+    /**
+     * Profiling builds answer {@code adb shell dumpsys activity service
+     * pub.ditto.app.profile/pub.ditto.app.NotificationRelayService [reset]}
+     * with the profile — readable with the app UI dead, which is the state
+     * being measured. Gauges are read from the binder thread without the
+     * handler's ordering; they are sizes, so a torn read is harmless.
+     */
+    @Override
+    protected void dump(java.io.FileDescriptor fd, java.io.PrintWriter writer, String[] args) {
+        if (!ServiceProfiler.ON) {
+            super.dump(fd, writer, args);
+            return;
+        }
+        if (args != null && java.util.Arrays.asList(args).contains("reset")) {
+            ServiceProfiler.reset();
+            writer.println("{\"reset\":true}");
+            return;
+        }
+        try {
+            writer.println(ServiceProfiler.snapshot(profileGauges()).toString(2));
+        } catch (Exception e) {
+            writer.println("{\"error\":\"" + e.getMessage() + "\"}");
+        }
+    }
+
     private void closeAllConnections() {
+        if (ServiceProfiler.ON) ServiceProfiler.units("socket.closeAll", connections.size());
         for (RelayConnection rc : connections) {
             rc.close();
         }
@@ -560,6 +631,10 @@ public class NotificationRelayService extends Service {
             retryPending = false;
             if (closed || quarantined || ws != null || !isNetworkAvailable()) return;
             connectAttemptAt = System.currentTimeMillis();
+            if (ServiceProfiler.ON) {
+                ServiceProfiler.count("socket.connect");
+                ServiceProfiler.count("socket.connect " + ServiceProfiler.host(relayUrl));
+            }
             socketOpen = false;
             mainEosed = false;
             mainWalled = false;
@@ -570,6 +645,7 @@ public class NotificationRelayService extends Service {
                 @Override
                 public void onOpen(WebSocket webSocket, Response response) {
                     Log.d(TAG, "WS open: " + relayUrl);
+                    ServiceProfiler.count("socket.open");
                     handler.post(() -> {
                         if (closed || webSocket != ws) return;
                         socketOpen = true;
@@ -579,6 +655,26 @@ public class NotificationRelayService extends Service {
 
                 @Override
                 public void onMessage(WebSocket webSocket, String text) {
+                    if (ServiceProfiler.ON) {
+                        String family = ServiceProfiler.frameFamily(text);
+                        ServiceProfiler.units("frame.in " + family, text.length());
+                        ServiceProfiler.units("frame.in " + family + " " + ServiceProfiler.host(relayUrl), text.length());
+                        ServiceProfiler.units("frame.in bytes", text.length());
+                        ServiceProfiler.peak("handler.queue", pendingFrames.incrementAndGet());
+                        long posted = ServiceProfiler.now();
+                        handler.post(() -> {
+                            pendingFrames.decrementAndGet();
+                            // How long the frame sat behind other main-looper work.
+                            ServiceProfiler.elapsed("frame.wait", posted);
+                            long t = ServiceProfiler.begin("frame.handle");
+                            try {
+                                onRelayMessage(text, RelayConnection.this);
+                            } finally {
+                                ServiceProfiler.end("frame.handle", t);
+                            }
+                        });
+                        return;
+                    }
                     handler.post(() -> onRelayMessage(text, RelayConnection.this));
                 }
 
@@ -589,11 +685,17 @@ public class NotificationRelayService extends Service {
                     int httpCode = response != null ? response.code() : 0;
                     Log.w(TAG, "WS failure (" + relayUrl + "): " + t.getMessage()
                             + (httpCode != 0 ? " [HTTP " + httpCode + "]" : ""));
+                    if (ServiceProfiler.ON) {
+                        ServiceProfiler.count("socket.failure");
+                        ServiceProfiler.count("socket.failure " + ServiceProfiler.host(relayUrl)
+                                + " " + classifyFailure(t, httpCode));
+                    }
                     handler.post(() -> endSession(webSocket, classifyFailure(t, httpCode)));
                 }
 
                 @Override
                 public void onClosed(WebSocket webSocket, int code, String reason) {
+                    ServiceProfiler.count("socket.closed");
                     handler.post(() -> endSession(webSocket, null));
                 }
             });
@@ -633,7 +735,12 @@ public class NotificationRelayService extends Service {
                     req.put(filter);
                 }
 
-                webSocket.send(req.toString());
+                String text = req.toString();
+                if (ServiceProfiler.ON) {
+                    ServiceProfiler.units("frame.out REQ dn", text.length());
+                    ServiceProfiler.units("frame.out REQ dn " + ServiceProfiler.host(relayUrl), text.length());
+                }
+                webSocket.send(text);
             } catch (JSONException e) {
                 Log.w(TAG, "Failed to build REQ", e);
             }
@@ -647,6 +754,7 @@ public class NotificationRelayService extends Service {
                 f.put("kinds", new JSONArray().put(0));
                 f.put("authors", new JSONArray().put(pubkey));
                 f.put("limit", 1);
+                ServiceProfiler.count("frame.out REQ dp");
                 ws.send(reqMessage(profilePrefix + pubkey, f));
             } catch (JSONException ignored) {}
         }
@@ -660,6 +768,7 @@ public class NotificationRelayService extends Service {
                 JSONObject f = new JSONObject();
                 f.put("ids", idsArr);
                 f.put("limit", ids.size());
+                ServiceProfiler.count("frame.out REQ de");
                 ws.send(reqMessage(eventPrefix + Long.toHexString(System.nanoTime()), f));
             } catch (JSONException ignored) {}
         }
@@ -670,6 +779,7 @@ public class NotificationRelayService extends Service {
                 JSONArray close = new JSONArray();
                 close.put("CLOSE");
                 close.put(subId);
+                ServiceProfiler.count("frame.out CLOSE");
                 ws.send(close.toString());
             } catch (Exception ignored) {}
         }
@@ -720,6 +830,7 @@ public class NotificationRelayService extends Service {
                 if (consecutivePermanent >= PERMANENT_FAILURE_THRESHOLD
                         && now - firstPermanentAt >= QUARANTINE_AFTER_MS) {
                     quarantined = true;
+                    ServiceProfiler.count("socket.quarantine");
                     Log.w(TAG, "Quarantined " + relayUrl
                             + "; no retry until a network, config or foreground change");
                     return;
@@ -736,6 +847,7 @@ public class NotificationRelayService extends Service {
                 }
             }
             long delay = backoffMs;
+            if (ServiceProfiler.ON) ServiceProfiler.units("socket.retry scheduled ms", delay);
             backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
             handler.postDelayed(reconnectRunnable, delay);
             retryPending = true;
@@ -928,6 +1040,7 @@ public class NotificationRelayService extends Service {
     private void flushStasis() {
         stasisScheduled = false;
         if (stasisBuffer.isEmpty()) return;
+        if (ServiceProfiler.ON) ServiceProfiler.units("stasis.flush", stasisBuffer.size());
         List<JSONObject> batch = new ArrayList<>(stasisBuffer);
         stasisBuffer.clear();
         stasisBufferIds.clear();
@@ -942,7 +1055,17 @@ public class NotificationRelayService extends Service {
      * profiles.
      */
     private void processBatch(List<JSONObject> events) {
+        long t = ServiceProfiler.begin("batch.process");
+        try {
+            processBatchInner(events);
+        } finally {
+            ServiceProfiler.end("batch.process", t);
+        }
+    }
+
+    private void processBatchInner(List<JSONObject> events) {
         if (userPubkey == null) return;
+        if (ServiceProfiler.ON) ServiceProfiler.units("batch.events", events.size());
 
         if (eventCache.size() > MAX_CACHED_EVENTS) eventCache.clear();
 
@@ -974,6 +1097,7 @@ public class NotificationRelayService extends Service {
         poller.setLastSeenTimestamp(newestTs);
 
         if (candidates.isEmpty()) return;
+        if (ServiceProfiler.ON) ServiceProfiler.units("batch.candidates", candidates.size());
 
         // Flood suppression: fold this batch into a rolling window of recent
         // events so the crowd-based detectors can see a burst even though live
@@ -1003,9 +1127,12 @@ public class NotificationRelayService extends Service {
                     windowId, windowSender, event.optLong("created_at", 0), pTagsOf(event)));
         }
         // floodIds returns a fresh set, so the swarm ids can merge into it.
+        long tFlood = ServiceProfiler.begin("flood.detect");
         Set<String> flooded = FloodDetector.floodIds(floodWindow, userPubkey, follows);
         flooded.addAll(MentionSwarmDetector.swarmIds(swarmWindow, userPubkey, follows));
+        ServiceProfiler.end("flood.detect", tFlood);
         if (!flooded.isEmpty()) {
+            if (ServiceProfiler.ON) ServiceProfiler.units("flood.folded", flooded.size());
             candidates.removeIf(event -> flooded.contains(event.optString("id")));
             if (candidates.isEmpty()) return;
         }
@@ -1041,6 +1168,7 @@ public class NotificationRelayService extends Service {
             if (notifiable.isEmpty()) return;
 
             if (notifiable.size() > MAX_INDIVIDUAL_NOTIFICATIONS) {
+                ServiceProfiler.count("notify.summary");
                 poller.showSummaryNotification(notifiable.size());
                 return;
             }
@@ -1110,6 +1238,7 @@ public class NotificationRelayService extends Service {
             return;
         }
 
+        if (ServiceProfiler.ON) ServiceProfiler.units("lookup.events", waiting.size());
         EventLookup lookup = new EventLookup(waiting, done);
         pendingEventLookups.add(lookup);
 
@@ -1179,17 +1308,20 @@ public class NotificationRelayService extends Service {
     private void resolveAuthor(String pubkey, ProfileCallback cb) {
         Profile cached = profileCache.get(pubkey);
         if (cached != null) {
+            ServiceProfiler.count("lookup.profile cache hit");
             cb.onProfile(cached);
             return;
         }
         List<ProfileCallback> waiters = pendingProfiles.get(pubkey);
         if (waiters != null) {
+            ServiceProfiler.count("lookup.profile coalesced");
             waiters.add(cb); // a fetch is already in flight; piggyback on it
             return;
         }
         waiters = new ArrayList<>();
         waiters.add(cb);
         pendingProfiles.put(pubkey, waiters);
+        ServiceProfiler.count("lookup.profile fetch");
 
         boolean sentAny = false;
         for (RelayConnection rc : connections) {
@@ -1262,6 +1394,7 @@ public class NotificationRelayService extends Service {
             @Override
             public void onAvailable(Network network) {
                 Log.d(TAG, "Network available, reconnecting");
+                ServiceProfiler.count("network.available");
                 handler.post(() -> {
                     for (RelayConnection rc : connections) {
                         rc.onFleetEdge();
@@ -1272,6 +1405,7 @@ public class NotificationRelayService extends Service {
             @Override
             public void onLost(Network network) {
                 Log.d(TAG, "Network lost");
+                ServiceProfiler.count("network.lost");
             }
         };
 
@@ -1302,6 +1436,7 @@ public class NotificationRelayService extends Service {
         // The plugin writes several keys in one commit, which fires this once
         // per key — debounce so we rebuild the connections only once.
         configListener = (sharedPreferences, key) -> {
+            ServiceProfiler.count("config.prefs change");
             handler.removeCallbacks(reloadConfigRunnable);
             handler.postDelayed(reloadConfigRunnable, 500);
         };

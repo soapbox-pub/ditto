@@ -52,3 +52,6 @@ android/*/build/
 android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
 android/downloads/
 i18n-extract.json
+
+# On-device profiling output (scripts/android-profile.sh)
+perf-reports/
