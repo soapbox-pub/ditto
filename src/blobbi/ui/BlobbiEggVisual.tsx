@@ -11,11 +11,12 @@
  * contain any domain-to-visual mapping logic.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 
 import { EggGraphic, type EggReactionState, type EggStatusEffects, type EggTourVisualState } from '@/blobbi/egg';
 import { toEggGraphicVisualBlobbi } from '@/blobbi/core/lib/blobbi-egg-adapter';
 import { cn } from '@/lib/utils';
+import { usePauseOffscreenAnimations } from './lib/usePauseOffscreenAnimations';
 import type { BlobbiCompanion } from '@blobbi-kit/core';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -91,9 +92,13 @@ export function BlobbiEggVisual({
   
   // Disable reactions when sleeping
   const effectiveReaction = isSleeping ? 'idle' : reaction;
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  usePauseOffscreenAnimations(containerRef);
   
   return (
     <div
+      ref={containerRef}
       className={cn(
         // Use passed className if provided (e.g., "size-full" from parent),
         // otherwise use default container size

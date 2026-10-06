@@ -278,6 +278,13 @@
 }
 
 /* Slow continuous pulse for nagging buttons */
+/* A Blobbi scrolled off screen (usePauseOffscreenAnimations). Its SVG
+   animations run on the main thread every frame, visible or not. */
+.blobbi-offscreen,
+.blobbi-offscreen * {
+  animation-play-state: paused !important;
+}
+
 @keyframes pulse-slow {
   0%, 100% { transform: scale(1); opacity: 0.5; }
   50% { transform: scale(1.8); opacity: 0; }
