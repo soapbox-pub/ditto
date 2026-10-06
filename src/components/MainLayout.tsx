@@ -47,10 +47,11 @@ function MainLayoutInner() {
   const { user } = useCurrentUser();
   const { hidden: navHidden } = useScrollDirection(scrollContainer);
   const location = useLocation();
-  // WidgetSidebar hides itself with CSS below Tailwind's `lg` breakpoint
-  // (1024px, see WidgetSidebar.tsx). Skip *mounting* it entirely there so
-  // phones don't pay for its lazy chunks, relay queries, and render work.
-  const showWidgetSidebar = useMediaQuery('(min-width: 1024px)');
+  // Right sidebars (WidgetSidebar and the ones pages provide) hide themselves
+  // with CSS below Tailwind's `lg` breakpoint (1024px). Skip *mounting* them
+  // entirely there so phones don't pay for their lazy chunks, relay queries,
+  // and render work.
+  const showRightSidebar = useMediaQuery('(min-width: 1024px)');
 
   // Global "n" hotkey opens the compose modal from anywhere. Ignored while the
   // user is typing in an input/textarea/contenteditable, or when a modifier is
@@ -135,9 +136,11 @@ function MainLayoutInner() {
             Kept OUTSIDE the page Suspense so it persists (like LeftSidebar)
             while lazy page chunks load, instead of blanking out between
             navigations. Only mounted at `lg`+ — below that it would be
-            CSS-hidden anyway, so phones skip its chunks and queries. */}
+            CSS-hidden anyway, so phones skip its chunks and queries. That
+            includes a page's own sidebar: the profile's media grid and the
+            live stream's chat used to mount invisibly on phones. */}
         <Suspense fallback={<div className="w-1/4 max-w-[300px] shrink-0 hidden lg:block" />}>
-          {rightSidebar ?? (showWidgetSidebar && <WidgetSidebar />)}
+          {showRightSidebar && (rightSidebar ?? <WidgetSidebar />)}
         </Suspense>
       </div>
 
