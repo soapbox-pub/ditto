@@ -1,11 +1,22 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 /**
- * How far beyond the viewport (px, each direction) items stay mounted.
+ * How far beyond the viewport (px, each direction) items mount.
  * Generous enough that normal scrolling never shows an unmounted card,
  * small enough that a long session doesn't keep hundreds of cards live.
  */
 const MOUNT_MARGIN_PX = 2000;
+
+/**
+ * How far beyond the viewport a mounted item must get before it unmounts.
+ * Wider than {@link MOUNT_MARGIN_PX} so the two don't fight: an item mounts at
+ * the margin's edge alongside its neighbours, and as their placeholders give
+ * way to real (usually taller) cards it is pushed back out. With one margin it
+ * unmounted there and remounted on the next scroll step — a scroll profile
+ * threw away 28 of 72 NoteCard mounts within 150ms, each one starting and
+ * aborting its queries and NIP-05 fetches.
+ */
+const UNMOUNT_MARGIN_PX = 3000;
 
 /**
  * Fallback placeholder height before an item has ever been measured.
@@ -49,33 +60,43 @@ function rememberHeight(key: string | undefined, height: number): void {
 type VisibilityCallback = (entry: IntersectionObserverEntry) => void;
 
 /**
- * One shared IntersectionObserver for every feed item, instead of one
- * observer per item. Callbacks are looked up per element.
+ * One shared IntersectionObserver per margin for every feed item, instead of
+ * observers per item. Callbacks are looked up per element.
  */
-const callbacks = new Map<Element, VisibilityCallback>();
-let sharedObserver: IntersectionObserver | null = null;
-
-function getObserver(): IntersectionObserver | null {
-  if (typeof IntersectionObserver === 'undefined') return null;
-  sharedObserver ??= new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        callbacks.get(entry.target)?.(entry);
-      }
-    },
-    { rootMargin: `${MOUNT_MARGIN_PX}px 0px` },
-  );
-  return sharedObserver;
+interface SharedObserver {
+  observer: IntersectionObserver;
+  callbacks: Map<Element, VisibilityCallback>;
 }
 
-function observe(el: Element, cb: VisibilityCallback): () => void {
-  const observer = getObserver();
-  if (!observer) return () => {};
-  callbacks.set(el, cb);
-  observer.observe(el);
+const sharedObservers = new Map<number, SharedObserver>();
+
+function getObserver(marginPx: number): SharedObserver | null {
+  if (typeof IntersectionObserver === 'undefined') return null;
+  let shared = sharedObservers.get(marginPx);
+  if (!shared) {
+    const callbacks = new Map<Element, VisibilityCallback>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          callbacks.get(entry.target)?.(entry);
+        }
+      },
+      { rootMargin: `${marginPx}px 0px` },
+    );
+    shared = { observer, callbacks };
+    sharedObservers.set(marginPx, shared);
+  }
+  return shared;
+}
+
+function observe(el: Element, marginPx: number, cb: VisibilityCallback): () => void {
+  const shared = getObserver(marginPx);
+  if (!shared) return () => {};
+  shared.callbacks.set(el, cb);
+  shared.observer.observe(el);
   return () => {
-    observer.unobserve(el);
-    callbacks.delete(el);
+    shared.observer.unobserve(el);
+    shared.callbacks.delete(el);
   };
 }
 
@@ -101,9 +122,9 @@ interface LazyFeedItemProps {
 }
 
 /**
- * Windowed feed item: renders `children` only while the item is within
+ * Windowed feed item: mounts `children` once the item comes within
  * {@link MOUNT_MARGIN_PX} of the viewport, and swaps in a fixed-height
- * placeholder when it scrolls far away.
+ * placeholder once it is further than {@link UNMOUNT_MARGIN_PX} away.
  *
  * Why this exists: feeds accumulate pages without bound, and every mounted
  * NoteCard costs real memory and CPU (dozens of hooks, queries, effects, and
@@ -129,17 +150,25 @@ export function LazyFeedItem({ children, initialInView = false, className, cache
     const el = ref.current;
     if (!el) return;
 
-    return observe(el, (entry) => {
-      // Remember the rendered height on every visibility change. When the
-      // item is leaving the mount margin, this is also what sizes the
-      // placeholder so unmounting occupies exactly the same space.
+    const stopMount = observe(el, MOUNT_MARGIN_PX, (entry) => {
+      const height = entry.boundingClientRect.height;
+      if (height > 0) rememberHeight(cacheKeyRef.current, height);
+      if (entry.isIntersecting) setInView(true);
+    });
+    const stopUnmount = observe(el, UNMOUNT_MARGIN_PX, (entry) => {
+      // The height when leaving also sizes the placeholder, so unmounting
+      // occupies exactly the same space.
       const height = entry.boundingClientRect.height;
       if (height > 0) {
         if (!entry.isIntersecting) heightRef.current = height;
         rememberHeight(cacheKeyRef.current, height);
       }
-      setInView(entry.isIntersecting);
+      if (!entry.isIntersecting) setInView(false);
     });
+    return () => {
+      stopMount();
+      stopUnmount();
+    };
   }, []);
 
   // Items on screen when the whole feed unmounts (e.g. the user tapped a
