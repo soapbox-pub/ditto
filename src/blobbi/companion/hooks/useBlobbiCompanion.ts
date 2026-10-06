@@ -246,6 +246,7 @@ export function useBlobbiCompanion(): UseBlobbiCompanionResult {
     endDrag,
     setPosition,
   } = useBlobbiCompanionMotion({
+    isActive: isVisible,
     initialX: groundPosition.x, // Always use groundPosition - entry syncs to this
     groundY,
     bounds,

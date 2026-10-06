@@ -23,6 +23,14 @@ import {
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 
 interface UseBlobbiCompanionMotionOptions {
+  /**
+   * Whether the companion is showing. The physics loop requests a frame every
+   * vsync, so it runs only while there is a companion to move: hidden, the
+   * loop kept the page producing frames at idle, and each frame recomputed
+   * every IntersectionObserver on the page (a tenth of the main thread on a
+   * Pixel 8a with a long feed loaded).
+   */
+  isActive: boolean;
   /** Initial X position */
   initialX: number;
   /** Ground Y position */
@@ -62,6 +70,7 @@ interface UseBlobbiCompanionMotionResult {
  * Hook to manage companion physics and movement.
  */
 export function useBlobbiCompanionMotion({
+  isActive,
   initialX,
   groundY,
   bounds,
@@ -88,6 +97,11 @@ export function useBlobbiCompanionMotion({
   
   // Animation loop
   useEffect(() => {
+    if (!isActive) {
+      // Resume without a jump: the first frame back measures from itself.
+      lastTimeRef.current = 0;
+      return;
+    }
     const animate = (time: number) => {
       if (lastTimeRef.current === 0) {
         lastTimeRef.current = time;
@@ -157,7 +171,7 @@ export function useBlobbiCompanionMotion({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [state, targetX, energy, bounds, config, onReachedTarget]);
+  }, [isActive, state, targetX, energy, bounds, config, onReachedTarget]);
   
   // Drag handlers
   const startDrag = useCallback(() => {
