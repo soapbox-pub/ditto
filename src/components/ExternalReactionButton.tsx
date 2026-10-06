@@ -71,7 +71,9 @@ export function ExternalReactionButton({ content, iconSize = 'size-5', count, cl
   const justClosedRef = useRef(false);
   const pickerExpandedRef = useRef(false);
 
-  const handleMouseEnter = useCallback(() => {
+  // Hover only for pointers that can hover; on touch the tap's click toggles.
+  const handleMouseEnter = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
     if (!user) return;
     if (justClosedRef.current) return;
     if (closeTimeoutRef.current) {
@@ -81,7 +83,8 @@ export function ExternalReactionButton({ content, iconSize = 'size-5', count, cl
     setReactOpen(true);
   }, [user]);
 
-  const handleMouseLeave = useCallback(() => {
+  const handleMouseLeave = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
     if (pickerExpandedRef.current) return;
     closeTimeoutRef.current = setTimeout(() => setReactOpen(false), 150);
   }, []);
@@ -145,8 +148,8 @@ export function ExternalReactionButton({ content, iconSize = 'size-5', count, cl
             if (justClosedRef.current) return;
             setReactOpen((prev) => !prev);
           }}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
+          onPointerEnter={handleMouseEnter}
+          onPointerLeave={handleMouseLeave}
         >
           {hasReacted && userEmoji ? (
             <span className={cn(iconSize, 'flex items-center justify-center text-base leading-none')}>
@@ -166,8 +169,8 @@ export function ExternalReactionButton({ content, iconSize = 'size-5', count, cl
         align="start"
         onClick={(e) => e.stopPropagation()}
         onOpenAutoFocus={(e) => e.preventDefault()}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onPointerEnter={handleMouseEnter}
+        onPointerLeave={handleMouseLeave}
       >
         <QuickReactMenu
           eventId={identifier}

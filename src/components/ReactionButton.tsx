@@ -152,7 +152,11 @@ export function ReactionButton({
     );
   }, [user, nostr, eventId, eventPubkey, publishEvent, queryClient]);
 
-  const handleMouseEnter = useCallback(() => {
+  // Hover only for pointers that can hover. A first tap on Android WebView
+  // emits emulated enter events before the click, so opening here would let
+  // the click's toggle close the menu again, leaving just a sticky-hover heart.
+  const handleMouseEnter = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
     if (!user) return;
     if (hasReacted) return;
     if (justClosedRef.current) return;
@@ -164,7 +168,8 @@ export function ReactionButton({
     setMenuOpen(true);
   }, [user, hasReacted]);
 
-  const handleMouseLeave = useCallback(() => {
+  const handleMouseLeave = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
     // Don't auto-close when the full emoji picker is open
     if (pickerExpandedRef.current) return;
     // Delay closing to allow user to move to the menu
@@ -238,8 +243,8 @@ export function ReactionButton({
             },
           );
         }}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onPointerEnter={handleMouseEnter}
+        onPointerLeave={handleMouseLeave}
       >
         <span className="relative flex items-center justify-center">
           <span
@@ -301,8 +306,8 @@ export function ReactionButton({
         align="start"
         onClick={(e) => e.stopPropagation()}
         onOpenAutoFocus={(e) => e.preventDefault()}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onPointerEnter={handleMouseEnter}
+        onPointerLeave={handleMouseLeave}
       >
         <QuickReactMenu
           eventId={eventId}
