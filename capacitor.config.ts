@@ -4,6 +4,11 @@ const config: CapacitorConfig = {
   appId: 'pub.ditto.app',
   appName: 'Ditto',
   webDir: 'dist',
+  // Debug builds otherwise log every bridge call with its payload stringified
+  // into logcat, which costs main-thread time on every plugin call and skews
+  // on-device profiling. Web console output is still on chrome://inspect;
+  // release builds never logged.
+  loggingBehavior: 'none',
   server: {
     androidScheme: 'https',
     iosScheme: 'https'
