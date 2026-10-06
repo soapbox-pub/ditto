@@ -183,6 +183,30 @@ export function normalizeTokens(shape: string): string[] {
   return shape.match(WORD) ?? [];
 }
 
+/**
+ * Each event's shape and words, computed once. Callers re-run the detector over
+ * the whole batch every time it changes — a live search stream re-shaped every
+ * post on every arrival, which was most of the page's idle main-thread time.
+ * Keyed by id rather than object: the stream hands over fresh copies of the
+ * same events, and an id is a hash over the content, so it can't go stale.
+ */
+const shapeCache = new Map<string, { shape: string; words: string[] }>();
+const SHAPE_CACHE_MAX = 5_000;
+
+function shapeOf(ev: NostrEvent): { shape: string; words: string[] } {
+  let cached = shapeCache.get(ev.id);
+  if (!cached) {
+    const shape = shapeKey(ev.content);
+    cached = { shape, words: shape ? normalizeTokens(shape) : [] };
+    shapeCache.set(ev.id, cached);
+    if (shapeCache.size > SHAPE_CACHE_MAX) {
+      const oldest = shapeCache.keys().next().value;
+      if (oldest !== undefined) shapeCache.delete(oldest);
+    }
+  }
+  return cached;
+}
+
 /** One template and every reply that shares it. */
 interface Bucket {
   words: Set<string>;
@@ -239,10 +263,8 @@ export function replyFloodIds(
   // row of emoji) has nothing to repeat and joins no bucket.
   const byShape = new Map<string, Bucket>();
   for (const ev of replies) {
-    const shape = shapeKey(ev.content);
-    if (!shape) continue;
-    const words = normalizeTokens(shape);
-    if (words.length === 0) continue;
+    const { shape, words } = shapeOf(ev);
+    if (!shape || words.length === 0) continue;
     let bucket = byShape.get(shape);
     if (!bucket) {
       byShape.set(shape, (bucket = {
@@ -363,7 +385,7 @@ export function replyFloodIds(
   const perAuthor = new Map<string, Set<string>>();
   for (const ev of replies) {
     if (perAuthor.has(ev.pubkey)) continue; // first substantial reply per author
-    const words = normalizeTokens(shapeKey(ev.content));
+    const { words } = shapeOf(ev);
     if (words.length < SALAD_MIN_WORDS) continue;
     perAuthor.set(ev.pubkey, new Set(words));
   }
@@ -378,7 +400,7 @@ export function replyFloodIds(
     const members: { id: string; pubkey: string }[] = [];
     const memberAuthors = new Set<string>();
     for (const ev of replies) {
-      const words = normalizeTokens(shapeKey(ev.content));
+      const { words } = shapeOf(ev);
       if (words.length < SALAD_MIN_WORDS) continue;
       const distinct = new Set(words);
       let pool = 0;
