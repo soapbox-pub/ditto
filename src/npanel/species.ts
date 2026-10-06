@@ -32,18 +32,19 @@ export function wikidataId(e: NostrEvent): string | undefined {
 /** What English Wikipedia says of a Wikidata entity, or undefined where it says nothing. */
 export async function species(id: string, signal: AbortSignal): Promise<Species | undefined> {
   try {
-    // URLs are built as strings: npanel's `URL` can't be changed once made.
-    const entity = `https://www.wikidata.org/w/api.php?${new URLSearchParams({
+    const entity = new URL('https://www.wikidata.org/w/api.php');
+    entity.search = new URLSearchParams({
       action: 'wbgetentities', ids: id, props: 'sitelinks', sitefilter: 'enwiki', format: 'json',
-    })}`;
+    }).toString();
     const found = await json(entity, signal);
     const title = string(path(found, 'entities', id, 'sitelinks', 'enwiki', 'title'));
     if (!title) return undefined;
 
-    const article = `https://en.wikipedia.org/w/api.php?${new URLSearchParams({
+    const article = new URL('https://en.wikipedia.org/w/api.php');
+    article.search = new URLSearchParams({
       action: 'query', format: 'json', formatversion: '2', redirects: '1', titles: title,
       prop: 'pageimages|extracts', piprop: 'thumbnail', pithumbsize: '1280', exintro: '1', explaintext: '1', exsentences: '2',
-    })}`;
+    }).toString();
     const page = path(await json(article, signal), 'query', 'pages', 0);
     // "Robin (bird)" is a robin.
     const name = (string(path(page, 'title')) ?? title).replace(/\s*\([^)]*\)$/, '');
@@ -64,9 +65,9 @@ export function heard(person: string, bird: string): string {
   return `${person} heard ${an ? 'an' : 'a'} ${bird}`;
 }
 
-async function json(url: string, signal: AbortSignal): Promise<unknown> {
+async function json(url: URL, signal: AbortSignal): Promise<unknown> {
   const response = await fetch(url, { signal, headers: { Accept: 'application/json' } });
-  if (!response.ok) throw new Error(`${url} answered ${response.status}`);
+  if (!response.ok) throw new Error(`${url.hostname} answered ${response.status}`);
   return response.json();
 }
 
