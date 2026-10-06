@@ -72,7 +72,7 @@ describe('no local V3 implementation in Ditto', () => {
   });
 
   it('does no SVG surgery on a V3 drawing', () => {
-    for (const path of ['blobbi/ui/BlobbiV3Visual.tsx', 'blobbi/ui/lib/v3-expression.ts']) {
+    for (const path of ['blobbi/ui/BlobbiV3Visual.tsx', 'blobbi/ui/lib/v3-expression.ts', 'blobbi/ui/lib/v3-mouth.ts']) {
       const text = read(path);
       expect(text, path).not.toMatch(/dangerouslySetInnerHTML|innerHTML|\.replace\(|querySelector|setAttribute/);
       expect(text, path).not.toMatch(/applyVisualRecipe|addEyeAnimation|applyBodyEffects|customize\w*Svg|detectEyePositions|detectMouthPosition/);

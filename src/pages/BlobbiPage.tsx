@@ -32,6 +32,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
+import { getV3MouthRatio, type MouthRatio } from '@/blobbi/ui/lib/v3-mouth';
 import { BlobbiHatchingCeremony } from '@/blobbi/onboarding/components/BlobbiHatchingCeremony';
 import { decideFirstHatch } from '@/blobbi/onboarding/lib/first-hatch-decision';
 import { useRecoveredBlobbis } from '@/blobbi/onboarding/hooks/useRecoveredBlobbis';
@@ -1780,6 +1781,10 @@ function BlobbiDashboard({
     setActionOverrideEmotion(near ? 'eating' : null);
   }, []);
 
+  // A V3 Blobbi's mouth, as the kit measures this individual (the room draws
+  // it from the front, filling the visual square). V1/V2: null, their own anchors.
+  const v3Mouth = useMemo(() => getV3MouthRatio(companion), [companion]);
+
   /** Drag-to-feed handler: fires mutation immediately, overlays chewing
    *  animation for CHEW_DURATION_MS, then transitions to happy if the
    *  mutation succeeded, or clears the override on failure.
@@ -1835,7 +1840,11 @@ function BlobbiDashboard({
         const mouthEl = el.querySelector<SVGElement>('[data-blobbi-mouth]');
         let crumbOriginX: number;
         let crumbOriginY: number;
-        if (mouthEl) {
+        if (v3Mouth) {
+          // V3: the kit's measurement of this individual's mouth.
+          crumbOriginX = r.left + r.width * v3Mouth.x;
+          crumbOriginY = r.top + r.height * v3Mouth.y + CRUMB_Y_OFFSET;
+        } else if (mouthEl) {
           const mr = mouthEl.getBoundingClientRect();
           crumbOriginX = mr.left + mr.width / 2;
           crumbOriginY = mr.top + mr.height / 2 + CRUMB_Y_OFFSET;
@@ -1920,7 +1929,7 @@ function BlobbiDashboard({
         setUsingItemId(null);
       }
     }, 5000);
-  }, [isUsingItem, onUseItem, guideTarget, clearFeedTimers, companion.stats.hunger, maybeOverfeedPoop]);
+  }, [isUsingItem, onUseItem, guideTarget, clearFeedTimers, companion.stats.hunger, maybeOverfeedPoop, v3Mouth]);
 
   // ─── Setting things down in the room ───────────────────────────────────
   //
@@ -1996,7 +2005,7 @@ function BlobbiDashboard({
     onHover: (payload, point) => {
       if (payload.kind === 'shovel') markPoopUnder(point);
       if (payload.kind !== 'item' || droppedRef.current || getActionForItem(payload.itemId) !== 'feed') return;
-      handleNearMouthChange(!!point && isNearMouth(point.x, point.y));
+      handleNearMouthChange(!!point && isNearMouth(point.x, point.y, v3Mouth));
     },
     onDrop: (payload, clientX, clientY) => {
       if (payload.kind === 'shovel') {
@@ -2612,11 +2621,15 @@ function useItemDragHandlers(roomDrag: RoomDrag | undefined) {
 /** Distance (px) from the Blobbi's mouth that counts as feeding it. */
 const MOUTH_RADIUS = 80;
 
-function isNearMouth(x: number, y: number): boolean {
+/** Mouth anchor as a proportion of the visual container (V1/V2); a V3 Blobbi passes its own (`getV3MouthRatio`). */
+const DEFAULT_MOUTH: MouthRatio = { x: 0.5, y: 0.67 };
+
+function isNearMouth(x: number, y: number, mouth?: MouthRatio | null): boolean {
   const el = document.querySelector<HTMLElement>('[data-blobbi-visual]');
   if (!el) return false;
   const r = el.getBoundingClientRect();
-  return Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height * 0.67)) <= MOUTH_RADIUS;
+  const ratio = mouth ?? DEFAULT_MOUTH;
+  return Math.hypot(x - (r.left + r.width * ratio.x), y - (r.top + r.height * ratio.y)) <= MOUTH_RADIUS;
 }
 
 /** What's under the finger while dragging into the room. */

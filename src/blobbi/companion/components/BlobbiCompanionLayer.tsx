@@ -29,6 +29,7 @@ import { DebugGroundOverlay } from './DebugGroundOverlay';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { calculateGroundY } from '../utils/movement';
 import { getBlobbiMouthAnchor } from '../utils/mouthAnchor';
+import { getV3MouthRatio } from '@/blobbi/ui/lib/v3-mouth';
 import { useStatusReaction } from '@/blobbi/ui/hooks/useStatusReaction';
 import { buildSleepingRecipe } from '@/blobbi/ui/lib/recipe';
 import type { ActionType } from '@/blobbi/ui/lib/status-reactions';
@@ -217,7 +218,8 @@ export function BlobbiCompanionLayer() {
     lastVomitId.current = vomitEvent.id;
 
     // Compute spawn position (Blobbi's mouth area)
-    const mouth = getBlobbiMouthAnchor(companion.stage, companion.adultType);
+    // Shaken, so drawn from the front.
+    const mouth = getBlobbiMouthAnchor(companion.stage, companion.adultType, getV3MouthRatio(companion));
     const spawnX = renderedPosition.x + config.size * mouth.xRatio;
     const spawnY = renderedPosition.y + config.size * mouth.yRatio;
 

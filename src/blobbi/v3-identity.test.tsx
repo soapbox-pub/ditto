@@ -199,9 +199,9 @@ describe('Ditto reads the final V3 identity', () => {
       expect(resolveBlobbiV3Visual({ ...visual.v3!, seed: bad }).status, bad).toBe('none');
       // Drawn as no seed at all, not as some individual hashed from the text.
       expect(renderBlobbiSvg({ ...visual, instanceId: 'x' }).svg, bad).toBe(noSeed);
-      if (classifyBlobbiEvent(event) === 'legacy') continue; // never selected, so never republished
-      // One the kit still reads as modern (64 characters, not hex) is
-      // republished with its seed exactly as written: nothing repairs it.
+      // Not a modern V3 Blobbi (64 non-hex characters included): never selected, so never republished.
+      expect(classifyBlobbiEvent(event), bad).toBe('legacy');
+      // And were one republished anyway, its seed stays exactly as written: nothing repairs it.
       const republished = updateBlobbiTags(companion!.allTags, { state: 'sleeping' });
       expect(getTagValue(republished, 'seed'), bad).toBe(bad);
       expect(identityOf(republished), bad).toEqual(identityOf(tags));

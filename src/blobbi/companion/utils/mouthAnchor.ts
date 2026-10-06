@@ -6,9 +6,14 @@
  * BlobbiCompanionVisual.
  *
  * Used to position the vomit drop spawn point at the actual mouth.
+ *
+ * V1/V2 use the static table below. A V3 Blobbi has no adult form: its
+ * mouth is its own, measured by the kit (`getV3MouthRatio`) and passed in.
  */
 
 import { ADULT_FORMS, type AdultForm } from '@blobbi-kit/core/types/adult';
+
+import type { MouthRatio } from '@/blobbi/ui/lib/v3-mouth';
 
 // ─── Internal visual wrapper shift (BlobbiCompanionVisual translateY) ────────
 const VISUAL_Y_OFFSET = 0.12;
@@ -52,7 +57,13 @@ export interface MouthAnchorRatios {
 export function getBlobbiMouthAnchor(
   stage: 'egg' | 'baby' | 'adult',
   adultType?: string,
+  v3Mouth?: MouthRatio | null,
 ): MouthAnchorRatios {
+  // V3: the individual's own mouth, in the same square, under the same shift.
+  if (v3Mouth) {
+    return { xRatio: v3Mouth.x, yRatio: v3Mouth.y + VISUAL_Y_OFFSET };
+  }
+
   if (stage === 'baby') {
     return { xRatio: 0.5, yRatio: BABY_MOUTH_Y_RATIO };
   }

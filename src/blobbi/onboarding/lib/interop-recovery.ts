@@ -29,8 +29,10 @@ import {
   isValidBlobbiEvent,
   isCanonicalBlobbiD,
   parseBlobbiEvent,
+  parseVisualGeneration,
   type BlobbiCompanion,
 } from '@blobbi-kit/core/blobbi';
+import { canonicalBlobbiV3Seed } from '@blobbi-kit/core/blobbi-v3-identity';
 
 /**
  * Old-app schema tags that mark an event as genuinely-unsupported legacy from
@@ -68,7 +70,8 @@ function hasOldAppSchemaTag(event: NostrEvent): boolean {
  *   - passes blobbi-kit's own `isValidBlobbiEvent` (kind 31124, valid d/b/stage/
  *     state/last_interaction);
  *   - has a canonical d (`blobbi-<pubkeyPrefix12>-<petId10>`);
- *   - has a 64-char `seed` and a `name` (the identity blobbi-kit renders from);
+ *   - has a 64-char `seed` (on V3: a V3 seed, 64 hexadecimal digits) and a
+ *     `name` (the identity blobbi-kit renders from);
  *   - carries NO old-app schema tags.
  *
  * Empty content and missing Ditto-specific mission/evolution JSON are fine.
@@ -83,6 +86,9 @@ export function isDisplayableInteropBlobbi(event: NostrEvent): boolean {
 
   const seed = getTag(event, 'seed');
   if (!seed || seed.length !== 64) return false;
+  // A V3 Blobbi's seed is a V3 seed (64 hexadecimal digits) or none: never
+  // resurrect one the kit itself refuses as modern.
+  if (parseVisualGeneration(event.tags) === 'v3' && !canonicalBlobbiV3Seed(seed)) return false;
 
   const name = getTag(event, 'name');
   if (!name) return false;
