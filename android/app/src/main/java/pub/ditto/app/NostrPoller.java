@@ -540,7 +540,7 @@ public class NostrPoller {
                                 ServiceProfiler.units("avatar.bytes", bytes.length);
                             }
                             long tDecode = ServiceProfiler.begin("avatar.decode");
-                            Bitmap raw = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                            Bitmap raw = decodeSampled(bytes, AVATAR_PX);
                             if (raw != null) {
                                 if (ServiceProfiler.ON) {
                                     ServiceProfiler.peak("avatar.decoded px", (long) raw.getWidth() * raw.getHeight());
@@ -564,6 +564,24 @@ public class NostrPoller {
             // Malformed URL etc.
             cb.onBitmap(null);
         }
+    }
+
+    /**
+     * Decode at the smallest power-of-two downsample that still covers
+     * {@code minSide} on the short edge. Avatars are often 1024px or more, and
+     * a full decode (~4 MB of ARGB for 1024², 84ms on a Pixel 8a) was all to
+     * end at {@link #AVATAR_PX}.
+     */
+    private static Bitmap decodeSampled(byte[] bytes, int minSide) {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
+        int shortSide = Math.min(bounds.outWidth, bounds.outHeight);
+        int sample = 1;
+        while (shortSide > 0 && shortSide / (sample * 2) >= minSide) sample *= 2;
+        BitmapFactory.Options opts = new BitmapFactory.Options();
+        opts.inSampleSize = sample;
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.length, opts);
     }
 
     /** Scale to AVATAR_PX and crop to a circle for the large icon slot. */
