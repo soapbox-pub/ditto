@@ -6,6 +6,7 @@ import { nip19 } from 'nostr-tools';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { ReleaseNotesPreview } from '@/components/ReleaseNotesPreview';
 import { openUrl } from '@/lib/downloadFile';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { Badge } from '@/components/ui/badge';
@@ -456,9 +457,7 @@ export function SoftwareAppContent({ event, compact }: SoftwareAppContentProps) 
             <Package className="size-4 text-primary" />
             <span>Release {latestVersion}</span>
           </div>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words line-clamp-6">
-            {latestRelease.content}
-          </p>
+          <ReleaseNotesPreview notes={latestRelease.content} className="line-clamp-6" />
         </Link>
       )}
 

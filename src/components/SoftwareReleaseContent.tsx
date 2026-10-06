@@ -4,8 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Package,
   Download,
-  Tag,
-  Hash,
   Smartphone,
   Monitor,
   Globe,
@@ -14,25 +12,21 @@ import {
   GitCommit,
 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
-import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+import rehypeSanitize from 'rehype-sanitize';
 import { Link } from 'react-router-dom';
 
+import { ReleaseNotesPreview } from '@/components/ReleaseNotesPreview';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ZAPSTORE_RELAY } from '@/lib/appRelays';
+import { CHANGELOG_SANITIZE_SCHEMA } from '@/lib/changelogMarkdown';
 import { openUrl } from '@/lib/downloadFile';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
-
-/** Sanitize schema allowing only the subset needed for a CHANGELOG. */
-const CHANGELOG_SANITIZE_SCHEMA = {
-  ...defaultSchema,
-  tagNames: ['h1', 'h2', 'h3', 'ul', 'ol', 'li', 'p', 'strong', 'em', 'code', 'br'] as string[],
-  attributes: {},
-};
+import { cn } from '@/lib/utils';
 
 /** Get a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -135,6 +129,25 @@ function platformLabel(f: string): string {
   return map[f] ?? f;
 }
 
+/** Operating system named by the prefix of a platform identifier. */
+const PLATFORM_OS: Record<string, string> = {
+  android: 'Android',
+  darwin: 'macOS',
+  linux: 'Linux',
+  windows: 'Windows',
+  ios: 'iOS',
+};
+
+/** Describe a build's platforms by OS, e.g. "Linux ARM64" or "Android ARM64, ARMv7". */
+function platformsLabel(platforms: string[]): string {
+  const byOs = new Map<string, string[]>();
+  for (const f of platforms) {
+    const os = PLATFORM_OS[f.split('-')[0]] ?? '';
+    byOs.set(os, [...(byOs.get(os) ?? []), platformLabel(f)]);
+  }
+  return [...byOs].map(([os, archs]) => [os, archs.join(', ')].filter(Boolean).join(' ')).join('; ');
+}
+
 /** Channel label with color. */
 function ChannelBadge({ channel }: { channel: string }) {
   const variants: Record<string, string> = {
@@ -156,7 +169,7 @@ function useReleaseAssets(assetIds: string[]) {
   const { nostr } = useNostr();
 
   return useQuery<NostrEvent[]>({
-    queryKey: ['zapstore-assets', ...assetIds.sort()],
+    queryKey: ['zapstore-assets', ...[...assetIds].sort()],
     queryFn: async ({ signal }) => {
       if (assetIds.length === 0) return [];
       try {
@@ -213,89 +226,93 @@ function useReleaseApp(appIdentifier: string | undefined, releasePubkey: string)
   });
 }
 
-/** Single asset download row. */
-function AssetRow({ event }: { event: NostrEvent }) {
-  const mime = getTag(event.tags, 'm') ?? '';
+/** One artifact of a release, listed like a GitHub release asset: its name links to the file. */
+function ArtifactRow({ event }: { event: NostrEvent }) {
   const url = sanitizeUrl(getTag(event.tags, 'url'));
-  const version = getTag(event.tags, 'version');
   const size = formatSize(getTag(event.tags, 'size'));
-  const platforms = getAllTags(event.tags, 'f');
+  const platforms = platformsLabel(getAllTags(event.tags, 'f'));
   const variant = getTag(event.tags, 'variant');
-  const commit = getTag(event.tags, 'commit');
-  const hash = getTag(event.tags, 'x');
-
   const label = assetLabel(event.tags);
-  // When the filename is the label, still say what kind of package it is.
-  const format = getTag(event.tags, 'filename') ? knownMimeLabel(mime) : undefined;
-  const platformLabels = platforms.map(platformLabel);
-
-  const handleDownload = async () => {
-    if (url) {
-      await openUrl(url);
-    }
-  };
 
   return (
-    <div className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-muted/50 transition-colors group">
-      {/* Platform icon */}
-      <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-        <PlatformIcon mime={mime} className="size-4 text-primary" />
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium truncate">{label}</span>
-          {variant && (
-            <Badge variant="outline" className="text-xs px-1.5 py-0">
-              {variant}
-            </Badge>
-          )}
-          {platformLabels.length > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {platformLabels.join(', ')}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-          {format && (
-            <span className="text-xs text-muted-foreground">{format}</span>
-          )}
-          {version && (
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Tag className="size-3" />
-              {version}
-            </span>
-          )}
-          {size && (
-            <span className="text-xs text-muted-foreground">{size}</span>
-          )}
-          {commit && (
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <GitCommit className="size-3" />
-              <code className="font-mono">{commit.slice(0, 7)}</code>
-            </span>
-          )}
-          {hash && (
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Hash className="size-3" />
-              <code className="font-mono">{hash.slice(0, 8)}</code>
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Download button */}
-      {url && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={(e) => { e.stopPropagation(); handleDownload(); }}
+    <li className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 py-2 text-sm">
+      {url ? (
+        <a
+          href={url}
+          className="min-w-0 break-all font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+          onClick={(e) => {
+            // A plain link can't download inside the native app's web view.
+            e.preventDefault();
+            e.stopPropagation();
+            void openUrl(url);
+          }}
         >
-          <Download className="size-3.5" />
-          Download
-        </Button>
+          {label}
+        </a>
+      ) : (
+        <span className="min-w-0 break-all font-medium">{label}</span>
+      )}
+      <span className="ml-auto flex shrink-0 gap-4 text-muted-foreground">
+        {variant && <span>{variant}</span>}
+        {platforms && <span>{platforms}</span>}
+        {size && <span className="tabular-nums">{size}</span>}
+      </span>
+    </li>
+  );
+}
+
+/** A release's full Markdown notes, cut off with a fade past a fixed height until expanded. */
+function ReleaseNotes({ notes }: { notes: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setOverflowing(el.scrollHeight > el.clientHeight + 1);
+    check();
+    // Fonts and code spans settle after first paint, changing the height.
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [notes]);
+
+  return (
+    <div>
+      <div className="relative">
+        <div
+          ref={ref}
+          className={cn(
+            `prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed
+            [&_h1]:text-base [&_h1]:font-semibold [&_h1]:mt-3 [&_h1]:mb-1
+            [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1
+            [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1
+            [&_ul]:my-1 [&_ul]:pl-4 [&_ul]:list-disc
+            [&_ol]:my-1 [&_ol]:pl-4 [&_ol]:list-decimal
+            [&_li]:my-0.5
+            prose-code:before:content-none prose-code:after:content-none [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono
+            [&_p]:my-1
+            first:[&>*]:mt-0`,
+            !expanded && 'max-h-80 overflow-hidden',
+          )}
+        >
+          <Markdown rehypePlugins={[[rehypeSanitize, CHANGELOG_SANITIZE_SCHEMA]]}>
+            {notes}
+          </Markdown>
+        </div>
+        {overflowing && !expanded && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent" />
+        )}
+      </div>
+      {(overflowing || expanded) && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+          className="mt-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
       )}
     </div>
   );
@@ -321,7 +338,12 @@ export function SoftwareReleaseContent({ event, compact }: SoftwareReleaseConten
   const assetEntries = useMemo(() => getAllTagEntries(event.tags, 'e'), [event.tags]);
   const assetIds = useMemo(() => assetEntries.map(([, id]) => id).filter(Boolean), [assetEntries]);
 
-  const { data: assets = [], isLoading: assetsLoading } = useReleaseAssets(assetIds);
+  const { data: unorderedAssets, isLoading: assetsLoading } = useReleaseAssets(assetIds);
+  // List artifacts in the order the release names them, not the order relays return them.
+  const assets = useMemo(
+    () => [...(unorderedAssets ?? [])].sort((a, b) => assetIds.indexOf(a.id) - assetIds.indexOf(b.id)),
+    [unorderedAssets, assetIds],
+  );
   const { data: appEvent } = useReleaseApp(appIdentifier, event.pubkey);
 
   const appName = appEvent
@@ -344,24 +366,30 @@ export function SoftwareReleaseContent({ event, compact }: SoftwareReleaseConten
   const releaseNotes = event.content;
 
   if (compact) {
+    const compactIcon = appIcon ? (
+      <img
+        src={appIcon}
+        alt=""
+        className="size-10 rounded-xl object-cover shrink-0 shadow-sm"
+        loading="lazy"
+        onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+        decoding="async"
+      />
+    ) : (
+      <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+        <Package className="size-5 text-primary/50" />
+      </div>
+    );
+
     return (
       <div className="space-y-2.5">
         {/* Header: icon + app name + version */}
         <div className="flex items-start gap-3">
-          {appIcon ? (
-            <img
-              src={appIcon}
-              alt={appName ?? ''}
-              className="size-10 rounded-xl object-cover shrink-0 shadow-sm"
-              loading="lazy"
-              onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
-              decoding="async"
-            />
-          ) : (
-            <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Package className="size-5 text-primary/50" />
-            </div>
-          )}
+          {appNaddr ? (
+            <Link to={`/${appNaddr}`} onClick={(e) => e.stopPropagation()} className="shrink-0" tabIndex={-1} aria-hidden>
+              {compactIcon}
+            </Link>
+          ) : compactIcon}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               {appName && (
@@ -387,160 +415,101 @@ export function SoftwareReleaseContent({ event, compact }: SoftwareReleaseConten
             {/* Asset count summary */}
             {assetIds.length > 0 && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                {assetIds.length} {assetIds.length === 1 ? 'asset' : 'assets'} available
+                {assetIds.length} {assetIds.length === 1 ? 'artifact' : 'artifacts'}
               </p>
             )}
           </div>
         </div>
 
         {/* Release notes — rendered as Markdown, clamped to 4 lines */}
-        {releaseNotes && (
-          <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed text-muted-foreground line-clamp-4
-            [&_h1]:text-sm [&_h1]:font-semibold
-            [&_h2]:text-sm [&_h2]:font-semibold
-            [&_h3]:text-sm [&_h3]:font-semibold
-            [&_ul]:pl-4 [&_ul]:list-disc
-            [&_ol]:pl-4 [&_ol]:list-decimal
-            [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono
-            [&_p]:my-0 [&_li]:my-0 [&_h1]:my-0 [&_h2]:my-0 [&_h3]:my-0">
-            <Markdown rehypePlugins={[[rehypeSanitize, CHANGELOG_SANITIZE_SCHEMA]]}>
-              {releaseNotes}
-            </Markdown>
-          </div>
-        )}
+        {releaseNotes && <ReleaseNotesPreview notes={releaseNotes} />}
       </div>
     );
   }
 
+  const appPath = appNaddr ? `/${appNaddr}` : undefined;
+  const iconEl = appIcon ? (
+    <img
+      src={appIcon}
+      alt=""
+      className="size-6 rounded-md object-cover"
+      loading="lazy"
+      onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+      decoding="async"
+    />
+  ) : (
+    <Package className="size-5 text-muted-foreground" />
+  );
+
   // Full detail view
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-start gap-4">
-        {appIcon ? (
-          <img
-            src={appIcon}
-            alt={appName ?? ''}
-            className="size-14 rounded-2xl object-cover shrink-0 shadow-md"
-            loading="lazy"
-            onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
-            decoding="async"
-          />
+      {/* Header: the app, small, then the version this release is of */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {appPath ? (
+          <Link
+            to={appPath}
+            className="flex items-center gap-2 min-w-0 font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {iconEl}
+            <span className="truncate">{appName}</span>
+          </Link>
         ) : (
-          <div className="size-14 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Package className="size-7 text-primary/50" />
-          </div>
+          <span className="flex items-center gap-2 min-w-0 font-semibold">
+            {iconEl}
+            <span className="truncate">{appName}</span>
+          </span>
         )}
-
-        <div className="flex-1 min-w-0">
-          {appName && (
-            appNaddr ? (
-              <Link
-                to={`/${appNaddr}`}
-                className="text-lg font-bold leading-snug hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {appName}
-              </Link>
-            ) : (
-              <h2 className="text-lg font-bold leading-snug">{appName}</h2>
-            )
-          )}
-          <div className="flex items-center gap-2 flex-wrap mt-1.5">
-            {version && (
-              <Badge variant="secondary" className="text-xs px-2 py-0">
-                v{version}
-              </Badge>
-            )}
-            <ChannelBadge channel={channel} />
-          </div>
-        </div>
+        {version && (
+          <Badge variant="secondary" className="text-xs px-2 py-0">
+            v{version}
+          </Badge>
+        )}
+        <ChannelBadge channel={channel} />
+        {hasApk && appId && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto h-7 gap-1.5"
+            onClick={(e) => {
+              e.stopPropagation();
+              void openUrl(`https://zapstore.dev/apps/${encodeURIComponent(appId)}`);
+            }}
+          >
+            <ExternalLink className="size-3.5" />
+            View on Zapstore
+          </Button>
+        )}
       </div>
 
-      {/* Action row */}
-      {((hasApk && appId) || appNaddr) && (
-        <div className="flex items-center gap-2">
-          {hasApk && appId && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5"
-              onClick={(e) => {
-                e.stopPropagation();
-                void openUrl(`https://zapstore.dev/apps/${encodeURIComponent(appId)}`);
-              }}
-            >
-              <ExternalLink className="size-3.5" />
-              View on Zapstore
-            </Button>
-          )}
-          {appNaddr && (
-            <Button size="sm" variant="ghost" className="gap-1.5" asChild>
-              <Link to={`/${appNaddr}`} onClick={(e) => e.stopPropagation()}>
-                <Package className="size-3.5" />
-                App details
-              </Link>
-            </Button>
-          )}
-        </div>
-      )}
+      {releaseNotes && <ReleaseNotes notes={releaseNotes} />}
 
-      {/* Release notes */}
-      {releaseNotes && (
-        <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-            Release Notes
-          </p>
-          <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed
-            [&_h1]:text-base [&_h1]:font-semibold [&_h1]:mt-3 [&_h1]:mb-1
-            [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1
-            [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1
-            [&_ul]:my-1 [&_ul]:pl-4 [&_ul]:list-disc
-            [&_ol]:my-1 [&_ol]:pl-4 [&_ol]:list-decimal
-            [&_li]:my-0.5
-            [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono
-            [&_p]:my-1
-            first:[&>*]:mt-0">
-            <Markdown rehypePlugins={[[rehypeSanitize, CHANGELOG_SANITIZE_SCHEMA]]}>
-              {releaseNotes}
-            </Markdown>
-          </div>
-        </div>
-      )}
-
-      {/* Assets */}
+      {/* Artifacts */}
       {assetIds.length > 0 && (
-        <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
-            Downloads
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Artifacts <span className="tabular-nums">({assetIds.length})</span>
           </p>
-          <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
+          <ul className="divide-y divide-border">
             {assetsLoading
               ? Array.from({ length: Math.min(assetIds.length, 3) }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 px-3 py-2.5">
-                    <Skeleton className="size-8 rounded-lg shrink-0" />
-                    <div className="flex-1 space-y-1.5">
-                      <Skeleton className="h-3.5 w-32" />
-                      <Skeleton className="h-3 w-24" />
-                    </div>
-                  </div>
+                  <li key={i} className="flex items-center gap-4 py-2.5">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="ml-auto h-4 w-16" />
+                  </li>
                 ))
               : assets.length > 0
                 ? assets.map((asset) => (
-                    <AssetRow key={asset.id} event={asset} />
+                    <ArtifactRow key={asset.id} event={asset} />
                   ))
                 : assetIds.map((id) => (
-                    <div key={id} className="flex items-center gap-3 px-3 py-2.5">
-                      <div className="size-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                        <Package className="size-4 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground font-mono truncate">{id.slice(0, 16)}…</p>
-                      </div>
-                    </div>
+                    <li key={id} className="py-2 text-sm text-muted-foreground font-mono truncate">
+                      {id.slice(0, 16)}…
+                    </li>
                   ))
             }
-          </div>
+          </ul>
         </div>
       )}
     </div>
@@ -551,30 +520,22 @@ export function SoftwareReleaseContent({ event, compact }: SoftwareReleaseConten
 export function SoftwareReleaseSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="flex items-start gap-4">
-        <Skeleton className="size-14 rounded-2xl shrink-0" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-5 w-28" />
-          <div className="flex gap-2">
-            <Skeleton className="h-5 w-12 rounded-full" />
-            <Skeleton className="h-5 w-10 rounded-full" />
-          </div>
-        </div>
+      <div className="flex items-center gap-2">
+        <Skeleton className="size-6 rounded-md shrink-0" />
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="h-5 w-12 rounded-full" />
+        <Skeleton className="h-5 w-10 rounded-full" />
       </div>
-      <Skeleton className="h-8 w-36 rounded-md" />
       <div className="space-y-1.5">
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-4/5" />
         <Skeleton className="h-4 w-3/5" />
       </div>
-      <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
+      <div className="divide-y divide-border">
         {[1, 2].map((i) => (
-          <div key={i} className="flex items-center gap-3 px-3 py-2.5">
-            <Skeleton className="size-8 rounded-lg shrink-0" />
-            <div className="flex-1 space-y-1.5">
-              <Skeleton className="h-3.5 w-32" />
-              <Skeleton className="h-3 w-20" />
-            </div>
+          <div key={i} className="flex items-center gap-4 py-2.5">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="ml-auto h-4 w-16" />
           </div>
         ))}
       </div>

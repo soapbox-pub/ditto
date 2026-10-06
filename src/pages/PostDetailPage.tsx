@@ -2757,7 +2757,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 <SoftwareAppContent event={event} />
               </div>
             ) : isSoftwareRelease ? (
-              <div className="mt-3 rounded-xl border border-border overflow-hidden px-4 pt-4 pb-4">
+              <div className="mt-3">
                 <Suspense fallback={<SoftwareReleaseSkeleton />}>
                   <SoftwareReleaseContent event={event} />
                 </Suspense>
