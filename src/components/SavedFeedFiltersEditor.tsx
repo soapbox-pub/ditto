@@ -199,7 +199,7 @@ export function KindPicker({ value, options, onChange }: {
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary">
             <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
             <input
-              className="flex-1 min-w-0 text-base md:text-xs bg-transparent outline-none placeholder:text-muted-foreground"
+              className="flex-1 min-w-0 text-base md:text-xs bg-transparent outline-hidden placeholder:text-muted-foreground"
               placeholder="Search kinds..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -324,14 +324,14 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
           // Match the trigger width so the menu spans the full field instead of
           // left-aligning as a narrower box — inside a dialog's padding a fixed
           // width reads as "off-center left with a gap on the right".
-          className="w-[--radix-popover-trigger-width] min-w-64 p-0 flex flex-col overflow-hidden"
+          className="w-(--radix-popover-trigger-width) min-w-64 p-0 flex flex-col overflow-hidden"
           style={{ maxHeight: 'min(320px, var(--radix-popover-content-available-height, 320px))' }}
         >
           <div className="p-2 border-b border-border shrink-0">
             <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-secondary">
               <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
               <input
-                className="flex-1 min-w-0 text-base md:text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+                className="flex-1 min-w-0 text-base md:text-sm bg-transparent outline-hidden placeholder:text-muted-foreground"
                 placeholder="Search kinds..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}

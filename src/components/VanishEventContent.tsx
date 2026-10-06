@@ -35,7 +35,7 @@ export function VanishCardCompact({ event, className, timestamp }: VanishCardCom
       {/* Top caution stripe */}
       <div className="vanish-stripes h-1.5" />
 
-      <div className="px-3 py-2.5 bg-red-500/[0.04] dark:bg-red-500/[0.06] space-y-1.5">
+      <div className="px-3 py-2.5 bg-red-500/4 dark:bg-red-500/6 space-y-1.5">
         {/* Header row */}
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="relative shrink-0">
@@ -113,7 +113,7 @@ export function VanishEventContent({ event, compact }: VanishEventContentProps) 
       <div className="vanish-stripes h-3 rounded-t-xl" />
 
       {/* Main card body */}
-      <div className="relative border-x-2 border-red-500/30 bg-gradient-to-b from-red-500/[0.06] to-red-500/[0.02] dark:from-red-500/[0.08] dark:to-red-500/[0.03] px-5 py-6 overflow-hidden isolate">
+      <div className="relative border-x-2 border-red-500/30 bg-linear-to-b from-red-500/6 to-red-500/2 dark:from-red-500/8 dark:to-red-500/3 px-5 py-6 overflow-hidden isolate">
         {/* Subtle diagonal line pattern in background */}
         <div
           className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] -z-10 pointer-events-none"
@@ -155,7 +155,7 @@ export function VanishEventContent({ event, compact }: VanishEventContentProps) 
         </div>
 
         {/* Identity card */}
-        <div className="mt-5 rounded-lg border border-red-500/20 bg-red-500/[0.04] dark:bg-red-500/[0.06] p-4 space-y-3">
+        <div className="mt-5 rounded-lg border border-red-500/20 bg-red-500/4 dark:bg-red-500/6 p-4 space-y-3">
           <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider font-bold">
             <div className="size-2 rounded-full bg-red-500 vanish-blink" />
             <span>Identity</span>

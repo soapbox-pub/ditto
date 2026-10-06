@@ -411,7 +411,7 @@ export function BlobbiRoomShell({
   return (
     <div
       ref={shellRef}
-      className="relative flex flex-col flex-1 min-h-0 overflow-hidden select-none [container-type:inline-size]"
+      className="relative flex flex-col flex-1 min-h-0 overflow-hidden select-none @container"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -428,7 +428,7 @@ export function BlobbiRoomShell({
       {/* Taps and drags in the room */}
       {is3d && (
         <div
-          className={cn('absolute inset-0 z-[4] touch-none', isEditing ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer')}
+          className={cn('absolute inset-0 z-4 touch-none', isEditing ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer')}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -438,7 +438,7 @@ export function BlobbiRoomShell({
       )}
 
       {/* Things standing in the room, placed by the scene each frame */}
-      <div ref={worldAnchorsRef} className="absolute inset-0 z-[5] pointer-events-none" aria-hidden={!stage}>
+      <div ref={worldAnchorsRef} className="absolute inset-0 z-5 pointer-events-none" aria-hidden={!stage}>
         {stage && blobbiVisible && (
           <div
             data-anchor="blobbi"
@@ -478,13 +478,13 @@ export function BlobbiRoomShell({
       </div>
 
       {status !== 'unavailable' && (
-        <canvas ref={frontCanvasRef} className="absolute inset-0 z-[6] size-full pointer-events-none" aria-hidden />
+        <canvas ref={frontCanvasRef} className="absolute inset-0 z-6 size-full pointer-events-none" aria-hidden />
       )}
 
       {/* Sleep dims the room; in 3D the lights dim too, so the veil is lighter */}
       <div
         className={cn(
-          'absolute inset-0 z-[12] pointer-events-none transition-opacity duration-700',
+          'absolute inset-0 z-12 pointer-events-none transition-opacity duration-700',
           isSleeping ? 'opacity-100' : 'opacity-0',
         )}
         style={{ background: `radial-gradient(ellipse at 50% 45%, rgba(10,12,40,${is3d ? 0.08 : 0.25}) 0%, rgba(10,12,40,${is3d ? 0.3 : 0.5}) 100%)` }}
@@ -492,7 +492,7 @@ export function BlobbiRoomShell({
       />
 
       {/* UI that follows the room (the decorator's item toolbar) */}
-      <div ref={uiAnchorsRef} className="absolute inset-0 z-[45] pointer-events-none">
+      <div ref={uiAnchorsRef} className="absolute inset-0 z-45 pointer-events-none">
         {editor?.toolbar && editor.selectedIndex !== null && (
           <div data-anchor="item" data-index={editor.selectedIndex} className="absolute left-0 top-0">
             <div className="absolute bottom-3 left-0 -translate-x-1/2 pointer-events-auto">{editor.toolbar}</div>
@@ -501,7 +501,7 @@ export function BlobbiRoomShell({
       </div>
 
       {!isEditing && header && (
-        <div data-room-header className="relative z-[70] shrink-0">{header}</div>
+        <div data-room-header className="relative z-70 shrink-0">{header}</div>
       )}
 
       {/* HUD: decorate (left), room switcher, an empty slot (right) to keep it centred, then stats */}
@@ -570,7 +570,7 @@ export function BlobbiRoomShell({
 
       {/* Dock: inline activity, then the per-room bar on Ditto's arc */}
       {!isEditing && (
-        <div data-room-bottom className={cn('relative z-[15] shrink-0', ROOM_DOCK_SCALE)}>
+        <div data-room-bottom className={cn('relative z-15 shrink-0', ROOM_DOCK_SCALE)}>
           {middleSlot}
           <div className="relative">
             <ArcBackground variant="up-subtle" />
@@ -621,7 +621,7 @@ function RoomNavButton({ direction, label, onClick, guide }: {
         'size-[2.4em] shrink-0 rounded-full flex items-center justify-center',
         'text-foreground/70 hover:text-foreground hover:bg-foreground/10',
         'transition-colors duration-150 active:scale-90 motion-reduce:active:scale-100',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
         // A quiet tint and a few soft pulses, then it just stays tinted
         guide && ['bg-primary/10 text-primary', ROOM_GUIDE_RING_PULSE],
       )}

@@ -1030,7 +1030,7 @@ function ProfileImageLightbox({ imageUrl, imeta, onClose }: { imageUrl: string; 
   return createPortal(
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[100] flex items-center justify-center animate-in fade-in duration-200"
+      className="fixed inset-0 z-100 flex items-center justify-center animate-in fade-in duration-200"
       onClick={handleBackdropClick}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
@@ -1059,7 +1059,7 @@ function ProfileImageLightbox({ imageUrl, imeta, onClose }: { imageUrl: string; 
           </div>
         </div>
 
-        <div className="relative z-[1] flex items-center justify-center w-full h-full px-4 py-16 sm:px-16">
+        <div className="relative z-1 flex items-center justify-center w-full h-full px-4 py-16 sm:px-16">
           {!isLoaded && !source.failed && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
@@ -1276,7 +1276,7 @@ function SharedInterests({ tags }: { tags: string[] }) {
   return (
     <div className="flex items-start gap-1.5 mt-2 text-sm text-muted-foreground">
       <HeartHandshake className="size-3.5 shrink-0 mt-0.5 text-primary" aria-hidden="true" />
-      <p className="min-w-0 break-words">
+      <p className="min-w-0 wrap-break-word">
         You both like{' '}
         {shown.map((tag, i) => (
           <Fragment key={tag}>
@@ -2264,7 +2264,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 className="relative w-full h-full object-cover cursor-pointer"
                 onClick={() => setLightboxImage(metadata!.banner!)}
                 decoding="async"
-                fallback={<div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />}
+                fallback={<div className="absolute inset-0 bg-linear-to-br from-accent/10 via-transparent to-primary/5" />}
               />
               </>
             )}
@@ -2275,7 +2275,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 <DropdownMenuTrigger asChild>
                   <button
                     className={cn(
-                      'absolute top-3 right-3 z-10 size-9 rounded-full backdrop-blur-sm border flex items-center justify-center transition-colors',
+                      'absolute top-3 right-3 z-10 size-9 rounded-full backdrop-blur-xs border flex items-center justify-center transition-colors',
                       showCustomProfileThemes
                         ? 'bg-background/60 border-border/50 hover:bg-background/80'
                         : 'bg-background/40 border-border/30 hover:bg-background/60',
@@ -2412,7 +2412,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="absolute top-3 right-3 z-10 size-9 rounded-full backdrop-blur-sm border bg-background/60 border-border/50 hover:bg-background/80 flex items-center justify-center transition-colors"
+                    className="absolute top-3 right-3 z-10 size-9 rounded-full backdrop-blur-xs border bg-background/60 border-border/50 hover:bg-background/80 flex items-center justify-center transition-colors"
                   >
                     <Palette className="size-4 text-accent" />
                   </button>
@@ -2440,7 +2440,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
             {!isOwnProfile && birthdayNpub && (
               <Button
                 variant="outline"
-                className="absolute bottom-3 right-3 z-10 max-w-[calc(100%-1.5rem)] rounded-full font-bold backdrop-blur-sm border-amber-400/60 bg-background/70 text-amber-700 hover:bg-background/85 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
+                className="absolute bottom-3 right-3 z-10 max-w-[calc(100%-1.5rem)] rounded-full font-bold backdrop-blur-xs border-amber-400/60 bg-background/70 text-amber-700 hover:bg-background/85 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
                 onClick={() => setBirthdayComposeOpen(true)}
                 disabled={!user}
                 title={user ? undefined : 'Log in to wish a happy birthday'}
@@ -2471,7 +2471,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
                 <div className="relative">
                   <button
-                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
+                    className="focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary rounded-full"
                     onClick={() => metadata?.picture && setLightboxImage(metadata.picture)}
                     disabled={!metadata?.picture}
                   >
@@ -2488,7 +2488,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                   {/* Birthday party hat — perched on the avatar's head,
                       tilted like it was pulled on in a hurry. */}
                   {isBirthday && (
-                    <div className="pointer-events-none absolute -top-5 right-0 md:-top-7 md:right-1 z-10 rotate-[18deg]">
+                    <div className="pointer-events-none absolute -top-5 right-0 md:-top-7 md:right-1 z-10 rotate-18">
                       <PartyHat className="size-12 md:size-16 drop-shadow-md" />
                     </div>
                   )}
@@ -2499,7 +2499,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                       and a status that is only a custom-emoji image collapses to nothing. */}
                   {feedSettings.showUserStatuses !== false && profileStatus.status && (
                     <div className="absolute top-3 md:top-4 left-[calc(100%+8px)] z-10 w-max max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
-                      <div className="relative bg-background/90 backdrop-blur-sm border border-border rounded-xl px-3 py-1.5 shadow-lg">
+                      <div className="relative bg-background/90 backdrop-blur-xs border border-border rounded-xl px-3 py-1.5 shadow-lg">
                         <p className="text-xs md:text-sm text-foreground italic truncate">
                           {profileStatus.url ? (
                             <a href={profileStatus.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
@@ -2510,8 +2510,8 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                           )}
                         </p>
                         {/* Speech bubble triangle tail — bottom-left corner, points diagonally down-left toward avatar */}
-                        <div className="absolute -bottom-[7px] left-1 size-0 border-t-[8px] border-t-border border-r-[8px] border-r-transparent" />
-                        <div className="absolute -bottom-[5.5px] left-1 size-0 border-t-[7px] border-t-background border-r-[7px] border-r-transparent" />
+                        <div className="absolute bottom-[-7px] left-1 size-0 border-t-8 border-t-border border-r-8 border-r-transparent" />
+                        <div className="absolute bottom-[-5.5px] left-1 size-0 border-t-[7px] border-t-background border-r-[7px] border-r-transparent" />
                       </div>
                     </div>
                   )}
@@ -2646,7 +2646,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
               {isOwnProfile && pubkey && <StreakAtRisk pubkey={pubkey} className="mt-2" />}
 
               {metadata?.about && (
-                <p className="mt-3 text-sm whitespace-pre-wrap break-words overflow-hidden">
+                <p className="mt-3 text-sm whitespace-pre-wrap wrap-break-word overflow-hidden">
                   <BioContent tags={metadataEvent?.tags}>{metadata.about}</BioContent>
                 </p>
               )}
@@ -3218,7 +3218,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 {(['primary', 'text', 'background'] as const).map((key) => (
                   <div key={key} className="flex flex-col items-center gap-1.5">
                     <div
-                      className="size-10 rounded-full border border-border/50 shadow-sm"
+                      className="size-10 rounded-full border border-border/50 shadow-xs"
                       style={{ backgroundColor: `hsl(${ownCustomTheme.colors[key]})` }}
                     />
                     <span className="text-[10px] text-muted-foreground capitalize">{key}</span>
@@ -3518,7 +3518,7 @@ function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName
                   )}
                 />
               )}
-              <span className="text-xs text-muted-foreground text-center leading-tight line-clamp-2 max-w-[5rem] group-hover:text-foreground transition-colors">
+              <span className="text-xs text-muted-foreground text-center leading-tight line-clamp-2 max-w-20 group-hover:text-foreground transition-colors">
                 {isLoading ? <Skeleton className="h-3 w-14" /> : (badge?.name || ref.identifier)}
               </span>
             </Link>

@@ -98,8 +98,8 @@ export function GameControls({ webxdcHandle, className }: GameControlsProps) {
         <div className="relative size-[132px]">
           {/* Cross background */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-11 h-full rounded-lg bg-muted/80 backdrop-blur-sm border border-border/50" />
-            <div className="absolute w-full h-11 rounded-lg bg-muted/80 backdrop-blur-sm border border-border/50" />
+            <div className="w-11 h-full rounded-lg bg-muted/80 backdrop-blur-xs border border-border/50" />
+            <div className="absolute w-full h-11 rounded-lg bg-muted/80 backdrop-blur-xs border border-border/50" />
           </div>
           {/* Up */}
           <button
@@ -146,14 +146,14 @@ export function GameControls({ webxdcHandle, className }: GameControlsProps) {
         {/* A / B buttons */}
         <div className="flex items-center gap-3">
           <button
-            className="size-14 rounded-full bg-muted/80 backdrop-blur-sm border border-border/50 flex items-center justify-center active:bg-primary/20 active:scale-95 transition-all text-sm font-bold text-foreground/70"
+            className="size-14 rounded-full bg-muted/80 backdrop-blur-xs border border-border/50 flex items-center justify-center active:bg-primary/20 active:scale-95 transition-all text-sm font-bold text-foreground/70"
             aria-label="B button"
             {...handlers('b')}
           >
             B
           </button>
           <button
-            className="size-14 rounded-full bg-muted/80 backdrop-blur-sm border border-border/50 flex items-center justify-center active:bg-primary/20 active:scale-95 transition-all text-sm font-bold text-foreground/70 -mt-8"
+            className="size-14 rounded-full bg-muted/80 backdrop-blur-xs border border-border/50 flex items-center justify-center active:bg-primary/20 active:scale-95 transition-all text-sm font-bold text-foreground/70 -mt-8"
             aria-label="A button"
             {...handlers('a')}
           >
@@ -165,14 +165,14 @@ export function GameControls({ webxdcHandle, className }: GameControlsProps) {
       {/* Start / Select row */}
       <div className="flex items-center justify-center gap-6">
         <button
-          className="h-8 px-4 rounded-full bg-muted/80 backdrop-blur-sm border border-border/50 flex items-center justify-center active:bg-primary/20 active:scale-95 transition-all text-[10px] font-bold uppercase tracking-wider text-foreground/60"
+          className="h-8 px-4 rounded-full bg-muted/80 backdrop-blur-xs border border-border/50 flex items-center justify-center active:bg-primary/20 active:scale-95 transition-all text-[10px] font-bold uppercase tracking-wider text-foreground/60"
           aria-label="Select"
           {...handlers('select')}
         >
           Select
         </button>
         <button
-          className="h-8 px-4 rounded-full bg-muted/80 backdrop-blur-sm border border-border/50 flex items-center justify-center active:bg-primary/20 active:scale-95 transition-all text-[10px] font-bold uppercase tracking-wider text-foreground/60"
+          className="h-8 px-4 rounded-full bg-muted/80 backdrop-blur-xs border border-border/50 flex items-center justify-center active:bg-primary/20 active:scale-95 transition-all text-[10px] font-bold uppercase tracking-wider text-foreground/60"
           aria-label="Start"
           {...handlers('start')}
         >

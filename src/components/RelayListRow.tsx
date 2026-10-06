@@ -60,7 +60,7 @@ export function RelayListRow({ entry, fetchInfo, className }: RelayListRowProps)
     <div className={cn('flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40', className)}>
       <Link
         to={`/r/${encodeURIComponent(entry.url)}`}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         onClick={(e) => e.stopPropagation()}
       >
         <Avatar className="size-8 shrink-0 border border-border/70">

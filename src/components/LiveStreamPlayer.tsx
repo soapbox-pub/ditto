@@ -243,7 +243,7 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
           className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer"
           onClick={handleVideoClick}
         >
-          <div className="size-16 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm transition-transform hover:scale-110">
+          <div className="size-16 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-xs transition-transform hover:scale-110">
             <Play className="size-8 text-white ml-1" fill="white" />
           </div>
         </div>
@@ -260,7 +260,7 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
       <div
         className={cn(
           'absolute bottom-0 left-0 right-0 transition-opacity duration-200',
-          'bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-10 pb-3 px-4',
+          'bg-linear-to-t from-black/80 via-black/40 to-transparent pt-10 pb-3 px-4',
           showControls && !autoplayBlocked ? 'opacity-100' : 'opacity-0 pointer-events-none',
         )}
       >

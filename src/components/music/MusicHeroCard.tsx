@@ -68,20 +68,20 @@ export function MusicHeroCard({ event }: MusicHeroCardProps) {
           url={parsed.artwork}
           encryption={parsed.artworkEncryption}
           alt={parsed.title}
-          className="w-full aspect-[16/10] object-cover"
+          className="w-full aspect-16/10 object-cover"
           loading="eager"
           onError={() => setImgError(true)}
           decoding="async"
-          noticeClassName="aspect-[16/10]"
+          noticeClassName="aspect-16/10"
         />
       ) : (
-        <div className="w-full aspect-[16/10] bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 flex items-center justify-center">
+        <div className="w-full aspect-16/10 bg-linear-to-br from-primary/20 via-primary/10 to-accent/10 flex items-center justify-center">
           <Music className="size-16 text-primary/20" />
         </div>
       )}
 
       {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+      <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent" />
 
       {/* Content */}
       <div className="absolute bottom-0 left-0 right-0 p-5">
@@ -123,7 +123,7 @@ export function MusicHeroCard({ event }: MusicHeroCardProps) {
 export function MusicHeroCardSkeleton() {
   return (
     <div className="mx-4 rounded-2xl overflow-hidden">
-      <Skeleton className="w-full aspect-[16/10]" />
+      <Skeleton className="w-full aspect-16/10" />
     </div>
   );
 }

@@ -242,7 +242,7 @@ function DockedBar({ onActivate }: { onActivate: () => void }) {
           e.stopPropagation();
           onActivate();
         }}
-        className="pointer-events-auto inline-flex items-center justify-center rounded-full bg-primary/90 px-6 py-2.5 text-sm font-semibold text-primary-foreground opacity-95 shadow-xl ring-1 ring-black/10 backdrop-blur-md transition-all hover:bg-primary hover:opacity-100 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-200"
+        className="pointer-events-auto inline-flex items-center justify-center rounded-full bg-primary/90 px-6 py-2.5 text-sm font-semibold text-primary-foreground opacity-95 shadow-xl ring-1 ring-black/10 backdrop-blur-md transition-all hover:bg-primary hover:opacity-100 active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-200"
       >
         Highlight
       </button>
@@ -281,7 +281,7 @@ function FloatingButton({ rect, onActivate }: { rect: DOMRect; onActivate: () =>
       }}
       style={{ position: 'fixed', top, left, zIndex: 60 }}
       className={cn(
-        'inline-flex items-center justify-center rounded-full bg-primary/90 px-4 py-1.5 text-sm font-medium text-primary-foreground opacity-95 shadow-lg ring-1 ring-black/10 backdrop-blur-md transition-all hover:scale-105 hover:bg-primary hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200',
+        'inline-flex items-center justify-center rounded-full bg-primary/90 px-4 py-1.5 text-sm font-medium text-primary-foreground opacity-95 shadow-lg ring-1 ring-black/10 backdrop-blur-md transition-all hover:scale-105 hover:bg-primary hover:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200',
       )}
     >
       Highlight

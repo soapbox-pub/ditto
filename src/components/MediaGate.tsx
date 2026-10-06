@@ -90,7 +90,7 @@ export function MediaGate({ children, className }: MediaGateProps) {
 
       {/* Centered reveal overlay */}
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-4 text-center">
-        <div className="flex items-center justify-center size-10 rounded-full bg-background/80 shadow-sm backdrop-blur-sm">
+        <div className="flex items-center justify-center size-10 rounded-full bg-background/80 shadow-xs backdrop-blur-xs">
           <ImageOff className="size-5 text-muted-foreground" />
         </div>
         <div className="space-y-1 max-w-xs">
@@ -107,7 +107,7 @@ export function MediaGate({ children, className }: MediaGateProps) {
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5 mt-0.5 rounded-full px-5 bg-background/80 backdrop-blur-sm"
+          className="gap-1.5 mt-0.5 rounded-full px-5 bg-background/80 backdrop-blur-xs"
           onClick={(e) => {
             e.stopPropagation();
             reveal();
@@ -141,7 +141,7 @@ export function HeldLinkPreview({ url, className }: { url: string; className?: s
       {' '}
       <button
         type="button"
-        className="inline-flex items-center rounded-full px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors align-middle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex items-center rounded-full px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors align-middle focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         onClick={(e) => {
           e.stopPropagation();
           reveal();

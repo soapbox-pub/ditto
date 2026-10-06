@@ -192,13 +192,13 @@ export function UnknownKindContent({ event, expanded = false, className }: Unkno
         {/* The mark */}
         <span
           aria-hidden="true"
-          className="bg-gradient-to-br from-fuchsia-500 via-sky-500 to-emerald-500 bg-clip-text text-5xl font-black leading-none text-transparent drop-shadow-sm"
+          className="bg-linear-to-br from-fuchsia-500 via-sky-500 to-emerald-500 bg-clip-text text-5xl font-black leading-none text-transparent drop-shadow-xs"
         >
           ?
         </span>
 
         {/* What was found */}
-        <div className="relative z-[1] mt-3 max-w-xs text-center">
+        <div className="relative z-1 mt-3 max-w-xs text-center">
           <p className="text-sm font-semibold leading-snug">{label}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             You&rsquo;ve stumbled onto {showKindChip ? `a kind ${event.kind} event` : 'an event kind'}{' '}
@@ -209,7 +209,7 @@ export function UnknownKindContent({ event, expanded = false, className }: Unkno
         {fallbackText && (
           <p
             className={cn(
-              'relative z-[1] mt-3 max-w-md whitespace-pre-wrap break-words text-center text-foreground',
+              'relative z-1 mt-3 max-w-md whitespace-pre-wrap wrap-break-word text-center text-foreground',
               expanded ? 'text-[15px] leading-relaxed' : 'text-sm leading-relaxed',
             )}
           >
@@ -217,7 +217,7 @@ export function UnknownKindContent({ event, expanded = false, className }: Unkno
           </p>
         )}
 
-        <Collapsible open={showDetails} onOpenChange={setShowDetails} className="relative z-[1] mt-2 w-full">
+        <Collapsible open={showDetails} onOpenChange={setShowDetails} className="relative z-1 mt-2 w-full">
           <div className="flex justify-center">
             <CollapsibleTrigger asChild>
               <Button

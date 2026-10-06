@@ -152,7 +152,7 @@ export function AddToBlobbiRoomDialog({ event, name, open, onOpenChange }: AddTo
                     onClick={() => setRoom(id)}
                     className={cn(
                       'flex items-center gap-2 rounded-xl border px-3 py-3 text-sm font-medium transition-colors',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
                       selected ? 'border-primary bg-primary/10 text-foreground' : 'border-border hover:bg-secondary/60 text-muted-foreground',
                     )}
                   >

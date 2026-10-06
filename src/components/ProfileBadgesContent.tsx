@@ -110,7 +110,7 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
                     <Award className="size-6 text-muted-foreground" />
                   </div>
                 )}
-                <span className="text-[10px] text-muted-foreground text-center leading-tight line-clamp-2 max-w-[4.5rem] group-hover:text-foreground transition-colors">
+                <span className="text-[10px] text-muted-foreground text-center leading-tight line-clamp-2 max-w-18 group-hover:text-foreground transition-colors">
                   {badge?.name || ref.identifier}
                 </span>
               </Link>

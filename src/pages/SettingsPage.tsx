@@ -149,9 +149,9 @@ export function SettingsPage() {
 
       {/* Tome ornament */}
       <div className="flex items-center gap-3 px-6 pb-5">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/40 to-primary/60" />
+        <div className="h-px flex-1 bg-linear-to-r from-transparent via-primary/40 to-primary/60" />
         <span className="text-primary/50 text-xs tracking-[0.3em] select-none">✦</span>
-        <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/40 to-primary/60" />
+        <div className="h-px flex-1 bg-linear-to-l from-transparent via-primary/40 to-primary/60" />
       </div>
 
       {/* Settings menu */}
@@ -204,9 +204,9 @@ export function SettingsPage() {
 
       {/* Bottom ornament */}
       <div className="flex items-center gap-3 px-6 pt-4 pb-2">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/20 to-primary/30" />
+        <div className="h-px flex-1 bg-linear-to-r from-transparent via-primary/20 to-primary/30" />
         <span className="text-primary/30 text-[10px] tracking-[0.4em] select-none">◆</span>
-        <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/20 to-primary/30" />
+        <div className="h-px flex-1 bg-linear-to-l from-transparent via-primary/20 to-primary/30" />
       </div>
 
       {/* Version footer */}
@@ -218,7 +218,7 @@ export function SettingsPage() {
       {!config.magicMouse && sigilVisible && (<div className="flex justify-center pt-16 pb-12">
         <button
           onClick={unlockMagic}
-          className="relative group focus:outline-none"
+          className="relative group focus:outline-hidden"
           aria-label={config.magicMouse ? intl.formatMessage({ id: 'settings.openMagic', defaultMessage: "Open Magic settings" }) : intl.formatMessage({ id: 'settings.unlockMagic', defaultMessage: "Unlock magical potential" })}
         >
           {/* Ambient radial glow pool — tight, close to the image */}

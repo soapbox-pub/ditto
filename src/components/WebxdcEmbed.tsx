@@ -117,7 +117,7 @@ export function WebxdcEmbed({ url: originalUrl, uuid, name, icon: originalIcon, 
         />
         {showNameCard && (
           <div className="mt-2.5 w-full max-w-sm rounded-xl bg-secondary/50 px-3.5 py-2.5">
-            <p className="text-base font-semibold text-foreground break-words">{appName}</p>
+            <p className="text-base font-semibold text-foreground wrap-break-word">{appName}</p>
           </div>
         )}
       </div>
@@ -196,7 +196,7 @@ export function WebxdcEmbed({ url: originalUrl, uuid, name, icon: originalIcon, 
 
       {/* Game controls overlay */}
       {showGamepad && (
-        <div className="border-t border-border bg-background/80 backdrop-blur-sm">
+        <div className="border-t border-border bg-background/80 backdrop-blur-xs">
           <GameControls webxdcHandle={webxdcHandleRef.current} />
         </div>
       )}
@@ -250,7 +250,7 @@ function WebxdcCartridgeButton({
         aria-label={`Launch ${appName}`}
         className={cn(
           'relative block w-full bg-transparent p-0 border-0',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-xl',
+          'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-xl',
           // Create an isolated stacking context so the tint's mix-blend-mode
           // only blends within this button, not with whatever is behind it.
           'isolate',

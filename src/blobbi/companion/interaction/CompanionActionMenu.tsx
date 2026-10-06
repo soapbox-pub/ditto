@@ -137,7 +137,7 @@ export function CompanionActionMenu({
               // Base styles - pointer-events-auto needed because parent has pointer-events-none
               "fixed flex items-center justify-center rounded-full pointer-events-auto",
               "shadow-lg transition-colors duration-200",
-              "focus:outline-none focus:ring-2 focus:ring-primary/50",
+              "focus:outline-hidden focus:ring-2 focus:ring-primary/50",
               // Background
               isSelected
                 ? "bg-primary text-primary-foreground"

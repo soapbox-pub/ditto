@@ -163,7 +163,7 @@ function LatestRelease({ entry }: { entry: ChangelogEntry }) {
           })}
         </ul>
         {!expanded && overflows && (
-          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-linear-to-t from-background to-transparent pointer-events-none" />
         )}
       </div>
 
@@ -251,7 +251,7 @@ function ChangelogEntryCard({ entry }: { entry: ChangelogEntry }) {
           })}
         </ul>
         {!expanded && overflows && (
-          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-linear-to-t from-background to-transparent pointer-events-none" />
         )}
       </div>
 

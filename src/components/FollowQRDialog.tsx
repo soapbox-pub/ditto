@@ -97,8 +97,8 @@ export function FollowQRDialog({ open, onOpenChange }: FollowQRDialogProps) {
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           {copied
-            ? <Check className="size-3.5 text-primary flex-shrink-0" />
-            : <Copy className="size-3.5 flex-shrink-0" />}
+            ? <Check className="size-3.5 text-primary shrink-0" />
+            : <Copy className="size-3.5 shrink-0" />}
           <span className="truncate max-w-64">{followUrl}</span>
         </button>
       </DialogContent>

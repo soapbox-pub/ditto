@@ -93,7 +93,7 @@ function CommentRow({ event }: { event: NostrEvent }) {
           </ProfileHoverCard>
           <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(event.created_at)}</span>
         </div>
-        <p className="text-xs text-foreground/90 leading-relaxed break-words line-clamp-4">
+        <p className="text-xs text-foreground/90 leading-relaxed wrap-break-word line-clamp-4">
           {event.content}
         </p>
       </div>
@@ -144,12 +144,12 @@ export function CommentsSheet({ event, open, onClose }: CommentsModalProps) {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm cursor-pointer animate-in fade-in-0 duration-200"
+        className="fixed inset-0 z-200 bg-black/60 backdrop-blur-xs cursor-pointer animate-in fade-in-0 duration-200"
         onClick={(e) => { e.stopPropagation(); onClose(); }}
       />
 
       {/* Modal — centered, rounded */}
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-200 flex items-center justify-center p-4 pointer-events-none">
         <div
           ref={modalRef}
           className="pointer-events-auto w-full max-w-lg max-h-[80vh] flex flex-col bg-background/90 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in-0 duration-200"

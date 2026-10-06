@@ -99,18 +99,18 @@ export function ZapSuccessScreen({
         {/* Expanding halo ring */}
         <span
           aria-hidden
-          className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400/40 to-orange-500/30 motion-safe:animate-success-halo"
+          className="absolute inset-0 rounded-full bg-linear-to-br from-amber-400/40 to-orange-500/30 motion-safe:animate-success-halo"
         />
 
         {/* Solid gradient disc */}
         <span
           aria-hidden
-          className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg shadow-orange-500/30 motion-safe:animate-success-pop"
+          className="absolute inset-0 rounded-full bg-linear-to-br from-amber-400 to-orange-500 shadow-lg shadow-orange-500/30 motion-safe:animate-success-pop"
         />
 
         {/* Checkmark */}
         <Check
-          className="relative size-14 text-white drop-shadow-sm motion-safe:animate-success-pop"
+          className="relative size-14 text-white drop-shadow-xs motion-safe:animate-success-pop"
           strokeWidth={3}
           aria-hidden
         />
@@ -138,7 +138,7 @@ export function ZapSuccessScreen({
         <h2 className="text-lg font-semibold tracking-tight">
           {recipientLabel ? 'Donation sent' : 'Bitcoin sent'}
         </h2>
-        <div className="text-4xl font-bold tabular-nums bg-gradient-to-br from-amber-500 to-orange-600 bg-clip-text text-transparent">
+        <div className="text-4xl font-bold tabular-nums bg-linear-to-br from-amber-500 to-orange-600 bg-clip-text text-transparent">
           {amountDisplay}
         </div>
       </div>

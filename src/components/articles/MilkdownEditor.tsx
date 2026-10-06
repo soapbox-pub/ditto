@@ -339,7 +339,7 @@ function MilkdownEditorInner({ value, onChange, onBlur, onUploadImage, placehold
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onBlur={onBlur}
-          className="w-full min-h-[250px] sm:min-h-[350px] p-3 bg-transparent font-mono text-sm resize-y outline-none"
+          className="w-full min-h-[250px] sm:min-h-[350px] p-3 bg-transparent font-mono text-sm resize-y outline-hidden"
           placeholder={placeholder}
           spellCheck={false}
         />

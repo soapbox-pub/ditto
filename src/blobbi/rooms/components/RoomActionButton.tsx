@@ -46,7 +46,7 @@ export function RoomActionButton({
         'flex flex-col items-center gap-[0.3em] transition-all duration-300 ease-out rounded-2xl',
         ROOM_ACTION_SLOT,
         'active:scale-95 motion-reduce:active:scale-100',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
         disabled && 'opacity-50 pointer-events-none',
         className,
       )}
@@ -54,7 +54,7 @@ export function RoomActionButton({
       <div
         className={cn(
           'size-[3.6em] rounded-full flex items-center justify-center',
-          'bg-background/70 backdrop-blur-sm border border-border/30 shadow-sm transition-shadow duration-200',
+          'bg-background/70 backdrop-blur-xs border border-border/30 shadow-xs transition-shadow duration-200',
           'hover:shadow-[0_0_12px_var(--glow)]',
           color,
           glow && ROOM_GUIDE_HIGHLIGHT,

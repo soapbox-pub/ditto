@@ -37,7 +37,7 @@ export function BlobbiRoomHero({ companion, isUpdatingCompanion, handleSetAsComp
           disabled={isUpdatingCompanion}
           className={cn(
             'flex items-center justify-center gap-2 px-6 py-3 rounded-full text-white font-semibold transition-all duration-300 ease-out text-sm',
-            'hover:brightness-110 active:scale-95 motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            'hover:brightness-110 active:scale-95 motion-reduce:active:scale-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             isUpdatingCompanion && 'opacity-50 pointer-events-none',
           )}
           style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b)' }}

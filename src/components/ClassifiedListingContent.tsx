@@ -93,7 +93,7 @@ function ListingDetail({ listing, className }: { listing: ParsedClassifiedListin
                       onClick={() => setSelected(url)}
                       className={cn(
                         'relative size-16 shrink-0 overflow-hidden rounded-lg transition-all',
-                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
                         active ? 'ring-2 ring-primary' : 'opacity-60 hover:opacity-100',
                       )}
                     >
@@ -108,7 +108,7 @@ function ListingDetail({ listing, className }: { listing: ParsedClassifiedListin
 
         {/* Buy box */}
         <div className="flex min-w-0 flex-col gap-3 sm:py-1">
-          <h1 dir="auto" className="text-2xl font-bold leading-tight break-words">
+          <h1 dir="auto" className="text-2xl font-bold leading-tight wrap-break-word">
             {title}
           </h1>
 
@@ -164,7 +164,7 @@ function ListingDetail({ listing, className }: { listing: ParsedClassifiedListin
           </h2>
           <div
             dir="auto"
-            className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border"
+            className="prose prose-sm max-w-none wrap-break-word text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-a:no-underline prose-a:hover:underline prose-img:rounded-lg prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border"
           >
             <Markdown remarkPlugins={[retextSmartypants]} rehypePlugins={[rehypeSanitize]} components={components}>
               {description}
@@ -214,7 +214,7 @@ function ListingFeedCard({ listing, className }: { listing: ParsedClassifiedList
       )}
     >
       {/* Subtle accent glow behind the photo area */}
-      <div className="absolute -z-10 top-0 left-0 w-44 h-44 bg-primary/[0.06] rounded-full blur-2xl" />
+      <div className="absolute -z-10 top-0 left-0 w-44 h-44 bg-primary/6 rounded-full blur-2xl" />
 
       <div className="flex gap-1">
         {/* Product photo — square thumbnail, like the invoice QR */}
@@ -259,7 +259,7 @@ function ListingFeedCard({ listing, className }: { listing: ParsedClassifiedList
           )}
 
           {/* Title */}
-          <p dir="auto" className="line-clamp-2 break-words text-sm font-medium leading-snug sm:text-base">
+          <p dir="auto" className="line-clamp-2 wrap-break-word text-sm font-medium leading-snug sm:text-base">
             {title}
           </p>
 

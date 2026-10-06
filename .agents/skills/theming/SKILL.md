@@ -24,17 +24,11 @@ Any Google Font can be installed via the `@fontsource` / `@fontsource-variable` 
    import '@fontsource-variable/inter';
    ```
 
-3. **Register the family** in `tailwind.config.ts`:
-   ```ts
-   export default {
-     theme: {
-       extend: {
-         fontFamily: {
-           sans: ['Inter Variable', 'Inter', 'system-ui', 'sans-serif'],
-         },
-       },
-     },
-   };
+3. **Register the family** in the `@theme inline` block of `src/index.css`:
+   ```css
+   @theme inline {
+     --font-sans: 'Inter Variable', 'Inter', system-ui, sans-serif;
+   }
    ```
 
 ### Suggested families by use case
@@ -44,7 +38,7 @@ Any Google Font can be installed via the `@fontsource` / `@fontsource-variable` 
 - **Creative / Artistic:** Poppins, Nunito, Comfortaa
 - **Monospace / Code:** JetBrains Mono, Fira Code, Source Code Pro
 
-For expressive hierarchies, pair a sans body font with a display/serif heading font (e.g. Inter + Playfair Display) and expose the second family as `fontFamily.serif` or `fontFamily.display` in Tailwind.
+For expressive hierarchies, pair a sans body font with a display/serif heading font (e.g. Inter + Playfair Display) and expose the second family as `--font-serif` or `--font-display` in the `@theme inline` block.
 
 ### Runtime font loading from Nostr events
 
@@ -61,7 +55,7 @@ When the user requests a new color scheme:
 
 1. **Update both `:root` and `.dark`** in `src/index.css`. Each variable is an HSL triplet (no `hsl()` wrapper), e.g. `--primary: 222 47% 11%;`.
 2. **Keep contrast ratios ≥ 4.5:1** for body text and interactive elements. Test both modes.
-3. **Prefer extending Tailwind's palette** (`tailwind.config.ts`) over hard-coding hex values in components — this keeps the theme consistent and dark-mode-friendly.
+3. **Prefer extending Tailwind's palette** (`--color-*` in the `@theme inline` block of `src/index.css`) over hard-coding hex values in components — this keeps the theme consistent and dark-mode-friendly.
 4. **Apply colors through semantic tokens** (`bg-primary`, `text-muted-foreground`, `border-input`) rather than raw palette names when possible, so future theme changes propagate.
 
 The shadcn/ui components consume these semantic tokens, so changing the variables automatically restyles the entire component library.

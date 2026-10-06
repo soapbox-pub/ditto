@@ -198,7 +198,7 @@ function WizardShell({
 }) {
   const pct = total > 0 ? ((index + 1) / total) * 100 : 100;
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-background">
+    <div className="fixed inset-0 z-100 flex flex-col bg-background">
       <div className="h-1 bg-muted">
         <div
           className="h-full bg-primary transition-all duration-500 ease-out"

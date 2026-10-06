@@ -63,7 +63,7 @@ function ThemePreviewCard({
     <>
       {/* Mini preview */}
       <div
-        className="aspect-[4/3] rounded-lg overflow-hidden relative"
+        className="aspect-4/3 rounded-lg overflow-hidden relative"
         style={{ backgroundColor: hsl(tokens.background) }}
       >
         {/* Background image layer */}
@@ -131,8 +131,8 @@ function ThemeButton({
   return (
     <button
       className={cn(
-        'relative group rounded-xl border-2 p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        isActive ? 'border-primary shadow-sm' : 'border-border hover:border-primary/40',
+        'relative group rounded-xl border-2 p-1 transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
+        isActive ? 'border-primary shadow-xs' : 'border-border hover:border-primary/40',
         scroll && 'flex-1',
         carousel && 'w-full',
       )}
@@ -256,7 +256,7 @@ export function ThemeGrid({
           onSelect: () => handleSelectBuiltin('system'),
           isActive,
           preview: (
-            <div className="aspect-[4/3] rounded-lg overflow-hidden relative">
+            <div className="aspect-4/3 rounded-lg overflow-hidden relative">
               <SystemHalf tokens={lightTokens} side="left" />
               <SystemHalf tokens={darkTokens} side="right" />
               {isActive && (
@@ -344,7 +344,7 @@ export function ThemeGrid({
               disabled={!canPrev}
               className={cn(
                 'shrink-0 size-8 flex items-center justify-center rounded-full',
-                'bg-muted border border-border shadow-sm',
+                'bg-muted border border-border shadow-xs',
                 'transition-opacity duration-200',
                 canPrev ? 'opacity-100' : 'opacity-0 pointer-events-none',
               )}
@@ -380,7 +380,7 @@ export function ThemeGrid({
               disabled={!canNext}
               className={cn(
                 'shrink-0 size-8 flex items-center justify-center rounded-full',
-                'bg-muted border border-border shadow-sm',
+                'bg-muted border border-border shadow-xs',
                 'transition-opacity duration-200',
                 canNext ? 'opacity-100' : 'opacity-0 pointer-events-none',
               )}
@@ -691,7 +691,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
           onSelect: () => handleSelectBuiltin('system'),
           isActive,
           preview: (
-            <div className="aspect-[4/3] rounded-lg overflow-hidden relative">
+            <div className="aspect-4/3 rounded-lg overflow-hidden relative">
               <SystemHalf tokens={lightTokens} side="left" />
               <SystemHalf tokens={darkTokens} side="right" />
               {isActive && (
@@ -815,7 +815,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
           {hasChanges && (
             <button
               onClick={handleReset}
-              className="absolute left-4 top-4 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              className="absolute left-4 top-4 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
             >
               <RotateCcw className="size-4" />
               <span className="sr-only">Reset</span>
@@ -825,7 +825,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
             {/* Top scroll indicator */}
             <div
               className={cn(
-                'pointer-events-none absolute top-0 left-0 right-0 z-[1] flex justify-center py-1 transition-opacity duration-200',
+                'pointer-events-none absolute top-0 left-0 right-0 z-1 flex justify-center py-1 transition-opacity duration-200',
                 builderCanScrollUp ? 'opacity-100' : 'opacity-0',
               )}
             >
@@ -834,7 +834,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
             {/* Bottom scroll indicator */}
             <div
               className={cn(
-                'pointer-events-none absolute bottom-0 left-0 right-0 z-[1] flex justify-center py-1 transition-opacity duration-200',
+                'pointer-events-none absolute bottom-0 left-0 right-0 z-1 flex justify-center py-1 transition-opacity duration-200',
                 builderCanScrollDown ? 'opacity-100' : 'opacity-0',
               )}
             >

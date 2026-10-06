@@ -721,7 +721,7 @@ export const EggGraphic: React.FC<EggGraphicProps> = ({
           {/* Title display for special eggs */}
           {blobbi?.title && (
             <div
-              className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-xs font-semibold text-center px-2 py-1 bg-black/20 rounded-full backdrop-blur-sm"
+              className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-xs font-semibold text-center px-2 py-1 bg-black/20 rounded-full backdrop-blur-xs"
               style={{
                 color: baseColor,
                 textShadow: '0 1px 2px rgba(0,0,0,0.5)',

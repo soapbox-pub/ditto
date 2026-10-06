@@ -113,7 +113,7 @@ export function ThemePreviewBar() {
   };
 
   return (
-    <div className="fixed inset-x-0 z-50 flex justify-center px-4 pointer-events-none bottom-mobile-nav sidebar:!bottom-6">
+    <div className="fixed inset-x-0 z-50 flex justify-center px-4 pointer-events-none bottom-mobile-nav sidebar:bottom-6!">
       <div
         role="region"
         aria-label={intl.formatMessage({ id: 'themePreview.label', defaultMessage: 'Theme preview' })}

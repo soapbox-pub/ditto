@@ -44,8 +44,8 @@ interface ReactionButtonProps {
  * Deterministic geometry: evenly spaced rays at a uniform radius so the
  * burst reads as a circle, angled so no ray points straight down into the
  * card's overflow-hidden edge. The spark/halo layers detonate 90ms after
- * the icon starts its squash (see the `reaction-*` animations in the
- * tailwind config) so the whole thing lands as one percussive hit.
+ * the icon starts its squash (see the `reaction-*` animations in
+ * src/index.css) so the whole thing lands as one percussive hit.
  */
 const BURST_RADIUS = 24;
 const BURST_RAY_COUNT = 8;
@@ -186,7 +186,7 @@ export function ReactionButton({
         aria-haspopup="dialog"
         aria-expanded={menuOpen}
         className={cn(
-          'flex items-center gap-1.5 p-2 rounded-full transition-colors focus:outline-none',
+          'flex items-center gap-1.5 p-2 rounded-full transition-colors focus:outline-hidden',
           'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
           className,
           hasReacted && 'text-pink-500',

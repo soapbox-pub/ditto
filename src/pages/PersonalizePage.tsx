@@ -89,7 +89,7 @@ function LinkRow({ to, label, description }: { to: string; label: ReactNode; des
   return (
     <Link
       to={to}
-      className="-mx-3 flex items-center justify-between gap-4 rounded-xl px-3 py-2 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group"
+      className="-mx-3 flex items-center justify-between gap-4 rounded-xl px-3 py-2 transition-colors hover:bg-muted/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring group"
     >
       <div className="space-y-0.5">
         <p className="text-sm font-medium">{label}</p>

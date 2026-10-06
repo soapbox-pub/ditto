@@ -421,7 +421,7 @@ function BlobbiWidgetContent({
                         }}
                         aria-label={intl.formatMessage({ id: 'widgets.blobbi.switchTo', defaultMessage: "Switch to {name}" }, { name: c.name })}
                         className={cn(
-                          'flex-shrink-0 flex flex-col items-center gap-1 transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 active:scale-95',
+                          'shrink-0 flex flex-col items-center gap-1 transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 active:scale-95',
                           isSelected && 'opacity-50 pointer-events-none',
                         )}
                         disabled={isSelected}
@@ -434,7 +434,7 @@ function BlobbiWidgetContent({
                             </div>
                           )}
                         </div>
-                        <span className="text-[10px] font-medium text-muted-foreground max-w-[4rem] truncate">
+                        <span className="text-[10px] font-medium text-muted-foreground max-w-16 truncate">
                           {c.name}
                         </span>
                       </button>
@@ -442,7 +442,7 @@ function BlobbiWidgetContent({
                   })}
                 </div>
                 {/* Right fade gradient to hint at more content */}
-                <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-popover to-transparent" />
+                <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-linear-to-l from-popover to-transparent" />
               </div>
             </PopoverContent>
           </Popover>

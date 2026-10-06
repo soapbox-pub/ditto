@@ -117,7 +117,7 @@ export function FileAttachmentCard({ url, imeta, className }: FileAttachmentCard
         <div className="relative">
           <Suspense
             fallback={
-              <div className="flex aspect-[4/3] items-center justify-center bg-muted">
+              <div className="flex aspect-4/3 items-center justify-center bg-muted">
                 <Loader2 className="size-6 animate-spin text-muted-foreground" />
               </div>
             }
@@ -129,7 +129,7 @@ export function FileAttachmentCard({ url, imeta, className }: FileAttachmentCard
             onClick={handleDownload}
             disabled={downloading}
             aria-label={downloadLabel}
-            className="absolute right-3 top-3 z-10 flex size-10 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm backdrop-blur transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            className="absolute right-3 top-3 z-10 flex size-10 items-center justify-center rounded-full bg-background/90 text-foreground shadow-xs backdrop-blur-sm transition-colors hover:bg-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           >
             {downloading ? <Loader2 className="size-5 animate-spin" /> : <Download className="size-5" />}
           </button>
@@ -146,7 +146,7 @@ export function FileAttachmentCard({ url, imeta, className }: FileAttachmentCard
               className="block max-h-80 w-full object-contain"
             />
           ) : (
-            <div className="flex aspect-[4/3] items-center justify-center">
+            <div className="flex aspect-4/3 items-center justify-center">
               <Box className="size-16 text-muted-foreground/50" />
             </div>
           )}
@@ -154,10 +154,10 @@ export function FileAttachmentCard({ url, imeta, className }: FileAttachmentCard
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setViewing3d(true); }}
-              className="absolute inset-0 flex items-end justify-center p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              className="absolute inset-0 flex items-end justify-center p-4 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
               aria-label={intl.formatMessage({ id: 'fileCard.view3d', defaultMessage: 'View in 3D' })}
             >
-              <span className="inline-flex items-center gap-2 rounded-full bg-background/90 px-4 py-2 text-sm font-medium shadow-sm backdrop-blur transition-colors hover:bg-background">
+              <span className="inline-flex items-center gap-2 rounded-full bg-background/90 px-4 py-2 text-sm font-medium shadow-xs backdrop-blur-sm transition-colors hover:bg-background">
                 <Rotate3d className="size-4" />
                 <FormattedMessage id="fileCard.view3d" defaultMessage="View in 3D" />
                 {size && <span className="text-muted-foreground tabular-nums">· {formatBytes(size)}</span>}
@@ -177,7 +177,7 @@ export function FileAttachmentCard({ url, imeta, className }: FileAttachmentCard
             <p className="truncate text-sm font-medium" title={name}>{name}</p>
             {details && <p className="truncate text-xs text-muted-foreground tabular-nums">{details}</p>}
             {imeta?.summary && (
-              <p className="mt-1 line-clamp-2 break-words text-xs text-muted-foreground">{imeta.summary}</p>
+              <p className="mt-1 line-clamp-2 wrap-break-word text-xs text-muted-foreground">{imeta.summary}</p>
             )}
           </div>
           <button
@@ -185,7 +185,7 @@ export function FileAttachmentCard({ url, imeta, className }: FileAttachmentCard
             onClick={handleDownload}
             disabled={downloading}
             aria-label={downloadLabel}
-            className="flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            className="flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           >
             {downloading ? <Loader2 className="size-5 animate-spin" /> : <Download className="size-5" />}
           </button>

@@ -123,7 +123,7 @@ export function BackgroundPicker({ value, onChange }: {
             <Button
               variant="secondary"
               size="icon"
-              className="absolute top-1.5 right-1.5 size-6 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
+              className="absolute top-1.5 right-1.5 size-6 rounded-full bg-background/80 backdrop-blur-xs hover:bg-background"
               onClick={handleRemove}
             >
               <X className="size-3.5" />

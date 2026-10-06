@@ -66,7 +66,7 @@ function ProfileLink({ url, label, title, fallback }: ProfileLinkProps) {
         target="_blank"
         rel="noopener noreferrer"
         title={title}
-        className="group flex min-w-0 items-center gap-1.5 rounded-sm text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="group flex min-w-0 items-center gap-1.5 rounded-sm text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
       >
         <ExternalFavicon url={url} size={14} className="shrink-0" fallback={fallback} />
         <span className="truncate group-hover:underline">{label}</span>

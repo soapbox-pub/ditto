@@ -62,7 +62,7 @@ export function Top8Tile({ pubkey, rank, size, static: isStatic }: Top8TileProps
         <span
           className={cn(
             'absolute -top-1.5 -left-1.5 flex items-center justify-center rounded-full',
-            'bg-primary text-primary-foreground font-bold tabular-nums shadow-sm ring-2 ring-background',
+            'bg-primary text-primary-foreground font-bold tabular-nums shadow-xs ring-2 ring-background',
             size === 'sm' ? 'size-5 text-[10px]' : 'size-6 text-xs',
           )}
           aria-hidden
@@ -99,7 +99,7 @@ export function Top8Tile({ pubkey, rank, size, static: isStatic }: Top8TileProps
     <ProfileHoverCard pubkey={pubkey} asChild>
       <Link
         to={profileUrl}
-        className="group min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className="group min-w-0 rounded-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         onClick={(e) => e.stopPropagation()}
         title={`#${rank} — ${displayName}`}
       >

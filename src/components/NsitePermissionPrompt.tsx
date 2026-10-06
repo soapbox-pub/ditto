@@ -160,7 +160,7 @@ export function NsitePermissionPrompt({
   const eventJson = prompt.event ? JSON.stringify(prompt.event, null, 2) : null;
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-xs p-4">
       <div className="w-full max-w-sm rounded-xl border bg-card shadow-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center gap-3 px-5 pt-5 pb-3">
@@ -212,7 +212,7 @@ export function NsitePermissionPrompt({
               <p className="text-xs text-muted-foreground mb-1">
                 <FormattedMessage id="nsite.prompt.content" defaultMessage="Content" />
               </p>
-              <p className="text-sm break-words whitespace-pre-wrap">
+              <p className="text-sm wrap-break-word whitespace-pre-wrap">
                 {truncate(eventContent, 280)}
               </p>
             </div>

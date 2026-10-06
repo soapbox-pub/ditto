@@ -113,7 +113,7 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
         {/* Bio */}
         {metadata?.about && (
           <p className={cn(
-            'text-sm text-muted-foreground mt-2 whitespace-pre-wrap break-words',
+            'text-sm text-muted-foreground mt-2 whitespace-pre-wrap wrap-break-word',
             'line-clamp-3',
           )}>
             <BioContent tags={author.data?.event?.tags}>{metadata.about}</BioContent>

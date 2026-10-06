@@ -83,11 +83,11 @@ export function AndroidSignerOptions({ onLogin }: AndroidSignerOptionsProps) {
                 <img
                   src={app.iconUrl}
                   alt=""
-                  className="w-8 h-8 rounded-md flex-shrink-0"
+                  className="w-8 h-8 rounded-md shrink-0"
                   decoding="async"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-md bg-muted flex-shrink-0" />
+                <div className="w-8 h-8 rounded-md bg-muted shrink-0" />
               )}
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm truncate">
@@ -100,7 +100,7 @@ export function AndroidSignerOptions({ onLogin }: AndroidSignerOptionsProps) {
                 </div>
               </div>
               {connecting && (
-                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground flex-shrink-0" />
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground shrink-0" />
               )}
             </button>
           );

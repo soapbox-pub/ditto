@@ -1,6 +1,488 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Scan only the app's own source, not AGENTS.md, skills, and docs, whose
+   example class names would otherwise end up in the stylesheet. */
+@import 'tailwindcss' source(none);
+@source './**/*.{ts,tsx}';
+
+@plugin 'tailwindcss-animate';
+@plugin '@tailwindcss/typography';
+
+/* Targets an element while it is the fullscreen element. */
+@custom-variant fullscreen (&:fullscreen);
+
+/* Keep v3's `hover:`, which matches on any :hover. v4 wraps it in
+   `@media (hover: hover)`, so on touch screens it never fires — and
+   controls revealed with `opacity-0 group-hover:opacity-100` would become
+   invisible there instead of appearing on tap. */
+@custom-variant hover (&:hover);
+
+/* `inline` so utilities resolve `hsl(var(--primary))` at the element, as v3 did:
+   ScopedTheme overrides the theme variables on a subtree. */
+@theme inline {
+  --breakpoint-*: initial;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-sidebar: 900px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
+  --font-sans: 'Inter Variable', 'Inter', system-ui, sans-serif;
+  --font-emoji:
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Twemoji Mozilla',
+    'Android Emoji', 'EmojiSymbols', sans-serif;
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-xs: calc(var(--radius) - 8px);
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-pending-glow: pending-glow 2.5s ease-in-out infinite;
+  --animate-badge-spotlight: badge-spotlight 8s linear infinite;
+  --animate-progress-sweep: progress-sweep 1.2s ease-in-out infinite;
+  --animate-highlight-fade: highlight-fade 1.5s ease-out forwards;
+  --animate-collapsible-down: collapsible-down 0.2s ease-out;
+  --animate-collapsible-up: collapsible-up 0.2s ease-out;
+  --animate-equaliser-bar: equaliser-bar 0.9s ease-in-out infinite;
+  --animate-success-pop: success-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)
+    both;
+  --animate-success-halo: success-halo 0.9s ease-out both;
+  --animate-success-fade-up: success-fade-up 0.45s ease-out both;
+  --animate-success-spark: success-spark 1.1s ease-out both;
+  --animate-celebration-fall: celebration-fall 2s linear both;
+  --animate-heart-fall: heart-fall 2s ease-in both;
+  --animate-heart-drift: heart-drift 4s ease-in-out infinite;
+  --animate-heart-float: heart-float var(--float-duration, 7s) ease-in-out
+    infinite;
+  --animate-celebration-rise: celebration-rise 2.6s ease-out both;
+  --animate-birthday-rain: birthday-rain var(--rain-duration, 5s) linear
+    infinite;
+  --animate-birthday-float: birthday-float var(--rain-duration, 5s) linear
+    infinite;
+  --animate-celebration-twinkle: celebration-twinkle 1.2s ease-in-out both;
+  --animate-celebration-sun: celebration-sun 3.2s ease-out both;
+  --animate-celebration-glow: celebration-glow 3.2s ease-out both;
+  --animate-reaction-pop: reaction-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)
+    both;
+  /* The spark and halo hold for 90ms — they detonate at the moment
+     the icon releases from its squash, not on the initial press. */
+  --animate-reaction-spark: reaction-spark 0.6s cubic-bezier(0.16, 1, 0.3, 1)
+    90ms both;
+  --animate-reaction-halo: success-halo 0.5s cubic-bezier(0.16, 1, 0.3, 1) 90ms
+    both;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+  @keyframes pending-glow {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+    }
+    50% {
+      box-shadow: 0 0 8px 2px hsl(var(--primary) / 0.15);
+    }
+  }
+  @keyframes badge-spotlight {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  /* Indeterminate progress bar: a short segment sweeping across
+     the track. Used when a relay can't tell us a total up front
+     (no NIP-45 COUNT), so there's no percentage to show but work
+     is still happening. */
+  @keyframes progress-sweep {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(400%);
+    }
+  }
+  @keyframes highlight-fade {
+    from {
+      background-color: hsl(var(--primary) / 0.1);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+  @keyframes collapsible-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-collapsible-content-height);
+    }
+  }
+  @keyframes collapsible-up {
+    from {
+      height: var(--radix-collapsible-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+  /* Vertical bounce for the bird-song play button's
+     inline equaliser. Bars share this keyframe and
+     stagger via animationDelay so the group reads as
+     an organic audio indicator. */
+  @keyframes equaliser-bar {
+    0%,
+    100% {
+      transform: scaleY(0.35);
+    }
+    50% {
+      transform: scaleY(1);
+    }
+  }
+  /* Celebratory pop-in for the zap success checkmark. */
+  @keyframes success-pop {
+    0% {
+      transform: scale(0.3);
+      opacity: 0;
+    }
+    60% {
+      transform: scale(1.15);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  /* Expanding ring behind the checkmark. */
+  @keyframes success-halo {
+    0% {
+      transform: scale(0.6);
+      opacity: 0.7;
+    }
+    100% {
+      transform: scale(2.2);
+      opacity: 0;
+    }
+  }
+  /* Staggered fade-in from below for the body text + actions. */
+  @keyframes success-fade-up {
+    0% {
+      transform: translateY(8px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  /* Individual sparkle: scale + drift outward then fade. */
+  @keyframes success-spark {
+    0% {
+      transform: translate(0, 0) scale(0.4);
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+    }
+    100% {
+      transform: translate(var(--spark-x, 0), var(--spark-y, 0)) scale(1);
+      opacity: 0;
+    }
+  }
+  /* Confetti piece: drifts down through the card, swaying and
+     spinning. Travel distance is measured from the card by
+     CelebrationOverlay (--celebration-distance) so the pace is
+     consistent whether the card is short or tall. Per-piece
+     drift/spin via CSS vars. */
+  @keyframes celebration-fall {
+    0% {
+      transform: translate(0, -12px) rotate(0deg);
+      opacity: 0;
+    }
+    8% {
+      opacity: 1;
+    }
+    80% {
+      opacity: 1;
+    }
+    100% {
+      transform: translate(
+          var(--celebration-sway, 0px),
+          var(--celebration-distance, 240px)
+        )
+        rotate(var(--celebration-spin, 540deg));
+      opacity: 0;
+    }
+  }
+  /* Love-list paper background hearts: a gentle side-to-side
+     drift so the scattered hearts feel alive. Only ~12 per card,
+     and translate-only so it composites cheaply. */
+  @keyframes heart-drift {
+    0%,
+    100% {
+      transform: translateX(-5px);
+    }
+    50% {
+      transform: translateX(5px);
+    }
+  }
+  /* Love-list ambient float: a heart rises from below the sheet up
+     past its top edge (clipped by overflow-hidden) like a lava-lamp
+     bubble, swaying and tipping side to side, fading in low and out
+     high. Vertical travel is driven by `bottom` (% of the sheet) so
+     it adapts to any card height; sway/tip come from CSS vars.
+     Loops forever, so only a handful run per card. */
+  @keyframes heart-float {
+    0% {
+      bottom: -8%;
+      transform: translateX(0) rotate(-10deg);
+      opacity: 0;
+    }
+    12% {
+      opacity: var(--float-opacity, 0.5);
+    }
+    50% {
+      transform: translateX(var(--float-sway, 14px)) rotate(10deg);
+    }
+    85% {
+      opacity: var(--float-opacity, 0.5);
+    }
+    100% {
+      bottom: 106%;
+      transform: translateX(0) rotate(-6deg);
+      opacity: 0;
+    }
+  }
+  /* Love List heart: bursts in near the top, falls fast, then
+     dissolves in mid-air (fade starts early and finishes well
+     before the travel end) so hearts never snap off at the
+     overflow-clipped bottom edge. */
+  @keyframes heart-fall {
+    0% {
+      transform: translate(0, -12px) rotate(0deg) scale(0.6);
+      opacity: 0;
+    }
+    6% {
+      opacity: 1;
+      transform: translate(0, 0) rotate(0deg) scale(1);
+    }
+    45% {
+      opacity: 1;
+    }
+    85% {
+      opacity: 0;
+    }
+    100% {
+      transform: translate(
+          var(--celebration-sway, 0px),
+          var(--celebration-distance, 240px)
+        )
+        rotate(var(--celebration-spin, 90deg)) scale(0.9);
+      opacity: 0;
+    }
+  }
+  /* Birthday balloon: floats up from the bottom of the card. */
+  @keyframes celebration-rise {
+    0% {
+      transform: translate(0, 20px);
+      opacity: 0;
+    }
+    12% {
+      opacity: 1;
+    }
+    80% {
+      opacity: 1;
+    }
+    100% {
+      transform: translate(
+        var(--celebration-sway, 0px),
+        calc(-1 * var(--celebration-distance, 240px))
+      );
+      opacity: 0;
+    }
+  }
+  /* Continuous birthday rain (BirthdayRain): a piece falls from
+     above the region to past its clipped bottom edge, swaying and
+     spinning, fading out near the end so nothing snaps off. Runs
+     with `infinite` and negative delays so the sky is already
+     full at mount and the rain never pauses between cycles. */
+  @keyframes birthday-rain {
+    0% {
+      transform: translate(0, -28px) rotate(0deg);
+      opacity: 0;
+    }
+    5% {
+      opacity: 1;
+    }
+    85% {
+      opacity: 1;
+    }
+    100% {
+      transform: translate(var(--rain-sway, 0px), var(--rain-distance, 320px))
+        rotate(var(--rain-spin, 540deg));
+      opacity: 0;
+    }
+  }
+  /* BirthdayRain balloons: buoyant — rises from below the
+     region's clipped bottom edge toward the top, swaying and
+     tipping, fading out near the end so nothing snaps off. */
+  @keyframes birthday-float {
+    0% {
+      transform: translate(0, 0) rotate(0deg);
+      opacity: 0;
+    }
+    5% {
+      opacity: 1;
+    }
+    85% {
+      opacity: 1;
+    }
+    100% {
+      transform: translate(
+          var(--rain-sway, 0px),
+          calc(-1 * var(--rain-distance, 320px))
+        )
+        rotate(var(--rain-spin, 0deg));
+      opacity: 0;
+    }
+  }
+  /* Welcome sparkle: a star scales in with a quarter turn, then out. */
+  @keyframes celebration-twinkle {
+    0% {
+      transform: scale(0) rotate(0deg);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1) rotate(45deg);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(0) rotate(90deg);
+      opacity: 0;
+    }
+  }
+  /* gm sunrise: the sun eases up from below the card edge, holds,
+     and fades. */
+  @keyframes celebration-sun {
+    0% {
+      transform: translate(-50%, 0);
+      opacity: 0;
+    }
+    20% {
+      opacity: 0.9;
+    }
+    75% {
+      transform: translate(-50%, -105px);
+      opacity: 0.9;
+    }
+    100% {
+      transform: translate(-50%, -120px);
+      opacity: 0;
+    }
+  }
+  /* gm sunrise: warm wash that swells and recedes with the sun. */
+  @keyframes celebration-glow {
+    0% {
+      opacity: 0;
+    }
+    35% {
+      opacity: 1;
+    }
+    75% {
+      opacity: 0.8;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+  /* Reaction burst: squash-and-release. The icon compresses for a
+     beat (anticipation), then explodes past full size and settles.
+     The wind-up is what sells the impact. */
+  @keyframes reaction-pop {
+    0% {
+      transform: scale(1);
+    }
+    20% {
+      transform: scale(0.8);
+    }
+    55% {
+      transform: scale(1.4);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  /* Reaction burst particle: ejects violently (most of the travel
+     happens in the first third via the animation's bezier), then
+     decays and fades. */
+  @keyframes reaction-spark {
+    0% {
+      transform: translate(0, 0) scale(0);
+      opacity: 0;
+    }
+    12% {
+      transform: translate(
+          calc(var(--spark-x, 0px) * 0.4),
+          calc(var(--spark-y, 0px) * 0.4)
+        )
+        scale(1.1);
+      opacity: 1;
+    }
+    70% {
+      opacity: 1;
+    }
+    100% {
+      transform: translate(var(--spark-x, 0px), var(--spark-y, 0px)) scale(0.5);
+      opacity: 0;
+    }
+  }
+}
 
 @layer base {
   :root {
@@ -109,148 +591,155 @@
   }
 }
 
-@layer utilities {
-  /* ── Feed item render skipping ────────────────────────────────────────────
-     Applied to each feed-item wrapper so the browser skips layout/paint/style
-     for off-screen cards — the dominant scroll cost on low-end phones once a
-     long feed has accumulated. `contain-intrinsic-size: auto 300px` gives
-     unrendered cards a placeholder height (post-render, `auto` remembers the
-     real height) so the scrollbar stays stable. IntersectionObservers inside
-     the cards keep working. Safe no-op on engines without support. */
-  .cv-feed-item {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 300px;
+@layer base {
+  /* v4's preflight leaves buttons with the default cursor; v3 gave them a
+     pointer, and the UI is designed around that. */
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
   }
 
-  /* ── Safe-area inset utilities ────────────────────────────────────────────
-     Use var(--safe-area-inset-*, …) as the outer wrapper so that
-     Capacitor's SystemBars plugin (which injects --safe-area-inset-* CSS
-     variables on Android) takes precedence when available.  The inner
-     env(safe-area-inset-*, 0px) is the standard fallback for iOS / web. */
+  /* v4's default placeholder is the text color at half opacity; v3's was
+     gray-400. Inputs that don't set their own placeholder color keep it. */
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400);
+  }
+}
 
-  .safe-area-top {
-    padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
-  }
-  
-  .safe-area-bottom {
-    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
-  }
-  
-  .safe-area-inset-top {
-    top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
-  }
-  
-  .safe-area-inset-bottom {
-    bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
-  }
+/* ── Feed item render skipping ────────────────────────────────────────────
+   Applied to each feed-item wrapper so the browser skips layout/paint/style
+   for off-screen cards — the dominant scroll cost on low-end phones once a
+   long feed has accumulated. `contain-intrinsic-size: auto 300px` gives
+   unrendered cards a placeholder height (post-render, `auto` remembers the
+   real height) so the scrollbar stays stable. IntersectionObservers inside
+   the cards keep working. Safe no-op on engines without support. */
+@utility cv-feed-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
 
-  /* Fullscreen player control bar: its usual pb-2 px-3, grown to clear the
-     home indicator and a landscape notch. */
-  .safe-area-player-controls {
-    padding-bottom: max(0.5rem, var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
-    padding-left: max(0.75rem, var(--safe-area-inset-left, env(safe-area-inset-left, 0px)));
-    padding-right: max(0.75rem, var(--safe-area-inset-right, env(safe-area-inset-right, 0px)));
-  }
-  
-  /* FAB bottom offset: clears bottom nav + safe area inset on mobile */
-  .bottom-fab {
-    bottom: calc(1.5rem + var(--bottom-nav-height) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
-  }
+/* ── Safe-area inset utilities ────────────────────────────────────────────
+   Use var(--safe-area-inset-*, …) as the outer wrapper so that
+   Capacitor's SystemBars plugin (which injects --safe-area-inset-* CSS
+   variables on Android) takes precedence when available.  The inner
+   env(safe-area-inset-*, 0px) is the standard fallback for iOS / web. */
 
-  /* Position above mobile bottom nav + safe area + arc overhang (28px) */
-  .bottom-mobile-nav {
-    bottom: calc(var(--bottom-nav-height) + 28px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
-  }
+@utility safe-area-top {
+  padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+}
 
-  /* Bottom overscroll padding for the center column:
-     clears the mobile bottom nav + safe area + generous extra space
-     so content can be scrolled well past the bottom bar */
-  .pb-overscroll {
-    padding-bottom: calc(10vh + var(--bottom-nav-height) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
-  }
+@utility safe-area-bottom {
+  padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+}
+
+@utility safe-area-inset-top {
+  top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+}
+
+@utility safe-area-inset-bottom {
+  bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+}
+
+/* Fullscreen player control bar: its usual pb-2 px-3, grown to clear the
+   home indicator and a landscape notch. */
+@utility safe-area-player-controls {
+  padding-bottom: max(0.5rem, var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  padding-left: max(0.75rem, var(--safe-area-inset-left, env(safe-area-inset-left, 0px)));
+  padding-right: max(0.75rem, var(--safe-area-inset-right, env(safe-area-inset-right, 0px)));
+}
+
+/* FAB bottom offset: clears bottom nav + safe area inset on mobile */
+@utility bottom-fab {
+  bottom: calc(1.5rem + var(--bottom-nav-height) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+/* Position above mobile bottom nav + safe area + arc overhang (28px) */
+@utility bottom-mobile-nav {
+  bottom: calc(var(--bottom-nav-height) + 28px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+/* Bottom overscroll padding for the center column:
+   clears the mobile bottom nav + safe area + generous extra space
+   so content can be scrolled well past the bottom bar */
+@utility pb-overscroll {
+  padding-bottom: calc(10vh + var(--bottom-nav-height) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
 
   @media (min-width: 900px) {
-    .pb-overscroll {
-      padding-bottom: 10vh;
-    }
+    padding-bottom: 10vh;
   }
+}
 
-  /* Mobile top bar height + safe area inset for sticky elements */
-  .top-mobile-bar {
-    top: calc(var(--top-bar-height) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
-  }
+/* Mobile top bar height + safe area inset for sticky elements */
+@utility top-mobile-bar {
+  top: calc(var(--top-bar-height) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+}
 
-  /* New-posts pill: just below the SubHeaderBar on both mobile and desktop */
-  .new-posts-pill {
-    top: calc(var(--top-bar-height) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + 3.5rem);
-  }
+/* New-posts pill: just below the SubHeaderBar on both mobile and desktop */
+@utility new-posts-pill {
+  top: calc(var(--top-bar-height) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + 3.5rem);
+
   @media (min-width: 900px) {
-    .new-posts-pill {
-      top: 4rem;
-    }
+    top: 4rem;
   }
+}
 
-
-
-  /* Slide the sub-header bar out of view together with the mobile top bar.
-     Must clear its own height (100%) + top bar + safe area + arc overhang (20px). */
+/* Slide the sub-header bar out of view together with the mobile top bar.
+   Must clear its own height (100%) + top bar + safe area + arc overhang (20px). */
+@utility nav-hidden-slide {
   @media (max-width: 899px) {
-    .nav-hidden-slide {
-      transform: translateY(calc(-100% - var(--top-bar-height) - 20px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px))));
-    }
+    transform: translateY(calc(-100% - var(--top-bar-height) - 20px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px))));
   }
+}
 
-  /* Negative margin to pull content area up behind the mobile top bar (only when it's visible) */
+/* Negative margin to pull content area up behind the mobile top bar (only when it's visible) */
+@utility -mt-mobile-bar {
   @media (max-width: 899px) {
-    .-mt-mobile-bar {
-      margin-top: calc(-1 * var(--top-bar-height) - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
-      padding-top: calc(var(--top-bar-height) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
-    }
+    margin-top: calc(-1 * var(--top-bar-height) - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+    padding-top: calc(var(--top-bar-height) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   }
+}
 
-  /* Pinned sticky page header (counterpart of SubHeaderBar's pinned mode for
-     full PageHeader-style headers): when the mobile top bar slides away, move
-     from top-mobile-bar to the very top and absorb the device safe area into
-     the header's own padding (1rem = the header's py-4). Toggled alongside
-     a transition-[top,padding-top] for a smooth slide. */
+/* Pinned sticky page header (counterpart of SubHeaderBar's pinned mode for
+   full PageHeader-style headers): when the mobile top bar slides away, move
+   from top-mobile-bar to the very top and absorb the device safe area into
+   the header's own padding (1rem = the header's py-4). Toggled alongside
+   a transition-[top,padding-top] for a smooth slide. */
+@utility header-pinned-top {
   @media (max-width: 899px) {
-    .header-pinned-top {
-      top: 0 !important;
-      padding-top: calc(1rem + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) !important;
-    }
+    top: 0 !important;
+    padding-top: calc(1rem + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) !important;
   }
+}
 
-  /* AI chat height on mobile: full viewport minus top bar, extends behind bottom nav.
-     Padding-bottom keeps input above the nav. */
-  .ai-chat-height {
-    height: calc(100dvh - var(--top-bar-height) - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
-    padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
-  }
+/* AI chat height on mobile: full viewport minus top bar, extends behind bottom nav.
+   Padding-bottom keeps input above the nav. */
+@utility ai-chat-height {
+  height: calc(100dvh - var(--top-bar-height) - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+
   @media (min-width: 900px) {
-    .ai-chat-height {
-      padding-bottom: 0;
-    }
+    padding-bottom: 0;
   }
+}
 
-  /* Live stream page height on mobile: full viewport minus top bar, bottom nav, and safe-area insets */
-  .livestream-height {
-    height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
-    max-height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
-  }
+/* Live stream page height on mobile: full viewport minus top bar, bottom nav, and safe-area insets */
+@utility livestream-height {
+  height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  max-height: calc(100dvh - var(--top-bar-height) - var(--bottom-nav-height) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+
   /* Above the sidebar breakpoint the mobile top bar and bottom nav are hidden,
      so the locked layout gets the full viewport */
   @media (min-width: 900px) {
-    .livestream-height {
-      height: 100dvh;
-      max-height: 100dvh;
-    }
-  }
-
-  /* Vine feed slide height: full viewport on mobile (top bar + bottom nav are
-     both hidden for an immersive experience). Tab bar floats over video. */
-  .vine-slide-height {
     height: 100dvh;
+    max-height: 100dvh;
   }
+}
+
+/* Vine feed slide height: full viewport on mobile (top bar + bottom nav are
+   both hidden for an immersive experience). Tab bar floats over video. */
+@utility vine-slide-height {
+  height: 100dvh;
 }
 
 
@@ -796,21 +1285,21 @@
 /* ── Milkdown Editor Styles ─────────────────────────────────────────────────── */
 
 .milkdown-editor .milkdown {
-  @apply outline-none;
+  @apply outline-hidden;
 }
 
 .milkdown-editor .editor {
-  @apply outline-none min-h-[400px] p-3;
+  @apply outline-hidden min-h-[400px] p-3;
   font-size: 1.125rem;
   line-height: 1.75;
 }
 
 .milkdown-editor .ProseMirror {
-  @apply outline-none min-h-[400px];
+  @apply outline-hidden min-h-[400px];
 }
 
 .milkdown-editor .ProseMirror:focus {
-  @apply outline-none;
+  @apply outline-hidden;
 }
 
 /* Headings */

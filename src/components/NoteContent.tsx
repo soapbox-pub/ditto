@@ -853,7 +853,7 @@ export function NoteContent({
   }, [groupedTokens]);
 
   return (
-    <Wrapper dir="auto" {...highlightSourceAttrs(event)} className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && (isSingleEmoji ? 'text-5xl leading-normal' : 'text-4xl leading-tight'))}>
+    <Wrapper dir="auto" {...highlightSourceAttrs(event)} className={cn('whitespace-pre-wrap wrap-break-word overflow-hidden', className, isEmojiOnly && (isSingleEmoji ? 'text-5xl leading-normal' : 'text-4xl leading-tight'))}>
       {groupedTokens.map((token, i) => {
         switch (token.type) {
           case 'text':
@@ -1131,7 +1131,7 @@ function InlineImage({ url, encryption, onClick }: {
   return (
     <button
       type="button"
-      className="block my-2 rounded-lg overflow-hidden w-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="block my-2 rounded-lg overflow-hidden w-full cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
       onClick={onClick}
     >
       <div className={cn('relative w-full rounded-lg overflow-hidden', !loaded && 'bg-muted')} style={!loaded ? { minHeight: 200 } : undefined}>
@@ -1248,7 +1248,7 @@ function BlossomEmbed({ uri, raw, artist, avatarUrl, avatarImeta, avatarFallback
       <>
         <button
           type="button"
-          className="block my-2 rounded-lg overflow-hidden w-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="block my-2 rounded-lg overflow-hidden w-full cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
           onClick={(e) => { e.stopPropagation(); setLightboxOpen(true); }}
         >
           <div className={cn('relative w-full rounded-lg overflow-hidden', !loaded && 'bg-muted')} style={!loaded ? { minHeight: 200 } : undefined}>

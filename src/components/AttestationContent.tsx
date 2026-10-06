@@ -122,7 +122,7 @@ export function AttestationContent({
         <p
           dir="auto"
           className={cn(
-            'whitespace-pre-wrap break-words text-foreground',
+            'whitespace-pre-wrap wrap-break-word text-foreground',
             expanded ? 'text-[17px] leading-relaxed' : 'text-[15px] leading-relaxed',
           )}
         >

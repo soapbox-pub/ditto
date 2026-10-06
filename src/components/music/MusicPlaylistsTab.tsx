@@ -102,7 +102,7 @@ export function MusicPlaylistsTab() {
                 className={cn(
                   'px-3 py-1.5 text-xs font-medium rounded-md transition-colors capitalize',
                   filter === mode
-                    ? 'bg-background text-foreground shadow-sm'
+                    ? 'bg-background text-foreground shadow-xs'
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >

@@ -270,7 +270,7 @@ export function TarotReader() {
                   )}
 
                   {reading.sealed && !expired && remaining !== null && (
-                    <div className="inline-flex items-baseline gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm shadow-sm">
+                    <div className="inline-flex items-baseline gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm shadow-xs">
                       <span className="leading-none text-muted-foreground">
                         <FormattedMessage
                           id="tarot.countdown.next"

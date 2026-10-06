@@ -104,7 +104,7 @@ export function BlobbiRoomStage({
     <Standing
       companion={companion}
       nameTag={
-        <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-background/80 backdrop-blur-sm border border-border/30 shadow-sm px-2.5 py-0.5 text-sm font-semibold text-foreground">
+        <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-background/80 backdrop-blur-xs border border-border/30 shadow-xs px-2.5 py-0.5 text-sm font-semibold text-foreground">
           <span
             className="size-2 rounded-full ring-1 ring-foreground/10"
             style={{ background: companion.visualTraits.baseColor }}
@@ -131,7 +131,7 @@ export function BlobbiRoomStage({
             recipe={hasDevOverride ? undefined : statusRecipe}
             recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
             emotion={effectiveEmotion}
-            className="!size-full"
+            className="size-full!"
           />
           {/* Interaction reaction overlays — sparkles, bubbles, hearts */}
           <ReactionSparkles active={interactionReaction?.sparkles ?? false} />
@@ -155,7 +155,7 @@ export function BlobbiGuestStage({ companion, meeting }: { companion: BlobbiComp
     <Standing
       companion={companion}
       nameTag={
-        <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-background/70 backdrop-blur-sm border border-border/30 px-2 py-px text-xs font-medium text-foreground/80">
+        <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-background/70 backdrop-blur-xs border border-border/30 px-2 py-px text-xs font-medium text-foreground/80">
           {companion.name}
         </span>
       }
@@ -167,7 +167,7 @@ export function BlobbiGuestStage({ companion, meeting }: { companion: BlobbiComp
             size="lg"
             animated
             emotion={meeting ? 'happy' : asleep ? undefined : 'neutral'}
-            className="!size-full"
+            className="size-full!"
           />
           <FloatingSocialHearts active={meeting} />
         </div>

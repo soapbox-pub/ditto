@@ -697,7 +697,7 @@ function BlobbiContent() {
   if (ceremonyInProgress) {
     if (DEBUG_BLOBBI) console.log('[BlobbiPage] Showing: hatching ceremony');
     return createPortal(
-      <div className="fixed inset-0 z-[100] bg-background">
+      <div className="fixed inset-0 z-100 bg-background">
         <BlobbiOnboardingFlow
           profile={profile ?? null}
           updateProfileEvent={updateProfileEvent}
@@ -2208,7 +2208,7 @@ function BlobbiDashboard({
               open={activeDrawer !== 'none'}
               onClose={closeDrawer}
               bar={
-                <SubHeaderBar className="relative !top-0 z-10" innerClassName="min-h-[3.25em]">
+                <SubHeaderBar className="relative top-0! z-10" innerClassName="min-h-[3.25em]">
                   <TabButton label={intl.formatMessage({ id: 'blobbiRoom.tabs.quests', defaultMessage: 'Quests' })} active={activeDrawer === 'missions'} onClick={() => toggleDrawer('missions')}>
                     <span className="flex items-center gap-[0.4em] text-[1.05em]">
                       <Target className="size-[1.15em]" />
@@ -2483,7 +2483,7 @@ function BlobbiDashboard({
       {roomDrag.drag && (
         <div
           ref={roomDrag.ghostRef}
-          className="fixed pointer-events-none z-[80]"
+          className="fixed pointer-events-none z-80"
           style={{
             display: 'none',
             left: roomDrag.drag.startX,
@@ -2526,7 +2526,7 @@ function BlobbiDashboard({
 
       {/* Hatch Ceremony — portaled to document.body to escape center column stacking context */}
       {showHatchCeremony && createPortal(
-        <div className="fixed inset-0 z-[100] bg-background">
+        <div className="fixed inset-0 z-100 bg-background">
           <BlobbiHatchingCeremony
             profile={profile}
             updateProfileEvent={updateProfileEvent}
@@ -2543,7 +2543,7 @@ function BlobbiDashboard({
 
       {/* Evolve Ceremony — portaled to document.body like the hatch ceremony */}
       {showEvolveCeremony && createPortal(
-        <div className="fixed inset-0 z-[100] bg-background">
+        <div className="fixed inset-0 z-100 bg-background">
           <BlobbiEvolveCeremony
             companion={companion}
             onEvolve={onEvolve}
@@ -2627,7 +2627,7 @@ function DragGhost({ payload, companions }: { payload: RoomDragState['payload'];
   if (!companion) return null;
   return (
     <div className="size-24 drop-shadow-xl">
-      <BlobbiStageVisual companion={companion} size="md" animated emotion="happy" className="!size-full" />
+      <BlobbiStageVisual companion={companion} size="md" animated emotion="happy" className="size-full!" />
     </div>
   );
 }
@@ -2975,7 +2975,7 @@ function MissionsTabContent({
             className={cn(
               'flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200',
               pane === 'journey'
-                ? 'bg-background shadow-sm text-foreground'
+                ? 'bg-background shadow-xs text-foreground'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
@@ -2990,7 +2990,7 @@ function MissionsTabContent({
             className={cn(
               'flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200',
               pane === 'bounties'
-                ? 'bg-background shadow-sm text-foreground'
+                ? 'bg-background shadow-xs text-foreground'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
@@ -3136,7 +3136,7 @@ function MissionsTabContent({
                 key={mission.id}
                 className={cn(
                   'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all',
-                  mission.complete && 'bg-emerald-500/[0.06]',
+                  mission.complete && 'bg-emerald-500/6',
                 )}
               >
                 <DailyMissionIcon action={mission.action} complete={mission.complete} />
@@ -3155,7 +3155,7 @@ function MissionsTabContent({
 
             {/* Bonus row */}
             {!dailyMissions.noMissionsAvailable && !dailyMissions.isLoading && dailyMissions.bonusUnlocked && (
-              <div className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-violet-500/[0.06]">
+              <div className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-violet-500/6">
                 <div className="size-8 rounded-full bg-violet-500/15 flex items-center justify-center shrink-0">
                   <Sparkles className="size-4 text-violet-500" />
                 </div>
@@ -3311,7 +3311,7 @@ function MoreTabContent({
               </div>
               {c.stage !== 'egg' && (
                 <span className={cn(
-                  'text-[11px] font-medium max-w-[4.5rem] truncate',
+                  'text-[11px] font-medium max-w-18 truncate',
                   isSelected ? 'text-foreground' : 'text-muted-foreground',
                 )}>
                   {c.name}
@@ -3500,7 +3500,7 @@ function ActivityTabContent({ companion, projectedStats, socialOpen, onToggleSoc
                   <span className="text-base leading-none">{actionInfo.icon}</span>
                   <span className="font-medium">{actionInfo.label}</span>
                   {item && (
-                    <span className="text-muted-foreground truncate max-w-[7rem]">
+                    <span className="text-muted-foreground truncate max-w-28">
                       {item.icon} {item.name}
                     </span>
                   )}
@@ -3527,7 +3527,7 @@ function CaretakerLink({ pubkey }: { pubkey: string }) {
   return (
     <Link
       to={profilePath}
-      className="font-medium text-foreground hover:underline truncate max-w-[6rem]"
+      className="font-medium text-foreground hover:underline truncate max-w-24"
       title={displayName}
       onClick={(e) => e.stopPropagation()}
     >
@@ -3577,7 +3577,7 @@ function BlobbiSelectorPage({ companions, onSelect, isLoading, onAdopt, currentC
                     </div>
                   )}
                 </div>
-                <span className="text-xs font-medium text-muted-foreground max-w-[5rem] truncate">{c.name}</span>
+                <span className="text-xs font-medium text-muted-foreground max-w-20 truncate">{c.name}</span>
               </button>
             );
           })}
@@ -3609,7 +3609,7 @@ function DashboardLoadingState() {
     <DashboardShell>
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-4">
         <Skeleton className="h-8 w-32 mb-6" />
-        <Skeleton className="size-80 sm:size-96 md:size-[28rem] rounded-full" />
+        <Skeleton className="size-80 sm:size-96 md:size-112 rounded-full" />
       </div>
       <div className="px-4 pb-6 sm:px-6">
         <div className="flex justify-center gap-4 sm:gap-6">
@@ -3687,7 +3687,7 @@ function CrumbBurst({ crumbX, crumbY, rewardX, rewardY }: {
     <>
       {/* Crumb particles — anchored just below the mouth */}
       <div
-        className="fixed pointer-events-none z-[60]"
+        className="fixed pointer-events-none z-60"
         style={{ left: crumbX, top: crumbY }}
         aria-hidden="true"
       >
@@ -3710,7 +3710,7 @@ function CrumbBurst({ crumbX, crumbY, rewardX, rewardY }: {
 
       {/* Floating reward word — anchored above the head */}
       <span
-        className="fixed pointer-events-none z-[60] text-xs font-bold text-amber-500 drop-shadow-[0_1px_2px_rgba(180,83,9,0.4)] animate-reward-pop whitespace-nowrap select-none"
+        className="fixed pointer-events-none z-60 text-xs font-bold text-amber-500 drop-shadow-[0_1px_2px_rgba(180,83,9,0.4)] animate-reward-pop whitespace-nowrap select-none"
         style={{ left: rewardX, top: rewardY, transform: 'translate(-50%, 0)' }}
         aria-hidden="true"
       >

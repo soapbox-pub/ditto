@@ -41,15 +41,15 @@ function ThemeSwatch({
     <button
       onClick={onClick}
       className={cn(
-        'group flex-shrink-0 rounded-xl border-2 p-1 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'group shrink-0 rounded-xl border-2 p-1 transition-all duration-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
         isActive
           ? 'border-primary shadow-md scale-[1.02]'
-          : 'border-border/50 hover:border-primary/40 hover:shadow-sm',
+          : 'border-border/50 hover:border-primary/40 hover:shadow-xs',
       )}
     >
       {/* Mini preview */}
       <div
-        className="w-[88px] aspect-[4/3] rounded-lg overflow-hidden relative"
+        className="w-[88px] aspect-4/3 rounded-lg overflow-hidden relative"
         style={{ backgroundColor: hsl(tokens.background) }}
       >
         {backgroundUrl && (
@@ -179,7 +179,7 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
           {canScrollLeft && (
             <button
               onClick={() => scroll('left')}
-              className="absolute left-1 top-1/2 -translate-y-1/2 z-10 size-7 rounded-full bg-background/90 border border-border shadow-sm flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity"
+              className="absolute left-1 top-1/2 -translate-y-1/2 z-10 size-7 rounded-full bg-background/90 border border-border shadow-xs flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity"
               aria-label="Scroll left"
             >
               <ChevronLeft className="size-4" />
@@ -211,13 +211,13 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
             <button
               onClick={() => setTheme('system')}
               className={cn(
-                'flex-shrink-0 rounded-xl border-2 p-1 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'shrink-0 rounded-xl border-2 p-1 transition-all duration-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
                 theme === 'system'
                   ? 'border-primary shadow-md scale-[1.02]'
-                  : 'border-border/50 hover:border-primary/40 hover:shadow-sm',
+                  : 'border-border/50 hover:border-primary/40 hover:shadow-xs',
               )}
             >
-              <div className="w-[88px] aspect-[4/3] rounded-lg overflow-hidden relative bg-gradient-to-br from-background to-muted flex items-center justify-center">
+              <div className="w-[88px] aspect-4/3 rounded-lg overflow-hidden relative bg-linear-to-br from-background to-muted flex items-center justify-center">
                 <span className="text-lg">🔄</span>
               </div>
               <p className={cn(
@@ -233,7 +233,7 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
           {canScrollRight && (
             <button
               onClick={() => scroll('right')}
-              className="absolute right-1 top-1/2 -translate-y-1/2 z-10 size-7 rounded-full bg-background/90 border border-border shadow-sm flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity"
+              className="absolute right-1 top-1/2 -translate-y-1/2 z-10 size-7 rounded-full bg-background/90 border border-border shadow-xs flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity"
               aria-label="Scroll right"
             >
               <ChevronRight className="size-4" />

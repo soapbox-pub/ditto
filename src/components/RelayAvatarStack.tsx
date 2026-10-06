@@ -89,7 +89,7 @@ export function RelayAvatarStack({
                 className={cn(
                   'relative rounded-full transition-transform duration-150 ease-out',
                   'hover:z-10 motion-safe:hover:scale-110 focus-visible:z-10 motion-safe:focus-visible:scale-110',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                 )}
               >
                 <Avatar className={cn(sizeClasses[size], 'ring-2 ring-background')}>

@@ -476,7 +476,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
               {fields.length > 0 && (
                 <div className="space-y-3 pt-2">
                   {fields.map((field, index) => (
-                    <div key={field.id} className="grid grid-cols-[1fr,2fr,auto] gap-2 items-start">
+                    <div key={field.id} className="grid grid-cols-[1fr_2fr_auto] gap-2 items-start">
                       <FormField
                         control={form.control}
                         name={`fields.${index}.label`}

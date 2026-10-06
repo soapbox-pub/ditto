@@ -52,7 +52,7 @@ export function MusicSortFilterBar({
             className={cn(
               'flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
               sort === value
-                ? 'bg-background text-foreground shadow-sm'
+                ? 'bg-background text-foreground shadow-xs'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
@@ -73,7 +73,7 @@ export function MusicSortFilterBar({
               className={cn(
                 'flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
                 scope === value
-                  ? 'bg-background text-foreground shadow-sm'
+                  ? 'bg-background text-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >

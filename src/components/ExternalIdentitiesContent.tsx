@@ -86,7 +86,7 @@ function ExternalIdentityRow({ identity }: { identity: ExternalIdentity }) {
           href={identity.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="block truncate text-sm font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+          className="block truncate text-sm font-semibold hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
         >
           {identity.label}
         </a>
@@ -99,7 +99,7 @@ function ExternalIdentityRow({ identity }: { identity: ExternalIdentity }) {
           href={identity.proofUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="shrink-0 rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         >
           <FormattedMessage id="externalIdentities.proof" defaultMessage="Proof" />
         </a>

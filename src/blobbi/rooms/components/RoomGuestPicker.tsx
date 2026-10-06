@@ -50,14 +50,14 @@ export function RoomGuestPicker({ companions, visiting, onPointerDown, onToggle 
                 : intl.formatMessage({ id: 'blobbiRoom.guests.invite', defaultMessage: 'Invite {name} over' }, { name: c.name })}
               className={cn(
                 'relative shrink-0 flex flex-col items-center gap-1 rounded-2xl p-1.5 w-20 touch-pan-x cursor-grab active:cursor-grabbing',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
               )}
             >
               <div className={cn(
                 'size-14 rounded-full pointer-events-none transition-shadow',
                 here && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
               )}>
-                <BlobbiStageVisual companion={c} size="sm" className="!size-full" />
+                <BlobbiStageVisual companion={c} size="sm" className="size-full!" />
               </div>
               <span className="w-full truncate text-center text-[11px] font-medium">{c.stage === 'egg' ? <FormattedMessage id="blobbiRoom.guests.egg" defaultMessage="Egg" /> : c.name}</span>
               {here && (

@@ -67,7 +67,7 @@ export function StreakBadge({ pubkey, fetch = true, tooltip = true, className }:
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button type="button" className="rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <button type="button" className="rounded-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
           {badge}
         </button>
       </TooltipTrigger>

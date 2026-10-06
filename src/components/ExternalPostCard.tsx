@@ -187,7 +187,7 @@ export function ExternalPostCard({ post, hideImage, className }: ExternalPostCar
 
         {/* Text content */}
         {post.text && (
-          <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words overflow-hidden line-clamp-6">
+          <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap wrap-break-word overflow-hidden line-clamp-6">
             {post.text}
           </p>
         )}

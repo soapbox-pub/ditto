@@ -74,7 +74,7 @@ export function StatusContent({ event, expanded = false, className }: StatusCont
         <p
           dir="auto"
           className={cn(
-            'whitespace-pre-wrap break-words font-medium text-foreground',
+            'whitespace-pre-wrap wrap-break-word font-medium text-foreground',
             expanded ? 'text-[22px] leading-snug' : 'text-[17px] leading-snug',
           )}
         >

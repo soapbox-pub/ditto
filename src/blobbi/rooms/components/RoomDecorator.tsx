@@ -164,7 +164,7 @@ export function RoomDecoratorOverlay({
       <div data-room-top className="pointer-events-auto px-3 pt-3">
         <div className="flex items-center gap-2 rounded-full border border-border/50 bg-background/90 backdrop-blur-md shadow-md p-1.5">
           <Button variant="ghost" size="icon" onClick={onCancel} disabled={isSaving} aria-label={intl.formatMessage({ id: 'blobbiRoom.decorator.cancel', defaultMessage: 'Cancel decorating' })} className="shrink-0">
-            <X className="!size-5" />
+            <X className="size-5!" />
           </Button>
           <div className="min-w-0 flex-1 text-center">
             <p className="truncate text-sm font-bold leading-tight">
@@ -242,7 +242,7 @@ export function RoomDecoratorOverlay({
                 onClick={() => setTab(t.id)}
                 className={cn(
                   'shrink-0 h-9 rounded-full px-3.5 flex items-center gap-1.5 text-sm font-medium transition-colors [&_svg]:size-4',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                   tab === t.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                 )}
               >
@@ -253,7 +253,7 @@ export function RoomDecoratorOverlay({
             })}
           </ScrollRow>
           {/* Keyboard users pick placed pieces in turn; hidden until focused, since pointers just tap them */}
-          <div className="flex shrink-0 gap-1 [&:not(:focus-within)]:sr-only">
+          <div className="flex shrink-0 gap-1 not-focus-within:sr-only">
             <Button variant="ghost" size="icon" onClick={() => selectStep(-1)} disabled={!draft.length} aria-label={intl.formatMessage({ id: 'blobbiRoom.decorator.previousPiece', defaultMessage: 'Select previous piece' })}>
               <ChevronLeft />
             </Button>
@@ -360,7 +360,7 @@ function ScrollRow({ className, innerClassName, children, ...props }: React.HTML
     if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) e.currentTarget.scrollLeft += e.deltaY;
   };
 
-  const arrow = 'absolute top-1/2 -translate-y-1/2 z-10 size-9 rounded-full flex items-center justify-center border border-border/50 bg-background shadow-md text-foreground/80 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-5';
+  const arrow = 'absolute top-1/2 -translate-y-1/2 z-10 size-9 rounded-full flex items-center justify-center border border-border/50 bg-background shadow-md text-foreground/80 hover:bg-accent hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-5';
 
   return (
     <div className={cn('relative', className)}>
@@ -388,8 +388,8 @@ function FindMoreTile({ empty }: { empty: boolean }) {
       to="/objects"
       className={cn(
         'shrink-0 flex flex-col items-center justify-center gap-1 rounded-2xl p-1.5 text-center text-primary',
-        'transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        empty ? 'w-auto flex-row gap-2 px-4 py-6 text-sm font-medium' : 'w-[5.5rem]',
+        'transition-colors hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
+        empty ? 'w-auto flex-row gap-2 px-4 py-6 text-sm font-medium' : 'w-22',
       )}
     >
       {empty ? (
@@ -422,9 +422,9 @@ function CatalogTile({ id, label, model, disabled, onClick }: {
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'shrink-0 w-[5.5rem] flex flex-col items-center gap-1 rounded-2xl p-1.5',
+        'shrink-0 w-22 flex flex-col items-center gap-1 rounded-2xl p-1.5',
         'transition-colors hover:bg-accent active:scale-95 motion-reduce:active:scale-100',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40',
+        'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40',
       )}
     >
       <FurnitureThumbnail id={id} model={model} alt="" className="size-16" />
@@ -545,7 +545,7 @@ export function RoomDecoratorToolbar({ draft, onDraftChange, selectedIndex, onSe
 const TOOL_CLASS = cn(
   'size-11 rounded-full flex items-center justify-center text-foreground/80 transition-colors [&_svg]:size-5',
   'hover:bg-accent hover:text-foreground disabled:opacity-35',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
 );
 
 function ToolButton({ label, onClick, disabled, className, children }: {

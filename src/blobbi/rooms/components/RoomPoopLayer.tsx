@@ -16,7 +16,7 @@ import type { PoopInstance } from '../lib/poop-system';
 import { RoomActionButton } from './RoomActionButton';
 
 /** Poop stands on its floor anchor, sized with the room (see BlobbiRoomShell anchors). */
-const POOP_CLASS = 'absolute bottom-0 left-0 block -translate-x-1/2 leading-none transition-transform duration-200 data-[hovered]:scale-150 data-[hovered]:drop-shadow-lg';
+const POOP_CLASS = 'absolute bottom-0 left-0 block -translate-x-1/2 leading-none transition-transform duration-200 data-hovered:scale-150 data-hovered:drop-shadow-lg';
 const POOP_STYLE: React.CSSProperties = { fontSize: 'clamp(18px, calc(var(--anchor-px, 40) * 0.55px), 44px)' };
 
 export function PoopOverlay({ poops }: { poops: PoopInstance[] }) {

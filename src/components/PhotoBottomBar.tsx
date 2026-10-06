@@ -47,7 +47,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
       {/* Action strip — mirrors top bar: px-4 py-3 + safe-area */}
       <div className="relative safe-area-bottom">
         {/* Gradient scrim */}
-        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-black/70 to-transparent pointer-events-none" />
 
         <div className="relative flex items-center gap-1 px-4 py-3 max-w-xl mx-auto">
           {/* Avatar + name */}
@@ -84,7 +84,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
               onClick={() => setCommentsOpen(true)}
             >
               <MessageCircle className="size-5" />
-              {!!stats?.replies && <span className="text-sm tabular-nums drop-shadow">{formatNumber(stats.replies)}</span>}
+              {!!stats?.replies && <span className="text-sm tabular-nums drop-shadow-sm">{formatNumber(stats.replies)}</span>}
             </button>
 
             <RepostMenu event={event}>
@@ -92,7 +92,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
                 <button className={`flex items-center gap-1 p-2.5 transition-colors ${isReposted ? 'text-accent' : 'text-white hover:text-accent'}`}>
                   <RepostIcon className="size-5" />
                   {!!((stats?.reposts ?? 0) + (stats?.quotes ?? 0)) && (
-                    <span className="text-sm tabular-nums drop-shadow">{formatNumber((stats?.reposts ?? 0) + (stats?.quotes ?? 0))}</span>
+                    <span className="text-sm tabular-nums drop-shadow-sm">{formatNumber((stats?.reposts ?? 0) + (stats?.quotes ?? 0))}</span>
                   )}
                 </button>
               )}
@@ -105,7 +105,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
                   title="Zap"
                 >
                   <Zap className="size-5" fill="none" />
-                  {!!stats?.zapAmount && <span className="text-sm tabular-nums drop-shadow">{formatMoney(stats.zapAmount, { layout: 'compact' })}</span>}
+                  {!!stats?.zapAmount && <span className="text-sm tabular-nums drop-shadow-sm">{formatMoney(stats.zapAmount, { layout: 'compact' })}</span>}
                 </button>
               </ZapDialog>
             )}

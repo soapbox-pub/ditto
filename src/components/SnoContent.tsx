@@ -22,7 +22,7 @@ interface SnoContentProps {
 }
 
 const viewerFallback = (
-  <div className="flex aspect-[4/3] items-center justify-center bg-muted">
+  <div className="flex aspect-4/3 items-center justify-center bg-muted">
     <Loader2 className="size-6 animate-spin text-muted-foreground" />
   </div>
 );
@@ -55,7 +55,7 @@ export function SnoContent({ event, expanded, className }: SnoContentProps) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{name}</p>
-          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+          <p className="mt-1 whitespace-pre-wrap wrap-break-word text-sm text-muted-foreground">
             {event.content.trim() || (
               <FormattedMessage id="sno.encrypted" defaultMessage="This object is encrypted to a place in cyberspace." />
             )}
@@ -87,7 +87,7 @@ export function SnoContent({ event, expanded, className }: SnoContentProps) {
           <SnoViewer root={root} />
         </Suspense>
       ) : (
-        <div className="relative aspect-[4/3] bg-gradient-to-b from-muted/40 to-muted">
+        <div className="relative aspect-4/3 bg-linear-to-b from-muted/40 to-muted">
           {preview.data ? (
             <img src={preview.data} alt="" className="absolute inset-0 size-full object-contain" />
           ) : isLoading || preview.isLoading ? (
@@ -101,10 +101,10 @@ export function SnoContent({ event, expanded, className }: SnoContentProps) {
             type="button"
             onClick={(e) => { e.stopPropagation(); setViewing(true); }}
             disabled={!root}
-            className="absolute inset-0 flex items-end justify-center p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            className="absolute inset-0 flex items-end justify-center p-4 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             aria-label={intl.formatMessage({ id: 'fileCard.view3d', defaultMessage: 'View in 3D' })}
           >
-            <span className="inline-flex items-center gap-2 rounded-full bg-background/90 px-4 py-2 text-sm font-medium shadow-sm backdrop-blur transition-colors hover:bg-background">
+            <span className="inline-flex items-center gap-2 rounded-full bg-background/90 px-4 py-2 text-sm font-medium shadow-xs backdrop-blur-sm transition-colors hover:bg-background">
               <Rotate3d className="size-4" />
               <FormattedMessage id="fileCard.view3d" defaultMessage="View in 3D" />
             </span>
@@ -116,7 +116,7 @@ export function SnoContent({ event, expanded, className }: SnoContentProps) {
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setAddOpen(true); }}
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Sofa className="size-4" />
             <FormattedMessage id="sno.addToBlobbiRoom" defaultMessage="Add to Blobbi room" />

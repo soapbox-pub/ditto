@@ -1,11 +1,11 @@
 # Project Overview
 
-Ditto is a Nostr client built with React 19.x, TailwindCSS 3.x, Vite, shadcn/ui, and Nostrify, wrapped as a native iOS/Android app via Capacitor.
+Ditto is a Nostr client built with React 19.x, TailwindCSS 4.x, Vite, shadcn/ui, and Nostrify, wrapped as a native iOS/Android app via Capacitor.
 
 ## Technology Stack
 
 - **React 19.x** — hooks, concurrent rendering, ref-as-prop
-- **TailwindCSS 3.x** — utility-first styling
+- **TailwindCSS 4.x** — utility-first styling, configured CSS-first in `src/index.css` (`@theme inline`); there is no `tailwind.config.ts`
 - **Vite** — dev server and production bundler
 - **shadcn/ui** — unstyled accessible components on Radix UI + Tailwind (48+ primitives in `@/components/ui`)
 - **Nostrify** (`@nostrify/react`) — Nostr protocol framework

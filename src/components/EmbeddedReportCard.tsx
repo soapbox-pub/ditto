@@ -48,7 +48,7 @@ export function EmbeddedReportCard({
         <>
           <ReportTypePill type={report.type} rawType={report.rawType} />
           {report.reason && (
-            <p dir="auto" className="text-sm leading-relaxed whitespace-pre-wrap break-words line-clamp-3 text-foreground">
+            <p dir="auto" className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word line-clamp-3 text-foreground">
               {report.reason}
             </p>
           )}

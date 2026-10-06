@@ -358,7 +358,7 @@ export function BlobbiEvolveCeremony({
               companion={adultCompanion}
               size="lg"
               animated
-              className="size-[30rem] sm:size-[36rem] md:size-[44rem]"
+              className="size-120 sm:size-144 md:size-176"
             />
           </div>
         </div>

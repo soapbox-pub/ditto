@@ -425,7 +425,7 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
           className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer"
           onClick={handleVideoClick}
         >
-          <div className="size-16 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm">
+          <div className="size-16 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-xs">
             <Play className="size-8 text-white ml-1" fill="white" />
           </div>
         </div>
@@ -436,7 +436,7 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
         <div
           className={cn(
             'absolute bottom-0 left-0 right-0 transition-opacity duration-200',
-            'bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-8',
+            'bg-linear-to-t from-black/80 via-black/40 to-transparent pt-8',
             isFullscreen ? 'safe-area-player-controls' : 'pb-2 px-3',
             showControls ? 'opacity-100' : 'opacity-0 pointer-events-none',
           )}

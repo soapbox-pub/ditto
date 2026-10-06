@@ -89,7 +89,7 @@ function Top8Row({ pubkey, rank, onRemove }: Top8RowProps) {
           engine fires onDragEnd directly, so this is fully keyboard-operable. */}
       <button
         {...listeners}
-        className="shrink-0 p-1 -ml-1 rounded cursor-grab active:cursor-grabbing text-muted-foreground/60 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="shrink-0 p-1 -ml-1 rounded cursor-grab active:cursor-grabbing text-muted-foreground/60 hover:text-foreground transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         aria-label={intl.formatMessage(
           { id: 'top8.edit.reorder', defaultMessage: 'Reorder {name} — use arrow keys to move' },
           { name: displayName },

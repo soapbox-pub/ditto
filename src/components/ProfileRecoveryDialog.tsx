@@ -192,7 +192,7 @@ function ThemeSnapshotCard({
           Floats over the theme mockup — use backdrop-blur to stay legible on any theme. */}
       <div className="absolute top-3 right-3 z-10">
         {isCurrent ? (
-          <div className="flex items-center gap-1 text-xs font-medium text-primary bg-background/80 backdrop-blur-sm rounded-full px-2 py-0.5">
+          <div className="flex items-center gap-1 text-xs font-medium text-primary bg-background/80 backdrop-blur-xs rounded-full px-2 py-0.5">
             <Check className="size-3.5" />
             Current
           </div>
@@ -200,7 +200,7 @@ function ThemeSnapshotCard({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-xs rounded-lg gap-1.5 bg-background/80 backdrop-blur-sm"
+            className="h-8 text-xs rounded-lg gap-1.5 bg-background/80 backdrop-blur-xs"
             onClick={onRestore}
             disabled={isRestoring}
           >
@@ -216,7 +216,7 @@ function ThemeSnapshotCard({
 
       {/* Theme mini-mockup */}
       <div
-        className="aspect-[3/1] relative"
+        className="aspect-3/1 relative"
         style={{ backgroundColor: hsl(tokens.background) }}
       >
         {parsed.background?.url && (

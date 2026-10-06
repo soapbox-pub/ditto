@@ -54,7 +54,7 @@ export function BirdexTile({
   const inner = (
     <div
       className={cn(
-        'group relative aspect-square overflow-hidden rounded-xl bg-gradient-to-br from-emerald-100 via-sky-100 to-amber-100 shadow-sm',
+        'group relative aspect-square overflow-hidden rounded-xl bg-linear-to-br from-emerald-100 via-sky-100 to-amber-100 shadow-xs',
         'dark:from-indigo-950 dark:via-indigo-900 dark:to-amber-900/40',
         !nonInteractive && 'transition-shadow hover:shadow-md focus-visible:shadow-md',
         className,
@@ -89,9 +89,9 @@ export function BirdexTile({
           name from the Birdex's paired `n` tag as a persistent
           italic sub-label underneath, mirroring how kind 2473
           detection cards stack the two labels. */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/40 to-transparent pt-6">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-black/75 via-black/40 to-transparent pt-6">
         <div className="px-2 pb-1.5">
-          <p className="truncate text-[11px] font-semibold leading-tight text-white drop-shadow sm:text-xs">
+          <p className="truncate text-[11px] font-semibold leading-tight text-white drop-shadow-sm sm:text-xs">
             {isLoading && !scientificName ? '\u00A0' : commonName}
           </p>
           {scientificName && scientificName !== commonName && (
@@ -110,7 +110,7 @@ export function BirdexTile({
     <Link
       to={`/i/${encodeURIComponent(entityUri)}`}
       onClick={(e) => e.stopPropagation()}
-      className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
+      className="block focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
       aria-label={commonName}
     >
       {inner}

@@ -124,7 +124,7 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
     <div className="mt-3 space-y-5">
       {/* Community hero image */}
       {image ? (
-        <div className="relative -mx-4 aspect-[21/9] overflow-hidden">
+        <div className="relative -mx-4 aspect-21/9 overflow-hidden">
           <FallbackImage
             src={image}
             alt={name}
@@ -132,14 +132,14 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
             decoding="async"
           />
           {/* Gradient overlay for text readability */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
           {/* Community name overlaid on image */}
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
             <h1 className="text-2xl font-bold text-white leading-tight drop-shadow-lg">{name}</h1>
           </div>
         </div>
       ) : (
-        <div className="relative -mx-4 aspect-[21/9] bg-gradient-to-br from-primary/15 via-primary/5 to-transparent flex items-center justify-center">
+        <div className="relative -mx-4 aspect-21/9 bg-linear-to-br from-primary/15 via-primary/5 to-transparent flex items-center justify-center">
           <Users className="size-16 text-primary/20" />
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
             <h1 className="text-2xl font-bold leading-tight">{name}</h1>

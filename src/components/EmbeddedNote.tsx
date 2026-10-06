@@ -341,7 +341,7 @@ function EmbeddedLiveChatCard({
         className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0 overflow-hidden"
       />
       {text ? (
-        <p className="text-sm whitespace-pre-wrap break-words line-clamp-4 text-foreground">
+        <p className="text-sm whitespace-pre-wrap wrap-break-word line-clamp-4 text-foreground">
           {text}
         </p>
       ) : (
@@ -383,7 +383,7 @@ function EmbeddedHighlightCard({
       </div>
       {hasText ? (
         <blockquote className="relative rounded-r-lg border-l-[3px] border-primary/70 bg-primary/5 pl-3 pr-2 py-2">
-          <p className="font-serif text-[14px] leading-relaxed whitespace-pre-wrap break-words line-clamp-4 text-foreground">
+          <p className="font-serif text-[14px] leading-relaxed whitespace-pre-wrap wrap-break-word line-clamp-4 text-foreground">
             {excerpt}
           </p>
         </blockquote>
@@ -436,7 +436,7 @@ function EmbeddedQuizResultCard({
         Quiz result
       </div>
       {result?.comment && (
-        <p className="text-sm whitespace-pre-wrap break-words line-clamp-2 text-foreground">
+        <p className="text-sm whitespace-pre-wrap wrap-break-word line-clamp-2 text-foreground">
           {result.comment}
         </p>
       )}
@@ -510,7 +510,7 @@ function EmbeddedPollCard({
     >
       {/* Question */}
       {event.content.trim().length > 0 && (
-        <div className="text-sm leading-relaxed font-medium break-words">
+        <div className="text-sm leading-relaxed font-medium wrap-break-word">
           <NoteContent event={event} disableMediaEmbeds disableNoteEmbeds />
         </div>
       )}
@@ -535,7 +535,7 @@ function EmbeddedPollCard({
           {previewOptions.map((label, i) => (
             <div
               key={i}
-              className="rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground bg-secondary/20 break-words line-clamp-1"
+              className="rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground bg-secondary/20 wrap-break-word line-clamp-1"
             >
               {label}
             </div>
@@ -587,7 +587,7 @@ function EmbeddedPollVoteCard({
         Poll vote
       </div>
       {voteLabel ? (
-        <p className="text-sm font-semibold leading-snug line-clamp-2 break-words">
+        <p className="text-sm font-semibold leading-snug line-clamp-2 wrap-break-word">
           {voteLabel}
         </p>
       ) : (
@@ -649,7 +649,7 @@ function EmbeddedBadgeAwardCard({ event, className, disableHoverCards }: { event
         {badge ? (
           <BadgeThumbnail badge={badge} size={36} className="shrink-0" />
         ) : (
-          <div className="flex items-center justify-center size-9 rounded-lg bg-gradient-to-br from-primary/10 via-primary/5 to-transparent shrink-0">
+          <div className="flex items-center justify-center size-9 rounded-lg bg-linear-to-br from-primary/10 via-primary/5 to-transparent shrink-0">
             <Award className="size-4 text-primary" />
           </div>
         )}
@@ -1286,11 +1286,11 @@ function EmbedTruncatedContent({ event, expanded, onOverflowChange, highlightTex
       </div>
       {/* Top fade — only shown when content is clipped above the window. */}
       {clipped && offset > 0 && (
-        <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-background to-transparent pointer-events-none" />
+        <div className="absolute top-0 left-0 right-0 h-8 bg-linear-to-b from-background to-transparent pointer-events-none" />
       )}
       {/* Bottom fade — shown when there is still content below the window. */}
       {clipped && (
-        <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+        <div className="absolute bottom-0 left-0 right-0 h-10 bg-linear-to-t from-background to-transparent pointer-events-none" />
       )}
     </div>
   );

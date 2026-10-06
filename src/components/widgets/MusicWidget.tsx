@@ -124,7 +124,7 @@ function MusicCard({ event }: { event: NostrEvent }) {
             noticeClassName="aspect-square"
           />
         ) : (
-          <div className="w-full aspect-square bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
+          <div className="w-full aspect-square bg-linear-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
             <Music className="size-12 text-primary/20" />
           </div>
         )}
@@ -134,7 +134,7 @@ function MusicCard({ event }: { event: NostrEvent }) {
               'size-12 rounded-full flex items-center justify-center transition-colors',
               (isNowPlaying && player.isPlaying) || decrypting
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-primary/15 text-primary hover:bg-primary/25 backdrop-blur-sm',
+                : 'bg-primary/15 text-primary hover:bg-primary/25 backdrop-blur-xs',
             )}
           >
             {decrypting

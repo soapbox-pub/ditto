@@ -117,7 +117,7 @@ export function HighlightContent({ event, expanded = false, className, disableSo
       <p
         dir="auto"
         className={cn(
-          'whitespace-pre-wrap break-words text-foreground',
+          'whitespace-pre-wrap wrap-break-word text-foreground',
           expanded ? 'text-[17px] leading-relaxed' : 'text-[15px] leading-relaxed',
         )}
       >
@@ -205,7 +205,7 @@ function Blockquote({ text, expanded }: { text: string; expanded: boolean }) {
     >
       <p
         className={cn(
-          'whitespace-pre-wrap break-words font-serif text-foreground',
+          'whitespace-pre-wrap wrap-break-word font-serif text-foreground',
           expanded ? 'text-[17px] leading-relaxed' : 'text-[15px] leading-relaxed',
         )}
       >
@@ -242,7 +242,7 @@ function ContextualHighlight({
     >
       <p
         className={cn(
-          'whitespace-pre-wrap break-words font-serif',
+          'whitespace-pre-wrap wrap-break-word font-serif',
           expanded ? 'text-[17px] leading-relaxed' : 'text-[15px] leading-relaxed',
         )}
       >

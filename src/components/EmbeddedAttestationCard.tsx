@@ -57,7 +57,7 @@ export function EmbeddedAttestationCard({
             {validity && <span className="text-xs text-muted-foreground">{validity}</span>}
           </div>
           {attestation.description && (
-            <p dir="auto" className="text-sm leading-relaxed whitespace-pre-wrap break-words line-clamp-3 text-foreground">
+            <p dir="auto" className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word line-clamp-3 text-foreground">
               {attestation.description}
             </p>
           )}

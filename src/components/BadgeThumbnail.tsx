@@ -64,7 +64,7 @@ export function BadgeThumbnail({ badge, size = 48, className }: BadgeThumbnailPr
         fallback={(
           <div
             className={cn(
-              'rounded-lg border border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center',
+              'rounded-lg border border-border bg-linear-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center',
               className,
             )}
             style={{ width: size, height: size }}

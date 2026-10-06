@@ -47,7 +47,7 @@ export function EmbeddedClassifiedListingCard({ event, className, disableHoverCa
     >
       <div className="relative isolate flex items-center gap-3 overflow-hidden rounded-xl py-1.5">
         {/* Subtle accent glow behind the photo corner */}
-        <div className="absolute -z-10 top-0 left-0 size-24 rounded-full bg-primary/[0.06] blur-2xl" aria-hidden="true" />
+        <div className="absolute -z-10 top-0 left-0 size-24 rounded-full bg-primary/6 blur-2xl" aria-hidden="true" />
 
         {/* Product photo — square thumbnail */}
         {cover && (
@@ -85,7 +85,7 @@ export function EmbeddedClassifiedListingCard({ event, className, disableHoverCa
           )}
 
           {/* Title */}
-          <p dir="auto" className="line-clamp-2 break-words text-sm font-medium leading-snug">
+          <p dir="auto" className="line-clamp-2 wrap-break-word text-sm font-medium leading-snug">
             {title}
           </p>
         </div>

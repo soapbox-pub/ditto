@@ -98,7 +98,7 @@ function HashtagChips({ hashtags }: { hashtags: string[] }) {
           key={tag}
           to={`/t/${encodeURIComponent(tag)}`}
           onClick={(e) => e.stopPropagation()}
-          className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         >
           #{tag}
         </Link>
@@ -169,7 +169,7 @@ function ExternalIdLinks({ torrent }: { torrent: ParsedTorrent }) {
             e.preventDefault();
             openUrl(id.url);
           }}
-          className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         >
           {id.label}
           <ExternalLink className="size-3" aria-hidden="true" />
@@ -199,7 +199,7 @@ function TorrentFeedCard({ torrent, className }: { torrent: ParsedTorrent; class
           <Magnet className="size-5 text-primary" aria-hidden="true" />
         </div>
         <div className="min-w-0 flex-1 space-y-1">
-          <p dir="auto" className="line-clamp-2 break-words text-[15px] font-semibold leading-snug">
+          <p dir="auto" className="line-clamp-2 wrap-break-word text-[15px] font-semibold leading-snug">
             <TorrentTitle torrent={torrent} />
           </p>
           <TorrentMeta torrent={torrent} />
@@ -207,7 +207,7 @@ function TorrentFeedCard({ torrent, className }: { torrent: ParsedTorrent; class
       </div>
 
       {description && (
-        <p dir="auto" className="line-clamp-3 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+        <p dir="auto" className="line-clamp-3 whitespace-pre-wrap wrap-break-word text-sm text-muted-foreground">
           {description}
         </p>
       )}
@@ -237,7 +237,7 @@ function TorrentDetail({ torrent, className }: { torrent: ParsedTorrent; classNa
             <Magnet className="size-6 text-primary" aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1 space-y-1">
-            <h1 dir="auto" className="break-words text-2xl font-bold leading-tight">
+            <h1 dir="auto" className="wrap-break-word text-2xl font-bold leading-tight">
               <TorrentTitle torrent={torrent} />
             </h1>
             <TorrentMeta torrent={torrent} className="text-sm" />
@@ -255,7 +255,7 @@ function TorrentDetail({ torrent, className }: { torrent: ParsedTorrent; classNa
           <SectionHeading>
             <FormattedMessage id="torrent.description" defaultMessage="Description" />
           </SectionHeading>
-          <pre dir="auto" className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl bg-muted/50 p-4 font-mono text-[13px] leading-relaxed">
+          <pre dir="auto" className="overflow-x-auto whitespace-pre-wrap wrap-break-word rounded-xl bg-muted/50 p-4 font-mono text-[13px] leading-relaxed">
             {description}
           </pre>
         </section>

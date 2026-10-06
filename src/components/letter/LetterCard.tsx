@@ -155,7 +155,7 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
           onClick={() => { setIsOpen(o => !o); setHasOpened(true); }}
           className={`
             w-full text-left group
-            rounded-3xl overflow-hidden shadow-sm transition-all duration-200
+            rounded-3xl overflow-hidden shadow-xs transition-all duration-200
             ${isOpen
               ? 'shadow-md ring-1 ring-primary/20'
               : 'hover:shadow-md hover:ring-1 hover:ring-primary/10'

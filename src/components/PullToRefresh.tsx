@@ -120,7 +120,7 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
         }}
       >
         <div
-          className="flex items-center justify-center size-8 rounded-full bg-secondary/80 border border-border shadow-sm"
+          className="flex items-center justify-center size-8 rounded-full bg-secondary/80 border border-border shadow-xs"
           style={{
             opacity: progress,
             transform: refreshing

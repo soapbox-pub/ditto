@@ -322,7 +322,7 @@ export function StationeryPreview({
           className="w-full h-full"
         >
           {s.emoji && (
-            <span className="text-xl drop-shadow select-none">{s.emoji}</span>
+            <span className="text-xl drop-shadow-sm select-none">{s.emoji}</span>
           )}
         </ColorPaletteDisplay>
       </div>

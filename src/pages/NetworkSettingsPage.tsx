@@ -114,7 +114,7 @@ export function NetworkSettingsPage() {
                   className={cn(
                     'px-4 py-1.5 text-sm font-medium rounded-md transition-all',
                     config.imageQuality === value
-                      ? 'bg-background text-foreground shadow-sm'
+                      ? 'bg-background text-foreground shadow-xs'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >

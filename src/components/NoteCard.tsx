@@ -750,7 +750,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         ) : isVine ? (
           <>
             {vineTitle && (
-              <p className="text-[15px] mt-2 leading-relaxed break-words overflow-hidden">
+              <p className="text-[15px] mt-2 leading-relaxed wrap-break-word overflow-hidden">
                 {vineTitle}
               </p>
             )}
@@ -1009,8 +1009,8 @@ const NoteCardImpl = memo(function NoteCardImpl({
             card wrapper is overflow-hidden with only ~12px of top padding —
             anything poking further up gets clipped. */}
         {isAuthorBirthday && (
-          <div className="pointer-events-none absolute -top-3.5 -right-2 z-10 rotate-[18deg]">
-            <PartyHat className="size-8 drop-shadow-sm" pomScale={1.15} />
+          <div className="pointer-events-none absolute -top-3.5 -right-2 z-10 rotate-18">
+            <PartyHat className="size-8 drop-shadow-xs" pomScale={1.15} />
           </div>
         )}
       </Link>
@@ -1327,7 +1327,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
 
         {/* The zap comment, rendered as normal reply body text */}
         {zapMessage && (
-          <div className="mt-2 whitespace-pre-wrap break-words">
+          <div className="mt-2 whitespace-pre-wrap wrap-break-word">
             <NoteContent event={{ ...event, content: zapMessage }} className="text-[15px] leading-relaxed" />
           </div>
         )}
@@ -1829,7 +1829,7 @@ function TruncatedNoteContent({
   }, [measure]);
 
   return (
-    <div className="mt-2 break-words overflow-hidden">
+    <div className="mt-2 wrap-break-word overflow-hidden">
       <div
         ref={contentRef}
         style={
@@ -1843,7 +1843,7 @@ function TruncatedNoteContent({
           <NoteContent event={shownEvent} className="text-[15px] leading-relaxed" />
         </div>
         {!expanded && truncated && (
-          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-linear-to-t from-background to-transparent pointer-events-none" />
         )}
       </div>
       {truncated && (
@@ -2092,7 +2092,7 @@ function VineMedia({
           />
           {!isPlaying && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-              <div className="size-14 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm">
+              <div className="size-14 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-xs">
                 <Play className="size-7 text-white ml-1" fill="white" />
               </div>
             </div>
@@ -2100,7 +2100,7 @@ function VineMedia({
           {/* Mute/unmute toggle */}
           {isPlaying && (
             <button
-              className="absolute bottom-2.5 right-2.5 z-10 size-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+              className="absolute bottom-2.5 right-2.5 z-10 size-8 rounded-full bg-black/50 backdrop-blur-xs flex items-center justify-center text-white hover:bg-black/70 transition-colors"
               onClick={handleMuteToggle}
               aria-label={isMuted ? "Unmute" : "Mute"}
             >

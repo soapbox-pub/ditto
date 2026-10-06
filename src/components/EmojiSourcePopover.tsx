@@ -39,7 +39,7 @@ export function EmojiSourcePopover({ name, url, imgClassName, authorPubkey }: Em
             { id: 'emojiSource.inlineLabel', defaultMessage: ':{name}: emoji — show its pack' },
             { name },
           )}
-          className="inline cursor-pointer rounded-sm align-text-bottom focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline cursor-pointer rounded-sm align-text-bottom focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           onClick={(e) => e.stopPropagation()}
         >
           <CustomEmojiImg name={name} url={url} className={imgClassName} />

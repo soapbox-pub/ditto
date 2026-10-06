@@ -513,7 +513,7 @@ function LiveStreamCard({ event }: { event: NostrEvent }) {
         ) : (
           <div
             className={cn(
-              "w-full h-full flex items-center justify-center bg-gradient-to-br to-muted",
+              "w-full h-full flex items-center justify-center bg-linear-to-br to-muted",
               effectiveStatus === "live"
                 ? "from-red-950/40"
                 : effectiveStatus === "planned"
@@ -657,12 +657,12 @@ function ShortThumb({
 
   return (
     <button
-      className="group block w-full text-left focus:outline-none"
+      className="group block w-full text-left focus:outline-hidden"
       onClick={onClick}
       aria-label={title}
     >
       <ContentWarningGuard event={event}>
-        <div className="relative w-full aspect-[9/16] overflow-hidden rounded-xl bg-muted">
+        <div className="relative w-full aspect-9/16 overflow-hidden rounded-xl bg-muted">
           {isValidBlurhash(blurhash) && !thumbnail && (
             <BlurhashPlaceholder hash={blurhash} className="absolute inset-0" />
           )}
@@ -793,7 +793,7 @@ function ShortsPlayer({
         {events.map((event, i) => (
           <div
             key={event.id}
-            className="w-full vine-slide-height sidebar:h-[calc(100vh-3rem)] snap-start snap-always flex-shrink-0"
+            className="w-full vine-slide-height sidebar:h-[calc(100vh-3rem)] snap-start snap-always shrink-0"
           >
             <VineCard
               event={event}

@@ -106,13 +106,13 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
           <Label
             key={option.id}
             htmlFor={`${quiz.event.id}-${question.id}-${option.id}`}
-            className="flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm font-normal transition-colors hover:bg-secondary/50 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
+            className="flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm font-normal transition-colors hover:bg-secondary/50 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5"
           >
             <RadioGroupItem
               id={`${quiz.event.id}-${question.id}-${option.id}`}
               value={option.id}
             />
-            <span className="break-words">{option.label}</span>
+            <span className="wrap-break-word">{option.label}</span>
           </Label>
         ))}
       </RadioGroup>
@@ -270,7 +270,7 @@ function ResultSummary({
               )}
               <p className="text-xl font-bold text-foreground">{outcome.label}</p>
               {outcome.description && (
-                <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                <p className="mt-0.5 whitespace-pre-wrap wrap-break-word text-sm text-muted-foreground">
                   {outcome.description}
                 </p>
               )}

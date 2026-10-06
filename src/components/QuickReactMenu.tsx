@@ -219,7 +219,7 @@ export function QuickReactMenu({
             key={emoji}
             onClick={() => handleQuickSelect(reaction)}
             className={cn(
-              'flex items-center justify-center size-9 rounded-full text-xl transition-all focus:outline-none hover:bg-secondary hover:scale-110 active:scale-95',
+              'flex items-center justify-center size-9 rounded-full text-xl transition-all focus:outline-hidden hover:bg-secondary hover:scale-110 active:scale-95',
               selectedEmoji === emoji && 'bg-secondary scale-110',
             )}
             title={`React with ${isCustom ? shortcode : emoji}`}
@@ -243,7 +243,7 @@ export function QuickReactMenu({
           setShowFullPicker(true);
           onExpandChange?.(true);
         }}
-        className="flex items-center justify-center size-9 rounded-full text-muted-foreground transition-all focus:outline-none hover:bg-secondary hover:text-foreground hover:scale-110 active:scale-95"
+        className="flex items-center justify-center size-9 rounded-full text-muted-foreground transition-all focus:outline-hidden hover:bg-secondary hover:text-foreground hover:scale-110 active:scale-95"
         title="More reactions"
       >
         <MoreHorizontal className="size-5" />

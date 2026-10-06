@@ -40,10 +40,10 @@ function DescriptionCard({ title, text }: { title?: string; text?: string }) {
   return (
     <div className="mt-2.5 rounded-xl bg-secondary/50 px-3.5 py-2.5">
       {title && (
-        <p className="text-base font-semibold text-foreground break-words">{title}</p>
+        <p className="text-base font-semibold text-foreground wrap-break-word">{title}</p>
       )}
       {text && (
-        <p className={cn('text-sm leading-relaxed text-muted-foreground break-words', title && 'mt-1')}>
+        <p className={cn('text-sm leading-relaxed text-muted-foreground wrap-break-word', title && 'mt-1')}>
           {text}
         </p>
       )}

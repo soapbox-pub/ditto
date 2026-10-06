@@ -199,7 +199,7 @@ export function LetterEditor({
 
   const drawer = (
     <div
-      className="bg-background/90 backdrop-blur-sm"
+      className="bg-background/90 backdrop-blur-xs"
       style={{
         overflow: 'hidden',
         maxHeight: drawerOpen ? (overlay === 'draw' ? '600px' : '400px') : '0',
@@ -215,7 +215,7 @@ export function LetterEditor({
                 onClick={() => setSelectedFont(font)}
                 className={`px-4 py-2.5 rounded-2xl text-base font-medium transition-all ${
                   selectedFont.value === font.value
-                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
                     : 'bg-muted text-muted-foreground hover:text-foreground'
                 }`}
                 style={{ fontFamily: font.family }}
@@ -264,7 +264,7 @@ export function LetterEditor({
               <div className="flex flex-col items-end" style={{ paddingTop: '4cqw', gap: '3cqw', paddingRight: '4cqw' }}>
                 <Select value={closing || '__none__'} onValueChange={(v) => setClosing(v === '__none__' ? '' : v)}>
                   <SelectTrigger
-                    className="w-auto h-auto focus:ring-0 focus:ring-offset-0 ring-0 ring-offset-0 outline-none rounded-2xl border-0 shadow-none flex-row-reverse gap-3 [&>span]:text-right"
+                    className="w-auto h-auto focus:ring-0 focus:ring-offset-0 ring-0 ring-offset-0 outline-hidden rounded-2xl border-0 shadow-none flex-row-reverse gap-3 [&>span]:text-right"
                     style={{
                       fontSize: '4cqw',
                       padding: '2.5cqw 4cqw',
@@ -297,7 +297,7 @@ export function LetterEditor({
                   onFocus={() => setOverlay('none')}
                   maxLength={50}
                   placeholder="Your Name"
-                  className="bg-transparent border-none font-semibold text-right focus:outline-none placeholder:opacity-60"
+                  className="bg-transparent border-none font-semibold text-right focus:outline-hidden placeholder:opacity-60"
                   style={{
                     fontSize: '4.2cqw',
                     color: stationeryTextColor,

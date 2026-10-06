@@ -143,7 +143,7 @@ export function AmountField({
                 }
               }}
               aria-label={`${label} in ${unitLabel}`}
-              className={`bg-transparent border-0 outline-none text-4xl font-semibold text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${amountClass}`}
+              className={`bg-transparent border-0 outline-hidden text-4xl font-semibold text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${amountClass}`}
               style={{ width: `${Math.max(2, String(value).length + 1)}ch` }}
             />
             {suffix && <span className={`text-2xl font-semibold ml-1.5 ${accentClass}`}>{suffix}</span>}
@@ -153,7 +153,7 @@ export function AmountField({
             type="button"
             onClick={() => setEditing(true)}
             aria-label={`Edit ${label.toLowerCase()}`}
-            className="flex items-baseline justify-center rounded-md px-2 -mx-2 hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+            className="flex items-baseline justify-center rounded-md px-2 -mx-2 hover:bg-muted/50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring transition-colors"
           >
             {prefix && <span className={`text-4xl font-semibold ${accentClass}`}>{prefix}</span>}
             <span className={`text-4xl font-semibold tabular-nums ${amountClass}`}>{display}</span>

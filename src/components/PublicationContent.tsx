@@ -76,10 +76,10 @@ function PublicationFileContent({ event, className }: PublicationContentProps) {
               alt=""
               loading="lazy"
               decoding="async"
-              className="w-40 rounded-xl border object-cover shadow-md aspect-[2/3] sm:w-48"
+              className="w-40 rounded-xl border object-cover shadow-md aspect-2/3 sm:w-48"
             />
           ) : (
-            <div className="flex w-40 items-center justify-center rounded-xl border bg-muted aspect-[2/3] sm:w-48">
+            <div className="flex w-40 items-center justify-center rounded-xl border bg-muted aspect-2/3 sm:w-48">
               {isIssue ? (
                 <Newspaper className="size-16 text-muted-foreground" />
               ) : (
@@ -172,7 +172,7 @@ function PublicationFileContent({ event, className }: PublicationContentProps) {
 
       {/* Freeform description */}
       {pub.content.trim() && (
-        <div className="whitespace-pre-wrap break-words border-t pt-6 text-sm leading-relaxed text-muted-foreground">
+        <div className="whitespace-pre-wrap wrap-break-word border-t pt-6 text-sm leading-relaxed text-muted-foreground">
           {pub.content}
         </div>
       )}
@@ -221,7 +221,7 @@ function MagazineContent({ event, className }: PublicationContentProps) {
             alt=""
             loading="lazy"
             decoding="async"
-            className="mx-auto size-24 rounded-xl border object-cover shadow-sm sm:mx-0"
+            className="mx-auto size-24 rounded-xl border object-cover shadow-xs sm:mx-0"
           />
         ) : (
           <div className="mx-auto flex size-24 items-center justify-center rounded-xl border bg-muted sm:mx-0">
@@ -246,7 +246,7 @@ function MagazineContent({ event, className }: PublicationContentProps) {
       </div>
 
       {(pub.summary || pub.content.trim()) && (
-        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground">
+        <p className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-muted-foreground">
           {pub.summary || pub.content}
         </p>
       )}
@@ -259,7 +259,7 @@ function MagazineContent({ event, className }: PublicationContentProps) {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="space-y-2">
-                <Skeleton className="w-full rounded-lg aspect-[2/3]" />
+                <Skeleton className="w-full rounded-lg aspect-2/3" />
                 <Skeleton className="h-4 w-3/4" />
               </div>
             ))}
@@ -296,10 +296,10 @@ function IssueGridItem({ event }: { event: NostrEvent }) {
           alt=""
           loading="lazy"
           decoding="async"
-          className="w-full rounded-lg border object-cover shadow-sm transition-transform aspect-[2/3] group-hover:scale-[1.02]"
+          className="w-full rounded-lg border object-cover shadow-xs transition-transform aspect-2/3 group-hover:scale-[1.02]"
         />
       ) : (
-        <div className="flex w-full items-center justify-center rounded-lg border bg-muted aspect-[2/3]">
+        <div className="flex w-full items-center justify-center rounded-lg border bg-muted aspect-2/3">
           <Newspaper className="size-10 text-muted-foreground" />
         </div>
       )}

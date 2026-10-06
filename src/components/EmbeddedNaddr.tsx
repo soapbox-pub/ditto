@@ -343,7 +343,7 @@ function EmbeddedBadgeCard({ event, className }: { event: NostrEvent; className?
         </div>
 
         {/* Badge image */}
-        <div className="relative z-[1]">
+        <div className="relative z-1">
           {heroImage ? (
             <img
               src={heroImage}
@@ -353,14 +353,14 @@ function EmbeddedBadgeCard({ event, className }: { event: NostrEvent; className?
               decoding="async"
             />
           ) : (
-            <div className="size-20 rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
+            <div className="size-20 rounded-xl bg-linear-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
               <Award className="size-8 text-primary/30" />
             </div>
           )}
         </div>
 
         {/* Badge info */}
-        <div className="relative z-[1] mt-3 text-center px-4 max-w-xs">
+        <div className="relative z-1 mt-3 text-center px-4 max-w-xs">
           <p className="text-sm font-semibold leading-snug">{badge.name}</p>
           {badge.description && (
             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{badge.description}</p>
@@ -649,7 +649,7 @@ function EmbeddedCampaignCard({
       className={className}
       disableHoverCards={disableHoverCards}
     >
-      <div className="relative w-full overflow-hidden rounded-lg aspect-[16/9] bg-gradient-to-br from-primary/15 via-primary/5 to-secondary">
+      <div className="relative w-full overflow-hidden rounded-lg aspect-video bg-linear-to-br from-primary/15 via-primary/5 to-secondary">
         {banner ? (
           <img
             src={banner}
@@ -668,11 +668,11 @@ function EmbeddedCampaignCard({
         <HandHeart className="size-3" />
         Fundraiser
       </div>
-      <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
+      <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 wrap-break-word">
         {campaign.title}
       </p>
       {campaign.summary && (
-        <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words">
+        <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 wrap-break-word">
           {campaign.summary}
         </p>
       )}
@@ -719,11 +719,11 @@ function EmbeddedQuizCard({
         <ClipboardList className="size-3" />
         Quiz
       </div>
-      <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
+      <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 wrap-break-word">
         {quiz.title}
       </p>
       {quiz.summary && (
-        <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words">
+        <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 wrap-break-word">
           {quiz.summary}
         </p>
       )}
@@ -780,11 +780,11 @@ function EmbeddedRoomCard({
           </span>
         )}
       </div>
-      <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
+      <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 wrap-break-word">
         {title}
       </p>
       {summary && (
-        <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words">
+        <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 wrap-break-word">
           {summary}
         </p>
       )}
@@ -843,7 +843,7 @@ function EmbeddedStreamCard({
             className="absolute inset-0 size-full object-cover"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/15 via-primary/5 to-secondary">
+          <div className="absolute inset-0 flex items-center justify-center bg-linear-to-br from-primary/15 via-primary/5 to-secondary">
             <Radio className="size-10 text-primary/40" />
           </div>
         )}
@@ -867,11 +867,11 @@ function EmbeddedStreamCard({
       <div className="flex items-start gap-2">
         <Radio className="size-4 text-primary shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1">
-          <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
+          <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 wrap-break-word">
             {title}
           </p>
           {summary && (
-            <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words mt-0.5">
+            <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 wrap-break-word mt-0.5">
               {summary}
             </p>
           )}
@@ -932,7 +932,7 @@ function EmbeddedStatusCard({
           {isExpired ? 'This status has expired' : 'No status set'}
         </p>
       ) : (
-        <p dir="auto" className="text-sm font-medium leading-snug break-words line-clamp-3 text-foreground">
+        <p dir="auto" className="text-sm font-medium leading-snug wrap-break-word line-clamp-3 text-foreground">
           <EmojifiedText tags={event.tags}>{text}</EmojifiedText>
         </p>
       )}
@@ -992,12 +992,12 @@ function EmbeddedWebBookmarkCard({
         Bookmark
       </div>
       {title && (
-        <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
+        <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 wrap-break-word">
           {title}
         </p>
       )}
       {description && (
-        <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words">
+        <p dir="auto" className="text-xs text-muted-foreground leading-relaxed line-clamp-2 wrap-break-word">
           {description}
         </p>
       )}

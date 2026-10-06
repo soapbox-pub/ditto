@@ -974,7 +974,7 @@ export function BlobbiHatchingCeremony({
               companion={babyCompanion}
               size="lg"
               animated
-              className="size-[30rem] sm:size-[36rem] md:size-[44rem]"
+              className="size-120 sm:size-144 md:size-176"
             />
           </div>
         </div>
@@ -1068,7 +1068,7 @@ export function BlobbiHatchingCeremony({
                     className={cn(
                       'text-center text-lg font-light h-12',
                       'bg-white/10 border-transparent text-white placeholder:text-white/30',
-                      'focus:bg-white/[0.25] focus:border-transparent focus:ring-0 focus:outline-none',
+                      'focus:bg-white/25 focus:border-transparent focus:ring-0 focus:outline-hidden',
                       'focus-visible:ring-0 focus-visible:ring-offset-0',
                       'focus:shadow-[0_0_15px_rgba(255,255,255,0.15),0_0_40px_rgba(255,250,230,0.08)]',
                       'transition-all duration-300',
@@ -1084,7 +1084,7 @@ export function BlobbiHatchingCeremony({
                       onClick={handleNameSubmit}
                       disabled={isNaming}
                       className={cn(
-                        'max-w-[12rem] mx-auto h-10 px-8 text-sm font-light tracking-wide',
+                        'max-w-48 mx-auto h-10 px-8 text-sm font-light tracking-wide',
                         'bg-white/15 hover:bg-white/22 text-white/80 border-transparent',
                         'rounded-full transition-all duration-300',
                         'focus-visible:ring-0 focus-visible:ring-offset-0',

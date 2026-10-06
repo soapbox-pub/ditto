@@ -79,7 +79,7 @@ export function IssueCard({ event, preview = true }: IssueCardProps) {
 					{/* Body preview — inline-linkified (nostr URIs become
 					    links, not embed cards, so the line clamp stays clean) */}
 					{preview && body && (
-						<div className="text-[13px] text-muted-foreground line-clamp-3 leading-relaxed whitespace-pre-wrap break-words">
+						<div className="text-[13px] text-muted-foreground line-clamp-3 leading-relaxed whitespace-pre-wrap wrap-break-word">
 							<NoteContent
 								event={{ ...event, content: body }}
 								as="span"
@@ -97,7 +97,7 @@ export function IssueCard({ event, preview = true }: IssueCardProps) {
 			{/* Full issue body -- outside card, only in detail view */}
 			{!preview && body && (
 				<div className="rounded-2xl border border-border overflow-hidden px-4 py-4 sidebar:px-5 sidebar:py-5">
-					<div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-img:rounded-lg prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-[13px] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:font-normal prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border prose-th:text-foreground">
+					<div className="prose prose-sm max-w-none wrap-break-word text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-img:rounded-lg prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-[13px] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:font-normal prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border prose-th:text-foreground">
 					<Markdown
 						rehypePlugins={[rehypeSanitize]}
 						components={buildMarkdownComponents(event)}

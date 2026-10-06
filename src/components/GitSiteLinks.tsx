@@ -49,7 +49,7 @@ function GitSiteButton({
 			className={cn(
 				"inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
 				site.primary
-					? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+					? "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90"
 					: "border border-border text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
 			)}
 			onClick={(e) => {

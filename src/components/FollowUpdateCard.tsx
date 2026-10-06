@@ -85,7 +85,7 @@ export function FollowUpdateCard({
         <ProfileHoverCard pubkey={event.pubkey} asChild>
           <Link
             to={profileUrl}
-            className="font-bold text-[15px] hover:underline break-words"
+            className="font-bold text-[15px] hover:underline wrap-break-word"
             onClick={(e) => e.stopPropagation()}
           >
             {author.data?.event ? (

@@ -89,7 +89,7 @@ export function BadgeShowcaseGrid({
                 </div>
               )}
               {showNames && (
-                <span className="text-[10px] text-muted-foreground text-center leading-tight line-clamp-2 max-w-[4.5rem] group-hover:text-foreground transition-colors">
+                <span className="text-[10px] text-muted-foreground text-center leading-tight line-clamp-2 max-w-18 group-hover:text-foreground transition-colors">
                   {item.badge?.name || item.identifier}
                 </span>
               )}

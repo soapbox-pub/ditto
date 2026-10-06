@@ -89,7 +89,7 @@ export function EmbeddedPublicationCard({
             decoding="async"
             className={cn(
               'rounded-lg border object-cover',
-              isMagazine ? 'size-16' : 'h-24 w-16 aspect-[2/3]',
+              isMagazine ? 'size-16' : 'h-24 w-16 aspect-2/3',
             )}
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).style.display = 'none';

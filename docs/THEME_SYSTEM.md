@@ -127,18 +127,19 @@ The `setTheme()` function (line 52) performs a flicker-free theme switch:
 
 #### CSS Custom Properties to Tailwind
 
-`tailwind.config.ts` maps all 19 CSS custom properties to Tailwind color utilities:
+The `@theme inline` block in `src/index.css` maps all 19 CSS custom properties to Tailwind color utilities:
 
-```typescript
-colors: {
-  background: 'hsl(var(--background))',
-  foreground: 'hsl(var(--foreground))',
-  primary: { DEFAULT: 'hsl(var(--primary))', foreground: 'hsl(var(--primary-foreground))' },
-  // ... (secondary, destructive, muted, accent, popover, card, border, input, ring)
+```css
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  /* ... (secondary, destructive, muted, accent, popover, card, border, input, ring) */
 }
 ```
 
-Components use standard Tailwind classes like `bg-primary`, `text-foreground`, `border-border`, etc. These resolve to `hsl(var(--primary))`, which picks up whichever values are currently set on `:root`.
+Components use standard Tailwind classes like `bg-primary`, `text-foreground`, `border-border`, etc. These resolve to `hsl(var(--primary))`, which picks up whichever values are currently set on `:root` — or on the nearest ancestor, which is how `ScopedTheme` works. The block must stay `inline`: without it, Tailwind resolves `hsl(var(--primary))` once at `:root` and scoped overrides stop applying.
 
 The `cn()` utility in `src/lib/utils.ts` combines `clsx` (conditional class joining) with `tailwind-merge` (intelligent Tailwind class deduplication).
 
@@ -377,5 +378,5 @@ The `AppProvider` deserializer (`src/components/AppProvider.tsx:32`) validates e
 | `src/components/SidebarThemeDropdown.tsx` | Compact theme picker dropdown |
 | `public/theme.js` | Pre-React blocking script for flash prevention |
 | `index.html` | Preloader markup, blocking script tag |
-| `tailwind.config.ts` | CSS custom property to Tailwind color mapping |
+| `src/index.css` (`@theme inline`) | CSS custom property to Tailwind color mapping |
 | `src/index.css` | Base styles using theme tokens, preloader styles |

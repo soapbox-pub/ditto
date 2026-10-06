@@ -126,7 +126,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
         <div className="rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
           {/* Banner hero */}
           {banner && (
-            <div className="relative aspect-[2/1] bg-gradient-to-br from-muted/50 to-muted overflow-hidden">
+            <div className="relative aspect-2/1 bg-linear-to-br from-muted/50 to-muted overflow-hidden">
               <img
                 src={banner}
                 alt=""
@@ -145,7 +145,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
                 <img
                   src={picture}
                   alt={name}
-                  className="size-14 rounded-xl object-cover shrink-0 border-3 border-background bg-background shadow-sm"
+                  className="size-14 rounded-xl object-cover shrink-0 border-3 border-background bg-background shadow-xs"
                   loading="lazy"
                   onError={(e) => {
                     (e.currentTarget as HTMLElement).style.display = 'none';
@@ -153,7 +153,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
                   decoding="async"
                 />
               ) : (
-                <div className="size-14 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border-3 border-background shadow-sm">
+                <div className="size-14 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border-3 border-background shadow-xs">
                   <Package className="size-6 text-primary/50" />
                 </div>
               )}
@@ -244,7 +244,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
       <div className="rounded-xl border border-border overflow-hidden">
         {/* Banner hero */}
         {banner && (
-          <div className="relative aspect-[2/1] bg-gradient-to-br from-muted/50 to-muted overflow-hidden">
+          <div className="relative aspect-2/1 bg-linear-to-br from-muted/50 to-muted overflow-hidden">
             <img
               src={banner}
               alt=""
@@ -266,7 +266,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
               <img
                 src={picture}
                 alt={name}
-                className="size-20 rounded-2xl object-cover shrink-0 border-4 border-background bg-background shadow-sm"
+                className="size-20 rounded-2xl object-cover shrink-0 border-4 border-background bg-background shadow-xs"
                 loading="lazy"
                 onError={(e) => {
                   (e.currentTarget as HTMLElement).style.display = 'none';
@@ -274,7 +274,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
                 decoding="async"
               />
             ) : (
-              <div className="size-20 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 border-4 border-background shadow-sm">
+              <div className="size-20 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 border-4 border-background shadow-xs">
                 <Package className="size-8 text-primary/50" />
               </div>
             )}
@@ -362,7 +362,7 @@ export function AppHandlerSkeleton() {
   return (
     <div className="mt-3">
       <div className="rounded-xl border border-border overflow-hidden">
-        <Skeleton className="aspect-[2/1] w-full" />
+        <Skeleton className="aspect-2/1 w-full" />
         <div className="px-4 pb-4 space-y-3">
           <div className="-mt-10">
             <Skeleton className="size-20 rounded-2xl border-4 border-background" />

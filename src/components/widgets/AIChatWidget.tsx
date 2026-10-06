@@ -178,7 +178,7 @@ export function AIChatWidget() {
             }}
             placeholder={intl.formatMessage({ id: 'widgets.aiChat.messagePlaceholder', defaultMessage: "Message..." })}
             rows={1}
-            className="flex-1 resize-none text-sm bg-secondary/50 rounded-lg px-2.5 py-1.5 border-0 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/60 min-h-[32px] max-h-[80px]"
+            className="flex-1 resize-none text-sm bg-secondary/50 rounded-lg px-2.5 py-1.5 border-0 outline-hidden focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/60 min-h-[32px] max-h-[80px]"
           />
           <button
             onClick={handleSend}
@@ -201,7 +201,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap break-words',
+          'max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap wrap-break-word',
           isUser
             ? 'bg-primary text-primary-foreground rounded-br-sm'
             : 'bg-secondary text-foreground rounded-bl-sm',

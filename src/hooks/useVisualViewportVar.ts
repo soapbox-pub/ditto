@@ -26,7 +26,7 @@ import { useEffect } from 'react';
  * consumers must provide fallbacks, e.g.:
  *
  * ```
- * top-[var(--visual-viewport-offset-top,0px)] h-[var(--visual-viewport-height,100dvh)]
+ * top-(--visual-viewport-offset-top,0px) h-(--visual-viewport-height,100dvh)
  * ```
  */
 export function useVisualViewportVar(): void {

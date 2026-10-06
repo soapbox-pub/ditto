@@ -54,7 +54,7 @@ export function QuizResultContent({ event, expanded = false, className }: QuizRe
         <p
           dir="auto"
           className={cn(
-            'whitespace-pre-wrap break-words text-foreground',
+            'whitespace-pre-wrap wrap-break-word text-foreground',
             expanded ? 'text-[17px] leading-relaxed' : 'text-[15px] leading-relaxed',
           )}
         >
@@ -107,7 +107,7 @@ export function QuizResultContent({ event, expanded = false, className }: QuizRe
                     {outcome.label}
                   </p>
                   {expanded && def?.description && (
-                    <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                    <p className="mt-0.5 whitespace-pre-wrap wrap-break-word text-sm text-muted-foreground">
                       {def.description}
                     </p>
                   )}

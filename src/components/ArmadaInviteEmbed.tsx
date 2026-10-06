@@ -141,8 +141,8 @@ function ArmadaInviteCard({ invite, className, variant = 'embed' }: ArmadaInvite
         className={cn(
           'relative mx-auto w-full max-w-md overflow-hidden text-center',
           'border border-primary/25 rounded-xl',
-          'bg-gradient-to-br from-primary/10 via-background to-primary/[0.06]',
-          'shadow-sm',
+          'bg-linear-to-br from-primary/10 via-background to-primary/6',
+          'shadow-xs',
           className,
         )}
       >
@@ -224,8 +224,8 @@ function ArmadaInviteCard({ invite, className, variant = 'embed' }: ArmadaInvite
       className={cn(
         'group relative block max-w-sm w-full my-2.5 overflow-hidden',
         'border border-primary/25 rounded-lg',
-        'bg-gradient-to-br from-primary/10 via-background to-primary/[0.06]',
-        'shadow-sm',
+        'bg-linear-to-br from-primary/10 via-background to-primary/6',
+        'shadow-xs',
         className,
       )}
       onClick={(e) => e.stopPropagation()}

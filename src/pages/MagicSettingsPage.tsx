@@ -49,9 +49,9 @@ export function MagicSettingsPage() {
 
         {/* Ornament */}
         <div className="flex items-center gap-3 px-2 pb-5">
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/40 to-primary/60" />
+          <div className="h-px flex-1 bg-linear-to-r from-transparent via-primary/40 to-primary/60" />
           <span className="text-primary/50 text-xs tracking-[0.3em] select-none">✦</span>
-          <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/40 to-primary/60" />
+          <div className="h-px flex-1 bg-linear-to-l from-transparent via-primary/40 to-primary/60" />
         </div>
 
         {/* Magic Mouse toggle */}
@@ -77,9 +77,9 @@ export function MagicSettingsPage() {
 
         {/* Bottom ornament */}
         <div className="flex items-center gap-3 px-2 pt-6 pb-4">
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/20 to-primary/30" />
+          <div className="h-px flex-1 bg-linear-to-r from-transparent via-primary/20 to-primary/30" />
           <span className="text-primary/30 text-[10px] tracking-[0.4em] select-none">◆</span>
-          <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/20 to-primary/30" />
+          <div className="h-px flex-1 bg-linear-to-l from-transparent via-primary/20 to-primary/30" />
         </div>
       </div>
     </main>

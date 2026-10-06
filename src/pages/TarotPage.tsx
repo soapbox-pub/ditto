@@ -14,7 +14,7 @@ export function TarotPage() {
   });
 
   return (
-    <main className="flex min-h-[100dvh] flex-col">
+    <main className="flex min-h-dvh flex-col">
       <PageHeader title="Tarot" icon={<MoonStar className="size-5" />} />
       <TarotReader />
     </main>

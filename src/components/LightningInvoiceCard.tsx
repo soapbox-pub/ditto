@@ -149,7 +149,7 @@ export function LightningInvoiceCard({ invoice, className }: LightningInvoiceCar
       onClick={(e) => e.stopPropagation()}
     >
       {/* Subtle accent glow behind QR area */}
-      <div className="absolute -z-10 top-0 left-0 w-44 h-44 bg-primary/[0.06] rounded-full blur-2xl" />
+      <div className="absolute -z-10 top-0 left-0 w-44 h-44 bg-primary/6 rounded-full blur-2xl" />
 
       {/* Expanded QR -- square container that replaces the normal layout */}
       {qrExpanded ? (

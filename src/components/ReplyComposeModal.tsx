@@ -100,7 +100,7 @@ function ReplyComposeModalImpl({ event, quotedEvent, open, onOpenChange, onSucce
                     className={cn(
                       "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all motion-safe:active:scale-95",
                       !previewMode 
-                        ? "bg-background text-foreground shadow-sm" 
+                        ? "bg-background text-foreground shadow-xs" 
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
@@ -111,7 +111,7 @@ function ReplyComposeModalImpl({ event, quotedEvent, open, onOpenChange, onSucce
                     className={cn(
                       "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all motion-safe:active:scale-95",
                       previewMode 
-                        ? "bg-background text-foreground shadow-sm" 
+                        ? "bg-background text-foreground shadow-xs" 
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >

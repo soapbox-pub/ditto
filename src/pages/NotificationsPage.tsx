@@ -1084,7 +1084,7 @@ function HighlightExcerpt({ event }: { event: NostrEvent }) {
       }}
       className="mx-4 mb-3 mt-1 rounded-r-lg border-l-[3px] border-primary/70 bg-primary/5 pl-3 pr-3 py-2 cursor-pointer hover:bg-primary/10 transition-colors"
     >
-      <p className="font-serif text-[14px] leading-relaxed whitespace-pre-wrap break-words line-clamp-4 text-foreground">
+      <p className="font-serif text-[14px] leading-relaxed whitespace-pre-wrap wrap-break-word line-clamp-4 text-foreground">
         {excerpt}
       </p>
     </blockquote>
@@ -1289,7 +1289,7 @@ function BadgeAwardNotificationGroup({ group }: { group: GroupedNotificationItem
                 {badge ? (
                   <BadgeThumbnail badge={badge} size={36} className="shrink-0" />
                 ) : (
-                  <div className="shrink-0 size-9 rounded-lg border border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
+                  <div className="shrink-0 size-9 rounded-lg border border-border bg-linear-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
                     <Award className="size-4 text-primary/30" />
                   </div>
                 )}

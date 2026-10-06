@@ -89,7 +89,7 @@ export function EmbeddedGitCard({
 				{label}
 			</div>
 			{title && (
-				<p className="mt-1 text-sm font-medium leading-snug line-clamp-2 break-words">
+				<p className="mt-1 text-sm font-medium leading-snug line-clamp-2 wrap-break-word">
 					{title}
 				</p>
 			)}

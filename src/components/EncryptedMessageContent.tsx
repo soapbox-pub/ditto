@@ -101,7 +101,7 @@ export function EncryptedMessageContent({ event, compact: _compact, className }:
 
             {/* Mail icon in the center */}
             <div className="relative z-10 flex items-center justify-center">
-              <div className="size-9 rounded-full bg-background border-2 border-foreground/10 flex items-center justify-center shadow-sm">
+              <div className="size-9 rounded-full bg-background border-2 border-foreground/10 flex items-center justify-center shadow-xs">
                 <Mail className="size-4 text-muted-foreground" />
               </div>
             </div>

@@ -74,7 +74,7 @@ export function TarotCard({
       return (
         <button
           type="button"
-          className="tarot-card settled appearance-none bg-transparent border-0 p-0 text-left rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="tarot-card settled appearance-none bg-transparent border-0 p-0 text-left rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           onClick={(e) => {
             // Feed cards navigate on click — keep the jump local.
             e.stopPropagation();
@@ -98,7 +98,7 @@ export function TarotCard({
     <button
       type="button"
       className={cn(
-        "tarot-card appearance-none bg-transparent border-0 p-0 text-left rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        "tarot-card appearance-none bg-transparent border-0 p-0 text-left rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         isRevealed && "flipped",
       )}
       onClick={onCardClick}

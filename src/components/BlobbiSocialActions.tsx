@@ -314,7 +314,7 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-auto p-2 max-w-[17rem]"
+        className="w-auto p-2 max-w-68"
         side="top"
         align="center"
         onClick={(e) => e.stopPropagation()}

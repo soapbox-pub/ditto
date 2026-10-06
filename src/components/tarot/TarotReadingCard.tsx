@@ -61,7 +61,7 @@ export function TarotReadingCard({
       {interpretation && (
         <p
           className={cn(
-            "text-sm leading-relaxed whitespace-pre-wrap break-words text-foreground",
+            "text-sm leading-relaxed whitespace-pre-wrap wrap-break-word text-foreground",
             !expanded && "line-clamp-6",
           )}
         >
