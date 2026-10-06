@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.44.0] - 2026-10-06
+
+Home sweet 3D home. Blobbi rooms pop up as cozy 3D dioramas you can decorate piece by piece, snapping furniture to the floor and walls, switching on lamps, and dropping snacks and toys for your Blobbi to find. 3D objects show up right in your feed, and any of them can move into your room. Pin your favorite quick reactions, keep video controls in fullscreen, and share links that preview beautifully everywhere.
+
+### Added
+- Blobbi rooms are rebuilt as 3D dioramas with snap-to-grid decorating, wallpaper and flooring, tappable lamps and furniture, and room for your other Blobbis to visit
+- 3D objects appear in feeds as interactive models, with their own feed toggle, an Objects page, and an "Add to Blobbi room" button
+- Pin your own quick reactions in the new Personalize section of Settings
+- Shared Ditto links show rich previews on other sites, naming who did what with the post's own words and picture
+- Profile pictures and banners load with a blurred placeholder, and encrypted ones are decrypted for you
+
+### Changed
+- Software releases are laid out like a GitHub release, with collapsible notes and a plain list of downloads
+- Addressable videos play in the Videos feed and everywhere else regular videos do
+- Posts tagged NSFW or containing blocked terms are hidden from public feeds, hashtags, and search
+- Zaps to lightning addresses with nonstandard invoices go through, with a notice naming the provider
+- Profiles with a broken lightning URL fall back to their lightning address for zaps
+- Feeds, notifications, Blobbi animations, and profiles do less work in the background, saving battery on phones
+
+### Fixed
+- Fullscreen videos keep their controls, and Back exits fullscreen on Android
+- The quick-react menu opens on the first tap in the Android app
+- Wallet payments that are slow or interrupted are no longer sent twice
+- Saving your birthday no longer wipes other profile details
+
 ## [2.43.1] - 2026-10-03
 
 Try before you vibe. Any theme can now be previewed before you commit to it, and the themes you adopt credit the person who made them. Dragging to reorder your sidebar, profile fields, and emoji packs feels smoother and scrolls along with you. Hiding media from strangers now covers quotes, link previews, and custom emoji, and Android stops crashing after long days of notifications.
