@@ -143,6 +143,14 @@
   .safe-area-inset-bottom {
     bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   }
+
+  /* Fullscreen player control bar: its usual pb-2 px-3, grown to clear the
+     home indicator and a landscape notch. */
+  .safe-area-player-controls {
+    padding-bottom: max(0.5rem, var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+    padding-left: max(0.75rem, var(--safe-area-inset-left, env(safe-area-inset-left, 0px)));
+    padding-right: max(0.75rem, var(--safe-area-inset-right, env(safe-area-inset-right, 0px)));
+  }
   
   /* FAB bottom offset: clears bottom nav + safe area inset on mobile */
   .bottom-fab {

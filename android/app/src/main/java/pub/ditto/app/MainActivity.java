@@ -23,6 +23,12 @@ public class MainActivity extends BridgeActivity {
 
         super.onCreate(savedInstanceState);
 
+        // Replace Capacitor's chrome client with one that honours HTML
+        // fullscreen (video players, embeds). Must happen in onCreate: the
+        // client registers activity-result launchers, which can't be
+        // registered once the activity has started.
+        getBridge().getWebView().setWebChromeClient(new FullscreenChromeClient(getBridge()));
+
         // The Android WebView draws its own native overlay scrollbar on the
         // document scroller, independent of the page's CSS (which already hides
         // all web scrollbars). Disable it at the View level so long feeds don't

@@ -4,4 +4,5 @@
     <string name="title_activity_main">Ditto</string>
     <string name="package_name">pub.ditto.app</string>
     <string name="custom_url_scheme">pub.ditto.app</string>
+    <string name="fullscreen_exit_hint">Press Back to exit full screen</string>
 </resources>

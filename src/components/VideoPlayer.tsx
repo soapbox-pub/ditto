@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import type Hls from 'hls.js';
-import { Play, Pause, Volume1, Volume2, VolumeX, Expand } from 'lucide-react';
+import { useIntl } from 'react-intl';
+import { Play, Pause, Volume1, Volume2, VolumeX, Expand, Shrink } from 'lucide-react';
 import { BlurhashPlaceholder } from '@/components/BlurhashPlaceholder';
 import { cn } from '@/lib/utils';
 import { isValidBlurhash } from '@/lib/blurhash';
@@ -13,6 +14,7 @@ import { useVideoThumbnail } from '@/hooks/useVideoThumbnail';
 import { useAppContext } from '@/hooks/useAppContext';
 import { formatTime } from '@/lib/formatTime';
 import { BLANK_POSTER } from '@/lib/blankPoster';
+import { exitFullscreen, fullscreenElement, requestPlayerFullscreen, videoIsNativeFullscreen } from '@/lib/fullscreen';
 
 interface VideoPlayerProps {
   src: string;
@@ -96,6 +98,7 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
   const progressRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fallback = useBlossomFallback(originalSrc);
+  const intl = useIntl();
 
   // An encrypted source is fetched and decrypted to an object URL, which makes
   // cross-server fallback the decryption hook's job rather than the <video>'s.
@@ -145,6 +148,25 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
     containerRef,
     isPlaying,
   });
+
+  // Document listeners attach only from this player's own button press until it
+  // exits, rather than two per mounted player.
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [watchingFullscreen, setWatchingFullscreen] = useState(false);
+  useEffect(() => {
+    if (!watchingFullscreen) return;
+    const update = () => {
+      const inside = !!containerRef.current && fullscreenElement() === containerRef.current;
+      setIsFullscreen(inside);
+      if (!inside) setWatchingFullscreen(false);
+    };
+    document.addEventListener('fullscreenchange', update);
+    document.addEventListener('webkitfullscreenchange', update);
+    return () => {
+      document.removeEventListener('fullscreenchange', update);
+      document.removeEventListener('webkitfullscreenchange', update);
+    };
+  }, [watchingFullscreen]);
 
   // Autoplay: start muted when enabled via prop or global setting.
   // Uses onLoadedData to ensure the element is ready before calling play().
@@ -236,13 +258,20 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
     }
   };
 
+  // Fullscreen the whole player so our controls come along — the bare <video>
+  // would go fullscreen with its native controls hidden (see index.css) and
+  // nothing to leave by. iPhone, which can only fullscreen a video, falls back
+  // to the native player and its Done button.
   const handleFullscreen = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.requestFullscreen) {
-      video.requestFullscreen();
+    const container = containerRef.current;
+    if (!container) return;
+    if (fullscreenElement() === container) {
+      exitFullscreen();
+      return;
     }
+    setWatchingFullscreen(true);
+    requestPlayerFullscreen(container, videoRef.current, () => setWatchingFullscreen(false));
   };
 
   const handleSeek = (e: React.MouseEvent) => {
@@ -257,6 +286,8 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
 
   const handleVideoClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // Native fullscreen controls act on the element themselves; don't double-toggle.
+    if (videoRef.current && videoIsNativeFullscreen(videoRef.current)) return;
     if (!hasStarted) {
       const video = videoRef.current;
       if (video) video.play();
@@ -280,13 +311,18 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
         'relative mt-3 rounded-2xl overflow-hidden border border-border bg-black group',
         maxHeight && 'mx-auto',
         className,
+        isFullscreen && 'm-0 w-full h-full max-w-none max-h-none rounded-none border-0',
       )}
       // Capping the width at maxHeight × (w / h) caps the height through the
       // aspect ratio without cropping.
-      style={{ aspectRatio, maxWidth: maxHeight ? `calc(${maxHeight} * (${aspectRatio}))` : undefined }}
+      style={isFullscreen ? undefined : { aspectRatio, maxWidth: maxHeight ? `calc(${maxHeight} * (${aspectRatio}))` : undefined }}
       onMouseMove={revealControls}
       onMouseLeave={() => { if (isPlaying) scheduleHide(); }}
       onClick={(e) => e.stopPropagation()}
+      // Keep swipes on a fullscreen player from reaching a lightbox underneath,
+      // which would page or dismiss it out from under the video.
+      onTouchStart={isFullscreen ? (e) => e.stopPropagation() : undefined}
+      onTouchEnd={isFullscreen ? (e) => e.stopPropagation() : undefined}
     >
       {/* Blurhash placeholder — shown until a thumbnail or playback frame appears */}
       {isValidBlurhash(blurhash) && !hasStarted && !(generatedPoster && posterLoaded) && (
@@ -305,10 +341,13 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
           // The container always carries an aspect ratio now (real dim, the
           // thumbnail's natural size, or a 16:9 default), so the video just
           // fills it.
-          'absolute inset-0 h-full object-cover',
-          // In fullscreen the video element fills the whole screen, so object-cover
-          // would crop it. Contain it instead, and reset the positioning/size
-          // constraints from normal layout so the frame centers within the viewport.
+          'absolute inset-0 h-full',
+          // A fullscreen player has the screen's aspect ratio, not the video's,
+          // so cover would crop it.
+          isFullscreen ? 'object-contain' : 'object-cover',
+          // Likewise when the bare video is fullscreen (the native fallback):
+          // contain it, and reset the positioning/size constraints from normal
+          // layout so the frame centers within the viewport.
           'fullscreen:object-contain fullscreen:static fullscreen:max-h-none fullscreen:h-full fullscreen:w-full',
           // The element shows a transparent poster until playback, so keep it
           // hidden while the thumbnail <img> overlay is covering it. Reveal it
@@ -397,7 +436,8 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
         <div
           className={cn(
             'absolute bottom-0 left-0 right-0 transition-opacity duration-200',
-            'bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-8 pb-2 px-3',
+            'bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-8',
+            isFullscreen ? 'safe-area-player-controls' : 'pb-2 px-3',
             showControls ? 'opacity-100' : 'opacity-0 pointer-events-none',
           )}
         >
@@ -466,9 +506,11 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
             <button
               onClick={handleFullscreen}
               className="text-white hover:text-white/80 transition-colors"
-              aria-label="Fullscreen"
+              aria-label={isFullscreen
+                ? intl.formatMessage({ id: 'video.exitFullscreen', defaultMessage: 'Exit fullscreen' })
+                : intl.formatMessage({ id: 'video.fullscreen', defaultMessage: 'Fullscreen' })}
             >
-              <Expand className="size-[18px]" />
+              {isFullscreen ? <Shrink className="size-[18px]" /> : <Expand className="size-[18px]" />}
             </button>
           </div>
         </div>

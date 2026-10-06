@@ -1,9 +1,11 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import type Hls from 'hls.js';
-import { Play, Pause, Volume1, Volume2, VolumeX, Expand, Minimize } from 'lucide-react';
+import { useIntl } from 'react-intl';
+import { Play, Pause, Volume1, Volume2, VolumeX, Expand, Shrink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BLANK_POSTER } from '@/lib/blankPoster';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
+import { exitFullscreen, fullscreenElement, requestPlayerFullscreen, videoIsNativeFullscreen } from '@/lib/fullscreen';
 
 interface LiveStreamPlayerProps {
   src: string;
@@ -19,6 +21,7 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const intl = useIntl();
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -104,10 +107,14 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
   // Track fullscreen changes
   useEffect(() => {
     const onFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      setIsFullscreen(!!containerRef.current && fullscreenElement() === containerRef.current);
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', onFullscreenChange);
+    };
   }, []);
 
   // Media Session API — registers OS lock-screen / notification controls for the live stream
@@ -157,6 +164,8 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
 
   const handleVideoClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    // Native fullscreen controls act on the element themselves; don't double-toggle.
+    if (videoRef.current && videoIsNativeFullscreen(videoRef.current)) return;
     if (autoplayBlocked) {
       const video = videoRef.current;
       if (!video) return;
@@ -180,10 +189,12 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
     e.stopPropagation();
     const container = containerRef.current;
     if (!container) return;
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
+    if (fullscreenElement() === container) {
+      exitFullscreen();
     } else {
-      container.requestFullscreen();
+      // iPhone can't fullscreen the container (or anything but a video), so
+      // this falls back to the native player rather than throwing.
+      requestPlayerFullscreen(container, videoRef.current);
     }
   }, []);
 
@@ -304,9 +315,11 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
           <button
             onClick={toggleFullscreen}
             className="text-white hover:text-white/80 transition-colors p-1"
-            aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            aria-label={isFullscreen
+              ? intl.formatMessage({ id: 'video.exitFullscreen', defaultMessage: 'Exit fullscreen' })
+              : intl.formatMessage({ id: 'video.fullscreen', defaultMessage: 'Fullscreen' })}
           >
-            {isFullscreen ? <Minimize className="size-[18px]" /> : <Expand className="size-[18px]" />}
+            {isFullscreen ? <Shrink className="size-[18px]" /> : <Expand className="size-[18px]" />}
           </button>
         </div>
       </div>
