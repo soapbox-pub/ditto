@@ -146,16 +146,22 @@ export function LazyFeedItem({ children, initialInView = false, className, cache
   const cacheKeyRef = useRef(cacheKey);
   cacheKeyRef.current = cacheKey;
 
+  // Only the crossing that can change this item's state is watched: the mount
+  // margin while it is a placeholder, the unmount margin while it is mounted.
+  // Every observed target is recomputed on every frame the page renders, and
+  // a long session holds hundreds of rows.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
-    const stopMount = observe(el, MOUNT_MARGIN_PX, (entry) => {
-      const height = entry.boundingClientRect.height;
-      if (height > 0) rememberHeight(cacheKeyRef.current, height);
-      if (entry.isIntersecting) setInView(true);
-    });
-    const stopUnmount = observe(el, UNMOUNT_MARGIN_PX, (entry) => {
+    if (!inView) {
+      return observe(el, MOUNT_MARGIN_PX, (entry) => {
+        const height = entry.boundingClientRect.height;
+        if (height > 0) rememberHeight(cacheKeyRef.current, height);
+        if (entry.isIntersecting) setInView(true);
+      });
+    }
+    return observe(el, UNMOUNT_MARGIN_PX, (entry) => {
       // The height when leaving also sizes the placeholder, so unmounting
       // occupies exactly the same space.
       const height = entry.boundingClientRect.height;
@@ -165,11 +171,7 @@ export function LazyFeedItem({ children, initialInView = false, className, cache
       }
       if (!entry.isIntersecting) setInView(false);
     });
-    return () => {
-      stopMount();
-      stopUnmount();
-    };
-  }, []);
+  }, [inView]);
 
   // Items on screen when the whole feed unmounts (e.g. the user tapped a
   // post) never get an observer callback, so measure them on the way out.
