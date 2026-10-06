@@ -23,7 +23,7 @@ const XL_BREAKPOINT = 1280;
 
 /** Returns true when the viewport is at least the xl breakpoint (1280px). */
 function useIsXl(): boolean {
-  const [isXl, setIsXl] = useState(window.innerWidth >= XL_BREAKPOINT);
+  const [isXl, setIsXl] = useState(() => window.innerWidth >= XL_BREAKPOINT);
 
   useEffect(() => {
     const mql = window.matchMedia(`(min-width: ${XL_BREAKPOINT}px)`);

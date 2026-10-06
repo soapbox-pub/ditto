@@ -15,7 +15,7 @@ const MD_BREAKPOINT = 768;
 
 export function Toaster() {
   const { toasts } = useToast()
-  const [isMdScreen, setIsMdScreen] = useState(window.innerWidth >= MD_BREAKPOINT)
+  const [isMdScreen, setIsMdScreen] = useState(() => window.innerWidth >= MD_BREAKPOINT)
 
   useEffect(() => {
     const mql = window.matchMedia(`(min-width: ${MD_BREAKPOINT}px)`)
