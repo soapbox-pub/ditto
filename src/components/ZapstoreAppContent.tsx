@@ -6,6 +6,7 @@ import { nip19 } from 'nostr-tools';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { openUrl } from '@/lib/downloadFile';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { Badge } from '@/components/ui/badge';
 import { badgeVariants } from '@/components/ui/badge-variants';
@@ -395,32 +396,39 @@ export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) 
       {/* Action buttons */}
       <div className="flex items-center gap-2">
         {websiteUrl && (
-          <Button size="sm" variant="outline" className="gap-1.5" asChild>
-            <a href={websiteUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-              <Globe className="size-3.5" />
-              Website
-            </a>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={(e) => { e.stopPropagation(); void openUrl(websiteUrl); }}
+          >
+            <Globe className="size-3.5" />
+            Website
           </Button>
         )}
         {repoUrl && (
-          <Button size="sm" variant="outline" className="gap-1.5" asChild>
-            <a href={repoUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-              <GitFork className="size-3.5" />
-              Source
-            </a>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={(e) => { e.stopPropagation(); void openUrl(repoUrl); }}
+          >
+            <GitFork className="size-3.5" />
+            Source
           </Button>
         )}
         {appId && isOnZapstore && (
-          <Button size="sm" variant="outline" className="gap-1.5" asChild>
-            <a
-              href={`https://zapstore.dev/apps/${encodeURIComponent(appId)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <ExternalLink className="size-3.5" />
-              Zapstore
-            </a>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={(e) => {
+              e.stopPropagation();
+              void openUrl(`https://zapstore.dev/apps/${encodeURIComponent(appId)}`);
+            }}
+          >
+            <ExternalLink className="size-3.5" />
+            Zapstore
           </Button>
         )}
       </div>

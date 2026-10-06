@@ -461,16 +461,17 @@ export function SoftwareReleaseContent({ event, compact }: SoftwareReleaseConten
       {((hasApk && appId) || appNaddr) && (
         <div className="flex items-center gap-2">
           {hasApk && appId && (
-            <Button size="sm" variant="outline" className="gap-1.5" asChild>
-              <a
-                href={`https://zapstore.dev/apps/${encodeURIComponent(appId)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <ExternalLink className="size-3.5" />
-                View on Zapstore
-              </a>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={(e) => {
+                e.stopPropagation();
+                void openUrl(`https://zapstore.dev/apps/${encodeURIComponent(appId)}`);
+              }}
+            >
+              <ExternalLink className="size-3.5" />
+              View on Zapstore
             </Button>
           )}
           {appNaddr && (
