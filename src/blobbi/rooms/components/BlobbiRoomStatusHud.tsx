@@ -5,7 +5,7 @@
  * one starts the stat guide; low stats glow and get a warning badge.
  */
 
-import { useMemo, type CSSProperties } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
   Utensils, Gamepad2, Heart, Droplets, Zap, AlertTriangle,
@@ -88,7 +88,7 @@ export function BlobbiRoomStatusHud({
   const count = allStats.length;
 
   return (
-    <div className="flex items-start justify-center gap-[0.6em] motion-safe:animate-[stat-glow-clock_2s_linear_infinite] motion-reduce:[--stat-glow-intensity:1]">
+    <div className="flex items-start justify-center gap-[0.6em]">
       {allStats.map((s, i) => {
         const stat = s.stat as keyof BlobbiStats;
         const name = STAT_LABELS[stat] ? intl.formatMessage(STAT_LABELS[stat]) : s.stat;
@@ -128,28 +128,38 @@ export function BlobbiRoomStatusHud({
 
 // ─── Stat Indicator ───────────────────────────────────────────────────────────
 
+/** Keeps every glowing indicator in phase, however late it starts glowing. */
+function usePhaseLockedGlow(careState: CareState) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el?.getAnimations) return;
+    for (const animation of el.getAnimations()) {
+      if (animation instanceof CSSAnimation && animation.animationName.startsWith('stat-glow-pulse')) {
+        animation.startTime = 0;
+      }
+    }
+  }, [careState]);
+  return ref;
+}
+
 function StatIndicator({ stat, careState, filled, max }: { stat: string; careState: CareState; filled: number; max: number }) {
   const style = STAT_STYLE[stat];
   const isLow = careState === 'attention' || careState === 'urgent';
   const Icon = style?.icon;
-
-  const glowStyle: CSSProperties | undefined =
-    careState === 'attention'
-      ? { boxShadow: '0 0 calc(var(--stat-glow-intensity) * 6px) calc(var(--stat-glow-intensity) * 2px) currentColor' }
-      : careState === 'urgent'
-        ? { boxShadow: '0 0 calc(var(--stat-glow-intensity) * 10px) calc(var(--stat-glow-intensity) * 3px) currentColor' }
-        : undefined;
+  const glowRef = usePhaseLockedGlow(careState);
 
   return (
     <div
+      ref={glowRef}
       className={cn(
         'relative size-[2.75em] rounded-full flex items-center justify-center',
         ROOM_CONTROL_SURFACE_SUBTLE, 'border border-border/20 shadow-sm',
         style?.bg,
         isLow && style?.text,
-        careState === 'urgent' && 'motion-safe:animate-pulse',
+        careState === 'attention' && 'stat-glow-attention',
+        careState === 'urgent' && 'stat-glow-urgent',
       )}
-      style={glowStyle}
     >
       <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
         <SegmentedRing filled={filled} max={max} fillHex={style?.hex ?? 'currentColor'} strokeWidth={2.5} gapDeg={16} />

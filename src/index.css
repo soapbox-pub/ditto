@@ -999,21 +999,32 @@
   100% { opacity: 1; }
 }
 
-/* ── Shared glow clock for synchronised low-status icons ────────────────
-   A single animation on the StatsCrown parent drives --stat-glow-intensity
-   (0→1→0).  Children inherit its animated value and compute their own
-   box-shadow via calc(), giving perfect phase-lock regardless of when
-   individual icons mount or re-enter a low-status state. */
-@property --stat-glow-intensity {
-  syntax: '<number>';
-  initial-value: 0;
-  inherits: true;
+/* Low-status glow on the room HUD's stat icons, phase-locked by
+   usePhaseLockedGlow. Not an animated inherited custom property on the HUD:
+   that restyled everything under it every frame. */
+@keyframes stat-glow-pulse-attention {
+  0%, 8% { box-shadow: 0 0 0 0 currentColor; }
+  50% { box-shadow: 0 0 6px 2px currentColor; }
+  92%, 100% { box-shadow: 0 0 0 0 currentColor; }
 }
 
-@keyframes stat-glow-clock {
-  0%, 8% { --stat-glow-intensity: 0; }
-  50% { --stat-glow-intensity: 1; }
-  92%, 100% { --stat-glow-intensity: 0; }
+@keyframes stat-glow-pulse-urgent {
+  0%, 8% { box-shadow: 0 0 0 0 currentColor; }
+  50% { box-shadow: 0 0 10px 3px currentColor; }
+  92%, 100% { box-shadow: 0 0 0 0 currentColor; }
+}
+
+.stat-glow-attention { box-shadow: 0 0 6px 2px currentColor; }
+.stat-glow-urgent { box-shadow: 0 0 10px 3px currentColor; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .stat-glow-attention { animation: stat-glow-pulse-attention 2s linear infinite; }
+  /* Includes Tailwind's pulse: a second `animation` would override this one. */
+  .stat-glow-urgent {
+    animation:
+      stat-glow-pulse-urgent 2s linear infinite,
+      pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
 }
 
 /* Legacy per-element keyframes — still used by the reusable StatIndicator
