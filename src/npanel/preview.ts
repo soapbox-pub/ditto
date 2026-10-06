@@ -9,9 +9,9 @@
  *
  * Every kind Ditto renders has a preview (`kinds.ts`), with the event's own
  * title, description and image, and the event as an article a search engine
- * can read. Profiles with a theme or an avatar shape, themes and color
- * moments get images drawn the way ditto-server drew them (`draw.ts`), and a
- * Blobbi is drawn as the app draws it (`blobbi.ts`).
+ * can read. Profiles, themes and color moments get images drawn the way
+ * ditto-server drew them (`draw.ts`), and a Blobbi is drawn as the app draws
+ * it (`blobbi.ts`).
  *
  * A preview says who did what: "Alex reacted 👍 to Sam's post", with the
  * post's words and picture. So it fetches the event a reaction, vote, award
@@ -139,12 +139,11 @@ export default {
   },
 };
 
-/** A profile's preview: its avatar, unless it has a theme or a shape, which are drawn. */
+/** A profile's preview: its avatar, cut to its shape, drawn on its theme, or on the default colours if it has none. */
 function profile(event: NostrEvent, theme: NostrEvent | undefined, page: Page): Preview {
   const profile = readProfile(event, event.pubkey);
   const preview = profilePreview(profile, page);
   const shape = getAvatarShape(profile.fields);
-  if (!theme && !shape) return preview;
   const active = theme ? parseActiveProfileTheme(theme) : null;
   return {
     ...preview,
