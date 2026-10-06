@@ -5,7 +5,7 @@
  * decoupled from app-specific concerns.
  */
 
-import type { BlobbiVisualTraits, BlobbiStats } from '@blobbi-kit/core';
+import type { BlobbiCompanion, BlobbiVisualTraits, BlobbiStats } from '@blobbi-kit/core';
 import type { BlobbiState } from '@blobbi-kit/core/types/blobbi';
 
 // ─── Companion State Machine ──────────────────────────────────────────────────
@@ -185,6 +185,10 @@ export interface CompanionData {
   adultType?: string;
   /** Deterministic seed for deriving traits */
   seed?: string;
+  /** Artwork generation, as parsed from the event (`'v1'` when it has no tag). */
+  visualGeneration?: BlobbiCompanion['visualGeneration'];
+  /** The V3 identity the event states; present only on a V3 Blobbi. */
+  v3Identity?: BlobbiCompanion['v3Identity'];
 }
 
 // ─── Companion Config ─────────────────────────────────────────────────────────

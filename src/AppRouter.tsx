@@ -41,6 +41,8 @@ const ArchivePage = lazy(() => import("./pages/ArchivePage").then(m => ({ defaul
 const ArticleEditorPage = lazy(() => import("./pages/ArticleEditorPage").then(m => ({ default: m.ArticleEditorPage })));
 const BadgesPage = lazy(() => import("./pages/BadgesPage").then(m => ({ default: m.BadgesPage })));
 const BlobbiPage = lazy(() => import("./pages/BlobbiPage").then(m => ({ default: m.BlobbiPage })));
+// Development only: V3 Blobbis as Ditto draws them (see the route below).
+const BlobbiV3DevPage = import.meta.env.DEV ? lazy(() => import("@/blobbi/dev/BlobbiV3DevPage").then(m => ({ default: m.BlobbiV3DevPage }))) : null;
 const BlueskyPage = lazy(() => import("./pages/BlueskyPage").then(m => ({ default: m.BlueskyPage })));
 const BookmarksPage = lazy(() => import("./pages/BookmarksPage").then(m => ({ default: m.BookmarksPage })));
 const BooksPage = lazy(() => import("./pages/BooksPage").then(m => ({ default: m.BooksPage })));
@@ -306,6 +308,7 @@ export function AppRouter() {
             <Route path="/top-8" element={<Top8Page />} />
             <Route path="/ai-chat" element={<AIChatPage />} />
             <Route path="/blobbi" element={<BlobbiPage />} />
+            {BlobbiV3DevPage && <Route path="/blobbi/dev/v3" element={<BlobbiV3DevPage />} />}
             <Route path="/world" element={<WorldPage />} />
             <Route path="/badges" element={<BadgesPage />} />
             <Route path="/books" element={<BooksPage />} />

@@ -18,6 +18,7 @@ import { useMemo, useRef, memo, type RefObject } from 'react';
 import { BlobbiBabyVisual } from '@/blobbi/ui/BlobbiBabyVisual';
 import { BlobbiAdultVisual } from '@/blobbi/ui/BlobbiAdultVisual';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
+import { BlobbiV3Visual } from '@/blobbi/ui/BlobbiV3Visual';
 import { companionDataToBlobbi } from '@/blobbi/ui/lib/adapters';
 import { useEffectiveEmotion } from '@/blobbi/dev/useEmotionDev';
 import { useRecipeFingerprint, useFillLevelUpdate } from '@/blobbi/ui/hooks/useFillLevelUpdate';
@@ -26,6 +27,7 @@ import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BodyEffectsSpec } from '@/blobbi/ui/lib/bodyEffects';
 import type { Blobbi } from '@blobbi-kit/core/types/blobbi';
 import type { BlobbiCompanion } from '@blobbi-kit/core/blobbi';
+import { getBlobbiVisualIdentity } from '@blobbi-kit/core';
 import { cn } from '@/lib/utils';
 import type { CompanionData, EyeOffset, CompanionDirection } from '../types/companion.types';
 
@@ -161,6 +163,10 @@ export function BlobbiCompanionVisual({
 }: BlobbiCompanionVisualProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const blobbi = useMemo(() => companionDataToBlobbi(companion), [companion]);
+  const v3Visual = useMemo(
+    () => (companion.visualGeneration === 'v3' ? getBlobbiVisualIdentity(companion) : null),
+    [companion],
+  );
 
   // DEV ONLY: Get effective emotion from dev context (overrides production emotions)
   const devEmotion = useEffectiveEmotion();
@@ -194,7 +200,8 @@ export function BlobbiCompanionVisual({
   // Reaction state for CSS animations on the OUTER wrapper
   // When sleeping, always idle — no swaying/happy animation
   const isSleeping = companion.state === 'sleeping';
-  const reaction = isSleeping ? 'idle' : isDragging ? 'happy' : isWalking ? 'swaying' : 'idle';
+  // A V3 Blobbi walks on its own rig (below), so it doesn't also sway to walk.
+  const reaction = isSleeping ? 'idle' : isDragging ? 'happy' : isWalking && !v3Visual ? 'swaying' : 'idle';
 
   // ── Shadow ─────────────────────────────────────────────────────────────────
   const SHADOW_FADE_DISTANCE = 30;
@@ -207,9 +214,7 @@ export function BlobbiCompanionVisual({
   const shadowOpacity = SHADOW_MAX_OPACITY * groundFadeRatio * floatFadeRatio;
   const shadowScale = 0.9 + 0.1 * groundFadeRatio * floatFadeRatio;
 
-  // direction is accepted for API completeness but not currently used for rendering
-  // (Blobbi does not flip based on facing direction). Suppress unused warning.
-  void direction;
+  // V1 art has no profile, so direction only turns a V3 Blobbi (while it walks).
 
   return (
     <div
@@ -277,7 +282,21 @@ export function BlobbiCompanionVisual({
           )}
           style={{ transformOrigin: 'center bottom' }}
         >
-          {companion.stage === 'egg' ? (
+          {v3Visual ? (
+            <BlobbiV3Visual
+              visual={v3Visual}
+              instanceId={companion.d}
+              isSleeping={isSleeping}
+              renderMode="companion"
+              lookMode="forward"
+              externalEyeOffsetRef={eyeOffsetRef}
+              recipe={effectiveRecipe}
+              emotion={effectiveEmotion}
+              facing={isWalking && !isDragging ? direction : 'front'}
+              motion={isWalking && !isDragging && !isSleeping ? 'walking' : 'idle'}
+              className="size-full"
+            />
+          ) : companion.stage === 'egg' ? (
             <BlobbiStageVisual
               companion={companion as unknown as BlobbiCompanion}
               size="sm"

@@ -19,8 +19,8 @@ const PUBKEY = 'a'.repeat(64);
 /**
  * Build a kind 31124 event the way Blobbi Island does: valid Blobbi identity,
  * a NIP-89 `client` tag branded "blobbi", empty content, and NO Ditto-specific
- * mission/evolution JSON. blobbi-kit misclassifies this as legacy because of
- * the `client == "blobbi"` heuristic.
+ * mission/evolution JSON. blobbi-kit 0.4.0 misclassified this as legacy
+ * because of the `client == "blobbi"` heuristic.
  */
 function makeIslandEvent({
   petId = '3196847fb5',
@@ -64,16 +64,17 @@ function makeIslandEvent({
 }
 
 describe('interop event classification', () => {
-  it('confirms blobbi-kit flags an Island event with client=blobbi as legacy (the bug)', () => {
-    // This reproduces the runtime symptom: the raw event exists and is valid,
-    // yet the strict collection drops it because isLegacy is true.
+  // blobbi-kit 0.4.0 flagged these as legacy (the bug this module works
+  // around). From 0.5 on, branding tags are not evidence either way, so the
+  // kit reads them as modern and the recovery below has nothing to recover.
+  it('blobbi-kit no longer flags an Island event with client=blobbi as legacy', () => {
     const event = makeIslandEvent();
-    expect(isLegacyBlobbiEvent(event)).toBe(true);
+    expect(isLegacyBlobbiEvent(event)).toBe(false);
   });
 
-  it('also flags t=blobbi topic tag as legacy', () => {
+  it('nor one with a t=blobbi topic tag', () => {
     const event = makeIslandEvent({ clientTag: null, extraTags: [['t', 'blobbi']] });
-    expect(isLegacyBlobbiEvent(event)).toBe(true);
+    expect(isLegacyBlobbiEvent(event)).toBe(false);
   });
 });
 

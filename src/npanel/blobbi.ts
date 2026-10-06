@@ -8,10 +8,14 @@
  * the awake art is bundled. An egg, which the app draws with CSS, is drawn here in SVG in the
  * same shape and shading. Its face, if it has one, is neutral: a preview
  * can't know how the Blobbi feels now without its care history.
+ *
+ * A V3 Blobbi, at any stage, is the kit's drawing of the identity its event
+ * states, as the app draws it: still, awake, facing front.
  */
 
 import type { NostrEvent } from '@nostrify/nostrify';
-import { parseBlobbiEvent } from '@blobbi-kit/core/blobbi';
+import { getBlobbiVisualIdentity, parseBlobbiEvent } from '@blobbi-kit/core';
+import { renderBlobbiSvg } from '@blobbi-kit/renderer';
 import { resolveAdultForm } from '@blobbi-kit/core/types/adult';
 
 import { customizeAdultSvg } from '@/blobbi/adult-blobbi/lib/adult-svg-customizer';
@@ -39,7 +43,9 @@ export function blobbiPicture(event: NostrEvent): string | undefined {
 
   let art: string;
   let [width, height] = [SIZE, SIZE];
-  if (companion.stage === 'egg') {
+  if (companion.visualGeneration === 'v3') {
+    art = renderBlobbiSvg({ ...getBlobbiVisualIdentity(companion), instanceId: 'npanel-blobbi' }).svg;
+  } else if (companion.stage === 'egg') {
     const divine = isDivineEgg({ lifeStage: 'egg', tags: event.tags });
     art = egg(divine ? DIVINE_BASE_COLOR : base, divine ? undefined : secondary, divine);
     [width, height] = [EGG_SIZE * 0.8, EGG_SIZE];

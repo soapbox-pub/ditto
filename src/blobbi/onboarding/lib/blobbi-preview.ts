@@ -14,6 +14,7 @@ import {
   generatePetId10,
   getCanonicalBlobbiD,
   getLocalDayString,
+  parseVisualGeneration,
   type BlobbiVisualTraits,
   type BlobbiStats,
 } from '@blobbi-kit/core';
@@ -170,6 +171,7 @@ export function previewToEventTags(preview: BlobbiEggPreview): string[][] {
  * This allows the existing BlobbiStageVisual/BlobbiEggVisual to render the preview.
  */
 export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
+  const tags = previewToEventTags(preview);
   // Create a minimal object that matches what BlobbiStageVisual needs
   return {
     // Required fields for BlobbiStageVisual
@@ -179,6 +181,8 @@ export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
     state: preview.state,
     seed: preview.seed,
     visualTraits: preview.visualTraits,
+    // Read from the tags this preview publishes, as parseBlobbiEvent would.
+    visualGeneration: parseVisualGeneration(tags),
     stats: preview.stats,
     
     // Required but not used for preview rendering
@@ -205,7 +209,7 @@ export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
     evolution: [],
     
     // We need allTags for the adapter, but preview has no extra tags
-    allTags: previewToEventTags(preview),
+    allTags: tags,
     
     // Event placeholder - not needed for preview rendering
     event: {
@@ -213,7 +217,7 @@ export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
       pubkey: preview.ownerPubkey,
       created_at: preview.createdAt,
       kind: 31124,
-      tags: previewToEventTags(preview),
+      tags,
       content: '',
       sig: '',
     },

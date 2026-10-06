@@ -1,7 +1,9 @@
 /**
  * BlobbiStageVisual - Stage-aware visual component for Blobbi
  *
- * Routes to the appropriate visual component based on the Blobbi's life stage:
+ * Routes to the appropriate visual component based on the Blobbi's artwork
+ * generation and life stage:
+ *   - V3 (any stage) → BlobbiV3Visual (the kit's procedural renderer)
  *   - egg   → BlobbiEggVisual
  *   - baby  → BlobbiBabyVisual
  *   - adult → BlobbiAdultVisual
@@ -15,10 +17,12 @@ import { useMemo } from 'react';
 import { BlobbiEggVisual, type BlobbiEggSize, type EggStatusEffects, type EggTourVisualState } from './BlobbiEggVisual';
 import { BlobbiBabyVisual } from './BlobbiBabyVisual';
 import { BlobbiAdultVisual } from './BlobbiAdultVisual';
+import { BlobbiV3Visual } from './BlobbiV3Visual';
 import { FloatingMusicNotes } from './FloatingMusicNotes';
 import { blobbiCompanionToBlobbi } from './lib/adapters';
+import { eggCrackForTourState } from './lib/v3-expression';
 import { cn } from '@/lib/utils';
-import type { BlobbiCompanion } from '@blobbi-kit/core';
+import { getBlobbiVisualIdentity, type BlobbiCompanion } from '@blobbi-kit/core';
 import type { BlobbiLookMode } from './lib/useBlobbiEyes';
 import type { BlobbiEmotion } from './lib/emotion-types';
 import type { BlobbiVisualRecipe } from './lib/recipe';
@@ -87,13 +91,40 @@ export function BlobbiStageVisual({
 
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
+  const isV3 = companion.visualGeneration === 'v3';
+
+  const v3Visual = useMemo(
+    () => (isV3 ? getBlobbiVisualIdentity(companion) : null),
+    [companion, isV3]
+  );
+
   const blobbiForVisual = useMemo(
-    () => (stage === 'baby' || stage === 'adult' ? blobbiCompanionToBlobbi(companion) : null),
-    [companion, stage]
+    () => (!isV3 && (stage === 'baby' || stage === 'adult') ? blobbiCompanionToBlobbi(companion) : null),
+    [companion, stage, isV3]
   );
 
   const showMusicNotes = effectiveReaction === 'listening';
   const containerClass = SIZE_CONFIG[size];
+
+  if (v3Visual) {
+    return (
+      <div className={cn('relative', containerClass, className)}>
+        <BlobbiV3Visual
+          visual={v3Visual}
+          instanceId={companion.d}
+          isSleeping={isSleeping}
+          reaction={effectiveReaction}
+          lookMode={lookMode}
+          recipe={recipe}
+          emotion={emotion}
+          motion={animated || stage !== 'egg' ? 'idle' : 'still'}
+          eggCrack={eggCrackForTourState(tourVisualState)}
+          className="size-full"
+        />
+        <FloatingMusicNotes active={showMusicNotes} />
+      </div>
+    );
+  }
 
   if (stage === 'egg') {
     // Derive egg status effects from the recipe

@@ -37,7 +37,6 @@ import {
   type BlobbonautProfile,
   type BlobbiCompanion,
 } from '@blobbi-kit/core/blobbi';
-import { validateAndRepairBlobbiTags } from '@blobbi-kit/core/blobbi-tag-schema';
 import { serializeEvolutionContent } from '@blobbi-kit/core/missions';
 import { createEvolveMissions } from '@blobbi-kit/react/lib/evolution-missions';
 import { writeEvolutionToStorage } from '@blobbi-kit/react/lib/daily-mission-tracker';
@@ -50,6 +49,7 @@ import {
   type BlobbiEggPreview,
 } from '../lib/blobbi-preview';
 import { preflightBlobbiOwnership } from '../lib/preflight-ownership';
+import { buildHatchedBabyTags } from '../lib/hatch-tags';
 
 import { useTypewriter } from '../hooks/useTypewriter';
 import { buildRevealGradient } from '../lib/ceremony-colors';
@@ -172,8 +172,10 @@ export function BlobbiHatchingCeremony({
   onExistingBlobbiFoundRef.current = onExistingBlobbiFound;
 
   // ── Companion visuals ──
+  // An existing egg is drawn as itself (its own generation and identity);
+  // the preview stands in only for an egg this flow is creating.
   const eggCompanion = useMemo(
-    () => preview ? previewToBlobbiCompanion(preview) : null,
+    (): BlobbiCompanion | null => existingCompanion ?? (preview ? previewToBlobbiCompanion(preview) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [preview?.d],
   );
@@ -474,7 +476,6 @@ export function BlobbiHatchingCeremony({
     if (!tags) return;
 
     const now = Math.floor(Date.now() / 1000);
-    const nowStr = now.toString();
 
     // Build a companion for streak updates. Prefer the real existing companion;
     // otherwise derive one from the current preview. Skip streak updates if
@@ -486,35 +487,7 @@ export function BlobbiHatchingCeremony({
         : null);
     const streakUpdates = streakCompanion ? (getStreakTagUpdates(streakCompanion) ?? {}) : {};
 
-    // First merge: promote to an active baby with full stats. Preserves all
-    // identity/extension tags (personality, trait, equip, etc.) via updateBlobbiTags.
-    const mergedTags = updateBlobbiTags(tags, {
-      stage: 'baby',
-      state: 'active',
-      hunger: STAT_MAX.toString(),
-      happiness: STAT_MAX.toString(),
-      health: STAT_MAX.toString(),
-      hygiene: STAT_MAX.toString(),
-      energy: STAT_MAX.toString(),
-      ...streakUpdates,
-      last_interaction: nowStr,
-      last_decay_at: nowStr,
-    });
-
-    // Validate and repair: strips stale task / task_completed / state_started_at
-    // and normalizes state for the new stage. Uses the original egg tags for recovery.
-    const repairResult = validateAndRepairBlobbiTags(mergedTags, tags, { cleanupTaskTags: true });
-    if (repairResult.errors.length > 0) {
-      console.error('[HatchingCeremony] Tag validation errors:', repairResult.errors);
-      throw new Error(`Tag validation failed: ${repairResult.errors.join(', ')}`);
-    }
-
-    // Set progression AFTER validation, since cleanupTaskTags clears it. The
-    // baby auto-starts its evolution journey immediately.
-    const babyTags = updateBlobbiTags(repairResult.tags, {
-      progression_state: 'evolving',
-      progression_started_at: nowStr,
-    });
+    const babyTags = buildHatchedBabyTags(tags, streakUpdates, now);
 
     // Seed evolve missions into the 31124 content (JSON) so they survive reload.
     const evolveMissions = createEvolveMissions();

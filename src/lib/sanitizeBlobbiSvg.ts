@@ -17,7 +17,8 @@
  * polluting the global DOMPurify used by other sanitizers.
  *
  * Blocked: <script>, <foreignObject>, <iframe>, <embed>, <object>, <a>,
- *          <use>, <image>, all event handlers (on*), href/xlink:href.
+ *          <use>, <image>, all event handlers (on*), href/xlink:href, and
+ *          every filter primitive but <feGaussianBlur>.
  */
 
 import DOMPurify from 'dompurify';
@@ -55,8 +56,19 @@ const blobbiPurify = DOMPurify();
 blobbiPurify.addHook('uponSanitizeAttribute', (_node, data) => {
   if (data.attrName.startsWith('data-')) {
     data.allowedAttributes[data.attrName] = true;
+    return;
+  }
+
+  // `filter` is allowed for the V3 soft shading (below) and, unlike href, is
+  // not a URI attribute DOMPurify vets itself. Only a reference to a <filter>
+  // in this same drawing means anything; any other value is dropped.
+  if (data.attrName === 'filter' && !FRAGMENT_URL_REF.test(data.attrValue.trim())) {
+    data.keepAttr = false;
   }
 });
+
+/** `url(#id)` and nothing else: no scheme, no path, no second value. */
+const FRAGMENT_URL_REF = /^url\(#[A-Za-z0-9_-]+\)$/;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ALLOWED TAGS
@@ -86,6 +98,12 @@ const BLOBBI_ALLOWED_TAGS = [
   // Clipping and masking - used for eye blink animation
   'clipPath',
   'mask',
+
+  // A Gaussian blur and nothing else: the kit's V3 drawings (renderer 0.6.0)
+  // soften their shading with `<filter><feGaussianBlur/></filter>`. No other
+  // filter primitive is allowed (feImage, for one, can load content).
+  'filter',
+  'feGaussianBlur',
 
   // SMIL Animation elements - used for:
   // - Eye blink clip-path animation (animate on rect y/height)
@@ -172,6 +190,10 @@ const BLOBBI_ALLOWED_ATTRS = [
   'clip-path',
   'clip-rule',
   'mask',
+
+  // The blur filter's reference (fragment-only, see the hook) and its radius
+  'filter',
+  'stdDeviation',
 
   // Geometry attributes for shapes
   'cx',
@@ -316,7 +338,7 @@ const BLOBBI_FORBIDDEN_ATTRS = [
 // CONFIGURATION
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Maximum SVG string length (512 KB). Blobbi SVGs with all emotion overlays are ~30 KB. */
+/** Maximum SVG string length (512 KB). Blobbi SVGs with all emotion overlays are ~30 KB; V3 drawings up to ~36 KB. */
 const MAX_SVG_LENGTH = 512 * 1024;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -374,6 +396,7 @@ export function sanitizeBlobbiSvg(dirty: string): string {
 // Tags that Blobbi allows but generic does NOT:
 // - defs, radialGradient, linearGradient, stop (gradients)
 // - clipPath, mask (clipping/masking)
+// - filter, feGaussianBlur (V3 soft shading; `filter` attr fragment-only)
 // - animate, animateTransform, animateMotion (SMIL animation)
 // - text, tspan (text rendering)
 // - style (CSS @keyframes) ← REVIEW REQUIRED

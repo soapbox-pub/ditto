@@ -86,8 +86,10 @@ export function useBlobbiDevUpdate({
       // Adult type: adjust the seed so it derives the chosen form.
       // syncMirrorTagsToSeed (called inside updateBlobbiTags) will then
       // set the adult_type tag and all other mirror tags from the new seed.
+      // Never on V3: its seed IS its identity (every proportion derives from
+      // it) and it has no adult form, so this would make another Blobbi.
       const effectiveStage = updates.stage ?? companion.stage;
-      if (effectiveStage === 'adult' && updates.adultType !== undefined && companion.seed) {
+      if (effectiveStage === 'adult' && updates.adultType !== undefined && companion.seed && companion.visualGeneration !== 'v3') {
         const adjusted = adjustSeedForAdultType(companion.seed, updates.adultType as AdultForm);
         if (adjusted !== companion.seed) {
           tagUpdates.seed = adjusted;

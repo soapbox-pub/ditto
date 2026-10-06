@@ -19,8 +19,9 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@blobbi-kit/core": "^0.4.0",
-    "@blobbi-kit/react": "^0.4.0",
+    "@blobbi-kit/core": "^0.8.0",
+    "@blobbi-kit/react": "^0.8.0",
+    "@blobbi-kit/renderer": "^0.6.0",
     "@capacitor/app": "^8.0.0",
     "@capacitor/app-launcher": "^8.0.1",
     "@capacitor/core": "^8.2.0",
@@ -191,12 +192,6 @@
   "overrides": {
     "react": "$react",
     "react-dom": "$react-dom",
-    "@blobbi-kit/core": {
-      "@nostrify/nostrify": "$@nostrify/nostrify"
-    },
-    "@blobbi-kit/react": {
-      "@nostrify/nostrify": "$@nostrify/nostrify"
-    },
     "@tailwindcss/typography": {
       "postcss-selector-parser": "^7.1.6"
     },
