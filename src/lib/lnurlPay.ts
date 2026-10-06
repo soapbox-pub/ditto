@@ -86,15 +86,34 @@ function toCount(value: unknown): number | null {
 /**
  * Fetch and validate the LNURL-pay parameters for a payment pointer.
  *
+ * A profile's `lud06` and `lud16` are tried in turn, so a broken one (often a
+ * lightning address pasted into `lud06`) doesn't hide a working one.
+ *
  * Throws with a user-presentable message when the endpoint is unreachable or
  * its response doesn't conform.
  */
 export async function resolveLnurlPay(source: LnurlSource, signal?: AbortSignal): Promise<LnurlPayParams> {
-  const url = lnurlToUrl(source);
-  if (!url) {
+  const pointers: LnurlSource[] = [];
+  if (source.lud06?.trim()) pointers.push({ lud06: source.lud06 });
+  if (source.lud16?.trim()) pointers.push({ lud16: source.lud16 });
+  if (!pointers.length) {
     throw new Error('No lightning address configured');
   }
 
+  let firstError: unknown;
+  for (const pointer of pointers) {
+    try {
+      const url = lnurlToUrl(pointer);
+      if (url) return await fetchLnurlPay(url, signal);
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      firstError ??= error;
+    }
+  }
+  throw firstError ?? new Error('No lightning address configured');
+}
+
+async function fetchLnurlPay(url: string, signal?: AbortSignal): Promise<LnurlPayParams> {
   const res = await fetch(url, { signal });
   if (!res.ok) {
     throw new Error(`Lightning service returned HTTP ${res.status}`);
