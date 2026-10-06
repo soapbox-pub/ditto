@@ -38,12 +38,18 @@ export function useZaps(
   const { sendPayment, getActiveConnection } = useNWC();
   const [isZapping, setIsZapping] = useState(false);
   const [invoice, setInvoice] = useState<string | null>(null);
+  /**
+   * LNURL callback of the provider whose invoice for the current zap isn't
+   * bound to the zap request as NIP-57 specifies, so the UI can say so.
+   */
+  const [nonstandardInvoiceFrom, setNonstandardInvoiceFrom] = useState<string | null>(null);
 
   // Cleanup state when component unmounts
   useEffect(() => {
     return () => {
       setIsZapping(false);
       setInvoice(null);
+      setNonstandardInvoiceFrom(null);
     };
   }, []);
 
@@ -116,6 +122,7 @@ export function useZaps(
 
     setIsZapping(true);
     setInvoice(null); // Clear any previous invoice at the start
+    setNonstandardInvoiceFrom(null);
 
     if (!user) {
       toast({
@@ -275,10 +282,11 @@ export function useZaps(
         const decodedInvoice = assertInvoiceAmount(newInvoice, zapAmount);
 
         // LUD-06 binds the invoice to the endpoint's `metadata`; NIP-57 binds
-        // it to the zap request instead. Either is fine, anything else means
-        // the invoice was not issued for this request.
+        // it to the zap request instead. Some widely used endpoints do
+        // neither, so a mismatch is flagged to the user rather than fatal.
+        // The amount check above is what bounds the spend.
         if (!invoiceCommitsTo(decodedInvoice, [zapRequestJson, lnurlParams.metadata])) {
-          throw new Error('Lightning service returned an invoice for a different request. Payment cancelled.');
+          setNonstandardInvoiceFrom(lnurlParams.callback);
         }
 
         // Report what the invoice actually charges rather than what was asked
@@ -368,6 +376,7 @@ export function useZaps(
 
   const resetInvoice = useCallback(() => {
     setInvoice(null);
+    setNonstandardInvoiceFrom(null);
   }, []);
 
   return {
@@ -377,5 +386,6 @@ export function useZaps(
     invoice,
     setInvoice,
     resetInvoice,
+    nonstandardInvoiceFrom,
   };
 }

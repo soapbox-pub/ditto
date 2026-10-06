@@ -243,9 +243,8 @@ export function assertInvoiceAmount(
  * LUD-06 binds the invoice to the LNURL endpoint's `metadata`; NIP-57 replaces
  * that with the zap request JSON. Providers implement one or the other, so any
  * match is accepted. An invoice with no `h` field at all is accepted too —
- * plenty of providers use a plain `d` description — because the amount check
- * is what actually stops an overcharge; this is defence in depth against a
- * substituted invoice on an otherwise honest response.
+ * plenty of providers use a plain `d` description. The amount check is what
+ * stops an overcharge; this one flags nonstandard invoices.
  */
 export function invoiceCommitsTo(decoded: DecodedInvoice, candidates: string[]): boolean {
   if (!decoded.descriptionHash) return true;

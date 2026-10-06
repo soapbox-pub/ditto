@@ -23,6 +23,7 @@ import { AmountField } from '@/components/AmountField';
 import { OnchainZapContent } from '@/components/OnchainZapContent';
 import { GenericPaymentContent } from '@/components/GenericPaymentContent';
 import { MoneroZapContent } from '@/components/MoneroZapContent';
+import { NonstandardInvoiceNotice } from '@/components/NonstandardInvoiceNotice';
 import { PaymentMethodIcon } from '@/components/PaymentMethodIcon';
 import { ZapSuccessScreen } from '@/components/ZapSuccessScreen';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -385,7 +386,7 @@ export function ZapDialogImpl({
     [],
   );
 
-  const { zap, payInvoiceWithWebLN, isZapping, invoice, setInvoice } = useZaps(
+  const { zap, payInvoiceWithWebLN, isZapping, invoice, resetInvoice, nonstandardInvoiceFrom } = useZaps(
     target,
     webln,
     activeNWC,
@@ -512,7 +513,7 @@ export function ZapDialogImpl({
   useEffect(() => {
     setAmount(defaultAmount(currency));
     setComment('');
-    setInvoice(null);
+    resetInvoice();
     setCopied(false);
     setEditingAmount(false);
     setError('');
@@ -524,7 +525,7 @@ export function ZapDialogImpl({
     // `defaultMethodId` deliberately excluded — we only want to reset the
     // active method on open/close, not on every capability re-render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, currency, setInvoice]);
+  }, [open, currency, resetInvoice]);
 
   // Previously, if Bitcoin capability flipped to `unsupported` mid-session we
   // auto-switched to Lightning because the Bitcoin pane was a dead-end. The
@@ -657,6 +658,11 @@ export function ZapDialogImpl({
           </button>
         </div>
         <div className="overflow-y-auto max-h-[calc(95vh-3rem)]">
+          {nonstandardInvoiceFrom && (invoice || success?.kind === 'lightning') && (
+            <div className="px-4 pt-2">
+              <NonstandardInvoiceNotice callback={nonstandardInvoiceFrom} />
+            </div>
+          )}
           {success ? (
             <ZapSuccessScreen
               recipientPubkey={target.pubkey}
