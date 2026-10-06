@@ -128,7 +128,7 @@ const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
   30817: 'custom NIP',
   31922: 'calendar event',
   31923: 'calendar event',
-  32267: 'Zapstore app',
+  32267: 'software app',
   34139: 'playlist',
   34236: 'short video',
   34550: 'community',

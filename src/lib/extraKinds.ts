@@ -917,12 +917,12 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   {
     kind: 32267,
     id: 'zapstore',
-    label: 'Zapstore',
-    description: 'App store publishing on Nostr',
+    label: 'Software',
+    description: 'Software releases published on Nostr',
     addressable: true,
     section: 'development',
     feedOnly: true,
-    blurb: 'Application listings and version releases published to the Zapstore app store.',
+    blurb: 'App listings and version releases with their downloadable builds, published by Zapstore, ngit, and others.',
     sites: [{ url: 'https://zapstore.dev', name: 'Zapstore' }],
     subKinds: [
       {
@@ -1093,7 +1093,7 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   31871: 'attestation',
   1984: 'report',
   30402: 'listing',
-  32267: 'Zapstore app',
+  32267: 'software app',
   31990: 'app',
   30063: 'software release',
   3063: 'software asset',

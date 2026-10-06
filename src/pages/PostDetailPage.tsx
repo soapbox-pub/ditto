@@ -141,7 +141,7 @@ import { type FileEncryption } from '@/lib/encryptedFile';
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { ProfileCard } from "@/components/ProfileCard";
-import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
+import { SoftwareAppContent } from "@/components/SoftwareAppContent";
 import { SoftwareReleaseContent, SoftwareReleaseSkeleton, SoftwareAssetContent, SoftwareAssetSkeleton } from "@/components/SoftwareReleaseContent";
 import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { AppHandlerDetailPage } from "@/pages/AppHandlerDetailPage";
@@ -1348,9 +1348,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isGitStatus = event.kind >= 1630 && event.kind <= 1633;
   const isCustomNip = event.kind === 30817;
   const isNsite = isNsiteKind(event.kind);
-  const isZapstoreApp = event.kind === 32267;
-  const isZapstoreRelease = event.kind === 30063;
-  const isZapstoreAsset = event.kind === 3063;
+  const isSoftwareApp = event.kind === 32267;
+  const isSoftwareRelease = event.kind === 30063;
+  const isSoftwareAsset = event.kind === 3063;
   const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
@@ -1401,9 +1401,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isVideo &&
     !isCommunity &&
     !isDevKind &&
-    !isZapstoreApp &&
-    !isZapstoreRelease &&
-    !isZapstoreAsset &&
+    !isSoftwareApp &&
+    !isSoftwareRelease &&
+    !isSoftwareAsset &&
     !isAppHandler &&
     !isEncryptedDM &&
     !isLetter &&
@@ -2581,13 +2581,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           {isAppHandler && (
             <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published an app", updated: "updated an app", fallback: "published an app" })} />
           )}
-          {isZapstoreApp && (
-            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published a Zapstore app", updated: "updated a Zapstore app", fallback: "published a Zapstore app" })} />
+          {isSoftwareApp && (
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published a software app", updated: "updated a software app", fallback: "published a software app" })} />
           )}
-          {isZapstoreRelease && (
+          {isSoftwareRelease && (
             <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published a software release", updated: "updated a software release", fallback: "published a software release" })} />
           )}
-          {isZapstoreAsset && (
+          {isSoftwareAsset && (
             <EventActionHeader pubkey={event.pubkey} icon={Package} action="published a software asset" />
           )}
           {isNsite && (
@@ -2752,17 +2752,17 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <div className="mt-3">
                 <NsiteCard event={event} autoPlayKey={nsiteAutoPlayKey} />
               </div>
-            ) : isZapstoreApp ? (
+            ) : isSoftwareApp ? (
               <div className="mt-3 rounded-xl border border-border overflow-hidden px-4 pt-4 pb-4">
-                <ZapstoreAppContent event={event} />
+                <SoftwareAppContent event={event} />
               </div>
-            ) : isZapstoreRelease ? (
+            ) : isSoftwareRelease ? (
               <div className="mt-3 rounded-xl border border-border overflow-hidden px-4 pt-4 pb-4">
                 <Suspense fallback={<SoftwareReleaseSkeleton />}>
                   <SoftwareReleaseContent event={event} />
                 </Suspense>
               </div>
-            ) : isZapstoreAsset ? (
+            ) : isSoftwareAsset ? (
               <div className="mt-3 rounded-xl border border-border overflow-hidden px-4 pt-4 pb-4">
                 <Suspense fallback={<SoftwareAssetSkeleton />}>
                   <SoftwareAssetContent event={event} />

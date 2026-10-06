@@ -371,8 +371,8 @@ export const KIND_LABELS: Record<number, string> = {
   31985: 'Book review',
   // Blobbi
   31124: 'Blobbi',
-  // Zapstore
-  32267: 'Zapstore app',
+  // NIP-82 (software apps)
+  32267: 'Software app',
   // Corny Chat
   32388: 'User room favorites',
   33331: '3D object',

@@ -213,7 +213,7 @@ export interface FeedSettings {
   feedIncludeNsiteNamed: boolean;
   /** Include NIP-5A nsite manifest snapshots (kind 5128) in the follows/global feed */
   feedIncludeNsiteSnapshots: boolean;
-  /** Include Zapstore app listings (kind 32267) in the follows/global feed */
+  /** Include software app listings (kind 32267) in the follows/global feed */
   feedIncludeZapstoreApps: boolean;
   /** Include software release announcements (kind 30063) in the follows/global feed */
   feedIncludeZapstoreReleases: boolean;

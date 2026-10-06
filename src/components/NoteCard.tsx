@@ -157,7 +157,7 @@ import { EncryptedLetterContent } from "@/components/EncryptedLetterContent";
 import { LoveListContent } from "@/components/LoveListContent";
 import { Top8Content } from "@/components/Top8Content";
 import { VanishCardCompact } from "@/components/VanishEventContent";
-import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
+import { SoftwareAppContent } from "@/components/SoftwareAppContent";
 import { SoftwareReleaseContent, SoftwareAssetContent } from "@/components/SoftwareReleaseContent";
 import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -522,9 +522,9 @@ const NoteCardImpl = memo(function NoteCardImpl({
   const isGitStatus = event.kind >= 1630 && event.kind <= 1633;
   const isCustomNip = event.kind === 30817;
   const isNsite = isNsiteKind(event.kind);
-  const isZapstoreApp = event.kind === 32267;
-  const isZapstoreRelease = event.kind === 30063;
-  const isZapstoreAsset = event.kind === 3063;
+  const isSoftwareApp = event.kind === 32267;
+  const isSoftwareRelease = event.kind === 30063;
+  const isSoftwareAsset = event.kind === 3063;
   const isAppHandler = event.kind === 31990;
   const isEncryptedDM = event.kind === 4;
   const isLetter = event.kind === 8211;
@@ -594,9 +594,9 @@ const NoteCardImpl = memo(function NoteCardImpl({
     !isVideo &&
     !isAudioKind &&
     !isDevKind &&
-    !isZapstoreApp &&
-    !isZapstoreRelease &&
-    !isZapstoreAsset &&
+    !isSoftwareApp &&
+    !isSoftwareRelease &&
+    !isSoftwareAsset &&
     !isAppHandler &&
     !isEncryptedDM &&
     !isLetter &&
@@ -850,19 +850,19 @@ const NoteCardImpl = memo(function NoteCardImpl({
           </Suspense>
         ) : isNsite ? (
           <NsiteCard event={event} />
-        ) : isZapstoreApp ? (
+        ) : isSoftwareApp ? (
           <div className="mt-2 rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
             <div className="px-3.5 pb-3.5 pt-3">
-              <ZapstoreAppContent event={event} compact />
+              <SoftwareAppContent event={event} compact />
             </div>
           </div>
-        ) : isZapstoreRelease ? (
+        ) : isSoftwareRelease ? (
           <div className="mt-2 rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
             <div className="px-3.5 pb-3.5 pt-3">
               <SoftwareReleaseContent event={event} compact />
             </div>
           </div>
-        ) : isZapstoreAsset ? (
+        ) : isSoftwareAsset ? (
           <div className="mt-2 rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
             <div className="px-3.5 pb-3.5 pt-3">
               <SoftwareAssetContent event={event} compact />
@@ -2468,7 +2468,7 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   32267: {
     icon: Package,
-    action: (event) => publishedAtAction(event, { created: "published a Zapstore app", updated: "updated a Zapstore app", fallback: "published a Zapstore app" }),
+    action: (event) => publishedAtAction(event, { created: "published a software app", updated: "updated a software app", fallback: "published a software app" }),
   },
   30063: {
     icon: Package,

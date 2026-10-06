@@ -182,7 +182,7 @@ const KIND_LABELS: Record<number, string> = {
   31922: 'a calendar event',
   31923: 'a calendar event',
   31990: 'an app',
-  32267: 'a Zapstore app',
+  32267: 'a software app',
   34139: 'a playlist',
   34236: 'a short video',
   34550: 'a community',
@@ -340,9 +340,9 @@ const KIND_SUFFIXES: Partial<Record<number, string>> = {
   33331: '3D object',
 };
 
-/** Postfix that replaces the default pattern (e.g. "Ditto on Zapstore" instead of "Ditto Zapstore app"). */
+/** Postfix that replaces the default pattern (e.g. "npanel app" instead of "npanel software app"). */
 const KIND_POSTFIXES: Partial<Record<number, string>> = {
-  32267: 'on Zapstore',
+  32267: 'app',
   30063: 'software release',
   3063: 'software asset',
 };
@@ -379,7 +379,7 @@ function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.Co
   const alt = event.tags.find(([name]) => name === 'alt')?.[1]?.trim();
   const displayTitle = title || name || dTag;
 
-  // Kinds with a custom postfix (e.g. "Ditto on Zapstore")
+  // Kinds with a custom postfix (e.g. "npanel app")
   const postfix = KIND_POSTFIXES[event.kind];
   if (postfix && displayTitle) {
     return { text: `${displayTitle} ${postfix}`, icon };

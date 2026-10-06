@@ -236,14 +236,14 @@ function ScreenshotStrip({ images, maxHeight, maxCount }: { images: string[]; ma
   );
 }
 
-interface ZapstoreAppContentProps {
+interface SoftwareAppContentProps {
   event: NostrEvent;
   /** If true, show compact preview (used in NoteCard feed). */
   compact?: boolean;
 }
 
-/** Renders a kind 32267 Zapstore app event. */
-export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) {
+/** Renders a kind 32267 software app event, published by Zapstore, ngit, and others. */
+export function SoftwareAppContent({ event, compact }: SoftwareAppContentProps) {
   const name = getTag(event.tags, 'name') || getTag(event.tags, 'd') || 'Unknown App';
   const summary = getTag(event.tags, 'summary');
   const icon = getTag(event.tags, 'icon');
@@ -481,8 +481,8 @@ export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) 
   );
 }
 
-/** Skeleton loading state for ZapstoreAppContent. */
-export function ZapstoreAppSkeleton() {
+/** Skeleton loading state for SoftwareAppContent. */
+export function SoftwareAppSkeleton() {
   return (
     <div className="mt-3 space-y-4">
       <div className="flex items-start gap-4">
