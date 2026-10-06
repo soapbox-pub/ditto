@@ -196,6 +196,12 @@
     },
     "@blobbi-kit/react": {
       "@nostrify/nostrify": "$@nostrify/nostrify"
+    },
+    "@tailwindcss/typography": {
+      "postcss-selector-parser": "^7.1.6"
+    },
+    "micromark-extension-math": {
+      "katex": "^0.18.10"
     }
   }
 }
