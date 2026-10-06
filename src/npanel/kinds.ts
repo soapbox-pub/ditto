@@ -11,6 +11,7 @@
  * — never reaches a description or the page.
  */
 
+import { parseBlobbiEvent } from '@blobbi-kit/core/blobbi';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import * as nip19 from 'nostr-tools/nip19';
 import { verifyEvent } from 'nostr-tools/pure';
@@ -1038,10 +1039,16 @@ function sno(p: Parts, e: NostrEvent, content: string): void {
 }
 
 function blobbi(p: Parts, e: NostrEvent): void {
-  p.title = tag(e, 'name') ?? 'Blobbi';
-  const stage = tag(e, 'stage');
-  p.summary = stage === 'egg' ? 'A Blobbi egg' : stage === 'baby' || stage === 'adult' ? `A ${stage} Blobbi` : 'A Blobbi';
+  // Read as the app reads it, so the form named is the one drawn.
+  const companion = parseBlobbiEvent(e);
+  p.title = companion?.name ?? tag(e, 'name') ?? 'Blobbi';
+  const stage = companion?.stage ?? tag(e, 'stage');
+  // An adult is of a form — a Catti, a Pandi — the app names it by.
+  const form = mapOpt(companion?.adultType, (t) => (/^[a-z]{2,20}$/.test(t) ? t.charAt(0).toUpperCase() + t.slice(1) : undefined));
+  const what = stage === 'egg' ? 'Blobbi egg' : stage === 'baby' ? 'baby Blobbi' : stage === 'adult' ? (form ? `adult ${form}` : 'adult Blobbi') : 'Blobbi';
+  p.fallback = `${/^[aeiou]/i.test(what) ? 'An' : 'A'} ${what}`;
   p.content = HIDDEN;
+  naming(p, (name) => ({ fallback: `${who(name, e.pubkey)}'s ${what}` }));
 }
 
 function tarot(p: Parts, e: NostrEvent): void {

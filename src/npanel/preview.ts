@@ -10,7 +10,8 @@
  * Every kind Ditto renders has a preview (`kinds.ts`), with the event's own
  * title, description and image, and the event as an article a search engine
  * can read. Profiles with a theme or an avatar shape, themes and color
- * moments get images drawn the way ditto-server drew them (`draw.ts`).
+ * moments get images drawn the way ditto-server drew them (`draw.ts`), and a
+ * Blobbi is drawn as the app draws it (`blobbi.ts`).
  *
  * A preview says who did what: "Alex reacted 👍 to Sam's post", with the
  * post's words and picture. So it fetches the event a reaction, vote, award
@@ -27,9 +28,10 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { getColors } from '@/lib/colorMomentUtils';
 import { ACTIVE_THEME_KIND, parseActiveProfileTheme, parseThemeDefinition, THEME_DEFINITION_KIND } from '@/lib/themeEvent';
 
+import { blobbiPicture } from './blobbi';
 import { book } from './books';
 import { eventPreview, type Page, type Preview, profilePreview, readProfile } from './card';
-import { DEFAULT_COLORS, drawPalette, drawProfile, drawTheme, type Layout, LAYOUTS } from './draw';
+import { DEFAULT_COLORS, drawPalette, drawProfile, drawSvg, drawTheme, type Layout, LAYOUTS } from './draw';
 import { escape } from './html';
 import { birdNames, isHex64, paragraph, read, reference, reviewedIsbn, SUPPORTED, tag, who } from './kinds';
 import { heard, species, wikidataId } from './species';
@@ -42,6 +44,7 @@ interface Context {
 const COLOR_MOMENT_KIND = 3367;
 const BIRD_DETECTION_KIND = 2473;
 const BOOK_REVIEW_KIND = 31985;
+const BLOBBI_KIND = 31124;
 
 export default {
   /**
@@ -125,6 +128,10 @@ export default {
         const emoji = [...content].length <= 2 && /\p{Extended_Pictographic}/u.test(content) ? content : undefined;
         const image = drawPalette(colors, LAYOUTS.includes(layout as Layout) ? layout as Layout : 'horizontal', emoji);
         return { ...preview, image, twitter: 'summary_large_image' };
+      }
+      case BLOBBI_KIND: {
+        const picture = blobbiPicture(event);
+        return picture ? { ...preview, image: drawSvg(picture), twitter: 'summary_large_image' } : preview;
       }
       default:
         return preview;

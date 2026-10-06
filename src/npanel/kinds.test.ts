@@ -2,6 +2,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { finalizeEvent, getPublicKey } from 'nostr-tools/pure';
 import { describe, expect, it } from 'vitest';
 
+import { blobbiPicture } from './blobbi';
 import { eventPreview, type Page, type Preview, profilePreview, readProfile } from './card';
 import { bolt11Sats, read, reference, shortNpub, SUPPORTED } from './kinds';
 
@@ -206,6 +207,28 @@ describe('previews', () => {
     expect(preview(forged).title).toBe('Zapped 100 sats');
     expect(preview(forged).description).toBeUndefined();
     expect(read(forged)!.author).toBe(getPublicKey(SECRET));
+  });
+
+  it('draws Blobbis at every stage', () => {
+    const blobbi = (stage: string, extra: string[][] = []) => sign(31124, [
+      ['d', `blobbi-${getPublicKey(SECRET).slice(0, 12)}-4ae8f49cc0`], ['b', 'blobbi:ecosystem:v1'], ['name', 'Arcanus'], ['stage', stage],
+      ['seed', 'b0163840657e87636d5fcf19a95b8a640e4b95b1860a328022c3d672818775a1'], ['state', 'active'], ['last_interaction', '1700000000'],
+      ['base_color', '#35F3CD'], ['secondary_color', '#A8FAD2'], ['eye_color', '#929825'], ...extra,
+    ], '');
+    for (const event of [blobbi('egg'), blobbi('baby'), blobbi('adult', [['adult_type', 'catti']])]) {
+      const svg = blobbiPicture(event)!;
+      expect(svg, event.tags.find(([n]) => n === 'stage')![1]).toMatch(/^<svg [^>]*width="1200" height="630"/);
+      // The Blobbi's own art, nested, sized to the picture.
+      expect(svg.match(/<svg\b/g)!.length).toBe(2);
+      expect(svg).not.toContain('<?xml');
+      expect(svg).not.toContain('width="100%"');
+    }
+    // The form named is the form drawn.
+    const adult = blobbi('adult', [['adult_type', 'catti']]);
+    const form = /'s adult (\w+)$/.exec(preview(adult).description ?? '')?.[1];
+    expect(form).toBeTruthy();
+    expect(blobbiPicture(adult)).toContain(`${form!.toLowerCase()}`);
+    expect(preview(blobbi('egg')).description).toBe(`${shortNpub(getPublicKey(SECRET))}'s Blobbi egg`);
   });
 
   it('reads invoice amounts', () => {

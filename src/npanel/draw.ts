@@ -1,7 +1,8 @@
 /**
  * The images Ditto's link previews draw, as ditto-server drew them: a
  * profile's avatar, cut to its shape, on its theme; a theme's colours as a
- * sketch of a page; a color moment's palette in its layout. Each is drawn on
+ * sketch of a page; a color moment's palette in its layout; and a Blobbi,
+ * which `blobbi.ts` makes as SVG. Each is drawn on
  * an `OffscreenCanvas`, in npanel's sandbox or in a browser alike.
  */
 
@@ -144,6 +145,18 @@ export async function drawPalette(colors: string[], layout: Layout, emoji: strin
     ctx.fillText(emoji, WIDTH / 2, HEIGHT / 2);
   }
   return canvas.convertToBlob({ type: 'image/jpeg', quality: 0.85 });
+}
+
+/** A picture made as SVG, rendered. Null if it can't be. */
+export async function drawSvg(svg: string): Promise<Blob | null> {
+  try {
+    const bitmap = await createImageBitmap(new Blob([svg], { type: 'image/svg+xml' }));
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    canvas.getContext('2d')!.drawImage(bitmap, 0, 0);
+    return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.85 });
+  } catch {
+    return null;
+  }
 }
 
 /** A theme's background image, as a cover at 40%. A video, or anything that won't load, is left out. */
