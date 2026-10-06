@@ -223,6 +223,10 @@ describe('previews', () => {
       expect(svg).not.toContain('<?xml');
       expect(svg).not.toContain('width="100%"');
     }
+    // A Blobbi asleep is drawn awake: the sleeping art's Zzz are text.
+    const sleeping = blobbi('baby').tags.map((t) => (t[0] === 'state' ? ['state', 'sleeping'] : t));
+    expect(blobbiPicture(sign(31124, sleeping, ''))).not.toContain('<text');
+
     // The form named is the form drawn.
     const adult = blobbi('adult', [['adult_type', 'catti']]);
     const form = /'s adult (\w+)$/.exec(preview(adult).description ?? '')?.[1];

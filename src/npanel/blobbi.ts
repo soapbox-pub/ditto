@@ -4,8 +4,8 @@
  * canvas to render.
  *
  * Babies and adults are the app's own art, coloured by the app's own
- * customizers. An adult is always drawn awake, so that only the awake art is
- * bundled. An egg, which the app draws with CSS, is drawn here in SVG in the
+ * customizers. Every Blobbi is drawn awake, even one that's asleep, and only
+ * the awake art is bundled. An egg, which the app draws with CSS, is drawn here in SVG in the
  * same shape and shading. Its face, if it has one, is neutral: a preview
  * can't know how the Blobbi feels now without its care history.
  */
@@ -17,7 +17,7 @@ import { resolveAdultForm } from '@blobbi-kit/core/types/adult';
 import { customizeAdultSvg } from '@/blobbi/adult-blobbi/lib/adult-svg-customizer';
 import { ADULT_BASE_SVG } from '@/blobbi/adult-blobbi/lib/adult-svg-data';
 import { customizeBabySvgFromBlobbi } from '@/blobbi/baby-blobbi/lib/baby-svg-customizer';
-import { resolveBabySvg } from '@/blobbi/baby-blobbi/lib/baby-svg-resolver';
+import { BABY_BASE_SVG } from '@/blobbi/baby-blobbi/lib/baby-svg-data';
 import { createColorVariants } from '@/blobbi/egg/lib/egg-colors';
 import { DIVINE_BASE_COLOR, isDivineEgg } from '@/blobbi/egg/lib/blobbi-divine-utils';
 import { blobbiCompanionToBlobbi } from '@/blobbi/ui/lib/adapters';
@@ -46,7 +46,7 @@ export function blobbiPicture(event: NostrEvent): string | undefined {
   } else {
     const blobbi = blobbiCompanionToBlobbi(companion);
     if (companion.stage === 'baby') {
-      art = customizeBabySvgFromBlobbi(resolveBabySvg(blobbi, { isSleeping: blobbi.isSleeping }), blobbi, blobbi.isSleeping);
+      art = customizeBabySvgFromBlobbi(BABY_BASE_SVG, blobbi, false);
     } else {
       const form = resolveAdultForm(blobbi);
       art = customizeAdultSvg(ADULT_BASE_SVG[form], form, { baseColor: blobbi.baseColor, secondaryColor: blobbi.secondaryColor, eyeColor: blobbi.eyeColor }, false, 'preview');
