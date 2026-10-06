@@ -157,6 +157,7 @@ export function BlobbiHatchingCeremony({
   // Refs
   const setupAttempted = useRef(false);
   const setupStarted = useRef(false);
+  const eggRevealTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const profileRef = useRef(profile);
   profileRef.current = profile;
   const previewRef = useRef(preview);
@@ -395,7 +396,7 @@ export function BlobbiHatchingCeremony({
         invalidateCompanion();
 
         setPhase('egg');
-        setTimeout(() => setEggVisible(true), 200);
+        eggRevealTimer.current = setTimeout(() => setEggVisible(true), 200);
       } catch (error) {
         console.error('[HatchingCeremony] Setup failed:', error);
         toast({
@@ -412,6 +413,8 @@ export function BlobbiHatchingCeremony({
     const timer = setTimeout(setup, 600);
     return () => {
       clearTimeout(timer);
+      // The egg reveal is scheduled from inside setup(), so it outlives the first timer
+      clearTimeout(eggRevealTimer.current);
       // Only release the module-level guard if setup() never started.
       // If setup() already began, it owns the guard and will release it
       // in its own finally block when the async work completes.
