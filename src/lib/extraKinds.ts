@@ -938,7 +938,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
         showKey: 'showDevelopment',
         feedKey: 'feedIncludeZapstoreReleases',
         label: 'Releases',
-        description: 'New app version announcements',
+        description: 'New software version announcements, from Zapstore, ngit, and others',
         addressable: true,
       },
     ],
@@ -1095,8 +1095,8 @@ const KIND_SPECIFIC_LABELS: Record<number, string> = {
   30402: 'listing',
   32267: 'Zapstore app',
   31990: 'app',
-  30063: 'Zapstore release',
-  3063: 'Zapstore asset',
+  30063: 'software release',
+  3063: 'software asset',
 };
 
 /**

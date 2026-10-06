@@ -158,7 +158,7 @@ import { LoveListContent } from "@/components/LoveListContent";
 import { Top8Content } from "@/components/Top8Content";
 import { VanishCardCompact } from "@/components/VanishEventContent";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
-import { ZapstoreReleaseContent, ZapstoreAssetContent } from "@/components/ZapstoreReleaseContent";
+import { SoftwareReleaseContent, SoftwareAssetContent } from "@/components/SoftwareReleaseContent";
 import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarShape } from "@/lib/avatarShape";
@@ -859,13 +859,13 @@ const NoteCardImpl = memo(function NoteCardImpl({
         ) : isZapstoreRelease ? (
           <div className="mt-2 rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
             <div className="px-3.5 pb-3.5 pt-3">
-              <ZapstoreReleaseContent event={event} compact />
+              <SoftwareReleaseContent event={event} compact />
             </div>
           </div>
         ) : isZapstoreAsset ? (
           <div className="mt-2 rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
             <div className="px-3.5 pb-3.5 pt-3">
-              <ZapstoreAssetContent event={event} compact />
+              <SoftwareAssetContent event={event} compact />
             </div>
           </div>
         ) : isAppHandler ? (
@@ -2472,11 +2472,11 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   },
   30063: {
     icon: Package,
-    action: (event) => publishedAtAction(event, { created: "published a Zapstore release", updated: "updated a Zapstore release", fallback: "published a Zapstore release" }),
+    action: (event) => publishedAtAction(event, { created: "published a software release", updated: "updated a software release", fallback: "published a software release" }),
   },
   3063: {
     icon: Package,
-    action: "published a Zapstore asset",
+    action: "published a software asset",
   },
   31990: {
     icon: Package,

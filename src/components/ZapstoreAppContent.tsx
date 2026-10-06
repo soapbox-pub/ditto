@@ -2,11 +2,14 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, ExternalLink, GitFork, Globe, Package, Shield, X } from 'lucide-react';
+import { nip19 } from 'nostr-tools';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { Badge } from '@/components/ui/badge';
+import { badgeVariants } from '@/components/ui/badge-variants';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
@@ -65,6 +68,7 @@ function useLatestRelease(appIdentifier: string | undefined, appPubkey: string |
         );
 
         if (events.length === 0) return null;
+        events.sort((a, b) => b.created_at - a.created_at);
 
         // Find the latest "main" channel release, or just the latest
         const mainRelease = events.find((e) => {
@@ -253,6 +257,12 @@ export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) 
 
   const { data: latestRelease } = useLatestRelease(appId, event.pubkey);
   const latestVersion = latestRelease ? getTag(latestRelease.tags, 'version') : undefined;
+  const latestReleasePath = latestRelease
+    ? `/${nip19.naddrEncode({ kind: latestRelease.kind, pubkey: latestRelease.pubkey, identifier: getTag(latestRelease.tags, 'd') ?? '' })}`
+    : undefined;
+
+  // Zapstore only distributes Android apps.
+  const isOnZapstore = platforms.some((f) => f.startsWith('android-'));
 
   const description = event.content;
 
@@ -363,10 +373,14 @@ export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) 
                 {p}
               </Badge>
             ))}
-            {latestVersion && (
-              <Badge variant="outline" className="text-xs px-2 py-0">
+            {latestVersion && latestReleasePath && (
+              <Link
+                to={latestReleasePath}
+                onClick={(e) => e.stopPropagation()}
+                className={cn(badgeVariants({ variant: 'outline' }), 'text-xs px-2 py-0 hover:bg-secondary')}
+              >
                 v{latestVersion}
-              </Badge>
+              </Link>
             )}
             {license && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -396,7 +410,7 @@ export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) 
             </a>
           </Button>
         )}
-        {appId && (
+        {appId && isOnZapstore && (
           <Button size="sm" variant="outline" className="gap-1.5" asChild>
             <a
               href={`https://zapstore.dev/apps/${encodeURIComponent(appId)}`}
@@ -424,8 +438,12 @@ export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) 
       )}
 
       {/* Release notes */}
-      {latestRelease && latestRelease.content && (
-        <div className="rounded-xl border border-border p-3 space-y-1.5">
+      {latestRelease && latestRelease.content && latestReleasePath && (
+        <Link
+          to={latestReleasePath}
+          onClick={(e) => e.stopPropagation()}
+          className="block rounded-xl border border-border p-3 space-y-1.5 hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           <div className="flex items-center gap-2 text-sm font-medium">
             <Package className="size-4 text-primary" />
             <span>Release {latestVersion}</span>
@@ -433,7 +451,7 @@ export function ZapstoreAppContent({ event, compact }: ZapstoreAppContentProps) 
           <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words line-clamp-6">
             {latestRelease.content}
           </p>
-        </div>
+        </Link>
       )}
 
       {/* Tags */}

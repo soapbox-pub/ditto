@@ -49,8 +49,10 @@ function getAllTags(tags: string[][], name: string): string[] {
   return tags.filter(([n]) => n === name).map(([, v]) => v);
 }
 
-/** Map a MIME type to a human-readable platform label. */
-function mimeToLabel(mime: string): string {
+const APK_MIME = 'application/vnd.android.package-archive';
+
+/** Map a MIME type to a human-readable platform label, if it's a known package format. */
+function knownMimeLabel(mime: string): string | undefined {
   const map: Record<string, string> = {
     'application/vnd.android.package-archive': 'Android APK',
     'application/vnd.apple.ipa': 'iOS IPA',
@@ -69,7 +71,17 @@ function mimeToLabel(mime: string): string {
     'application/webbundle': 'Web Bundle',
     'application/vnd.oci.image.manifest.v1+json': 'OCI Image',
   };
-  return map[mime] ?? mime;
+  return map[mime];
+}
+
+/**
+ * Name an asset for display. Prefers the build's `filename`, since generic
+ * builds (e.g. ngit releases of Linux binaries) are all
+ * `application/octet-stream` and only their filename tells them apart.
+ */
+function assetLabel(tags: string[][]): string {
+  const mime = getTag(tags, 'm') ?? '';
+  return getTag(tags, 'filename') || knownMimeLabel(mime) || mime || 'Unknown asset';
 }
 
 /** Return a platform icon component for a MIME type. */
@@ -212,7 +224,9 @@ function AssetRow({ event }: { event: NostrEvent }) {
   const commit = getTag(event.tags, 'commit');
   const hash = getTag(event.tags, 'x');
 
-  const label = mimeToLabel(mime);
+  const label = assetLabel(event.tags);
+  // When the filename is the label, still say what kind of package it is.
+  const format = getTag(event.tags, 'filename') ? knownMimeLabel(mime) : undefined;
   const platformLabels = platforms.map(platformLabel);
 
   const handleDownload = async () => {
@@ -244,6 +258,9 @@ function AssetRow({ event }: { event: NostrEvent }) {
           )}
         </div>
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+          {format && (
+            <span className="text-xs text-muted-foreground">{format}</span>
+          )}
           {version && (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Tag className="size-3" />
@@ -284,14 +301,18 @@ function AssetRow({ event }: { event: NostrEvent }) {
   );
 }
 
-interface ZapstoreReleaseContentProps {
+interface SoftwareReleaseContentProps {
   event: NostrEvent;
   /** If true, show compact preview (used in NoteCard feed). */
   compact?: boolean;
 }
 
-/** Renders a kind 30063 Zapstore release event. */
-export function ZapstoreReleaseContent({ event, compact }: ZapstoreReleaseContentProps) {
+/**
+ * Renders a kind 30063 software release event. Zapstore publishes these for
+ * Android apps, and ngit for releases of any software, so nothing here may
+ * assume the release is on Zapstore.
+ */
+export function SoftwareReleaseContent({ event, compact }: SoftwareReleaseContentProps) {
   const version = getTag(event.tags, 'version');
   const channel = getTag(event.tags, 'c') ?? 'main';
   const appIdentifier = getTag(event.tags, 'i');
@@ -313,6 +334,12 @@ export function ZapstoreReleaseContent({ event, compact }: ZapstoreReleaseConten
   const appNaddr = appEvent
     ? nip19.naddrEncode({ kind: 32267, pubkey: appEvent.pubkey, identifier: getTag(appEvent.tags, 'd') ?? '' })
     : undefined;
+
+  // Zapstore only distributes Android apps, so it only has a page for
+  // releases with an APK. The release's own `f` tags say so before (or
+  // without) its assets loading.
+  const hasApk = assets.some((asset) => getTag(asset.tags, 'm') === APK_MIME)
+    || getAllTags(event.tags, 'f').some((f) => f.startsWith('android-'));
 
   const releaseNotes = event.content;
 
@@ -431,19 +458,21 @@ export function ZapstoreReleaseContent({ event, compact }: ZapstoreReleaseConten
       </div>
 
       {/* Action row */}
-      {appId && (
+      {((hasApk && appId) || appNaddr) && (
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" className="gap-1.5" asChild>
-            <a
-              href={`https://zapstore.dev/apps/${encodeURIComponent(appId)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <ExternalLink className="size-3.5" />
-              View on Zapstore
-            </a>
-          </Button>
+          {hasApk && appId && (
+            <Button size="sm" variant="outline" className="gap-1.5" asChild>
+              <a
+                href={`https://zapstore.dev/apps/${encodeURIComponent(appId)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ExternalLink className="size-3.5" />
+                View on Zapstore
+              </a>
+            </Button>
+          )}
           {appNaddr && (
             <Button size="sm" variant="ghost" className="gap-1.5" asChild>
               <Link to={`/${appNaddr}`} onClick={(e) => e.stopPropagation()}>
@@ -517,8 +546,8 @@ export function ZapstoreReleaseContent({ event, compact }: ZapstoreReleaseConten
   );
 }
 
-/** Skeleton loading state for ZapstoreReleaseContent. */
-export function ZapstoreReleaseSkeleton() {
+/** Skeleton loading state for SoftwareReleaseContent. */
+export function SoftwareReleaseSkeleton() {
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-4">
@@ -556,13 +585,13 @@ export function ZapstoreReleaseSkeleton() {
 // kind 3063 — Software Asset card
 // ---------------------------------------------------------------------------
 
-interface ZapstoreAssetContentProps {
+interface SoftwareAssetContentProps {
   event: NostrEvent;
   compact?: boolean;
 }
 
-/** Renders a kind 3063 Zapstore software asset event. */
-export function ZapstoreAssetContent({ event, compact }: ZapstoreAssetContentProps) {
+/** Renders a kind 3063 software asset event. */
+export function SoftwareAssetContent({ event, compact }: SoftwareAssetContentProps) {
   const mime = getTag(event.tags, 'm') ?? '';
   const url = sanitizeUrl(getTag(event.tags, 'url'));
   const version = getTag(event.tags, 'version');
@@ -575,7 +604,7 @@ export function ZapstoreAssetContent({ event, compact }: ZapstoreAssetContentPro
   const supportedNips = getAllTags(event.tags, 'supported_nip');
   const minPlatformVersion = getTag(event.tags, 'min_platform_version');
 
-  const label = mimeToLabel(mime);
+  const label = assetLabel(event.tags);
   const platformLabels = platforms.map(platformLabel);
 
   const handleDownload = async () => {
@@ -723,8 +752,8 @@ function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-/** Skeleton for ZapstoreAssetContent. */
-export function ZapstoreAssetSkeleton() {
+/** Skeleton for SoftwareAssetContent. */
+export function SoftwareAssetSkeleton() {
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-4">

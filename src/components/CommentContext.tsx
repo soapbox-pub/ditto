@@ -169,8 +169,8 @@ const KIND_LABELS: Record<number, string> = {
   30030: 'an emoji pack',
   30054: 'a podcast episode',
   30055: 'a podcast trailer',
-  3063: 'a Zapstore asset',
-  30063: 'a Zapstore release',
+  3063: 'a software asset',
+  30063: 'a software release',
   30311: 'a stream',
   30312: 'a room',
   30313: 'a meeting',
@@ -343,8 +343,8 @@ const KIND_SUFFIXES: Partial<Record<number, string>> = {
 /** Postfix that replaces the default pattern (e.g. "Ditto on Zapstore" instead of "Ditto Zapstore app"). */
 const KIND_POSTFIXES: Partial<Record<number, string>> = {
   32267: 'on Zapstore',
-  30063: 'Zapstore release',
-  3063: 'Zapstore asset',
+  30063: 'software release',
+  3063: 'software asset',
 };
 
 /** Get a display name for an event based on its kind and tags. */

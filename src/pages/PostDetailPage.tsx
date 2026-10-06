@@ -142,7 +142,7 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { VoiceMessagePlayer } from "@/components/VoiceMessagePlayer";
 import { ProfileCard } from "@/components/ProfileCard";
 import { ZapstoreAppContent } from "@/components/ZapstoreAppContent";
-import { ZapstoreReleaseContent, ZapstoreReleaseSkeleton, ZapstoreAssetContent, ZapstoreAssetSkeleton } from "@/components/ZapstoreReleaseContent";
+import { SoftwareReleaseContent, SoftwareReleaseSkeleton, SoftwareAssetContent, SoftwareAssetSkeleton } from "@/components/SoftwareReleaseContent";
 import { AppHandlerContent } from "@/components/AppHandlerContent";
 import { AppHandlerDetailPage } from "@/pages/AppHandlerDetailPage";
 import { ExternalContentView } from "@/pages/ExternalContentPage";
@@ -2585,10 +2585,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published a Zapstore app", updated: "updated a Zapstore app", fallback: "published a Zapstore app" })} />
           )}
           {isZapstoreRelease && (
-            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published a Zapstore release", updated: "updated a Zapstore release", fallback: "published a Zapstore release" })} />
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published a software release", updated: "updated a software release", fallback: "published a software release" })} />
           )}
           {isZapstoreAsset && (
-            <EventActionHeader pubkey={event.pubkey} icon={Package} action="published a Zapstore asset" />
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action="published a software asset" />
           )}
           {isNsite && (
             <EventActionHeader pubkey={event.pubkey} icon={Rocket} action={publishedAtAction(event, { created: "deployed an", updated: "redeployed an", fallback: "deployed an" })} noun="nsite" nounRoute="/development" />
@@ -2758,14 +2758,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </div>
             ) : isZapstoreRelease ? (
               <div className="mt-3 rounded-xl border border-border overflow-hidden px-4 pt-4 pb-4">
-                <Suspense fallback={<ZapstoreReleaseSkeleton />}>
-                  <ZapstoreReleaseContent event={event} />
+                <Suspense fallback={<SoftwareReleaseSkeleton />}>
+                  <SoftwareReleaseContent event={event} />
                 </Suspense>
               </div>
             ) : isZapstoreAsset ? (
               <div className="mt-3 rounded-xl border border-border overflow-hidden px-4 pt-4 pb-4">
-                <Suspense fallback={<ZapstoreAssetSkeleton />}>
-                  <ZapstoreAssetContent event={event} />
+                <Suspense fallback={<SoftwareAssetSkeleton />}>
+                  <SoftwareAssetContent event={event} />
                 </Suspense>
               </div>
             ) : isAppHandler ? (

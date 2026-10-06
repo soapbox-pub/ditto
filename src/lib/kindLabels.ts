@@ -128,8 +128,8 @@ export const KIND_LABELS: Record<number, string> = {
   // Ditto custom kinds
   2473: 'Bird detection',
 
-  // NIP-82 (Zapstore)
-  3063: 'Zapstore asset',
+  // NIP-82 (software releases)
+  3063: 'Software asset',
 
   // Ditto custom kinds
   3367: 'Color moment',
@@ -315,8 +315,8 @@ export const KIND_LABELS: Record<number, string> = {
   // NKBIP-01
   30040: 'Curated publication index',
   30041: 'Curated publication content',
-  // NIP-82 (Zapstore)
-  30063: 'Zapstore release',
+  // NIP-82 (software releases)
+  30063: 'Software release',
   // NIP-78
   30078: 'App settings',
   // NIP-66
