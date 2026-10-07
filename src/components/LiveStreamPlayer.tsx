@@ -260,7 +260,11 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
       <div
         className={cn(
           'absolute bottom-0 left-0 right-0 transition-opacity duration-200',
-          'bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-10 pb-3 px-4',
+          'bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-10',
+          // Clear the home indicator and a landscape notch in fullscreen.
+          isFullscreen
+            ? 'pb-[max(0.75rem,var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] pl-[max(1rem,var(--safe-area-inset-left,env(safe-area-inset-left,0px)))] pr-[max(1rem,var(--safe-area-inset-right,env(safe-area-inset-right,0px)))]'
+            : 'pb-3 px-4',
           showControls && !autoplayBlocked ? 'opacity-100' : 'opacity-0 pointer-events-none',
         )}
       >

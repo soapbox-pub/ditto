@@ -731,9 +731,13 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
                   if (el) slotRefs.current.set(i, el);
                   else slotRefs.current.delete(i);
                 }}
+                // Clear the status and nav bars: a tall video's controls sit at the slot's bottom edge.
                 className={cn(
-                  'absolute inset-0 flex items-center justify-center will-change-transform',
-                  bottomBar ? 'pb-24 pt-14 px-4 sm:px-12' : 'py-6 pt-14 px-4 sm:px-12',
+                  'absolute inset-0 flex items-center justify-center will-change-transform px-4 sm:px-12',
+                  'pt-[calc(3.5rem+var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]',
+                  bottomBar
+                    ? 'pb-[calc(6rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))]'
+                    : 'pb-[calc(1.5rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))]',
                 )}
                 style={{ transform: `translateX(${initialX}px)` }}
               >
@@ -759,7 +763,9 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
 
         {/* Dot indicators */}
         {hasMultiple && images.length <= maxDotIndicators && (
-          <div className={cn('absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 sm:hidden', bottomBar ? 'bottom-20' : 'bottom-6')}>
+          <div className={cn('absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 sm:hidden', bottomBar
+            ? 'bottom-[calc(5rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))]'
+            : 'bottom-[calc(0.5rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))]')}>
             {images.map((_, i) => (
               <div key={i} className={cn('rounded-full transition-all duration-200', i === currentIndex ? 'size-2 bg-white' : 'size-1.5 bg-white/40')} />
             ))}
