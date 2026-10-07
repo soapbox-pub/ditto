@@ -53,7 +53,7 @@ export function MusicPlaylistCard({ event }: MusicPlaylistCardProps) {
             decoding="async"
           />
         ) : (
-          <div className="w-full h-full bg-linear-to-br from-primary/15 via-primary/5 to-transparent flex items-center justify-center">
+          <div className="w-full h-full bg-gradient-to-br from-primary/15 via-primary/5 to-transparent flex items-center justify-center">
             <ListMusic className="size-10 text-primary/20" />
           </div>
         )}

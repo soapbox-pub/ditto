@@ -56,7 +56,7 @@ export function BadgeContent({ event }: BadgeContentProps) {
         <BadgeImageTilt heroImage={heroImage} badgeName={badge.name} />
 
         {/* Badge info */}
-        <div className="relative z-1 mt-4 text-center px-6 max-w-xs">
+        <div className="relative z-[1] mt-4 text-center px-6 max-w-xs">
           <p className="text-[15px] font-semibold leading-snug">{badge.name}</p>
           {badge.description && (
             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{badge.description}</p>
@@ -136,7 +136,7 @@ function BadgeImageTilt({ heroImage: primary, badgeName }: { heroImage?: string;
       style={style}
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
-      className="relative z-1 select-none"
+      className="relative z-[1] select-none"
     >
       {heroImage ? (
         <img
@@ -148,7 +148,7 @@ function BadgeImageTilt({ heroImage: primary, badgeName }: { heroImage?: string;
           onError={onError}
         />
       ) : (
-        <div className="size-28 rounded-2xl bg-linear-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
+        <div className="size-28 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
           <Award className="size-12 text-primary/30" />
         </div>
       )}

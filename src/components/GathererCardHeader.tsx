@@ -35,7 +35,7 @@ export function GathererCardHeader({
     return (
       <div className="flex flex-col items-center py-4">
         <Skeleton
-          className={cn('w-full aspect-5/7', CARD_CORNER_RADIUS)}
+          className={cn('w-full aspect-[5/7]', CARD_CORNER_RADIUS)}
           style={{ maxWidth: CARD_MAX_WIDTH }}
         />
       </div>
@@ -86,7 +86,7 @@ function CardDisplay({ card, url }: { card: ScryfallCard; url: string }) {
         ) : (
           <div
             className={cn(
-              'w-full aspect-5/7 bg-secondary flex items-center justify-center',
+              'w-full aspect-[5/7] bg-secondary flex items-center justify-center',
               CARD_CORNER_RADIUS,
             )}
           >
@@ -257,7 +257,7 @@ function CardImageTilt({
         onClick={onClick}
         aria-label={`View ${name} full size`}
         className={cn(
-          'block w-full focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary',
+          'block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
           CARD_CORNER_RADIUS,
         )}
       >
@@ -267,7 +267,7 @@ function CardImageTilt({
           loading="eager"
           draggable={false}
           className={cn(
-            'w-full aspect-5/7 object-cover shadow-[0_14px_40px_-12px_rgba(0,0,0,0.45)]',
+            'w-full aspect-[5/7] object-cover shadow-[0_14px_40px_-12px_rgba(0,0,0,0.45)]',
             CARD_CORNER_RADIUS,
           )}
           decoding="async"

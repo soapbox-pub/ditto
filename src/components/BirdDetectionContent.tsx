@@ -117,11 +117,11 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
       <Link
         to={discussPath ?? '#'}
         onClick={(e) => e.stopPropagation()}
-        className="block overflow-hidden rounded-2xl border border-border bg-card shadow-xs transition-shadow hover:shadow-md focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+        className="block overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <div className="flex">
           {/* Thumbnail panel */}
-          <div className="relative w-32 shrink-0 bg-linear-to-br from-emerald-100 via-sky-100 to-amber-100 sm:w-40 dark:from-indigo-950 dark:via-indigo-900 dark:to-amber-900/40">
+          <div className="relative w-32 shrink-0 bg-gradient-to-br from-emerald-100 via-sky-100 to-amber-100 sm:w-40 dark:from-indigo-950 dark:via-indigo-900 dark:to-amber-900/40">
             {isLoading ? (
               <Skeleton className="h-full w-full" />
             ) : thumbnail ? (
@@ -141,7 +141,7 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
                 />
               </div>
             )}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-linear-to-t from-black/40 to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/40 to-transparent" />
             <div className="absolute bottom-1.5 left-2 font-mono text-[10px] uppercase tracking-wider text-white/85">
               {timeStr}
             </div>
@@ -200,7 +200,7 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
       </Link>
 
       {note && (
-        <p className="mt-2 text-[15px] leading-relaxed whitespace-pre-wrap wrap-break-word">
+        <p className="mt-2 text-[15px] leading-relaxed whitespace-pre-wrap break-words">
           {note}
         </p>
       )}

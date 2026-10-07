@@ -1208,7 +1208,7 @@ export function ComposeBox({
               className={cn(
                 "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
                 !previewMode 
-                  ? "bg-background text-foreground shadow-xs" 
+                  ? "bg-background text-foreground shadow-sm" 
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -1219,7 +1219,7 @@ export function ComposeBox({
               className={cn(
                 "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
                 previewMode 
-                  ? "bg-background text-foreground shadow-xs" 
+                  ? "bg-background text-foreground shadow-sm" 
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -1244,8 +1244,8 @@ export function ComposeBox({
               {/* Birthday party hat — perched on the current user's avatar
                   all day. Nothing clips it here, so it sits up on the head. */}
               {isUserBirthday && (
-                <div className="pointer-events-none absolute -top-3 -right-1.5 z-10 rotate-18">
-                  <PartyHat className="size-8 drop-shadow-xs" pomScale={1.15} />
+                <div className="pointer-events-none absolute -top-3 -right-1.5 z-10 rotate-[18deg]">
+                  <PartyHat className="size-8 drop-shadow-sm" pomScale={1.15} />
                 </div>
               )}
             </Link>
@@ -1268,7 +1268,7 @@ export function ComposeBox({
               onPaste={handlePaste}
               placeholder={mode === 'poll' ? 'Ask a question…' : placeholder}
               className={cn(
-                'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-hidden text-lg pt-2.5 pb-2 opacity-85 wrap-break-word overflow-hidden transition-[min-height] duration-200 ease-in-out',
+                'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85 break-words overflow-hidden transition-[min-height] duration-200 ease-in-out',
                 isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
               )}
               rows={1}
@@ -1334,7 +1334,7 @@ export function ComposeBox({
                     }
                     placeholder={`Option ${idx + 1}`}
                     maxLength={100}
-                    className="flex-1 bg-secondary/40 rounded-lg px-3 py-1.5 text-sm outline-hidden focus:ring-1 focus:ring-primary/40 placeholder:text-muted-foreground"
+                    className="flex-1 bg-secondary/40 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-muted-foreground"
                   />
                   <button
                     type="button"
@@ -1678,7 +1678,7 @@ export function ComposeBox({
           // where the dialog has a fixed (visual-viewport) height; on desktop
           // the dialog is `h-auto` and the inner content carries an explicit
           // height instead, so reset to the default sizing there.
-          searchDominant && forceExpanded && "flex flex-col grow-999 shrink basis-0 min-h-0 sm:grow-0 sm:shrink-0 sm:basis-auto",
+          searchDominant && forceExpanded && "flex flex-col grow-[999] shrink basis-0 min-h-0 sm:grow-0 sm:shrink-0 sm:basis-auto",
         )}>
           {/* Tab bar — pill highlight style for inline mode */}
           <div className="flex gap-1 px-3 pt-2 shrink-0">

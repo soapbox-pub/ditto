@@ -106,7 +106,7 @@ export function ReportContent({
         <p
           dir="auto"
           className={cn(
-            'whitespace-pre-wrap wrap-break-word text-foreground',
+            'whitespace-pre-wrap break-words text-foreground',
             expanded ? 'text-[17px] leading-relaxed' : 'text-[15px] leading-relaxed',
           )}
         >
@@ -139,7 +139,7 @@ export function ReportContent({
                 'flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border',
                 'bg-muted/30 px-4 py-3 text-sm text-muted-foreground transition-colors',
                 'hover:bg-secondary/60 hover:text-foreground',
-                'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               )}
             >
               <Eye className="size-4" aria-hidden="true" />

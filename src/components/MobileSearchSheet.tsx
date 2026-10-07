@@ -264,7 +264,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
       />
 
       {/* Bottom sheet — sits at the bottom of the screen with safe area clearance */}
-      <div className="fixed left-0 right-0 bottom-0 z-49 sidebar:hidden animate-in slide-in-from-bottom-4 duration-200 pb-6">
+      <div className="fixed left-0 right-0 bottom-0 z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200 pb-6">
 
         {queryBlocked && (
           <div className="bg-popover/95 rounded-2xl mx-6 mb-0.5 overflow-hidden shadow-lg">
@@ -370,7 +370,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Search people or topics..."
-              className="flex-1 bg-transparent text-base outline-hidden placeholder:text-muted-foreground"
+              className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"

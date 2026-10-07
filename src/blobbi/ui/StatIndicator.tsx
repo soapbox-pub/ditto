@@ -55,7 +55,7 @@ const SIZE_PRESETS = {
     gapDeg: 20,
   },
   md: {
-    container: 'size-18 sm:size-20',
+    container: 'size-[4.5rem] sm:size-20',
     icon: 'size-6 sm:size-7',
     strokeWidth: 2.5,
     alertSize: 'size-3.5',

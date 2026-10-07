@@ -322,7 +322,7 @@ function PlaylistDescription({ text }: { text: string }) {
         ref={ref}
         className={cn(
           'text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap',
-          !expanded && 'line-clamp-3',
+          !expanded && 'line-clamp-[3]',
         )}
         style={!expanded ? { WebkitLineClamp: DESC_LINE_CLAMP } : undefined}
       >

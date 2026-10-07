@@ -129,7 +129,7 @@ export function DrawingCanvas({ onConfirm, onCancel }: DrawingCanvasProps) {
             key={b.value}
             type="button"
             onClick={() => setBrushSize(b.value)}
-            className={`flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${brushSize === b.value ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted text-muted-foreground hover:text-foreground'}`}
+            className={`flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${brushSize === b.value ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:text-foreground'}`}
           >
             <span className="rounded-full inline-block mr-1.5" style={{ width: Math.max(4, b.value), height: Math.max(4, b.value), backgroundColor: brushSize === b.value ? 'currentColor' : color }} />
             {b.label}

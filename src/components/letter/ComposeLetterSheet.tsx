@@ -363,7 +363,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
         renderToolbarButtons={(buttons: ReactNode, drawer: ReactNode) => (
           <div className="sticky top-0 z-20">
             {drawer}
-            <SubHeaderBar pinned className="relative top-0!">
+            <SubHeaderBar pinned className="relative !top-0">
               <button
                 onClick={onClose}
                 className="pl-3 pr-1 py-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -444,7 +444,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
             }}
             maxLength={BODY_MAX_LENGTH}
             placeholder="dear friend..."
-            className="w-full flex-1 min-h-0 border-none shadow-none resize-none overflow-hidden focus:outline-hidden font-semibold tracking-wide"
+            className="w-full flex-1 min-h-0 border-none shadow-none resize-none overflow-hidden focus:outline-none font-semibold tracking-wide"
             style={{
               paddingTop: '0.5cqw',
               paddingBottom: 0,

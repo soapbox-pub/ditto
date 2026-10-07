@@ -225,7 +225,7 @@ function ChatMessage({ event }: { event: NostrEvent }) {
           >
             {displayName}
           </Link>
-          <span className="text-sm text-foreground wrap-break-word">{event.content}</span>
+          <span className="text-sm text-foreground break-words">{event.content}</span>
         </span>
         <span className="text-[10px] text-muted-foreground/60 ml-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {shortTimeAgo(event.created_at)}

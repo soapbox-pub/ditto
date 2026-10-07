@@ -112,7 +112,7 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
     <div className="relative max-w-[220px] mx-auto mb-12 pointer-events-none">
       {/* Present box — overlaps the bubble top */}
       <div className="flex justify-center relative z-10 mb-[-20px]">
-        <svg width="56" height="60" viewBox="0 0 56 60" fill="none" className="drop-shadow-xs">
+        <svg width="56" height="60" viewBox="0 0 56 60" fill="none" className="drop-shadow-sm">
           {/* Box body */}
           <rect x="4" y="26" width="48" height="32" rx="3" fill={bg} stroke={needsBorder ? '#0001' : 'none'} strokeWidth="1" />
           <rect x="4" y="26" width="48" height="8" rx="3" fill="white" opacity="0.07" />

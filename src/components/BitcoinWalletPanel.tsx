@@ -110,7 +110,7 @@ export function BitcoinWalletPanel({ initialSendUri }: BitcoinWalletPanelProps =
       />
 
       {/* QR Code */}
-      <div className="rounded-2xl bg-white p-4 shadow-xs">
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
         <QRCodeCanvas value={bitcoinAddress} size={200} level="M" />
       </div>
 

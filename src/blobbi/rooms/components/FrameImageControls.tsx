@@ -103,7 +103,7 @@ export function FrameImageControls({ imageUrl, onImageChange }: FrameImageContro
               <button
                 type="button"
                 onClick={() => onImageChange(undefined)}
-                className="size-10 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-4"
+                className="size-10 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-4"
                 aria-label={intl.formatMessage({ id: 'blobbiRoom.frame.removeImage', defaultMessage: 'Remove image' })}
               >
                 <X />

@@ -383,7 +383,7 @@ function CategoryPill({ category, active, onClick }: {
       className={cn(
         'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap shrink-0',
         active
-          ? 'bg-primary text-primary-foreground shadow-xs'
+          ? 'bg-primary text-primary-foreground shadow-sm'
           : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground',
       )}
     >
@@ -402,7 +402,7 @@ function ArchiveCard({ item }: { item: ArchiveItem }) {
       className="group block rounded-2xl border border-border overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
     >
       {/* Thumbnail */}
-      <div className={cn('relative aspect-4/3 overflow-hidden bg-linear-to-br', meta.gradient)}>
+      <div className={cn('relative aspect-[4/3] overflow-hidden bg-gradient-to-br', meta.gradient)}>
         <img
           src={thumbnailUrl(item.identifier)}
           alt={item.title}
@@ -423,7 +423,7 @@ function ArchiveCard({ item }: { item: ArchiveItem }) {
 
         {/* Year badge */}
         {item.year && (
-          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-xs font-medium flex items-center gap-1">
+          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-white text-xs font-medium flex items-center gap-1">
             <Clock className="size-3" />
             {item.year}
           </div>
@@ -431,7 +431,7 @@ function ArchiveCard({ item }: { item: ArchiveItem }) {
 
         {/* Category badge */}
         <div className={cn(
-          'absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-xs font-medium flex items-center gap-1 text-white',
+          'absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-xs font-medium flex items-center gap-1 text-white',
         )}>
           {meta.icon}
           {meta.label}
@@ -669,7 +669,7 @@ export function ArchivePage() {
           <ArrowLeft className="size-5" />
         </Link>
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <div className="size-8 rounded-lg bg-linear-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+          <div className="size-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
             <Archive className="size-4 text-primary" />
           </div>
           <div>

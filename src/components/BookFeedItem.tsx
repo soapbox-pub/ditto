@@ -320,7 +320,7 @@ function TruncatedContent({ event, content, isReview }: { event: NostrEvent; con
   }
 
   return (
-    <div className={cn('mt-2 wrap-break-word overflow-hidden', isReview && 'pl-3 border-l-2 border-amber-300 dark:border-amber-700')}>
+    <div className={cn('mt-2 break-words overflow-hidden', isReview && 'pl-3 border-l-2 border-amber-300 dark:border-amber-700')}>
       <div
         ref={contentRef}
         style={!expanded && overflows ? { maxHeight: MAX_HEIGHT, overflow: 'hidden' } : undefined}
@@ -328,7 +328,7 @@ function TruncatedContent({ event, content, isReview }: { event: NostrEvent; con
       >
         <NoteContent event={event} className="text-[15px] leading-relaxed" />
         {!expanded && overflows && (
-          <div className="absolute bottom-0 left-0 right-0 h-16 bg-linear-to-t from-background to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent pointer-events-none" />
         )}
       </div>
       {overflows && (
@@ -420,7 +420,7 @@ function InlineBookCard({ isbn }: { isbn: string }) {
         <img
           src={book.coverUrl}
           alt={`Cover of ${book.title}`}
-          className="w-10 h-14 rounded object-cover shrink-0 shadow-xs group-hover/book:shadow-md transition-shadow"
+          className="w-10 h-14 rounded object-cover shrink-0 shadow-sm group-hover/book:shadow-md transition-shadow"
           loading="lazy"
           onError={(e) => {
             (e.currentTarget as HTMLElement).style.display = 'none';

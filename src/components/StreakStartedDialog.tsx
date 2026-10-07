@@ -78,7 +78,7 @@ function StreakStartedBody({ pubkey, onClose }: { pubkey: string; onClose: () =>
 
         <div className="-mt-10 flex flex-col gap-2 px-3 pb-3">
           <div className="flex items-end justify-between">
-            <Link to={profileUrl} onClick={onClose} className="rounded-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
+            <Link to={profileUrl} onClick={onClose} className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <Avatar shape={getAvatarShape(metadata)} className="size-20 border-3 border-card">
                 <AvatarImage src={metadata?.picture} imeta={imeta?.picture} alt={displayName} />
                 <AvatarFallback className="bg-primary/20 text-2xl text-primary">

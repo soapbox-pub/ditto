@@ -368,7 +368,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
             // a stuck signer is visibly stuck, not silently stuck.
             <div className='flex flex-col items-center space-y-4 py-6 w-full'>
               <Loader2 className='w-8 h-8 animate-spin text-primary' />
-              <p className='text-sm text-muted-foreground text-center min-h-5'>
+              <p className='text-sm text-muted-foreground text-center min-h-[1.25rem]'>
                 {connectStatusLabel(connectStatus, intl) || intl.formatMessage({ id: 'login.status.waiting', defaultMessage: 'Waiting for your signer…' })}
               </p>
               <button
@@ -716,8 +716,8 @@ function LoginHero() {
 }
 
 /**
- * Scoped keyframes for the login hero. Inlined (rather than added to the
- * Tailwind theme) because they're specific to this vignette. Honors
+ * Scoped keyframes for the login hero. Inlined (rather than added to
+ * tailwind.config) because they're specific to this vignette. Honors
  * `prefers-reduced-motion`.
  */
 function LoginHeroKeyframes() {

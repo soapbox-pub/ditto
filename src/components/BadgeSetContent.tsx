@@ -58,7 +58,7 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
           title and description remain legible on top. */}
       {image ? (
         <div className="relative isolate overflow-hidden rounded-2xl border border-border bg-black">
-          <div className="aspect-3/1 w-full">
+          <div className="aspect-[3/1] w-full">
             <FallbackImage
               src={image}
               alt={title}
@@ -69,30 +69,30 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
           </div>
           {/* Bottom-up gradient for legibility */}
           <div
-            className="absolute inset-0 pointer-events-none bg-linear-to-t from-black/85 via-black/30 to-transparent"
+            className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/85 via-black/30 to-transparent"
             aria-hidden="true"
           />
           {/* Text overlay */}
           <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5 text-white">
-            <h3 className="text-xl sm:text-2xl font-bold leading-tight drop-shadow-md wrap-break-word">
+            <h3 className="text-xl sm:text-2xl font-bold leading-tight drop-shadow-md break-words">
               {title}
             </h3>
             {description && (
-              <p className="text-sm text-white/85 mt-1.5 leading-snug line-clamp-2 drop-shadow-sm wrap-break-word">
+              <p className="text-sm text-white/85 mt-1.5 leading-snug line-clamp-2 drop-shadow break-words">
                 {description}
               </p>
             )}
           </div>
         </div>
       ) : (
-        <div className="rounded-2xl border border-border bg-linear-to-br from-primary/5 via-transparent to-primary/5 px-5 py-6">
+        <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/5 via-transparent to-primary/5 px-5 py-6">
           <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             <Award className="size-3.5" />
             Badge set
           </div>
-          <h3 className="text-xl font-bold mt-1.5 leading-tight wrap-break-word">{title}</h3>
+          <h3 className="text-xl font-bold mt-1.5 leading-tight break-words">{title}</h3>
           {description && (
-            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed line-clamp-3 wrap-break-word">
+            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed line-clamp-3 break-words">
               {description}
             </p>
           )}
@@ -135,7 +135,7 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
                     <Award className="size-6 text-muted-foreground" />
                   </div>
                 )}
-                <span className="text-[10px] text-muted-foreground text-center leading-tight line-clamp-2 max-w-18 group-hover:text-foreground transition-colors">
+                <span className="text-[10px] text-muted-foreground text-center leading-tight line-clamp-2 max-w-[4.5rem] group-hover:text-foreground transition-colors">
                   {badge?.name || ref.identifier}
                 </span>
               </Link>

@@ -612,7 +612,7 @@ function BookReviewCard({ event, review }: { event: NostrEvent; review: BookRevi
                 </Badge>
               )}
               {review.content ? (
-                <p className="text-sm whitespace-pre-wrap wrap-break-word">{review.content}</p>
+                <p className="text-sm whitespace-pre-wrap break-words">{review.content}</p>
               ) : (
                 <p className="text-sm text-muted-foreground italic">Rating only, no written review</p>
               )}

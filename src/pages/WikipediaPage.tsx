@@ -164,7 +164,7 @@ function SectionPill({ section, active, onClick }: {
       className={cn(
         'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap shrink-0',
         active
-          ? 'bg-primary text-primary-foreground shadow-xs'
+          ? 'bg-primary text-primary-foreground shadow-sm'
           : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground',
       )}
     >
@@ -190,7 +190,7 @@ function ArticleCard({ page, badge, badgeIcon }: {
       className="group block rounded-2xl border border-border overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
     >
       {/* Thumbnail */}
-      <div className="relative aspect-4/3 overflow-hidden bg-linear-to-br from-blue-500/10 to-indigo-500/10">
+      <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-blue-500/10 to-indigo-500/10">
         {page.thumbnail ? (
           <img
             src={page.thumbnail.source}
@@ -208,7 +208,7 @@ function ArticleCard({ page, badge, badgeIcon }: {
 
         {/* Top-right badge */}
         {badge && (
-          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-xs font-medium flex items-center gap-1">
+          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-white text-xs font-medium flex items-center gap-1">
             {badgeIcon}
             {badge}
           </div>
@@ -239,7 +239,7 @@ function FeaturedArticleCard({ page }: { page: WikiPage }) {
       to={dittoWikiUrl(page, locale)}
       className="group block rounded-2xl border border-border overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
     >
-      <div className="relative aspect-video overflow-hidden bg-linear-to-br from-amber-500/10 to-orange-500/10">
+      <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-amber-500/10 to-orange-500/10">
         {page.thumbnail ? (
           <img
             src={wikimediaImageUrl(page.thumbnail.source, 960, page.originalimage?.width)}
@@ -498,7 +498,7 @@ function WikipediaSearchBar() {
                       decoding="async"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded bg-linear-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center shrink-0">
                       <WikipediaIcon className="size-4 text-muted-foreground/50" />
                     </div>
                   )}
@@ -557,7 +557,7 @@ function WikipediaLoadingSkeleton() {
     <div className="px-4 pt-4 pb-4 space-y-6">
       {/* Featured skeleton */}
       <div className="rounded-2xl border border-border overflow-hidden bg-card">
-        <Skeleton className="aspect-video w-full" />
+        <Skeleton className="aspect-[16/9] w-full" />
         <div className="p-4 space-y-2">
           <Skeleton className="h-5 w-2/3" />
           <Skeleton className="h-4 w-full" />
@@ -569,7 +569,7 @@ function WikipediaLoadingSkeleton() {
       <div className="grid grid-cols-2 gap-3 sidebar:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="rounded-2xl border border-border overflow-hidden bg-card">
-            <Skeleton className="aspect-4/3 w-full" />
+            <Skeleton className="aspect-[4/3] w-full" />
             <div className="p-3 space-y-1">
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-3 w-full" />
@@ -653,7 +653,7 @@ export function WikipediaPage() {
           <ArrowLeft className="size-5" />
         </Link>
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <div className="size-8 rounded-lg bg-linear-to-br from-blue-500/20 to-indigo-500/10 flex items-center justify-center">
+          <div className="size-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-500/10 flex items-center justify-center">
             <WikipediaIcon className="size-4 text-blue-600 dark:text-blue-400" />
           </div>
           <div>

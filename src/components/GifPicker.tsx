@@ -30,7 +30,7 @@ function GifThumbnail({ gif, onClick }: { gif: GifResult; onClick: (gif: GifResu
       className={cn(
         'relative w-full rounded-lg overflow-hidden cursor-pointer',
         'transition-shadow duration-200 hover:ring-2 hover:ring-primary/60',
-        'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
         'group',
       )}
       style={{ height: displayHeight }}
@@ -65,7 +65,7 @@ function GifThumbnail({ gif, onClick }: { gif: GifResult; onClick: (gif: GifResu
 
       {/* Hover overlay with title */}
       <div className={cn(
-        'absolute inset-x-0 bottom-0 bg-linear-to-t from-black/60 to-transparent',
+        'absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent',
         'px-2 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150',
       )}>
         <span className="text-[10px] text-white line-clamp-1 font-medium">

@@ -95,7 +95,7 @@ export function ZapContent({ event, recipientPubkey }: ZapContentProps) {
       )}
 
       {message && (
-        <p className="text-[15px] leading-relaxed text-foreground whitespace-pre-wrap wrap-break-word">
+        <p className="text-[15px] leading-relaxed text-foreground whitespace-pre-wrap break-words">
           {message}
         </p>
       )}

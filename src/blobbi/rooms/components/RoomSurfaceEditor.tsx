@@ -127,7 +127,7 @@ export function RoomSurfaceEditor({ type, value, onChange }: RoomSurfaceEditorPr
               aria-pressed={value.style === style}
               className={cn(
                 'h-9 px-4 rounded-full text-sm font-medium transition-colors',
-                'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 value.style === style
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
@@ -183,7 +183,7 @@ export function RoomSurfaceEditor({ type, value, onChange }: RoomSurfaceEditorPr
                   aria-pressed={value.variant === v}
                   className={cn(
                     'h-9 px-4 rounded-full text-sm font-medium transition-colors',
-                    'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     value.variant === v
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
@@ -215,7 +215,7 @@ export function RoomSurfaceEditor({ type, value, onChange }: RoomSurfaceEditorPr
                 aria-pressed={(value.angle ?? 0) === a}
                 className={cn(
                   'h-9 min-w-12 px-3 rounded-full text-sm font-medium tabular-nums transition-colors flex items-center justify-center',
-                  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   (value.angle ?? 0) === a
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
@@ -238,7 +238,7 @@ function PatternSwatch({ surface }: { surface: RoomSurfaceLayout }) {
 
   return (
     <div
-      className="size-12 rounded-2xl border border-border/40 shadow-xs"
+      className="size-12 rounded-2xl border border-border/40 shadow-sm"
       style={{ background }}
       aria-hidden
     />

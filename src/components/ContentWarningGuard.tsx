@@ -78,7 +78,7 @@ export function ContentWarningGuard({ event, children, className }: ContentWarni
 
       {/* Centered overlay — positioned over the filler */}
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-4 text-center">
-        <div className="flex items-center justify-center size-10 rounded-full bg-background/80 shadow-xs backdrop-blur-xs">
+        <div className="flex items-center justify-center size-10 rounded-full bg-background/80 shadow-sm backdrop-blur-sm">
           <ShieldAlert className="size-5 text-muted-foreground" />
         </div>
         <div className="space-y-1 max-w-xs">
@@ -96,7 +96,7 @@ export function ContentWarningGuard({ event, children, className }: ContentWarni
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5 mt-0.5 rounded-full px-5 bg-background/80 backdrop-blur-xs"
+          className="gap-1.5 mt-0.5 rounded-full px-5 bg-background/80 backdrop-blur-sm"
           onClick={(e) => {
             e.stopPropagation();
             setRevealed(true);

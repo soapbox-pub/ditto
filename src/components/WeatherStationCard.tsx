@@ -43,7 +43,7 @@ export function WeatherStationCard({ value, compact = false }: WeatherStationCar
 
   if (!stationRef) {
     return (
-      <div className={compact ? 'flex items-center gap-1.5 min-w-0' : 'rounded-xl border border-primary/10 bg-linear-to-br from-sky-500/10 via-blue-500/5 to-indigo-500/10 p-3'}>
+      <div className={compact ? 'flex items-center gap-1.5 min-w-0' : 'rounded-xl border border-primary/10 bg-gradient-to-br from-sky-500/10 via-blue-500/5 to-indigo-500/10 p-3'}>
         <CloudSun className="size-4 shrink-0 text-primary" />
         {compact ? (
           <>
@@ -62,7 +62,7 @@ export function WeatherStationCard({ value, compact = false }: WeatherStationCar
 
   if (isPending) {
     return (
-      <div className={compact ? 'flex items-center gap-1.5 min-w-0' : 'rounded-xl border border-primary/10 bg-linear-to-br from-sky-500/10 via-blue-500/5 to-indigo-500/10 p-3'}>
+      <div className={compact ? 'flex items-center gap-1.5 min-w-0' : 'rounded-xl border border-primary/10 bg-gradient-to-br from-sky-500/10 via-blue-500/5 to-indigo-500/10 p-3'}>
         <CloudSun className="size-4 shrink-0 text-primary" />
         {compact ? (
           <>
@@ -81,7 +81,7 @@ export function WeatherStationCard({ value, compact = false }: WeatherStationCar
 
   if (!data) {
     return (
-      <div className={compact ? 'flex items-center gap-1.5 min-w-0' : 'rounded-xl border border-primary/10 bg-linear-to-br from-sky-500/10 via-blue-500/5 to-indigo-500/10 p-3'}>
+      <div className={compact ? 'flex items-center gap-1.5 min-w-0' : 'rounded-xl border border-primary/10 bg-gradient-to-br from-sky-500/10 via-blue-500/5 to-indigo-500/10 p-3'}>
         <CloudSun className="size-4 shrink-0 text-primary" />
         {compact ? (
           <>
@@ -101,7 +101,7 @@ export function WeatherStationCard({ value, compact = false }: WeatherStationCar
   const sensors = compact ? data.sensors.slice(0, 4) : data.sensors.slice(0, 6);
 
   return (
-    <div className={compact ? 'min-w-0 rounded-xl border border-primary/10 bg-linear-to-br from-sky-500/10 via-blue-500/5 to-indigo-500/10 p-2.5' : 'rounded-xl border border-primary/10 bg-linear-to-br from-sky-500/10 via-blue-500/5 to-indigo-500/10 p-3'}>
+    <div className={compact ? 'min-w-0 rounded-xl border border-primary/10 bg-gradient-to-br from-sky-500/10 via-blue-500/5 to-indigo-500/10 p-2.5' : 'rounded-xl border border-primary/10 bg-gradient-to-br from-sky-500/10 via-blue-500/5 to-indigo-500/10 p-3'}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <CloudSun className="size-4 shrink-0 text-primary" />

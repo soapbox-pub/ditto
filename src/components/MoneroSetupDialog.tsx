@@ -469,7 +469,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
             </div>
 
             <div className="rounded-lg border bg-muted/40 p-3">
-              <p className="font-mono text-sm leading-relaxed wrap-break-word select-all">{step.seed}</p>
+              <p className="font-mono text-sm leading-relaxed break-words select-all">{step.seed}</p>
             </div>
 
             <Button variant="outline" size="sm" onClick={copySeed} className="w-full">

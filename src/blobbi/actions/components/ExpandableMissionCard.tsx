@@ -98,18 +98,18 @@ function ProgressRing({ progress, completed, category }: { progress: number; com
 
 const CATEGORY_STYLES: Record<MissionCategory, { bg: string; expandedBg: string; border: string }> = {
   daily: {
-    bg: 'bg-amber-500/6 hover:bg-amber-500/10',
-    expandedBg: 'bg-amber-500/6',
+    bg: 'bg-amber-500/[0.06] hover:bg-amber-500/10',
+    expandedBg: 'bg-amber-500/[0.06]',
     border: 'ring-amber-500/20',
   },
   hatch: {
-    bg: 'bg-sky-500/6 hover:bg-sky-500/10',
-    expandedBg: 'bg-sky-500/6',
+    bg: 'bg-sky-500/[0.06] hover:bg-sky-500/10',
+    expandedBg: 'bg-sky-500/[0.06]',
     border: 'ring-sky-500/20',
   },
   evolve: {
-    bg: 'bg-violet-500/6 hover:bg-violet-500/10',
-    expandedBg: 'bg-violet-500/6',
+    bg: 'bg-violet-500/[0.06] hover:bg-violet-500/10',
+    expandedBg: 'bg-violet-500/[0.06]',
     border: 'ring-violet-500/20',
   },
 };
@@ -139,7 +139,7 @@ export function ExpandableMissionCard({
         className={cn(
           'flex flex-col items-center gap-1.5 rounded-xl p-3 transition-all text-center cursor-pointer select-none',
           'ring-1 ring-transparent',
-          completed ? 'bg-emerald-500/6 hover:bg-emerald-500/10' : styles.bg,
+          completed ? 'bg-emerald-500/[0.06] hover:bg-emerald-500/10' : styles.bg,
           className,
         )}
       >
@@ -165,7 +165,7 @@ export function ExpandableMissionCard({
     <div
       className={cn(
         'col-span-full rounded-xl ring-1 transition-all overflow-hidden',
-        completed ? 'bg-emerald-500/6 ring-emerald-500/20' : cn(styles.expandedBg, styles.border),
+        completed ? 'bg-emerald-500/[0.06] ring-emerald-500/20' : cn(styles.expandedBg, styles.border),
         className,
       )}
     >

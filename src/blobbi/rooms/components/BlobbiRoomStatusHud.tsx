@@ -110,7 +110,7 @@ export function BlobbiRoomStatusHud({
               type="button"
               className={cn(
                 'rounded-full transition-transform duration-200 active:scale-90 motion-reduce:active:scale-100',
-                'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 onGuide && 'cursor-pointer',
               )}
               aria-label={label}
@@ -154,7 +154,7 @@ function StatIndicator({ stat, careState, filled, max }: { stat: string; careSta
       ref={glowRef}
       className={cn(
         'relative size-[2.75em] rounded-full flex items-center justify-center',
-        ROOM_CONTROL_SURFACE_SUBTLE, 'border border-border/20 shadow-xs',
+        ROOM_CONTROL_SURFACE_SUBTLE, 'border border-border/20 shadow-sm',
         style?.bg,
         isLow && style?.text,
         careState === 'attention' && 'stat-glow-attention',
@@ -168,7 +168,7 @@ function StatIndicator({ stat, careState, filled, max }: { stat: string; careSta
         {Icon && <Icon className={cn('size-[1.15em]', style.text)} strokeWidth={2.5} />}
         {isLow && (
           <AlertTriangle
-            className={cn('absolute top-[-0.3em] right-[-0.4em] size-[0.65em]', careState === 'urgent' ? 'text-red-500' : 'text-amber-500')}
+            className={cn('absolute -top-[0.3em] -right-[0.4em] size-[0.65em]', careState === 'urgent' ? 'text-red-500' : 'text-amber-500')}
             strokeWidth={3}
           />
         )}

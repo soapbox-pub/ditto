@@ -57,7 +57,7 @@ export function ClientMetrics({ clientTags }: ClientMetricsProps) {
             )}
             <Popover>
               <PopoverTrigger
-                className="shrink-0 -mr-1 -mt-1 rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                className="shrink-0 -mr-1 -mt-1 rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="About this metric"
               >
                 <Info className="size-4" />

@@ -146,7 +146,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
                 decoding="async"
               />
             ) : (
-              <div className="size-11 rounded-full bg-linear-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold">
+              <div className="size-11 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold">
                 {(post.author.displayName ?? post.author.handle).charAt(0).toUpperCase()}
               </div>
             )}
@@ -169,7 +169,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
             </div>
 
             {/* Post text */}
-            <p className="mt-1 text-[15px] leading-relaxed whitespace-pre-wrap wrap-break-word">
+            <p className="mt-1 text-[15px] leading-relaxed whitespace-pre-wrap break-words">
               {post.record.text}
             </p>
 
@@ -210,7 +210,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
             {externalEmbed && (
               <div className="mt-3 rounded-xl border border-border overflow-hidden bg-secondary/30">
                 {externalEmbed.thumb && (
-                  <div className="aspect-2/1 overflow-hidden bg-secondary">
+                  <div className="aspect-[2/1] overflow-hidden bg-secondary">
                     <img
                       src={externalEmbed.thumb}
                       alt=""
@@ -424,7 +424,7 @@ function BlueskySearchBar() {
                       decoding="async"
                     />
                   ) : (
-                    <div className="size-10 rounded-full bg-linear-to-br from-sky-500/20 to-blue-500/20 flex items-center justify-center shrink-0">
+                    <div className="size-10 rounded-full bg-gradient-to-br from-sky-500/20 to-blue-500/20 flex items-center justify-center shrink-0">
                       <BlueskyIcon className="size-4 text-muted-foreground/50" />
                     </div>
                   )}
@@ -536,7 +536,7 @@ export function BlueskyPage() {
           <ArrowLeft className="size-5" />
         </Link>
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <div className="size-8 rounded-lg bg-linear-to-br from-sky-500/20 to-blue-500/10 flex items-center justify-center">
+          <div className="size-8 rounded-lg bg-gradient-to-br from-sky-500/20 to-blue-500/10 flex items-center justify-center">
             <BlueskyIcon className="size-4 text-sky-500 dark:text-sky-400" />
           </div>
           <div>

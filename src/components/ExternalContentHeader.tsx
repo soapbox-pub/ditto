@@ -84,7 +84,7 @@ function WikidataEntityHeader({ id, url }: { id: string; url: string }) {
   if (isLoading) {
     return (
       <div className="rounded-2xl border border-border overflow-hidden">
-        <Skeleton className="w-full aspect-video" />
+        <Skeleton className="w-full aspect-[16/9]" />
         <div className="p-5 space-y-3">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-7 w-3/4" />
@@ -204,7 +204,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
                 decoding="async"
               />
             ) : (
-              <div className="size-11 rounded-full bg-linear-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold">
+              <div className="size-11 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold">
                 {(post.displayName ?? post.handle).charAt(0).toUpperCase()}
               </div>
             )}
@@ -228,7 +228,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
 
             {/* Post text */}
             {post.text && (
-              <p className="mt-1 text-[15px] leading-relaxed whitespace-pre-wrap wrap-break-word">
+              <p className="mt-1 text-[15px] leading-relaxed whitespace-pre-wrap break-words">
                 {post.text}
               </p>
             )}
@@ -269,7 +269,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
             {/* External link embed */}
             {post.external && post.external.thumb && (
               <div className="mt-3 rounded-xl border border-border overflow-hidden bg-secondary/30">
-                <div className="aspect-2/1 overflow-hidden bg-secondary">
+                <div className="aspect-[2/1] overflow-hidden bg-secondary">
                   <img
                     src={post.external.thumb}
                     alt=""
@@ -390,7 +390,7 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
   if (isLoading) {
     return (
       <div className="rounded-2xl border border-border overflow-hidden">
-        <Skeleton className="w-full aspect-video" />
+        <Skeleton className="w-full aspect-[16/9]" />
         <div className="p-5 space-y-3">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-7 w-3/4" />
@@ -418,7 +418,7 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
     <div className="rounded-2xl border border-border overflow-hidden">
       {/* Hero image */}
       {heroImage && (
-        <div className="relative w-full overflow-hidden bg-linear-to-br from-blue-500/10 to-indigo-500/10">
+        <div className="relative w-full overflow-hidden bg-gradient-to-br from-blue-500/10 to-indigo-500/10">
           <img
             src={heroImage}
             alt={wiki.title}
@@ -479,7 +479,7 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
                 {wiki.extract}
               </p>
               {!expanded && overflows && (
-                <div className="absolute bottom-0 left-0 right-0 h-12 bg-linear-to-t from-background to-transparent pointer-events-none" />
+                <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent pointer-events-none" />
               )}
             </div>
             {overflows && (
@@ -672,7 +672,7 @@ function WikipediaExtract({ extract, articleUrl }: { extract: string; articleUrl
           {extract}
         </p>
         {!expanded && overflows && (
-          <div className="absolute bottom-0 left-0 right-0 h-12 bg-linear-to-t from-background to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent pointer-events-none" />
         )}
       </div>
       <div className="flex items-center gap-3">
@@ -723,7 +723,7 @@ function WeatherWidget({ code }: { code: string }) {
   if (!weather) return null;
 
   return (
-    <div className="mt-5 rounded-xl bg-linear-to-br from-secondary/60 to-secondary/30 border border-border/50 p-4 transition-all hover:border-border">
+    <div className="mt-5 rounded-xl bg-gradient-to-br from-secondary/60 to-secondary/30 border border-border/50 p-4 transition-all hover:border-border">
       <div className="flex items-center gap-4">
         {/* Weather icon + temperature */}
         <div className="flex items-center gap-3">
@@ -792,7 +792,7 @@ export function CountryContentHeader({ code }: { code: string }) {
             <img
               src={wiki.thumbnail.source}
               alt={info.subdivisionName ?? info.subdivision}
-              className="size-16 sm:size-20 rounded-md object-cover shadow-xs border border-border"
+              className="size-16 sm:size-20 rounded-md object-cover shadow-sm border border-border"
               decoding="async"
             />
           ) : (
@@ -1054,7 +1054,7 @@ function GathererCardPreview({ card, url, link }: { card: GathererCard; url: str
         <img
           src={coverUrl}
           alt={scryCard?.name ?? 'Magic card'}
-          className="w-9 h-12 rounded-md object-cover shrink-0 shadow-xs"
+          className="w-9 h-12 rounded-md object-cover shrink-0 shadow-sm"
           loading="lazy"
           decoding="async"
         />

@@ -588,7 +588,7 @@ function EmojiEntryRow({ entry: e, invalid, sortable, busy, onShortcodeChange, o
         aria-label={intl.formatMessage({ id: 'sortable.dragHandle', defaultMessage: 'Drag to reorder, or use the arrow keys' })}
         tabIndex={sortable ? 0 : -1}
         className={cn(
-          '-mr-1 flex h-9 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring',
+          '-mr-1 flex h-9 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
           sortable ? 'cursor-grab hover:text-foreground active:cursor-grabbing' : 'cursor-default opacity-40',
         )}
       >
@@ -617,7 +617,7 @@ function EmojiEntryRow({ entry: e, invalid, sortable, busy, onShortcodeChange, o
           aria-label="Emoji shortcode"
           aria-invalid={invalid}
           disabled={busy}
-          className="min-w-0 flex-1 bg-transparent py-1.5 text-sm font-mono outline-hidden"
+          className="min-w-0 flex-1 bg-transparent py-1.5 text-sm font-mono outline-none"
         />
         <span className="text-sm text-muted-foreground">:</span>
       </div>

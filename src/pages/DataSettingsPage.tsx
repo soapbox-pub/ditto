@@ -314,7 +314,7 @@ export function DataSettingsPage() {
                   {!importBusy && (
                     <button
                       onClick={importer.reset}
-                      className="ml-auto -mr-1 rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                      className="ml-auto -mr-1 rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       aria-label={intl.formatMessage({ id: 'settings.data.clearFile', defaultMessage: "Clear selected file" })}
                     >
                       <X className="size-3.5" />
@@ -344,7 +344,7 @@ export function DataSettingsPage() {
                   {issues.length > 0 && (
                     <button
                       onClick={() => setIssuesOpen(true)}
-                      className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-700 transition-colors hover:bg-amber-500/20 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring dark:text-amber-400"
+                      className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-700 transition-colors hover:bg-amber-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-amber-400"
                     >
                       <TriangleAlert className="size-3" />
                       <FormattedMessage

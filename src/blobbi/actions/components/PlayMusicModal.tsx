@@ -155,7 +155,7 @@ export function PlayMusicModal({
         {/* Header */}
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
           <div className="flex items-center gap-3">
-            <div className="size-10 rounded-xl bg-linear-to-br from-pink-500/20 to-pink-500/5 flex items-center justify-center">
+            <div className="size-10 rounded-xl bg-gradient-to-br from-pink-500/20 to-pink-500/5 flex items-center justify-center">
               <Music className="size-5 text-pink-500" />
             </div>
             <div>

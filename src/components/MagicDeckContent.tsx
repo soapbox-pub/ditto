@@ -91,7 +91,7 @@ function CardRow({ card, onClick }: { card: CardEntry; onClick?: () => void }) {
         <span className="text-muted-foreground tabular-nums text-xs w-5 text-right shrink-0">
           {card.quantity}x
         </span>
-        <span className={cn('truncate', card.foil && 'bg-linear-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent')}>
+        <span className={cn('truncate', card.foil && 'bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent')}>
           {card.name}
         </span>
         {card.foil && (
@@ -114,7 +114,7 @@ function CardTile({ card, onClick }: { card: CardEntry; onClick?: () => void }) 
   if (failed) {
     return (
       <div
-        className="relative aspect-5/7 rounded-lg bg-secondary/60 border border-border flex items-center justify-center p-1 cursor-pointer"
+        className="relative aspect-[5/7] rounded-lg bg-secondary/60 border border-border flex items-center justify-center p-1 cursor-pointer"
         onClick={onClick}
       >
         <span className="text-[9px] text-center text-muted-foreground leading-tight line-clamp-3">
@@ -126,7 +126,7 @@ function CardTile({ card, onClick }: { card: CardEntry; onClick?: () => void }) 
   }
 
   return (
-    <div className="relative aspect-5/7 rounded-lg overflow-hidden group cursor-pointer" onClick={onClick}>
+    <div className="relative aspect-[5/7] rounded-lg overflow-hidden group cursor-pointer" onClick={onClick}>
       <img
         src={scryfallImageUrl(card, 'normal')}
         alt={card.name}
@@ -136,7 +136,7 @@ function CardTile({ card, onClick }: { card: CardEntry; onClick?: () => void }) 
         decoding="async"
       />
       {card.foil && (
-        <div className="absolute inset-0 bg-linear-to-br from-transparent via-white/10 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent pointer-events-none" />
       )}
       {card.quantity > 1 && <QuantityBadge quantity={card.quantity} />}
     </div>
@@ -145,7 +145,7 @@ function CardTile({ card, onClick }: { card: CardEntry; onClick?: () => void }) 
 
 function QuantityBadge({ quantity }: { quantity: number }) {
   return (
-    <span className="absolute top-1 right-1 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none backdrop-blur-xs">
+    <span className="absolute top-1 right-1 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none backdrop-blur-sm">
       x{quantity}
     </span>
   );

@@ -201,7 +201,7 @@ export function RelayPage() {
               <p className="font-medium">
                 <FormattedMessage id="relayPage.authRequired.title" defaultMessage="This relay requires you to sign in" />
               </p>
-              <p className="mx-auto max-w-sm wrap-break-word text-sm text-muted-foreground">
+              <p className="mx-auto max-w-sm break-words text-sm text-muted-foreground">
                 <FormattedMessage
                   id="relayPage.authRequired.description"
                   defaultMessage="Log in to see what's on {relay}. The relay will be able to see which account is reading."

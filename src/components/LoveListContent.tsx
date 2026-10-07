@@ -84,16 +84,16 @@ const BACKGROUND_HEARTS: Array<{
   opacity: number;
 }> = [
   { style: { top: '-0.75rem', right: '-0.75rem' }, size: 'size-20', rotate: 'rotate-12', opacity: 0.12 },
-  { style: { top: '18%', left: '-1rem' }, size: 'size-14', rotate: 'rotate-[-18deg]', opacity: 0.09 },
-  { style: { top: '36%', right: '8%' }, size: 'size-9', rotate: 'rotate-24', opacity: 0.1 },
+  { style: { top: '18%', left: '-1rem' }, size: 'size-14', rotate: '-rotate-[18deg]', opacity: 0.09 },
+  { style: { top: '36%', right: '8%' }, size: 'size-9', rotate: 'rotate-[24deg]', opacity: 0.1 },
   { style: { top: '6%', left: '34%' }, size: 'size-7', rotate: '-rotate-6', opacity: 0.09 },
-  { style: { top: '12%', right: '28%' }, size: 'size-6', rotate: 'rotate-16', opacity: 0.08 },
+  { style: { top: '12%', right: '28%' }, size: 'size-6', rotate: 'rotate-[16deg]', opacity: 0.08 },
   { style: { top: '52%', left: '6%' }, size: 'size-8', rotate: 'rotate-[8deg]', opacity: 0.09 },
-  { style: { top: '48%', left: '58%' }, size: 'size-6', rotate: 'rotate-[-22deg]', opacity: 0.08 },
-  { style: { bottom: '26%', right: '-0.75rem' }, size: 'size-16', rotate: 'rotate-[-14deg]', opacity: 0.1 },
+  { style: { top: '48%', left: '58%' }, size: 'size-6', rotate: '-rotate-[22deg]', opacity: 0.08 },
+  { style: { bottom: '26%', right: '-0.75rem' }, size: 'size-16', rotate: '-rotate-[14deg]', opacity: 0.1 },
   { style: { bottom: '8%', left: '14%' }, size: 'size-10', rotate: '-rotate-12', opacity: 0.11 },
-  { style: { bottom: '-1rem', right: '32%' }, size: 'size-16', rotate: 'rotate-20', opacity: 0.08 },
-  { style: { top: '72%', left: '44%' }, size: 'size-7', rotate: 'rotate-30', opacity: 0.08 },
+  { style: { bottom: '-1rem', right: '32%' }, size: 'size-16', rotate: 'rotate-[20deg]', opacity: 0.08 },
+  { style: { top: '72%', left: '44%' }, size: 'size-7', rotate: 'rotate-[30deg]', opacity: 0.08 },
   { style: { bottom: '14%', right: '12%' }, size: 'size-7', rotate: 'rotate-6', opacity: 0.09 },
 ];
 
@@ -223,7 +223,7 @@ export function LoveListContent({ event, compact, className }: LoveListContentPr
           The padding band exposes the hearts emoji frame behind the sheet,
           exactly how letters wear their stationery frames. */}
       <div
-        className="w-full rounded-4xl shadow-md motion-safe:transition-shadow motion-safe:duration-300 hover:shadow-lg"
+        className="w-full rounded-[2rem] shadow-md motion-safe:transition-shadow motion-safe:duration-300 hover:shadow-lg"
         style={{ padding: FRAME_THICKNESS }}
       >
         {/* isolate keeps the frame's zIndex:-1 inside this card */}

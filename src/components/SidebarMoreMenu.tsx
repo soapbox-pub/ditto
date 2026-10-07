@@ -252,7 +252,7 @@ export function SidebarMoreMenu({
           <DropdownMenuContent side="top" align="start" collisionPadding={8} className="w-[240px] p-1 flex flex-col max-h-[calc(var(--radix-dropdown-menu-content-available-height)-12px-var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]">
             <div className="flex items-center gap-2 mx-1 mt-1 mb-2 px-3 py-2 shrink-0 rounded-full bg-secondary">
               <Search className="size-4 shrink-0 text-muted-foreground" />
-              <input value={addQuery} onChange={(e) => setAddQuery(e.target.value)} placeholder={intl.formatMessage({ id: 'common.searchPlaceholder', defaultMessage: "Search..." })} className="flex-1 min-w-0 bg-transparent text-base md:text-sm outline-hidden placeholder:text-muted-foreground/60" autoFocus />
+              <input value={addQuery} onChange={(e) => setAddQuery(e.target.value)} placeholder={intl.formatMessage({ id: 'common.searchPlaceholder', defaultMessage: "Search..." })} className="flex-1 min-w-0 bg-transparent text-base md:text-sm outline-none placeholder:text-muted-foreground/60" autoFocus />
             </div>
             {add.canScrollUp && <ScrollCaret direction="up" onMouseEnter={() => add.startScroll('up')} onMouseLeave={add.stopScroll} />}
             <div ref={add.refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={add.onScroll}>
@@ -289,7 +289,7 @@ export function SidebarMoreMenu({
                   }
                 }}
                 placeholder={intl.formatMessage({ id: 'sidebar.linkInputPlaceholder', defaultMessage: "URL, npub1..., nsite://..., ..." })}
-                className="flex-1 min-w-0 bg-transparent text-sm outline-hidden placeholder:text-muted-foreground/60"
+                className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
                 autoFocus
               />
             </div>
@@ -337,7 +337,7 @@ export function SidebarMoreMenu({
       <DropdownMenuContent side="top" align="start" collisionPadding={8} className="w-[240px] p-1 flex flex-col max-h-[calc(var(--radix-dropdown-menu-content-available-height)-12px-var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]">
         <div className="flex items-center gap-2 mx-1 mt-1 mb-2 px-3 py-2 shrink-0 rounded-full bg-secondary">
           <Search className="size-4 shrink-0 text-muted-foreground" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={intl.formatMessage({ id: 'common.searchPlaceholder', defaultMessage: "Search..." })} className="flex-1 min-w-0 bg-transparent text-base md:text-sm outline-hidden placeholder:text-muted-foreground/60" autoFocus />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={intl.formatMessage({ id: 'common.searchPlaceholder', defaultMessage: "Search..." })} className="flex-1 min-w-0 bg-transparent text-base md:text-sm outline-none placeholder:text-muted-foreground/60" autoFocus />
         </div>
         {main.canScrollUp && <ScrollCaret direction="up" onMouseEnter={() => main.startScroll('up')} onMouseLeave={main.stopScroll} />}
         <div ref={main.refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={main.onScroll}>

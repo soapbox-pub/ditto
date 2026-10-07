@@ -355,7 +355,7 @@ export function ModelScene({ load, format }: ModelSceneProps) {
   return (
     <div
       ref={containerRef}
-      className="relative aspect-4/3 w-full bg-linear-to-b from-muted/40 to-muted"
+      className="relative aspect-[4/3] w-full bg-gradient-to-b from-muted/40 to-muted"
       onClick={(e) => e.stopPropagation()}
     >
       {status === 'loading' && (

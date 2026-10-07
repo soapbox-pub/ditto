@@ -239,7 +239,7 @@ function ArtifactRow({ event }: { event: NostrEvent }) {
       {url ? (
         <a
           href={url}
-          className="min-w-0 break-all font-medium text-primary hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+          className="min-w-0 break-all font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
           onClick={(e) => {
             // A plain link can't download inside the native app's web view.
             e.preventDefault();
@@ -293,7 +293,7 @@ function ReleaseNotes({ notes }: { notes: string }) {
             [&_li]:my-0.5
             prose-code:before:content-none prose-code:after:content-none [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono
             [&_p]:my-1
-            *:first:mt-0`,
+            first:[&>*]:mt-0`,
             !expanded && 'max-h-80 overflow-hidden',
           )}
         >
@@ -302,14 +302,14 @@ function ReleaseNotes({ notes }: { notes: string }) {
           </Markdown>
         </div>
         {overflowing && !expanded && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-background to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent" />
         )}
       </div>
       {(overflowing || expanded) && (
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
-          className="mt-1 text-sm font-medium text-primary hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+          className="mt-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
         >
           {expanded ? 'Show less' : 'Show more'}
         </button>
@@ -370,7 +370,7 @@ export function SoftwareReleaseContent({ event, compact }: SoftwareReleaseConten
       <img
         src={appIcon}
         alt=""
-        className="size-10 rounded-xl object-cover shrink-0 shadow-xs"
+        className="size-10 rounded-xl object-cover shrink-0 shadow-sm"
         loading="lazy"
         onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
         decoding="async"
@@ -449,7 +449,7 @@ export function SoftwareReleaseContent({ event, compact }: SoftwareReleaseConten
         {appPath ? (
           <Link
             to={appPath}
-            className="flex items-center gap-2 min-w-0 font-semibold hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+            className="flex items-center gap-2 min-w-0 font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
             onClick={(e) => e.stopPropagation()}
           >
             {iconEl}

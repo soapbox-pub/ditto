@@ -34,7 +34,7 @@ const editableBase = [
   'focus:bg-transparent focus:border-primary',
   'transition-colors duration-150',
   'placeholder:text-muted-foreground/40',
-  'outline-hidden',
+  'outline-none',
 ].join(' ');
 
 function EditableInput({
@@ -203,7 +203,7 @@ export function ProfileCard({
         {/* An <img> rather than a CSS background so a dead Blossom server can
             be detected and the banner walked to a mirror. */}
         <FallbackImage src={bannerUrl} imeta={imeta?.banner} className="absolute inset-0 size-full object-cover" />
-        {!metadata.banner && <div className="absolute inset-0 bg-linear-to-br from-accent/10 via-transparent to-primary/5" />}
+        {!metadata.banner && <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />}
         {editable && !metadata.banner && (
           <div className="absolute inset-0 flex items-center justify-center">
             <Plus className="size-6 text-muted-foreground" strokeWidth={4} />
@@ -212,12 +212,12 @@ export function ProfileCard({
         {editable && (
           <>
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-              <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-white text-xs font-medium bg-black/50 rounded-full px-3 py-1.5 backdrop-blur-xs">
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-white text-xs font-medium bg-black/50 rounded-full px-3 py-1.5 backdrop-blur-sm">
                 <Pencil className="size-3.5" /> {metadata.banner ? 'Change banner' : 'Add banner'}
               </span>
             </div>
             {metadata.banner && (
-              <div className="absolute bottom-2 right-2 size-7 rounded-full bg-background border border-border shadow-xs flex items-center justify-center transition-opacity">
+              <div className="absolute bottom-2 right-2 size-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center transition-opacity">
                 <Pencil className="size-3.5 text-muted-foreground" />
               </div>
             )}
@@ -236,9 +236,9 @@ export function ProfileCard({
                 <div className="shrink-0">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <button type="button" className="relative shrink-0 cursor-pointer group outline-hidden">
+                      <button type="button" className="relative shrink-0 cursor-pointer group outline-none">
                         <div style={hasCustomShape ? shapedAvatarBorderStyle : undefined}>
-                          <Avatar shape={shape} className={cn("shadow-xs", hasCustomShape ? "size-[88px]" : "size-24 border-4 border-background")}>
+                          <Avatar shape={shape} className={cn("shadow-sm", hasCustomShape ? "size-[88px]" : "size-24 border-4 border-background")}>
                             <AvatarImage src={metadata.picture} imeta={imeta?.picture} alt={displayName} className="object-cover" />
                             <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
                               {metadata.picture ? initial : <Plus className="size-8 text-muted-foreground" strokeWidth={4} />}
@@ -252,10 +252,10 @@ export function ProfileCard({
                           )}
                           style={overlayMaskStyle}
                         >
-                          <Pencil className="size-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-sm" />
+                          <Pencil className="size-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
                         </div>
                         {metadata.picture && (
-                          <div className="absolute bottom-0 right-0 size-7 rounded-full bg-background border border-border shadow-xs flex items-center justify-center transition-opacity">
+                          <div className="absolute bottom-0 right-0 size-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center transition-opacity">
                             <Pencil className="size-3.5 text-muted-foreground" />
                           </div>
                         )}
@@ -328,7 +328,7 @@ export function ProfileCard({
             </Popover>
           ) : (
             <div className="relative shrink-0" style={hasCustomShape ? shapedAvatarBorderStyle : undefined}>
-              <Avatar shape={shape} className={cn("shadow-xs", hasCustomShape ? "size-[88px]" : "size-24 border-4 border-background")}>
+              <Avatar shape={shape} className={cn("shadow-sm", hasCustomShape ? "size-[88px]" : "size-24 border-4 border-background")}>
                 <AvatarImage src={metadata.picture} imeta={imeta?.picture} alt={displayName} className="object-cover" />
                 <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
                   {initial}
@@ -406,13 +406,13 @@ export function ProfileCard({
               <CollapsibleTrigger asChild>
                 <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent text-sm font-medium text-muted-foreground">
                   Profile Fields
-                  <ChevronDown className="size-4 transition-transform duration-200 in-data-[state=open]:rotate-180" strokeWidth={4} />
+                  <ChevronDown className="size-4 transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
                 </Button>
               </CollapsibleTrigger>
             </div>
             <CollapsibleContent className="space-y-2 pt-2">
               {/* Website always first */}
-              <div className="grid grid-cols-[1fr_2fr] gap-2 items-center">
+              <div className="grid grid-cols-[1fr,2fr] gap-2 items-center">
                 <span className="text-sm text-muted-foreground px-1">Website</span>
                 <Input
                   placeholder="https://yourwebsite.com"
@@ -423,7 +423,7 @@ export function ProfileCard({
                </div>
 
                {extraFields.map((field, i) => (
-                 <div key={i} className="grid grid-cols-[1fr_2fr_auto] gap-2 items-center">
+                 <div key={i} className="grid grid-cols-[1fr,2fr,auto] gap-2 items-center">
                    <Input
                      placeholder="Label"
                      value={field.label}

@@ -547,7 +547,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     <div className="flex flex-col">
       {/* Header — not sticky on mobile in write mode so it scrolls away with content */}
       <div className={isMobile && activeTab === 'write' ? 'relative z-20' : 'sticky top-0 z-20'}>
-        <SubHeaderBar pinned className={isMobile && activeTab === 'write' ? 'relative static!' : 'relative top-0!'}>
+        <SubHeaderBar pinned className={isMobile && activeTab === 'write' ? 'relative !static' : 'relative !top-0'}>
           <button
             onClick={handleBack}
             className="pl-3 pr-1 py-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -648,7 +648,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
             onChange={(e) => updateArticle('title', e.target.value)}
             onBlur={handleBlurSave}
             placeholder="Your article title..."
-            className={`w-full font-bold bg-transparent border-none outline-hidden placeholder:text-muted-foreground/40 ${
+            className={`w-full font-bold bg-transparent border-none outline-none placeholder:text-muted-foreground/40 ${
               isMobile && keyboardVisible ? 'text-xl' : 'text-3xl sm:text-4xl'
             }`}
           />

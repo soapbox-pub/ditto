@@ -10,7 +10,7 @@ import {
   ToastViewport,
 } from "@/components/ui/toast"
 
-/** Matches the `md` breakpoint in src/index.css (768px). */
+/** Matches the `md` breakpoint in tailwind.config.ts (768px). Hardcoded to avoid pulling the entire Tailwind config + plugins into the client bundle. */
 const MD_BREAKPOINT = 768;
 
 export function Toaster() {

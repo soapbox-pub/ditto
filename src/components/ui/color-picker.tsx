@@ -205,12 +205,12 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
         >
           {/* Color circle swatch */}
           <div
-            className="relative size-12 rounded-full border-2 border-border shadow-xs cursor-pointer transition-all group-hover:scale-105 group-hover:shadow-md group-hover:border-foreground/20 shrink-0"
+            className="relative size-12 rounded-full border-2 border-border shadow-sm cursor-pointer transition-all group-hover:scale-105 group-hover:shadow-md group-hover:border-foreground/20 shrink-0"
             style={{ backgroundColor: value }}
           >
             {/* Edit overlay */}
             <div className="absolute inset-0 rounded-full flex items-center justify-center transition-colors">
-              <Pencil className="size-3.5 text-white drop-shadow-xs" />
+              <Pencil className="size-3.5 text-white drop-shadow-sm" />
             </div>
           </div>
           {label && (

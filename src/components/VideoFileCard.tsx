@@ -37,7 +37,7 @@ export function VideoFileCard({ url, mime, size }: VideoFileCardProps) {
         void openUrl(safe);
       }}
       aria-label={intl.formatMessage({ id: 'videoFileCard.open', defaultMessage: 'Open video file' })}
-      className="group my-2 flex w-full max-w-sm items-center gap-3 rounded-xl border border-border bg-secondary/30 px-4 py-3 text-left transition-colors hover:bg-secondary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+      className="group my-2 flex w-full max-w-sm items-center gap-3 rounded-xl border border-border bg-secondary/30 px-4 py-3 text-left transition-colors hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <FileVideo className="size-8 shrink-0 text-muted-foreground" />
       <span className="min-w-0 flex-1">

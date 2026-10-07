@@ -43,7 +43,7 @@ export function InfoTip({ children, name, iconSize = 'size-3.5', className }: In
         <button
           type="button"
           className={cn(
-            'inline-flex shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
+            'inline-flex shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             className,
           )}
           aria-label={intl.formatMessage({ id: 'infoTip.label', defaultMessage: 'More about {name}' }, { name })}

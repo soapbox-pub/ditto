@@ -199,7 +199,7 @@ export function FontPicker({ value, onChange, placeholder = 'Default (Inter)', p
             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-(--radix-popover-trigger-width) p-0 overflow-hidden" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0 overflow-hidden" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
           <Command shouldFilter={true}>
             <CommandInput
               placeholder="Search fonts..."

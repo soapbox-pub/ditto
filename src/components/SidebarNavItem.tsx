@@ -45,7 +45,7 @@ export function SidebarNavItem({
         <button
           {...handleProps}
           aria-label={intl.formatMessage({ id: 'sortable.dragHandle', defaultMessage: 'Drag to reorder, or use the arrow keys' })}
-          className="flex items-center justify-center w-8 self-stretch shrink-0 rounded-full cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex items-center justify-center w-8 self-stretch shrink-0 rounded-full cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <GripVertical className="size-4" />
         </button>
@@ -104,7 +104,7 @@ function SidebarDividerItem({ sortableId, editing, onRemove }: SidebarDividerIte
         <button
           {...handleProps}
           aria-label={intl.formatMessage({ id: 'sortable.dragHandle', defaultMessage: 'Drag to reorder, or use the arrow keys' })}
-          className="flex items-center justify-center w-8 self-stretch shrink-0 rounded-full cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex items-center justify-center w-8 self-stretch shrink-0 rounded-full cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <GripVertical className="size-4" />
         </button>

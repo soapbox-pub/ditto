@@ -706,7 +706,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          className="underline underline-offset-2 font-medium hover:opacity-80 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                          className="underline underline-offset-2 font-medium hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                         >
                           Learn more
                         </button>
@@ -1260,7 +1260,7 @@ function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed
             type="button"
             onClick={() => setScannerOpen(true)}
             aria-label="Scan QR code"
-            className="absolute right-1 top-1/2 -translate-y-1/2 size-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 flex items-center justify-center transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+            className="absolute right-1 top-1/2 -translate-y-1/2 size-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <QrCode className="size-4" />
           </button>
@@ -1284,7 +1284,7 @@ function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
         style={{ width: 'var(--radix-popover-trigger-width)' }}
-        className="p-0 w-(--radix-popover-trigger-width) rounded-xl border border-border bg-popover shadow-lg overflow-hidden"
+        className="p-0 w-[--radix-popover-trigger-width] rounded-xl border border-border bg-popover shadow-lg overflow-hidden"
       >
         {totalItems > 0 ? (
           <div role="listbox" className="max-h-[280px] overflow-y-auto py-1">
@@ -1666,14 +1666,14 @@ function RawAddressSuccess({ txid, amountSats, currency, btcPrice, onClose }: Ra
       <div className="relative mx-auto flex size-28 items-center justify-center">
         <span
           aria-hidden
-          className="absolute inset-0 rounded-full bg-linear-to-br from-amber-400/40 to-orange-500/30 motion-safe:animate-success-halo"
+          className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400/40 to-orange-500/30 motion-safe:animate-success-halo"
         />
         <span
           aria-hidden
-          className="absolute inset-0 rounded-full bg-linear-to-br from-amber-400 to-orange-500 shadow-lg shadow-orange-500/30 motion-safe:animate-success-pop"
+          className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg shadow-orange-500/30 motion-safe:animate-success-pop"
         />
         <Check
-          className="relative size-14 text-white drop-shadow-xs motion-safe:animate-success-pop"
+          className="relative size-14 text-white drop-shadow-sm motion-safe:animate-success-pop"
           strokeWidth={3}
           aria-hidden
         />
@@ -1681,7 +1681,7 @@ function RawAddressSuccess({ txid, amountSats, currency, btcPrice, onClose }: Ra
 
       <div className="grid gap-1">
         <h2 className="text-lg font-semibold tracking-tight">Bitcoin sent</h2>
-        <div className="text-4xl font-bold tabular-nums bg-linear-to-br from-amber-500 to-orange-600 bg-clip-text text-transparent">
+        <div className="text-4xl font-bold tabular-nums bg-gradient-to-br from-amber-500 to-orange-600 bg-clip-text text-transparent">
           {amountDisplay}
         </div>
       </div>

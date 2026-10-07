@@ -95,7 +95,7 @@ export function RoomDrawer({ open, onClose, bar, children }: RoomDrawerProps) {
         <div className="relative touch-pan-x" {...swipe.handlers}>
           {bar}
           {open && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-[-0.9em] flex justify-center" aria-hidden>
+            <div className="pointer-events-none absolute inset-x-0 -bottom-[0.9em] flex justify-center" aria-hidden>
               <span className="h-[0.3em] w-[2.5em] rounded-full bg-foreground/25" />
             </div>
           )}

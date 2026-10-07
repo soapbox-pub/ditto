@@ -171,7 +171,7 @@ export function BadgesPage() {
             <span className="inline-flex items-center gap-1.5">
               My Badges
               {pendingCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold leading-none">
+                <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold leading-none">
                   {pendingCount}
                 </span>
               )}
@@ -624,7 +624,7 @@ function AcceptedBadgeList({
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       )}
-      <ScrollArea className="h-96">
+      <ScrollArea className="h-[24rem]">
         <div className="space-y-1.5">
           {isLoading ? (
             Array.from({ length: 3 }).map((_, i) => (
@@ -726,7 +726,7 @@ function CreatedBadgeList({ badges, isLoading }: { badges: ParsedBadge[]; isLoad
   }
 
   return (
-    <ScrollArea className="h-96 mt-2">
+    <ScrollArea className="h-[24rem] mt-2">
       <div className="space-y-2">
         {isLoading ? (
           Array.from({ length: 2 }).map((_, i) => (

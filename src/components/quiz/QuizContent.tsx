@@ -62,7 +62,7 @@ export function QuizContent({ event, expanded = false, className }: QuizContentP
         <div>
           <h3 className="text-lg font-bold leading-snug">{quiz.title}</h3>
           {(quiz.summary || quiz.description) && (
-            <p className="mt-1 line-clamp-2 whitespace-pre-wrap wrap-break-word text-sm text-muted-foreground">
+            <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-sm text-muted-foreground">
               {quiz.summary || quiz.description}
             </p>
           )}
@@ -95,7 +95,7 @@ export function QuizContent({ event, expanded = false, className }: QuizContentP
         <div className="mt-2">{meta}</div>
       </div>
       {quiz.description && (
-        <p className="whitespace-pre-wrap wrap-break-word text-[15px] leading-relaxed text-foreground">
+        <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-foreground">
           {quiz.description}
         </p>
       )}

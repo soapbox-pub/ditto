@@ -229,7 +229,7 @@ function RecoveryContent({ event, onClose }: RecoveryContentProps) {
                   variant="secondary"
                   onClick={() => handleRestore(snapshot)}
                   disabled={restoringId !== null}
-                  className="h-7 gap-1.5 px-2.5 text-xs shadow-xs"
+                  className="h-7 gap-1.5 px-2.5 text-xs shadow-sm"
                 >
                   {isRestoring ? (
                     <Loader2 className="size-3 animate-spin" />

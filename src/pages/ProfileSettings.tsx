@@ -319,7 +319,7 @@ function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploadi
 
   return (
     <SortableItem id={id} className="items-start" gripClassName="w-6 h-9">
-      <div className="grid grid-cols-[1fr_2fr_auto] gap-2 items-start">
+      <div className="grid grid-cols-[1fr,2fr,auto] gap-2 items-start">
       {/* Label column — varies by type */}
       {type === 'wallet' ? (
         <FormField
@@ -851,7 +851,7 @@ export function ProfileSettings() {
                 control={form.control}
                 name="website"
                 render={({ field }) => (
-                  <div className="grid grid-cols-[auto_1fr_2fr_auto] gap-2 items-center">
+                  <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
                     <div className="w-6" />
                     <div className="flex items-center h-9 px-3 text-sm text-muted-foreground">
                       <span><FormattedMessage id="settings.profile.fields.websiteLabel" defaultMessage={"Website"} /></span>
@@ -867,7 +867,7 @@ export function ProfileSettings() {
                 control={form.control}
                 name="lud16"
                 render={({ field }) => (
-                  <div className="grid grid-cols-[auto_1fr_2fr_auto] gap-2 items-center">
+                  <div className="grid grid-cols-[auto,1fr,2fr,auto] gap-2 items-center">
                     <div className="w-6" />
                     <div className="flex items-center h-9 px-3 text-sm text-muted-foreground gap-1">
                       <span><FormattedMessage id="settings.profile.fields.lightningLabel" defaultMessage={"Lightning"} /></span>
@@ -940,7 +940,7 @@ export function ProfileSettings() {
                     <Eye className="size-3.5" />
                     <FormattedMessage id="settings.profile.fields.previewTitle" defaultMessage={"Profile Fields Preview"} />
                   </span>
-                  <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 in-data-[state=open]:rotate-180" strokeWidth={4} />
+                  <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-3">
@@ -974,7 +974,7 @@ export function ProfileSettings() {
             <CollapsibleTrigger asChild>
               <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
                 <span className="text-sm font-medium"><FormattedMessage id="settings.profile.advanced" defaultMessage={"Advanced"} /></span>
-                <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 in-data-[state=open]:rotate-180" strokeWidth={4} />
+                <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="pt-3 space-y-4">

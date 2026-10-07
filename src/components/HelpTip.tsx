@@ -72,7 +72,7 @@ export function HelpTip({ faqId, iconSize = 'size-4', className }: HelpTipProps)
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-primary transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring ${className ?? ''}`}
+          className={`inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${className ?? ''}`}
           aria-label={`Help: ${item.question}`}
         >
           <HelpCircle className={iconSize} />

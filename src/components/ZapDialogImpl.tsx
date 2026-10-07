@@ -622,7 +622,7 @@ export function ZapDialogImpl({
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 min-w-0 rounded-md px-1 -mx-1 hover:bg-secondary/60 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                    className="inline-flex items-center gap-1.5 min-w-0 rounded-md px-1 -mx-1 hover:bg-secondary/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                     aria-label="Switch payment method"
                   >
                     <PaymentMethodIcon method={currentMethod?.def} />

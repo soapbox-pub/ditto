@@ -38,7 +38,7 @@ export function MobileTopBar({ onAvatarClick, hasSubHeader }: MobileTopBarProps)
         <div className="relative flex items-center px-3 h-10">
           {/* Left: hamburger menu icon */}
           <div className="flex items-center justify-center w-7 shrink-0">
-            <button onClick={onAvatarClick} className="rounded-full focus:outline-hidden focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={onAvatarClick} className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background text-muted-foreground hover:text-foreground transition-colors">
               <BarsStaggeredIcon className="size-5" />
             </button>
           </div>

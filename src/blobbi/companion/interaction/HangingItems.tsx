@@ -1023,7 +1023,7 @@ export function HangingItems({
           )}
           style={{ zIndex: 10003 }}
         >
-          <div className="bg-background/95 backdrop-blur-xs rounded-2xl px-6 py-4 shadow-lg border">
+          <div className="bg-background/95 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-lg border">
             <p className="text-sm text-muted-foreground text-center">
               No {getMenuActionConfig(selectedAction)?.label.toLowerCase()} items available
             </p>
@@ -1081,10 +1081,10 @@ export function HangingItems({
                   <button
                     className={cn(
                       "relative flex items-center justify-center rounded-full",
-                      "bg-background/95 backdrop-blur-xs",
+                      "bg-background/95 backdrop-blur-sm",
                       "shadow-lg border-2 border-muted/30",
                       "transition-all duration-200",
-                      "focus:outline-hidden focus:ring-2 focus:ring-primary/50",
+                      "focus:outline-none focus:ring-2 focus:ring-primary/50",
                       "hover:scale-110 hover:shadow-xl hover:border-primary/30 active:scale-95",
                       "cursor-pointer"
                     )}

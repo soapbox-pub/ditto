@@ -80,7 +80,7 @@ export function MusicTrackCard({ event }: MusicTrackCardProps) {
             noticeFill
           />
         ) : (
-          <div className="w-full h-full bg-linear-to-br from-primary/15 via-primary/5 to-transparent flex items-center justify-center">
+          <div className="w-full h-full bg-gradient-to-br from-primary/15 via-primary/5 to-transparent flex items-center justify-center">
             <Music className="size-8 text-primary/20" />
           </div>
         )}

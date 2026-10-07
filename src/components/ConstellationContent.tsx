@@ -80,9 +80,9 @@ export function ConstellationContent({ event, className }: ConstellationContentP
 
   return (
     <div className={cn('mt-2', className)}>
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs transition-shadow hover:shadow-md">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md">
         {/* Star map */}
-        <div className="aspect-4/3 w-full">
+        <div className="aspect-[4/3] w-full">
           <Suspense fallback={<Skeleton className="size-full" />}>
             <ConstellationStarMap edges={edges} title={title} />
           </Suspense>
@@ -110,7 +110,7 @@ export function ConstellationContent({ event, className }: ConstellationContentP
             )}
           </div>
           {description && (
-            <p className="whitespace-pre-wrap wrap-break-word text-[13px] leading-relaxed text-muted-foreground">
+            <p className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-muted-foreground">
               {description}
             </p>
           )}

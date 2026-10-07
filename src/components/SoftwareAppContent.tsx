@@ -126,7 +126,7 @@ function ScreenshotLightbox({
       <DialogPortal>
         <DialogOverlay className="bg-black/80" />
         <DialogPrimitive.Content
-          className="fixed inset-0 z-250 flex items-center justify-center focus:outline-hidden"
+          className="fixed inset-0 z-[250] flex items-center justify-center focus:outline-none"
           onClick={() => onOpenChange(false)}
           aria-label="Screenshot viewer"
         >
@@ -205,7 +205,7 @@ function ScreenshotStrip({ images, maxHeight, maxCount }: { images: string[]; ma
           <button
             key={url}
             type="button"
-            className="shrink-0 cursor-pointer rounded-xl overflow-hidden focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary transition-transform hover:scale-[1.02] active:scale-[0.98]"
+            className="shrink-0 cursor-pointer rounded-xl overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-transform hover:scale-[1.02] active:scale-[0.98]"
             onClick={(e) => {
               e.stopPropagation();
               setLightboxIndex(i);
@@ -216,7 +216,7 @@ function ScreenshotStrip({ images, maxHeight, maxCount }: { images: string[]; ma
             <img
               src={url}
               alt=""
-              className={`${maxHeight} rounded-xl object-cover shadow-xs`}
+              className={`${maxHeight} rounded-xl object-cover shadow-sm`}
               loading="lazy"
               onError={(e) => {
                 (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
@@ -277,7 +277,7 @@ export function SoftwareAppContent({ event, compact }: SoftwareAppContentProps) 
             <img
               src={icon}
               alt={name}
-              className="size-12 rounded-xl object-cover shrink-0 shadow-xs"
+              className="size-12 rounded-xl object-cover shrink-0 shadow-sm"
               loading="lazy"
               onError={(e) => {
                 (e.currentTarget as HTMLElement).style.display = 'none';
@@ -436,7 +436,7 @@ export function SoftwareAppContent({ event, compact }: SoftwareAppContentProps) 
 
       {/* Description */}
       {description && (
-        <p className="text-[15px] leading-relaxed whitespace-pre-wrap wrap-break-word">
+        <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
           {description}
         </p>
       )}
@@ -451,7 +451,7 @@ export function SoftwareAppContent({ event, compact }: SoftwareAppContentProps) 
         <Link
           to={latestReleasePath}
           onClick={(e) => e.stopPropagation()}
-          className="block rounded-xl border border-border p-3 space-y-1.5 hover:bg-muted/50 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          className="block rounded-xl border border-border p-3 space-y-1.5 hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div className="flex items-center gap-2 text-sm font-medium">
             <Package className="size-4 text-primary" />

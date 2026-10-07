@@ -178,7 +178,7 @@ function QuickReactionSlot({ id, position, slot, onPick, onUnpin }: QuickReactio
               'flex size-11 items-center justify-center rounded-full text-2xl transition-[background-color,transform,box-shadow] sm:size-12',
               slot && 'cursor-grab active:cursor-grabbing',
               isDragging && 'scale-110 shadow-lg',
-              'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               slot ? 'bg-secondary/50 hover:bg-secondary' : 'bg-secondary/30 text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
             )}
           >
@@ -212,8 +212,8 @@ function QuickReactionSlot({ id, position, slot, onPick, onUnpin }: QuickReactio
           onClick={onUnpin}
           aria-label={intl.formatMessage({ id: 'settings.content.quickReactionsRemove', defaultMessage: 'Remove quick reaction {position}' }, { position })}
           className={cn(
-            'absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-background/80 text-muted-foreground shadow-xs backdrop-blur-xs transition-[color,opacity] hover:bg-background hover:text-destructive',
-            'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
+            'absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-background/80 text-muted-foreground shadow-sm backdrop-blur-sm transition-[color,opacity] hover:bg-background hover:text-destructive',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             // Always shown on touch; on devices that can hover, only while hovering or focused.
             '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100',
           )}

@@ -117,7 +117,7 @@ npx cap open android
 | Framework | React 18 |
 | Build | Vite |
 | Language | TypeScript |
-| Styling | TailwindCSS 4 + shadcn/ui |
+| Styling | TailwindCSS 3 + shadcn/ui |
 | Routing | React Router 6 |
 | Data | TanStack Query |
 | Nostr | Nostrify + nostr-tools |

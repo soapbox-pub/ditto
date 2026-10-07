@@ -119,7 +119,7 @@ interface MilkdownToolbarProps {
 export function MilkdownToolbar({ onCommand, onImageUpload, sourceMode, onToggleSource, className }: MilkdownToolbarProps) {
   return (
     <div className={cn(
-      "flex items-center gap-0.5 p-1.5 border-b border-border bg-card/95 backdrop-blur-xs flex-wrap sticky top-0 z-10 rounded-t-xl",
+      "flex items-center gap-0.5 p-1.5 border-b border-border bg-card/95 backdrop-blur-sm flex-wrap sticky top-0 z-10 rounded-t-xl",
       className
     )}>
       {!sourceMode && (

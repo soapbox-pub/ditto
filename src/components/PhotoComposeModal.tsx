@@ -291,7 +291,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
                 className={cn(
-                  'w-full aspect-4/3 rounded-xl border-2 border-dashed transition-colors flex flex-col items-center justify-center gap-3',
+                  'w-full aspect-[4/3] rounded-xl border-2 border-dashed transition-colors flex flex-col items-center justify-center gap-3',
                   isUploading
                     ? 'border-primary/30 bg-primary/5 cursor-wait'
                     : 'border-border hover:border-primary/50 hover:bg-primary/5 cursor-pointer',
@@ -338,14 +338,14 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
                         <X className="size-4" />
                       </button>
                       {/* Alt text input overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent p-2 pt-6">
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 pt-6">
                         <input
                           type="text"
                           dir="auto"
                           value={img.alt}
                           onChange={(e) => handleAltChange(index, e.target.value)}
                           placeholder="Alt text (accessibility)"
-                          className="w-full bg-black/30 backdrop-blur-xs text-white placeholder:text-white/50 text-xs rounded-lg px-2.5 py-1.5 outline-hidden focus:ring-1 focus:ring-white/40"
+                          className="w-full bg-black/30 backdrop-blur-sm text-white placeholder:text-white/50 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-white/40"
                         />
                       </div>
                     </div>
@@ -414,7 +414,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
                 placeholder="Write a caption... (supports #hashtags)"
                 rows={3}
                 maxLength={MAX_CAPTION_CHARS}
-                className="w-full bg-secondary/40 rounded-lg px-3 py-2 text-sm outline-hidden resize-none focus:ring-1 focus:ring-primary/40 placeholder:text-muted-foreground"
+                className="w-full bg-secondary/40 rounded-lg px-3 py-2 text-sm outline-none resize-none focus:ring-1 focus:ring-primary/40 placeholder:text-muted-foreground"
               />
               {charCount > 0 && (
                 <p className={cn(

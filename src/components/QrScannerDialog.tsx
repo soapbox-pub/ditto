@@ -256,7 +256,7 @@ export function QrScannerDialog({ isOpen, onClose, onScan, title = 'Scan QR code
               type="button"
               onClick={toggleFlash}
               aria-label={flashOn ? 'Turn flash off' : 'Turn flash on'}
-              className="absolute bottom-3 right-3 size-10 rounded-full bg-black/50 backdrop-blur-xs text-white flex items-center justify-center hover:bg-black/70 transition-colors"
+              className="absolute bottom-3 right-3 size-10 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/70 transition-colors"
             >
               {flashOn ? <ZapOff className="size-5" /> : <Zap className="size-5" />}
             </button>

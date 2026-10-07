@@ -64,7 +64,7 @@ export function EmbeddedProfileCard({ event, className, disableHoverCards }: Emb
       )}
 
       {metadata.about?.trim() && (
-        <p className="line-clamp-3 whitespace-pre-wrap wrap-break-word text-xs leading-relaxed text-muted-foreground">
+        <p className="line-clamp-3 whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">
           {metadata.about.trim()}
         </p>
       )}

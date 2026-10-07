@@ -86,8 +86,8 @@ export function CampaignContent({ event, expanded = false, className }: Campaign
       {/* Banner */}
       <div
         className={cn(
-          'relative w-full overflow-hidden rounded-xl border border-border/70 bg-linear-to-br from-primary/15 via-primary/5 to-secondary',
-          expanded ? 'aspect-16/8' : 'aspect-video',
+          'relative w-full overflow-hidden rounded-xl border border-border/70 bg-gradient-to-br from-primary/15 via-primary/5 to-secondary',
+          expanded ? 'aspect-[16/8]' : 'aspect-[16/9]',
         )}
       >
         {banner ? (
@@ -117,7 +117,7 @@ export function CampaignContent({ event, expanded = false, className }: Campaign
         <h3
           dir="auto"
           className={cn(
-            'font-bold leading-tight tracking-tight wrap-break-word',
+            'font-bold leading-tight tracking-tight break-words',
             expanded ? 'text-2xl sm:text-3xl' : 'text-lg',
           )}
         >
@@ -128,7 +128,7 @@ export function CampaignContent({ event, expanded = false, className }: Campaign
           <p
             dir="auto"
             className={cn(
-              'text-muted-foreground whitespace-pre-wrap wrap-break-word',
+              'text-muted-foreground whitespace-pre-wrap break-words',
               expanded ? 'text-base' : 'text-sm line-clamp-3',
             )}
           >
@@ -339,7 +339,7 @@ function DonateButton({ event, wallets, title }: DonateButtonProps) {
           <button
             type="button"
             onClick={copy}
-            className="group flex w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-left text-xs font-mono hover:bg-secondary motion-safe:transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="group flex w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-left text-xs font-mono hover:bg-secondary motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             aria-label="Copy payment address"
           >
             <span className="truncate min-w-0 flex-1 text-foreground">{bip21}</span>

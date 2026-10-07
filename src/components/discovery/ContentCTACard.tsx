@@ -29,7 +29,7 @@ export function ContentCTACard({ kindDef, title, subtitle, icon, className }: Co
 
   return (
     <div className={cn('mx-4 rounded-2xl overflow-hidden relative', className)}>
-      <div className="bg-linear-to-br from-primary/20 via-primary/10 to-accent/10">
+      <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10">
         <div className="p-6 text-center">
           <div className="flex justify-center text-primary/40">
             {icon ?? <Music className="size-10" />}

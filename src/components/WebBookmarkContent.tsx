@@ -64,7 +64,7 @@ export function WebBookmarkContent({ event, expanded = false, className }: WebBo
     <div className={cn(expanded ? 'mt-3 space-y-3' : 'mt-2 space-y-2.5', className)}>
       {/* The bookmarker's own note about the link. */}
       {comment && (
-        <div className="whitespace-pre-wrap wrap-break-word">
+        <div className="whitespace-pre-wrap break-words">
           <NoteContent
             event={event}
             className={cn(expanded ? 'text-[17px] leading-relaxed' : 'text-[15px] leading-relaxed')}
@@ -120,7 +120,7 @@ export function WebBookmarkContent({ event, expanded = false, className }: WebBo
           )}
 
           {title && (
-            <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 wrap-break-word">
+            <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
               {title}
             </p>
           )}
@@ -129,7 +129,7 @@ export function WebBookmarkContent({ event, expanded = false, className }: WebBo
             <p
               dir="auto"
               className={cn(
-                'text-xs text-muted-foreground leading-relaxed wrap-break-word',
+                'text-xs text-muted-foreground leading-relaxed break-words',
                 expanded ? 'line-clamp-4' : 'line-clamp-3',
               )}
             >

@@ -107,7 +107,7 @@ export function EnvelopeCard({ letter, mode, index, onClick, minimal }: Envelope
     <>
     <button
       onClick={onClick}
-      className="envelope-card group outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl w-full"
+      className="envelope-card group outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl w-full"
       style={{ '--entrance-delay': `${Math.min(index * 60, 300)}ms` } as React.CSSProperties}
       title={`${mode === 'inbox' ? 'From' : 'To'} ${displayName}`}
     >

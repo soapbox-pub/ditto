@@ -13,7 +13,7 @@ export function WikipediaWidget() {
   if (isLoading) {
     return (
       <div className="space-y-3 p-1">
-        <Skeleton className="w-full aspect-video rounded-lg" />
+        <Skeleton className="w-full aspect-[16/9] rounded-lg" />
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-full" />
         <Skeleton className="h-3 w-4/5" />
@@ -45,7 +45,7 @@ export function WikipediaWidget() {
     >
       {/* Image */}
       {imageUrl && (
-        <div className="relative aspect-video rounded-lg overflow-hidden bg-linear-to-br from-amber-500/10 to-orange-500/10 mb-2">
+        <div className="relative aspect-[16/9] rounded-lg overflow-hidden bg-gradient-to-br from-amber-500/10 to-orange-500/10 mb-2">
           <img
             src={imageUrl}
             alt={displayTitle}

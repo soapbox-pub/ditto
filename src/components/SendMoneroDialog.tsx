@@ -504,7 +504,7 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
                   </dl>
                 )}
 
-                {error && <p className="text-xs text-destructive wrap-break-word">{error}</p>}
+                {error && <p className="text-xs text-destructive break-words">{error}</p>}
 
                 <Button
                   onClick={() => void handleSend()}
@@ -585,7 +585,7 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
                       defaultMessage: 'Send your entire spendable balance',
                     })}
                     className={cn(
-                      'rounded-sm underline-offset-2 hover:text-foreground hover:underline transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:no-underline disabled:hover:text-muted-foreground',
+                      'rounded-sm underline-offset-2 hover:text-foreground hover:underline transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:no-underline disabled:hover:text-muted-foreground',
                       sweep && 'text-foreground font-medium',
                     )}
                   >
@@ -863,7 +863,7 @@ function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed
             type="button"
             onClick={() => setScannerOpen(true)}
             aria-label={intl.formatMessage({ id: 'monero.send.scan', defaultMessage: 'Scan QR code' })}
-            className="absolute right-1 top-1/2 -translate-y-1/2 size-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 flex items-center justify-center transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+            className="absolute right-1 top-1/2 -translate-y-1/2 size-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <QrCode className="size-4" />
           </button>
@@ -889,7 +889,7 @@ function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
         style={{ width: 'var(--radix-popover-trigger-width)' }}
-        className="p-0 w-(--radix-popover-trigger-width) rounded-xl border border-border bg-popover shadow-lg overflow-hidden"
+        className="p-0 w-[--radix-popover-trigger-width] rounded-xl border border-border bg-popover shadow-lg overflow-hidden"
       >
         {totalItems > 0 ? (
           <div role="listbox" className="max-h-[280px] overflow-y-auto py-1">
@@ -1278,14 +1278,14 @@ function SendSuccess({ txHash, amount, unit, xmrPrice, onClose }: SendSuccessPro
       <div className="relative mx-auto flex size-28 items-center justify-center">
         <span
           aria-hidden
-          className="absolute inset-0 rounded-full bg-linear-to-br from-orange-400/40 to-orange-600/30 motion-safe:animate-success-halo"
+          className="absolute inset-0 rounded-full bg-gradient-to-br from-orange-400/40 to-orange-600/30 motion-safe:animate-success-halo"
         />
         <span
           aria-hidden
-          className="absolute inset-0 rounded-full bg-linear-to-br from-orange-400 to-orange-600 shadow-lg shadow-orange-500/30 motion-safe:animate-success-pop"
+          className="absolute inset-0 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 shadow-lg shadow-orange-500/30 motion-safe:animate-success-pop"
         />
         <Check
-          className="relative size-14 text-white drop-shadow-xs motion-safe:animate-success-pop"
+          className="relative size-14 text-white drop-shadow-sm motion-safe:animate-success-pop"
           strokeWidth={3}
           aria-hidden
         />
@@ -1295,7 +1295,7 @@ function SendSuccess({ txHash, amount, unit, xmrPrice, onClose }: SendSuccessPro
         <h2 className="text-lg font-semibold tracking-tight">
           <FormattedMessage id="monero.send.success.heading" defaultMessage="Monero sent" />
         </h2>
-        <div className="text-4xl font-bold tabular-nums bg-linear-to-br from-orange-500 to-orange-600 bg-clip-text text-transparent">
+        <div className="text-4xl font-bold tabular-nums bg-gradient-to-br from-orange-500 to-orange-600 bg-clip-text text-transparent">
           {formatMoneroAmount(amount, 'xmr', xmrPrice)}
         </div>
         {unit === 'usd' && xmrPrice && (

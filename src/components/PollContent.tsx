@@ -240,7 +240,7 @@ export function PollContent({ event }: { event: NostrEvent }) {
   return (
     <div className="mt-2" onClick={(e) => e.stopPropagation()}>
       {/* Question */}
-      <div className="text-[15px] leading-relaxed font-medium wrap-break-word">
+      <div className="text-[15px] leading-relaxed font-medium break-words">
         <NoteContent event={event} />
       </div>
 
@@ -290,7 +290,7 @@ export function PollContent({ event }: { event: NostrEvent }) {
               <div className="relative flex items-center justify-between px-3 py-2.5">
                 <div className="flex items-center gap-2 min-w-0">
                   {isMyVote && <CheckCircle2 className="size-4 text-primary shrink-0" />}
-                  <span className={cn('text-sm wrap-break-word', isMyVote && 'font-semibold')}>{opt.label}</span>
+                  <span className={cn('text-sm break-words', isMyVote && 'font-semibold')}>{opt.label}</span>
                 </div>
                 <span className="text-sm font-medium tabular-nums text-muted-foreground shrink-0 ml-3">
                   {pct}%
@@ -458,7 +458,7 @@ function PollVotersModal({ open, onOpenChange, allVotes, options, pollType, init
                     style={{ width: `${pct}%` }}
                   />
                   <div className="relative flex items-center justify-between px-3 py-2">
-                    <span className={cn('text-sm wrap-break-word min-w-0', isActive && 'font-semibold')}>{opt.label}</span>
+                    <span className={cn('text-sm break-words min-w-0', isActive && 'font-semibold')}>{opt.label}</span>
                     <span className="text-sm font-medium tabular-nums text-muted-foreground shrink-0 ml-3">
                       {count}
                     </span>

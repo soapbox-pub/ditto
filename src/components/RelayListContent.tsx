@@ -130,7 +130,7 @@ function RelayChipList({ relays }: { relays: RelayListEntry[] }) {
           to={`/r/${encodeURIComponent(entry.url)}`}
           onClick={(e) => e.stopPropagation()}
           title={entry.url}
-          className="max-w-full truncate rounded-full border border-border bg-muted/40 px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          className="max-w-full truncate rounded-full border border-border bg-muted/40 px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {renderRelayUrl(entry.url)}
         </Link>

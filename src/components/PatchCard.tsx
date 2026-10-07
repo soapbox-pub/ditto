@@ -213,7 +213,7 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 			{/* Commit message */}
 			{!preview && commitMessage && (
 				<div className="rounded-2xl border border-border overflow-hidden px-3.5 py-3">
-					<p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word text-muted-foreground">
+					<p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-muted-foreground">
 						{commitMessage}
 					</p>
 				</div>

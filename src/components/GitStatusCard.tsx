@@ -162,13 +162,13 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 							{rootNevent ? (
 								<Link
 									to={`/${rootNevent}`}
-									className="font-semibold text-sm leading-snug hover:underline wrap-break-word line-clamp-2"
+									className="font-semibold text-sm leading-snug hover:underline break-words line-clamp-2"
 									onClick={(e) => e.stopPropagation()}
 								>
 									{titleText}
 								</Link>
 							) : (
-								<span className="font-semibold text-sm leading-snug wrap-break-word line-clamp-2">
+								<span className="font-semibold text-sm leading-snug break-words line-clamp-2">
 									{titleText}
 								</span>
 							)}
@@ -220,7 +220,7 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 					{/* Comment preview — inline-linkified (nostr URIs become
 					    links, not embed cards, so the line clamp stays clean) */}
 					{preview && comment && (
-						<div className="text-[13px] text-muted-foreground line-clamp-3 leading-relaxed whitespace-pre-wrap wrap-break-word">
+						<div className="text-[13px] text-muted-foreground line-clamp-3 leading-relaxed whitespace-pre-wrap break-words">
 							<NoteContent
 								event={event}
 								as="span"
@@ -238,7 +238,7 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 			{/* Full comment -- outside card, only in detail view */}
 			{!preview && comment && (
 				<div className="rounded-2xl border border-border overflow-hidden px-4 py-4 sidebar:px-5 sidebar:py-5">
-					<div className="prose prose-sm max-w-none wrap-break-word text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-img:rounded-lg prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-[13px] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:font-normal prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border prose-th:text-foreground">
+					<div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-img:rounded-lg prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-[13px] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:font-normal prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border prose-th:text-foreground">
 						<Markdown
 							rehypePlugins={[rehypeSanitize]}
 							components={buildMarkdownComponents(event)}

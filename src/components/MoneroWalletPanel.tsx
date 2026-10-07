@@ -298,7 +298,7 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
         <div className="flex w-full gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
           <AlertTriangle className="size-5 shrink-0 text-destructive" />
           <div className="space-y-2 min-w-0">
-            <p className="text-sm text-destructive wrap-break-word">{error}</p>
+            <p className="text-sm text-destructive break-words">{error}</p>
             <Button variant="outline" size="sm" onClick={() => void refresh()}>
               <RefreshCw className="size-3.5 mr-1.5" />
               <FormattedMessage id="monero.panel.retry" defaultMessage="Retry" />
@@ -337,7 +337,7 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
       {/* QR + address */}
       {address && (
         <>
-          <div className="rounded-2xl bg-white p-4 shadow-xs">
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
             <QRCodeCanvas value={buildMoneroUri(address)} size={200} level="M" />
           </div>
 

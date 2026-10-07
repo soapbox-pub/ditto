@@ -111,7 +111,7 @@ function BirdSongButton({
           'bg-emerald-500 text-white shadow-md ring-1 ring-emerald-400/40',
           'transition-[transform,background-color,box-shadow] duration-200',
           'hover:bg-emerald-600 hover:shadow-lg active:scale-95',
-          'focus:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2',
           'focus-visible:ring-offset-background',
           'dark:bg-emerald-400 dark:text-emerald-950 dark:hover:bg-emerald-300',
           className,

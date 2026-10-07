@@ -190,7 +190,7 @@ export function VineHeartButton({
 		<VineActionButton label={label}>
 			<button
 				className={cn(
-					"size-11 rounded-full flex items-center justify-center transition-colors backdrop-blur-xs",
+					"size-11 rounded-full flex items-center justify-center transition-colors backdrop-blur-sm",
 					!noBackground && "bg-black/20 hover:bg-white/10",
 					hasReacted ? "text-pink-500" : "text-white hover:text-pink-400",
 				)}
@@ -301,7 +301,7 @@ export function VineRepostButton({
 		<VineActionButton label={label}>
 			<button
 				className={cn(
-					"size-11 rounded-full flex items-center justify-center transition-colors backdrop-blur-xs bg-black/20 hover:bg-white/10",
+					"size-11 rounded-full flex items-center justify-center transition-colors backdrop-blur-sm bg-black/20 hover:bg-white/10",
 					isReposted ? "text-accent" : "text-white hover:text-accent",
 				)}
 				onClick={handleClick}
@@ -432,8 +432,8 @@ export function VineCard({
 	// Content warning: full-screen dark overlay matching vine aesthetic
 	if (showCwOverlay) {
 		return (
-			<div className="relative w-full h-full bg-neutral-900 overflow-hidden shrink-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
-				<div className="flex items-center justify-center size-14 rounded-full bg-white/10 backdrop-blur-xs">
+			<div className="relative w-full h-full bg-neutral-900 overflow-hidden flex-shrink-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
+				<div className="flex items-center justify-center size-14 rounded-full bg-white/10 backdrop-blur-sm">
 					<ShieldAlert className="size-7 text-white/70" />
 				</div>
 				<div className="space-y-1.5 max-w-xs">
@@ -451,7 +451,7 @@ export function VineCard({
 				<Button
 					variant="outline"
 					size="sm"
-					className="gap-1.5 mt-1 rounded-full px-6 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white backdrop-blur-xs"
+					className="gap-1.5 mt-1 rounded-full px-6 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white backdrop-blur-sm"
 					onClick={(e) => {
 						e.stopPropagation();
 						setCwRevealed(true);
@@ -465,7 +465,7 @@ export function VineCard({
 	}
 
 	return (
-		<div className="relative w-full h-full bg-neutral-900 overflow-hidden shrink-0">
+		<div className="relative w-full h-full bg-neutral-900 overflow-hidden flex-shrink-0">
 			{/* ── Video ────────────────────────────────────────────────────── */}
 			{imeta.url ? (
 				<>
@@ -525,7 +525,7 @@ export function VineCard({
 							className="absolute inset-0 flex items-center justify-center cursor-pointer"
 							onClick={togglePlay}
 						>
-							<div className="size-20 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-xs border border-white/20">
+							<div className="size-20 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-sm border border-white/20">
 								<Play className="size-10 text-white ml-1.5" fill="white" />
 							</div>
 						</div>
@@ -537,7 +537,7 @@ export function VineCard({
 							className="absolute inset-0 flex items-center justify-center cursor-pointer"
 							onClick={togglePlay}
 						>
-							<div className="size-16 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-xs border border-white/20 animate-in zoom-in-50 duration-150">
+							<div className="size-16 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-sm border border-white/20 animate-in zoom-in-50 duration-150">
 								<Play className="size-8 text-white ml-1" fill="white" />
 							</div>
 						</div>
@@ -546,7 +546,7 @@ export function VineCard({
 					{/* Buffering spinner — shown when rebuffering mid-playback */}
 					{isBuffering && (
 						<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-							<div className="size-14 rounded-full bg-black/40 backdrop-blur-xs border border-white/10 flex items-center justify-center">
+							<div className="size-14 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center">
 								<svg
 									className="size-7 text-white animate-spin"
 									xmlns="http://www.w3.org/2000/svg"
@@ -581,15 +581,15 @@ export function VineCard({
 			{/* ── Gradient overlays — only rendered once video UI is visible ── */}
 			{isVideoReady && (
 				<>
-					<div className="absolute inset-x-0 top-0 h-32 bg-linear-to-b from-black/60 to-transparent pointer-events-none" />
-					<div className="absolute inset-x-0 bottom-0 h-64 bg-linear-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
+					<div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
+					<div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
 				</>
 			)}
 
 			{/* ── Mute toggle (bottom-right) — only shown once video is ready ──── */}
 			{isVideoReady && (
 				<button
-					className="absolute bottom-[calc(1rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] right-4 z-10 size-9 rounded-full bg-black/40 backdrop-blur-xs border border-white/20 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+					className="absolute bottom-[calc(1rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] right-4 z-10 size-9 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
 					onClick={toggleMute}
 					aria-label={isMuted ? "Unmute" : "Mute"}
 				>
@@ -693,14 +693,14 @@ export function VineCard({
 							className="block"
 							onClick={(e) => e.stopPropagation()}
 						>
-							<span className="font-bold text-white text-[15px] leading-tight drop-shadow-sm hover:underline">
+							<span className="font-bold text-white text-[15px] leading-tight drop-shadow hover:underline">
 								{displayName}
 							</span>
 						</Link>
 					</ProfileHoverCard>
 
 					{title && (
-						<p className="text-white/90 text-sm leading-snug line-clamp-2 drop-shadow-sm">
+						<p className="text-white/90 text-sm leading-snug line-clamp-2 drop-shadow">
 							{title}
 						</p>
 					)}
@@ -754,7 +754,7 @@ export function VineActionButton({
 			{children ?? (
 				<button
 					className={cn(
-						"size-11 rounded-full flex items-center justify-center transition-colors backdrop-blur-xs bg-black/20 hover:bg-white/10",
+						"size-11 rounded-full flex items-center justify-center transition-colors backdrop-blur-sm bg-black/20 hover:bg-white/10",
 						className,
 					)}
 					onClick={onClick}
@@ -763,7 +763,7 @@ export function VineActionButton({
 				</button>
 			)}
 			{label && (
-				<span className="text-white text-xs tabular-nums font-medium drop-shadow-sm">
+				<span className="text-white text-xs tabular-nums font-medium drop-shadow">
 					{label}
 				</span>
 			)}
@@ -919,9 +919,9 @@ export function VinesFeedPage() {
 							</div>
 						</div>
 						{/* Top gradient */}
-						<div className="absolute inset-x-0 top-0 h-32 bg-linear-to-b from-black/60 to-transparent pointer-events-none" />
+						<div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
 						{/* Bottom gradient */}
-						<div className="absolute inset-x-0 bottom-0 h-64 bg-linear-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
+						<div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
 						{/* Bottom info strip */}
 						<div className="absolute bottom-[calc(1.5rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] left-4 right-20 space-y-2.5">
 							<Skeleton className="h-4 w-28 bg-white/20 rounded" />
@@ -1009,7 +1009,7 @@ export function VinesFeedPage() {
 					<div
 						key={event.id}
 						className={cn(
-							"w-full snap-start snap-always shrink-0",
+							"w-full snap-start snap-always flex-shrink-0",
 							vineHeightClass,
 							"sidebar:h-dvh",
 						)}

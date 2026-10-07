@@ -256,7 +256,7 @@ const GridImage = memo(function GridImage({
       ref={inViewRef}
       type="button"
       className={cn(
-        'relative block w-full overflow-hidden focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary',
+        'relative block w-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
         visibleCount === 3 && index === 0 && 'row-span-2',
       )}
       style={containerStyle}
@@ -676,7 +676,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   return createPortal(
     <div
       ref={containerRef}
-      className="fixed inset-0 z-100 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[100] animate-in fade-in duration-200"
       onClick={handleBackdropClick}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
@@ -708,12 +708,12 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
 
         {/* Prev/next buttons (desktop) */}
         {canGoPrev && (
-          <button onClick={(e) => { e.stopPropagation(); onPrev(); }} className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-xs transition-all hidden sm:flex" title="Previous">
+          <button onClick={(e) => { e.stopPropagation(); onPrev(); }} className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title="Previous">
             <ChevronLeft className="size-6" />
           </button>
         )}
         {canGoNext && (
-          <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-xs transition-all hidden sm:flex" title="Next">
+          <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title="Next">
             <ChevronRight className="size-6" />
           </button>
         )}

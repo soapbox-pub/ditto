@@ -79,13 +79,13 @@ export function PrUpdateCard({ event, preview = true }: PrUpdateCardProps) {
 								{prNevent ? (
 									<Link
 										to={`/${prNevent}`}
-										className="font-semibold hover:underline wrap-break-word"
+										className="font-semibold hover:underline break-words"
 										onClick={(e) => e.stopPropagation()}
 									>
 										{titleText}
 									</Link>
 								) : (
-									<span className="font-semibold wrap-break-word">
+									<span className="font-semibold break-words">
 										{titleText}
 									</span>
 								)}

@@ -968,7 +968,7 @@ function EventNotFound({
                     : `A deletion request for this ${deletedKindNoun(deletionInfo.deletedKind)} was published on ${formatFullDate(deletionInfo.deletion.created_at)}, so it was likely removed by its author.`}
                 </p>
                 {deletionInfo.reason && (
-                  <p className="text-sm text-muted-foreground italic wrap-break-word">
+                  <p className="text-sm text-muted-foreground italic break-words">
                     “{deletionInfo.reason}”
                   </p>
                 )}
@@ -1126,12 +1126,12 @@ function VideoDetailContent({ event }: { event: NostrEvent }) {
         </MediaGate>
       )}
       {title && (
-        <p className="text-[15px] font-semibold leading-snug mt-3 wrap-break-word">
+        <p className="text-[15px] font-semibold leading-snug mt-3 break-words">
           {title}
         </p>
       )}
       {event.content && (
-        <p className="text-sm text-muted-foreground leading-relaxed mt-1 wrap-break-word">
+        <p className="text-sm text-muted-foreground leading-relaxed mt-1 break-words">
           {event.content}
         </p>
       )}
@@ -1160,7 +1160,7 @@ function VineDetailContent({ event }: { event: NostrEvent }) {
   return (
     <div className="mt-3">
       {vineTitle && (
-        <p className="text-[15px] leading-relaxed wrap-break-word mb-2">
+        <p className="text-[15px] leading-relaxed break-words mb-2">
           {vineTitle}
         </p>
       )}
@@ -1917,7 +1917,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       {stats?.reactions ? (
         <button
           onClick={() => openInteractions("reactions")}
-          className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 [&>span:first-child]:hover:underline transition-colors"
+          className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 hover:[&>span:first-child]:underline transition-colors"
         >
           <span className="font-bold text-foreground">
             {formatNumber(stats.reactions)}
@@ -2625,8 +2625,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                     </Avatar>
                     {/* Birthday party hat — perched on the author's avatar all day. */}
                     {isAuthorBirthday && (
-                      <div className="pointer-events-none absolute -top-3 -right-1.5 z-10 rotate-18">
-                        <PartyHat className="size-8 drop-shadow-xs" pomScale={1.15} />
+                      <div className="pointer-events-none absolute -top-3 -right-1.5 z-10 rotate-[18deg]">
+                        <PartyHat className="size-8 drop-shadow-sm" pomScale={1.15} />
                       </div>
                     )}
                   </Link>

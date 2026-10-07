@@ -55,7 +55,7 @@ export function PhotoWidget() {
   if (isLoading) {
     return (
       <div className="space-y-2 p-1">
-        <Skeleton className="w-full aspect-4/3 rounded-lg" />
+        <Skeleton className="w-full aspect-[4/3] rounded-lg" />
         <div className="flex items-center gap-2">
           <Skeleton className="size-5 rounded-full" />
           <Skeleton className="h-3 w-24" />

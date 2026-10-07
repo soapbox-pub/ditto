@@ -1248,7 +1248,7 @@ function PackCard({
       aria-pressed={selected}
       className={cn(
         "group relative text-left rounded-xl ring-1 overflow-hidden transition-all",
-        "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         "motion-safe:active:scale-[0.98]",
         selected
           ? "ring-2 ring-primary bg-primary/5"

@@ -35,14 +35,14 @@ export function ComposeDialogContent({ className, children, ref, ...props }: Com
         ref={ref}
         className={cn(
           // Shared
-          'fixed z-250 flex flex-col overflow-hidden bg-background border-border shadow-lg duration-200',
+          'fixed z-[250] flex flex-col overflow-hidden bg-background border-border shadow-lg duration-200',
           'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
           // Mobile: full-screen sheet anchored to the visual viewport (shrinks
           // with the keyboard and follows iOS's layout-viewport scroll offset so
           // it never clips off the top or leaves a gap above the keyboard),
           // safe-area aware, sliding up from the bottom like a native modal.
-          'left-0 top-(--visual-viewport-offset-top,0px) h-(--visual-viewport-height,100dvh) w-full',
-          'safe-area-top pb-(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px))',
+          'left-0 top-[var(--visual-viewport-offset-top,0px)] h-[var(--visual-viewport-height,100dvh)] w-full',
+          'pt-[var(--safe-area-inset-top,env(safe-area-inset-top,0px))] pb-[var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px))]',
           'data-[state=open]:slide-in-from-bottom-8 data-[state=closed]:slide-out-to-bottom-8',
           // Desktop: centered card
           'sm:left-1/2 sm:top-1/2 sm:h-auto sm:max-h-[85dvh] sm:w-[calc(100%-2rem)] sm:max-w-[520px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border sm:pt-0 sm:pb-0',

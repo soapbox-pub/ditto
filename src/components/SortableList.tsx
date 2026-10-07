@@ -78,7 +78,7 @@ export function SortableItem({ id, enabled = true, className, draggingClassName,
           {...handleProps}
           aria-label={intl.formatMessage({ id: 'sortable.dragHandle', defaultMessage: 'Drag to reorder, or use the arrow keys' })}
           className={cn(
-            'flex items-center justify-center shrink-0 rounded cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
+            'flex items-center justify-center shrink-0 rounded cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             gripClassName ?? 'w-8',
           )}
         >

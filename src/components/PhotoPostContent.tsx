@@ -152,7 +152,7 @@ export function PhotoPostContent({ event, variant = 'feed', fullBleed = false }:
         {hasMultiple && current > 0 && (
           <button
             type="button"
-            className="absolute left-2 top-1/2 -translate-y-1/2 hidden sm:flex items-center justify-center size-8 rounded-full bg-white/90 text-black shadow-md hover:bg-white transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
+            className="absolute left-2 top-1/2 -translate-y-1/2 hidden sm:flex items-center justify-center size-8 rounded-full bg-white/90 text-black shadow-md hover:bg-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             aria-label={intl.formatMessage({ id: 'photoPost.prev', defaultMessage: 'Previous photo' })}
             onClick={(e) => {
               e.preventDefault();
@@ -166,7 +166,7 @@ export function PhotoPostContent({ event, variant = 'feed', fullBleed = false }:
         {hasMultiple && current < photos.length - 1 && (
           <button
             type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex items-center justify-center size-8 rounded-full bg-white/90 text-black shadow-md hover:bg-white transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
+            className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex items-center justify-center size-8 rounded-full bg-white/90 text-black shadow-md hover:bg-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             aria-label={intl.formatMessage({ id: 'photoPost.next', defaultMessage: 'Next photo' })}
             onClick={(e) => {
               e.preventDefault();
@@ -210,10 +210,10 @@ export function PhotoPostContent({ event, variant = 'feed', fullBleed = false }:
       {(title || description || hashtags.length > 0) && (
         <div className={cn('mt-2.5 space-y-1', fullBleed && 'px-4')}>
           {title && (
-            <p className="text-[15px] font-semibold leading-snug wrap-break-word">{title}</p>
+            <p className="text-[15px] font-semibold leading-snug break-words">{title}</p>
           )}
           {description && (
-            <div className="whitespace-pre-wrap wrap-break-word">
+            <div className="whitespace-pre-wrap break-words">
               <NoteContent
                 event={event}
                 className="text-[15px] leading-relaxed"
@@ -297,7 +297,7 @@ function PhotoSlide({
     <button
       ref={inViewRef}
       type="button"
-      className="relative block w-full overflow-hidden focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+      className="relative block w-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
       style={{ aspectRatio: `${aspectRatio}` }}
       onClick={(e) => {
         e.preventDefault();

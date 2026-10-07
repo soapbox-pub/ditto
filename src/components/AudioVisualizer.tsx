@@ -362,7 +362,7 @@ export function AudioVisualizer({
 
         {/* Track title, artist and album, from the file's own tags */}
         {track && (track.title || trackDetails) && (
-          <div className="absolute top-0 left-0 right-0 z-10 bg-linear-to-b from-black/70 to-transparent px-3 pt-2.5 pb-6 pointer-events-none">
+          <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/70 to-transparent px-3 pt-2.5 pb-6 pointer-events-none">
             {track.title && <p className="truncate text-sm font-semibold text-white">{track.title}</p>}
             {trackDetails && <p className="truncate text-xs text-white/80">{trackDetails}</p>}
           </div>
@@ -374,7 +374,7 @@ export function AudioVisualizer({
             className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer"
             onClick={handleCanvasClick}
           >
-            <div className="size-16 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-xs">
+            <div className="size-16 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm">
               <Play className="size-8 text-white ml-1" fill="white" />
             </div>
           </div>
@@ -385,7 +385,7 @@ export function AudioVisualizer({
           <div
             className={cn(
               'absolute bottom-0 left-0 right-0 transition-opacity duration-200',
-              'bg-linear-to-t from-black/80 via-black/40 to-transparent pt-8 pb-2 px-3',
+              'bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-8 pb-2 px-3',
               showControls ? 'opacity-100' : 'opacity-0 pointer-events-none',
             )}
           >

@@ -203,7 +203,7 @@ function ThemeMockup({
     <div className="rounded-xl overflow-hidden border border-border">
       {/* Scaled mockup — same 4:3 aspect, elements ~4x the ThemeSelector sizes */}
       <div
-        className="aspect-4/3 relative"
+        className="aspect-[4/3] relative"
         style={{ backgroundColor: hsl(tokens.background) }}
       >
         {/* Background image layer */}

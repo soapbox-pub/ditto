@@ -131,7 +131,7 @@ function CardSlot({ index, event }: { index: number; event: NostrEvent | undefin
         'flex size-[30px] shrink-0 items-center justify-center rounded-[3px] border',
         filled
           ? 'border-cyan-300/30 bg-cyan-300/10'
-          : 'border-dashed border-white/10 bg-white/2',
+          : 'border-dashed border-white/10 bg-white/[0.02]',
       )}
     >
       {filled && <div className="size-1.5 rounded-full bg-cyan-300/50" />}
@@ -153,14 +153,14 @@ function MemoryCardTile({ card }: { card: CardSummary }) {
   return (
     <Link
       to={href}
-      className="group block rounded-2xl border border-border bg-card p-3 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+      className="group block rounded-2xl border border-border bg-card p-3 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {/* Plastic memory-card body */}
-      <div className="overflow-hidden rounded-xl border border-slate-700/60 bg-linear-to-b from-slate-800 to-slate-950 shadow-inner">
+      <div className="overflow-hidden rounded-xl border border-slate-700/60 bg-gradient-to-b from-slate-800 to-slate-950 shadow-inner">
         {/* Gold connector strip */}
         <div className="flex h-2.5 items-stretch gap-[3px] bg-slate-900/80 px-3 py-[3px]">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="flex-1 rounded-[1px] bg-linear-to-b from-amber-300/80 to-amber-500/60" />
+            <div key={i} className="flex-1 rounded-[1px] bg-gradient-to-b from-amber-300/80 to-amber-500/60" />
           ))}
         </div>
 
@@ -498,7 +498,7 @@ function BlockSlot({ index, event, onCopy, onDownload }: BlockSlotProps) {
       <div className="flex gap-2.5">
         <MemoryCardIcon frames={visual.frames} size={48} />
         <div className="min-w-0 flex-1 pr-4">
-          <p className="line-clamp-3 wrap-break-word text-sm font-semibold leading-tight">{title}</p>
+          <p className="line-clamp-3 break-words text-sm font-semibold leading-tight">{title}</p>
           {filename && <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{filename}</p>}
           {region && (
             <span className="mt-1.5 inline-block rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
@@ -576,7 +576,7 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
   return (
     <div className="space-y-5">
       {/* Banner */}
-      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-linear-to-b from-secondary/40 to-card p-4">
+      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-gradient-to-b from-secondary/40 to-card p-4">
         <div className="flex h-16 w-24 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-[10px] font-bold tracking-wide text-muted-foreground">
           {used}/15
         </div>

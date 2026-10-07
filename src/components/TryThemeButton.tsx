@@ -26,7 +26,7 @@ export function TryThemeButton({ onClick, style, className }: TryThemeButtonProp
         'inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-sm font-semibold shadow-md ring-1 ring-black/10',
         'bg-primary text-primary-foreground',
         'transition-transform motion-safe:hover:scale-105 motion-safe:active:scale-95',
-        'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         className,
       )}
     >

@@ -16,21 +16,21 @@ export const ROOM_BOTTOM_BAR_CLASS =
  * the HUD and dock grow with the room from a small phone up to the feed
  * column, and every control inside is sized in `em` from this.
  */
-export const ROOM_UI_SCALE = 'text-[clamp(15px,4.2cqw,20px)]';
+export const ROOM_UI_SCALE = '[font-size:clamp(15px,4.2cqw,20px)]';
 
 /**
  * Base size for the bottom dock: smaller than the rest of the room's
  * controls on phones, leaving more of the screen to the room, and the same
  * at the feed column's width.
  */
-export const ROOM_DOCK_SCALE = 'text-[clamp(13px,3.4cqw,20px)]';
+export const ROOM_DOCK_SCALE = '[font-size:clamp(13px,3.4cqw,20px)]';
 
 /** Round icon buttons in the room HUD corners. */
 export const HUD_BUTTON_CLASS = [
   'size-[2.75em] rounded-full flex items-center justify-center [&_svg]:size-[1.2em]',
   'border border-border/50 bg-background/85 backdrop-blur-md shadow-md text-foreground/80',
   'transition-colors hover:text-foreground hover:bg-background active:scale-95 motion-reduce:active:scale-100',
-  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
 ].join(' ');
 
 /** Fixed-width side slot in a bottom bar, so the center carousel stays centered. */
@@ -40,7 +40,7 @@ export const ROOM_ACTION_SLOT = 'w-[4.75em] shrink-0';
  * Floating control surface — provides readable contrast over custom room backgrounds.
  * Uses theme-relative tokens (works in light + dark mode).
  */
-export const ROOM_CONTROL_SURFACE = 'bg-background/60 backdrop-blur-xs border border-border/20 shadow-xs';
+export const ROOM_CONTROL_SURFACE = 'bg-background/60 backdrop-blur-sm border border-border/20 shadow-sm';
 
 /**
  * Minimal backing for small inline elements (arrows, labels).

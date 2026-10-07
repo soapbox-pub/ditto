@@ -118,7 +118,7 @@ function AudioThumb({ pubkey }: { pubkey: string }) {
   const name = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-linear-to-br from-primary/20 via-background/40 to-primary/5">
+    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/20 via-background/40 to-primary/5">
       {/* Idle sine-wave rings */}
       <div className="absolute inset-0 flex items-center justify-center opacity-20">
         <div className="size-24 rounded-full border border-primary animate-ping" style={{ animationDuration: '3s' }} />
@@ -155,7 +155,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
   return (
     <button
       ref={inViewRef}
-      className="relative overflow-hidden rounded-lg bg-muted group focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary w-full h-full"
+      className="relative overflow-hidden rounded-lg bg-muted group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary w-full h-full"
       onClick={showBlur ? (e) => { e.stopPropagation(); setCwRevealed(true); } : onClick}
       aria-label={showBlur ? 'Reveal sensitive content' : 'View media'}
     >

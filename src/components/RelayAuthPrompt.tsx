@@ -105,7 +105,7 @@ export function RelayAuthCard({ url, waiting = 0, variant = 'floating', onAnswer
       aria-describedby={descriptionId}
       className={cn(
         variant === 'floating'
-          ? 'fixed inset-x-0 bottom-0 z-100 rounded-t-2xl border-t bg-card p-4 pb-[calc(1rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] shadow-lg motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 sidebar:inset-x-auto sidebar:bottom-6 sidebar:right-6 sidebar:w-96 sidebar:rounded-xl sidebar:border sidebar:pb-4'
+          ? 'fixed inset-x-0 bottom-0 z-[100] rounded-t-2xl border-t bg-card p-4 pb-[calc(1rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] shadow-lg motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 sidebar:inset-x-auto sidebar:bottom-6 sidebar:right-6 sidebar:w-96 sidebar:rounded-xl sidebar:border sidebar:pb-4'
           : 'mx-auto w-full max-w-sm p-4 motion-safe:animate-in motion-safe:fade-in',
       )}
     >

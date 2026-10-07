@@ -124,7 +124,7 @@ export function BlobbiPhotoModal({
     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center">
       {/* Backdrop — tap to close */}
       <div
-        className="absolute inset-0 bg-background/60 backdrop-blur-xs"
+        className="absolute inset-0 bg-background/60 backdrop-blur-sm"
         onClick={() => !isProcessing && onOpenChange(false)}
       />
 

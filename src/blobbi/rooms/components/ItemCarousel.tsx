@@ -48,7 +48,7 @@ const ARROW_CLASS = cn(
   ROOM_CONTROL_SURFACE,
   'text-foreground/70 hover:text-foreground hover:bg-background/80',
   'transition-all duration-200 active:scale-90 motion-reduce:active:scale-100',
-  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
 );
 
 const PREVIEW_CLASS = 'hidden sm:flex items-center justify-center size-[2.6em] shrink-0 rounded-full select-none opacity-60 hover:opacity-90 transition-opacity duration-200';
@@ -142,7 +142,7 @@ export function ItemCarousel({
           'relative flex flex-col items-center justify-center shrink-0 overflow-hidden',
           'w-[5.25em] h-[4.75em] rounded-[1em]',
           'hover:bg-foreground/5 transition-all duration-200 active:scale-95 motion-reduce:active:scale-100',
-          'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           disabled && !isThisActive && 'opacity-50 pointer-events-none',
           highlightId === current.id && ROOM_GUIDE_HIGHLIGHT,
           draggable && 'touch-none cursor-grab',
