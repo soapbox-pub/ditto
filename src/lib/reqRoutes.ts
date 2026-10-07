@@ -1,8 +1,9 @@
-import type { NostrFilter } from '@nostrify/nostrify';
+import { NKinds, type NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { GIT_ACTIVITY_KINDS } from '@/lib/gitActivity';
 import { NSITE_KINDS } from '@/lib/nsiteSubdomain';
+import { relayMatchKey } from '@/lib/relayPolicy';
 
 const ZAPSTORE_KINDS = [32267, 30063, 3063];
 const DEV_KINDS = [...ZAPSTORE_KINDS, ...GIT_ACTIVITY_KINDS, 30817, ...NSITE_KINDS, 31990];
@@ -45,4 +46,36 @@ export function routeReadRelays(filters: NostrFilter[], readRelays: string[]): s
 
   // Route to all read relays
   return readRelays;
+}
+
+/**
+ * Add the account's own write relays to `urls` when `filters` ask for its
+ * replaceable or addressable events, which live there rather than on its
+ * read (inbox) relays.
+ */
+export function withOwnWriteRelays(
+  filters: NostrFilter[],
+  urls: string[],
+  pubkey: string | undefined,
+  writeRelays: string[],
+): string[] {
+  if (!pubkey || writeRelays.length === 0 || urls.length === 0) return urls;
+  if (filters.some((f) => 'search' in f)) return urls;
+
+  const asksForOwnList = filters.some((f) =>
+    f.authors?.includes(pubkey) &&
+    !!f.kinds?.length &&
+    f.kinds.every((k) => NKinds.replaceable(k) || NKinds.addressable(k)),
+  );
+  if (!asksForOwnList) return urls;
+
+  const seen = new Set(urls.map((url) => relayMatchKey(url) ?? url));
+  const result = [...urls];
+  for (const url of writeRelays) {
+    const key = relayMatchKey(url);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(url);
+  }
+  return result;
 }

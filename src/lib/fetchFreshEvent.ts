@@ -1,6 +1,16 @@
-import type { NostrEvent, NostrFilter, NPool } from '@nostrify/nostrify';
+import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import type { NIndexedDB } from '@nostrify/indexeddb';
+
+import type { AppPoolQueryOpts } from '@/lib/AppPool';
+
+/** The app's `nostr` object (an `AppPool` behind the `NPool` type). */
+interface FreshEventSource {
+  query(filters: NostrFilter[], opts?: AppPoolQueryOpts): Promise<NostrEvent[]>;
+}
+
+/** How long to wait for other relays after the first EOSE. */
+const FRESH_EOSE_TIMEOUT_MS = 2_000;
 
 interface FetchFreshEventOptions {
   /**
@@ -47,7 +57,7 @@ interface FetchFreshEventOptions {
  * ```
  */
 export async function fetchFreshEvent(
-  nostr: NPool,
+  nostr: FreshEventSource,
   filter: NostrFilter,
   opts: FetchFreshEventOptions = {},
 ): Promise<NostrEvent | null> {
@@ -56,9 +66,10 @@ export async function fetchFreshEvent(
   const timeout = AbortSignal.timeout(10_000);
   const querySignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
 
+  // Don't let a fast relay with an old copy win the race.
   const events = await nostr.query(
     [{ ...filter, limit: 1 }],
-    { signal: querySignal },
+    { signal: querySignal, eoseTimeout: FRESH_EOSE_TIMEOUT_MS },
   );
 
   // Pick the most recent event in case multiple relays return different versions.

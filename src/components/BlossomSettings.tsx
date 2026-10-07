@@ -5,22 +5,28 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { useNostr } from '@nostrify/react';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { useToast } from '@/hooks/useToast';
-import { APP_BLOSSOM_SERVERS } from '@/lib/appBlossom';
+import { APP_BLOSSOM_SERVERS, parseBlossomServerList } from '@/lib/appBlossom';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { cn } from '@/lib/utils';
 
 export function BlossomSettings() {
   const intl = useIntl();
   const { config, updateConfig } = useAppContext();
   const { user } = useCurrentUser();
-  const { mutate: publishEvent } = useNostrPublish();
+  const { nostr } = useNostr();
+  const { store } = useNostrStorage();
+  const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
 
   const [servers, setServers] = useState<string[]>(config.blossomServerMetadata.servers);
   const [newServerUrl, setNewServerUrl] = useState('');
+  const [saving, setSaving] = useState(false);
 
   // Sync local state with config when it changes (e.g., from NostrSync)
   useEffect(() => {
@@ -77,7 +83,7 @@ export function BlossomSettings() {
 
     const normalized = normalizeServerUrl(newServerUrl);
 
-    if (servers.some((s) => s === normalized)) {
+    if (servers.some((s) => sameServer(s, normalized))) {
       toast({
         title: intl.formatMessage({ id: 'settings.network.serverAlreadyAdded', defaultMessage: "Server already added" }),
         variant: 'destructive',
@@ -85,61 +91,65 @@ export function BlossomSettings() {
       return;
     }
 
-    const newServers = [...servers, normalized];
-    setServers(newServers);
     setNewServerUrl('');
-    saveServers(newServers);
+    saveServers((current) =>
+      current.some((s) => sameServer(s, normalized)) ? current : [...current, normalized],
+    );
   };
 
   const handleRemoveServer = (url: string) => {
-    const newServers = servers.filter((s) => s !== url);
-    setServers(newServers);
-    saveServers(newServers);
+    saveServers((current) => current.filter((s) => !sameServer(s, url)));
   };
 
-  const saveServers = (newServers: string[]) => {
-    const now = Math.floor(Date.now() / 1000);
+  /** Whether two server URLs name the same server. */
+  const sameServer = (a: string, b: string): boolean =>
+    normalizeServerUrl(a) === normalizeServerUrl(b);
 
+  /** Apply `change` to the newest kind 10063 on the relays (or the local list when logged out) and save it. */
+  const saveServers = async (change: (current: string[]) => string[]) => {
+    if (!user) {
+      writeLocal(change(servers), Math.floor(Date.now() / 1000));
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const prev = await fetchFreshEvent(nostr, { kinds: [10063], authors: [user.pubkey] }, { store });
+      const newServers = change(prev ? parseBlossomServerList(prev) : servers);
+
+      const event = await publishEvent({
+        kind: 10063,
+        content: prev?.content ?? '',
+        tags: newServers.map((url) => ['server', url]),
+        prev: prev ?? undefined,
+      });
+      writeLocal(newServers, event.created_at);
+
+      toast({
+        title: intl.formatMessage({ id: 'settings.network.blossomListPublished', defaultMessage: "Blossom server list published" }),
+        description: intl.formatMessage({ id: 'settings.network.blossomListPublishedDescription', defaultMessage: "Your Blossom server list has been published to Nostr." }),
+      });
+    } catch (error) {
+      console.error('Failed to publish Blossom server list:', error);
+      toast({
+        title: intl.formatMessage({ id: 'settings.network.blossomListPublishFailed', defaultMessage: "Failed to publish Blossom server list" }),
+        description: intl.formatMessage({ id: 'settings.network.blossomListPublishFailedDescription', defaultMessage: "There was an error publishing your server list to Nostr." }),
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const writeLocal = (newServers: string[], updatedAt: number) => {
+    setServers(newServers);
     updateConfig((current) => ({
       ...current,
       blossomServerMetadata: {
         servers: newServers,
-        updatedAt: now,
+        updatedAt,
       },
     }));
-
-    // Publish kind 10063 to Nostr if user is logged in
-    if (user) {
-      publishKind10063(newServers);
-    }
-  };
-
-  const publishKind10063 = (serverList: string[]) => {
-    const tags = serverList.map((url) => ['server', url]);
-
-    publishEvent(
-      {
-        kind: 10063,
-        content: '',
-        tags,
-      },
-      {
-        onSuccess: () => {
-          toast({
-            title: intl.formatMessage({ id: 'settings.network.blossomListPublished', defaultMessage: "Blossom server list published" }),
-            description: intl.formatMessage({ id: 'settings.network.blossomListPublishedDescription', defaultMessage: "Your Blossom server list has been published to Nostr." }),
-          });
-        },
-        onError: (error) => {
-          console.error('Failed to publish Blossom server list:', error);
-          toast({
-            title: intl.formatMessage({ id: 'settings.network.blossomListPublishFailed', defaultMessage: "Failed to publish Blossom server list" }),
-            description: intl.formatMessage({ id: 'settings.network.blossomListPublishFailedDescription', defaultMessage: "There was an error publishing your server list to Nostr." }),
-            variant: 'destructive',
-          });
-        },
-      },
-    );
   };
 
   const renderServerUrl = (url: string): string => {
@@ -228,6 +238,7 @@ export function BlossomSettings() {
                     variant="ghost"
                     size="icon"
                     onClick={() => handleRemoveServer(server)}
+                    disabled={saving}
                     className="size-7 text-muted-foreground hover:text-destructive hover:bg-transparent shrink-0"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -250,7 +261,7 @@ export function BlossomSettings() {
                 value={newServerUrl}
                 onChange={(e) => setNewServerUrl(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleAddServer();
+                  if (e.key === 'Enter' && !saving) handleAddServer();
                 }}
                 placeholder="https://blossom.example.com/"
                 className="h-9 text-base md:text-sm font-mono"
@@ -258,7 +269,7 @@ export function BlossomSettings() {
             </div>
             <Button
               onClick={handleAddServer}
-              disabled={!newServerUrl.trim()}
+              disabled={!newServerUrl.trim() || saving}
               variant="outline"
               size="sm"
               className="h-9 shrink-0 text-xs"

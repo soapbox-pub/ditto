@@ -5,9 +5,9 @@ import { NUser, useNostrLogin } from '@nostrify/react/login';
 import type { NostrSigner } from '@nostrify/types';
 import { useAppContext } from '@/hooks/useAppContext';
 import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
-import { getEffectiveRelays, getPublishRelays, DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
-import { getReadRelayUrls, recordRelayFailure, recordRelayOpen } from '@/lib/relayHealth';
-import { routeReadRelays } from '@/lib/reqRoutes';
+import { getEffectiveRelays, getOwnWriteRelays, getPublishRelays, DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
+import { getReadRelayUrls, recordRelayFailure, recordRelayOpen, relaySkippedUntil } from '@/lib/relayHealth';
+import { routeReadRelays, withOwnWriteRelays } from '@/lib/reqRoutes';
 import { AppPool } from '@/lib/AppPool';
 import { EventVerifier } from '@/lib/EventVerifier';
 import {
@@ -133,6 +133,8 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // open a connection. A switch also drops the previous account's
   // session-only AUTH answers and pending prompts.
   const activePubkey = currentLogin?.pubkey;
+  const activePubkeyRef = useRef(activePubkey);
+  activePubkeyRef.current = activePubkey;
   if (!pool.current) loadBlockedRelays(activePubkey);
   const loadedPubkeyRef = useRef(activePubkey);
   useLayoutEffect(() => {
@@ -265,7 +267,15 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
       },
       reqRouter(filters: NostrFilter[]): Map<URL['href'], NostrFilter[]> {
         const readRelays = getReadRelayUrls(effectiveRelays.current);
-        const urls = withoutBlockedRelays(routeReadRelays(filters, readRelays));
+        // The logged-in account's own lists are read from its write relays
+        // too, skipping ones that keep failing as reads do.
+        const pubkey = activePubkeyRef.current;
+        const writeRelays = pubkey
+          ? getOwnWriteRelays(configRef.current.relayMetadata, pubkey).filter((url) => !relaySkippedUntil(url))
+          : [];
+        const urls = withoutBlockedRelays(
+          withOwnWriteRelays(filters, routeReadRelays(filters, readRelays), pubkey, writeRelays),
+        );
         return new Map(urls.map((url) => [url, filters]));
       },
       eventRouter(event: NostrEvent) {

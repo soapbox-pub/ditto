@@ -410,6 +410,13 @@ function isDTagFilter(filter: NostrFilter): boolean {
   );
 }
 
+/** Options for {@link AppPool.query}. */
+export interface AppPoolQueryOpts {
+  signal?: AbortSignal;
+  /** ms to wait for other relays after the first EOSE. Skips request batching. */
+  eoseTimeout?: number;
+}
+
 /**
  * Ditto's custom wrapper around Nostrify's {@link NPool}.
  *
@@ -575,7 +582,7 @@ export class AppPool {
    */
   async query(
     filters: NostrFilter[],
-    opts?: { signal?: AbortSignal },
+    opts?: AppPoolQueryOpts,
   ): Promise<NostrEvent[]> {
     const events = await this.queryInner(filters, opts);
     this.cacheEvents(events);
@@ -588,8 +595,12 @@ export class AppPool {
    */
   private async queryInner(
     filters: NostrFilter[],
-    opts?: { signal?: AbortSignal },
+    opts?: AppPoolQueryOpts,
   ): Promise<NostrEvent[]> {
+    if (opts?.eoseTimeout !== undefined) {
+      return this.collect(filters, { signal: opts.signal, eoseTimeout: opts.eoseTimeout });
+    }
+
     // Only batch single-filter queries with recognized patterns.
     if (filters.length === 1) {
       const filter = filters[0];
@@ -694,6 +705,23 @@ export class AppPool {
 
     // Not batchable — pass through directly.
     return this.pool.query(filters, opts);
+  }
+
+  /** Query with a custom EOSE grace. Returns partial results on timeout. */
+  private async collect(
+    filters: NostrFilter[],
+    opts: { signal?: AbortSignal; eoseTimeout: number },
+  ): Promise<NostrEvent[]> {
+    const events = new Map<string, NostrEvent>();
+    try {
+      for await (const msg of this.pool.req(filters, opts)) {
+        if (msg[0] !== 'EVENT') break; // every relay sent EOSE or CLOSED
+        events.set(msg[2].id, msg[2]);
+      }
+    } catch {
+      // Aborted or failed; keep what arrived.
+    }
+    return [...events.values()];
   }
 
   // --- Pass-through methods ---
