@@ -5,9 +5,9 @@ import { NUser, useNostrLogin } from '@nostrify/react/login';
 import type { NostrSigner } from '@nostrify/types';
 import { useAppContext } from '@/hooks/useAppContext';
 import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
-import { getEffectiveRelays, getOwnWriteRelays, getPublishRelays, DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
-import { getReadRelayUrls, recordRelayFailure, recordRelayOpen, relaySkippedUntil } from '@/lib/relayHealth';
-import { routeReadRelays, withOwnWriteRelays } from '@/lib/reqRoutes';
+import { getEffectiveRelays, getPublishRelays, DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
+import { recordRelayFailure, recordRelayOpen } from '@/lib/relayHealth';
+import { routeRequest } from '@/lib/reqRoutes';
 import { AppPool } from '@/lib/AppPool';
 import { EventVerifier } from '@/lib/EventVerifier';
 import {
@@ -153,8 +153,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Blocking a remote signer's relay would silently break signing.
   setUnblockableRelays(bunkerRelaysRef.current);
 
-  // Update effective relays ref when config changes. The NPool reads from
-  // this ref, so new queries automatically use the updated relay set.
+  // Update effective relays ref (read by the AUTH policy) when config changes.
   //
   // We intentionally do NOT invalidate existing queries here. When relays
   // are added (e.g. NIP-65 sync merging user relays with app defaults),
@@ -266,16 +265,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         return relay;
       },
       reqRouter(filters: NostrFilter[]): Map<URL['href'], NostrFilter[]> {
-        const readRelays = getReadRelayUrls(effectiveRelays.current);
-        // The logged-in account's own lists are read from its write relays
-        // too, skipping ones that keep failing as reads do.
-        const pubkey = activePubkeyRef.current;
-        const writeRelays = pubkey
-          ? getOwnWriteRelays(configRef.current.relayMetadata, pubkey).filter((url) => !relaySkippedUntil(url))
-          : [];
-        const urls = withoutBlockedRelays(
-          withOwnWriteRelays(filters, routeReadRelays(filters, readRelays), pubkey, writeRelays),
-        );
+        const urls = routeRequest(filters, configRef.current, activePubkeyRef.current);
         return new Map(urls.map((url) => [url, filters]));
       },
       eventRouter(event: NostrEvent) {

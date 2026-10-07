@@ -110,6 +110,15 @@ export function getOwnWriteRelays(userRelays: RelayMetadata, pubkey: string): st
 }
 
 /**
+ * The read (inbox) relays of `pubkey`'s own NIP-65 list, whatever
+ * `useUserRelays` says. Empty when the stored list isn't known to be its own.
+ */
+export function getOwnReadRelays(userRelays: RelayMetadata, pubkey: string): string[] {
+  if (userRelays.pubkey !== pubkey) return [];
+  return userRelays.relays.filter((relay) => relay.read).map((relay) => relay.url);
+}
+
+/**
  * The relay list to store for an account after fetching its NIP-65 event,
  * or undefined to keep the stored one.
  *

@@ -35,6 +35,9 @@ export const NOTIFICATION_TYPES: readonly NotificationType[] = [
   { pref: 'quizzes', kinds: [7849] },
 ];
 
+/** How long notification reads wait for other relays after the first EOSE. */
+export const NOTIFICATION_EOSE_GRACE_MS = 2_000;
+
 /** All kinds that can appear as notifications. */
 export const ALL_NOTIFICATION_KINDS: readonly number[] = NOTIFICATION_TYPES.flatMap((type) => type.kinds);
 

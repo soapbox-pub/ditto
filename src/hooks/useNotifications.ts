@@ -1,15 +1,18 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import type { NostrEvent } from '@nostrify/nostrify';
+import { useInfiniteQuery, useQueryClient, type InfiniteData, type QueryKey } from '@tanstack/react-query';
+import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
+import { useAppContext } from './useAppContext';
 import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
 import { useFollowList } from './useFollowActions';
 import { useZapReceiptCheck } from './useZapReceiptCheck';
+import { fetchFeedPage, type FeedCursor } from '@/lib/feedPager';
 import { LETTER_KIND } from '@/lib/letterTypes';
-import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
+import { getEnabledNotificationKinds, NOTIFICATION_EOSE_GRACE_MS } from '@/lib/notificationKinds';
 import { getReferencedEventId } from '@/lib/notificationTarget';
+import { routeRequest } from '@/lib/reqRoutes';
 
 const PAGE_SIZE = 20;
 
@@ -62,8 +65,8 @@ export interface GroupedNotificationItem {
 
 interface NotificationPage {
   items: NotificationItem[];
-  /** Oldest event timestamp in this page, used for cursor-based pagination. */
-  oldestTimestamp: number;
+  /** Per-relay pagination state for the next page; undefined at the end. */
+  nextCursor?: FeedCursor;
   /**
    * Newest raw event timestamp in this page, BEFORE client-side filtering
    * (e.g. dropping reactions on posts the user didn't author). The unread-dot
@@ -203,6 +206,7 @@ export function useNotifications(): NotificationData {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { settings, updateSettings } = useEncryptedSettings();
   const { data: followData } = useFollowList();
 
@@ -224,39 +228,30 @@ export function useNotifications(): NotificationData {
     : undefined;
   const authorsKey = authorsFilter ? authorsFilter.slice().sort().join(',') : 'all';
 
-  const infiniteQuery = useInfiniteQuery<NotificationPage, Error>({
+  const infiniteQuery = useInfiniteQuery<NotificationPage, Error, InfiniteData<NotificationPage>, QueryKey, FeedCursor | undefined>({
     queryKey: ['notifications', user?.pubkey ?? '', kindsKey, authorsKey],
     queryFn: async ({ pageParam, signal }) => {
-      if (!user) return { items: [], oldestTimestamp: Math.floor(Date.now() / 1000), newestRawTimestamp: 0 };
+      if (!user) return { items: [], newestRawTimestamp: 0 };
 
-      const filter: Record<string, unknown> = {
+      const filter: NostrFilter = {
         kinds: enabledKinds,
         '#p': [user.pubkey],
         limit: PAGE_SIZE,
+        ...(authorsFilter ? { authors: authorsFilter } : {}),
       };
-      if (authorsFilter) {
-        filter.authors = authorsFilter;
-      }
-      if (pageParam) {
-        filter.until = pageParam;
-      }
 
-      const events = await nostr.query(
-        [filter as { kinds: number[]; '#p': string[]; limit: number; authors?: string[]; until?: number }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
-      );
+      // Per-relay cursors, so a late relay isn't skipped past.
+      const page = await fetchFeedPage({
+        relays: routeRequest([filter], config, user.pubkey),
+        relay: (url) => nostr.relay(url),
+        filter,
+        cursor: pageParam,
+        grace: NOTIFICATION_EOSE_GRACE_MS,
+        signal,
+      });
 
-      const rawEvents = Array.isArray(events) ? events : [];
-
-      // Filter out own events and sort
-      const filtered = rawEvents
-        .filter((e) => e.pubkey !== user.pubkey)
-        .sort((a, b) => b.created_at - a.created_at);
-
-      // Track oldest timestamp from the raw query for pagination
-      const oldestTimestamp = filtered.length > 0
-        ? Math.min(...filtered.map((e) => e.created_at))
-        : Math.floor(Date.now() / 1000);
+      // Filter out own events (already newest first)
+      const filtered = page.events.filter((e) => e.pubkey !== user.pubkey);
 
       // Track the newest raw timestamp (pre client-side filtering) so
       // markAsRead can advance the cursor past events that the unread-dot
@@ -338,13 +333,13 @@ export function useNotifications(): NotificationData {
         return [{ event: ev, referencedEvent }];
       });
 
-      return { items, oldestTimestamp, newestRawTimestamp };
+      return { items, newestRawTimestamp, nextCursor: page.cursor };
     },
+    // An empty page doesn't end the list; an exhausted cursor does.
     getNextPageParam: (lastPage) => {
-      if (!lastPage || lastPage.items.length === 0) return undefined;
-      return lastPage.oldestTimestamp - 1;
+      return lastPage?.nextCursor;
     },
-    initialPageParam: undefined as number | undefined,
+    initialPageParam: undefined,
     enabled: !!user,
     staleTime: 30_000,
     // No polling — real-time updates come from the always-mounted

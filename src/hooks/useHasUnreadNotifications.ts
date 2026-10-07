@@ -7,7 +7,8 @@ import { useEncryptedSettings } from './useEncryptedSettings';
 import { useFollowList } from './useFollowActions';
 import { useReplyFlood } from './useReplyFlood';
 import { useZapReceiptCheck } from './useZapReceiptCheck';
-import { getEnabledNotificationKinds } from '@/lib/notificationKinds';
+import type { AppPool } from '@/lib/AppPool';
+import { getEnabledNotificationKinds, NOTIFICATION_EOSE_GRACE_MS } from '@/lib/notificationKinds';
 
 /** Unread events to sample per check — enough to let flood detection see the crowd. */
 const UNREAD_BATCH = 10;
@@ -83,9 +84,11 @@ export function useHasUnreadNotifications(): boolean {
         ...(authorsFilter ? { authors: authorsFilter } : {}),
       };
 
-      const events = await nostr.query(
+      // Wait for slower inbox relays too.
+      const pool: Pick<AppPool, 'query'> = nostr;
+      const events = await pool.query(
         [filter],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]), eoseTimeout: NOTIFICATION_EOSE_GRACE_MS },
       );
 
       // Drop the user's own events, then fold out likely-spam floods so a wall

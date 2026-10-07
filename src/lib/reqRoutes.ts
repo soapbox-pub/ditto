@@ -1,9 +1,19 @@
 import { NKinds, type NostrFilter } from '@nostrify/nostrify';
-import { DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
+import type { AppConfig } from '@/contexts/AppContext';
+import {
+  DITTO_RELAYS,
+  DIVINE_RELAY,
+  NGIT_RELAY,
+  ZAPSTORE_RELAY,
+  getEffectiveRelays,
+  getOwnReadRelays,
+  getOwnWriteRelays,
+} from '@/lib/appRelays';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { GIT_ACTIVITY_KINDS } from '@/lib/gitActivity';
 import { NSITE_KINDS } from '@/lib/nsiteSubdomain';
-import { relayMatchKey } from '@/lib/relayPolicy';
+import { getReadRelayUrls, relaySkippedUntil } from '@/lib/relayHealth';
+import { relayMatchKey, withoutBlockedRelays } from '@/lib/relayPolicy';
 
 const ZAPSTORE_KINDS = [32267, 30063, 3063];
 const DEV_KINDS = [...ZAPSTORE_KINDS, ...GIT_ACTIVITY_KINDS, 30817, ...NSITE_KINDS, 31990];
@@ -59,23 +69,58 @@ export function withOwnWriteRelays(
   pubkey: string | undefined,
   writeRelays: string[],
 ): string[] {
-  if (!pubkey || writeRelays.length === 0 || urls.length === 0) return urls;
-  if (filters.some((f) => 'search' in f)) return urls;
+  if (!pubkey || filters.some((f) => 'search' in f)) return urls;
 
   const asksForOwnList = filters.some((f) =>
     f.authors?.includes(pubkey) &&
     !!f.kinds?.length &&
     f.kinds.every((k) => NKinds.replaceable(k) || NKinds.addressable(k)),
   );
-  if (!asksForOwnList) return urls;
+  return asksForOwnList ? addRelays(urls, writeRelays) : urls;
+}
 
+/** Add the account's own inbox relays to `urls` when `filters` tag it (`#p`). */
+export function withOwnInboxRelays(
+  filters: NostrFilter[],
+  urls: string[],
+  pubkey: string | undefined,
+  readRelays: string[],
+): string[] {
+  if (!pubkey || filters.some((f) => 'search' in f)) return urls;
+
+  const asksForOwnInbox = filters.some((f) => f['#p']?.includes(pubkey));
+  return asksForOwnInbox ? addRelays(urls, readRelays) : urls;
+}
+
+/** `urls` followed by each of `extra` not already in it. */
+function addRelays(urls: string[], extra: string[]): string[] {
   const seen = new Set(urls.map((url) => relayMatchKey(url) ?? url));
   const result = [...urls];
-  for (const url of writeRelays) {
+  for (const url of extra) {
     const key = relayMatchKey(url);
     if (!key || seen.has(key)) continue;
     seen.add(key);
     result.push(url);
   }
   return result;
+}
+
+/**
+ * The relays a REQ for `filters` goes to: the pool's routing, shared with
+ * code that sends per-relay REQs itself. Blocked relays are removed.
+ */
+export function routeRequest(
+  filters: NostrFilter[],
+  config: Pick<AppConfig, 'relayMetadata' | 'useAppRelays' | 'useUserRelays'>,
+  pubkey: string | undefined,
+): string[] {
+  const { relayMetadata, useAppRelays, useUserRelays } = config;
+  const readRelays = getReadRelayUrls(getEffectiveRelays(relayMetadata, useAppRelays, useUserRelays));
+  let urls = routeReadRelays(filters, readRelays);
+  if (pubkey) {
+    const answering = (url: string) => !relaySkippedUntil(url);
+    urls = withOwnWriteRelays(filters, urls, pubkey, getOwnWriteRelays(relayMetadata, pubkey).filter(answering));
+    urls = withOwnInboxRelays(filters, urls, pubkey, getOwnReadRelays(relayMetadata, pubkey).filter(answering));
+  }
+  return withoutBlockedRelays(urls);
 }
