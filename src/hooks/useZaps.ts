@@ -62,12 +62,15 @@ export function useZaps(
       // For native WebLN, we may need to enable it first
       let webLnProvider = webln;
       if (webln.enable && typeof webln.enable === 'function') {
-        const enabledProvider = await webln.enable();
-        // Some implementations return the provider, others return void
-        // Cast to WebLNProvider to handle both cases
-        const provider = enabledProvider as WebLNProvider | undefined;
-        if (provider) {
-          webLnProvider = provider;
+        const enabledProvider: unknown = await webln.enable();
+        // Some implementations return the provider, others return void or a
+        // status object like Alby's `{ enabled, remember }`. Only switch to the
+        // returned value if it can actually send payments.
+        if (
+          enabledProvider &&
+          typeof (enabledProvider as Partial<WebLNProvider>).sendPayment === 'function'
+        ) {
+          webLnProvider = enabledProvider as WebLNProvider;
         }
       }
 
