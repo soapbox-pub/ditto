@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.44.1] - 2026-10-07
+
+A tune-up for the little things. Notifications and your saved lists load more reliably from the places you've told Ditto to look, so nothing goes missing or gets overwritten by an old copy. Zapping with a browser wallet works again, every profile gets a drawn link preview card, and photos, videos, and live streams stay clear of the notch and home bar on phones.
+
+### Changed
+- Every profile's shared link gets a drawn preview card, on the default colors and a round picture when it has no theme or avatar shape
+
+### Fixed
+- Notifications load from your own inbox relays and wait for slow relays, so they no longer go missing
+- Your lists, bookmarks, and media server settings are read from your own relays and no longer get overwritten by stale copies
+- Zapping with a browser wallet extension no longer fails with "sendPayment is not a function"
+- Photo galleries and fullscreen live stream controls stay clear of the notch and home bar on phones
+
 ## [2.44.0] - 2026-10-06
 
 Home sweet 3D home. Blobbi rooms pop up as cozy 3D dioramas you can decorate piece by piece, snapping furniture to the floor and walls, switching on lamps, and dropping snacks and toys for your Blobbi to find. 3D objects show up right in your feed, and any of them can move into your room. Pin your favorite quick reactions, keep video controls in fullscreen, and share links that preview beautifully everywhere.
