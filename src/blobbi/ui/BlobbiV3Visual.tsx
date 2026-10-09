@@ -13,7 +13,7 @@
  * V1 Blobbis never come here: they keep the V1 pipeline (BlobbiStageVisual).
  */
 
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useId, useRef, useState, type RefObject } from 'react';
 import {
   BlobbiRenderer,
   type BlobbiEggCrack,
@@ -33,7 +33,12 @@ import type { BlobbiLookMode, BlobbiReactionState, ExternalEyeOffset } from './l
 export interface BlobbiV3VisualProps {
   /** The Blobbi's visual identity, from core's `getBlobbiVisualIdentity`. */
   visual: BlobbiVisualIdentity;
-  /** Namespaces the drawing's SVG ids; the Blobbi's `d`. */
+  /**
+   * Namespaces the drawing's SVG ids; the Blobbi's `d`. Every mounted
+   * instance adds its own suffix (React's `useId`), so the room stage and the
+   * floating companion drawing the same Blobbi, possibly facing different
+   * ways, never share a gradient, clip or filter id in one document.
+   */
   instanceId: string;
   isSleeping?: boolean;
   /** Pre-resolved visual recipe. Takes precedence over `emotion`. */
@@ -131,6 +136,8 @@ export function BlobbiV3Visual({
   className,
 }: BlobbiV3VisualProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mountId = useId();
+  const svgInstanceId = `${instanceId}-${mountId}`;
   const isEgg = visual.stage === 'egg';
   const eyeOffset = useV3Gaze(containerRef, lookMode, externalEyeOffset, externalEyeOffsetRef, isSleeping || isEgg);
   const expression = resolveV3Expression(recipe, emotion);
@@ -151,11 +158,12 @@ export function BlobbiV3Visual({
         className,
       )}
       data-blobbi-v3=""
+      data-blobbi-instance={svgInstanceId}
     >
       <BlobbiRenderer
         // Core's identity is shaped to be the renderer's visual, as the kit documents.
         visual={visual}
-        instanceId={instanceId}
+        instanceId={svgInstanceId}
         size="100%"
         isSleeping={isSleeping}
         facing={facing}

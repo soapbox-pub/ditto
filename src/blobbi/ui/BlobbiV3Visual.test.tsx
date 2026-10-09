@@ -40,11 +40,14 @@ function blobbi(stage: 'egg' | 'baby' | 'adult', generation: 'v1' | 'v2' | 'v3',
   return parseBlobbiEvent(event)!;
 }
 
-/** The kit's own component, unsanitized, for what Ditto must show. */
-function kitBody(companion: BlobbiCompanion, props: { expression?: BlobbiExpression; isSleeping?: boolean; eyeOffset?: { x: number; y: number }; motion?: 'idle' | 'walking' | 'still' } = {}): string {
-  const { container } = render(<BlobbiRenderer visual={getBlobbiVisualIdentity(companion)} instanceId={companion.d} size="100%" motion="idle" {...props} />);
+/** The kit's own component, unsanitized, for what Ditto must show, in the id namespace of the Ditto drawing it is compared with. */
+function kitBody(companion: BlobbiCompanion, props: { expression?: BlobbiExpression; isSleeping?: boolean; eyeOffset?: { x: number; y: number }; motion?: 'idle' | 'walking' | 'still' } = {}, instanceId = companion.d): string {
+  const { container } = render(<BlobbiRenderer visual={getBlobbiVisualIdentity(companion)} instanceId={instanceId} size="100%" motion="idle" {...props} />);
   return container.querySelector('[data-blobbi-renderer]')!.innerHTML;
 }
+
+/** The SVG id namespace Ditto gave a mounted drawing. */
+const instanceOf = (root: Element) => root.closest('[data-blobbi-instance]')!.getAttribute('data-blobbi-instance')!;
 
 describe('BlobbiStageVisual draws V3 through the kit', () => {
   for (const stage of ['egg', 'baby', 'adult'] as const) {
@@ -56,7 +59,7 @@ describe('BlobbiStageVisual draws V3 through the kit', () => {
       expect(root.getAttribute('data-blobbi-generation')).toBe('v3');
       expect(root.getAttribute('data-blobbi-stage')).toBe(stage);
       // Exactly the kit's markup: the sanitizer took nothing out, nothing was spliced in.
-      expect(root.innerHTML).toBe(kitBody(companion, stage === 'egg' ? { motion: 'idle' } : { eyeOffset: { x: 0, y: 0 }, expression: resolveV3Expression(undefined, 'neutral') }));
+      expect(root.innerHTML).toBe(kitBody(companion, stage === 'egg' ? { motion: 'idle' } : { eyeOffset: { x: 0, y: 0 }, expression: resolveV3Expression(undefined, 'neutral') }, instanceOf(root)));
       const svg = root.innerHTML;
       if (stage !== 'egg') {
         // Algorithm 1's own pattern and eye colour for this address: nothing stated, nothing else drawn.
@@ -76,8 +79,9 @@ describe('BlobbiStageVisual draws V3 through the kit', () => {
 
     const awake = blobbi('baby', 'v3');
     const sad = render(<BlobbiStageVisual companion={awake} emotion="sad" />);
-    expect(sad.container.querySelector('[data-blobbi-renderer]')!.innerHTML)
-      .toBe(kitBody(awake, { eyeOffset: { x: 0, y: 0 }, expression: { eyes: 'open', mouth: 'frown', brows: 'inner-up', blush: 'none' } }));
+    const sadRoot = sad.container.querySelector('[data-blobbi-renderer]')!;
+    expect(sadRoot.innerHTML)
+      .toBe(kitBody(awake, { eyeOffset: { x: 0, y: 0 }, expression: { eyes: 'open', mouth: 'frown', brows: 'inner-up', blush: 'none' } }, instanceOf(sadRoot)));
   });
 
   it('gaze is the kit\'s eye offset', () => {
@@ -110,6 +114,38 @@ describe('BlobbiStageVisual draws V3 through the kit', () => {
         expect(container.innerHTML, `${generation} ${stage}`).toContain('<svg');
       }
     }
+  });
+
+  it('two drawings of one Blobbi on a page (the room stage and the floating companion, facing different ways) share no SVG id, and each resolves its own references', () => {
+    const companion = blobbi('adult', 'v3');
+    const data: CompanionData = {
+      d: companion.d, name: companion.name, stage: 'adult', visualTraits: companion.visualTraits, energy: 100, stats: { hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100 },
+      state: 'active', seed: companion.seed, visualGeneration: companion.visualGeneration, v3Identity: companion.v3Identity,
+    };
+    const { container } = render(
+      <>
+        <BlobbiStageVisual companion={companion} animated />
+        <BlobbiStageVisual companion={companion} size="sm" />
+        <BlobbiCompanionVisual companion={data} size={120} eyeOffsetRef={{ current: { x: 0, y: 0 } }} direction="left" isDragging={false} isWalking />
+      </>,
+    );
+    const svgs = [...container.querySelectorAll('[data-blobbi-renderer] svg')];
+    expect(svgs.length).toBe(3);
+    // Every id in the document is unique.
+    const ids = [...container.querySelectorAll('[id]')].map((el) => el.id);
+    expect(ids.length).toBeGreaterThan(0);
+    expect(new Set(ids).size).toBe(ids.length);
+    // Every url(#…) and href="#…" reference inside a drawing names an id inside that same drawing.
+    for (const svg of svgs) {
+      const own = new Set([...svg.querySelectorAll('[id]')].map((el) => el.id));
+      const refs = [...svg.outerHTML.matchAll(/url\(#([^)]+)\)|href="#([^"]+)"/g)].map((m) => m[1] ?? m[2]);
+      expect(refs.length).toBeGreaterThan(0);
+      for (const ref of refs) expect(own.has(ref), ref).toBe(true);
+    }
+    // The three namespaces differ, and each still starts with the Blobbi's d.
+    const namespaces = [...container.querySelectorAll('[data-blobbi-instance]')].map((el) => el.getAttribute('data-blobbi-instance')!);
+    expect(new Set(namespaces).size).toBe(3);
+    for (const ns of namespaces) expect(ns.startsWith(companion.d)).toBe(true);
   });
 
   it('a link preview of a V3 Blobbi is the kit\'s drawing', () => {
