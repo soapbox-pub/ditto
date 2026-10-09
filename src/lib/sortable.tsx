@@ -214,6 +214,25 @@ function suppressNextClick(): void {
   }, 0);
 }
 
+/**
+ * Click `handle` for a tap whose native click was cancelled with its
+ * touchstart. A native click that arrives anyway (a browser that doesn't
+ * tie the two together) is swallowed so the tap activates exactly once.
+ */
+function replayClick(handle: HTMLElement): void {
+  let replaying = true;
+  const swallow = (e: MouseEvent) => {
+    if (replaying || !(e.target instanceof Node) || !handle.contains(e.target)) return;
+    e.stopPropagation();
+    e.preventDefault();
+    window.removeEventListener('click', swallow, { capture: true });
+  };
+  window.addEventListener('click', swallow, { capture: true });
+  setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 500);
+  handle.click();
+  replaying = false;
+}
+
 export function useSortable({ id, disabled }: UseSortableArguments): UseSortableReturn {
   const ctx = useContext(DndReactContext);
   const idRef = useRef(id);
@@ -248,8 +267,12 @@ export function useSortable({ id, disabled }: UseSortableArguments): UseSortable
     // events are unaffected by either preventDefault. The listeners only
     // live between pointerdown on a drag handle and release, so scrolling
     // elsewhere is unaffected.
+    const handle = event.currentTarget as HTMLElement;
+    let cancelledTouchStart = false;
     const preventTouchDefault = (e: TouchEvent) => {
-      if (e.cancelable) e.preventDefault();
+      if (!e.cancelable) return;
+      e.preventDefault();
+      if (e.type === 'touchstart') cancelledTouchStart = true;
     };
 
     const start = () => {
@@ -335,11 +358,15 @@ export function useSortable({ id, disabled }: UseSortableArguments): UseSortable
       }
     };
 
-    const onUp = () => {
+    const onUp = (e: globalThis.PointerEvent) => {
       cleanup();
       if (dragging) {
         suppressNextClick();
         finish();
+      } else if (cancelledTouchStart && e.target instanceof Node && handle.contains(e.target)) {
+        // A cancelled touchstart also cancels the tap's click, so a handle
+        // that is also a button would never activate on touch. Deliver it.
+        replayClick(handle);
       }
     };
 
