@@ -79,9 +79,11 @@ blobbiPurify.addHook('uponSanitizeAttribute', (node, data) => {
     return;
   }
 
-  // `filter` is allowed for the V3 soft shading (below) and, unlike href, is
-  // not a URI attribute DOMPurify vets itself. Only a reference to a <filter>
-  // in this same drawing means anything; any other value is dropped.
+  // The `filter` attribute is allowed for the V3 soft shading (below) and,
+  // unlike href, is not a URI attribute DOMPurify vets itself. Only a
+  // reference to a <filter> in this same drawing means anything; any other
+  // value of the attribute is dropped. (A `style` attribute is not vetted
+  // here, as before this allowance.)
   if (data.attrName === 'filter' && !FRAGMENT_URL_REF.test(data.attrValue.trim())) {
     data.keepAttr = false;
   }

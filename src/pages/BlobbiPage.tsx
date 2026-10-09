@@ -2022,7 +2022,7 @@ function BlobbiDashboard({
       // Food dropped on the Blobbi's mouth is eaten right away, as its eating face
       // promised; without the 3D room there's no floor, so anything is used that way
       const toMouth = !control || getActionForItem(payload.itemId) === 'feed';
-      if (toMouth && !droppedRef.current && isNearMouth(clientX, clientY)) {
+      if (toMouth && !droppedRef.current && isNearMouth(clientX, clientY, v3Mouth)) {
         consumeItem(payload.itemId);
         return;
       }

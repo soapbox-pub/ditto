@@ -5,7 +5,8 @@ import { deriveVisualTraits, type BlobbiCompanion } from '@blobbi-kit/core';
 import { V3_REFERENCE_BLOBBIS } from '@/blobbi/dev/v3-reference';
 import { getBlobbiMouthAnchor } from '@/blobbi/companion/utils/mouthAnchor';
 
-import { getV3MouthRatio } from './v3-mouth';
+import { getV3BodyBottomInset, getV3MouthRatio } from './v3-mouth';
+import { getBlobbiBodyBottomInset } from '@/blobbi/rooms/lib/room-layout-schema';
 
 type Stage = BlobbiCompanion['stage'];
 
@@ -47,6 +48,31 @@ describe('the V3 mouth: where food goes, from the kit', () => {
     const spawn = getBlobbiMouthAnchor('adult', undefined, getV3MouthRatio(adult));
     expect(spawn).toEqual({ xRatio: adults[0].x, yRatio: adults[0].y + 0.12 });
     expect(spawn).not.toEqual(getBlobbiMouthAnchor('adult'));
+  });
+
+  it('stands a V3 Blobbi on the kit\'s ground line, not on the V1 table\'s', () => {
+    for (const { name, identity } of V3_REFERENCE_BLOBBIS) {
+      for (const stage of ['egg', 'baby', 'adult'] as const) {
+        const inset = getV3BodyBottomInset(v3Companion(identity, stage))!;
+        const groundY = describeBlobbiArtwork({ stage, visualGeneration: 'v3', v3: v3Of(identity), facing: 'front' }).boxAnchors.groundY;
+        expect(inset, `${name} ${stage}`).toBeCloseTo((1 - groundY) * 100, 6);
+        expect(inset, `${name} ${stage}`).toBeGreaterThan(0);
+        expect(inset, `${name} ${stage}`).toBeLessThan(25);
+      }
+    }
+    // The V1 table says 0 for an egg and 18 for a V1 body: neither is where a V3 body's feet are.
+    const { identity } = V3_REFERENCE_BLOBBIS[0];
+    expect(getV3BodyBottomInset(v3Companion(identity, 'egg'))).not.toBe(getBlobbiBodyBottomInset('egg'));
+    expect(getV3BodyBottomInset(v3Companion(identity, 'adult'))).not.toBe(getBlobbiBodyBottomInset('adult', 'catti'));
+    expect(getV3BodyBottomInset({ stage: 'adult', visualTraits: deriveVisualTraits([], identity.seed), visualGeneration: 'v1', adultType: 'catti' })).toBeNull();
+    // A kit-drawn V2 adult stands on the kit body's ground line too; the V2 egg and baby, Ditto's, keep the table.
+    const v2 = (stage: Stage, adultType: 'catti' | 'mushie') => ({ stage, visualTraits: deriveVisualTraits([], identity.seed), visualGeneration: 'v2' as const, adultType });
+    const v2Inset = getV3BodyBottomInset(v2('adult', 'catti'))!;
+    expect(v2Inset).toBeCloseTo((1 - describeBlobbiArtwork({ stage: 'adult', visualGeneration: 'v2', adultType: 'catti', facing: 'front' }).boxAnchors.groundY) * 100, 6);
+    expect(getV3BodyBottomInset(v2('adult', 'mushie'))).toBe(v2Inset);
+    expect(v2Inset).not.toBe(getBlobbiBodyBottomInset('adult', 'catti'));
+    expect(getV3BodyBottomInset(v2('egg', 'catti'))).toBeNull();
+    expect(getV3BodyBottomInset(v2('baby', 'catti'))).toBeNull();
   });
 
   it('is null for an egg and for V1 and the V2 egg and baby, which keep Ditto\'s own anchors', () => {

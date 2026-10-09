@@ -18,6 +18,8 @@ function asDom(svg: string): string {
 }
 
 const STAGES = ['egg', 'baby', 'adult'] as const;
+/** The two exhaustive sweeps below render and sanitize a few hundred drawings each: well inside a second alone, but not the default 5 s on a loaded machine or runner. */
+const EXHAUSTIVE_TIMEOUT_MS = 60_000;
 const FACINGS: BlobbiFacing[] = ['front', 'right', 'left', 'back'];
 
 describe('sanitizeBlobbiSvg and the kit V3 drawings', () => {
@@ -30,7 +32,7 @@ describe('sanitizeBlobbiSvg and the kit V3 drawings', () => {
         }
       }
     }
-  });
+  }, EXHAUSTIVE_TIMEOUT_MS);
 
   it('keeps expressions, sleep and the rig motion stylesheet intact', () => {
     const expressions: BlobbiExpression[] = ['neutral', 'happy', 'excited', 'sad', 'sleepy', 'surprised', 'upset', { blend: { happy: 0.6, sad: 0.2 } }, { eyes: 'half', mouth: 'frown', brows: 'inner-up', blush: 'none' }];
@@ -46,7 +48,7 @@ describe('sanitizeBlobbiSvg and the kit V3 drawings', () => {
         }
       }
     }
-  });
+  }, EXHAUSTIVE_TIMEOUT_MS);
 
   it('the drawings use the blur filter it was widened for, and keep it', () => {
     const { identity } = V3_REFERENCE_BLOBBIS.find((b) => b.name === 'crowded-crown')!;

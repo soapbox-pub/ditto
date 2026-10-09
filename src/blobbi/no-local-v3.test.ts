@@ -29,8 +29,35 @@ const sources = walk(SRC)
 
 /** Blobbi code: the blobbi tree and the Blobbi pages, widgets and previews outside it. */
 const blobbiSources = sources.filter((s) => /^blobbi\/|Blobbi|npanel\/blobbi/.test(s.path));
-/** The kit's reference identities, copied as fixture data (names like 'tail' are case names). */
-const FIXTURE_DATA = 'blobbi/dev/v3-reference.ts';
+
+/**
+ * The tag names a V3 event never carries and Ditto never handles by hand (the
+ * kit reads, writes and drops them): the algorithm tag and the retired
+ * pre-release V3 trait tags.
+ */
+const V3_TAG_NAMES = ['visual_algorithm', 'accent_color', 'antenna', 'horns', 'ears', 'tail', 'belly', 'freckles'];
+const TAG_NAME = `['"](?:${V3_TAG_NAMES.join('|')})['"]`;
+/**
+ * Code that handles one of those names AS A TAG NAME: a tag array literal
+ * (`['antenna', 'double']`), a lookup by name (`getTagValue(tags, 'horns')`,
+ * `t[0] === 'tail'`), or an update through the kit's tag writers
+ * (`updateBlobbiTags(tags, { belly: 'true' })`). The same word as a message,
+ * a class name, a property of some other object, a case label or part of a
+ * longer name is not tag handling, and is not matched.
+ */
+const V3_TAG_HANDLING: readonly RegExp[] = [
+  // a tag array literal: ['antenna', 'double']
+  new RegExp(`\\[\\s*${TAG_NAME}\\s*,`),
+  // a lookup by name through any of Ditto's or the kit's tag readers: getTagValue(tags, 'horns'), tagValue(event, 'ears'), getTags(event, 'tail')
+  new RegExp(`\\b(?:getTag|getTags|getTagValue|getTagValues|tagValue|tagValues|findTag|hasTag)\\s*\\([^)]*${TAG_NAME}`),
+  // a tag-name comparison on a tag's first element, either way round, equal or not: t[0] === 'tail', 'belly' !== t[0]
+  new RegExp(`\\[0\\]\\s*[!=]==?\\s*${TAG_NAME}|${TAG_NAME}\\s*[!=]==?\\s*\\w+\\[0\\]`),
+  // the same comparison on a destructured tag: ([name]) => name === 'tail', ([n, v]) => n !== 'ears'
+  new RegExp(`\\(\\[\\s*(\\w+)[^\\]]*\\]\\)\\s*=>\\s*\\1\\s*[!=]==?\\s*${TAG_NAME}`),
+  // an update through the kit's tag writers: updateBlobbiTags(tags, { belly: 'true' })
+  new RegExp(`\\b(?:updateBlobbiTags|buildEggTags|syncMirrorTagsToSeed)\\s*\\([^;]*?\\{[^}]*\\b(?:${V3_TAG_NAMES.join('|')})\\s*:`),
+];
+const handlesV3IdentityTag = (code: string): boolean => V3_TAG_HANDLING.some((re) => re.test(code));
 
 const read = (path: string) => sources.find((s) => s.path === path)!.text;
 
@@ -53,11 +80,45 @@ describe('no local V3 implementation in Ditto', () => {
   });
 
   it('reads and writes no V3 identity tag by hand', () => {
-    const hits = sources
-      .filter((s) => s.path !== FIXTURE_DATA)
-      .filter((s) => /['"](visual_algorithm|accent_color|antenna|horns|ears|tail|belly|freckles)['"]/.test(s.text))
-      .map((s) => s.path);
+    const hits = sources.filter((s) => handlesV3IdentityTag(s.text)).map((s) => s.path);
     expect(hits).toEqual([]);
+  });
+
+  describe('the tag-handling detector', () => {
+    it.each([
+      "const tags = [['d', d], ['antenna', 'double']];",
+      '["visual_algorithm", "1"]',
+      "getTagValue(event.tags, 'horns')",
+      "getTag(event, \"ears\")",
+      "tagValue(event, 'horns')",
+      "getTags(event, 'ears')",
+      "event.tags.find((t) => t[0] === 'tail')",
+      "tags.filter((t) => 'belly' === t[0])",
+      "tags.filter((t) => t[0] !== 'freckles')",
+      "event.tags.find(([name]) => name === 'tail')",
+      "tags.filter(([n, v]) => n !== 'antenna' && v)",
+      "updateBlobbiTags(tags, { state: 'active', freckles: 'true' })",
+      "buildEggTags(pubkey, petId, now, name, { accent_color: '#fff' })",
+    ])('flags tag handling: %s', (code) => {
+      expect(handlesV3IdentityTag(code)).toBe(true);
+    });
+
+    it.each([
+      'const tail = queue.tail;',
+      "defaultMessage: 'Ears up!'",
+      '<FormattedMessage id="pet.tail" defaultMessage="tail" />',
+      'className="freckles-overlay"',
+      "const horns = ['top', 'side'];",
+      "['tails', 'x']",
+      "traits: { antenna: 'none', horns: 'side', ears: 'round', tail: 'curl', belly: true, freckles: false }",
+      "case 'antenna': return 1;",
+      "getTagValue(tags, 'name')",
+      "t[0] === 'seed'",
+      "updateBlobbiTags(tags, { stage: 'adult', state: 'active' })",
+      "const kind = cfg.visual_algorithm_label;",
+    ])('passes unrelated code: %s', (code) => {
+      expect(handlesV3IdentityTag(code)).toBe(false);
+    });
   });
 
   it('makes no V3 identity: creation is the kit\'s, in one place, and the identity is read through the renderer\'s API in one place', () => {

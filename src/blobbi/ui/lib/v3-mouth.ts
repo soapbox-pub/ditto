@@ -1,6 +1,7 @@
 /**
  * Where a kit-drawn Blobbi's mouth is, for placing things at it (food,
- * crumbs, a vomit drop). Fractions of the square the renderer draws in.
+ * crumbs, a vomit drop), and where its feet are, for standing it on a floor.
+ * Fractions of the square the renderer draws in.
  *
  * V3: the kit measures its own drawing. `describeBlobbiArtwork(...).boxAnchors.mouth`
  * is the centre of THIS individual's resting mouth; nothing here reads the SVG
@@ -33,6 +34,19 @@ const V2_ADULT_MOUTH: Record<'front' | 'left' | 'right', MouthRatio> = {
   right: { x: 0.72, y: 0.55 },
   left: { x: 0.28, y: 0.55 },
 };
+
+/**
+ * How much of the drawing's square is empty below a kit-drawn body (V3 at
+ * any stage, a V2 adult), as a percentage, for standing it on a floor: the
+ * kit's own ground line (`boxAnchors.groundY`). `null` for a Blobbi Ditto
+ * draws itself, which keeps Ditto's per-form table
+ * (rooms/lib/room-layout-schema.ts).
+ */
+export function getV3BodyBottomInset(blobbi: BlobbiVisualIdentitySource): number | null {
+  if (!isKitDrawn(blobbi)) return null;
+  const visual = getBlobbiVisualIdentity(blobbi);
+  return (1 - describeBlobbiArtwork({ stage: visual.stage, visualGeneration: visual.visualGeneration, adultType: visual.adultType, v3: visual.v3, facing: 'front' }).boxAnchors.groundY) * 100;
+}
 
 /**
  * The mouth of a kit-drawn Blobbi (V3 at any stage, a V2 adult), or `null`

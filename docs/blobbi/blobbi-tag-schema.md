@@ -34,10 +34,13 @@ Tags that define the Blobbi's unique identity. These MUST be preserved across al
 | Tag | Required | Stages | Persistent | Source | Format | Description |
 |-----|----------|--------|------------|--------|--------|-------------|
 | `name` | **Yes** | egg, baby, adult | Yes | user | string | Display name (set during adoption) |
-| `seed` | **Yes** | egg, baby, adult | Yes | system | 64 hex chars | Deterministic seed for visual traits |
+| `seed` | **Yes** (V1, V2) / **absent** (V3) | egg, baby, adult | Yes | system | 64 hex chars | Deterministic seed for visual traits. A V3 Blobbi has no seed tag: its seed is derived from the address. |
+| `visual_generation` | No (absent = `v1`) | egg, baby, adult | Yes | system | `v1` \| `v2` \| `v3` | Artwork generation; written at creation, preserved forever |
 | `generation` | No | egg, baby, adult | Yes | system | positive integer | Lineage generation (default: 1) |
 
-**Important**: The `seed` is derived once at creation using `sha256("blobbi:v1|{pubkey}:{d}:{createdAt}")` and MUST NEVER be recomputed.
+**Important**: For V1 and V2 the `seed` is derived once at creation using `sha256("blobbi:v1|{pubkey}:{d}:{createdAt}")` and MUST NEVER be recomputed.
+
+**V3**: a `visual_generation = v3` event carries **no** `seed` and none of the visual trait tags below. See "Visual generation and V3 identity" under section 3.
 
 ### 3. Visual Trait Tags
 
@@ -52,7 +55,21 @@ Tags derived deterministically from the seed. These are stored explicitly for fa
 | `special_mark` | No | egg, baby, adult | Yes | generated | `none\|star\|heart\|sparkle\|blush` | Special decoration |
 | `size` | No | egg, baby, adult | Yes | generated | `small\|medium\|large` | Size category |
 
-**Regenerable**: These tags CAN be regenerated from the seed if missing. However, they should be preserved when present.
+**Regenerable**: These tags CAN be regenerated from the seed if missing. However, they should be preserved when present. This applies to V1 and V2 only: a V3 event never carries them and they MUST NOT be added to one.
+
+#### Visual generation and V3 identity
+
+The `visual_generation` tag (`v1`, `v2`, `v3`; absent means `v1`) says which artwork system draws the Blobbi. It is written once at creation and MUST be preserved on every republish.
+
+For `visual_generation = v3` the identity model changes: **the Blobbi is its address.** `@blobbi-kit/core` derives the seed from the event's author pubkey and `d`, and the renderer's Algorithm 1 derives every intrinsic property (colours, anatomy, pattern, mark, proportions) from that seed. Because kind 31124 is addressable, a seed stated in a tag could be restated by any replacement event; deriving it from the address makes the identity unforgeable, and any client holding only the current event draws the same Blobbi.
+
+A canonical V3 event therefore:
+
+- carries `visual_generation = v3` and its `d`, and nothing else about its looks;
+- carries **no** `seed`, `base_color`, `secondary_color`, `eye_color`, `accent_color`, `pattern`, `special_mark`, `size`, `adult_type`, and none of the pre-release V3 trait tags (`antenna`, `horns`, `ears`, `tail`, `belly`, `freckles`);
+- MUST NOT have those tags added by repair or migration. Clients MUST ignore any of them found on a V3 event and SHOULD drop them on the next write (the kit's `updateBlobbiTags` does).
+
+Ditto creates every new Blobbi as V3 (`src/blobbi/onboarding/lib/blobbi-preview.ts`). V1 and V2 Blobbis keep their `seed` tag and seed-mirrored trait tags exactly as before, and the seed rules in section 2 continue to apply to them. The seed derivation, its test vectors and the full absent-tag list (`BLOBBI_V3_ABSENT_TAG_NAMES`) are specified in the `@blobbi-kit/core` README, section "V3 identity".
 
 ### 4. Personality / Trait Tags
 

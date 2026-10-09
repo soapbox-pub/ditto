@@ -204,11 +204,14 @@ export function BlobbiHatchingCeremony({
     if (!isExistingEgg || setupAttempted.current || !existingCompanion) return;
     setupAttempted.current = true;
 
-    // Build a minimal preview from the existing companion
+    // Build a minimal preview from the existing companion. It is only ever
+    // drawn (the egg is drawn as itself anyway) and hatched from the egg's own
+    // tags (eggTagsRef), never turned back into tags: but should that change,
+    // it names the existing address and birth time, not a new one.
     const fakePreview: BlobbiEggPreview = {
       d: existingCompanion.d,
-      petId: existingCompanion.d,
-      ownerPubkey: user?.pubkey ?? '',
+      petId: existingCompanion.d.slice(existingCompanion.d.lastIndexOf('-') + 1),
+      ownerPubkey: existingCompanion.event.pubkey,
       name: existingCompanion.name,
       stage: 'egg',
       state: 'active' as const,
@@ -221,7 +224,7 @@ export function BlobbiHatchingCeremony({
         hygiene: existingCompanion.stats.hygiene ?? STAT_MAX,
         energy: existingCompanion.stats.energy ?? STAT_MAX,
       },
-      createdAt: Math.floor(Date.now() / 1000),
+      createdAt: existingCompanion.event.created_at,
     };
     setPreview(fakePreview);
     previewRef.current = fakePreview;

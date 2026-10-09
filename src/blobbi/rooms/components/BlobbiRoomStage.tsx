@@ -21,6 +21,7 @@ import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BlobbiReactionState } from '@/blobbi/actions';
 import type { InteractionReactionState } from '@/blobbi/ui/hooks/useInteractionReaction';
 import { blobbiDisplayColors } from '@/blobbi/ui/lib/display-colors';
+import { getV3BodyBottomInset } from '@/blobbi/ui/lib/v3-mouth';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -59,8 +60,9 @@ const SCALE = `calc(var(--anchor-px, 100) * var(--blobbi-tiles, 2) / ${BLOBBI_BO
  * readable, floating above.
  */
 function Standing({ companion, nameTag, children }: { companion: BlobbiCompanion; nameTag?: React.ReactNode; children: React.ReactNode }) {
-  // How much of the art box is empty below the body
-  const inset = getBlobbiBodyBottomInset(companion.stage, companion.adultType ?? undefined);
+  // How much of the art box is empty below the body: for a kit-drawn Blobbi
+  // (V3; a V2 adult) the kit's own ground line; otherwise the per-form table.
+  const inset = getV3BodyBottomInset(companion) ?? getBlobbiBodyBottomInset(companion.stage, companion.adultType ?? undefined);
   return (
     <div className="absolute left-0 top-0 pointer-events-none">
       <div
