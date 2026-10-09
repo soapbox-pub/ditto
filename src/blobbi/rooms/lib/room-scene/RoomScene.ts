@@ -40,7 +40,7 @@ import {
   snapCenter,
 } from '../room-geometry';
 import type { BlobbiFacing } from '@blobbi-kit/renderer';
-import { facingBasis, facingForHeading, facingTarget } from '../room-facing';
+import { facingAlongPath, facingBasis } from '../room-facing';
 import type { ModelExtras } from './official-models';
 import { latheSegments } from './sno-builder';
 import { drawSurface, paperBump } from './paper-textures';
@@ -1308,8 +1308,10 @@ export class RoomScene {
   private stepActors(dt: number): boolean {
     let moving = false;
     for (const b of this.actors.values()) {
+      // Face where the walk is heading (a few waypoints ahead, so a staircase
+      // path around furniture reads as one direction), front with no path.
+      b.facing = facingAlongPath(b.x, b.z, b.path, b.facing, FACING_BASIS);
       if (!b.path.length) {
-        b.facing = 'front';
         // Settle any hop
         if (b.hop > 0) {
           b.hop = Math.max(0, b.hop - dt * 2.4);
@@ -1317,10 +1319,6 @@ export class RoomScene {
         }
         continue;
       }
-      // Face where the walk is heading (a few waypoints ahead, so a staircase
-      // path around furniture reads as one direction), front again on arrival.
-      const look = facingTarget(b.path)!;
-      b.facing = facingForHeading(look.x - b.x, look.z - b.z, FACING_BASIS, b.facing);
       let step = WALK_SPEED * dt;
       while (step > 0 && b.path.length) {
         const next = b.path[0];

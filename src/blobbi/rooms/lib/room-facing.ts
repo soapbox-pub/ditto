@@ -73,3 +73,20 @@ export const FACING_LOOKAHEAD = 3;
 export function facingTarget<P>(path: readonly P[]): P | undefined {
   return path[Math.min(path.length, FACING_LOOKAHEAD) - 1];
 }
+
+/**
+ * A walker's facing this frame: where its remaining path is heading (the
+ * lookahead), or front once there is nothing left to walk (arrived, idle, or
+ * taken straight there under reduced motion, which leaves no path at all).
+ */
+export function facingAlongPath(
+  x: number,
+  z: number,
+  path: readonly { x: number; z: number }[],
+  current: BlobbiFacing,
+  basis: FacingBasis,
+): BlobbiFacing {
+  const look = facingTarget(path);
+  if (!look) return 'front';
+  return facingForHeading(look.x - x, look.z - z, basis, current);
+}

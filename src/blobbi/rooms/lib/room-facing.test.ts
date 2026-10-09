@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { BlobbiFacing } from '@blobbi-kit/renderer';
-import { FACING_DEAD_ZONE, FACING_DIAGONAL_BAND, FACING_LOOKAHEAD, facingBasis, facingForHeading, facingTarget } from './room-facing';
+import { FACING_DEAD_ZONE, FACING_DIAGONAL_BAND, FACING_LOOKAHEAD, facingAlongPath, facingBasis, facingForHeading, facingTarget } from './room-facing';
 
 /** The room's camera azimuth (RoomScene's AZIMUTH). */
 const AZ = Math.PI / 4;
@@ -106,5 +106,58 @@ describe('facing from a heading', () => {
     expect(facingTarget([])).toBeUndefined();
     expect(facingTarget([{ x: 5, z: 5 }])).toEqual({ x: 5, z: 5 });
     expect(facingTarget([1, 2, 3, 4, 5])).toBe(FACING_LOOKAHEAD);
+  });
+});
+
+describe('a walker along its path (what the scene does each frame)', () => {
+  /** Walk a 4-connected path step by step, recording the facing before each step and after arrival. */
+  function walk(path: { x: number; z: number }[], start = { x: 0, z: 0 }, current: BlobbiFacing = 'front') {
+    const remaining = [...path];
+    let at = { ...start };
+    const facings: BlobbiFacing[] = [];
+    while (remaining.length) {
+      current = facingAlongPath(at.x, at.z, remaining, current, B);
+      facings.push(current);
+      at = remaining.shift()!;
+    }
+    // Arrived: nothing left to walk.
+    const idle = facingAlongPath(at.x, at.z, remaining, current, B);
+    return { facings, idle };
+  }
+  const straight = (dx: number, dz: number, n = 4) => Array.from({ length: n }, (_, i) => ({ x: (i + 1) * dx, z: (i + 1) * dz }));
+
+  it('walking toward the viewer shows the front, away the back, and to each screen side that side', () => {
+    expect(walk(straight(1, 1)).facings.every((f) => f === 'front')).toBe(true);     // +x+z: toward the viewer
+    expect(walk(straight(-1, -1)).facings.every((f) => f === 'back')).toBe(true);    // -x-z: away
+    expect(walk(straight(1, -1)).facings.every((f) => f === 'right')).toBe(true);    // +x-z: screen right
+    expect(walk(straight(-1, 1)).facings.every((f) => f === 'left')).toBe(true);     // -x+z: screen left
+  });
+
+  it('turns back to the front on arrival, from any side, and stays front while idle', () => {
+    for (const [dx, dz] of [[1, 1], [-1, -1], [1, -1], [-1, 1]] as const) {
+      const { facings, idle } = walk(straight(dx, dz));
+      expect(facings.length).toBeGreaterThan(0);
+      expect(idle, `${dx},${dz}`).toBe('front');
+    }
+    // Idle with no path keeps front whatever it faced a moment ago.
+    expect(facingAlongPath(3, 3, [], 'left', B)).toBe('front');
+    expect(facingAlongPath(3, 3, [], 'back', B)).toBe('front');
+  });
+
+  it('a diagonal staircase path (every tile axis is a screen diagonal) reads as one direction, not a wobble', () => {
+    // Stair-stepping to screen right (+x, then -z, …): a side the whole way.
+    const right = [{ x: 1, z: 0 }, { x: 1, z: -1 }, { x: 2, z: -1 }, { x: 2, z: -2 }, { x: 3, z: -2 }, { x: 3, z: -3 }];
+    expect(new Set(walk(right).facings)).toEqual(new Set(['right']));
+    // Stair-stepping away (-x, then -z, …): the back the whole way, then front on arrival.
+    const away = [{ x: -1, z: 0 }, { x: -1, z: -1 }, { x: -2, z: -1 }, { x: -2, z: -2 }];
+    const a = walk(away);
+    expect(new Set(a.facings)).toEqual(new Set(['back']));
+    expect(a.idle).toBe('front');
+  });
+
+  it('under reduced motion the scene takes a walker straight to its tile and leaves it no path: it never turns', () => {
+    // walkToTile sets the position and an empty path; each frame then asks for the facing of an empty path.
+    expect(facingAlongPath(7.5, 2.5, [], 'front', B)).toBe('front');
+    expect(facingAlongPath(7.5, 2.5, [], 'right', B)).toBe('front');
   });
 });

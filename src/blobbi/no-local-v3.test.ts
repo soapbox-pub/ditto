@@ -122,10 +122,11 @@ describe('no local V3 implementation in Ditto', () => {
   });
 
   it('makes no V3 identity: creation is the kit\'s, in one place, and the identity is read through the renderer\'s API in one place', () => {
-    // Adoption asks the kit for a V3 egg (the address is the identity; nothing is stated). Nothing else creates V3
-    // (the dev page, a route only `vite dev` has, asks the kit for whichever generation it shows).
+    // Adoption asks the kit for a V3 egg (the address is the identity; nothing is stated). The only other place
+    // that asks the kit for a V3 Blobbi is the dev room fixture, a route only `vite dev` has, absent from a build
+    // (the V3 dev page asks for whichever generation it shows).
     const creators = sources.filter((s) => /visualGeneration:\s*['"]v3['"]/.test(s.text)).map((s) => s.path).sort();
-    expect(creators).toEqual(['blobbi/onboarding/lib/blobbi-preview.ts']);
+    expect(creators).toEqual(['blobbi/dev/BlobbiRoomDevPage.tsx', 'blobbi/onboarding/lib/blobbi-preview.ts']);
     // The colours a V3 Blobbi is shown in come from the renderer's public identity API, in one helper; no local derivation.
     const readers = sources.filter((s) => /createBlobbiV3Identity/.test(s.text)).map((s) => s.path).sort();
     expect(readers).toEqual(['blobbi/ui/lib/display-colors.ts']);
