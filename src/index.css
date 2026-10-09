@@ -806,6 +806,12 @@
   transition: none;
 }
 
+/* A V2 baby or adult is drawn by the kit too (BlobbiV3Visual, ui/lib/kit-drawn.ts),
+   with the same pupils, retargeted the same way. */
+[data-blobbi-kit] .blobbi-pupil {
+  transition: none;
+}
+
 /* ── Milkdown Editor Styles ─────────────────────────────────────────────────── */
 
 .milkdown-editor .milkdown {

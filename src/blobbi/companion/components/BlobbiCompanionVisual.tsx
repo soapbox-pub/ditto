@@ -19,6 +19,7 @@ import { BlobbiBabyVisual } from '@/blobbi/ui/BlobbiBabyVisual';
 import { BlobbiAdultVisual } from '@/blobbi/ui/BlobbiAdultVisual';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiV3Visual } from '@/blobbi/ui/BlobbiV3Visual';
+import { isKitDrawn } from '@/blobbi/ui/lib/kit-drawn';
 import { companionDataToBlobbi } from '@/blobbi/ui/lib/adapters';
 import { useEffectiveEmotion } from '@/blobbi/dev/useEmotionDev';
 import { useRecipeFingerprint, useFillLevelUpdate } from '@/blobbi/ui/hooks/useFillLevelUpdate';
@@ -163,8 +164,9 @@ export function BlobbiCompanionVisual({
 }: BlobbiCompanionVisualProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const blobbi = useMemo(() => companionDataToBlobbi(companion), [companion]);
+  // A kit-drawn Blobbi (V3; a V2 baby or adult): the kit's drawing, on its own rig.
   const v3Visual = useMemo(
-    () => (companion.visualGeneration === 'v3' ? getBlobbiVisualIdentity(companion) : null),
+    () => (isKitDrawn(companion) ? getBlobbiVisualIdentity(companion) : null),
     [companion],
   );
 

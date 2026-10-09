@@ -101,15 +101,16 @@ describe('BlobbiStageVisual draws V3 through the kit', () => {
     expect(root.innerHTML).toContain('data-blobbi-rig-motion');
   });
 
-  it('V1 and V2 Blobbis keep Ditto\'s own pipeline', () => {
-    for (const generation of ['v1', 'v2'] as const) {
-      for (const stage of ['baby', 'adult'] as const) {
-        const { container } = render(<BlobbiStageVisual companion={blobbi(stage, generation)} />);
-        expect(container.querySelector('[data-blobbi-renderer]'), `${generation} ${stage}`).toBeNull();
-        expect(container.querySelector('[data-blobbi-v3]'), `${generation} ${stage}`).toBeNull();
-        expect(container.innerHTML, `${generation} ${stage}`).toContain('<svg');
-      }
+  it('V1 Blobbis keep Ditto\'s own pipeline (a V2 baby or adult is the kit\'s: kit-drawn-v2.test.tsx)', () => {
+    for (const stage of ['baby', 'adult'] as const) {
+      const { container } = render(<BlobbiStageVisual companion={blobbi(stage, 'v1')} />);
+      expect(container.querySelector('[data-blobbi-renderer]'), `v1 ${stage}`).toBeNull();
+      expect(container.querySelector('[data-blobbi-kit]'), `v1 ${stage}`).toBeNull();
+      expect(container.innerHTML, `v1 ${stage}`).toContain('<svg');
     }
+    const egg = render(<BlobbiStageVisual companion={blobbi('egg', 'v2')} />);
+    expect(egg.container.querySelector('[data-blobbi-renderer]')).toBeNull();
+    expect(egg.container.querySelector('[data-blobbi-kit]')).toBeNull();
   });
 
   it('a link preview of a V3 Blobbi is the kit\'s drawing', () => {

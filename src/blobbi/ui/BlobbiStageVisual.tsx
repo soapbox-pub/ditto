@@ -20,6 +20,7 @@ import { BlobbiAdultVisual } from './BlobbiAdultVisual';
 import { BlobbiV3Visual } from './BlobbiV3Visual';
 import { FloatingMusicNotes } from './FloatingMusicNotes';
 import { blobbiCompanionToBlobbi } from './lib/adapters';
+import { isKitDrawn } from './lib/kit-drawn';
 import { eggCrackForTourState } from './lib/v3-expression';
 import { cn } from '@/lib/utils';
 import { getBlobbiVisualIdentity, type BlobbiCompanion } from '@blobbi-kit/core';
@@ -91,16 +92,18 @@ export function BlobbiStageVisual({
 
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
-  const isV3 = companion.visualGeneration === 'v3';
+  // The kit draws V3 at every stage and V2 babies and adults; V1 (and the V2
+  // egg, the same art as Ditto's) keep Ditto's own pipeline below.
+  const kitDrawn = isKitDrawn(companion);
 
   const v3Visual = useMemo(
-    () => (isV3 ? getBlobbiVisualIdentity(companion) : null),
-    [companion, isV3]
+    () => (kitDrawn ? getBlobbiVisualIdentity(companion) : null),
+    [companion, kitDrawn]
   );
 
   const blobbiForVisual = useMemo(
-    () => (!isV3 && (stage === 'baby' || stage === 'adult') ? blobbiCompanionToBlobbi(companion) : null),
-    [companion, stage, isV3]
+    () => (!kitDrawn && (stage === 'baby' || stage === 'adult') ? blobbiCompanionToBlobbi(companion) : null),
+    [companion, stage, kitDrawn]
   );
 
   const showMusicNotes = effectiveReaction === 'listening';

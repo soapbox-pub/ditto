@@ -1,9 +1,11 @@
 /**
- * BlobbiV3Visual — a V3 (procedural) Blobbi, drawn by the kit.
+ * BlobbiV3Visual — a Blobbi drawn by the kit: a V3 (procedural) Blobbi at any
+ * stage, and a V2 baby or adult (see lib/kit-drawn.ts for which is which).
  *
  * Every V3 drawing (egg, baby, adult; body, anatomy, face, pattern, mark,
  * views, stage morphology) is `@blobbi-kit/renderer`'s, from the identity the
- * event states. Ditto keeps what is Ditto's: which state to show and when.
+ * event states; so is the V2 artwork, from the colours and traits the event
+ * states. Ditto keeps what is Ditto's: which state to show and when.
  * Its recipes become the kit's expression parts (v3-expression.ts), sleeping
  * is the kit's `isSleeping`, pointer and companion gaze are the kit's
  * `eyeOffset`. Nothing here edits the SVG; the only thing done to it is
@@ -150,7 +152,8 @@ export function BlobbiV3Visual({
         !isCompanion && effectiveReaction === 'singing' && 'animate-blobbi-bounce',
         className,
       )}
-      data-blobbi-v3=""
+      data-blobbi-kit={visual.visualGeneration}
+      data-blobbi-v3={visual.visualGeneration === 'v3' ? '' : undefined}
     >
       <BlobbiRenderer
         // Core's identity is shaped to be the renderer's visual, as the kit documents.

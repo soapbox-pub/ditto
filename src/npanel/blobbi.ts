@@ -3,14 +3,15 @@
  * draws it, centred on a backdrop of its own colours, as one SVG for the
  * canvas to render.
  *
- * Babies and adults are the app's own art, coloured by the app's own
+ * V1 babies and adults are the app's own art, coloured by the app's own
  * customizers. Every Blobbi is drawn awake, even one that's asleep, and only
  * the awake art is bundled. An egg, which the app draws with CSS, is drawn here in SVG in the
  * same shape and shading. Its face, if it has one, is neutral: a preview
  * can't know how the Blobbi feels now without its care history.
  *
- * A V3 Blobbi, at any stage, is the kit's drawing of the identity its event
- * states, as the app draws it: still, awake, facing front.
+ * A V3 Blobbi at any stage, and a V2 baby or adult (ui/lib/kit-drawn.ts), is
+ * the kit's drawing of the identity its event states, as the app draws it:
+ * still, awake, facing front.
  */
 
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -26,6 +27,7 @@ import { BABY_BASE_SVG } from '@/blobbi/baby-blobbi/lib/baby-svg-data';
 import { createColorVariants } from '@/blobbi/egg/lib/egg-colors';
 import { DIVINE_BASE_COLOR, isDivineEgg } from '@/blobbi/egg/lib/blobbi-divine-utils';
 import { blobbiCompanionToBlobbi } from '@/blobbi/ui/lib/adapters';
+import { isKitDrawn } from '@/blobbi/ui/lib/kit-drawn';
 
 export const WIDTH = 1200;
 export const HEIGHT = 630;
@@ -46,7 +48,7 @@ export function blobbiPicture(event: NostrEvent): string | undefined {
 
   let art: string;
   let [width, height] = [SIZE, SIZE];
-  if (companion.visualGeneration === 'v3') {
+  if (isKitDrawn(companion)) {
     art = renderBlobbiSvg({ ...getBlobbiVisualIdentity(companion), instanceId: 'npanel-blobbi' }).svg;
   } else if (companion.stage === 'egg') {
     const divine = isDivineEgg({ lifeStage: 'egg', tags: event.tags });
