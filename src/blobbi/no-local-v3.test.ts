@@ -46,9 +46,15 @@ const TAG_NAME = `['"](?:${V3_TAG_NAMES.join('|')})['"]`;
  * longer name is not tag handling, and is not matched.
  */
 const V3_TAG_HANDLING: readonly RegExp[] = [
+  // a tag array literal: ['antenna', 'double']
   new RegExp(`\\[\\s*${TAG_NAME}\\s*,`),
-  new RegExp(`\\b(?:getTag|getTagValue|getTagValues|findTag|hasTag)\\s*\\([^)]*${TAG_NAME}`),
-  new RegExp(`\\[0\\]\\s*===?\\s*${TAG_NAME}|${TAG_NAME}\\s*===?\\s*\\w+\\[0\\]`),
+  // a lookup by name through any of Ditto's or the kit's tag readers: getTagValue(tags, 'horns'), tagValue(event, 'ears'), getTags(event, 'tail')
+  new RegExp(`\\b(?:getTag|getTags|getTagValue|getTagValues|tagValue|tagValues|findTag|hasTag)\\s*\\([^)]*${TAG_NAME}`),
+  // a tag-name comparison on a tag's first element, either way round, equal or not: t[0] === 'tail', 'belly' !== t[0]
+  new RegExp(`\\[0\\]\\s*[!=]==?\\s*${TAG_NAME}|${TAG_NAME}\\s*[!=]==?\\s*\\w+\\[0\\]`),
+  // the same comparison on a destructured tag: ([name]) => name === 'tail', ([n, v]) => n !== 'ears'
+  new RegExp(`\\(\\[\\s*(\\w+)[^\\]]*\\]\\)\\s*=>\\s*\\1\\s*[!=]==?\\s*${TAG_NAME}`),
+  // an update through the kit's tag writers: updateBlobbiTags(tags, { belly: 'true' })
   new RegExp(`\\b(?:updateBlobbiTags|buildEggTags|syncMirrorTagsToSeed)\\s*\\([^;]*?\\{[^}]*\\b(?:${V3_TAG_NAMES.join('|')})\\s*:`),
 ];
 const handlesV3IdentityTag = (code: string): boolean => V3_TAG_HANDLING.some((re) => re.test(code));
@@ -84,8 +90,13 @@ describe('no local V3 implementation in Ditto', () => {
       '["visual_algorithm", "1"]',
       "getTagValue(event.tags, 'horns')",
       "getTag(event, \"ears\")",
+      "tagValue(event, 'horns')",
+      "getTags(event, 'ears')",
       "event.tags.find((t) => t[0] === 'tail')",
       "tags.filter((t) => 'belly' === t[0])",
+      "tags.filter((t) => t[0] !== 'freckles')",
+      "event.tags.find(([name]) => name === 'tail')",
+      "tags.filter(([n, v]) => n !== 'antenna' && v)",
       "updateBlobbiTags(tags, { state: 'active', freckles: 'true' })",
       "buildEggTags(pubkey, petId, now, name, { accent_color: '#fff' })",
     ])('flags tag handling: %s', (code) => {
