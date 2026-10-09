@@ -44,11 +44,13 @@ export function useInfiniteScroll({
     rootMargin: '400px',
   });
 
+  // pageCount re-runs this after a page that starts and finishes in one notify
+  // batch, which React sees without isFetchingNextPage ever flipping.
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [inView, hasNextPage, isFetchingNextPage, pageCount, fetchNextPage]);
 
   return { scrollRef };
 }

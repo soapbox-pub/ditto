@@ -252,11 +252,15 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     rootMargin: '400px',
   });
 
+  // The page count is a dependency because a page served without a network
+  // round-trip (e.g. from the pager's buffer) starts and finishes in one
+  // notify batch, so React never sees isFetchingNextPage flip. Without it the
+  // effect wouldn't re-run while the sentinel stays in view.
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [inView, hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
 
   // Flatten, deduplicate, and filter muted content.
   const derivedItems = useMemo(() => {
@@ -552,12 +556,13 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   );
   const handleRefresh = usePageRefresh(queryKey);
 
-  // Infinite scroll: fetch next page when sentinel is in view
+  // Infinite scroll: fetch next page when sentinel is in view. The page count
+  // re-runs this after pages that finish too fast for isFetchingNextPage to flip.
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [inView, hasNextPage, isFetchingNextPage, rawData?.pages.length, fetchNextPage]);
 
   // Flatten pages, deduplicate, and filter muted content
   const derivedItems = useMemo(() => {
