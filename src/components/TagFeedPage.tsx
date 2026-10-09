@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { Plus, Check, Loader2 } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, type InfiniteData, type QueryKey } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { Button } from '@/components/ui/button';
@@ -11,14 +11,17 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useInterests } from '@/hooks/useInterests';
 import { useMuteFilter } from '@/hooks/useMuteFilter';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { isRepostKind } from '@/lib/feedUtils';
+import { getPaginationCursor, isRepostKind } from '@/lib/feedUtils';
 import { buildTagFilterValues } from '@/lib/tagFilterValues';
 import { PageHeader } from '@/components/PageHeader';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
+
+const PAGE_SIZE = 20;
 
 interface TagFeedPageProps {
   /** The tag value to filter by. */
@@ -86,25 +89,49 @@ export function TagFeedPage({
   );
   const handleRefresh = usePageRefresh(queryKey);
 
-  const { data: events, isLoading } = useQuery<NostrEvent[]>({
+  const {
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery<NostrEvent[], Error, InfiniteData<NostrEvent[]>, QueryKey, number | undefined>({
     queryKey,
-    queryFn: async ({ signal }) => {
+    queryFn: async ({ pageParam, signal }) => {
       const ditto = nostr.group(DITTO_RELAYS);
-      const tagFilter: NostrFilter = { kinds, limit: 40, ...(search ? { search } : {}) };
+      const tagFilter: NostrFilter = { kinds, limit: PAGE_SIZE, ...(search ? { search } : {}) };
       // NostrFilter uses `#${letter}` index signature — assign after construction to satisfy TS
       (tagFilter as Record<string, unknown>)[filterKey] = tagFilterValues;
+      if (pageParam !== undefined) tagFilter.until = pageParam;
       return ditto.query([tagFilter], {
         signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),
       });
     },
+    // Cursor from the unfiltered relay page, so muted or hidden events still
+    // advance it. Gap detection keeps a single old outlier in a hot-sorted
+    // page from skipping everything newer than it.
+    getNextPageParam: (lastPage) => lastPage.length ? getPaginationCursor(lastPage) - 1 : undefined,
+    initialPageParam: undefined,
     // Never query a blocked term (see blockedTerms.ts).
     enabled: tagFilterValues.length > 0 && !containsBlockedTerm(tag),
   });
 
+  const { scrollRef } = useInfiniteScroll({
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    pageCount: data?.pages.length,
+  });
+
   const filteredEvents = useMemo(() => {
-    if (!events) return events;
-    return events.filter((e) => !isMuted(e) && !isHiddenFromPublicFeeds(e));
-  }, [events, isMuted]);
+    if (!data) return undefined;
+    const seen = new Set<string>();
+    return data.pages.flat().filter((e) => {
+      if (seen.has(e.id)) return false;
+      seen.add(e.id);
+      return !isMuted(e) && !isHiddenFromPublicFeeds(e);
+    });
+  }, [data, isMuted]);
 
   return (
     <main className="">
@@ -137,6 +164,15 @@ export function TagFeedPage({
         ) : filteredEvents && filteredEvents.length > 0 ? (
           <div>
             {filteredEvents.map((event) => <NoteCard key={event.id} event={event} />)}
+            {hasNextPage && (
+              <div ref={scrollRef} className="py-4">
+                {isFetchingNextPage && (
+                  <div className="flex justify-center">
+                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="py-16 text-center text-muted-foreground px-4">
