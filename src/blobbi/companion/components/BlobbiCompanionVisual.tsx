@@ -164,7 +164,7 @@ export function BlobbiCompanionVisual({
 }: BlobbiCompanionVisualProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const blobbi = useMemo(() => companionDataToBlobbi(companion), [companion]);
-  // A kit-drawn Blobbi (V3; a V2 baby or adult): the kit's drawing, on its own rig.
+  // A kit-drawn Blobbi (V3; a V2 adult): the kit's drawing, on its own rig.
   const v3Visual = useMemo(
     () => (isKitDrawn(companion) ? getBlobbiVisualIdentity(companion) : null),
     [companion],
@@ -202,7 +202,7 @@ export function BlobbiCompanionVisual({
   // Reaction state for CSS animations on the OUTER wrapper
   // When sleeping, always idle — no swaying/happy animation
   const isSleeping = companion.state === 'sleeping';
-  // A V3 Blobbi walks on its own rig (below), so it doesn't also sway to walk.
+  // A kit-drawn Blobbi walks on its own rig (below), so it doesn't also sway to walk.
   const reaction = isSleeping ? 'idle' : isDragging ? 'happy' : isWalking && !v3Visual ? 'swaying' : 'idle';
 
   // ── Shadow ─────────────────────────────────────────────────────────────────
@@ -216,7 +216,7 @@ export function BlobbiCompanionVisual({
   const shadowOpacity = SHADOW_MAX_OPACITY * groundFadeRatio * floatFadeRatio;
   const shadowScale = 0.9 + 0.1 * groundFadeRatio * floatFadeRatio;
 
-  // V1 art has no profile, so direction only turns a V3 Blobbi (while it walks).
+  // V1 art has no profile, so direction only turns a kit-drawn Blobbi (while it walks).
 
   return (
     <div

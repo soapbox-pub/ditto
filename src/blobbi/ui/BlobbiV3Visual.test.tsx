@@ -101,7 +101,7 @@ describe('BlobbiStageVisual draws V3 through the kit', () => {
     expect(root.innerHTML).toContain('data-blobbi-rig-motion');
   });
 
-  it('V1 Blobbis keep Ditto\'s own pipeline (a V2 baby or adult is the kit\'s: kit-drawn-v2.test.tsx)', () => {
+  it('V1 Blobbis keep Ditto\'s own pipeline (a V2 adult is the kit\'s: kit-drawn-v2.test.tsx)', () => {
     for (const stage of ['baby', 'adult'] as const) {
       const { container } = render(<BlobbiStageVisual companion={blobbi(stage, 'v1')} />);
       expect(container.querySelector('[data-blobbi-renderer]'), `v1 ${stage}`).toBeNull();

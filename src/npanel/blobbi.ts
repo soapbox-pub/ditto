@@ -3,13 +3,13 @@
  * draws it, centred on a backdrop of its own colours, as one SVG for the
  * canvas to render.
  *
- * V1 babies and adults are the app's own art, coloured by the app's own
+ * V1 babies and adults, and V2 babies, are the app's own art, coloured by the app's own
  * customizers. Every Blobbi is drawn awake, even one that's asleep, and only
  * the awake art is bundled. An egg, which the app draws with CSS, is drawn here in SVG in the
  * same shape and shading. Its face, if it has one, is neutral: a preview
  * can't know how the Blobbi feels now without its care history.
  *
- * A V3 Blobbi at any stage, and a V2 baby or adult (ui/lib/kit-drawn.ts), is
+ * A V3 Blobbi at any stage, and a V2 adult (ui/lib/kit-drawn.ts), is
  * the kit's drawing of the identity its event states, as the app draws it:
  * still, awake, facing front.
  */

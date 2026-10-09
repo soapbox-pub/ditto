@@ -2,8 +2,9 @@
  * A V2 Blobbi born elsewhere (Blobbi Island, Standalone) is, in Ditto, the
  * kit's V2 Blobbi: classified V2, drawn by `@blobbi-kit/renderer` through
  * Ditto's sanitizer with its gradient inheritance intact, and not Ditto's V1
- * form of the same adult type. V1 keeps Ditto's own pipeline and the V2 egg
- * is Ditto's egg (lib/kit-drawn.ts). Drawing changes no event and no Blobbi.
+ * form of the same adult type. V1 keeps Ditto's own pipeline, and so do the V2
+ * egg and baby, which the kit draws with the same art Ditto already draws
+ * (lib/kit-drawn.ts). Drawing changes no event and no Blobbi.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -85,13 +86,13 @@ function expectSameDrawing(ditto: string, kit: string, label: string) {
 const gradientLinks = (svg: string) => [...svg.matchAll(/xlink:href="(#[^"]+)"/g)].map((m) => m[1]).sort();
 
 describe('a V2 Blobbi is classified V2', () => {
-  it('reads as V2 at every stage, with no V3 identity, and the kit draws its baby and adult', () => {
+  it('reads as V2 at every stage, with no V3 identity, and the kit draws its adult', () => {
     for (const stage of ['egg', 'baby', 'adult'] as const) {
       const companion = blobbi('v2', stage);
       expect(companion.visualGeneration, stage).toBe('v2');
       expect(companion.v3Identity, stage).toBeUndefined();
       expect(getTagValue(companion.allTags, 'visual_generation'), stage).toBe('v2');
-      expect(isKitDrawn(companion), stage).toBe(stage !== 'egg');
+      expect(isKitDrawn(companion), stage).toBe(stage === 'adult');
     }
     for (const stage of ['egg', 'baby', 'adult'] as const) expect(isKitDrawn(blobbi('v1', stage)), `v1 ${stage}`).toBe(false);
     for (const stage of ['egg', 'baby', 'adult'] as const) expect(isKitDrawn(blobbi('v3', stage)), `v3 ${stage}`).toBe(true);
@@ -124,14 +125,16 @@ describe('a V2 Blobbi is the kit\'s V2 Blobbi in Ditto', () => {
     for (const m of svg.matchAll(/url\(#([^)]+)\)/g)) expect(svg, m[1]).toContain(`id="${m[1]}"`);
   });
 
-  it('a V2 baby is the kit\'s drawing too', () => {
-    const companion = blobbi('v2', 'baby');
-    const { container, root } = dittoBody(companion);
-    expect(root!.getAttribute('data-blobbi-generation')).toBe('v2');
-    expect(root!.getAttribute('data-blobbi-stage')).toBe('baby');
-    expect(container.querySelector('[data-blobbi-kit="v2"]')).not.toBeNull();
-    expect(root!.innerHTML).not.toMatch(/blobbi-blink|blobbi-eye-gaze|data-clip-id/);
-    expectSameDrawing(root!.innerHTML, kitBody(companion, NEUTRAL), 'v2 baby');
+  it('a V2 baby stays on Ditto\'s pipeline: the kit has no V2 baby art and draws the V1 baby, which is Ditto\'s own', () => {
+    // The kit's V2 baby is its V1 baby, byte for byte.
+    const { container: v2Kit } = render(<BlobbiRenderer visual={getBlobbiVisualIdentity(blobbi('v2', 'baby'))} instanceId="same" size="100%" {...NEUTRAL} />);
+    const { container: v1Kit } = render(<BlobbiRenderer visual={getBlobbiVisualIdentity(blobbi('v1', 'baby'))} instanceId="same" size="100%" {...NEUTRAL} />);
+    expect(v2Kit.querySelector('[data-blobbi-renderer]')!.innerHTML).toBe(v1Kit.querySelector('[data-blobbi-renderer]')!.innerHTML);
+    // So Ditto keeps drawing it itself, with its blink and eye machinery.
+    const { container, root } = dittoBody(blobbi('v2', 'baby'));
+    expect(root).toBeNull();
+    expect(container.querySelector('[data-blobbi-kit]')).toBeNull();
+    expect(container.innerHTML).toMatch(/blobbi-eye-gaze/);
   });
 
   it('a V2 egg stays Ditto\'s egg; V1 babies and adults stay Ditto\'s own pipeline', () => {

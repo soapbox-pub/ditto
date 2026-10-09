@@ -3,7 +3,7 @@
  *
  * Routes to the appropriate visual component based on the Blobbi's artwork
  * generation and life stage:
- *   - V3 (any stage) → BlobbiV3Visual (the kit's procedural renderer)
+ *   - V3 (any stage) and V2 adults → BlobbiV3Visual (the kit's renderer; lib/kit-drawn.ts)
  *   - egg   → BlobbiEggVisual
  *   - baby  → BlobbiBabyVisual
  *   - adult → BlobbiAdultVisual
@@ -92,8 +92,8 @@ export function BlobbiStageVisual({
 
   const effectiveReaction = isSleeping ? 'idle' : reaction;
 
-  // The kit draws V3 at every stage and V2 babies and adults; V1 (and the V2
-  // egg, the same art as Ditto's) keep Ditto's own pipeline below.
+  // The kit draws V3 at every stage and V2 adults; V1 (and the V2 egg and
+  // baby, the same art as Ditto's) keep Ditto's own pipeline below.
   const kitDrawn = isKitDrawn(companion);
 
   const v3Visual = useMemo(

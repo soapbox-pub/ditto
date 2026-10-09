@@ -1,6 +1,6 @@
 /**
  * BlobbiV3Visual — a Blobbi drawn by the kit: a V3 (procedural) Blobbi at any
- * stage, and a V2 baby or adult (see lib/kit-drawn.ts for which is which).
+ * stage, and a V2 adult (see lib/kit-drawn.ts for which is which).
  *
  * Every V3 drawing (egg, baby, adult; body, anatomy, face, pattern, mark,
  * views, stage morphology) is `@blobbi-kit/renderer`'s, from the identity the
