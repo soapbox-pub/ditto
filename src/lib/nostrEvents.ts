@@ -4,7 +4,7 @@ import { isNostrId } from '@/lib/nostrId';
 import { parseAddr } from '@/lib/parseAddr';
 
 /** NIP-22 comment kinds: 1111 (text comment) and 1244 (NIP-A0 voice comment). */
-const COMMENT_KINDS = new Set([1111, 1244]);
+export const COMMENT_KINDS = new Set([1111, 1244]);
 
 /**
  * Kinds that thread with NIP-10 `e` tag markers instead of NIP-22 uppercase

@@ -9,7 +9,8 @@ import { sendToInboxRelays } from "@/lib/inboxRelays";
 import { withoutBlockedRelays } from "@/lib/relayPolicy";
 import { NO_WRITE_RELAYS } from "@/lib/publishError";
 import { notifyStreakActivity } from "@/lib/streak";
-import { syncPublishedEventToFeeds } from "@/lib/feedUtils";
+import { syncPublishedEvent } from "@/lib/publishedEventSync";
+import { useNostrStorage } from "./useNostrStorage";
 
 import type { NostrEvent } from "@nostrify/nostrify";
 
@@ -65,6 +66,7 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const queryClient = useQueryClient();
+  const { store } = useNostrStorage();
 
   return useMutation({
     mutationFn: async (t: EventTemplate) => {
@@ -118,7 +120,20 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
           );
         }
 
+        // What a deletion deletes, read now: once published, the local store
+        // drops it. Lets the caches undo its counts and likes.
+        const deleted = event.kind === 5
+          ? await store.query([{
+            ids: event.tags.filter(([name]) => name === 'e').map(([, id]) => id),
+            authors: [event.pubkey],
+          }]).catch(() => [])
+          : [];
+
         await nostr.event(event, { signal: AbortSignal.timeout(5000) });
+
+        // Show it everywhere it belongs (or, for a deletion, remove what it
+        // deletes) now, rather than after the next refetch.
+        syncPublishedEvent(queryClient, event, { deleted });
 
         // Creative kinds advance the user's posting streak (see useStreakSync).
         notifyStreakActivity(event);
@@ -154,9 +169,6 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
     },
     onSuccess: (data) => {
       console.log("Event published successfully:", data);
-      // Show it in (or, for a deletion, remove it from) the cached feeds now,
-      // rather than after the next refetch.
-      syncPublishedEventToFeeds(queryClient, data);
     },
   });
 }

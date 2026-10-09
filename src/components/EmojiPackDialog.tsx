@@ -342,7 +342,6 @@ function EmojiPackForm({ editEvent, onDone }: { editEvent?: NostrEvent; onDone: 
 
       await publishEvent({ kind: 30030, content: '', tags, prev: prev ?? undefined });
 
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
       queryClient.invalidateQueries({ queryKey: ['custom-emojis'] });
       queryClient.invalidateQueries({ queryKey: ['emoji-list'] });
       queryClient.invalidateQueries({ queryKey: ['my-published-packs'] });

@@ -14,7 +14,6 @@ import { isCustomEmoji } from '@/lib/customEmoji';
 import { formatNumber } from '@/lib/formatNumber';
 import { impactLight, impactMedium } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
-import type { EventStats } from '@/hooks/useTrending';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 interface ReactionButtonProps {
@@ -104,49 +103,38 @@ export function ReactionButton({
     e.stopPropagation();
     if (!user) return;
 
-    // Find the user's kind 7 event ID to delete
-    const events = await nostr.query([{
-      kinds: [7],
-      authors: [user.pubkey],
-      '#e': [eventId],
-      limit: 1,
-    }]);
-
-    if (events.length === 0) return;
-
-    const reactionEventId = events[0].id;
-
-    // Snapshot for rollback
+    // Optimistic update first, so the heart empties on tap.
     const prevReaction = queryClient.getQueryData(['user-reaction', eventId]);
-    const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
-
-    // Optimistic update: clear reaction and decrement count
     queryClient.setQueryData(['user-reaction', eventId], null);
-    if (prevStats) {
-      queryClient.setQueryData<EventStats>(['event-stats', eventId], {
-        ...prevStats,
-        reactions: Math.max(0, prevStats.reactions - 1),
-      });
+
+    // Find the user's reactions to delete. The pool includes ones published
+    // from this device that relays haven't indexed yet (see reconcileOwnEvents).
+    let reactions: NostrEvent[];
+    try {
+      reactions = await nostr.query([{ kinds: [7], authors: [user.pubkey], '#e': [eventId] }]);
+    } catch {
+      queryClient.setQueryData(['user-reaction', eventId], prevReaction);
+      return;
     }
+    if (reactions.length === 0) return;
 
     publishEvent(
       // The `p` tag sends the deletion to the author's inbox relays, where
       // the reaction was delivered too (see useNostrPublish).
-      { kind: 5, content: '', tags: [['e', reactionEventId], ['k', '7'], ['p', eventPubkey]] },
+      {
+        kind: 5,
+        content: '',
+        tags: [...reactions.map(({ id }) => ['e', id]), ['k', '7'], ['p', eventPubkey]],
+      },
       {
         onSuccess: () => {
           setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
             queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
             queryClient.invalidateQueries({ queryKey: ['user-reaction', eventId] });
           }, 3000);
         },
         onError: () => {
-          // Rollback
           queryClient.setQueryData(['user-reaction', eventId], prevReaction);
-          if (prevStats) {
-            queryClient.setQueryData<EventStats>(['event-stats', eventId], prevStats);
-          }
         },
       },
     );
@@ -210,14 +198,7 @@ export function ReactionButton({
           impactMedium();
           triggerBurst('❤️');
           setMenuOpen(false);
-          const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
           queryClient.setQueryData(['user-reaction', eventId], { content: '❤️' });
-          if (prevStats) {
-            queryClient.setQueryData<EventStats>(['event-stats', eventId], {
-              ...prevStats,
-              reactions: prevStats.reactions + 1,
-            });
-          }
           publishEvent(
             {
               kind: 7,
@@ -229,16 +210,12 @@ export function ReactionButton({
                 // Rebroadcast the original event alongside the reaction (best-effort).
                 if (reactedEvent) rebroadcastEvent(nostr, reactedEvent);
                 setTimeout(() => {
-                  queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
                   queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
                   queryClient.invalidateQueries({ queryKey: ['user-reaction', eventId] });
                 }, 3000);
               },
               onError: () => {
                 queryClient.setQueryData(['user-reaction', eventId], null);
-                if (prevStats) {
-                  queryClient.setQueryData<EventStats>(['event-stats', eventId], prevStats);
-                }
               },
             },
           );

@@ -2946,7 +2946,6 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 compact
                 replyTo={wallReplyTarget}
                 placeholder={`Write on ${displayName}'s wall`}
-                onSuccess={() => queryClient.invalidateQueries({ queryKey: ['wall-comments', pubkey] })}
               />
             )}
 
@@ -2957,10 +2956,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
                 open={wallComposeOpen}
                 onOpenChange={setWallComposeOpen}
                 placeholder={`Write on ${displayName}'s wall`}
-                onSuccess={() => {
-                  queryClient.invalidateQueries({ queryKey: ['wall-comments', pubkey] });
-                  setWallComposeKey((k) => k + 1);
-                }}
+                onSuccess={() => setWallComposeKey((k) => k + 1)}
               />
             )}
 

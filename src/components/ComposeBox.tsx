@@ -37,7 +37,6 @@ import { useToast } from '@/hooks/useToast';
 import { ToastAction } from '@/components/ui/toast';
 import { tryNeventEncode } from '@/lib/safeNip19';
 import { useAppContext } from '@/hooks/useAppContext';
-import type { EventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
 import { notificationSuccess } from '@/lib/haptics';
 import { bestMime, extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, isFileUrl, mimeFromExt } from '@/lib/mediaUrls';
@@ -1073,12 +1072,6 @@ export function ComposeBox({
       if (showQuotedEvent && quotedEvent) {
         rebroadcastEvent(nostr, quotedEvent);
       }
-      // Optimistically bump the reply count on the parent event
-      if (replyTo && !isExternalRoot(replyTo)) {
-        queryClient.setQueryData<EventStats>(['event-stats', replyTo.id], (prev) =>
-          prev ? { ...prev, replies: prev.replies + 1 } : prev,
-        );
-      }
       if (replyTo) {
         // Show the reply in the open thread right away. Keying off `replyTo.id`
         // alone isn't enough: reply lists are keyed by the thread ROOT, so
@@ -1086,7 +1079,6 @@ export function ComposeBox({
         insertReplyIntoThreads(queryClient, published, threadRoot ?? replyTo);
       }
       if (quotedEvent) {
-        queryClient.invalidateQueries({ queryKey: ['event-stats', quotedEvent.id] });
         queryClient.invalidateQueries({ queryKey: ['event-interactions', quotedEvent.id] });
       }
     } catch (error) {

@@ -141,8 +141,6 @@ export function usePublishTheme() {
       ['userThemes', user.pubkey],
       (old) => old?.filter((t) => t.identifier !== theme.identifier) ?? [],
     );
-    // Also invalidate feed caches so the theme disappears from public feeds
-    queryClient.invalidateQueries({ queryKey: ['feed'] });
     queryClient.invalidateQueries({ queryKey: ['streamKind'] });
   }, [user, publishEvent, queryClient]);
 

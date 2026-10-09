@@ -52,9 +52,10 @@ export function useDeleteEvent() {
       return eventId;
     },
     onSuccess: () => {
-      // Invalidate feed queries so relays are re-queried.
-      // The relay should no longer return the deleted event.
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      // useNostrPublish already removed the event from cached feeds. The
+      // Follows feed reads relays directly, so refetching it now could bring
+      // the event back before the relays process the deletion; the queries
+      // below go through the pool, which drops it (see reconcileOwnEvents).
       queryClient.invalidateQueries({ queryKey: ['profile-feed'] });
       queryClient.invalidateQueries({ queryKey: ['profile-likes-infinite'] });
       queryClient.invalidateQueries({ queryKey: ['replies'] });

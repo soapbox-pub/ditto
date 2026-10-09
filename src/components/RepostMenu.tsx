@@ -17,7 +17,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { getRepostKind } from '@/lib/feedUtils';
 import { DITTO_RELAY } from '@/lib/appRelays';
-import type { EventStats } from '@/hooks/useTrending';
 
 interface RepostMenuProps {
   event: NostrEvent;
@@ -44,15 +43,6 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
       return;
     }
     impactLight();
-
-    // Optimistically update stats cache immediately
-    const prevStats = queryClient.getQueryData<EventStats>(['event-stats', event.id]);
-    if (prevStats) {
-      queryClient.setQueryData<EventStats>(['event-stats', event.id], {
-        ...prevStats,
-        reposts: prevStats.reposts + 1,
-      });
-    }
 
     // Optimistically mark as reposted
     queryClient.setQueryData(['user-repost', event.id], 'optimistic');
@@ -90,7 +80,6 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
           rebroadcastEvent(nostr, event);
           // Delay invalidation so the relay has time to index the new event.
           setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
             queryClient.invalidateQueries({ queryKey: ['event-interactions', event.id] });
             queryClient.invalidateQueries({ queryKey: ['user-repost', event.id] });
           }, 3000);
@@ -98,9 +87,6 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
         onError: () => {
           toast({ title: 'Failed to repost', variant: 'destructive' });
           // Revert optimistic updates
-          if (prevStats) {
-            queryClient.setQueryData<EventStats>(['event-stats', event.id], prevStats);
-          }
           queryClient.setQueryData(['user-repost', event.id], null);
         },
       }
@@ -108,17 +94,9 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
   };
 
   const handleUnrepost = () => {
-    if (!user || !repostEventId) return;
+    // Still publishing: there's no repost id to delete yet.
+    if (!user || !repostEventId || repostEventId === 'optimistic') return;
     impactLight();
-
-    // Optimistically update stats cache
-    const prevStats = queryClient.getQueryData<EventStats>(['event-stats', event.id]);
-    if (prevStats) {
-      queryClient.setQueryData<EventStats>(['event-stats', event.id], {
-        ...prevStats,
-        reposts: Math.max(0, prevStats.reposts - 1),
-      });
-    }
 
     // Optimistically mark as not reposted
     const prevRepostStatus = queryClient.getQueryData(['user-repost', event.id]);
@@ -131,7 +109,6 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
           toast({ title: 'Repost removed' });
           setOpen(false);
           setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
             queryClient.invalidateQueries({ queryKey: ['event-interactions', event.id] });
             queryClient.invalidateQueries({ queryKey: ['user-repost', event.id] });
           }, 3000);
@@ -139,9 +116,6 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
         onError: () => {
           toast({ title: 'Failed to remove repost', variant: 'destructive' });
           // Revert optimistic updates
-          if (prevStats) {
-            queryClient.setQueryData<EventStats>(['event-stats', event.id], prevStats);
-          }
           queryClient.setQueryData(['user-repost', event.id], prevRepostStatus);
         },
       }

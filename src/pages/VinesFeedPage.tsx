@@ -41,7 +41,7 @@ import { useNostrPublish } from "@/hooks/useNostrPublish";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useRepostStatus } from "@/hooks/useRepostStatus";
 import { useStreamKind } from "@/hooks/useStreamKind";
-import { type EventStats, useEventStats } from "@/hooks/useTrending";
+import { useEventStats } from "@/hooks/useTrending";
 import { useUserReaction } from "@/hooks/useUserReaction";
 import { DITTO_RELAY } from "@/lib/appRelays";
 import { BLANK_POSTER } from "@/lib/blankPoster";
@@ -147,17 +147,6 @@ export function VineHeartButton({
 		if (!user || hasReacted) return;
 		impactLight();
 
-		// Optimistically update stats cache
-		const prevStats = queryClient.getQueryData<EventStats>([
-			"event-stats",
-			event.id,
-		]);
-		if (prevStats) {
-			queryClient.setQueryData<EventStats>(["event-stats", event.id], {
-				...prevStats,
-				reactions: prevStats.reactions + 1,
-			});
-		}
 		// Optimistically mark user as having reacted
 		queryClient.setQueryData(["user-reaction", event.id], { content: "👍" });
 
@@ -174,12 +163,6 @@ export function VineHeartButton({
 			{
 				onError: () => {
 					// Revert optimistic updates
-					if (prevStats) {
-						queryClient.setQueryData<EventStats>(
-							["event-stats", event.id],
-							prevStats,
-						);
-					}
 					queryClient.removeQueries({ queryKey: ["user-reaction", event.id] });
 				},
 			},
@@ -224,19 +207,11 @@ export function VineRepostButton({
 		impactLight();
 
 		const repostKind = getRepostKind(event.kind);
-		const prevStats = queryClient.getQueryData<EventStats>([
-			"event-stats",
-			event.id,
-		]);
 
 		if (isReposted && repostEventId) {
+			// Still publishing: there's no repost id to delete yet.
+			if (repostEventId === "optimistic") return;
 			// Undo repost
-			if (prevStats) {
-				queryClient.setQueryData<EventStats>(["event-stats", event.id], {
-					...prevStats,
-					reposts: Math.max(0, prevStats.reposts - 1),
-				});
-			}
 			const prevRepostStatus = queryClient.getQueryData([
 				"user-repost",
 				event.id,
@@ -247,11 +222,6 @@ export function VineRepostButton({
 				{ eventId: repostEventId, eventKind: repostKind },
 				{
 					onError: () => {
-						if (prevStats)
-							queryClient.setQueryData<EventStats>(
-								["event-stats", event.id],
-								prevStats,
-							);
 						queryClient.setQueryData(
 							["user-repost", event.id],
 							prevRepostStatus,
@@ -261,12 +231,6 @@ export function VineRepostButton({
 			);
 		} else {
 			// Repost
-			if (prevStats) {
-				queryClient.setQueryData<EventStats>(["event-stats", event.id], {
-					...prevStats,
-					reposts: prevStats.reposts + 1,
-				});
-			}
 			queryClient.setQueryData(["user-repost", event.id], "optimistic");
 
 			const tags: string[][] = [
@@ -288,11 +252,6 @@ export function VineRepostButton({
 						queryClient.setQueryData(["user-repost", event.id], repost.id);
 					},
 					onError: () => {
-						if (prevStats)
-							queryClient.setQueryData<EventStats>(
-								["event-stats", event.id],
-								prevStats,
-							);
 						queryClient.setQueryData(["user-repost", event.id], null);
 					},
 				},

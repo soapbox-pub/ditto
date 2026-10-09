@@ -69,7 +69,7 @@ function rootKeys(root: ThreadRoot | undefined): Set<string> {
  * belongs to, so it appears immediately on the thread view instead of after a
  * relay round-trip.
  *
- * Like `syncPublishedEventToFeeds`, this marks the affected queries stale WITHOUT
+ * Like `syncPublishedEvent`, this marks the affected queries stale WITHOUT
  * refetching: relays need a moment to index a write, so an immediate refetch
  * comes back without the reply and wholesale-replaces the optimistic entry.
  * The next natural refetch (remount, focus, poll) happens after indexing.

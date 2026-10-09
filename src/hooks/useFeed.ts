@@ -183,7 +183,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
     // on page load because feedSettings is read from localStorage
     // synchronously — the encrypted settings sync at ~5s only calls
     // updateConfig if values actually differ (NostrSync changed guard).
-    // syncPublishedEventToFeeds reads this layout; keep the two in sync.
+    // publishedEventSync reads this layout; keep the two in sync.
     queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, mutedKey, options?.hotGlobal ?? false],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(8000);

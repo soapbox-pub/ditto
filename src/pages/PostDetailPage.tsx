@@ -1709,6 +1709,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           reactionCount: prev?.reactionCount ?? 0,
           zapCount: prev?.zapCount ?? 0,
           zapAmount: prev?.zapAmount ?? 0,
+          // Counted from the replies loaded just now, own pending ones included.
+          computedAt: Math.floor(Date.now() / 1000),
         }));
       }
     }

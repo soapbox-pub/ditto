@@ -138,6 +138,7 @@ export function useProfileFeed(pubkey: string | undefined, activeTab: ProfileTab
   const kindsKey = [...profileKinds].sort().join(',');
 
   return useInfiniteQuery<ProfileFeedPage, Error>({
+    // publishedEventSync reads this layout; keep the two in sync.
     queryKey: ['profile-feed', pubkey ?? '', kindsKey, activeTab],
     queryFn: async ({ pageParam, signal }) => {
       if (!pubkey) return { items: [], oldestQueryTimestamp: Math.floor(Date.now() / 1000), rawCount: 0 };
@@ -332,6 +333,7 @@ export function useTabFeed(
   const searchKey = filter?.search ?? '';
 
   return useInfiniteQuery<TabFeedPage, Error>({
+    // publishedEventSync reads this layout; keep the two in sync.
     queryKey: ['tab-feed', tabKey, kindsKey, authorsKey, searchKey],
     queryFn: async ({ pageParam, signal }) => {
       if (!filter) return { items: [], oldestQueryTimestamp: Math.floor(Date.now() / 1000), rawCount: 0, fetchLimit: PAGE_SIZE };

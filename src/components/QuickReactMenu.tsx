@@ -21,7 +21,6 @@ import { useQuickReactions } from '@/hooks/useQuickReactions';
 import { cn } from '@/lib/utils';
 import { impactMedium } from '@/lib/haptics';
 import type { QuickReaction } from '@/contexts/AppContext';
-import type { EventStats } from '@/hooks/useTrending';
 import type { ResolvedEmoji } from '@/lib/customEmoji';
 
 interface QuickReactMenuProps {
@@ -107,17 +106,6 @@ export function QuickReactMenu({
     const resolvedEmoji: ResolvedEmoji = emojiTag
       ? { content: displayEmoji, url: emojiTag[2], name: emojiTag[1] }
       : { content: displayEmoji };
-    const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
-    if (prevStats) {
-      queryClient.setQueryData<EventStats>(['event-stats', eventId], {
-        ...prevStats,
-        reactions: prevStats.reactions + 1,
-        reactionEmojis: prevStats.reactionEmojis.some((e) => e.content === displayEmoji)
-          ? prevStats.reactionEmojis
-          : [...prevStats.reactionEmojis, resolvedEmoji],
-      });
-    }
-
     queryClient.setQueryData<ResolvedEmoji>(['user-reaction', eventId], resolvedEmoji);
 
     // Build tags
@@ -141,15 +129,11 @@ export function QuickReactMenu({
           // Rebroadcast the original event alongside the reaction (best-effort).
           if (reactedEvent) rebroadcastEvent(nostr, reactedEvent);
           setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
             queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
           }, 3000);
         },
         onError: () => {
           setSelectedEmoji(null);
-          if (prevStats) {
-            queryClient.setQueryData<EventStats>(['event-stats', eventId], prevStats);
-          }
           queryClient.removeQueries({ queryKey: ['user-reaction', eventId] });
         },
       },

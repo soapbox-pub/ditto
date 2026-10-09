@@ -1,6 +1,7 @@
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { PROFILE_MEDIA_KINDS } from '@/lib/publishedEventSync';
 
 const PAGE_SIZE = 20;
 
@@ -33,7 +34,7 @@ export function useProfileMedia(pubkey: string | undefined, enabled = true) {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
 
       const filter: Record<string, unknown> = {
-        kinds: [1, 20, 21, 22, 34235, 34236, 36787, 34139, 30054, 30055],
+        kinds: PROFILE_MEDIA_KINDS,
         authors: [pubkey],
         search: 'media:true',
         limit: PAGE_SIZE,

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -9,6 +9,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { parseAuthorEvent } from '@/hooks/useAuthor';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
+import { getPendingDelta, getPendingStatsVersion, subscribePendingStats, type StatField } from '@/lib/pendingStats';
 
 export interface TrendingTag {
   tag: string;
@@ -317,18 +318,30 @@ export function useEventStats(eventId: string | undefined, event?: NostrEvent) {
 
   const source = addr ? nip85Addr : nip85;
 
+  // The user's own reactions, reposts, and replies the provider hasn't counted yet.
+  const pendingVersion = useSyncExternalStore(subscribePendingStats, getPendingStatsVersion);
+
   const data = useMemo<EventStats>(() => {
-    if (!source.data) return EMPTY_STATS;
+    const computedAt = source.data?.computedAt;
+    const pending = (field: StatField) =>
+      getPendingDelta(eventId, field, computedAt) + getPendingDelta(addr, field, computedAt);
+    const count = (field: StatField) => Math.max(0, (source.data?.[field] ?? 0) + pending(field));
+
+    if (!source.data && !pending('reactionCount') && !pending('repostCount') && !pending('commentCount')) {
+      return EMPTY_STATS;
+    }
     return {
-      replies: source.data.commentCount,
-      reposts: source.data.repostCount,
+      replies: count('commentCount'),
+      reposts: count('repostCount'),
       quotes: 0,
-      reactions: source.data.reactionCount,
-      zapAmount: source.data.zapAmount,
-      zapCount: source.data.zapCount,
+      reactions: count('reactionCount'),
+      zapAmount: source.data?.zapAmount ?? 0,
+      zapCount: source.data?.zapCount ?? 0,
       reactionEmojis: [],
     };
-  }, [source.data]);
+    // pendingVersion: recompute when the pending stats change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source.data, eventId, addr, pendingVersion]);
 
   return { data, isLoading: source.isLoading };
 }

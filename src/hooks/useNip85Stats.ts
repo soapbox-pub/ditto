@@ -9,6 +9,8 @@ export interface Nip85EventStats {
   reactionCount: number;
   zapCount: number;
   zapAmount: number;
+  /** `created_at` of the stats event: activity after this isn't counted yet. */
+  computedAt?: number;
 }
 
 export interface Nip85UserStats {
@@ -179,5 +181,6 @@ function parseEventStats(event: NostrEvent): Nip85EventStats {
     reactionCount: getTagValue('reaction_cnt'),
     zapCount: getTagValue('zap_cnt'),
     zapAmount: getTagValue('zap_amount'),
+    computedAt: event.created_at,
   };
 }
