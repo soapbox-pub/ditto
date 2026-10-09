@@ -42,7 +42,11 @@ export function BlobbiV3EggTour({ tourVisualState = 'idle', onTourEggClick, glow
     if (!autoWiggle) return;
     setWiggling(true);
     const timer = setInterval(() => setWiggling(true), 2500);
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      // A wiggle the shake or the opening cut short must not resume afterwards.
+      setWiggling(false);
+    };
   }, [autoWiggle]);
 
   const tappable = !!onTourEggClick && TAPPABLE.has(tourVisualState);
@@ -56,6 +60,10 @@ export function BlobbiV3EggTour({ tourVisualState = 'idle', onTourEggClick, glow
   const cracking = CRACKING.has(tourVisualState);
   const glowing = tourVisualState === 'glowing_waiting_click' || cracking;
   const hatchLight = tourVisualState === 'opening' || tourVisualState === 'hatching';
+  // Once the shell opens there is nothing left to wiggle: a tap during the crack stages must not outlive them.
+  useEffect(() => {
+    if (hatchLight) setWiggling(false);
+  }, [hatchLight]);
 
   return (
     <div className="relative flex size-full items-center justify-center" data-blobbi-v3-egg-tour={tourVisualState}>

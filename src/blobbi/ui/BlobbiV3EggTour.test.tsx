@@ -97,6 +97,26 @@ describe('the hatching tour around a V3 egg', () => {
     expect(shell.classList.contains('animate-egg-tap-wiggle')).toBe(true);
   });
 
+  it('a wiggle does not outlive the state that started it: not into the crack stages, not into the opening', () => {
+    const companion = egg('v3');
+    const onTourEggClick = vi.fn();
+    const view = render(<BlobbiStageVisual companion={companion} animated tourVisualState="glowing_waiting_click" onTourEggClick={onTourEggClick} />);
+    const shell = () => view.container.querySelector('[data-blobbi-v3-egg-shell]')!;
+    expect(shell().classList.contains('animate-egg-tap-wiggle')).toBe(true);
+    // The crack shake takes over, and the waiting wiggle is gone, not merely hidden.
+    view.rerender(<BlobbiStageVisual companion={companion} animated tourVisualState="crack_stage_1" onTourEggClick={onTourEggClick} />);
+    expect(shell().classList.contains('animate-egg-tap-wiggle')).toBe(false);
+    expect(shell().classList.contains('animate-egg-crack')).toBe(true);
+    // A tap during the crack stages wiggles nothing visible (the shake wins) and must not surface once the shell opens.
+    fireEvent.click(shell());
+    expect(onTourEggClick).toHaveBeenCalledTimes(1);
+    view.rerender(<BlobbiStageVisual companion={companion} animated tourVisualState="opening" onTourEggClick={onTourEggClick} />);
+    expect([...shell().classList].filter((c) => c.startsWith('animate-'))).toEqual(['animate-egg-tour-open']);
+    view.rerender(<BlobbiStageVisual companion={companion} animated tourVisualState="hatching" onTourEggClick={onTourEggClick} />);
+    expect([...shell().classList].filter((c) => c.startsWith('animate-'))).toEqual([]);
+    expect(shell().classList.contains('opacity-0')).toBe(true);
+  });
+
   it('the glow is the Blobbi\'s own colour and idles with a pulse only when animated', () => {
     const animated = tourEgg('idle', { animated: true });
     expect(animated.glow.classList.contains('animate-pulse')).toBe(true);
