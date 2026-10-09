@@ -5,6 +5,7 @@ import { EXTERNAL_IDENTITIES_KIND, parseExternalIdentities } from '@/lib/externa
 import { normalizeInfoHash, TORRENT_KIND } from '@/lib/torrent';
 import { getGitRootRef } from '@/lib/gitActivity';
 import { isNostrId } from '@/lib/nostrId';
+import { isReplyEvent } from '@/lib/nostrEvents';
 import { isNsiteKind } from '@/lib/nsiteSubdomain';
 import { getZapAmountSats, getZapSenderPubkey, getTargetEventId } from '@/lib/zapHelpers';
 import { parseCardsFromEvent } from '@/lib/tarot/cards';
@@ -156,8 +157,50 @@ interface FeedPage {
 }
 
 /**
- * Optimistically prepend a freshly published event to every active cached
- * feed, so it appears immediately without waiting for a relay round-trip.
+ * Whether a cached `['feed', ...]` query would return the user's own `event`
+ * once a relay has it. Reads the key layout written by `useFeed`:
+ * `['feed', tab, userPubkey, kindsKey, tagFiltersKey, communityCount, showReplies, ...]`.
+ *
+ * Only the Follows tab qualifies. It is the one feed that always includes the
+ * user's own posts; Global is hot-sorted, and Loved and Communities are other
+ * people's posts.
+ */
+function feedQueryIncludes(queryKey: readonly unknown[], event: NostrEvent, target: NostrEvent): boolean {
+  const [, tab, userPubkey, kindsKey, tagFiltersKey, , showReplies] = queryKey;
+  if (tab !== 'follows' || userPubkey !== event.pubkey) return false;
+  if (typeof kindsKey !== 'string' || !kindsKey.split(',').includes(String(event.kind))) return false;
+  if (showReplies === false && isReplyEvent(target)) return false;
+
+  if (typeof tagFiltersKey === 'string' && tagFiltersKey) {
+    let tagFilters: Record<string, string[]>;
+    try {
+      tagFilters = JSON.parse(tagFiltersKey);
+    } catch {
+      return false;
+    }
+    for (const [key, values] of Object.entries(tagFilters)) {
+      if (!key.startsWith('#') || !Array.isArray(values)) return false;
+      const name = key.slice(1);
+      if (!event.tags.some(([n, v]) => n === name && values.includes(v))) return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Optimistically prepend a freshly published event to the user's cached
+ * Follows feeds, so it appears immediately without waiting for a relay
+ * round-trip. Only feeds whose kinds (and tag filters, and reply setting)
+ * would include the event get it, so a repost only shows up when reposts are
+ * enabled in the feed settings.
+ *
+ * Pass `repostOf` for a kind 6 / 16 repost, so it renders like the feed's own
+ * reposts: the target note with a "reposted" header.
+ *
+ * Inactive feeds are updated too. Going back to the home feed restores its
+ * scroll position without refetching (see `useFeed`), so a post made from
+ * another page would otherwise be missing until the next refresh.
  *
  * Also seeds the `['event', id]` cache (so embedded previews and the detail
  * page resolve instantly) and marks `['feed']` queries stale WITHOUT
@@ -166,31 +209,59 @@ interface FeedPage {
  * item. The next natural refetch (pull-to-refresh, remount) happens after
  * the relay has indexed the event.
  */
-export function prependEventToFeeds(queryClient: QueryClient, event: NostrEvent): void {
-  /** A minimal FeedItem wrapping the freshly signed event. */
-  const optimisticItem: FeedItem = {
-    event,
-    sortTimestamp: event.created_at,
-  };
+export function prependEventToFeeds(queryClient: QueryClient, event: NostrEvent, repostOf?: NostrEvent): void {
+  const optimisticItem: FeedItem = repostOf
+    ? { event: repostOf, repostedBy: event.pubkey, repostEvent: event, sortTimestamp: event.created_at }
+    : { event, sortTimestamp: event.created_at };
+  const key = feedItemKey(optimisticItem);
 
   queryClient.setQueryData(['event', event.id], event);
 
-  queryClient.setQueriesData<InfiniteData<FeedPage>>(
-    { queryKey: ['feed'], type: 'active' },
-    (prev) => {
+  for (const query of queryClient.getQueryCache().findAll({ queryKey: ['feed'] })) {
+    if (!feedQueryIncludes(query.queryKey, event, optimisticItem.event)) continue;
+
+    queryClient.setQueryData<InfiniteData<FeedPage>>(query.queryKey, (prev) => {
       if (!prev) return prev;
       const [firstPage, ...rest] = prev.pages;
       if (!firstPage) return prev;
-      // Guard against double-insertion if the relay echoes back quickly.
-      if (firstPage.items.some((item) => item.event.id === event.id)) return prev;
+      // Guard against double-insertion if the relay echoes back quickly. A
+      // repost of a note already on the page is dropped the same way
+      // `dedupeFeedItems` drops it: the note itself wins.
+      const present = firstPage.items.some((item) =>
+        feedItemKey(item) === key ||
+        (repostOf && item.event.id === repostOf.id && !item.repostedBy && !item.reactedBy && !item.zappedBy),
+      );
+      if (present) return prev;
       return {
         ...prev,
         pages: [{ ...firstPage, items: [optimisticItem, ...firstPage.items] }, ...rest],
       };
-    },
-  );
+    });
+  }
 
   queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
+}
+
+/**
+ * Drop a deleted event from every cached feed, along with any repost,
+ * reaction, or zap header whose wrapper it was. Inactive feeds aren't
+ * refetched when the user goes back to them, so without this a just-undone
+ * repost would still be showing there.
+ */
+export function removeEventFromFeeds(queryClient: QueryClient, eventId: string): void {
+  queryClient.setQueriesData<InfiniteData<FeedPage>>({ queryKey: ['feed'] }, (prev) => {
+    if (!prev?.pages) return prev;
+    const matches = (item: FeedItem) =>
+      item.event.id === eventId ||
+      item.repostEvent?.id === eventId ||
+      item.reactedBy?.event.id === eventId ||
+      item.zappedBy?.event.id === eventId;
+    if (!prev.pages.some((page) => page.items.some(matches))) return prev;
+    return {
+      ...prev,
+      pages: prev.pages.map((page) => ({ ...page, items: page.items.filter((item) => !matches(item)) })),
+    };
+  });
 }
 
 /**

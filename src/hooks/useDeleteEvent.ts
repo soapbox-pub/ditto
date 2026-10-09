@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import { isAddressableKind } from '@/lib/eventKinds';
+import { removeEventFromFeeds } from '@/lib/feedUtils';
 
 interface DeleteEventParams {
   eventId: string;
@@ -51,7 +52,8 @@ export function useDeleteEvent() {
 
       return eventId;
     },
-    onSuccess: () => {
+    onSuccess: (eventId) => {
+      removeEventFromFeeds(queryClient, eventId);
       // Invalidate feed queries so relays are re-queried.
       // The relay should no longer return the deleted event.
       queryClient.invalidateQueries({ queryKey: ['feed'] });
