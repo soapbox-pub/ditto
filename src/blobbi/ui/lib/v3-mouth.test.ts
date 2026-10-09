@@ -49,18 +49,34 @@ describe('the V3 mouth: where food goes, from the kit', () => {
     expect(spawn).not.toEqual(getBlobbiMouthAnchor('adult'));
   });
 
-  it('is null for an egg and for V1/V2, which keep Ditto\'s own anchors', () => {
+  it('is null for an egg and for V1 and the V2 egg and baby, which keep Ditto\'s own anchors', () => {
     const { identity } = V3_REFERENCE_BLOBBIS[0];
     expect(getV3MouthRatio(v3Companion(identity, 'egg'))).toBeNull();
     expect(getV3MouthRatio(v3Companion(identity, 'adult'), 'back')).toBeNull();
-    for (const visualGeneration of ['v1', 'v2'] as const) {
-      for (const stage of ['egg', 'baby', 'adult'] as const) {
-        const companion = { stage, visualTraits: deriveVisualTraits([], identity.seed), visualGeneration, adultType: 'catti' as const };
-        expect(getV3MouthRatio(companion)).toBeNull();
-      }
-    }
-    // V1/V2 anchors unchanged.
+    const legacy = (visualGeneration: 'v1' | 'v2', stage: Stage) => ({ stage, visualTraits: deriveVisualTraits([], identity.seed), visualGeneration, adultType: 'catti' as const });
+    for (const stage of ['egg', 'baby', 'adult'] as const) expect(getV3MouthRatio(legacy('v1', stage)), `v1 ${stage}`).toBeNull();
+    for (const stage of ['egg', 'baby'] as const) expect(getV3MouthRatio(legacy('v2', stage)), `v2 ${stage}`).toBeNull();
+    // V1 anchors unchanged.
     expect(getBlobbiMouthAnchor('adult', 'leafy', null)).toEqual(getBlobbiMouthAnchor('adult', 'leafy'));
     expect(getBlobbiMouthAnchor('baby', undefined, null).yRatio).toBeCloseTo(0.68 + 0.12, 5);
+  });
+
+  it('a V2 adult, drawn by the kit as one body whatever its adult type, has that body\'s mouth, not its V1 form\'s', () => {
+    const { identity } = V3_REFERENCE_BLOBBIS[0];
+    const v2 = (adultType: 'catti' | 'mushie' | 'leafy') => ({ stage: 'adult' as const, visualTraits: deriveVisualTraits([], identity.seed), visualGeneration: 'v2' as const, adultType });
+    const front = getV3MouthRatio(v2('catti'))!;
+    expect(front).toEqual({ x: 0.5, y: 0.55 });
+    // The same mouth for every adult type: the kit draws them all as one V2 body.
+    expect(getV3MouthRatio(v2('mushie'))).toEqual(front);
+    expect(getV3MouthRatio(v2('leafy'))).toEqual(front);
+    // Profiles: the mouth sits on the side faced; the back has none.
+    expect(getV3MouthRatio(v2('catti'), 'right')!.x).toBeGreaterThan(0.5);
+    expect(getV3MouthRatio(v2('catti'), 'left')!.x).toBeLessThan(0.5);
+    expect(getV3MouthRatio(v2('catti'), 'back')).toBeNull();
+    // Nothing in Ditto's V1 per-form table applies to it any more.
+    for (const adultType of ['catti', 'mushie', 'leafy'] as const) {
+      expect(getBlobbiMouthAnchor('adult', adultType, getV3MouthRatio(v2(adultType)))).toEqual({ xRatio: 0.5, yRatio: 0.55 + 0.12 });
+      expect(getBlobbiMouthAnchor('adult', adultType, getV3MouthRatio(v2(adultType)))).not.toEqual(getBlobbiMouthAnchor('adult', adultType));
+    }
   });
 });
