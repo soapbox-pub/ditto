@@ -793,6 +793,19 @@
   }
 }
 
+/**
+ * A V3 Blobbi's pupils are the kit's (.blobbi-pupil), placed from the
+ * --blobbi-eye-x/y variables BlobbiV3Visual sets. Ditto retargets them every
+ * animation frame (pointer gaze, the companion's gaze lerp), and the kit's own
+ * gaze stylesheet gives them a 250ms transition that restarts on each
+ * retarget: the pupils only ever cover a fraction of the way to a moving
+ * target and catch up once the pointer slows or stops. Same rule as
+ * .blobbi-eye above: no transition, the frame loop is the animation.
+ */
+[data-blobbi-v3] .blobbi-pupil {
+  transition: none;
+}
+
 /* ── Milkdown Editor Styles ─────────────────────────────────────────────────── */
 
 .milkdown-editor .milkdown {

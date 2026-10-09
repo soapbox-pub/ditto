@@ -3,8 +3,10 @@
  * in the state Ditto chose, through Ditto's sanitizer, and nothing else; V1
  * and V2 Blobbis keep Ditto's own pipeline.
  */
-import { describe, expect, it } from 'vitest';
-import { render } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, render } from '@testing-library/react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import {
   KIND_BLOBBI_STATE,
@@ -119,6 +121,70 @@ describe('BlobbiStageVisual draws V3 through the kit', () => {
     // The backdrop is in the Blobbi's own colours: Algorithm 1's, not the seed read in the V1 mapping.
     expect(svg.toLowerCase()).toContain(OWN.colors.base);
     expect(svg.match(/<svg\b/g)!.length).toBe(2);
+  });
+});
+
+describe('a V3 Blobbi\'s eyes follow the pointer frame by frame', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('every frame the pointer moved, the pupils are placed where it is now, and nothing eases them there late', () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => frames.push(cb));
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+
+    const companion = blobbi('adult', 'v3');
+    const { container } = render(<BlobbiV3Visual visual={getBlobbiVisualIdentity(companion)} instanceId={companion.d} />);
+    const root = container.querySelector('[data-blobbi-v3]') as HTMLElement;
+    // The Blobbi occupies (0,0)-(200,200): its centre, the gaze origin, is (100,100).
+    vi.spyOn(root, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, left: 0, top: 0, width: 200, height: 200, right: 200, bottom: 200, toJSON: () => ({}) });
+    const body = container.querySelector('[data-blobbi-renderer] > div') as HTMLElement;
+    const gaze = () => ({ x: Number(body.style.getPropertyValue('--blobbi-eye-x')), y: Number(body.style.getPropertyValue('--blobbi-eye-y')) });
+
+    /** One animation frame: the pointer has moved to (clientX, clientY), then the gaze loop ticks. */
+    const frame = (clientX: number, clientY: number) => {
+      window.dispatchEvent(new MouseEvent('pointermove', { clientX, clientY }));
+      const tick = frames.shift();
+      expect(tick, 'the gaze loop is waiting on the next frame').toBeDefined();
+      act(() => tick!(performance.now()));
+    };
+
+    // A sweep once around the Blobbi, one step per frame: each frame the
+    // pupils point at the pointer's current direction, so they move every frame.
+    const seen: { x: number; y: number }[] = [];
+    const STEPS = 12;
+    for (let i = 0; i < STEPS; i++) {
+      const angle = (i / STEPS) * 2 * Math.PI;
+      frame(100 + 400 * Math.cos(angle), 100 + 400 * Math.sin(angle));
+      const g = gaze();
+      expect(g.x, `frame ${i}`).toBeCloseTo(Math.cos(angle), 1);
+      expect(g.y, `frame ${i}`).toBeCloseTo(Math.sin(angle), 1);
+      seen.push(g);
+    }
+    for (let i = 1; i < seen.length; i++) expect(seen[i], `frame ${i} moved the eyes`).not.toEqual(seen[i - 1]);
+    // A frame without pointer movement renders nothing new.
+    const before = gaze();
+    act(() => frames.shift()!(performance.now()));
+    expect(gaze()).toEqual(before);
+
+    // Where the per-frame placement used to be lost: the kit's gaze stylesheet
+    // eases .blobbi-pupil over 250ms, and a transition retargeted every frame
+    // never gets anywhere. Ditto's stylesheet turns it off under its V3 wrapper.
+    const kitGazeStyle = container.querySelector('style[data-blobbi-gaze-style]')!.textContent!;
+    expect(kitGazeStyle).toMatch(/^\.blobbi-pupil\{[^}]*transition:transform/);
+    expect(root.querySelectorAll('.blobbi-pupil').length).toBeGreaterThan(0);
+    const dittoCss = readFileSync(join(__dirname, '../../index.css'), 'utf8');
+    expect(dittoCss).toMatch(/\[data-blobbi-v3\]\s+\.blobbi-pupil\s*\{\s*transition:\s*none;\s*\}/);
+  });
+
+  it('a side view keeps its (mirrored) pupils under the same rule; the back has none to move', () => {
+    const companion = blobbi('adult', 'v3');
+    const visual = getBlobbiVisualIdentity(companion);
+    const side = render(<BlobbiV3Visual visual={visual} instanceId={companion.d} facing="left" externalEyeOffset={{ x: 0.5, y: 0 }} />);
+    expect(side.container.querySelector('[data-blobbi-v3] .blobbi-pupil')).not.toBeNull();
+    expect(side.container.querySelector('style[data-blobbi-gaze-style]')!.textContent).toMatch(/--blobbi-eye-x,0\) \* -/);
+    const back = render(<BlobbiV3Visual visual={visual} instanceId={companion.d} facing="back" externalEyeOffset={{ x: 0.5, y: 0 }} />);
+    expect(back.container.querySelector('.blobbi-pupil')).toBeNull();
+    expect(back.container.querySelector('style[data-blobbi-gaze-style]')).toBeNull();
   });
 });
 
