@@ -1,12 +1,12 @@
 /**
- * THE KIT'S REFERENCE BLOBBIS, for looking at in Ditto.
+ * THE KIT'S REFERENCE BLOBBIS: test fixture data.
  *
  * blobbi-kit pins `visual_algorithm = 1` with twelve complete V3 identities
  * (`packages/blobbi-renderer/src/artwork/v3/reference/cases.ts`, kit commit
  * f3acbf4). They are not exported by the package, so they are copied here,
- * literally (the same copy Blobbi Standalone carries), as DEV AND TEST
- * FIXTURE DATA: nothing is derived, and the kit decides everything about how
- * they look.
+ * literally (the same copy Blobbi Standalone carries), as TEST FIXTURE DATA
+ * (the mouth and sanitizer tests sweep them): nothing is derived, and the
+ * kit decides everything about how they look.
  *
  * Between them they carry every kind of every trait, a mark in every region,
  * and a very pale body with no accent colour. The last two are exactly what
