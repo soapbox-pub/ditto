@@ -10,7 +10,6 @@ export interface ClientDef {
 
 export const CLIENTS: ClientDef[] = [
   { tags: ['Ditto'], label: 'Ditto', color: 'hsl(221, 83%, 53%)' },
-  { tags: ['Agora'], label: 'Agora', color: 'hsl(25, 95%, 53%)' },
   {
     tags: [
       'diVine',
@@ -28,6 +27,7 @@ export const CLIENTS: ClientDef[] = [
   { tags: ['Amethyst'], label: 'Amethyst', color: 'hsl(258, 70%, 55%)' },
   { tags: ['Primal Web', 'Primal Android', 'Primal iOS'], label: 'Primal', color: 'hsl(348, 83%, 47%)' },
   { tags: ['Wisp'], label: 'Wisp', color: 'hsl(170, 75%, 42%)' },
+  { tags: ['Nostrich', 'nostrich'], label: 'Nostrich', color: 'hsl(38, 92%, 50%)' },
 ];
 
 /**
