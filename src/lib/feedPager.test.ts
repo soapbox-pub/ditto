@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
-import { fetchFeedPage, type FeedCursor, type FeedRelay } from './feedPager';
+import { fetchFeedPage, type FeedCursor, type FeedRelay, type RejectedEvents } from './feedPager';
 
 function event(id: string, created_at: number): NostrEvent {
   return { id, pubkey: 'p', created_at, kind: 1, tags: [], content: '', sig: '' };
@@ -17,14 +17,20 @@ interface FakeRelay {
 
 /**
  * A relay holding `events`. `delays[i]` holds the i-th REQ back that long;
- * the first `failFirst` REQs fail.
+ * the first `failFirst` REQs fail. Events in `invalid` fail verification:
+ * they're dropped and reported through `rejected`, as `AuthAwareRelay` does.
  */
-function fakeRelay(events: NostrEvent[], opts: { delays?: number[]; failFirst?: number } = {}): FakeRelay {
+function fakeRelay(
+  events: NostrEvent[],
+  opts: { delays?: number[]; failFirst?: number; invalid?: Set<string> } = {},
+): FakeRelay {
   const calls: NostrFilter[] = [];
+  const rejects = new Map<string, RejectedEvents>();
   const relay: FeedRelay = {
     async *req(filters) {
       const [filter] = filters;
       const call = calls.push(filter) - 1;
+      const sub = `sub${call}`;
       if (call < (opts.failFirst ?? 0)) throw new Error('refused');
       const delay = opts.delays?.[call];
       if (delay) await sleep(delay);
@@ -32,8 +38,20 @@ function fakeRelay(events: NostrEvent[], opts: { delays?: number[]; failFirst?: 
         .filter((ev) => filter.until === undefined || ev.created_at <= filter.until)
         .sort((a, b) => b.created_at - a.created_at)
         .slice(0, filter.limit);
-      for (const ev of matched) yield ['EVENT', 'sub', ev];
-      yield ['EOSE', 'sub'];
+      for (const ev of matched) {
+        if (opts.invalid?.has(ev.id)) {
+          const prev = rejects.get(sub);
+          rejects.set(sub, { count: (prev?.count ?? 0) + 1, oldest: Math.min(prev?.oldest ?? Infinity, ev.created_at) });
+        } else {
+          yield ['EVENT', sub, ev];
+        }
+      }
+      yield ['EOSE', sub];
+    },
+    rejected(subId) {
+      const rejected = rejects.get(subId);
+      rejects.delete(subId);
+      return rejected;
     },
   };
   return { relay, calls };
@@ -158,6 +176,18 @@ describe('fetchFeedPage', () => {
     expect(a.calls[0].until).toBeLessThanOrEqual(now + 1);
     expect(pages.flat().some((ev) => ev.id.startsWith('future'))).toBe(false);
     expectOrderedAndUnique(pages);
+  });
+
+  it("doesn't end a relay's feed at a page shortened by events that failed verification", async () => {
+    const all = series('e', 1000, 1, 60);
+    // Eight in a row (forged zap receipts, say), and later a full page's worth.
+    const invalid = new Set(ids([...all.slice(12, 20), ...all.slice(30, 42)]));
+    const r = fakeRelay(all, { invalid });
+
+    const pages = await pageAll({ r });
+
+    expectOrderedAndUnique(pages);
+    expect(ids(pages.flat())).toEqual(ids(all.filter((ev) => !invalid.has(ev.id))));
   });
 
   it('ends a feed that keeps returning empty pages', async () => {

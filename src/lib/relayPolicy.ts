@@ -1,5 +1,8 @@
 import { NRelay1, type NostrEvent, type NRelay1Opts } from '@nostrify/nostrify';
 import type { NostrRelayMsg } from '@nostrify/types';
+import { verifyEvent as defaultVerifyEvent } from 'nostr-tools';
+
+import type { RejectedEvents } from '@/lib/feedPager';
 
 /**
  * Which relays Ditto may connect to, and which may get a NIP-42 AUTH.
@@ -413,6 +416,8 @@ const MAX_AUTH_ATTEMPTS = 3;
 const AUTH_WINDOW_MS = 60_000;
 /** How long to wait for the relay's OK to an AUTH before giving up on it. */
 const AUTH_OK_TIMEOUT_MS = 30_000;
+/** Subscriptions whose rejected events one connection remembers until read. */
+const MAX_REJECTED_SUBS = 64;
 
 /**
  * `NRelay1` that can tell when the relay actually requires AUTH, and that
@@ -426,6 +431,9 @@ const AUTH_OK_TIMEOUT_MS = 30_000;
  *   extension popup, a bunker round-trip). Challenges that arrive while one
  *   is being answered, or that were already answered, are only recorded,
  *   and each connection gets a few attempts a minute.
+ *
+ * It also records which subscription each event failing `verifyEvent` was
+ * for, which Nostrify drops without a trace (see {@link rejected}).
  */
 export class AuthAwareRelay extends NRelay1 {
   private needed = deferred();
@@ -438,14 +446,51 @@ export class AuthAwareRelay extends NRelay1 {
   /** The AUTH being answered, resolving to whether the relay accepted it. */
   private attempt?: { challenge: string; eventId?: string; done: ReturnType<typeof deferred<boolean>>; timer?: ReturnType<typeof setTimeout> };
   private attemptTimes: number[] = [];
+  private readonly verify: (event: NostrEvent) => boolean;
+  /** The subscription of the EVENT being received. */
+  private receivingSub?: string;
+  private rejects = new Map<string, RejectedEvents>();
 
   constructor(url: string, opts: NRelay1Opts = {}) {
-    // `super` needs the callback before `this` exists; it's only called later.
+    // `super` needs the callbacks before `this` exists; they're only called later.
     const owner: { relay?: AuthAwareRelay } = {};
-    const { auth } = opts;
-    super(url, { ...opts, auth: auth && ((challenge: string) => owner.relay!.answer(challenge)) });
+    const { auth, verifyEvent = defaultVerifyEvent } = opts;
+    super(url, {
+      ...opts,
+      auth: auth && ((challenge: string) => owner.relay!.answer(challenge)),
+      verifyEvent: (event) => owner.relay!.verifyReceived(event),
+    });
     owner.relay = this;
     this.signAuth = auth;
+    this.verify = verifyEvent;
+  }
+
+  /**
+   * Events this relay sent for a subscription that failed verification, once
+   * its EOSE has arrived. Each subscription's are returned once.
+   */
+  rejected(subId: string): RejectedEvents | undefined {
+    const rejected = this.rejects.get(subId);
+    this.rejects.delete(subId);
+    return rejected;
+  }
+
+  private verifyReceived(event: NostrEvent): boolean {
+    if (this.verify(event)) return true;
+    const subId = this.receivingSub;
+    if (subId !== undefined) {
+      const prev = this.rejects.get(subId);
+      this.rejects.delete(subId);
+      this.rejects.set(subId, {
+        count: (prev?.count ?? 0) + 1,
+        oldest: Math.min(prev?.oldest ?? Infinity, event.created_at),
+      });
+      // Only the feed pager reads these; forget the oldest nobody asked for.
+      if (this.rejects.size > MAX_REJECTED_SUBS) {
+        this.rejects.delete(this.rejects.keys().next().value!);
+      }
+    }
+    return false;
   }
 
   /** Whether the relay has refused a request until the user signs in. */
@@ -526,6 +571,11 @@ export class AuthAwareRelay extends NRelay1 {
       this.refused = true;
       this.needed.resolve();
     }
-    super.receive(msg);
+    this.receivingSub = msg[0] === 'EVENT' ? msg[1] : undefined;
+    try {
+      super.receive(msg);
+    } finally {
+      this.receivingSub = undefined;
+    }
   }
 }

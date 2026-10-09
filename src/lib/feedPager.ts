@@ -1,12 +1,25 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import type { NostrRelayCLOSED, NostrRelayEOSE, NostrRelayEVENT } from '@nostrify/types';
 
+/** Events a relay sent for a subscription that failed verification and were dropped. */
+export interface RejectedEvents {
+  count: number;
+  /** `created_at` of the oldest one. */
+  oldest: number;
+}
+
 /** Anything that can run a REQ against one relay, such as `pool.relay(url)`. */
 export interface FeedRelay {
   req(
     filters: NostrFilter[],
     opts?: { signal?: AbortSignal },
   ): AsyncIterable<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED>;
+  /**
+   * Events dropped from a subscription by verification, such as forged zap
+   * receipts. They count toward the relay's page, so a page that lost some
+   * isn't mistaken for the relay running out. See `AuthAwareRelay`.
+   */
+  rejected?(subId: string): RejectedEvents | undefined;
 }
 
 /** Where one relay's pagination stands. */
@@ -57,6 +70,7 @@ export interface FeedPageResult {
 interface RelayResult {
   events: NostrEvent[];
   status: 'eose' | 'closed' | 'error';
+  rejected?: RejectedEvents;
 }
 
 interface Run {
@@ -84,7 +98,7 @@ function startRun(key: string, relay: FeedRelay, filter: NostrFilter, timeout: n
       try {
         for await (const msg of relay.req([filter], { signal: AbortSignal.timeout(timeout) })) {
           if (msg[0] === 'EVENT') events.push(msg[2]);
-          else if (msg[0] === 'EOSE') return { events, status: 'eose' };
+          else if (msg[0] === 'EOSE') return { events, status: 'eose', rejected: relay.rejected?.(msg[1]) };
           else if (msg[0] === 'CLOSED') return { events, status: 'closed' };
         }
       } catch {
@@ -290,11 +304,14 @@ async function fetchRound(
       failed.add(url);
       continue;
     }
-    if (result.events.length < limit) {
+    // A relay sent a short page when it ran out. Events it sent that failed
+    // verification count too: they took up the page, so there may be more.
+    const { rejected } = result;
+    if (result.events.length + (rejected?.count ?? 0) < limit) {
       relays[url] = { done: true };
       continue;
     }
-    const floor = Math.min(...result.events.map((ev) => ev.created_at));
+    const floor = Math.min(...result.events.map((ev) => ev.created_at), rejected?.oldest ?? Infinity);
     const atFloor = result.events.filter((ev) => ev.created_at === floor).map((ev) => ev.id);
     const next: RelayCursor = floor === state.until
       // A full page all at the same second; step past it rather than loop.
