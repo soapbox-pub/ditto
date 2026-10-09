@@ -39,6 +39,8 @@ import {
   clampToRoom,
   snapCenter,
 } from '../room-geometry';
+import type { BlobbiFacing } from '@blobbi-kit/renderer';
+import { facingBasis, facingForHeading, facingTarget } from '../room-facing';
 import type { ModelExtras } from './official-models';
 import { latheSegments } from './sno-builder';
 import { drawSurface, paperBump } from './paper-textures';
@@ -123,6 +125,8 @@ const HALO_OPACITY = 0.3;
 /** How brightly a lampshade glows over its own colour when its lamp is on. */
 const SHADE_GLOW = 0.75;
 
+/** The viewer's axes in room coordinates, for a walker's facing. The parallax wobble is too small to matter. */
+const FACING_BASIS = facingBasis(AZIMUTH);
 /** The fraction of the way to a target to move in `dt` seconds, easing at `rate`, whatever the frame rate. */
 function easeBy(dt: number, rate: number): number {
   return 1 - Math.exp(-rate * dt);
@@ -405,6 +409,8 @@ interface Actor {
   tiles: number;
   path: { x: number; z: number }[];
   walked: number;
+  /** Which way it faces: where it is heading while walking, front at rest (`room-facing.ts`). */
+  facing: BlobbiFacing;
   caster: THREE.Mesh;
   contact: THREE.Mesh;
   /** Has said hello to the user's Blobbi since it last walked over. */
@@ -844,6 +850,11 @@ export class RoomScene {
     return this.projectPoint(x, 0, z);
   }
 
+  /** Which way a Blobbi faces (the user's by default): where it is walking to, or front at rest. */
+  facingOf(id = MAIN): BlobbiFacing {
+    return this.actors.get(id)?.facing ?? 'front';
+  }
+
   /** A Blobbi's feet on screen (the user's by default). */
   projectBlobbi(id = MAIN): ScreenAnchor | null {
     const b = this.actors.get(id);
@@ -1046,7 +1057,7 @@ export class RoomScene {
     contact.rotation.x = -Math.PI / 2;
     contact.renderOrder = 1;
     this.scene.add(caster, contact);
-    const actor: Actor = { id, x: 5.5, z: 5.5, elev: 0, hop: 0, visible: true, isEgg, tiles: 2.5, path: [], walked: 0, caster, contact, met: false };
+    const actor: Actor = { id, x: 5.5, z: 5.5, elev: 0, hop: 0, visible: true, isEgg, tiles: 2.5, path: [], walked: 0, facing: 'front', caster, contact, met: false };
     this.actors.set(id, actor);
     return actor;
   }
@@ -1298,6 +1309,7 @@ export class RoomScene {
     let moving = false;
     for (const b of this.actors.values()) {
       if (!b.path.length) {
+        b.facing = 'front';
         // Settle any hop
         if (b.hop > 0) {
           b.hop = Math.max(0, b.hop - dt * 2.4);
@@ -1305,6 +1317,10 @@ export class RoomScene {
         }
         continue;
       }
+      // Face where the walk is heading (a few waypoints ahead, so a staircase
+      // path around furniture reads as one direction), front again on arrival.
+      const look = facingTarget(b.path)!;
+      b.facing = facingForHeading(look.x - b.x, look.z - b.z, FACING_BASIS, b.facing);
       let step = WALK_SPEED * dt;
       while (step > 0 && b.path.length) {
         const next = b.path[0];
@@ -1325,7 +1341,10 @@ export class RoomScene {
         }
       }
       b.hop = b.path.length ? Math.abs(Math.sin(b.walked * Math.PI * 1.6)) * 0.12 : 0;
-      if (!b.path.length) this.arrive(b);
+      if (!b.path.length) {
+        b.facing = 'front';
+        this.arrive(b);
+      }
       moving = true;
     }
     if (moving) this.shadowsDirty = true;

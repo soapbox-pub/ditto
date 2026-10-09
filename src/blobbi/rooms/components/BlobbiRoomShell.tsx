@@ -34,12 +34,13 @@ import type { FurniturePlacement } from '../lib/room-furniture-schema';
 import { resolveFurniture, type FurnitureInteraction } from '../lib/furniture-registry';
 import type { PoopInstance } from '../lib/poop-system';
 import type { RoomLayout } from '../lib/room-layout-schema';
-import { ROOM_GRID, blobbiBoxTiles } from '../lib/room-geometry';
+import { ROOM_GRID, blobbiBoxTiles, MAIN_BLOBBI } from '../lib/room-geometry';
 import { HUD_BUTTON_CLASS, ROOM_CONTROL_SURFACE, ROOM_DOCK_SCALE, ROOM_UI_SCALE, ROOM_GUIDE_RING_PULSE } from '../lib/room-layout';
 import { ArcBackground } from '@/components/ArcBackground';
 import { PoopOverlay } from './RoomPoopLayer';
 import { useFurnitureModels } from '../hooks/useFurnitureModels';
 import { useRoomScene } from '../hooks/useRoomScene';
+import type { BlobbiFacing } from '@blobbi-kit/renderer';
 import type { RoomScene, SceneGeometry, ScreenAnchor, SpotQuery } from '../lib/room-scene/RoomScene';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -123,6 +124,11 @@ interface BlobbiRoomShellProps {
   onMeet?: (id: string) => void;
   /** A Blobbi was tapped (MAIN for the user's). */
   onBlobbiTap?: (id: string) => void;
+  /**
+   * A Blobbi turned: it faces where it walks and front at rest (MAIN for the
+   * user's). Presentation only; called when the facing changes, not per frame.
+   */
+  onActorFacingChange?: (id: string, facing: BlobbiFacing) => void;
   floorThings?: RoomFloorThing[];
   /** Tapping a piece of furniture that does something. */
   onInteract?: (interaction: FurnitureInteraction, index: number) => void;
@@ -166,6 +172,7 @@ export function BlobbiRoomShell({
   guests,
   onMeet,
   onBlobbiTap,
+  onActorFacingChange,
   floorThings,
   editor,
   controlRef,
@@ -259,6 +266,12 @@ export function BlobbiRoomShell({
   );
   const statusRef = useRef<'loading' | 'ready' | 'unavailable'>('loading');
   const sceneHandle = useRef<RoomScene | null>(null);
+  /** The facing last reported per Blobbi, so the callback fires on changes only. */
+  const facingsRef = useRef(new Map<string, BlobbiFacing>());
+  const onActorFacingChangeRef = useRef(onActorFacingChange);
+  useEffect(() => {
+    onActorFacingChangeRef.current = onActorFacingChange;
+  });
 
   /** Move every anchored DOM element to where its room point is on screen. */
   const updateAnchors = useCallback(() => {
@@ -269,7 +282,16 @@ export function BlobbiRoomShell({
       root?.querySelectorAll<HTMLElement>('[data-anchor]').forEach((el) => {
         let anchor: ScreenAnchor | null = null;
         const { anchor: kind, x, z, index, actor } = el.dataset;
-        if (kind === 'blobbi') anchor = scene ? scene.projectBlobbi(actor) : actor ? null : flat?.blobbi() ?? null;
+        if (kind === 'blobbi') {
+          anchor = scene ? scene.projectBlobbi(actor) : actor ? null : flat?.blobbi() ?? null;
+          // Without the scene (flat room) nobody walks, so everyone faces front
+          const id = actor ?? MAIN_BLOBBI;
+          const facing = scene ? scene.facingOf(id) : 'front';
+          if (facingsRef.current.get(id) !== facing) {
+            facingsRef.current.set(id, facing);
+            onActorFacingChangeRef.current?.(id, facing);
+          }
+        }
         else if (kind === 'floor') anchor = scene ? scene.projectFloor(Number(x), Number(z)) : flat?.floor(Number(x), Number(z)) ?? null;
         else if (kind === 'item') anchor = scene ? scene.projectItemTop(Number(index)) : null;
         if (!anchor) {

@@ -33,6 +33,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { getV3MouthRatio, type MouthRatio } from '@/blobbi/ui/lib/v3-mouth';
+import type { BlobbiFacing } from '@blobbi-kit/renderer';
 import { BlobbiHatchingCeremony } from '@/blobbi/onboarding/components/BlobbiHatchingCeremony';
 import { decideFirstHatch } from '@/blobbi/onboarding/lib/first-hatch-decision';
 import { useRecoveredBlobbis } from '@/blobbi/onboarding/hooks/useRecoveredBlobbis';
@@ -1781,9 +1782,18 @@ function BlobbiDashboard({
     setActionOverrideEmotion(near ? 'eating' : null);
   }, []);
 
-  // A V3 Blobbi's mouth, as the kit measures this individual (the room draws
-  // it from the front, filling the visual square). V1/V2: null, their own anchors.
-  const v3Mouth = useMemo(() => getV3MouthRatio(companion), [companion]);
+  // Which way each Blobbi in the room faces: where it walks, front at rest.
+  // Reported by the room shell when it changes; presentation only.
+  const [actorFacings, setActorFacings] = useState<Record<string, BlobbiFacing>>({});
+  const onActorFacingChange = useCallback((id: string, facing: BlobbiFacing) => {
+    setActorFacings((prev) => (prev[id] === facing ? prev : { ...prev, [id]: facing }));
+  }, []);
+  const blobbiFacing = actorFacings[MAIN_BLOBBI] ?? 'front';
+
+  // A V3 Blobbi's mouth, as the kit measures this individual from the side it
+  // is drawn from (the room fills the visual square). Seen from behind there
+  // is no mouth, so the front measurement stands in. V1/V2: null, their own anchors.
+  const v3Mouth = useMemo(() => getV3MouthRatio(companion, blobbiFacing) ?? getV3MouthRatio(companion), [companion, blobbiFacing]);
 
   /** Drag-to-feed handler: fires mutation immediately, overlays chewing
    *  animation for CHEW_DURATION_MS, then transitions to happy if the
@@ -2099,9 +2109,9 @@ function BlobbiDashboard({
       id: g.d,
       stage: c.stage,
       spawn: g.x !== undefined && g.z !== undefined ? { x: g.x, z: g.z } : undefined,
-      node: <BlobbiGuestStage companion={c} meeting={meeting.has(g.d)} />,
+      node: <BlobbiGuestStage companion={c} meeting={meeting.has(g.d)} facing={actorFacings[g.d] ?? 'front'} />,
     }];
-  }), [roomGuestEntries, companions, meeting]);
+  }), [roomGuestEntries, companions, meeting, actorFacings]);
 
   // ─── Kitchen fridge overlay (lifted here so it renders via roomOverlay, not inside the dock) ───
   const [showFridge, setShowFridge] = useState(false);
@@ -2320,6 +2330,7 @@ function BlobbiDashboard({
         furniturePlacements={furnitureDraft ?? currentFurniturePlacements}
         onInteract={handleInteract}
         guests={roomGuests}
+        onActorFacingChange={onActorFacingChange}
         onMeet={handleMeet}
         onBlobbiTap={(id) => { if (id !== MAIN_BLOBBI) handleMeet(id); }}
         floorThings={floorThings}
@@ -2419,6 +2430,7 @@ function BlobbiDashboard({
               hasDevOverride={hasDevOverride}
               blobbiReaction={blobbiReaction}
               interactionReaction={isEgg ? undefined : interactionReaction}
+              facing={blobbiFacing}
             />
           ) : undefined
         }

@@ -25,6 +25,7 @@ import { eggCrackForTourState } from './lib/v3-expression';
 import { blobbiDisplayColors } from './lib/display-colors';
 import { cn } from '@/lib/utils';
 import { getBlobbiVisualIdentity, type BlobbiCompanion } from '@blobbi-kit/core';
+import type { BlobbiFacing } from '@blobbi-kit/renderer';
 import type { BlobbiLookMode } from './lib/useBlobbiEyes';
 import type { BlobbiEmotion } from './lib/emotion-types';
 import type { BlobbiVisualRecipe } from './lib/recipe';
@@ -60,6 +61,13 @@ export interface BlobbiStageVisualProps {
   tourVisualState?: EggTourVisualState;
   /** Callback when the egg is clicked during an interactive tour step */
   onTourEggClick?: () => void;
+  /**
+   * Which way the Blobbi faces (default front). Drawn by the kit renderer for
+   * a V3 Blobbi, which has artwork for every side. Ditto's own V1/V2 drawings
+   * are front-only, so they ignore it: the kit never mirrors a V1 form (its
+   * drawings are asymmetric) and Ditto has no profile artwork of its own.
+   */
+  facing?: BlobbiFacing;
   className?: string;
 }
 
@@ -86,6 +94,7 @@ export function BlobbiStageVisual({
   bodyEffects,
   tourVisualState,
   onTourEggClick,
+  facing = 'front',
   className,
 }: BlobbiStageVisualProps) {
   const { stage } = companion;
@@ -119,6 +128,7 @@ export function BlobbiStageVisual({
         recipe={recipe}
         emotion={emotion}
         motion={animated || stage !== 'egg' ? 'idle' : 'still'}
+        facing={facing}
         eggCrack={eggCrackForTourState(tourVisualState)}
         className="size-full"
       />

@@ -16,6 +16,7 @@ import { getBlobbiBodyBottomInset } from '../lib/room-layout-schema';
 import { cn } from '@/lib/utils';
 
 import type { BlobbiCompanion } from '@blobbi-kit/core/blobbi';
+import type { BlobbiFacing } from '@blobbi-kit/renderer';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BlobbiReactionState } from '@/blobbi/actions';
@@ -42,6 +43,12 @@ interface BlobbiRoomStageProps {
   blobbiReaction: BlobbiReactionState;
   /** Temporary interaction reaction (sparkles, bubbles, hearts, body animation). */
   interactionReaction?: InteractionReactionState;
+  /**
+   * Which way the Blobbi faces, from where it walks in the room (the shell
+   * reports it; see `rooms/lib/room-facing.ts`). Presentation only: the same
+   * Blobbi drawn from another side. Default front.
+   */
+  facing?: BlobbiFacing;
 }
 
 /** Side of the Blobbi's art box before the room scales it. */
@@ -100,6 +107,7 @@ export function BlobbiRoomStage({
   hasDevOverride,
   blobbiReaction,
   interactionReaction,
+  facing = 'front',
 }: BlobbiRoomStageProps) {
   const bobDuration = `${4 - (currentStats.happiness / 100) * 1.5}s`;
 
@@ -134,6 +142,7 @@ export function BlobbiRoomStage({
             recipe={hasDevOverride ? undefined : statusRecipe}
             recipeLabel={hasDevOverride ? undefined : statusRecipeLabel}
             emotion={effectiveEmotion}
+            facing={facing}
             className="!size-full"
           />
           {/* Interaction reaction overlays — sparkles, bubbles, hearts */}
@@ -152,7 +161,7 @@ export function BlobbiRoomStage({
  * Another of the user's Blobbis, visiting the room. Same sizing as the
  * user's Blobbi; happy and showering hearts while `meeting`.
  */
-export function BlobbiGuestStage({ companion, meeting }: { companion: BlobbiCompanion; meeting: boolean }) {
+export function BlobbiGuestStage({ companion, meeting, facing = 'front' }: { companion: BlobbiCompanion; meeting: boolean; facing?: BlobbiFacing }) {
   const asleep = companion.state === 'sleeping';
   return (
     <Standing
@@ -170,6 +179,7 @@ export function BlobbiGuestStage({ companion, meeting }: { companion: BlobbiComp
             size="lg"
             animated
             emotion={meeting ? 'happy' : asleep ? undefined : 'neutral'}
+            facing={facing}
             className="!size-full"
           />
           <FloatingSocialHearts active={meeting} />
