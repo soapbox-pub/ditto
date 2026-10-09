@@ -1,5 +1,5 @@
 import { useNostr } from "@nostrify/react";
-import { useMutation, type UseMutationResult } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { nip19 } from "nostr-tools";
 
 import { useAppContext } from "./useAppContext";
@@ -9,6 +9,7 @@ import { sendToInboxRelays } from "@/lib/inboxRelays";
 import { withoutBlockedRelays } from "@/lib/relayPolicy";
 import { NO_WRITE_RELAYS } from "@/lib/publishError";
 import { notifyStreakActivity } from "@/lib/streak";
+import { syncPublishedEventToFeeds } from "@/lib/feedUtils";
 
 import type { NostrEvent } from "@nostrify/nostrify";
 
@@ -63,6 +64,7 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (t: EventTemplate) => {
@@ -152,6 +154,9 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
     },
     onSuccess: (data) => {
       console.log("Event published successfully:", data);
+      // Show it in (or, for a deletion, remove it from) the cached feeds now,
+      // rather than after the next refetch.
+      syncPublishedEventToFeeds(queryClient, data);
     },
   });
 }

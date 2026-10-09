@@ -48,7 +48,7 @@ import { BLANK_POSTER } from "@/lib/blankPoster";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { getContentWarning } from "@/lib/contentWarning";
 import { EXTRA_KINDS } from "@/lib/extraKinds";
-import { getRepostKind, prependEventToFeeds } from "@/lib/feedUtils";
+import { getRepostKind } from "@/lib/feedUtils";
 import { formatNumber } from "@/lib/formatNumber";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
 import { getDisplayName } from "@/lib/getDisplayName";
@@ -286,7 +286,6 @@ export function VineRepostButton({
 				{
 					onSuccess: (repost) => {
 						queryClient.setQueryData(["user-repost", event.id], repost.id);
-						prependEventToFeeds(queryClient, repost, event);
 					},
 					onError: () => {
 						if (prevStats)

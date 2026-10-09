@@ -15,7 +15,7 @@ import { useDeleteEvent } from '@/hooks/useDeleteEvent';
 import { useRepostStatus } from '@/hooks/useRepostStatus';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
-import { getRepostKind, prependEventToFeeds } from '@/lib/feedUtils';
+import { getRepostKind } from '@/lib/feedUtils';
 import { DITTO_RELAY } from '@/lib/appRelays';
 import type { EventStats } from '@/hooks/useTrending';
 
@@ -86,7 +86,6 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
           setOpen(false);
           // The real id, so undoing right away deletes the actual repost.
           queryClient.setQueryData(['user-repost', event.id], repost.id);
-          prependEventToFeeds(queryClient, repost, event);
           // Rebroadcast the original event alongside the repost (best-effort).
           rebroadcastEvent(nostr, event);
           // Delay invalidation so the relay has time to index the new event.

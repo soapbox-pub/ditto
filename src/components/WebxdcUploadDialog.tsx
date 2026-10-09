@@ -12,8 +12,6 @@ import { Label } from '@/components/ui/label';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useQueryClient } from '@tanstack/react-query';
-import { prependEventToFeeds } from '@/lib/feedUtils';
 import { extractWebxdcMeta } from '@/lib/webxdcMeta';
 import { toast } from '@/hooks/useToast';
 
@@ -26,7 +24,6 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
   const { user } = useCurrentUser();
   const { mutateAsync: uploadFile } = useUploadFile();
   const { mutateAsync: createEvent } = useNostrPublish();
-  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
@@ -126,7 +123,7 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
       // App icon thumbnail
       if (iconUrl) tags.push(['image', iconUrl]);
 
-      const published = await createEvent({
+      await createEvent({
         kind: 1063,
         content: description || (appName ? `${appName}` : ''),
         tags,
@@ -134,15 +131,13 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
       });
 
       toast({ title: 'Published', description: `${appName ?? 'Webxdc app'} shared successfully.` });
-      // Optimistically show the new app in cached feeds.
-      prependEventToFeeds(queryClient, published);
       handleOpenChange(false);
     } catch {
       toast({ title: 'Publish failed', description: 'Could not publish the webxdc app.', variant: 'destructive' });
     } finally {
       setIsUploading(false);
     }
-  }, [file, user, appName, iconUrl, description, uploadFile, createEvent, queryClient, handleOpenChange]);
+  }, [file, user, appName, iconUrl, description, uploadFile, createEvent, handleOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

@@ -1,4 +1,4 @@
-import type { NostrEvent, NPool } from '@nostrify/nostrify';
+import { NKinds, type NostrEvent, type NPool } from '@nostrify/nostrify';
 import type { InfiniteData, QueryClient } from '@tanstack/react-query';
 import { EventVerifier } from '@/lib/EventVerifier';
 import { EXTERNAL_IDENTITIES_KIND, parseExternalIdentities } from '@/lib/externalIdentities';
@@ -188,80 +188,168 @@ function feedQueryIncludes(queryKey: readonly unknown[], event: NostrEvent, targ
   return true;
 }
 
+/** True for a feed item that shows `item.event` itself, with no repost / reaction / zap header. */
+function isDirectItem(item: FeedItem): boolean {
+  return !item.repostedBy && !item.reactedBy && !item.zappedBy && !item.profileZapRecipient;
+}
+
+/** The `d` tag of an addressable event, or `''`. */
+function getDTag(event: NostrEvent): string {
+  return event.tags.find(([name]) => name === 'd')?.[1] ?? '';
+}
+
+/** Apply `update` to every cached `['feed']` query, skipping any without data. */
+function updateFeeds(
+  queryClient: QueryClient,
+  update: (data: InfiniteData<FeedPage>, queryKey: readonly unknown[]) => InfiniteData<FeedPage>,
+): void {
+  for (const query of queryClient.getQueryCache().findAll({ queryKey: ['feed'] })) {
+    queryClient.setQueryData<InfiniteData<FeedPage>>(query.queryKey, (prev) =>
+      prev?.pages ? update(prev, query.queryKey) : prev,
+    );
+  }
+}
+
+/** Drop every feed item matching `matches`, keeping the data unchanged when none do. */
+function removeFeedItems(queryClient: QueryClient, matches: (item: FeedItem) => boolean): void {
+  updateFeeds(queryClient, (data) => {
+    if (!data.pages.some((page) => page.items.some(matches))) return data;
+    return {
+      ...data,
+      pages: data.pages.map((page) => ({ ...page, items: page.items.filter((item) => !matches(item)) })),
+    };
+  });
+}
+
 /**
- * Optimistically prepend a freshly published event to the user's cached
- * Follows feeds, so it appears immediately without waiting for a relay
- * round-trip. Only feeds whose kinds (and tag filters, and reply setting)
- * would include the event get it, so a repost only shows up when reposts are
- * enabled in the feed settings.
+ * Find an event already in the query cache: the `['event', id, ...]` queries
+ * first, then the feeds themselves (a card being reacted to or reposted from
+ * a feed is always there).
+ */
+function findCachedEvent(queryClient: QueryClient, id: string): NostrEvent | undefined {
+  for (const [, data] of queryClient.getQueriesData<NostrEvent | null>({ queryKey: ['event', id] })) {
+    if (data?.id === id) return data;
+  }
+  for (const [, data] of queryClient.getQueriesData<InfiniteData<FeedPage>>({ queryKey: ['feed'] })) {
+    for (const page of data?.pages ?? []) {
+      const item = page.items.find((item) => item.event.id === id);
+      if (item) return item.event;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Insert a freshly published event into the user's cached Follows feeds, so
+ * it appears without waiting for a relay round-trip. Only feeds whose kinds
+ * (and tag filters, and reply setting) would include the event get it, so a
+ * reaction only shows up when reactions are enabled in the feed settings.
  *
- * Pass `repostOf` for a kind 6 / 16 repost, so it renders like the feed's own
- * reposts: the target note with a "reposted" header.
+ * `target` is the note a repost or reaction wraps, so the item renders like
+ * the feed's own: the note with a "reposted" / "reacted" header.
  *
  * Inactive feeds are updated too. Going back to the home feed restores its
  * scroll position without refetching (see `useFeed`), so a post made from
  * another page would otherwise be missing until the next refresh.
  *
- * Also seeds the `['event', id]` cache (so embedded previews and the detail
- * page resolve instantly) and marks `['feed']` queries stale WITHOUT
- * refetching: an immediate refetch races the relay's write→read indexing and
- * its result wholesale-replaces the cached pages, swallowing the optimistic
- * item. The next natural refetch (pull-to-refresh, remount) happens after
- * the relay has indexed the event.
+ * Also marks `['feed']` queries stale WITHOUT refetching: an immediate
+ * refetch races the relay's write→read indexing and its result
+ * wholesale-replaces the cached pages, swallowing the optimistic item. The
+ * next natural refetch (pull-to-refresh, remount) happens after the relay
+ * has indexed the event.
  */
-export function prependEventToFeeds(queryClient: QueryClient, event: NostrEvent, repostOf?: NostrEvent): void {
-  const optimisticItem: FeedItem = repostOf
-    ? { event: repostOf, repostedBy: event.pubkey, repostEvent: event, sortTimestamp: event.created_at }
-    : { event, sortTimestamp: event.created_at };
-  const key = feedItemKey(optimisticItem);
+function insertIntoFeeds(queryClient: QueryClient, event: NostrEvent, target?: NostrEvent): void {
+  const item: FeedItem = !target
+    ? { event, sortTimestamp: event.created_at }
+    : isReactionKind(event.kind)
+      ? { event: target, reactedBy: { event, pubkey: event.pubkey }, sortTimestamp: event.created_at }
+      : { event: target, repostedBy: event.pubkey, repostEvent: event, sortTimestamp: event.created_at };
+  const key = feedItemKey(item);
 
-  queryClient.setQueryData(['event', event.id], event);
-
-  for (const query of queryClient.getQueryCache().findAll({ queryKey: ['feed'] })) {
-    if (!feedQueryIncludes(query.queryKey, event, optimisticItem.event)) continue;
-
-    queryClient.setQueryData<InfiniteData<FeedPage>>(query.queryKey, (prev) => {
-      if (!prev) return prev;
-      const [firstPage, ...rest] = prev.pages;
-      if (!firstPage) return prev;
-      // Guard against double-insertion if the relay echoes back quickly. A
-      // repost of a note already on the page is dropped the same way
-      // `dedupeFeedItems` drops it: the note itself wins.
-      const present = firstPage.items.some((item) =>
-        feedItemKey(item) === key ||
-        (repostOf && item.event.id === repostOf.id && !item.repostedBy && !item.reactedBy && !item.zappedBy),
-      );
-      if (present) return prev;
-      return {
-        ...prev,
-        pages: [{ ...firstPage, items: [optimisticItem, ...firstPage.items] }, ...rest],
-      };
-    });
-  }
+  updateFeeds(queryClient, (data, queryKey) => {
+    if (!feedQueryIncludes(queryKey, event, item.event)) return data;
+    const [firstPage, ...rest] = data.pages;
+    if (!firstPage) return data;
+    // Guard against double-insertion if the relay echoes back quickly. A
+    // repost or reaction to a note already on the page is dropped the same
+    // way `dedupeFeedItems` drops it: the note itself wins.
+    const present = firstPage.items.some((other) =>
+      feedItemKey(other) === key || (target && other.event.id === target.id && isDirectItem(other)),
+    );
+    if (present) return data;
+    // Keep the page in order. An event older than the whole page (one
+    // backdated by its publisher) belongs on a later page, so leave it out.
+    let index = firstPage.items.findIndex((other) => other.sortTimestamp <= item.sortTimestamp);
+    if (index === -1) {
+      if (rest.length > 0) return data;
+      index = firstPage.items.length;
+    }
+    const items = [...firstPage.items.slice(0, index), item, ...firstPage.items.slice(index)];
+    return { ...data, pages: [{ ...firstPage, items }, ...rest] };
+  });
 
   queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
 }
 
 /**
- * Drop a deleted event from every cached feed, along with any repost,
- * reaction, or zap header whose wrapper it was. Inactive feeds aren't
- * refetched when the user goes back to them, so without this a just-undone
- * repost would still be showing there.
+ * Bring the cached feeds in line with an event the user just published, the
+ * way they'd look after a refetch:
+ *
+ * - A deletion (kind 5) removes the events it names, and any repost /
+ *   reaction / zap header they were.
+ * - A new version of a replaceable or addressable event replaces the old one.
+ * - Anything else (posts, reposts, reactions, …) is inserted into the
+ *   Follows feeds that would show it.
+ *
+ * Called by `useNostrPublish` for every successful publish.
  */
-export function removeEventFromFeeds(queryClient: QueryClient, eventId: string): void {
-  queryClient.setQueriesData<InfiniteData<FeedPage>>({ queryKey: ['feed'] }, (prev) => {
-    if (!prev?.pages) return prev;
-    const matches = (item: FeedItem) =>
-      item.event.id === eventId ||
-      item.repostEvent?.id === eventId ||
-      item.reactedBy?.event.id === eventId ||
-      item.zappedBy?.event.id === eventId;
-    if (!prev.pages.some((page) => page.items.some(matches))) return prev;
-    return {
-      ...prev,
-      pages: prev.pages.map((page) => ({ ...page, items: page.items.filter((item) => !matches(item)) })),
-    };
-  });
+export function syncPublishedEventToFeeds(queryClient: QueryClient, event: NostrEvent): void {
+  queryClient.setQueryData(['event', event.id], event);
+
+  if (event.kind === 5) {
+    const ids = new Set(event.tags.filter(([name]) => name === 'e').map(([, id]) => id));
+    const addrs = new Set(event.tags.filter(([name]) => name === 'a').map(([, addr]) => addr));
+    const deleted = (target: NostrEvent | undefined) =>
+      !!target && target.pubkey === event.pubkey && (
+        ids.has(target.id) ||
+        (NKinds.addressable(target.kind) && addrs.has(`${target.kind}:${target.pubkey}:${getDTag(target)}`))
+      );
+    removeFeedItems(queryClient, (item) =>
+      (isDirectItem(item) && deleted(item.event)) ||
+      deleted(item.repostEvent) ||
+      deleted(item.reactedBy?.event) ||
+      deleted(item.zappedBy?.event),
+    );
+    return;
+  }
+
+  if (NKinds.replaceable(event.kind) || NKinds.addressable(event.kind)) {
+    const d = getDTag(event);
+    removeFeedItems(queryClient, (item) =>
+      isDirectItem(item) &&
+      item.event.id !== event.id &&
+      item.event.kind === event.kind &&
+      item.event.pubkey === event.pubkey &&
+      (!NKinds.addressable(event.kind) || getDTag(item.event) === d),
+    );
+  }
+
+  if (isRepostKind(event.kind) || isReactionKind(event.kind)) {
+    // A reaction's target is its last `e` tag (NIP-25), a repost's its first.
+    const eTags = event.tags.filter(([name]) => name === 'e');
+    const targetId = isReactionKind(event.kind) ? eTags[eTags.length - 1]?.[1] : eTags[0]?.[1];
+    const target = (isRepostKind(event.kind) ? parseRepostContent(event) : undefined) ??
+      (targetId ? findCachedEvent(queryClient, targetId) : undefined);
+    // Without the note there's nothing to render; the next refetch fetches it.
+    if (!target) {
+      queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
+      return;
+    }
+    insertIntoFeeds(queryClient, event, target);
+    return;
+  }
+
+  insertIntoFeeds(queryClient, event);
 }
 
 /**

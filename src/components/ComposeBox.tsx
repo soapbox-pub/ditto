@@ -32,7 +32,6 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { usePostComment } from '@/hooks/usePostComment';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
-import { prependEventToFeeds } from '@/lib/feedUtils';
 import { insertReplyIntoThreads } from '@/lib/insertReply';
 import { useToast } from '@/hooks/useToast';
 import { ToastAction } from '@/components/ui/toast';
@@ -927,19 +926,13 @@ export function ComposeBox({
             tags: [imetaTag],
             kind: 1244,
           });
-          // Voice replies aren't injected into feeds; just mark them stale for
-          // the next natural refetch (see prependEventToFeeds for why there's
-          // no immediate refetch).
-          queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
         } else {
           // Root voice message (kind 1222)
-          const published = await createEvent({
+          await createEvent({
             kind: 1222,
             content: audioUrl,
             tags: [imetaTag],
           });
-          // Optimistically show the new voice post in cached feeds.
-          prependEventToFeeds(queryClient, published);
         }
       } catch (error) {
         console.error('Failed to publish voice message:', error);
@@ -953,7 +946,7 @@ export function ComposeBox({
     } finally {
       setIsPublishingVoice(false);
     }
-  }, [user, voiceRecorder, uploadFile, createEvent, postComment, replyTo, queryClient, toast, showPublishErrorToast, onSuccess]);
+  }, [user, voiceRecorder, uploadFile, createEvent, postComment, replyTo, toast, showPublishErrorToast, onSuccess]);
 
   /**
    * Strip tracking parameters from the links in an outgoing note, unless the
@@ -1086,18 +1079,6 @@ export function ComposeBox({
           prev ? { ...prev, replies: prev.replies + 1 } : prev,
         );
       }
-      // Optimistically prepend the new event to every cached feed page-set so
-      // it appears immediately without waiting for a relay round-trip.
-      // Only inject for top-level posts (not replies) — replies are handled by
-      // the replies list and the reply-count bump above.
-      if (!replyTo) {
-        prependEventToFeeds(queryClient, published);
-      } else {
-        // Replies aren't injected into feeds, but mark them stale (without an
-        // immediate refetch — see prependEventToFeeds) for the next natural
-        // refetch in case "show replies" is enabled.
-        queryClient.invalidateQueries({ queryKey: ['feed'], refetchType: 'none' });
-      }
       if (replyTo) {
         // Show the reply in the open thread right away. Keying off `replyTo.id`
         // alone isn't enough: reply lists are keyed by the thread ROOT, so
@@ -1147,9 +1128,8 @@ export function ComposeBox({
 
     tags.push(['alt', `Poll: ${finalContent}`]);
 
-    let published: NostrEvent;
     try {
-      published = await createEvent({ kind: 1068, content: finalContent, tags });
+      await createEvent({ kind: 1068, content: finalContent, tags });
     } catch (error) {
       console.error('Failed to publish poll:', error);
       showPublishErrorToast(error);
@@ -1157,8 +1137,6 @@ export function ComposeBox({
     }
 
     resetComposeState();
-    // Optimistically show the new poll in cached feeds.
-    prependEventToFeeds(queryClient, published);
     notificationSuccess();
     toast({ title: 'Poll published!' });
     onSuccess?.();
