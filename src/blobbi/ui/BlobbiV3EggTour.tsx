@@ -49,17 +49,24 @@ export function BlobbiV3EggTour({ tourVisualState = 'idle', onTourEggClick, glow
     };
   }, [autoWiggle]);
 
-  const tappable = !!onTourEggClick && TAPPABLE.has(tourVisualState);
-  const handleClick = useCallback(() => {
-    if (!tappable) return;
-    setWiggling(true);
-    impactLight();
-    onTourEggClick?.();
-  }, [tappable, onTourEggClick]);
-
   const cracking = CRACKING.has(tourVisualState);
   const glowing = tourVisualState === 'glowing_waiting_click' || cracking;
   const hatchLight = tourVisualState === 'opening' || tourVisualState === 'hatching';
+
+  // A tap is the tour's next step when it is waiting for one; otherwise, as
+  // on the V1 egg, a tap outside the cracking and opening is a wiggle.
+  const tappable = !!onTourEggClick && TAPPABLE.has(tourVisualState);
+  const handleClick = useCallback(() => {
+    if (tappable) {
+      setWiggling(true);
+      impactLight();
+      onTourEggClick?.();
+      return;
+    }
+    if (cracking || hatchLight) return;
+    impactLight();
+    setWiggling(true);
+  }, [tappable, onTourEggClick, cracking, hatchLight]);
   // Once the shell opens there is nothing left to wiggle: a tap during the crack stages must not outlive them.
   useEffect(() => {
     if (hatchLight) setWiggling(false);
@@ -94,7 +101,7 @@ export function BlobbiV3EggTour({ tourVisualState = 'idle', onTourEggClick, glow
         }}
         className={cn(
           'relative z-10 size-full transition-all duration-500',
-          tappable && 'cursor-pointer',
+          !hatchLight && 'cursor-pointer',
           // A tap wiggle, unless the shell is already shaking from a crack.
           wiggling && !cracking && 'animate-egg-tap-wiggle',
           // The crack stages shake the shell; during 'opening' the shell runs its own animation instead.

@@ -70,7 +70,7 @@ describe('the hatching tour around a V3 egg', () => {
     });
   }
 
-  it('a tap during an interactive step is forwarded to the tour and wiggles the shell; otherwise it is nothing', () => {
+  it('a tap during an interactive step is forwarded to the tour; outside a tour it is a wiggle, as on the V1 egg; while the shell opens it is nothing', () => {
     const onTourEggClick = vi.fn();
     const during = tourEgg('crack_stage_2', { onTourEggClick });
     expect(during.shell.classList.contains('cursor-pointer')).toBe(true);
@@ -78,9 +78,15 @@ describe('the hatching tour around a V3 egg', () => {
     expect(onTourEggClick).toHaveBeenCalledTimes(1);
 
     const idle = tourEgg('idle', { onTourEggClick });
-    expect(idle.shell.classList.contains('cursor-pointer')).toBe(false);
+    expect(idle.shell.classList.contains('animate-egg-tap-wiggle')).toBe(false);
     fireEvent.click(idle.shell);
     expect(onTourEggClick).toHaveBeenCalledTimes(1);
+    expect(idle.shell.classList.contains('animate-egg-tap-wiggle')).toBe(true);
+
+    const opening = tourEgg('opening', { onTourEggClick });
+    fireEvent.click(opening.shell);
+    expect(onTourEggClick).toHaveBeenCalledTimes(1);
+    expect(opening.shell.classList.contains('animate-egg-tap-wiggle')).toBe(false);
   });
 
   it('waiting for a tap, the egg wiggles now and again every 2.5 seconds', () => {
