@@ -116,7 +116,7 @@ export function BlobbiV3DevPage() {
       </section>
 
       <section className="space-y-3" id="legacy">
-        <h2 className="text-xl font-semibold">V1 and V2 (Ditto's legacy pipeline, unchanged)</h2>
+        <h2 className="text-xl font-semibold">V1 (Ditto's own pipeline) and V2 (egg: Ditto's; baby and adult: the kit's)</h2>
         <div className="flex flex-wrap gap-6">
           {(['v1', 'v2'] as const).flatMap((generation) => (['baby', 'adult'] as const).map((stage) => {
             const c = companionOf('00000000b1', stage, generation, sleeping);
