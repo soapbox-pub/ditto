@@ -17,8 +17,9 @@
  * polluting the global DOMPurify used by other sanitizers.
  *
  * Blocked: <script>, <foreignObject>, <iframe>, <embed>, <object>, <a>,
- *          <use>, <image>, all event handlers (on*), href/xlink:href, and
- *          every filter primitive but <feGaussianBlur>.
+ *          <use>, <image>, all event handlers (on*), href/xlink:href (except
+ *          a fragment-only reference on a gradient element, see the hook),
+ *          and every filter primitive but <feGaussianBlur>.
  */
 
 import DOMPurify from 'dompurify';
@@ -53,9 +54,28 @@ const blobbiPurify = DOMPurify();
  * reads and acts on them. Our eye animation code only reads numeric values
  * and element IDs from these attributes.
  */
-blobbiPurify.addHook('uponSanitizeAttribute', (_node, data) => {
+blobbiPurify.addHook('uponSanitizeAttribute', (node, data) => {
   if (data.attrName.startsWith('data-')) {
     data.allowedAttributes[data.attrName] = true;
+    return;
+  }
+
+  // Gradient inheritance. The kit's V2 adult (renderer 0.6.0) declares each
+  // limb, foot and eye gradient once and derives the positioned copies with
+  // `<linearGradient xlink:href="#footGradient" …>`; without the link the
+  // copies have no stops and the limbs lose their fill. `href`/`xlink:href`
+  // stay FORBIDDEN everywhere else (<a>, <use>, <image> are how an SVG reaches
+  // out). The one exception is a gradient element whose reference is a bare
+  // in-document fragment id, which can only name another gradient in this
+  // same drawing and can load nothing.
+  // (The attribute is kept exactly as written, so it is the written value,
+  // not DOMPurify's trimmed copy, that must be a bare fragment.)
+  if (
+    (data.attrName === 'href' || data.attrName === 'xlink:href')
+    && GRADIENT_ELEMENTS.has(node.nodeName.toLowerCase())
+    && FRAGMENT_REF.test((node as Element).getAttribute(data.attrName) ?? '')
+  ) {
+    data.forceKeepAttr = true;
     return;
   }
 
@@ -69,6 +89,11 @@ blobbiPurify.addHook('uponSanitizeAttribute', (_node, data) => {
 
 /** `url(#id)` and nothing else: no scheme, no path, no second value. */
 const FRAGMENT_URL_REF = /^url\(#[A-Za-z0-9_-]+\)$/;
+
+/** The elements allowed a fragment-only `href`: gradient inheritance, nothing else. */
+const GRADIENT_ELEMENTS = new Set(['lineargradient', 'radialgradient']);
+/** `#id` and nothing else: no scheme, no path, no query, no whitespace. */
+const FRAGMENT_REF = /^#[A-Za-z0-9_-]+$/;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ALLOWED TAGS
@@ -329,7 +354,9 @@ const BLOBBI_FORBIDDEN_ATTRS = [
   'ontouchmove',
   'ontouchcancel',
 
-  // Link attributes - Blobbi uses url(#id) for internal refs, not href
+  // Link attributes - Blobbi uses url(#id) for internal refs, not href.
+  // The one exception, a fragment-only href on a gradient element, is
+  // re-admitted by the uponSanitizeAttribute hook above.
   'href',
   'xlink:href',
 ];

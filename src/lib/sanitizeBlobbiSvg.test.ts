@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { KIND_BLOBBI_STATE, buildEggTags, getBlobbiVisualIdentity, parseBlobbiEvent, updateBlobbiTags } from '@blobbi-kit/core';
+import { NEUTRAL_EXPRESSION, renderBlobbiSvg } from '@blobbi-kit/renderer';
 import { sanitizeBlobbiSvg } from './sanitizeBlobbiSvg';
 import { sanitizeSvg } from './sanitizeSvg';
 
@@ -371,5 +373,82 @@ describe('sanitizer isolation', () => {
     expect(genericSanitized).not.toContain('javascript');
     expect(blobbiSanitized).not.toContain('href');
     expect(blobbiSanitized).not.toContain('javascript');
+  });
+});
+
+describe('sanitizeBlobbiSvg: gradient inheritance (the kit\'s V2 adult)', () => {
+  // The kit's V2 adult declares each limb, foot and eye gradient once and
+  // derives the positioned copies with `<linearGradient xlink:href="#…">`.
+  // That link, and only that link, is let through: a bare in-document
+  // fragment, on a gradient element.
+
+  it('keeps a fragment-only href on a gradient element, in either spelling', () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 100">
+      <defs>
+        <linearGradient id="footGradient"><stop offset="0" stop-color="#8248e8" /></linearGradient>
+        <linearGradient xlink:href="#footGradient" id="linearGradient13" x1="1" y1="2" x2="3" y2="4" gradientUnits="userSpaceOnUse" />
+        <radialGradient href="#footGradient" id="r2" />
+      </defs>
+      <ellipse fill="url(#linearGradient13)" cx="50" cy="50" rx="10" ry="15" />
+    </svg>`;
+    const sanitized = sanitizeBlobbiSvg(svg);
+    expect(sanitized).toContain('xlink:href="#footGradient"');
+    expect(sanitized).toContain('href="#footGradient" id="r2"');
+    expect(sanitized).toContain('fill="url(#linearGradient13)"');
+  });
+
+  it('strips any href that is not a bare fragment, on gradients and everywhere else', () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 100">
+      <defs>
+        <linearGradient id="g0"><stop offset="0" stop-color="#8248e8" /></linearGradient>
+        <linearGradient xlink:href="https://evil.example/g.svg#g0" id="g1" />
+        <linearGradient href="javascript:alert(1)" id="g2" />
+        <linearGradient href="#ok but not a fragment" id="g3" />
+        <linearGradient href="data:image/svg+xml,%3Csvg%3E" id="g4" />
+        <linearGradient href="../other.svg#g0" id="g5" />
+        <linearGradient href="#" id="g6" />
+        <linearGradient href="#g0/../x" id="g7" />
+        <radialGradient xlink:href=" #g0" id="g8" />
+      </defs>
+      <use href="#g0" />
+      <use xlink:href="#g0" />
+      <image href="https://evil.example/a.png" />
+      <a href="#g0"><circle cx="50" cy="50" r="10" /></a>
+      <circle cx="1" cy="1" r="1" href="#g0" />
+      <path d="M0 0" xlink:href="#g0" />
+    </svg>`;
+    const sanitized = sanitizeBlobbiSvg(svg);
+    expect(sanitized).not.toContain('href');
+    expect(sanitized).not.toContain('evil.example');
+    expect(sanitized).not.toContain('javascript');
+    expect(sanitized).not.toContain('data:');
+    expect(sanitized).not.toContain('<use');
+    expect(sanitized).not.toContain('<image');
+    expect(sanitized).not.toContain('<a');
+    // The gradient elements themselves stay, only their links are gone.
+    expect((sanitized.match(/<linearGradient/g) ?? []).length).toBe(8);
+  });
+
+  it('keeps every gradient link of the kit\'s V2 adult and loses only its XML prolog and xlink namespace declaration', () => {
+    const tags = updateBlobbiTags(buildEggTags('a'.repeat(64), '00000000a7', 1, 'Umber', { visualGeneration: 'v2' }), { stage: 'adult', state: 'active' });
+    const companion = parseBlobbiEvent({ id: '0'.repeat(64), pubkey: 'a'.repeat(64), created_at: 1, kind: KIND_BLOBBI_STATE, tags, content: '', sig: '0'.repeat(128) })!;
+    const svg = renderBlobbiSvg({ ...getBlobbiVisualIdentity(companion), instanceId: 'p', expression: NEUTRAL_EXPRESSION }).svg;
+    const sanitized = sanitizeBlobbiSvg(svg);
+
+    const links = (s: string) => [...s.matchAll(/xlink:href="(#[^"]+)"/g)].map((m) => m[1]).sort();
+    expect(links(svg).length).toBe(8);
+    expect(links(sanitized)).toEqual(links(svg));
+    // Each link names a gradient in this drawing; every paint reference still resolves.
+    for (const id of links(sanitized)) expect(sanitized, id).toContain(`id="${id.slice(1)}"`);
+    for (const m of sanitized.matchAll(/url\(#([^)]+)\)/g)) expect(sanitized, m[1]).toContain(`id="${m[1]}"`);
+
+    const tagCounts = (s: string) => {
+      const counts: Record<string, number> = {};
+      for (const m of s.matchAll(/<([a-zA-Z][\w:-]*)/g)) counts[m[1]] = (counts[m[1]] ?? 0) + 1;
+      return counts;
+    };
+    const attrNames = (s: string) => new Set([...s.matchAll(/\s([a-zA-Z][\w:-]*)=/g)].map((m) => m[1]));
+    expect(tagCounts(sanitized)).toEqual(tagCounts(svg));
+    expect([...attrNames(svg)].filter((name) => !attrNames(sanitized).has(name)).sort()).toEqual(['version', 'xmlns:xlink']);
   });
 });
