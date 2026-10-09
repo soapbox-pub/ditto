@@ -23,6 +23,7 @@ import {
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import { BlobbiCompanionVisual } from '@/blobbi/companion/components/BlobbiCompanionVisual';
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
+import type { EggTourVisualState } from '@/blobbi/egg';
 import { EMOTION_RECIPES } from '@/blobbi/ui/lib/recipe';
 
 const PUBKEY = 'd17c0de0'.repeat(8);
@@ -39,11 +40,13 @@ function companionOf(petId: string, stage: Stage, generation: BlobbiVisualGenera
 
 const FULL_STATS = { hunger: 100, happiness: 100, health: 100, hygiene: 100, energy: 100 };
 const EMOTIONS = Object.keys(EMOTION_RECIPES) as BlobbiEmotion[];
+const TOUR_STATES: EggTourVisualState[] = ['idle', 'show_hatch_card', 'glowing_waiting_click', 'crack_stage_1', 'crack_stage_2', 'crack_stage_3', 'opening', 'hatching'];
 
 export function BlobbiV3DevPage() {
   const [emotion, setEmotion] = useState<BlobbiEmotion>('neutral');
   const [sleeping, setSleeping] = useState(false);
   const [direction, setDirection] = useState<'left' | 'right'>('right');
+  const [tour, setTour] = useState<EggTourVisualState>('idle');
   const eyeOffsetRef = useRef({ x: 0, y: 0 });
 
   const unusual = (['egg', 'baby', 'adult'] as const).map((stage) => companionOf('00000000a7', stage, 'v3', sleeping));
@@ -64,6 +67,11 @@ export function BlobbiV3DevPage() {
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={sleeping} onChange={(e) => setSleeping(e.target.checked)} /> Sleeping
           </label>
+          <label className="flex items-center gap-2">Egg tour
+            <select className="rounded border bg-background p-1" value={tour} onChange={(e) => setTour(e.target.value as EggTourVisualState)}>
+              {TOUR_STATES.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </label>
           <span className="text-sm text-muted-foreground">Move the pointer: the eyes follow it.</span>
         </div>
       </header>
@@ -73,7 +81,7 @@ export function BlobbiV3DevPage() {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           {unusual.map((c) => c && (
             <figure key={c.stage} className="flex flex-col items-center rounded-xl border p-4" data-stage={c.stage}>
-              <BlobbiStageVisual companion={c} size="lg" animated emotion={emotion} className="size-56" />
+              <BlobbiStageVisual companion={c} size="lg" animated emotion={emotion} className="size-56" tourVisualState={c.stage === 'egg' ? tour : undefined} />
               <figcaption className="mt-2 text-sm">{c.stage} · {c.visualGeneration}</figcaption>
             </figure>
           ))}

@@ -18,9 +18,11 @@ import { BlobbiEggVisual, type BlobbiEggSize, type EggStatusEffects, type EggTou
 import { BlobbiBabyVisual } from './BlobbiBabyVisual';
 import { BlobbiAdultVisual } from './BlobbiAdultVisual';
 import { BlobbiV3Visual } from './BlobbiV3Visual';
+import { BlobbiV3EggTour } from './BlobbiV3EggTour';
 import { FloatingMusicNotes } from './FloatingMusicNotes';
 import { blobbiCompanionToBlobbi } from './lib/adapters';
 import { eggCrackForTourState } from './lib/v3-expression';
+import { blobbiDisplayColors } from './lib/display-colors';
 import { cn } from '@/lib/utils';
 import { getBlobbiVisualIdentity, type BlobbiCompanion } from '@blobbi-kit/core';
 import type { BlobbiLookMode } from './lib/useBlobbiEyes';
@@ -107,20 +109,33 @@ export function BlobbiStageVisual({
   const containerClass = SIZE_CONFIG[size];
 
   if (v3Visual) {
+    const drawing = (
+      <BlobbiV3Visual
+        visual={v3Visual}
+        instanceId={companion.d}
+        isSleeping={isSleeping}
+        reaction={effectiveReaction}
+        lookMode={lookMode}
+        recipe={recipe}
+        emotion={emotion}
+        motion={animated || stage !== 'egg' ? 'idle' : 'still'}
+        eggCrack={eggCrackForTourState(tourVisualState)}
+        className="size-full"
+      />
+    );
     return (
       <div className={cn('relative', containerClass, className)}>
-        <BlobbiV3Visual
-          visual={v3Visual}
-          instanceId={companion.d}
-          isSleeping={isSleeping}
-          reaction={effectiveReaction}
-          lookMode={lookMode}
-          recipe={recipe}
-          emotion={emotion}
-          motion={animated || stage !== 'egg' ? 'idle' : 'still'}
-          eggCrack={eggCrackForTourState(tourVisualState)}
-          className="size-full"
-        />
+        {stage === 'egg' ? (
+          // The hatching tour around the kit's egg: glow, wiggle, shake, opening (the crack itself is the kit's).
+          <BlobbiV3EggTour
+            tourVisualState={tourVisualState}
+            onTourEggClick={onTourEggClick}
+            glowColor={blobbiDisplayColors(companion).baseColor}
+            animated={animated}
+          >
+            {drawing}
+          </BlobbiV3EggTour>
+        ) : drawing}
         <FloatingMusicNotes active={showMusicNotes} />
       </div>
     );
