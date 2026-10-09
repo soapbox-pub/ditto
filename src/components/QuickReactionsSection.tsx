@@ -7,14 +7,15 @@ import type { EmojiSelection } from '@/components/EmojiPicker';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import type { QuickReaction } from '@/contexts/AppContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
-import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
-import { useQuickReactions, type QuickReactionSlot as Slot } from '@/hooks/useQuickReactions';
+import { usePublishQuickReactions } from '@/hooks/useQuickReactionList';
+import { usePinnedQuickReactions, useQuickReactions, type QuickReactionSlot as Slot } from '@/hooks/useQuickReactions';
+import { toast } from '@/hooks/useToast';
 import { isCustomEmoji } from '@/lib/customEmoji';
+import type { ListedQuickReaction as QuickReaction } from '@/lib/quickReactions';
 import { MAX_QUICK_REACTIONS } from '@/lib/schemas';
 import {
   arrayMove,
@@ -41,25 +42,49 @@ const EmojiPicker = lazy(() => import('@/components/EmojiPicker').then(m => ({ d
  * a slot (or arrow keys on it) reorders the row, pinning it the same way.
  */
 export function QuickReactionsSection() {
-  const { config, updateConfig } = useAppContext();
-  const { updateSettings } = useEncryptedSettings();
+  const intl = useIntl();
+  const { updateConfig } = useAppContext();
   const { user } = useCurrentUser();
+  const { pinned, list } = usePinnedQuickReactions();
+  const publish = usePublishQuickReactions();
   const slots = useQuickReactions();
 
-  const hasPinned = (config.quickReactions?.length ?? 0) > 0;
+  // The publish checks the relays against the list this row was built from.
+  const ready = !user || (list !== undefined && !publish.isPending);
+  const hasPinned = pinned.length > 0;
   const hasAuto = slots.length < MAX_QUICK_REACTIONS || slots.some((s) => !s.pinned);
 
-  const save = async (next: QuickReaction[]) => {
-    updateConfig((current) => ({ ...current, quickReactions: next }));
-    if (user) {
-      await updateSettings.mutateAsync({ quickReactions: next });
-    }
-  };
-
   const row = useMemo(
-    () => slots.map(({ emoji, url }): QuickReaction => (url ? { emoji, url } : { emoji })),
+    () => slots.map(({ emoji, url, set }): QuickReaction => (url ? (set ? { emoji, url, set } : { emoji, url }) : { emoji })),
     [slots],
   );
+
+  /**
+   * Save `next` as the whole list. Pins the row can't show (custom emojis while
+   * they're hidden, or more than fit) ride along at the end rather than being
+   * dropped from a list other apps share — unless `clearUnseen`, for Reset.
+   */
+  const save = (next: QuickReaction[], { clearUnseen = false } = {}) => {
+    if (!ready) return;
+    if (!user) {
+      // Signed out there's no list to publish; keep the pins on this device.
+      updateConfig((current) => ({ ...current, quickReactions: next }));
+      return;
+    }
+    const shown = new Set(row.map((r) => r.emoji));
+    const kept = new Set(next.map((r) => r.emoji));
+    const unseen = clearUnseen ? [] : pinned.filter((r) => !shown.has(r.emoji) && !kept.has(r.emoji));
+    publish
+      .mutateAsync({ reactions: [...next, ...unseen], basis: list?.id ?? null })
+      .catch((error: unknown) => {
+        toast({
+          title: intl.formatMessage({ id: 'settings.content.quickReactionsSaveFailed', defaultMessage: "Couldn't save quick reactions" }),
+          description: error instanceof Error ? error.message : undefined,
+          variant: 'destructive',
+        });
+      });
+  };
+
   const ids = useMemo(() => slots.map((s) => s.emoji), [slots]);
 
   // A short move threshold, so a tap still opens the picker.
@@ -84,7 +109,7 @@ export function QuickReactionsSection() {
   };
 
   const unpin = (emoji: string) => {
-    save((config.quickReactions ?? []).filter((r) => r.emoji !== emoji));
+    save(pinned.filter((r) => r.emoji !== emoji));
   };
 
   return (
@@ -101,7 +126,8 @@ export function QuickReactionsSection() {
             variant="ghost"
             size="sm"
             className="h-7 shrink-0 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => save([])}
+            disabled={!ready}
+            onClick={() => save([], { clearUnseen: true })}
           >
             <FormattedMessage id="settings.content.quickReactionsReset" defaultMessage="Reset" />
           </Button>
@@ -116,6 +142,7 @@ export function QuickReactionsSection() {
                 id={slots[i]?.emoji ?? `empty-${i}`}
                 position={i + 1}
                 slot={slots[i]}
+                disabled={!ready}
                 onPick={(reaction) => pick(i, reaction)}
                 onUnpin={() => slots[i] && unpin(slots[i].emoji)}
               />
@@ -136,12 +163,13 @@ interface QuickReactionSlotProps {
   id: string;
   position: number;
   slot?: Slot;
+  disabled: boolean;
   onPick: (reaction: QuickReaction) => void;
   onUnpin: () => void;
 }
 
-function QuickReactionSlot({ id, position, slot, onPick, onUnpin }: QuickReactionSlotProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !slot });
+function QuickReactionSlot({ id, position, slot, disabled, onPick, onUnpin }: QuickReactionSlotProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !slot || disabled });
   const intl = useIntl();
   const [open, setOpen] = useState(false);
   const { feedSettings } = useFeedSettings();
@@ -171,6 +199,7 @@ function QuickReactionSlot({ id, position, slot, onPick, onUnpin }: QuickReactio
         <PopoverTrigger asChild>
           <button
             type="button"
+            disabled={disabled}
             aria-label={label}
             {...attributes}
             {...listeners}
@@ -179,6 +208,7 @@ function QuickReactionSlot({ id, position, slot, onPick, onUnpin }: QuickReactio
               slot && 'cursor-grab active:cursor-grabbing',
               isDragging && 'scale-110 shadow-lg',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+              'disabled:cursor-default disabled:opacity-60',
               slot ? 'bg-secondary/50 hover:bg-secondary' : 'bg-secondary/30 text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
             )}
           >
@@ -209,6 +239,7 @@ function QuickReactionSlot({ id, position, slot, onPick, onUnpin }: QuickReactio
       {slot?.pinned && !isDragging && (
         <button
           type="button"
+          disabled={disabled}
           onClick={onUnpin}
           aria-label={intl.formatMessage({ id: 'settings.content.quickReactionsRemove', defaultMessage: 'Remove quick reaction {position}' }, { position })}
           className={cn(

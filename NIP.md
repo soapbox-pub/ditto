@@ -16,6 +16,7 @@
 | 7849  | Quiz Result          | A user's computed result for a quiz                   |
 | 38192 | PS Memory Card       | One 8 KB block of a PlayStation 1 memory card         |
 | 13473 | Posting Streak       | The user's self-reported posting streak (one per user)|
+| 10077 | Quick Reactions      | The user's ordered quick-react emojis (one per user)  |
 
 ### Community Kinds
 
@@ -256,6 +257,48 @@ Empty by convention. Clients MAY use the NIP-51 private-items scheme (NIP-44-enc
 - **Updates as content:** a kind 18678 event itself renders in feeds as a card showing the ranked eight, so followers see when someone shuffles their Top 8.
 - **Mutations** MUST follow read-modify-write: fetch the freshest kind 18678 for the author, rebuild the `p` tags, preserve unknown tags and `content`, and republish.
 - Clients SHOULD hide kind 18678 events with zero `p` tags (an emptied list has nothing to display).
+
+---
+
+## Kind 10077: Quick Reactions
+
+### Summary
+
+Replaceable event listing the reactions the user wants a client to offer first (e.g. the row that opens from a react button), **in the user's order**. Structured like a NIP-51 standard list, with one list per user (latest event wins). Each entry is a value a client can publish directly as a NIP-25 reaction `content`.
+
+### Event Structure
+
+```json
+{
+  "kind": 10077,
+  "pubkey": "<author-pubkey>",
+  "content": "",
+  "tags": [
+    ["reaction", "🔥"],
+    ["reaction", "+"],
+    ["reaction", ":soapbox:", "https://example.com/soapbox.png", "30030:<set-author-pubkey>:<d-tag>"],
+    ["alt", "Quick reactions: the emoji reactions this user wants offered first"]
+  ]
+}
+```
+
+### Tags
+
+| Tag        | Required | Description |
+|------------|----------|-------------|
+| `reaction` | Yes (≥0) | `["reaction", <content>, <image-url>?, <emoji-set-address>?]`. `<content>` is a NIP-25 reaction content: an emoji, `+`, `-`, or a NIP-30 `:shortcode:`. A custom `:shortcode:` carries its image URL as the 3rd element (so the reaction can include the matching `emoji` tag) and MAY carry the `30030:<pubkey>:<d>` address of the emoji set it came from as the 4th. **Tag order is display order.** Duplicate contents are ignored (first occurrence wins). |
+| `alt`      | Yes      | NIP-31 human-readable fallback. |
+
+### Content
+
+Empty by convention.
+
+### Client Behavior
+
+- **Order is display order.** Clients MUST preserve `reaction` tag order on read and write. Clients that show fewer reactions than the list holds SHOULD take them from the front.
+- **Sanitize image URLs.** Clients MUST only render `https:` image URLs and SHOULD drop the URL (keeping the shortcode) otherwise.
+- **Mutations** MUST follow read-modify-write: fetch the freshest kind 10077 for the author, rebuild the `reaction` tags, preserve unknown tags and `content`, and republish. Entries the client can't currently show (e.g. custom emojis while the user hides them) SHOULD be kept rather than dropped.
+- **Ditto migration:** earlier Ditto builds kept pinned quick reactions in the user's encrypted app settings. Until a kind 10077 exists, Ditto reads that copy, and publishes kind 10077 on the first edit.
 
 ---
 

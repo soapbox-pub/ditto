@@ -1,17 +1,32 @@
 import { useMemo } from 'react';
 
-import type { QuickReaction } from '@/contexts/AppContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
 import { useEmojiUsage } from '@/hooks/useEmojiUsage';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useQuickReactionList } from '@/hooks/useQuickReactionList';
 import { isCustomEmoji } from '@/lib/customEmoji';
+import { parseQuickReactions, type ListedQuickReaction } from '@/lib/quickReactions';
 import { MAX_QUICK_REACTIONS } from '@/lib/schemas';
 
 /** A slot in the quick-react row. */
-export interface QuickReactionSlot extends QuickReaction {
+export interface QuickReactionSlot extends ListedQuickReaction {
   /** Chosen by the user, rather than filled from their most-used emojis. */
   pinned: boolean;
+}
+
+/**
+ * The emojis the user pinned: their kind-10077 list, or until they have one,
+ * the pins older Ditto builds kept in encrypted settings.
+ */
+export function usePinnedQuickReactions(): { pinned: ListedQuickReaction[]; list: ReturnType<typeof useQuickReactionList> } {
+  const { config } = useAppContext();
+  const list = useQuickReactionList();
+  const pinned = useMemo(
+    () => (list ? parseQuickReactions(list) : (config.quickReactions ?? [])),
+    [list, config.quickReactions],
+  );
+  return { pinned, list };
 }
 
 /**
@@ -20,7 +35,7 @@ export interface QuickReactionSlot extends QuickReaction {
  * be in the user's collection; pinned ones carry their own URL.
  */
 export function useQuickReactions(): QuickReactionSlot[] {
-  const { config } = useAppContext();
+  const { pinned: pins } = usePinnedQuickReactions();
   const { getTopEmojis } = useEmojiUsage();
   const { feedSettings } = useFeedSettings();
   const { emojis: customEmojis } = useCustomEmojis();
@@ -35,7 +50,7 @@ export function useQuickReactions(): QuickReactionSlot[] {
   }, [customEmojisEnabled, customEmojis]);
 
   return useMemo((): QuickReactionSlot[] => {
-    const pinned = (config.quickReactions ?? [])
+    const pinned = pins
       .filter((r) => !isCustomEmoji(r.emoji) || (customEmojisEnabled && !!r.url))
       .map((r): QuickReactionSlot => ({ ...r, pinned: true }));
     const seen = new Set(pinned.map((r) => r.emoji));
@@ -46,5 +61,5 @@ export function useQuickReactions(): QuickReactionSlot[] {
       return url ? [{ emoji, url, pinned: false }] : [];
     });
     return [...pinned, ...learned].slice(0, MAX_QUICK_REACTIONS);
-  }, [config.quickReactions, customEmojisEnabled, getTopEmojis, customEmojiMap]);
+  }, [pins, customEmojisEnabled, getTopEmojis, customEmojiMap]);
 }
