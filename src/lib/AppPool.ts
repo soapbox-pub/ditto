@@ -2,7 +2,11 @@ import type { NostrEvent, NostrFilter } from '@nostrify/types';
 import { NKinds, type NPool, type NStore } from '@nostrify/nostrify';
 
 import { isNostrId } from '@/lib/nostrId';
+import { reconcileOwnEvents } from '@/lib/ownEvents';
 import { withoutBlockedRelays } from '@/lib/relayPolicy';
+
+/** How long a just-published event is kept in memory for {@link reconcileOwnEvents}, in ms. */
+const RECENT_OWN_TTL = 10_000;
 
 /** Maximum number of items per batch to avoid hitting relay filter limits. */
 const MAX_BATCH_SIZE = 50;
@@ -481,6 +485,13 @@ export class AppPool {
    */
   private followedPubkeys?: Promise<Set<string>>;
 
+  /**
+   * Events the logged-in accounts published in the last few seconds. The
+   * store batches its writes on idle, so a refetch right after a publish can
+   * beat the write; {@link reconcileOwnEvents} reads these alongside it.
+   */
+  private recentOwn = new Map<string, NostrEvent>();
+
   constructor(private pool: NPool, store?: NStore) {
     this.store = store;
     this.replaceableCollector = new ReplaceableCollector(pool);
@@ -586,7 +597,11 @@ export class AppPool {
   ): Promise<NostrEvent[]> {
     const events = await this.queryInner(filters, opts);
     this.cacheEvents(events);
-    return events;
+    // A relay that hasn't caught up with this device's own publishes must not
+    // undo them (see reconcileOwnEvents).
+    return this.store
+      ? reconcileOwnEvents(this.store, this.loggedInPubkeys, [...this.recentOwn.values()], filters, events)
+      : events;
   }
 
   /**
@@ -728,6 +743,10 @@ export class AppPool {
 
   async event(event: NostrEvent, opts?: { signal?: AbortSignal }): Promise<void> {
     await this.pool.event(event, opts);
+    if (this.loggedInPubkeys.has(event.pubkey)) {
+      this.recentOwn.set(event.id, event);
+      setTimeout(() => this.recentOwn.delete(event.id), RECENT_OWN_TTL);
+    }
     // Only mirror into the cache once the network publish succeeds, so the app
     // never reads back a locally-published event the relays rejected. This also
     // lets a successfully-published kind 5 deletion request prune its targets
