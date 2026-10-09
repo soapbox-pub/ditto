@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 
 import { BlobbiStageVisual } from '@/blobbi/ui/BlobbiStageVisual';
 import type { BlobbiCompanion } from '@blobbi-kit/core/blobbi';
+import { blobbiDisplayColors } from '@/blobbi/ui/lib/display-colors';
 
 import { useTypewriter } from '../hooks/useTypewriter';
 import { hexToRgb, buildRevealGradient } from '../lib/ceremony-colors';
@@ -55,7 +56,7 @@ export function BlobbiEvolveCeremony({
   const onEvolveRef = useRef(onEvolve);
   onEvolveRef.current = onEvolve;
 
-  const baseColor = companion.visualTraits.baseColor ?? '#8b5cf6';
+  const baseColor = blobbiDisplayColors(companion).baseColor ?? '#8b5cf6';
   const { r, g, b } = useMemo(() => hexToRgb(baseColor), [baseColor]);
 
   // ── Typewriter for reveal text ──

@@ -50,6 +50,7 @@ import {
 } from '../lib/blobbi-preview';
 import { preflightBlobbiOwnership } from '../lib/preflight-ownership';
 import { buildHatchedBabyTags } from '../lib/hatch-tags';
+import { blobbiDisplayColors } from '@/blobbi/ui/lib/display-colors';
 
 import { useTypewriter } from '../hooks/useTypewriter';
 import { buildRevealGradient } from '../lib/ceremony-colors';
@@ -186,7 +187,8 @@ export function BlobbiHatchingCeremony({
     return { ...eggCompanion, stage: 'baby', state: 'active' as const, progressionState: 'evolving' as const };
   }, [eggCompanion]);
 
-  const eggColor = preview?.visualTraits.baseColor ?? '#f59e0b';
+  // The Blobbi's own colour (for V3, Algorithm 1's for its address), for the backdrop only.
+  const eggColor = eggCompanion ? blobbiDisplayColors(eggCompanion).baseColor : '#f59e0b';
 
   // Derive reveal background from baby's base color
   const revealBg = useMemo(() => buildRevealGradient(eggColor), [eggColor]);
@@ -219,7 +221,6 @@ export function BlobbiHatchingCeremony({
         hygiene: existingCompanion.stats.hygiene ?? STAT_MAX,
         energy: existingCompanion.stats.energy ?? STAT_MAX,
       },
-      visualTraits: existingCompanion.visualTraits,
       createdAt: Math.floor(Date.now() / 1000),
     };
     setPreview(fakePreview);

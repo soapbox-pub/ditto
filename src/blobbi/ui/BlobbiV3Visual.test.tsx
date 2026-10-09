@@ -9,13 +9,14 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import {
   KIND_BLOBBI_STATE,
   buildEggTags,
+  deriveBlobbiV3Seed,
   getBlobbiVisualIdentity,
+  getCanonicalBlobbiD,
   parseBlobbiEvent,
   updateBlobbiTags,
   type BlobbiCompanion,
-  type BlobbiV3Identity,
 } from '@blobbi-kit/core';
-import { BlobbiRenderer, type BlobbiExpression } from '@blobbi-kit/renderer';
+import { BlobbiRenderer, createBlobbiV3Identity, type BlobbiExpression } from '@blobbi-kit/renderer';
 
 import { blobbiPicture } from '@/npanel/blobbi';
 import { BlobbiCompanionVisual } from '@/blobbi/companion/components/BlobbiCompanionVisual';
@@ -27,15 +28,11 @@ import { eggCrackForTourState, resolveV3Expression } from './lib/v3-expression';
 
 const PUBKEY = 'a'.repeat(64);
 const CREATED_AT = 1_757_000_000;
-const UNUSUAL = (seed: string): BlobbiV3Identity => ({
-  seed,
-  algorithm: 1,
-  colors: { base: '#2b3a67', secondary: '#ffd23f', eye: '#e85d75', accent: '#7ad3f4' },
-  traits: { antenna: 'double', horns: 'side', ears: 'pointed', tail: 'leaf', pattern: 'striped', specialMark: 'moon', belly: true, freckles: true },
-});
+/** Who the V3 Blobbi at this address is: Algorithm 1's identity for its address-derived seed. */
+const OWN = createBlobbiV3Identity(deriveBlobbiV3Seed(PUBKEY, getCanonicalBlobbiD(PUBKEY, '00000000a7')));
 
 function blobbi(stage: 'egg' | 'baby' | 'adult', generation: 'v1' | 'v2' | 'v3', state: 'active' | 'sleeping' = 'active'): BlobbiCompanion {
-  const egg = buildEggTags(PUBKEY, '00000000a7', CREATED_AT, 'Umber', generation === 'v3' ? { visualGeneration: 'v3', v3: UNUSUAL } : { visualGeneration: generation });
+  const egg = buildEggTags(PUBKEY, '00000000a7', CREATED_AT, 'Umber', { visualGeneration: generation });
   const tags = updateBlobbiTags(egg, { stage, state });
   const event: NostrEvent = { id: '0'.repeat(64), pubkey: PUBKEY, created_at: CREATED_AT, kind: KIND_BLOBBI_STATE, tags, content: '', sig: '0'.repeat(128) };
   return parseBlobbiEvent(event)!;
@@ -49,7 +46,7 @@ function kitBody(companion: BlobbiCompanion, props: { expression?: BlobbiExpress
 
 describe('BlobbiStageVisual draws V3 through the kit', () => {
   for (const stage of ['egg', 'baby', 'adult'] as const) {
-    it(`a V3 ${stage} is the kit's drawing of its stated identity`, () => {
+    it(`a V3 ${stage} is the kit's drawing of the Blobbi at its address`, () => {
       const companion = blobbi(stage, 'v3');
       const { container } = render(<BlobbiStageVisual companion={companion} animated />);
       const root = container.querySelector('[data-blobbi-renderer]')!;
@@ -60,10 +57,10 @@ describe('BlobbiStageVisual draws V3 through the kit', () => {
       expect(root.innerHTML).toBe(kitBody(companion, stage === 'egg' ? { motion: 'idle' } : { eyeOffset: { x: 0, y: 0 }, expression: resolveV3Expression(undefined, 'neutral') }));
       const svg = root.innerHTML;
       if (stage !== 'egg') {
-        // The stated pattern, mark and eye colour, not the seed's.
-        expect(svg).toContain('data-pattern="striped"');
-        expect(svg).toContain('data-mark="moon"');
-        expect(svg.toLowerCase()).toContain('#e85d75');
+        // Algorithm 1's own pattern and eye colour for this address: nothing stated, nothing else drawn.
+        expect(svg).toContain(`data-pattern="${OWN.traits.pattern}"`);
+        if (OWN.traits.specialMark !== 'none') expect(svg).toContain(`data-mark="${OWN.traits.specialMark}"`);
+        expect(svg.toLowerCase()).toContain(OWN.colors.eye);
       }
       // No V1 eye or recipe machinery on a V3 drawing.
       expect(svg).not.toMatch(/blobbi-blink|blobbi-eye-gaze|data-clip-id/);
@@ -118,7 +115,9 @@ describe('BlobbiStageVisual draws V3 through the kit', () => {
     const svg = blobbiPicture(companion.event)!;
     expect(svg).toMatch(/^<svg [^>]*width="1200" height="630"/);
     expect(svg).toContain('data-blobbi-generation="v3"');
-    expect(svg).toContain('data-pattern="striped"');
+    expect(svg).toContain(`data-pattern="${OWN.traits.pattern}"`);
+    // The backdrop is in the Blobbi's own colours: Algorithm 1's, not the seed read in the V1 mapping.
+    expect(svg.toLowerCase()).toContain(OWN.colors.base);
     expect(svg.match(/<svg\b/g)!.length).toBe(2);
   });
 });

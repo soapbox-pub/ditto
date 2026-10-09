@@ -1,21 +1,28 @@
 /**
  * Blobbi Preview Generation Utilities
- * 
+ *
  * This module provides utilities for generating egg previews during onboarding.
  * The preview is the source of truth for the final adopted event - no regeneration
  * should occur when adopting.
+ *
+ * A new Ditto Blobbi is born V3: it IS its address. `@blobbi-kit/core` derives
+ * its seed from (owner pubkey, d), and Algorithm 1 derives everything it looks
+ * like from that seed, so the event states no seed, colour, trait, size or
+ * adult form, only `visual_generation = v3`. The preview holds the address and
+ * nothing the published event could disagree with; the ceremony draws the
+ * preview and the published egg from the same parsed companion.
  */
 
 import {
   DEFAULT_EGG_STATS,
-  BLOBBI_ECOSYSTEM_NAMESPACE,
-  deriveVisualTraits,
-  deriveBlobbiSeedV1,
+  KIND_BLOBBI_STATE,
+  buildEggTags,
+  deriveBlobbiV3Seed,
   generatePetId10,
   getCanonicalBlobbiD,
-  getLocalDayString,
-  parseVisualGeneration,
-  type BlobbiVisualTraits,
+  parseBlobbiEvent,
+  updateBlobbiTags,
+  type BlobbiCompanion,
   type BlobbiStats,
 } from '@blobbi-kit/core';
 
@@ -30,7 +37,7 @@ export interface BlobbiEggPreview {
   petId: string;
   /** Canonical d-tag: blobbi-{pubkeyPrefix12}-{petId10} */
   d: string;
-  /** 64-char hex seed for deterministic visual traits */
+  /** The V3 seed: the address (owner, d), hashed by the kit. Never a tag. */
   seed: string;
   /** Display name for the egg (default: 'Egg') */
   name: string;
@@ -40,11 +47,9 @@ export interface BlobbiEggPreview {
   state: 'active';
   /** Progression state - new eggs start incubating; older eggs may be 'none' */
   progressionState: 'incubating' | 'none';
-  /** Visual traits derived from seed */
-  visualTraits: BlobbiVisualTraits;
   /** Default stats for a new egg */
   stats: BlobbiStats;
-  /** Unix timestamp when preview was created (used for seed derivation) */
+  /** Unix timestamp when preview was created (the egg's created_at) */
   createdAt: number;
   /** Owner pubkey */
   ownerPubkey: string;
@@ -54,11 +59,11 @@ export interface BlobbiEggPreview {
 
 /**
  * Generate a new egg preview with all data needed for adoption.
- * 
+ *
  * This function creates a complete preview that can be:
  * 1. Rendered in the UI using the existing visual system
  * 2. Converted directly to event tags for publishing (without regeneration)
- * 
+ *
  * @param pubkey - The owner's pubkey
  * @param name - Optional name for the egg (default: 'Egg')
  * @returns Complete preview data
@@ -70,12 +75,8 @@ export function generateEggPreview(
   const petId = generatePetId10();
   const d = getCanonicalBlobbiD(pubkey, petId);
   const createdAt = Math.floor(Date.now() / 1000);
-  const seed = deriveBlobbiSeedV1(pubkey, d, createdAt);
-  
-  // Derive visual traits from seed (same as parseBlobbiEvent does)
-  // Pass empty tags since this is a new preview with no existing tags
-  const visualTraits = deriveVisualTraits([], seed);
-  
+  const seed = deriveBlobbiV3Seed(pubkey, d);
+
   return {
     petId,
     d,
@@ -84,7 +85,6 @@ export function generateEggPreview(
     stage: 'egg',
     state: 'active',
     progressionState: 'incubating',
-    visualTraits,
     stats: { ...DEFAULT_EGG_STATS },
     createdAt,
     ownerPubkey: pubkey,
@@ -96,8 +96,8 @@ export function generateEggPreview(
 /**
  * Update the name in an existing preview.
  * Returns a new preview object with the updated name.
- * All other data (petId, d, seed, visualTraits) remains unchanged.
- * 
+ * All other data (petId, d, seed) remains unchanged.
+ *
  * Note: This allows empty names during editing. Validation should be done
  * at the UI level (disable adopt button) or on submit, not here.
  */
@@ -115,111 +115,44 @@ export function updatePreviewName(
 
 /**
  * Convert a preview to event tags for publishing.
- * 
+ *
  * CRITICAL: This uses the exact preview data - no regeneration occurs.
  * The preview is the source of truth for the final adopted event.
- * 
- * Includes all visual trait tags to ensure deterministic rendering.
- * While these can be derived from the seed, including them explicitly:
- * 1. Makes the event self-describing
- * 2. Enables relay-level filtering by visual traits
- * 3. Ensures consistent rendering even if derivation logic changes
- * 
+ *
+ * The tags are the kit's own V3 creation (`buildEggTags`), with the egg's
+ * incubation started through the kit's republish merge: a canonical V3 event
+ * carries its `d` and `visual_generation = v3`, and no seed, colour, trait,
+ * algorithm, size or adult form. Its identity is its address.
+ *
  * @param preview - The preview to convert
  * @returns Tags array for Kind 31124 event
  */
 export function previewToEventTags(preview: BlobbiEggPreview): string[][] {
+  const egg = buildEggTags(preview.ownerPubkey, preview.petId, preview.createdAt, preview.name, { visualGeneration: 'v3' });
+  if (preview.progressionState !== 'incubating') return egg;
   const now = preview.createdAt.toString();
-  const { visualTraits } = preview;
-  
-  return [
-    ['d', preview.d],
-    ['b', BLOBBI_ECOSYSTEM_NAMESPACE],
-    ['name', preview.name],
-    ['stage', preview.stage],
-    ['state', preview.state],
-    ['progression_state', preview.progressionState],
-    ['seed', preview.seed],
-    ['generation', '1'],
-    ['breeding_ready', 'false'],
-    ['experience', '0'],
-    ['care_streak', '1'],
-    ['care_streak_last_at', now],
-    ['care_streak_last_day', getLocalDayString(new Date(preview.createdAt * 1000))],
-    ['hunger', preview.stats.hunger.toString()],
-    ['happiness', preview.stats.happiness.toString()],
-    ['health', preview.stats.health.toString()],
-    ['hygiene', preview.stats.hygiene.toString()],
-    ['energy', preview.stats.energy.toString()],
-    ['last_interaction', now],
-    ['last_decay_at', now],
-    ['progression_started_at', now],
-    // Visual trait tags - ensures deterministic rendering
-    ['base_color', visualTraits.baseColor],
-    ['secondary_color', visualTraits.secondaryColor],
-    ['eye_color', visualTraits.eyeColor],
-    ['pattern', visualTraits.pattern],
-    ['special_mark', visualTraits.specialMark],
-    ['size', visualTraits.size],
-  ];
+  return updateBlobbiTags(egg, { progression_state: 'incubating', progression_started_at: now });
 }
 
 // ─── Adapter for Visual Components ────────────────────────────────────────────
 
 /**
- * Convert a preview to a minimal BlobbiCompanion-like object for rendering.
- * This allows the existing BlobbiStageVisual/BlobbiEggVisual to render the preview.
+ * Convert a preview to the BlobbiCompanion the published egg will parse to.
+ * The same parser as the real thing (`parseBlobbiEvent`), over the tags this
+ * preview publishes and the owner as author: the preview the player sees is
+ * the Blobbi of this address, drawn exactly as the published egg will be.
  */
-export function previewToBlobbiCompanion(preview: BlobbiEggPreview) {
+export function previewToBlobbiCompanion(preview: BlobbiEggPreview): BlobbiCompanion {
   const tags = previewToEventTags(preview);
-  // Create a minimal object that matches what BlobbiStageVisual needs
-  return {
-    // Required fields for BlobbiStageVisual
-    d: preview.d,
-    name: preview.name,
-    stage: preview.stage,
-    state: preview.state,
-    seed: preview.seed,
-    visualTraits: preview.visualTraits,
-    // Read from the tags this preview publishes, as parseBlobbiEvent would.
-    visualGeneration: parseVisualGeneration(tags),
-    stats: preview.stats,
-    
-    // Required but not used for preview rendering
-    isLegacy: false,
-    lastInteraction: preview.createdAt,
-    lastDecayAt: preview.createdAt,
-    generation: 1,
-    breedingReady: false,
-    socialOpen: false,
-    experience: 0,
-    careStreak: 1,
-    careStreakLastAt: preview.createdAt,
-    careStreakLastDay: getLocalDayString(new Date(preview.createdAt * 1000)),
-    incubationTime: undefined, // Deprecated field, no longer used
-    startIncubation: undefined, // Deprecated field, no longer used
-    adultType: undefined, // Eggs don't have adult type
-    
-    // Task-related fields
-    progressionState: preview.progressionState,
-    stateStartedAt: preview.createdAt,
-    progressionStartedAt: preview.createdAt,
-    tasks: [],
-    tasksCompleted: [],
-    evolution: [],
-    
-    // We need allTags for the adapter, but preview has no extra tags
-    allTags: tags,
-    
-    // Event placeholder - not needed for preview rendering
-    event: {
-      id: '',
-      pubkey: preview.ownerPubkey,
-      created_at: preview.createdAt,
-      kind: 31124,
-      tags,
-      content: '',
-      sig: '',
-    },
-  };
+  const companion = parseBlobbiEvent({
+    id: '',
+    pubkey: preview.ownerPubkey,
+    created_at: preview.createdAt,
+    kind: KIND_BLOBBI_STATE,
+    tags,
+    content: '',
+    sig: '',
+  });
+  if (!companion) throw new Error('[blobbi-preview] the preview does not parse as a Blobbi');
+  return companion;
 }

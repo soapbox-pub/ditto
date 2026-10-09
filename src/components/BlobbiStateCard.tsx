@@ -11,6 +11,7 @@ import { ReactionSparkles, ReactionBubbles } from '@/blobbi/ui/ReactionOverlays'
 import { FloatingSocialHearts } from '@/blobbi/ui/FloatingSocialHearts';
 import type { InteractionReactionState } from '@/blobbi/ui/hooks/useInteractionReaction';
 import { cn } from '@/lib/utils';
+import { blobbiDisplayColors } from '@/blobbi/ui/lib/display-colors';
 
 /** Ditto's care-item effect resolver, backed by the shop catalog. */
 const resolveCareItemEffect = (itemId: string) => getShopItemById(itemId)?.effect;
@@ -102,7 +103,7 @@ export function BlobbiStateCard({ event, lookMode = 'forward', interactionReacti
       {/* Name */}
       <h3
         className="mt-3 text-xl font-bold text-center"
-        style={{ color: companion.visualTraits.baseColor }}
+        style={{ color: blobbiDisplayColors(companion).baseColor }}
       >
         {companion.name}
       </h3>

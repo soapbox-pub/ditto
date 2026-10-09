@@ -1,17 +1,18 @@
 /**
- * A V3 BLOBBI'S IDENTITY IS DECIDED ONCE AND NEVER MOVES, IN DITTO TOO.
+ * A V3 BLOBBI IS ITS ADDRESS, IN DITTO TOO.
  *
- * The contract (blobbi-kit f3acbf4, `visual_algorithm = 1`): creation chooses
- * the explicit identity (four colours, the kind of each trait) once; the event
- * states it; every later update preserves what the event states and derives
- * nothing from the seed again.
+ * The contract (blobbi-kit 0.9.0): core derives a V3 Blobbi's seed from
+ * (author pubkey, d), Algorithm 1 derives everything it looks like from that
+ * seed, and the event states none of it: no seed, colour, trait, algorithm,
+ * size or adult form, only `visual_generation = v3`. Ditto creates such eggs
+ * now, and it receives Standalone's and Island's.
  *
- * The Blobbi here is deliberately NOT what its seed would have chosen (the
- * same individual Blobbi Standalone's identity test uses), and it arrives as
- * the tags Standalone's adoption writes. It is pushed through every Ditto path
- * that writes a kind 31124 (each hook run for real against a mocked relay and
- * signer, the hatch and the page/widget handlers through their own tag step),
- * with a reload between each; one tag moving fails the test.
+ * The egg here arrives as the tags Standalone's adoption writes (the kit's
+ * own V3 creation, incubating). It is pushed through every Ditto path that
+ * writes a kind 31124 (each hook run for real against a mocked relay and
+ * signer, the hatch and the page/widget handlers through their own tag
+ * step), with a reload between each, and every intrinsic tag a replacement
+ * event might forge is tried: the resolved Blobbi never moves.
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ReactNode } from 'react';
@@ -20,13 +21,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import {
-  BLOBBI_V3_TAG_NAMES,
+  BLOBBI_V3_ABSENT_TAG_NAMES,
   KIND_BLOBBI_STATE,
   VISUAL_GENERATION_TAG,
   buildEggTags,
-  canonicalBlobbiV3Seed,
   classifyBlobbiEvent,
-  deriveBlobbiSeedV1,
+  deriveBlobbiV3Seed,
   getBlobbiVisualIdentity,
   getCanonicalBlobbiD,
   getTagValue,
@@ -34,14 +34,14 @@ import {
   statsToTagUpdates,
   updateBlobbiTags,
   type BlobbiCompanion,
-  type BlobbiV3Identity,
   type BlobbonautProfile,
 } from '@blobbi-kit/core';
-import { createBlobbiV3Identity, renderBlobbiSvg, resolveBlobbiV3Visual } from '@blobbi-kit/renderer';
+import { createBlobbiV3Identity, normalizeBlobbiV3Visual, renderBlobbiSvg, resolveBlobbiV3Visual } from '@blobbi-kit/renderer';
 
 import { buildHatchedBabyTags } from '@/blobbi/onboarding/lib/hatch-tags';
-import { generateEggPreview, previewToEventTags } from '@/blobbi/onboarding/lib/blobbi-preview';
-import { V3_REFERENCE_BLOBBIS } from '@/blobbi/dev/v3-reference';
+import { generateEggPreview, previewToBlobbiCompanion, previewToEventTags } from '@/blobbi/onboarding/lib/blobbi-preview';
+import { isDisplayableInteropBlobbi } from '@/blobbi/onboarding/lib/interop-recovery';
+import { blobbiDisplayColors } from '@/blobbi/ui/lib/display-colors';
 
 // ─── Relay and signer doubles ───────────────────────────────────────────────
 
@@ -79,35 +79,40 @@ vi.mock('@/hooks/useBlobbonautProfile', () => ({
 const CREATED_AT = 1_757_000_000;
 const PET_ID = '00000000a7';
 const D = getCanonicalBlobbiD(PUBKEY, PET_ID);
-const SEED = deriveBlobbiSeedV1(PUBKEY, D, CREATED_AT);
-
-/** Not what the seed would choose (Standalone's identity test uses the same one). */
-const UNUSUAL: BlobbiV3Identity = {
-  seed: SEED,
-  algorithm: 1,
-  colors: { base: '#2b3a67', secondary: '#ffd23f', eye: '#e85d75', accent: '#7ad3f4' },
-  traits: { antenna: 'double', horns: 'side', ears: 'pointed', tail: 'leaf', pattern: 'striped', specialMark: 'moon', belly: true, freckles: true },
-};
+/** The Blobbi's seed: its address, hashed by the kit. No tag states it. */
+const SEED = deriveBlobbiV3Seed(PUBKEY, D);
+/** Who it is: Algorithm 1's identity for its address. */
+const OWN = createBlobbiV3Identity(SEED);
+const V3 = { seed: SEED, algorithm: 1 };
 
 /**
- * The egg exactly as Blobbi Standalone (44c4f32) adopts it, written out:
- * `buildEggTags(..., { visualGeneration: 'v3', v3 })` plus the incubation start.
+ * The egg exactly as Blobbi Standalone (feat/v3-address-seed) adopts it: the
+ * kit's own V3 creation, incubating. It states nothing about its looks.
  */
-const STANDALONE_EGG_TAGS: string[][] = [
-  ['d', 'blobbi-aaaaaaaaaaaa-00000000a7'], ['b', 'blobbi:ecosystem:v1'], ['name', 'Umber'], ['stage', 'egg'], ['state', 'active'],
-  ['seed', '9a21032d420a965fbaf500061f1b250d82f8c2b74aa64c117d9e852188a6c30c'], ['generation', '1'], ['breeding_ready', 'false'],
-  ['experience', '0'], ['care_streak', '1'], ['care_streak_last_at', '1757000000'], ['care_streak_last_day', '2026-10-05'],
-  ['hunger', '100'], ['happiness', '100'], ['health', '100'], ['hygiene', '100'], ['energy', '100'],
-  ['last_interaction', '1757000000'], ['last_decay_at', '1757000000'],
-  ['base_color', '#2b3a67'], ['secondary_color', '#ffd23f'], ['eye_color', '#e85d75'], ['pattern', 'striped'], ['special_mark', 'moon'],
-  ['visual_generation', 'v3'], ['visual_algorithm', '1'], ['accent_color', '#7ad3f4'],
-  ['antenna', 'double'], ['horns', 'side'], ['ears', 'pointed'], ['tail', 'leaf'], ['belly', 'true'], ['freckles', 'true'],
-  ['progression_state', 'incubating'], ['progression_started_at', '1757000000'],
-];
+const STANDALONE_EGG_TAGS: string[][] = updateBlobbiTags(
+  buildEggTags(PUBKEY, PET_ID, CREATED_AT, 'Umber', { visualGeneration: 'v3' }),
+  { progression_state: 'incubating', progression_started_at: String(CREATED_AT) },
+);
 
-const IDENTITY_TAGS = ['d', 'seed', VISUAL_GENERATION_TAG, ...BLOBBI_V3_TAG_NAMES];
-const identityOf = (tags: readonly string[][]) => tags.filter((t) => IDENTITY_TAGS.includes(t[0])).map((t) => t.join('=')).sort();
-const EXPECTED_IDENTITY = identityOf(STANDALONE_EGG_TAGS);
+/** Every intrinsic tag a replacement event might try to state, each with a value this Blobbi does not have. */
+const FORGERIES: string[][] = [
+  ['seed', 'f'.repeat(64)],
+  ['visual_algorithm', '2'],
+  ['base_color', '#000000'],
+  ['secondary_color', '#ffffff'],
+  ['eye_color', '#ff0000'],
+  ['accent_color', '#00ff00'],
+  ['antenna', OWN.traits.antenna === 'double' ? 'none' : 'double'],
+  ['horns', OWN.traits.horns === 'side' ? 'none' : 'side'],
+  ['ears', OWN.traits.ears === 'pointed' ? 'none' : 'pointed'],
+  ['tail', OWN.traits.tail === 'leaf' ? 'none' : 'leaf'],
+  ['pattern', OWN.traits.pattern === 'striped' ? 'solid' : 'striped'],
+  ['special_mark', OWN.traits.specialMark === 'moon' ? 'none' : 'moon'],
+  ['belly', String(!OWN.traits.belly)],
+  ['freckles', String(!OWN.traits.freckles)],
+  ['size', 'large'],
+  ['adult_type', 'catti'],
+];
 
 function eventWith(tags: string[][], at: number, content = '', kind = KIND_BLOBBI_STATE): NostrEvent {
   return { id: at.toString(16).padStart(64, '0'), pubkey: PUBKEY, created_at: at, kind, tags, content, sig: '0'.repeat(128) };
@@ -119,14 +124,17 @@ function parse(event: NostrEvent): BlobbiCompanion {
   return companion;
 }
 
-/** Fails if one identity tag moved, or a V3 event gained what V3 does not have. */
+/** Fails if the address moved, a V3 event gained what V3 does not have, or the resolved Blobbi changed. */
 function expectSameIndividual(event: NostrEvent, label: string) {
-  expect(identityOf(event.tags), label).toEqual(EXPECTED_IDENTITY);
-  for (const name of ['spots', 'size', 'adult_type']) expect(getTagValue(event.tags, name), `${label}: ${name}`).toBeUndefined();
+  expect(getTagValue(event.tags, 'd'), label).toBe(D);
+  expect(event.tags.filter((t) => t[0] === VISUAL_GENERATION_TAG), label).toEqual([[VISUAL_GENERATION_TAG, 'v3']]);
+  for (const name of [...BLOBBI_V3_ABSENT_TAG_NAMES, 'spots']) expect(getTagValue(event.tags, name), `${label}: ${name}`).toBeUndefined();
   expect(getTagValue(event.tags, 'generation'), `${label}: generation`).toBe('1');
   const companion = parse(event);
   expect(companion.visualGeneration, label).toBe('v3');
-  expect(companion.v3Identity, label).toEqual({ ...UNUSUAL, missing: [] });
+  expect(companion.v3Identity, label).toEqual({ ...V3, missing: [] });
+  expect(getBlobbiVisualIdentity(companion).v3, label).toEqual(V3);
+  expect(normalizeBlobbiV3Visual(getBlobbiVisualIdentity(companion).v3), label).toEqual(OWN);
 }
 
 /** Puts an event "on the relay" as the newest version of the Blobbi. */
@@ -160,63 +168,56 @@ beforeEach(() => {
 // ─── Parsing ─────────────────────────────────────────────────────────────────
 
 describe('Ditto reads the final V3 identity', () => {
-  it('a Standalone egg parses with every identity field, explicit over the seed', () => {
+  it('a Standalone egg parses to its address seed under Algorithm 1; what Ditto shows it in is Algorithm 1\'s colours', () => {
     const egg = parse(eventWith(STANDALONE_EGG_TAGS, CREATED_AT));
     expect(egg.visualGeneration).toBe('v3');
-    expect(egg.v3Identity).toEqual({ ...UNUSUAL, missing: [] });
+    expect(egg.v3Identity).toEqual({ ...V3, missing: [] });
     expect(egg.generation).toBe(1);
     expect(egg.adultType).toBeUndefined();
-    // What Ditto colours its UI with is the stated identity, not the seed's.
-    expect(egg.visualTraits.baseColor).toBe('#2b3a67');
-    const own = createBlobbiV3Identity(SEED);
-    expect(own.colors).not.toEqual(UNUSUAL.colors);
-    expect(own.traits).not.toEqual(UNUSUAL.traits);
-    // And the drawing is of the stated identity.
+    for (const name of BLOBBI_V3_ABSENT_TAG_NAMES) expect(getTagValue(egg.allTags, name), name).toBeUndefined();
+    // The plain trait fields are the seed read in the V1 mapping, NOT the Blobbi's colours; Ditto shows Algorithm 1's.
+    expect(egg.visualTraits.baseColor.toLowerCase()).not.toBe(OWN.colors.base);
+    expect(blobbiDisplayColors(egg)).toEqual({ baseColor: OWN.colors.base, secondaryColor: OWN.colors.secondary, eyeColor: OWN.colors.eye });
+    // And the drawing is of the address.
     const visual = getBlobbiVisualIdentity(egg);
-    expect(visual.v3).toEqual({ seed: SEED, algorithm: 1, colors: UNUSUAL.colors, traits: UNUSUAL.traits });
-    expect(resolveBlobbiV3Visual(visual.v3!).status).toBe('individual');
+    expect(visual.v3).toEqual(V3);
+    const resolved = resolveBlobbiV3Visual(visual.v3!);
+    expect(resolved.status).toBe('individual');
+    expect(resolved.status === 'individual' && resolved.identity).toEqual(OWN);
+    // It is displayable through the interop path too, with no seed tag.
+    expect(isDisplayableInteropBlobbi(eventWith([...STANDALONE_EGG_TAGS, ['client', 'blobbi']], CREATED_AT))).toBe(true);
   });
 
-  it('a seed in upper case is the same seed, read in lower case', () => {
-    const upper = STANDALONE_EGG_TAGS.map((t) => (t[0] === 'seed' ? ['seed', SEED.toUpperCase()] : t));
-    const companion = parse(eventWith(upper, CREATED_AT));
-    expect(companion.v3Identity?.seed).toBe(SEED);
-    expect(canonicalBlobbiV3Seed(SEED.toUpperCase())).toBe(SEED);
+  it('the same tags under another author are another Blobbi; the same address at another time is the same one', () => {
+    const other = parseBlobbiEvent({ ...eventWith(STANDALONE_EGG_TAGS, CREATED_AT), pubkey: 'b'.repeat(64) })!;
+    expect(other.v3Identity?.seed).toBe(deriveBlobbiV3Seed('b'.repeat(64), D));
+    expect(other.v3Identity?.seed).not.toBe(SEED);
+    expect(normalizeBlobbiV3Visual(getBlobbiVisualIdentity(other).v3)).not.toEqual(OWN);
+    expect(parse(eventWith(STANDALONE_EGG_TAGS, CREATED_AT + 999_999)).v3Identity).toEqual({ ...V3, missing: [] });
+  });
+
+  it.each(FORGERIES.map((f) => [f[0], f[1]] as const))('a replacement event stating %s = %s changes nothing, and the next kit write drops it', (name, value) => {
+    const forged = eventWith([...STANDALONE_EGG_TAGS, [name, value]], CREATED_AT + 1);
+    expect(classifyBlobbiEvent(forged)).toBe('modern');
+    const companion = parse(forged);
+    expect(companion.v3Identity).toEqual({ ...V3, missing: [] });
     const draw = (c: BlobbiCompanion) => renderBlobbiSvg({ ...getBlobbiVisualIdentity(c), instanceId: 'x' }).svg;
     expect(draw(companion)).toBe(draw(parse(eventWith(STANDALONE_EGG_TAGS, CREATED_AT))));
+    expect(blobbiDisplayColors(companion).baseColor).toBe(OWN.colors.base);
+    expectSameIndividual(eventWith(updateBlobbiTags(companion.allTags, { state: 'sleeping' }), CREATED_AT + 2), `after ${name}`);
   });
 
-  it('a value that is not a seed is reported missing and never repaired into another Blobbi', () => {
-    const stated = getBlobbiVisualIdentity(parse(eventWith(STANDALONE_EGG_TAGS, CREATED_AT)));
-    const noSeed = renderBlobbiSvg({ ...stated, v3: { ...stated.v3!, seed: undefined }, instanceId: 'x' }).svg;
-    for (const bad of ['a text seed', SEED.slice(1), `0x${SEED.slice(2)}`, ` ${SEED}`, `${SEED}00`, 'g'.repeat(64)]) {
-      const tags = STANDALONE_EGG_TAGS.map((t) => (t[0] === 'seed' ? ['seed', bad] : t));
-      const event = eventWith(tags, CREATED_AT);
-      const companion = parseBlobbiEvent(event);
-      expect(companion?.v3Identity?.seed, bad).toBeUndefined();
-      expect(companion?.v3Identity?.missing, bad).toContain('seed');
-      const visual = getBlobbiVisualIdentity(companion!);
-      expect(resolveBlobbiV3Visual({ ...visual.v3!, seed: bad }).status, bad).toBe('none');
-      // Drawn as no seed at all, not as some individual hashed from the text.
-      expect(renderBlobbiSvg({ ...visual, instanceId: 'x' }).svg, bad).toBe(noSeed);
-      // Not a modern V3 Blobbi (64 non-hex characters included): never selected, so never republished.
-      expect(classifyBlobbiEvent(event), bad).toBe('legacy');
-      // And were one republished anyway, its seed stays exactly as written: nothing repairs it.
-      const republished = updateBlobbiTags(companion!.allTags, { state: 'sleeping' });
-      expect(getTagValue(republished, 'seed'), bad).toBe(bad);
-      expect(identityOf(republished), bad).toEqual(identityOf(tags));
-    }
-    expect(() => createBlobbiV3Identity('a text seed')).toThrow(TypeError);
+  it('all forgeries at once, too', () => {
+    const forged = eventWith([...STANDALONE_EGG_TAGS, ...FORGERIES], CREATED_AT + 1);
+    expect(parse(forged).v3Identity).toEqual({ ...V3, missing: [] });
+    expectSameIndividual(eventWith(updateBlobbiTags(parse(forged).allTags, { hunger: '50' }), CREATED_AT + 2), 'all forged');
   });
 
-  it('every reference identity survives the tags and back', () => {
-    for (const { name, identity } of V3_REFERENCE_BLOBBIS) {
-      const tags = buildEggTags(PUBKEY, PET_ID, CREATED_AT, name, { visualGeneration: 'v3', v3: (seed) => ({ ...identity, seed }) })
-        .map((t) => (t[0] === 'seed' ? ['seed', identity.seed] : t));
-      const companion = parse(eventWith(tags, CREATED_AT));
-      expect(companion.v3Identity, name).toEqual({ ...identity, missing: [] });
-      for (const absent of ['spots', 'size', 'adult_type']) expect(getTagValue(tags, absent), `${name} ${absent}`).toBeUndefined();
-    }
+  it('a V3 event with no single well-formed address is no modern Blobbi, and is never repaired into one', () => {
+    const twoD = eventWith([...STANDALONE_EGG_TAGS, ['d', D]], CREATED_AT);
+    expect(classifyBlobbiEvent(twoD)).toBe('legacy');
+    expect(parseBlobbiEvent(twoD)?.v3Identity?.missing).toEqual(['seed']);
+    expect(classifyBlobbiEvent({ ...eventWith(STANDALONE_EGG_TAGS, CREATED_AT), pubkey: PUBKEY.toUpperCase() })).toBe('legacy');
   });
 });
 
@@ -315,16 +316,28 @@ describe('every Ditto write path keeps the V3 identity', () => {
 
 // ─── V1 and V2 stay what they are ────────────────────────────────────────────
 
-describe('V1 and V2 are unchanged', () => {
-  it('Ditto still creates V1 eggs, by hand, with no V3 identity', () => {
+describe('Ditto creates canonical V3 eggs; V1 and V2 are unchanged', () => {
+  it('a new Ditto adoption is a canonical V3 egg: the address, visual_generation=v3, incubating, and nothing stated about its looks', () => {
     const preview = generateEggPreview(PUBKEY, 'Pip');
+    expect(preview.seed).toBe(deriveBlobbiV3Seed(PUBKEY, preview.d));
     const tags = previewToEventTags(preview);
-    expect(getTagValue(tags, 'visual_generation')).toBeUndefined();
-    for (const name of BLOBBI_V3_TAG_NAMES.filter((n) => !['base_color', 'secondary_color', 'eye_color', 'pattern', 'special_mark'].includes(n))) {
-      expect(getTagValue(tags, name), name).toBeUndefined();
-    }
-    expect(getTagValue(tags, 'size')).toBeDefined();
-    expect(parse(eventWith(tags, preview.createdAt)).visualGeneration).toBe('v1');
+    expect(tags.filter((t) => t[0] === VISUAL_GENERATION_TAG)).toEqual([[VISUAL_GENERATION_TAG, 'v3']]);
+    for (const name of [...BLOBBI_V3_ABSENT_TAG_NAMES, 'spots']) expect(getTagValue(tags, name), name).toBeUndefined();
+    expect(getTagValue(tags, 'stage')).toBe('egg');
+    expect(getTagValue(tags, 'progression_state')).toBe('incubating');
+    expect(getTagValue(tags, 'progression_started_at')).toBe(String(preview.createdAt));
+    const egg = parse(eventWith(tags, preview.createdAt));
+    expect(egg.v3Identity).toEqual({ seed: preview.seed, algorithm: 1, missing: [] });
+    // The preview IS the egg: the same companion, the same drawing.
+    const shown = previewToBlobbiCompanion(preview);
+    expect(getBlobbiVisualIdentity(shown)).toEqual(getBlobbiVisualIdentity(egg));
+    const draw = (c: BlobbiCompanion) => renderBlobbiSvg({ ...getBlobbiVisualIdentity(c), instanceId: 'p' }).svg;
+    expect(draw(shown)).toBe(draw(egg));
+    // Hatched by the ceremony's own step: the same Blobbi, now a baby.
+    const baby = parse(eventWith(buildHatchedBabyTags(egg.allTags, {}, preview.createdAt + 3600), preview.createdAt + 3600));
+    expect(baby.stage).toBe('baby');
+    expect(baby.v3Identity).toEqual(egg.v3Identity);
+    for (const name of BLOBBI_V3_ABSENT_TAG_NAMES) expect(getTagValue(baby.allTags, name), name).toBeUndefined();
   });
 
   it('V1 and V2 Blobbis hatch and are cared for without gaining V3 tags or changing generation', () => {
@@ -337,9 +350,10 @@ describe('V1 and V2 are unchanged', () => {
       expect(companion.v3Identity, generation).toBeUndefined();
       expect(getTagValue(event.tags, 'visual_algorithm'), generation).toBeUndefined();
       for (const name of ['antenna', 'horns', 'ears', 'tail', 'belly', 'freckles', 'accent_color']) expect(getTagValue(event.tags, name), `${generation} ${name}`).toBeUndefined();
-      // The seed is untouched; V1/V2 colour tags remain the seed's mirrors.
+      // The seed is untouched; V1/V2 colour tags remain the seed's mirrors, and are what Ditto shows.
       expect(getTagValue(event.tags, 'seed')).toBe(getTagValue(egg.tags, 'seed'));
       expect(getTagValue(event.tags, 'base_color')).toBe(getTagValue(egg.tags, 'base_color'));
+      expect(blobbiDisplayColors(companion).baseColor).toBe(companion.visualTraits.baseColor);
     }
   });
 });

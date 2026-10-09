@@ -79,25 +79,30 @@ describe('interop event classification', () => {
 });
 
 describe('isDisplayableInteropBlobbi', () => {
-  it('reads a V3 seed by the V3 rule: never resurrects a V3 event whose seed is not one; V1 keeps the length check', () => {
-    const withSeed = (event: NostrEvent, seed: string, generation?: string) => ({
+  it('a V3 Blobbi is its address: displayable with no seed tag, whatever a seed tag says; V1 and V2 keep the length check', () => {
+    const withSeed = (event: NostrEvent, seed: string | undefined, generation?: string) => ({
       ...event,
-      tags: [...event.tags.map((t) => (t[0] === 'seed' ? ['seed', seed] : t)), ...(generation ? [['visual_generation', generation]] : [])],
+      tags: [...event.tags.filter((t) => t[0] !== 'seed'), ...(seed === undefined ? [] : [['seed', seed]]), ...(generation ? [['visual_generation', generation]] : [])],
     });
     const base = makeIslandEvent();
     const seed = base.tags.find((t) => t[0] === 'seed')![1];
-    // A V3 seed, in either case: displayable.
-    expect(isDisplayableInteropBlobbi(withSeed(base, seed, 'v3'))).toBe(true);
-    expect(isDisplayableInteropBlobbi(withSeed(base, seed.toUpperCase(), 'v3'))).toBe(true);
-    // 64 characters that are not hexadecimal, a wrong length, text: not a V3 seed, not displayable, as the kit says.
-    for (const bad of ['x'.repeat(64), seed.slice(1), 'a text seed']) {
-      expect(isDisplayableInteropBlobbi(withSeed(base, bad, 'v3')), bad).toBe(false);
-      expect(isLegacyBlobbiEvent(withSeed(base, bad, 'v3')), bad).toBe(true);
+    // A canonical V3 event carries no seed tag, and is displayable: its seed is derived from the author and d.
+    expect(isDisplayableInteropBlobbi(withSeed(base, undefined, 'v3'))).toBe(true);
+    expect(isLegacyBlobbiEvent(withSeed(base, undefined, 'v3'))).toBe(false);
+    // A seed tag of any kind is not read on V3: a pre-release one, a forged one, a malformed one change nothing.
+    for (const any of [seed, seed.toUpperCase(), 'x'.repeat(64), seed.slice(1), 'a text seed']) {
+      expect(isDisplayableInteropBlobbi(withSeed(base, any, 'v3')), any).toBe(true);
     }
-    // V1 and V2: as before, any 64 characters.
+    // No single well-formed address, no seed: not displayable, as the kit says.
+    const twoD = { ...withSeed(base, undefined, 'v3') };
+    twoD.tags = [...twoD.tags, ['d', twoD.tags.find((t) => t[0] === 'd')![1]]];
+    expect(isDisplayableInteropBlobbi(twoD)).toBe(false);
+    expect(isDisplayableInteropBlobbi({ ...withSeed(base, undefined, 'v3'), pubkey: PUBKEY.toUpperCase() })).toBe(false);
+    // V1 and V2: as before, any 64 characters, and a seed is required.
     expect(isDisplayableInteropBlobbi(withSeed(base, 'x'.repeat(64)))).toBe(true);
     expect(isDisplayableInteropBlobbi(withSeed(base, 'x'.repeat(64), 'v2'))).toBe(true);
     expect(isDisplayableInteropBlobbi(withSeed(base, seed.slice(1), 'v2'))).toBe(false);
+    expect(isDisplayableInteropBlobbi(withSeed(base, undefined, 'v2'))).toBe(false);
   });
 
   it('recovers an Island baby flagged legacy only by the client=blobbi heuristic', () => {

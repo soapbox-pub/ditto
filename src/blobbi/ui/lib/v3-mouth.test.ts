@@ -9,10 +9,12 @@ import { getV3MouthRatio } from './v3-mouth';
 
 type Stage = BlobbiCompanion['stage'];
 
-/** A companion as core parses one: a V3 identity, as stated. */
+/** A companion as core parses one: a V3 Blobbi is its seed, under Algorithm 1. */
 function v3Companion(identity: (typeof V3_REFERENCE_BLOBBIS)[number]['identity'], stage: Stage): Pick<BlobbiCompanion, 'stage' | 'visualTraits' | 'visualGeneration' | 'v3Identity'> {
-  return { stage, visualTraits: deriveVisualTraits([], identity.seed), visualGeneration: 'v3', v3Identity: { ...identity, missing: [] } };
+  return { stage, visualTraits: deriveVisualTraits([], identity.seed), visualGeneration: 'v3', v3Identity: { seed: identity.seed, algorithm: 1, missing: [] } };
 }
+/** What the renderer is handed for that companion. */
+const v3Of = (identity: (typeof V3_REFERENCE_BLOBBIS)[number]['identity']) => ({ seed: identity.seed, algorithm: 1 });
 
 describe('the V3 mouth: where food goes, from the kit', () => {
   it('is the kit\'s measurement of this individual: baby and adult, front and profile', () => {
@@ -20,9 +22,9 @@ describe('the V3 mouth: where food goes, from the kit', () => {
       for (const stage of ['baby', 'adult'] as const) {
         for (const facing of ['front', 'right', 'left'] as const) {
           const mouth = getV3MouthRatio(v3Companion(identity, stage), facing);
-          expect(mouth, `${name} ${stage} ${facing}`).toEqual(describeBlobbiArtwork({ stage, visualGeneration: 'v3', v3: identity, facing }).boxAnchors.mouth);
+          expect(mouth, `${name} ${stage} ${facing}`).toEqual(describeBlobbiArtwork({ stage, visualGeneration: 'v3', v3: v3Of(identity), facing }).boxAnchors.mouth);
           // On the face: inside the square, below the eyes.
-          const anchors = describeBlobbiArtwork({ stage, visualGeneration: 'v3', v3: identity, facing }).boxAnchors;
+          const anchors = describeBlobbiArtwork({ stage, visualGeneration: 'v3', v3: v3Of(identity), facing }).boxAnchors;
           expect(mouth!.y, `${name} ${stage} ${facing}`).toBeGreaterThan(anchors.eyeLineY!);
           expect(mouth!.y).toBeLessThan(anchors.groundY);
           expect(mouth!.x).toBeGreaterThan(0);

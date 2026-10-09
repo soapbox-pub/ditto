@@ -12,12 +12,11 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import {
   KIND_BLOBBI_STATE,
   buildEggTags,
-  deriveBlobbiSeedV1,
+  deriveBlobbiV3Seed,
   getCanonicalBlobbiD,
   parseBlobbiEvent,
   updateBlobbiTags,
   type BlobbiCompanion,
-  type BlobbiV3Identity,
   type BlobbiVisualGeneration,
 } from '@blobbi-kit/core';
 
@@ -26,26 +25,13 @@ import { BlobbiCompanionVisual } from '@/blobbi/companion/components/BlobbiCompa
 import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
 import { EMOTION_RECIPES } from '@/blobbi/ui/lib/recipe';
 
-import { V3_REFERENCE_BLOBBIS } from './v3-reference';
-
 const PUBKEY = 'd17c0de0'.repeat(8);
 const CREATED_AT = 1_757_000_000;
 type Stage = 'egg' | 'baby' | 'adult';
 
-/** Not what its seed would choose (the identity Standalone's and Ditto's tests use). */
-const UNUSUAL = (seed: string): BlobbiV3Identity => ({
-  seed,
-  algorithm: 1,
-  colors: { base: '#2b3a67', secondary: '#ffd23f', eye: '#e85d75', accent: '#7ad3f4' },
-  traits: { antenna: 'double', horns: 'side', ears: 'pointed', tail: 'leaf', pattern: 'striped', specialMark: 'moon', belly: true, freckles: true },
-});
-
-function companionOf(petId: string, stage: Stage, generation: BlobbiVisualGeneration, sleeping: boolean, identity?: BlobbiV3Identity): BlobbiCompanion | null {
-  const options = generation === 'v3'
-    ? { visualGeneration: 'v3' as const, v3: (seed: string) => (identity ? { ...identity, seed } : UNUSUAL(seed)) }
-    : { visualGeneration: generation };
-  let tags = buildEggTags(PUBKEY, petId, CREATED_AT, identity ? 'Ref' : 'Umber', options);
-  if (identity) tags = tags.map((t) => (t[0] === 'seed' ? ['seed', identity.seed] : t));
+/** A V3 Blobbi is its address: the kit's own creation, nothing stated about its looks. */
+function companionOf(petId: string, stage: Stage, generation: BlobbiVisualGeneration, sleeping: boolean): BlobbiCompanion | null {
+  let tags = buildEggTags(PUBKEY, petId, CREATED_AT, 'Umber', { visualGeneration: generation });
   tags = updateBlobbiTags(tags, { stage, state: sleeping ? 'sleeping' : 'active' });
   const event: NostrEvent = { id: '0'.repeat(64), pubkey: PUBKEY, created_at: CREATED_AT, kind: KIND_BLOBBI_STATE, tags, content: '', sig: '0'.repeat(128) };
   return parseBlobbiEvent(event) ?? null;
@@ -62,7 +48,7 @@ export function BlobbiV3DevPage() {
 
   const unusual = (['egg', 'baby', 'adult'] as const).map((stage) => companionOf('00000000a7', stage, 'v3', sleeping));
   const walker = companionOf('00000000a7', 'adult', 'v3', false);
-  const seed = deriveBlobbiSeedV1(PUBKEY, getCanonicalBlobbiD(PUBKEY, '00000000a7'), CREATED_AT);
+  const seed = deriveBlobbiV3Seed(PUBKEY, getCanonicalBlobbiD(PUBKEY, '00000000a7'));
 
   return (
     <main className="mx-auto max-w-5xl space-y-10 p-4 sm:p-8" data-testid="blobbi-v3-dev">
@@ -83,7 +69,7 @@ export function BlobbiV3DevPage() {
       </header>
 
       <section className="space-y-3" id="unusual">
-        <h2 className="text-xl font-semibold">Unusual identity: navy, yellow stripes, moon, double antennae, side horns, pointed ears, leaf tail, belly, freckles</h2>
+        <h2 className="text-xl font-semibold">One address, three stages: whatever Algorithm 1 gives this seed</h2>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           {unusual.map((c) => c && (
             <figure key={c.stage} className="flex flex-col items-center rounded-xl border p-4" data-stage={c.stage}>
@@ -113,17 +99,17 @@ export function BlobbiV3DevPage() {
       </section>
 
       <section className="space-y-3" id="references">
-        <h2 className="text-xl font-semibold">The kit's twelve reference Blobbis (baby, adult)</h2>
+        <h2 className="text-xl font-semibold">Twelve addresses (baby, adult): twelve individuals, each from its own d</h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {V3_REFERENCE_BLOBBIS.map(({ name, identity }, i) => (
-            <figure key={name} className="flex flex-col items-center rounded-xl border p-2">
+          {Array.from({ length: 12 }, (_, i) => `0000000${(i + 16).toString(16)}0`.slice(-10)).map((petId) => (
+            <figure key={petId} className="flex flex-col items-center rounded-xl border p-2">
               <div className="flex">
                 {(['baby', 'adult'] as const).map((stage) => {
-                  const c = companionOf(`0000000${(i + 16).toString(16)}0`.slice(-10), stage, 'v3', sleeping, identity);
+                  const c = companionOf(petId, stage, 'v3', sleeping);
                   return c && <BlobbiStageVisual key={stage} companion={c} size="md" emotion={emotion} />;
                 })}
               </div>
-              <figcaption className="text-xs">{name}</figcaption>
+              <figcaption className="text-xs">{petId}</figcaption>
             </figure>
           ))}
         </div>

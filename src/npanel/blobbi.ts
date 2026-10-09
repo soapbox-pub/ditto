@@ -15,6 +15,7 @@
 
 import type { NostrEvent } from '@nostrify/nostrify';
 import { getBlobbiVisualIdentity, parseBlobbiEvent } from '@blobbi-kit/core';
+import { blobbiDisplayColors } from '@/blobbi/ui/lib/display-colors';
 import { renderBlobbiSvg } from '@blobbi-kit/renderer';
 import { resolveAdultForm } from '@blobbi-kit/core/types/adult';
 
@@ -38,8 +39,10 @@ const FALLBACK_COLOR = '#8b5cf6';
 export function blobbiPicture(event: NostrEvent): string | undefined {
   const companion = parseBlobbiEvent(event);
   if (!companion) return undefined;
-  const base = hex(companion.visualTraits.baseColor) ?? FALLBACK_COLOR;
-  const secondary = hex(companion.visualTraits.secondaryColor);
+  // The backdrop in the Blobbi's own colours: for V3, Algorithm 1's for its address.
+  const shown = blobbiDisplayColors(companion);
+  const base = hex(shown.baseColor) ?? FALLBACK_COLOR;
+  const secondary = hex(shown.secondaryColor);
 
   let art: string;
   let [width, height] = [SIZE, SIZE];

@@ -20,6 +20,7 @@ import type { BlobbiEmotion } from '@/blobbi/ui/lib/emotion-types';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import type { BlobbiReactionState } from '@/blobbi/actions';
 import type { InteractionReactionState } from '@/blobbi/ui/hooks/useInteractionReaction';
+import { blobbiDisplayColors } from '@/blobbi/ui/lib/display-colors';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -107,7 +108,7 @@ export function BlobbiRoomStage({
         <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-background/80 backdrop-blur-sm border border-border/30 shadow-sm px-2.5 py-0.5 text-sm font-semibold text-foreground">
           <span
             className="size-2 rounded-full ring-1 ring-foreground/10"
-            style={{ background: companion.visualTraits.baseColor }}
+            style={{ background: blobbiDisplayColors(companion).baseColor }}
             aria-hidden
           />
           {companion.name}
