@@ -794,7 +794,8 @@
 }
 
 /**
- * A V3 Blobbi's pupils are the kit's (.blobbi-pupil), placed from the
+ * A kit-drawn Blobbi's pupils (V3 at any stage, a V2 adult; see
+ * ui/lib/kit-drawn.ts) are the kit's (.blobbi-pupil), placed from the
  * --blobbi-eye-x/y variables BlobbiV3Visual sets. Ditto retargets them every
  * animation frame (pointer gaze, the companion's gaze lerp), and the kit's own
  * gaze stylesheet gives them a 250ms transition that restarts on each
@@ -802,12 +803,6 @@
  * target and catch up once the pointer slows or stops. Same rule as
  * .blobbi-eye above: no transition, the frame loop is the animation.
  */
-[data-blobbi-v3] .blobbi-pupil {
-  transition: none;
-}
-
-/* A V2 adult is drawn by the kit too (BlobbiV3Visual, ui/lib/kit-drawn.ts),
-   with the same pupils, retargeted the same way. */
 [data-blobbi-kit] .blobbi-pupil {
   transition: none;
 }

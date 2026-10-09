@@ -1781,8 +1781,9 @@ function BlobbiDashboard({
     setActionOverrideEmotion(near ? 'eating' : null);
   }, []);
 
-  // A V3 Blobbi's mouth, as the kit measures this individual (the room draws
-  // it from the front, filling the visual square). V1/V2: null, their own anchors.
+  // A kit-drawn Blobbi's mouth (V3: as the kit measures this individual; a V2
+  // adult: the kit body's), the room drawing it from the front, filling the
+  // visual square. V1 and the V2 egg/baby: null, Ditto's own anchors.
   const v3Mouth = useMemo(() => getV3MouthRatio(companion), [companion]);
 
   /** Drag-to-feed handler: fires mutation immediately, overlays chewing
@@ -2621,7 +2622,7 @@ function useItemDragHandlers(roomDrag: RoomDrag | undefined) {
 /** Distance (px) from the Blobbi's mouth that counts as feeding it. */
 const MOUTH_RADIUS = 80;
 
-/** Mouth anchor as a proportion of the visual container (V1/V2); a V3 Blobbi passes its own (`getV3MouthRatio`). */
+/** Mouth anchor as a proportion of the visual container for Ditto-drawn Blobbis; a kit-drawn one passes its own (`getV3MouthRatio`). */
 const DEFAULT_MOUTH: MouthRatio = { x: 0.5, y: 0.67 };
 
 function isNearMouth(x: number, y: number, mouth?: MouthRatio | null): boolean {

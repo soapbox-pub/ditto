@@ -210,7 +210,8 @@ describe('a V3 Blobbi\'s eyes follow the pointer frame by frame', () => {
     expect(kitGazeStyle).toMatch(/^\.blobbi-pupil\{[^}]*transition:transform/);
     expect(root.querySelectorAll('.blobbi-pupil').length).toBeGreaterThan(0);
     const dittoCss = readFileSync(join(__dirname, '../../index.css'), 'utf8');
-    expect(dittoCss).toMatch(/\[data-blobbi-v3\]\s+\.blobbi-pupil\s*\{\s*transition:\s*none;\s*\}/);
+    // One rule for every kit-drawn Blobbi (the wrapper carries data-blobbi-kit; data-blobbi-v3 marks V3 among them).
+    expect(dittoCss).toMatch(/\[data-blobbi-kit\]\s+\.blobbi-pupil\s*\{\s*transition:\s*none;\s*\}/);
   });
 
   it('a side view keeps its (mirrored) pupils under the same rule; the back has none to move', () => {

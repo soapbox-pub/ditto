@@ -186,7 +186,6 @@ describe('a V2 Blobbi is the kit\'s V2 Blobbi in Ditto', () => {
 
     // The continuous-gaze rule (index.css) covers a kit-drawn V2 as it covers V3.
     const css = readFileSync(join(__dirname, '../../index.css'), 'utf8');
-    expect(css).toMatch(/\[data-blobbi-v3\]\s+\.blobbi-pupil\s*\{\s*transition:\s*none;\s*\}/);
     expect(css).toMatch(/\[data-blobbi-kit\]\s+\.blobbi-pupil\s*\{\s*transition:\s*none;\s*\}/);
   });
 

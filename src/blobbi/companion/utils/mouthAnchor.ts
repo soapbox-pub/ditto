@@ -7,8 +7,9 @@
  *
  * Used to position the vomit drop spawn point at the actual mouth.
  *
- * V1/V2 use the static table below. A V3 Blobbi has no adult form: its
- * mouth is its own, measured by the kit (`getV3MouthRatio`) and passed in.
+ * Ditto-drawn Blobbis (V1, the V2 egg and baby) use the static table below.
+ * A kit-drawn one (V3; a V2 adult) has its own mouth, from `getV3MouthRatio`,
+ * passed in.
  */
 
 import { ADULT_FORMS, type AdultForm } from '@blobbi-kit/core/types/adult';
