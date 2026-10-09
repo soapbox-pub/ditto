@@ -51,11 +51,14 @@ function eventOf(generation: Generation, stage: Stage, state: 'active' | 'sleepi
 const blobbi = (generation: Generation, stage: Stage, state: 'active' | 'sleeping' = 'active'): BlobbiCompanion =>
   parseBlobbiEvent(eventOf(generation, stage, state))!;
 
-/** The kit's own drawing of a Blobbi, unsanitized: what Ditto must show. */
-function kitBody(companion: BlobbiCompanion, props: Partial<BlobbiRendererProps> = {}): string {
-  const { container } = render(<BlobbiRenderer visual={getBlobbiVisualIdentity(companion)} instanceId={companion.d} size="100%" motion="idle" {...props} />);
+/** The kit's own drawing of a Blobbi, unsanitized: what Ditto must show, in the id namespace of the Ditto drawing it is compared with. */
+function kitBody(companion: BlobbiCompanion, props: Partial<BlobbiRendererProps> = {}, instanceId = companion.d): string {
+  const { container } = render(<BlobbiRenderer visual={getBlobbiVisualIdentity(companion)} instanceId={instanceId} size="100%" motion="idle" {...props} />);
   return container.querySelector('[data-blobbi-renderer]')!.innerHTML;
 }
+
+/** The SVG id namespace Ditto gave a mounted drawing. */
+const instanceOf = (root: Element) => root.closest('[data-blobbi-instance]')!.getAttribute('data-blobbi-instance')!;
 
 /** What Ditto draws for a Blobbi: the kit's body box inside its wrapper. */
 function dittoBody(companion: BlobbiCompanion, props: Partial<Parameters<typeof BlobbiStageVisual>[0]> = {}) {
@@ -120,7 +123,7 @@ describe('a V2 Blobbi is the kit\'s V2 Blobbi in Ditto', () => {
     // Gradient inheritance: all eight derived gradients still link to their sources, and every fill resolves.
     const links = gradientLinks(svg);
     expect(links.length).toBe(8);
-    expect(links).toEqual(gradientLinks(kitBody(companion, NEUTRAL)));
+    expect(links).toEqual(gradientLinks(kitBody(companion, NEUTRAL, instanceOf(root!))));
     for (const id of links) expect(svg, id).toContain(`id="${id.slice(1)}"`);
     for (const m of svg.matchAll(/url\(#([^)]+)\)/g)) expect(svg, m[1]).toContain(`id="${m[1]}"`);
   });
