@@ -23,8 +23,9 @@ export function useBackDismiss(onClose: () => void): void {
     // True once a `popstate` (back gesture) has already consumed our entry, so
     // the unmount cleanup knows not to pop a second time.
     let poppedByBack = false;
+    const token = Math.random().toString(36).slice(2);
 
-    window.history.pushState({ dittoBackDismiss: true }, '');
+    window.history.pushState({ dittoBackDismiss: token }, '');
 
     const onPopState = () => {
       poppedByBack = true;
@@ -36,7 +37,9 @@ export function useBackDismiss(onClose: () => void): void {
       window.removeEventListener('popstate', onPopState);
       // Closed by something other than a back gesture — remove the entry we
       // pushed so a later real back press doesn't just no-op on our dummy state.
-      if (!poppedByBack) {
+      // Only while our entry is still current: if the overlay closed because
+      // something navigated, going back would undo that navigation.
+      if (!poppedByBack && (window.history.state as { dittoBackDismiss?: string } | null)?.dittoBackDismiss === token) {
         window.history.back();
       }
     };

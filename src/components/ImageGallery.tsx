@@ -565,9 +565,14 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
+    // The lightbox is portalled, but React still bubbles its clicks to the
+    // component that rendered it — usually a NoteCard, which would open the post.
+    e.stopPropagation();
     const target = e.target as HTMLElement;
     if (target.tagName === 'IMG' || target.closest('button') || target.closest('[data-gallery-topbar]')) return;
-    e.stopPropagation(); e.preventDefault();
+    // A tap while zoomed ends a pan or starts a double-tap; it isn't a dismiss.
+    if (childZoomedRef.current) return;
+    e.preventDefault();
     onClose();
   };
 
@@ -617,6 +622,15 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
       setDownloading(false);
     }
   };
+
+  // Clear the status and nav bars: a tall video's controls sit at the slot's
+  // bottom edge, and an unzoomed image shouldn't sit under the top bar.
+  const slotPadding = cn(
+    'px-4 sm:px-12 pt-[calc(3.5rem+var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]',
+    bottomBar
+      ? 'pb-[calc(6rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))]'
+      : 'pb-[calc(1.5rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))]',
+  );
 
   // Only render the current image and its immediate neighbours
   const visibleIndices = [currentIndex - 1, currentIndex, currentIndex + 1].filter(
@@ -677,7 +691,10 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     <div
       ref={containerRef}
       className="fixed inset-0 z-[100] animate-in fade-in duration-200"
+      role="dialog"
+      aria-modal="true"
       onClick={handleBackdropClick}
+      onContextMenu={(e) => e.stopPropagation()}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -723,6 +740,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
           {visibleIndices.map((i) => {
             const url = images[i];
             const isCurrent = i === currentIndex;
+            const isImage = (mediaTypes?.[i] ?? 'image') === 'image' && url !== LOADING_SENTINEL;
             const initialX = (i - currentIndex) * window.innerWidth;
             return (
               <div
@@ -731,13 +749,11 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
                   if (el) slotRefs.current.set(i, el);
                   else slotRefs.current.delete(i);
                 }}
-                // Clear the status and nav bars: a tall video's controls sit at the slot's bottom edge.
+                // Images pad inside their zoom layer instead, so a zoomed image
+                // fills the screen rather than clipping at the padded box.
                 className={cn(
-                  'absolute inset-0 flex items-center justify-center will-change-transform px-4 sm:px-12',
-                  'pt-[calc(3.5rem+var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]',
-                  bottomBar
-                    ? 'pb-[calc(6rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))]'
-                    : 'pb-[calc(1.5rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))]',
+                  'absolute inset-0 flex items-center justify-center will-change-transform',
+                  !isImage && slotPadding,
                 )}
                 style={{ transform: `translateX(${initialX}px)` }}
               >
@@ -755,6 +771,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
                   onLoad={markLoaded}
                   onSwipeBlocked={() => { dragX.current = null; axis.current = null; }}
                   onZoomChange={(zoomed) => { childZoomedRef.current = zoomed; }}
+                  fitClassName={slotPadding}
                 />
               </div>
             );
@@ -788,8 +805,10 @@ const MIN_SCALE = 1;
 const MAX_SCALE = 8;
 
 /** Lightbox image with pinch/wheel zoom and pan support. */
-function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZoomChange }: {
+function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZoomChange, fitClassName }: {
   url: string;
+  /** Padding the unzoomed image fits inside; zoomed, it can spread past it to the screen edges. */
+  fitClassName?: string;
   /** Present when `url` serves ciphertext that must be decrypted before display. */
   encryption?: FileEncryption;
   isLoaded: boolean;
@@ -837,10 +856,15 @@ function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZo
     if (decrypted.error || decrypted.tooLarge) handleLoaded();
   }, [decrypted.error, decrypted.tooLarge, handleLoaded]);
 
+  // Held in a ref: callers pass an inline function, and depending on it would
+  // make every parent re-render reset the zoom below.
+  const onZoomChangeRef = useRef(onZoomChange);
+  onZoomChangeRef.current = onZoomChange;
+
   /** Notify parent when zoom state changes. */
   const notifyZoom = useCallback(() => {
-    onZoomChange?.(scale.current > 1);
-  }, [onZoomChange]);
+    onZoomChangeRef.current?.(scale.current > 1);
+  }, []);
 
   // Reset zoom when url changes
   useEffect(() => {
@@ -864,12 +888,22 @@ function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZo
     if (!el || !wrap) return;
     const iw = el.offsetWidth * s;
     const ih = el.offsetHeight * s;
-    const cw = wrap.parentElement?.offsetWidth ?? window.innerWidth;
-    const ch = wrap.parentElement?.offsetHeight ?? window.innerHeight;
-    const maxX = Math.max(0, (iw - cw) / 2);
-    const maxY = Math.max(0, (ih - ch) / 2);
-    panX.current = Math.max(-maxX, Math.min(maxX, panX.current));
-    panY.current = Math.max(-maxY, Math.min(maxY, panY.current));
+    const cw = wrap.offsetWidth;
+    const ch = wrap.offsetHeight;
+    // Uneven padding leaves the image off the wrapper's centre (the transform
+    // origin); after scaling it sits at offset*s + pan from that centre.
+    const ox = (el.offsetLeft + el.offsetWidth / 2 - cw / 2) * s;
+    const oy = (el.offsetTop + el.offsetHeight / 2 - ch / 2) * s;
+    // An image larger than the screen may pan until its edge meets the screen
+    // edge; a smaller one drifts from its laid-out spot toward the centre as
+    // it grows.
+    const clamp = (pan: number, size: number, box: number, off: number) => {
+      if (size <= box) return off / (s * s) - off;
+      const max = (size - box) / 2;
+      return Math.max(-max - off, Math.min(max - off, pan));
+    };
+    panX.current = clamp(panX.current, iw, cw, ox);
+    panY.current = clamp(panY.current, ih, ch, oy);
   }
 
   function dist(t: React.TouchList | TouchList) {
@@ -1053,7 +1087,7 @@ function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZo
   return (
     <div
       ref={containerRef}
-      className="w-full h-full flex items-center justify-center overflow-hidden"
+      className="absolute inset-0 overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onMouseDown={handleMouseDown}
@@ -1063,7 +1097,11 @@ function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZo
       onDoubleClick={handleDoubleClick}
       style={{ cursor: scale.current > 1 ? 'grab' : 'default' }}
     >
-      <div ref={wrapRef} style={{ transformOrigin: 'center center', willChange: 'transform', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        ref={wrapRef}
+        className={cn('relative size-full flex items-center justify-center', fitClassName)}
+        style={{ transformOrigin: 'center center', willChange: 'transform' }}
+      >
         {decrypted.error || decrypted.tooLarge ? (
           <EncryptedFileNotice
             unsupported={decrypted.unsupported}
@@ -1101,8 +1139,10 @@ function LightboxSlot({
   onLoad,
   onSwipeBlocked,
   onZoomChange,
+  fitClassName,
 }: {
   url: string;
+  fitClassName?: string;
   type: 'image' | 'video' | 'audio';
   meta?: LightboxMediaMeta;
   isActive: boolean;
@@ -1150,5 +1190,5 @@ function LightboxSlot({
       </div>
     );
   }
-  return <LightboxImage url={url} encryption={meta?.encryption} isLoaded={isLoaded} onLoad={onLoad} onSwipeBlocked={onSwipeBlocked} onZoomChange={onZoomChange} />;
+  return <LightboxImage url={url} encryption={meta?.encryption} isLoaded={isLoaded} onLoad={onLoad} onSwipeBlocked={onSwipeBlocked} onZoomChange={onZoomChange} fitClassName={fitClassName} />;
 }
