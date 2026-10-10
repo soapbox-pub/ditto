@@ -151,7 +151,7 @@ export function InteractiveRoomContent({ event, expanded }: { event: NostrEvent;
         className="flex items-start gap-2 text-left w-full group"
         onClick={(e) => {
           e.stopPropagation();
-          openPost();
+          openPost(e);
         }}
       >
         <Icon className="size-4 text-primary shrink-0 mt-0.5" />

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { FileText, Clock } from 'lucide-react';
@@ -8,6 +8,7 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { ExternalSourceLink } from '@/components/ExternalSourceLink';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useOpenPost } from '@/hooks/useOpenPost';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { formatReadingTime } from '@/lib/articleHelpers';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -48,7 +49,6 @@ interface EmbeddedArticleCardProps {
  * at the bottom. Used for both naddr embeds and nevent quotes of kind 30023.
  */
 export function EmbeddedArticleCard({ event, className, disableHoverCards, hideAuthor, sourceUrl }: EmbeddedArticleCardProps) {
-  const navigate = useNavigate();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
@@ -62,6 +62,7 @@ export function EmbeddedArticleCard({ event, className, disableHoverCards, hideA
     const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
     return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
   }, [event]);
+  const { onClick: openCard, onAuxClick: auxOpenCard } = useOpenPost(`/${naddrId}`, event);
 
   return (
     <div
@@ -74,13 +75,17 @@ export function EmbeddedArticleCard({ event, className, disableHoverCards, hideA
       tabIndex={0}
       onClick={(e) => {
         e.stopPropagation();
-        navigate(`/${naddrId}`);
+        openCard(e);
+      }}
+      onAuxClick={(e) => {
+        e.stopPropagation();
+        auxOpenCard(e);
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           e.stopPropagation();
-          navigate(`/${naddrId}`);
+          openCard(e);
         }
       }}
     >

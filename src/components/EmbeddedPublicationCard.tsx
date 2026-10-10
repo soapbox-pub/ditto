@@ -8,13 +8,14 @@
  */
 
 import { useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { BookOpen, Newspaper, FileText } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useOpenPost } from '@/hooks/useOpenPost';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
@@ -41,7 +42,6 @@ export function EmbeddedPublicationCard({
   disableHoverCards,
   hideAuthor,
 }: EmbeddedPublicationCardProps) {
-  const navigate = useNavigate();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
@@ -56,7 +56,7 @@ export function EmbeddedPublicationCard({
   const kindLabel = isMagazine ? 'Magazine' : isIssue ? 'Magazine Issue' : 'Ebook';
   const KindIcon = isMagazine || isIssue ? Newspaper : BookOpen;
 
-  const go = () => navigate(`/${naddrId}`);
+  const { onClick: openCard, onAuxClick: auxOpenCard } = useOpenPost(`/${naddrId}`, event);
 
   return (
     <div
@@ -69,13 +69,17 @@ export function EmbeddedPublicationCard({
       tabIndex={0}
       onClick={(e) => {
         e.stopPropagation();
-        go();
+        openCard(e);
+      }}
+      onAuxClick={(e) => {
+        e.stopPropagation();
+        auxOpenCard(e);
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           e.stopPropagation();
-          go();
+          openCard(e);
         }
       }}
     >

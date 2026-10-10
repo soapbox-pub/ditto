@@ -6,6 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
+import { useOpenPost } from '@/hooks/useOpenPost';
 
 /** A single image attachment. */
 export interface ExternalImage {
@@ -82,6 +83,7 @@ interface ExternalPostCardProps {
  */
 export function ExternalPostCard({ post, hideImage, className }: ExternalPostCardProps) {
   const navigate = useNavigate();
+  const { onClick: openCard, onAuxClick: auxOpenCard } = useOpenPost(`/i/${encodeURIComponent(post.postUrl)}`);
 
   return (
     <div
@@ -94,13 +96,17 @@ export function ExternalPostCard({ post, hideImage, className }: ExternalPostCar
       tabIndex={0}
       onClick={(e) => {
         e.stopPropagation();
-        navigate(`/i/${encodeURIComponent(post.postUrl)}`);
+        openCard(e);
+      }}
+      onAuxClick={(e) => {
+        e.stopPropagation();
+        auxOpenCard(e);
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           e.stopPropagation();
-          navigate(`/i/${encodeURIComponent(post.postUrl)}`);
+          openCard(e);
         }
       }}
     >

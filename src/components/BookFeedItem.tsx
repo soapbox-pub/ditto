@@ -93,7 +93,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
     ) {
       return;
     }
-    openPost();
+    openPost(e);
   };
 
   const handleAuxClick = (e: React.MouseEvent) => {

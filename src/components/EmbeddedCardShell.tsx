@@ -1,11 +1,12 @@
 import { type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useOpenPost } from '@/hooks/useOpenPost';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
@@ -39,7 +40,7 @@ export function EmbeddedCardShell({
   disableHoverCards,
   children,
 }: EmbeddedCardShellProps) {
-  const navigate = useNavigate();
+  const { onClick: openCard, onAuxClick: auxOpenCard } = useOpenPost(`/${navigateTo}`);
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
@@ -57,13 +58,17 @@ export function EmbeddedCardShell({
       tabIndex={0}
       onClick={(e) => {
         e.stopPropagation();
-        navigate(`/${navigateTo}`);
+        openCard(e);
+      }}
+      onAuxClick={(e) => {
+        e.stopPropagation();
+        auxOpenCard(e);
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           e.stopPropagation();
-          navigate(`/${navigateTo}`);
+          openCard(e);
         }
       }}
     >

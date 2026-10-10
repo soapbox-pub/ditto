@@ -1874,17 +1874,31 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const prevOverflowAnchor = root.style.overflowAnchor;
     root.style.overflowAnchor = "none";
     let lastHeight = ancestor.getBoundingClientRect().height;
+    // Scroll the page can't take yet (too little below the post) is applied
+    // as it grows, unless the reader scrolls first.
+    let owed = 0;
+    const settle = () => {
+      if (!owed) return;
+      const before = window.scrollY;
+      window.scrollBy(0, owed);
+      owed -= window.scrollY - before;
+      if (Math.abs(owed) < 1) owed = 0;
+    };
     const observer = new ResizeObserver(() => {
       const height = ancestor.getBoundingClientRect().height;
       const shift = height - lastHeight;
       lastHeight = height;
-      if (Math.abs(shift) >= 1 && post.getBoundingClientRect().top - shift < window.innerHeight) {
-        window.scrollBy(0, shift);
-      }
+      if (Math.abs(shift) >= 1 && post.getBoundingClientRect().top - shift < window.innerHeight) owed += shift;
+      settle();
     });
     observer.observe(ancestor);
+    observer.observe(document.body);
+    const INPUT_EVENTS = ["wheel", "touchstart", "keydown"] as const;
+    const forgive = () => { owed = 0; };
+    for (const type of INPUT_EVENTS) window.addEventListener(type, forgive, { capture: true, passive: true });
     return () => {
       observer.disconnect();
+      for (const type of INPUT_EVENTS) window.removeEventListener(type, forgive, true);
       root.style.overflowAnchor = prevOverflowAnchor;
       clearTimeout(pulseTimer);
     };

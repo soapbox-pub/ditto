@@ -180,7 +180,7 @@ import { useLoveList, LOVE_LIST_KIND } from "@/hooks/useLoveList";
 import { TOP8_KIND } from "@/hooks/useTop8";
 import { SNO_KIND } from "@/lib/sno";
 import { useNip05Verify } from "@/hooks/useNip05Verify";
-import { useOpenPost } from "@/hooks/useOpenPost";
+import { isNewTabClick, useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { useEventStats } from "@/hooks/useTrending";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
@@ -461,7 +461,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   // Handler to navigate to post detail, but only if click didn't originate from a modal
   const handleCardClick = (e: React.MouseEvent) => {
     if (isInteractiveTarget(e)) return;
-    openPost();
+    openPost(e);
   };
 
   const handleAuxClick = (e: React.MouseEvent) => {
@@ -972,8 +972,9 @@ const NoteCardImpl = memo(function NoteCardImpl({
           to={`/${encodedId}`}
           className="shrink-0 hover:underline whitespace-nowrap"
           onClick={(e) => {
-            e.preventDefault();
             e.stopPropagation();
+            if (isNewTabClick(e)) return;
+            e.preventDefault();
             openPost();
           }}
         >
@@ -1346,7 +1347,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     const senderPubkey = event.kind === 8333 ? event.pubkey : (zapSenderPubkey || event.pubkey);
     const onRecipientClick = (e: React.MouseEvent) => {
       if (isInteractiveTarget(e)) return;
-      openRecipient();
+      openRecipient(e);
     };
     const onRecipientAuxClick = (e: React.MouseEvent) => {
       if (isInteractiveTarget(e)) return;
@@ -2242,7 +2243,7 @@ function StreamContent({ event }: { event: NostrEvent }) {
         className="flex items-start gap-2 text-left w-full group"
         onClick={(e) => {
           e.stopPropagation();
-          openPost();
+          openPost(e);
         }}
       >
         <Radio className="size-4 text-primary shrink-0 mt-0.5" />

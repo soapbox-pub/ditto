@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthor } from '@/hooks/useAuthor';
 import { FOLLOW_UPDATE_VERB, useFollowUpdate } from '@/hooks/useFollowUpdate';
-import { useOpenPost } from '@/hooks/useOpenPost';
+import { isNewTabClick, useOpenPost } from '@/hooks/useOpenPost';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { encodeEventAddress } from '@/lib/encodeEvent';
@@ -108,8 +108,9 @@ export function FollowUpdateCard({
         to={`/${encodedId}`}
         className="text-muted-foreground hover:underline whitespace-nowrap"
         onClick={(e) => {
-          e.preventDefault();
           e.stopPropagation();
+          if (isNewTabClick(e)) return;
+          e.preventDefault();
           openPost();
         }}
       >
