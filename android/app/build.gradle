@@ -14,7 +14,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "2.44.1"
+        versionName "2.44.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // ServiceProfiler — counters, timers and Perfetto sections for the
         // notification service, readable through `dumpsys`. A compile-time

@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.44.2] - 2026-10-10
+
+Instant gratification. Everything you post, repost, react to, or delete shows up across the whole app right away, and counts move the moment you tap. Threads load a reply's earlier posts without yanking the page around, hashtag feeds scroll forever, and your drafts and articles get their own tab. The image viewer stays open when you tap or zoom, and feeds no longer stop short in the middle of a scroll.
+
+### Added
+- Cmd/Ctrl+click a post to open it in a new tab
+- A My Articles tab on the Articles page holds your drafts and published articles
+
+### Changed
+- Your posts, reposts, reactions, edits, and deletions show up everywhere in the app immediately, and reaction, repost, and reply counts update as you act
+- A slow relay can no longer undo something you just published
+- Earlier posts in a thread appear as they load without the page jumping, and the reply you opened stays put
+- Hashtag and location feeds keep loading as you scroll
+- Saved profile pictures and banners include image details so they load with a blurred placeholder elsewhere
+- Nostrich appears in the Trends clients breakdown
+
+### Fixed
+- Tapping or zooming an image no longer closes the viewer or kicks you back to the feed, and zoomed images fill the whole screen
+- Feeds no longer end partway through a scroll
+- Quick reaction slots open the emoji picker on tap on touch screens
+
 ## [2.44.1] - 2026-10-07
 
 A tune-up for the little things. Notifications and your saved lists load more reliably from the places you've told Ditto to look, so nothing goes missing or gets overwritten by an old copy. Zapping with a browser wallet works again, every profile gets a drawn link preview card, and photos, videos, and live streams stay clear of the notch and home bar on phones.
