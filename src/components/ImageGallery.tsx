@@ -565,12 +565,10 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
-    // The lightbox is portalled, but React still bubbles its clicks to the
-    // component that rendered it — usually a NoteCard, which would open the post.
+    // Portalled, but React still bubbles clicks to the NoteCard that rendered it.
     e.stopPropagation();
     const target = e.target as HTMLElement;
     if (target.tagName === 'IMG' || target.closest('button') || target.closest('[data-gallery-topbar]')) return;
-    // A tap while zoomed ends a pan or starts a double-tap; it isn't a dismiss.
     if (childZoomedRef.current) return;
     e.preventDefault();
     onClose();
@@ -623,8 +621,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     }
   };
 
-  // Clear the status and nav bars: a tall video's controls sit at the slot's
-  // bottom edge, and an unzoomed image shouldn't sit under the top bar.
+  // Clear the status and nav bars: a tall video's controls sit at the slot's bottom edge.
   const slotPadding = cn(
     'px-4 sm:px-12 pt-[calc(3.5rem+var(--safe-area-inset-top,env(safe-area-inset-top,0px)))]',
     bottomBar
@@ -749,8 +746,6 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
                   if (el) slotRefs.current.set(i, el);
                   else slotRefs.current.delete(i);
                 }}
-                // Images pad inside their zoom layer instead, so a zoomed image
-                // fills the screen rather than clipping at the padded box.
                 className={cn(
                   'absolute inset-0 flex items-center justify-center will-change-transform',
                   !isImage && slotPadding,
@@ -807,7 +802,7 @@ const MAX_SCALE = 8;
 /** Lightbox image with pinch/wheel zoom and pan support. */
 function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZoomChange, fitClassName }: {
   url: string;
-  /** Padding the unzoomed image fits inside; zoomed, it can spread past it to the screen edges. */
+  /** Padding the unzoomed image fits inside. */
   fitClassName?: string;
   /** Present when `url` serves ciphertext that must be decrypted before display. */
   encryption?: FileEncryption;
@@ -856,8 +851,7 @@ function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZo
     if (decrypted.error || decrypted.tooLarge) handleLoaded();
   }, [decrypted.error, decrypted.tooLarge, handleLoaded]);
 
-  // Held in a ref: callers pass an inline function, and depending on it would
-  // make every parent re-render reset the zoom below.
+  // A ref, so an inline callback doesn't reset the zoom on every render.
   const onZoomChangeRef = useRef(onZoomChange);
   onZoomChangeRef.current = onZoomChange;
 
@@ -890,13 +884,9 @@ function LightboxImage({ url, encryption, isLoaded, onLoad, onSwipeBlocked, onZo
     const ih = el.offsetHeight * s;
     const cw = wrap.offsetWidth;
     const ch = wrap.offsetHeight;
-    // Uneven padding leaves the image off the wrapper's centre (the transform
-    // origin); after scaling it sits at offset*s + pan from that centre.
+    // Image centre's offset from the transform origin, after scaling.
     const ox = (el.offsetLeft + el.offsetWidth / 2 - cw / 2) * s;
     const oy = (el.offsetTop + el.offsetHeight / 2 - ch / 2) * s;
-    // An image larger than the screen may pan until its edge meets the screen
-    // edge; a smaller one drifts from its laid-out spot toward the centre as
-    // it grows.
     const clamp = (pan: number, size: number, box: number, off: number) => {
       if (size <= box) return off / (s * s) - off;
       const max = (size - box) / 2;

@@ -164,18 +164,14 @@ async function discoverViaReferences(
   }
 }
 
-/** What {@link fetchEventById} needs from the app: the relay pool, the local store and the query cache. */
+/** Dependencies of {@link fetchEventById}. */
 export interface EventLookupContext {
   nostr: NostrLike;
   store: NIndexedDB;
   queryClient: QueryClient;
 }
 
-/**
- * Looks up one event by id: the in-memory seed, the local store, the user's
- * relays, then relays derived from the hints, and finally reference-based
- * discovery. Found events are mirrored into the hint-less `['event', id]` seed.
- */
+/** Fetches a single Nostr event by its hex ID, optionally querying relay hints. */
 export async function fetchEventById(
   { nostr, store, queryClient }: EventLookupContext,
   eventId: string,

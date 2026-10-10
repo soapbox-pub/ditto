@@ -37,8 +37,7 @@ export function useBackDismiss(onClose: () => void): void {
       window.removeEventListener('popstate', onPopState);
       // Closed by something other than a back gesture — remove the entry we
       // pushed so a later real back press doesn't just no-op on our dummy state.
-      // Only while our entry is still current: if the overlay closed because
-      // something navigated, going back would undo that navigation.
+      // Skip if something navigated past our entry; back() would undo it.
       if (!poppedByBack && (window.history.state as { dittoBackDismiss?: string } | null)?.dittoBackDismiss === token) {
         window.history.back();
       }
