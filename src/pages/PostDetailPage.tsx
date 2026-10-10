@@ -1548,9 +1548,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const { data: lightningZapReplies, isLoading: zapRepliesLoading } = useZapReplies(event);
   const { zaps: onchainZaps } = useOnchainZaps(event);
 
-  // Wait for zap comments too, so they don't land in the middle of a reply
-  // list that's already on screen.
-  const repliesLoading = (isKind1 ? kind1RepliesLoading : commentsLoading) || zapRepliesLoading;
+  // Hold replies up to 1s for zap comments, so they don't land mid-list.
+  const textRepliesLoading = isKind1 ? kind1RepliesLoading : commentsLoading;
+  const [zapWaitOverFor, setZapWaitOverFor] = useState<string>();
+  useEffect(() => {
+    if (textRepliesLoading || !zapRepliesLoading) return;
+    const timer = setTimeout(() => setZapWaitOverFor(event.id), 1000);
+    return () => clearTimeout(timer);
+  }, [textRepliesLoading, zapRepliesLoading, event.id]);
+  const repliesLoading = textRepliesLoading || (zapRepliesLoading && zapWaitOverFor !== event.id);
 
   const zapReplyNodes = useMemo((): ReplyNode[] => {
     const nodes: ReplyNode[] = [];
@@ -1745,8 +1751,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     [event, isTextNote, isReaction, isRepost, isZap, isOnchainZap, isPollVote],
   );
   const parentEventId = parentHints?.id;
-  // The thread root (NIP-10 `root` e-tag or NIP-22 `E` tag), so the ancestor
-  // chain can fetch the whole thread in one request.
   const threadRootId = useMemo(
     () => (event.tags.find(([n, , , marker]) => n === "e" && marker === "root") ?? event.tags.find(([n]) => n === "E"))?.[1],
     [event],
@@ -1864,12 +1868,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const ancestor = ancestorRef.current;
     if (!ancestor) return () => clearTimeout(pulseTimer);
 
-    // Scroll anchoring for the post: when the ancestors (or their media) above
-    // it grow, scroll by exactly that much, so whatever the reader is looking
-    // at stays put — without undoing their own scrolling. The browser's
-    // anchoring is off here so the shift isn't corrected twice; it gives up
-    // anyway when the chain replaces its spinner or the page is at the top,
-    // and WKWebView has none.
+    // Anchor the post ourselves: native anchoring misses replaced nodes and
+    // scrollY 0, WKWebView has none, and both at once would double-correct.
     const root = document.documentElement;
     const prevOverflowAnchor = root.style.overflowAnchor;
     root.style.overflowAnchor = "none";
@@ -1878,8 +1878,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       const height = ancestor.getBoundingClientRect().height;
       const shift = height - lastHeight;
       lastHeight = height;
-      // Only when the post (or what's below it) was on screen; a reader up in
-      // the ancestors may be looking above the change.
       if (Math.abs(shift) >= 1 && post.getBoundingClientRect().top - shift < window.innerHeight) {
         window.scrollBy(0, shift);
       }
@@ -3017,14 +3015,10 @@ function AddrAncestor({ addr, relays }: { addr: { kind: number; pubkey: string; 
   return <NoteCard event={event} threaded />;
 }
 
-/** Cap on ancestors walked above a reply, against runaway chains. */
+/** Cap recursion to avoid runaway chains. */
 const MAX_ANCESTOR_DEPTH = 20;
 
-/**
- * Renders the full ancestor chain above the focused event, root first. The
- * chain loads in one go behind a single spinner row, so posts don't appear
- * above the reader one at a time.
- */
+/** Renders the ancestor chain above the focused event, root first. */
 function AncestorThread({
   parent,
   rootId,
@@ -3032,7 +3026,6 @@ function AncestorThread({
 }: {
   parent: ParentEventHints;
   rootId?: string;
-  /** Show this many ancestors above the parent before collapsing the rest. */
   collapseAfter?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -3047,26 +3040,26 @@ function AncestorThread({
   // communities are excluded — they get dedicated preview banners rendered
   // by PostDetailContent instead.
   const addrRootRef = useMemo(() => {
-    if (!top || top.kind !== 1111 || chain?.missing || chain?.more || getParentEventHints(top)) return undefined;
+    if (!top || !chain?.complete || top.kind !== 1111 || chain.missing || chain.more || getParentEventHints(top)) return undefined;
     const aTagFull = top.tags.find(([n]) => n === "A") ??
       top.tags.find(([n]) => n === "a");
     const parsed = parseAddr(aTagFull?.[1]);
     if (!parsed || parsed.kind === 0 || parsed.kind === 34550) return undefined;
     return { addr: parsed, relayHint: aTagFull?.[2] || undefined };
-  }, [top, chain?.missing, chain?.more]);
+  }, [top, chain?.complete, chain?.missing, chain?.more]);
 
-  if (!chain) {
-    return (
-      <div className="flex items-center gap-3 px-4 py-2" role="status">
-        <div className="flex w-10 justify-center">
-          <Loader2 className="size-4 animate-spin text-muted-foreground" />
-        </div>
-        <span className="text-sm text-muted-foreground">
-          <FormattedMessage id="postDetail.loadingEarlierPosts" defaultMessage="Loading earlier posts…" />
-        </span>
+  const loadingRow = (
+    <div className="flex items-center gap-3 px-4 py-2" role="status">
+      <div className="flex w-10 justify-center">
+        <Loader2 className="size-4 animate-spin text-muted-foreground" />
       </div>
-    );
-  }
+      <span className="text-sm text-muted-foreground">
+        <FormattedMessage id="postDetail.loadingEarlierPosts" defaultMessage="Loading earlier posts…" />
+      </span>
+    </div>
+  );
+
+  if (!chain) return loadingRow;
 
   const missing = chain.missing;
   const missingNevent = missing
@@ -3081,6 +3074,7 @@ function AncestorThread({
           relays={addrRootRef.relayHint ? [addrRootRef.relayHint] : undefined}
         />
       )}
+      {!chain.complete && loadingRow}
       {missing && <MissingAncestor to={missingNevent ? `/${missingNevent}` : undefined} />}
       {chain.more && !expanded && (
         <button
