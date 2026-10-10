@@ -1848,10 +1848,19 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   // Keep the focused post pinned while ancestor content loads above it.
   const focusedPostRef = useRef<HTMLElement>(null);
   const ancestorRef = useRef<HTMLDivElement>(null);
+  const threadSpacerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!parentEventId || !focusedPostRef.current) return;
 
     const post = focusedPostRef.current;
+    // Room below the post to pin it to the top, however little follows it.
+    const spacer = threadSpacerRef.current;
+    const sizeSpacer = () => {
+      if (!spacer) return;
+      const below = spacer.getBoundingClientRect().top - post.getBoundingClientRect().top;
+      spacer.style.height = `${Math.max(0, window.innerHeight - below)}px`;
+    };
+    sizeSpacer();
     post.scrollIntoView({ block: "start" });
 
     // Brief highlight pulse so the user can locate the focused post
@@ -1889,6 +1898,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       const shift = height - lastHeight;
       lastHeight = height;
       if (Math.abs(shift) >= 1 && post.getBoundingClientRect().top - shift < window.innerHeight) owed += shift;
+      sizeSpacer();
       settle();
     });
     observer.observe(ancestor);
@@ -2941,6 +2951,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           </div>
         ) : null}
       </div>
+      {parentHints && <div ref={threadSpacerRef} aria-hidden />}
     </div>
   );
 }
