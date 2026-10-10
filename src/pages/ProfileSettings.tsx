@@ -38,7 +38,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useUploadProfileImage } from '@/hooks/useUploadProfileImage';
-import { profileImetaTags } from '@/lib/profileImeta';
+import { completeProfileImetaTags } from '@/lib/computeProfileImeta';
 
 import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
@@ -719,7 +719,7 @@ export function ProfileSettings() {
         await publishEvent({
           kind: 0,
           content: JSON.stringify(data),
-          tags: profileImetaTags(data, [...uploadedImeta.current, ...(event?.tags ?? [])]),
+          tags: await completeProfileImetaTags(data, [...uploadedImeta.current, ...(event?.tags ?? [])]),
         });
         queryClient.invalidateQueries({ queryKey: ['logins'] });
         queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
@@ -1105,8 +1105,9 @@ function BirthdaySection() {
       const published = await publishEvent({
         kind: 0,
         content: JSON.stringify(data),
-        // Keep the picture and banner's imeta — the images haven't changed.
-        tags: profileImetaTags(data, prev?.tags ?? []),
+        // Keep the picture and banner's imeta — the images haven't changed —
+        // or compute it if the profile never had any.
+        tags: await completeProfileImetaTags(data, prev?.tags ?? []),
         prev: prev ?? undefined,
       });
       // Seed the author cache with the published event instead of

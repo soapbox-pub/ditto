@@ -44,7 +44,7 @@ import { OnboardingContext } from "@/hooks/useOnboarding";
 import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
 import { useUploadProfileImage } from "@/hooks/useUploadProfileImage";
-import { profileImetaTags } from "@/lib/profileImeta";
+import { completeProfileImetaTags } from "@/lib/computeProfileImeta";
 import type { ImetaEntry } from "@/lib/imeta";
 import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
 import { isAnimatedImage, METADATA_SCAN_BYTES } from "@/lib/imageMetadata";
@@ -781,7 +781,7 @@ function ProfileStep({
         for (const key in data) {
           if (data[key] === "") delete data[key];
         }
-        await publishEvent({ kind: 0, content: JSON.stringify(data), tags: profileImetaTags(data, uploadedImeta.current) });
+        await publishEvent({ kind: 0, content: JSON.stringify(data), tags: await completeProfileImetaTags(data, uploadedImeta.current) });
         queryClient.invalidateQueries({ queryKey: ["logins"] });
         queryClient.invalidateQueries({ queryKey: ["author", user.pubkey] });
       } catch {

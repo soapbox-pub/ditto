@@ -66,7 +66,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-async function imageMeta(file: Blob): Promise<FileMeta> {
+/** `dim` and `blurhash` of an image; no fields if the browser can't decode it. */
+export async function imageMeta(file: Blob): Promise<FileMeta> {
   const url = URL.createObjectURL(file);
   try {
     const img = await withTimeout(loadImage(url));

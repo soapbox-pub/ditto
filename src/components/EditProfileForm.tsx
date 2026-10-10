@@ -25,7 +25,7 @@ import { NSchema as n } from '@nostrify/nostrify';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUploadProfileImage } from '@/hooks/useUploadProfileImage';
-import { profileImetaTags } from '@/lib/profileImeta';
+import { completeProfileImetaTags } from '@/lib/computeProfileImeta';
 import {
   Collapsible,
   CollapsibleContent,
@@ -267,7 +267,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       const published = await publishEvent({
         kind: 0,
         content: JSON.stringify(data),
-        tags: profileImetaTags(data, [...uploadedImeta.current, ...(event?.tags ?? [])]),
+        tags: await completeProfileImetaTags(data, [...uploadedImeta.current, ...(event?.tags ?? [])]),
       });
 
       // Optimistically seed the author cache from the freshly-signed event so
