@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
-import { Feed } from '@/components/Feed';
+import { Feed, type FeedLeadingTab } from '@/components/Feed';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { PageHeader } from '@/components/PageHeader';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -36,9 +36,11 @@ interface KindFeedPageProps {
    * of easy view (e.g. Articles, Highlights).
    */
   hotGlobal?: boolean;
+  /** Logged-in-only tab shown before Follows/Global with custom content (e.g. "My Articles"). */
+  leadingTab?: FeedLeadingTab;
 }
 
-export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref, tagFilters, extra, onFabClick, showFAB = true, feedId, hotGlobal }: KindFeedPageProps) {
+export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref, tagFilters, extra, onFabClick, showFAB = true, feedId, hotGlobal, leadingTab }: KindFeedPageProps) {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const primaryKind = Array.isArray(kind) ? kind[0] : kind;
@@ -69,6 +71,7 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
         kinds={kinds}
         tagFilters={tagFilters}
         hotGlobal={effectiveHotGlobal}
+        leadingTab={leadingTab}
         hideCompose
         feedId={feedId ?? title.toLowerCase()}
         emptyMessage={emptyMessage ?? `No ${title.toLowerCase()} yet. Check back soon!`}

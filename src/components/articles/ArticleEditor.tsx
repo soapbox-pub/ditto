@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
 import {
   ArrowLeft,
   Image,
@@ -8,13 +7,8 @@ import {
   Send,
   Loader2,
   Hash,
-  FileText,
   X,
-  Clock,
   Cloud,
-  HardDrive,
-  Trash2,
-  ChevronRight,
   ChevronDown,
 } from 'lucide-react';
 import slugify from 'slugify';
@@ -42,11 +36,10 @@ import { toast } from '@/hooks/useToast';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useDrafts, type Draft } from '@/hooks/useDrafts';
-import { usePublishedArticles } from '@/hooks/usePublishedArticles';
+import { useDrafts } from '@/hooks/useDrafts';
 import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
 import { useIsMobile } from '@/hooks/useIsMobile';
-import { saveDraft as saveLocalDraft, deleteDraftBySlug, deleteLocalDraftById, getLocalDrafts } from '@/lib/localDrafts';
+import { saveDraft as saveLocalDraft, deleteDraftBySlug } from '@/lib/localDrafts';
 import type { ArticleFields } from '@/lib/articleHelpers';
 import { MilkdownEditor } from './MilkdownEditor';
 
@@ -59,35 +52,25 @@ interface ArticleEditorProps {
   editMode?: boolean;
 }
 
-type EditorTab = 'write' | 'drafts';
-
 export function ArticleEditor({ initialData, editMode = false }: ArticleEditorProps) {
   const navigate = useNavigate();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutate: publishEvent, isPending: isPublishing } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
-  const { drafts: relayDrafts, isLoading: isDraftsLoading, saveDraft: saveRelayDraft, isSaving: isSyncingToRelay, deleteDraft: deleteRelayDraft, isDeleting } = useDrafts();
-  const { articles: publishedArticles } = usePublishedArticles();
+  const { saveDraft: saveRelayDraft, isSaving: isSyncingToRelay, deleteDraft: deleteRelayDraft } = useDrafts();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [activeTab, setActiveTab] = useState<EditorTab>('write');
-  const [localDrafts, setLocalDrafts] = useState<Draft[]>([]);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; slug: string; isLocal: boolean } | null>(null);
   const [tagInput, setTagInput] = useState('');
   const slugManuallyEdited = useRef(!!initialData?.slug);
   const [isPublished, setIsPublished] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(editMode);
-  const [originalSlug, setOriginalSlug] = useState<string | null>(
-    editMode && initialData?.slug ? initialData.slug : null,
-  );
-  const [originalPublishedAt, setOriginalPublishedAt] = useState<number | null>(
-    initialData?.publishedAt ?? null,
-  );
+  const isEditMode = editMode;
+  const originalSlug = editMode && initialData?.slug ? initialData.slug : null;
+  const originalPublishedAt = initialData?.publishedAt ?? null;
   const [metadataExpanded, setMetadataExpanded] = useState(false);
   const keyboardVisible = useKeyboardVisible();
   const isMobile = useIsMobile();
@@ -109,12 +92,11 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   useEffect(() => () => { mountedRef.current = false; }, []);
 
   /** Save draft to relay (with localStorage fallback). Shared by manual save + auto-save.
-   *  Always saves locally first so the draft appears immediately in "My Articles",
+   *  Always saves locally first so the draft appears immediately in My Articles,
    *  then syncs to the relay in the background. */
   const persistDraft = useCallback(async (data: ArticleData, { silent }: { silent?: boolean } = {}) => {
     // Always persist locally so the draft is visible immediately
     saveLocalDraft(data);
-    setLocalDrafts(getLocalDrafts());
 
     // Mark as saved immediately after the local write — the relay sync
     // happens in the background and shouldn't leave the "unsaved" dot visible.
@@ -198,84 +180,6 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   // Derived stats
   const wordCount = useMemo(() => article.content.trim().split(/\s+/).filter(Boolean).length, [article.content]);
   const readingTime = Math.ceil(wordCount / 200);
-
-  // Load local drafts when drafts tab is shown
-  useEffect(() => {
-    if (activeTab === 'drafts') {
-      setLocalDrafts(getLocalDrafts());
-    }
-  }, [activeTab]);
-
-  // Combine relay and local drafts, avoiding duplicates by slug
-  const combinedDrafts = useMemo(() => {
-    const drafts: (Draft & { isLocal: boolean })[] = [];
-    const seenSlugs = new Set<string>();
-
-    for (const draft of relayDrafts) {
-      if (draft.slug) seenSlugs.add(draft.slug);
-      drafts.push({ ...draft, isLocal: false });
-    }
-
-    for (const draft of localDrafts) {
-      if (!draft.slug || !seenSlugs.has(draft.slug)) {
-        drafts.push({ ...draft, isLocal: true });
-      }
-    }
-
-    return drafts.sort((a, b) => b.updatedAt - a.updatedAt);
-  }, [relayDrafts, localDrafts]);
-
-  /** Load a draft into the editor. (Published articles open via the dedicated edit route.) */
-  const handleLoadDraft = useCallback((item: ArticleData) => {
-    setArticle({
-      title: item.title,
-      summary: item.summary,
-      content: item.content,
-      image: item.image,
-      tags: item.tags,
-      slug: item.slug,
-    });
-    slugManuallyEdited.current = !!item.slug;
-    setIsEditMode(false);
-    setOriginalSlug(null);
-    setOriginalPublishedAt(null);
-    setHasUnsavedChanges(false);
-    setActiveTab('write');
-    toast({
-      title: 'Draft loaded',
-      description: 'Your draft has been loaded into the editor.',
-    });
-  }, []);
-
-  /**
-   * Navigate to the dedicated edit route for a published article. Using a
-   * proper route (rather than mutating editor state in place) keeps the slug
-   * fixed and ensures the publish flow treats this as an update, not a new
-   * article that would collide with the existing slug. The route param is the
-   * article's `d` tag; editing is scoped to the logged-in user's own articles.
-   */
-  const handleEditPublished = useCallback((pub: { slug: string }) => {
-    if (!user || !pub.slug) return;
-    navigate(`/articles/edit/${encodeURIComponent(pub.slug)}`);
-  }, [user, navigate]);
-
-  const handleDeleteDraft = useCallback(async () => {
-    if (!deleteTarget) return;
-
-    if (deleteTarget.isLocal) {
-      setLocalDrafts(deleteLocalDraftById(deleteTarget.id));
-      toast({ title: 'Draft deleted', description: 'Removed from your browser.' });
-    } else {
-      try {
-        await deleteRelayDraft(deleteTarget.slug);
-        toast({ title: 'Draft deleted', description: 'Deletion published to relays.' });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : '';
-        toast({ title: 'Delete failed', description: message || 'Could not delete draft.', variant: 'destructive' });
-      }
-    }
-    setDeleteTarget(null);
-  }, [deleteTarget, deleteRelayDraft]);
 
   const updateArticle = useCallback(
     (field: keyof ArticleData, value: string | string[]) => {
@@ -541,13 +445,11 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     </span>
   ) : null;
 
-  const totalDrafts = combinedDrafts.length;
-
   return (
     <div className="flex flex-col">
-      {/* Header — not sticky on mobile in write mode so it scrolls away with content */}
-      <div className={isMobile && activeTab === 'write' ? 'relative z-20' : 'sticky top-0 z-20'}>
-        <SubHeaderBar pinned className={isMobile && activeTab === 'write' ? 'relative !static' : 'relative !top-0'}>
+      {/* Header — not sticky on mobile so it scrolls away with content */}
+      <div className={isMobile ? 'relative z-20' : 'sticky top-0 z-20'}>
+        <SubHeaderBar pinned className={isMobile ? 'relative !static' : 'relative !top-0'}>
           <button
             onClick={handleBack}
             className="pl-3 pr-1 py-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -556,15 +458,9 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
           </button>
 
           <TabButton
-            label="New"
-            active={activeTab === 'write'}
-            onClick={() => setActiveTab('write')}
-          />
-
-          <TabButton
-            label="My Articles"
-            active={activeTab === 'drafts'}
-            onClick={() => setActiveTab('drafts')}
+            label={isEditMode ? 'Edit Article' : 'New Article'}
+            active
+            onClick={() => {}}
           />
         </SubHeaderBar>
       </div>
@@ -578,183 +474,111 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         onChange={handleHeaderImageUpload}
         className="hidden"
       />
-      {/* ── New article tab ──────────────────────────────────────── */}
-      {activeTab === 'write' && (
-        <div className={`px-4 pb-24 space-y-4 sm:space-y-6 ${keyboardVisible ? 'py-2' : 'py-4 sm:py-6'}`}>
-          {/* Header Image — hide when keyboard is visible on mobile */}
-          {!(isMobile && keyboardVisible) && (
-            <>
-              {article.image ? (
-                <div className="relative rounded-xl overflow-hidden group">
-                  <img
-                    src={article.image}
-                    alt="Header"
-                    className="w-full h-48 sm:h-64 object-cover"
-                    decoding="async"
-                  />
-                  {/* Desktop: centered overlay on hover */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors hidden sm:flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploading}
-                    >
-                      {isUploading ? (
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      ) : (
-                        <Image className="w-4 h-4 mr-2" />
-                      )}
-                      Change Image
-                    </Button>
-                  </div>
-                  {/* Mobile: persistent corner button */}
+      <div className={`px-4 pb-24 space-y-4 sm:space-y-6 ${keyboardVisible ? 'py-2' : 'py-4 sm:py-6'}`}>
+        {/* Header Image — hide when keyboard is visible on mobile */}
+        {!(isMobile && keyboardVisible) && (
+          <>
+            {article.image ? (
+              <div className="relative rounded-xl overflow-hidden group">
+                <img
+                  src={article.image}
+                  alt="Header"
+                  className="w-full h-48 sm:h-64 object-cover"
+                  decoding="async"
+                />
+                {/* Desktop: centered overlay on hover */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors hidden sm:flex items-center justify-center opacity-0 group-hover:opacity-100">
                   <Button
                     variant="secondary"
-                    size="icon"
-                    className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-md sm:hidden"
+                    size="sm"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading}
                   >
                     {isUploading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
                     ) : (
-                      <Image className="w-4 h-4" />
+                      <Image className="w-4 h-4 mr-2" />
                     )}
+                    Change Image
                   </Button>
                 </div>
-              ) : (
-                <button
+                {/* Mobile: persistent corner button */}
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-md sm:hidden"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
-                  className="w-full h-32 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground hover:border-primary/50 hover:text-primary/70 transition-colors"
                 >
                   {isUploading ? (
-                    <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <Image className="w-8 h-8 mb-2" />
+                    <Image className="w-4 h-4" />
                   )}
-                  <span className="text-sm">Add a header image</span>
-                </button>
-              )}
-            </>
-          )}
-
-          {/* Title — always visible, slightly smaller when keyboard is up on mobile */}
-          <input
-            type="text"
-            dir="auto"
-            value={article.title}
-            onChange={(e) => updateArticle('title', e.target.value)}
-            onBlur={handleBlurSave}
-            placeholder="Your article title..."
-            className={`w-full font-bold bg-transparent border-none outline-none placeholder:text-muted-foreground/40 ${
-              isMobile && keyboardVisible ? 'text-xl' : 'text-3xl sm:text-4xl'
-            }`}
-          />
-
-          {/* Metadata — collapsible on mobile, always expanded on desktop */}
-          {isMobile ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setMetadataExpanded((v) => !v)}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
-              >
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${metadataExpanded ? 'rotate-0' : '-rotate-90'}`} />
-                <span>Details</span>
-                {(article.summary || article.tags.length > 0) && (
-                  <span className="text-muted-foreground/60">
-                    ({[article.summary && 'summary', article.tags.length > 0 && `${article.tags.length} tags`].filter(Boolean).join(', ')})
-                  </span>
-                )}
-              </button>
-              {metadataExpanded && (
-                <div className="space-y-3 animate-in slide-in-from-top-1 duration-200">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="summary" className="text-muted-foreground text-xs">Summary</Label>
-                    <Textarea
-                      id="summary"
-                      dir="auto"
-                      value={article.summary}
-                      onChange={(e) => updateArticle('summary', e.target.value)}
-                      placeholder="A brief description of your article..."
-                      rows={2}
-                      className="resize-none text-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="slug" className="text-muted-foreground text-xs leading-none">URL Slug</Label>
-                    <Input
-                      id="slug"
-                      value={article.slug}
-                      onChange={(e) => {
-                        slugManuallyEdited.current = true;
-                        updateArticle('slug', e.target.value);
-                      }}
-                      placeholder="article-url-slug"
-                      disabled={isEditMode}
-                      className="h-8 font-mono text-xs disabled:opacity-70"
-                    />
-                    {isEditMode && (
-                      <p className="text-[11px] text-muted-foreground">The slug can't be changed after publishing.</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-muted-foreground text-xs inline-flex items-center gap-1 leading-none">
-                      <Hash className="w-3 h-3 shrink-0" />
-                      Tags
-                    </Label>
-                    <div className="flex gap-1.5">
-                      <Input
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        onKeyDown={(e) =>
-                          e.key === 'Enter' && (e.preventDefault(), handleAddTag())
-                        }
-                        placeholder="Add a tag..."
-                        className="h-8 text-xs flex-1"
-                      />
-                      <Button type="button" variant="secondary" size="icon" className="h-8 w-8 shrink-0" onClick={handleAddTag}>
-                        <span className="text-base leading-none">+</span>
-                      </Button>
-                    </div>
-                  </div>
-
-                  {article.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {article.tags.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="gap-1 px-2 py-0.5 text-xs">
-                          #{tag}
-                          <button onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive">
-                            <X className="w-3 h-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="summary" className="text-muted-foreground text-sm">Summary</Label>
-                <Textarea
-                  id="summary"
-                  dir="auto"
-                  value={article.summary}
-                  onChange={(e) => updateArticle('summary', e.target.value)}
-                  placeholder="A brief description of your article..."
-                  rows={2}
-                  className="resize-none"
-                />
+                </Button>
               </div>
+            ) : (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="w-full h-32 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground hover:border-primary/50 hover:text-primary/70 transition-colors"
+              >
+                {isUploading ? (
+                  <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                ) : (
+                  <Image className="w-8 h-8 mb-2" />
+                )}
+                <span className="text-sm">Add a header image</span>
+              </button>
+            )}
+          </>
+        )}
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="space-y-1.5 flex-1">
+        {/* Title — always visible, slightly smaller when keyboard is up on mobile */}
+        <input
+          type="text"
+          dir="auto"
+          value={article.title}
+          onChange={(e) => updateArticle('title', e.target.value)}
+          onBlur={handleBlurSave}
+          placeholder="Your article title..."
+          className={`w-full font-bold bg-transparent border-none outline-none placeholder:text-muted-foreground/40 ${
+            isMobile && keyboardVisible ? 'text-xl' : 'text-3xl sm:text-4xl'
+          }`}
+        />
+
+        {/* Metadata — collapsible on mobile, always expanded on desktop */}
+        {isMobile ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setMetadataExpanded((v) => !v)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+            >
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${metadataExpanded ? 'rotate-0' : '-rotate-90'}`} />
+              <span>Details</span>
+              {(article.summary || article.tags.length > 0) && (
+                <span className="text-muted-foreground/60">
+                  ({[article.summary && 'summary', article.tags.length > 0 && `${article.tags.length} tags`].filter(Boolean).join(', ')})
+                </span>
+              )}
+            </button>
+            {metadataExpanded && (
+              <div className="space-y-3 animate-in slide-in-from-top-1 duration-200">
+                <div className="space-y-1.5">
+                  <Label htmlFor="summary" className="text-muted-foreground text-xs">Summary</Label>
+                  <Textarea
+                    id="summary"
+                    dir="auto"
+                    value={article.summary}
+                    onChange={(e) => updateArticle('summary', e.target.value)}
+                    placeholder="A brief description of your article..."
+                    rows={2}
+                    className="resize-none text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
                   <Label htmlFor="slug" className="text-muted-foreground text-xs leading-none">URL Slug</Label>
                   <Input
                     id="slug"
@@ -771,7 +595,8 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                     <p className="text-[11px] text-muted-foreground">The slug can't be changed after publishing.</p>
                   )}
                 </div>
-                <div className="space-y-1.5 flex-1">
+
+                <div className="space-y-1.5">
                   <Label className="text-muted-foreground text-xs inline-flex items-center gap-1 leading-none">
                     <Hash className="w-3 h-3 shrink-0" />
                     Tags
@@ -791,186 +616,145 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                     </Button>
                   </div>
                 </div>
-              </div>
 
-              {article.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {article.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="gap-1 px-2 py-1">
-                      #{tag}
-                      <button onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Editor */}
-          <MilkdownEditor
-            value={article.content}
-            onChange={(value) => updateArticle('content', value || '')}
-            onBlur={handleBlurSave}
-            onUploadImage={handleImageUpload}
-            placeholder="Start writing your article..."
-            className={`rounded-xl border border-border bg-card ${
-              isMobile && keyboardVisible ? 'min-h-[150px]' : 'min-h-[250px] sm:min-h-[400px]'
-            }`}
-          />
-
-          {/* Stats + Save — hide when keyboard is visible on mobile */}
-          {!(isMobile && keyboardVisible) && (
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
-                <span className="shrink-0">{wordCount} words</span>
-                <span>·</span>
-                <span className="shrink-0">{readingTime} min read</span>
-                {statusLabel && (
-                  <>
-                    <span>·</span>
-                    {statusLabel}
-                  </>
+                {article.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {article.tags.map((tag) => (
+                      <Badge key={tag} variant="secondary" className="gap-1 px-2 py-0.5 text-xs">
+                        #{tag}
+                        <button onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
                 )}
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSaveDraft}
-                  className="rounded-full gap-1.5 shrink-0"
-                >
-                  <Save className="size-3.5" />
-                  Save Draft
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handlePublish}
-                  disabled={isPublishing || !user}
-                  className="rounded-full gap-1.5 shrink-0"
-                >
-                  {isPublishing ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Send className="size-3.5" />
-                  )}
-                  {isEditMode ? 'Update' : 'Publish'}
-                </Button>
+            )}
+          </>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="summary" className="text-muted-foreground text-sm">Summary</Label>
+              <Textarea
+                id="summary"
+                dir="auto"
+                value={article.summary}
+                onChange={(e) => updateArticle('summary', e.target.value)}
+                placeholder="A brief description of your article..."
+                rows={2}
+                className="resize-none"
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="space-y-1.5 flex-1">
+                <Label htmlFor="slug" className="text-muted-foreground text-xs leading-none">URL Slug</Label>
+                <Input
+                  id="slug"
+                  value={article.slug}
+                  onChange={(e) => {
+                    slugManuallyEdited.current = true;
+                    updateArticle('slug', e.target.value);
+                  }}
+                  placeholder="article-url-slug"
+                  disabled={isEditMode}
+                  className="h-8 font-mono text-xs disabled:opacity-70"
+                />
+                {isEditMode && (
+                  <p className="text-[11px] text-muted-foreground">The slug can't be changed after publishing.</p>
+                )}
+              </div>
+              <div className="space-y-1.5 flex-1">
+                <Label className="text-muted-foreground text-xs inline-flex items-center gap-1 leading-none">
+                  <Hash className="w-3 h-3 shrink-0" />
+                  Tags
+                </Label>
+                <div className="flex gap-1.5">
+                  <Input
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) =>
+                      e.key === 'Enter' && (e.preventDefault(), handleAddTag())
+                    }
+                    placeholder="Add a tag..."
+                    className="h-8 text-xs flex-1"
+                  />
+                  <Button type="button" variant="secondary" size="icon" className="h-8 w-8 shrink-0" onClick={handleAddTag}>
+                    <span className="text-base leading-none">+</span>
+                  </Button>
+                </div>
               </div>
             </div>
-          )}
-        </div>
-      )}
 
-      {/* ── Drafts tab ───────────────────────────────────────────── */}
-      {activeTab === 'drafts' && (
-        <div className="px-4 py-4">
-          {isDraftsLoading && user ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Loading drafts...</p>
-            </div>
-          ) : totalDrafts === 0 && publishedArticles.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <FileText className="w-8 h-8 text-muted-foreground" />
+            {article.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {article.tags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="gap-1 px-2 py-1">
+                    #{tag}
+                    <button onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
               </div>
-              <p className="text-muted-foreground">No drafts or articles yet</p>
-              <p className="text-sm text-muted-foreground/70 mt-1">
-                Save a draft or publish to see content here
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Drafts section */}
-              {totalDrafts > 0 && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-muted-foreground px-1">Drafts ({totalDrafts})</h3>
-                  {combinedDrafts.map((draft) => (
-                    <div
-                      key={draft.id}
-                      className="group p-4 rounded-xl border border-border hover:border-primary/30 hover:bg-card transition-all cursor-pointer"
-                      onClick={() => handleLoadDraft(draft)}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium truncate">
-                            {draft.title || 'Untitled Draft'}
-                          </h3>
-                          {draft.summary && (
-                            <p className="text-sm text-muted-foreground truncate mt-1">
-                              {draft.summary}
-                            </p>
-                          )}
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
-                      </div>
-                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                        {draft.isLocal ? (
-                          <HardDrive className="w-3 h-3 shrink-0" />
-                        ) : (
-                          <Cloud className="w-3 h-3 text-primary shrink-0" />
-                        )}
-                        <Clock className="w-3 h-3 shrink-0" />
-                        <span>{formatDistanceToNow(draft.updatedAt, { addSuffix: true })}</span>
-                        {draft.tags.length > 0 && (
-                          <>
-                            <span>·</span>
-                            <span>{draft.tags.length} tags</span>
-                          </>
-                        )}
-                        <span className="flex-1" />
-                        <button
-                          className="p-1 rounded-full text-muted-foreground hover:text-destructive transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteTarget({ id: draft.id, slug: draft.slug, isLocal: draft.isLocal });
-                          }}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            )}
+          </div>
+        )}
 
-              {/* Published articles section */}
-              {publishedArticles.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-muted-foreground px-1">Published ({publishedArticles.length})</h3>
-                  {publishedArticles.map((pub) => (
-                    <div
-                      key={pub.id}
-                      className="group p-4 rounded-xl border border-border hover:border-green-500/30 hover:bg-card transition-all cursor-pointer"
-                      onClick={() => handleEditPublished(pub)}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium truncate">
-                            {pub.title || 'Untitled Article'}
-                          </h3>
-                          {pub.summary && (
-                            <p className="text-sm text-muted-foreground truncate mt-1">
-                              {pub.summary}
-                            </p>
-                          )}
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
-                      </div>
-                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                        <Clock className="w-3 h-3 shrink-0" />
-                        <span>Published {formatDistanceToNow(pub.publishedAt, { addSuffix: true })}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+        {/* Editor */}
+        <MilkdownEditor
+          value={article.content}
+          onChange={(value) => updateArticle('content', value || '')}
+          onBlur={handleBlurSave}
+          onUploadImage={handleImageUpload}
+          placeholder="Start writing your article..."
+          className={`rounded-xl border border-border bg-card ${
+            isMobile && keyboardVisible ? 'min-h-[150px]' : 'min-h-[250px] sm:min-h-[400px]'
+          }`}
+        />
+
+        {/* Stats + Save — hide when keyboard is visible on mobile */}
+        {!(isMobile && keyboardVisible) && (
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+              <span className="shrink-0">{wordCount} words</span>
+              <span>·</span>
+              <span className="shrink-0">{readingTime} min read</span>
+              {statusLabel && (
+                <>
+                  <span>·</span>
+                  {statusLabel}
+                </>
               )}
             </div>
-          )}
-        </div>
-      )}
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSaveDraft}
+                className="rounded-full gap-1.5 shrink-0"
+              >
+                <Save className="size-3.5" />
+                Save Draft
+              </Button>
+              <Button
+                size="sm"
+                onClick={handlePublish}
+                disabled={isPublishing || !user}
+                className="rounded-full gap-1.5 shrink-0"
+              >
+                {isPublishing ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Send className="size-3.5" />
+                )}
+                {isEditMode ? 'Update' : 'Publish'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Leave Confirmation Dialog */}
       <AlertDialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
@@ -996,36 +780,6 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete Draft Confirmation Dialog */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete draft?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteTarget?.isLocal
-                ? 'This draft will be permanently deleted from your browser.'
-                : 'This draft will be deleted from Nostr relays.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteDraft}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Deleting...
-                </>
-              ) : (
-                'Delete'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

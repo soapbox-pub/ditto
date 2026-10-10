@@ -65,9 +65,9 @@ export function ArticleEditorPage() {
         }
       }
 
-      // Fallback to localStorage
+      // Fallback to localStorage (untitled local drafts have no slug, so match by id too)
       const drafts = getLocalDrafts();
-      const draft = drafts.find((d) => d.slug === draftSlug);
+      const draft = drafts.find((d) => d.slug === draftSlug) ?? drafts.find((d) => d.id === draftSlug);
       if (draft) {
         setInitialData({
           title: draft.title,

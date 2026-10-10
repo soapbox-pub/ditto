@@ -74,9 +74,20 @@ interface FeedProps {
    * low-quality events out of easy view (e.g. Articles, Highlights).
    */
   hotGlobal?: boolean;
+  /**
+   * A logged-in-only tab rendered before the feed tabs on kind-specific pages,
+   * showing custom content instead of a feed (e.g. "My Articles").
+   */
+  leadingTab?: FeedLeadingTab;
 }
 
-export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home', globalFirst, hotGlobal }: FeedProps = {}) {
+export interface FeedLeadingTab {
+  id: string;
+  label: string;
+  content: React.ReactNode;
+}
+
+export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home', globalFirst, hotGlobal, leadingTab }: FeedProps = {}) {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { isMuted } = useMuteFilter();
@@ -135,6 +146,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       return user ? 'follows' : 'global';
     }
     if (!kinds) return rawActiveTab; // Home feed: no clamping
+    if (leadingTab && rawActiveTab === leadingTab.id && user) return leadingTab.id;
     if (rawActiveTab === 'global') return 'global';
     if (rawActiveTab === 'follows' && user) return 'follows';
     // `globalFirst` pages default to Global even when logged in.
@@ -392,6 +404,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       {/* Tabs (logged in) */}
       {user && (
         <SubHeaderBar>
+          {leadingTab && (
+            <TabButton label={leadingTab.label} active={activeTab === leadingTab.id} onClick={() => handleSetActiveTab(leadingTab.id)} />
+          )}
           {globalFirst && (
             <TabButton label="All" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
           )}
@@ -447,7 +462,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
       {/* Feed content — saved feed tab gets its own stream */}
       {user && <div style={{ height: ARC_OVERHANG_PX }} />}
-      {activeHashtag ? (
+      {leadingTab && activeTab === leadingTab.id ? (
+        leadingTab.content
+      ) : activeHashtag ? (
         <HashtagFeedContent tag={activeHashtag} />
       ) : activeGeotag ? (
         <GeotagFeedContent tag={activeGeotag} />

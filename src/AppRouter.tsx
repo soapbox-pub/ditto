@@ -57,6 +57,7 @@ const ExternalContentPage = lazy(() => import("./pages/ExternalContentPage").the
 const GeotagPage = lazy(() => import("./pages/GeotagPage").then(m => ({ default: m.GeotagPage })));
 const HashtagPage = lazy(() => import("./pages/HashtagPage").then(m => ({ default: m.HashtagPage })));
 const HelpPage = lazy(() => import("./pages/HelpPage").then(m => ({ default: m.HelpPage })));
+const ArticlesPage = lazy(() => import("./pages/ArticlesPage").then(m => ({ default: m.ArticlesPage })));
 const KindFeedPage = lazy(() => import("./pages/KindFeedPage").then(m => ({ default: m.KindFeedPage })));
 const LetterComposePage = lazy(() => import("./pages/LetterComposePage").then(m => ({ default: m.LetterComposePage })));
 const LetterPreferencesPage = lazy(() => import("./pages/LetterPreferencesPage").then(m => ({ default: m.LetterPreferencesPage })));
@@ -97,7 +98,6 @@ const RemoteLoginSuccessPage = lazy(() => import("./pages/RemoteLoginSuccessPage
 const pollsDef = getExtraKindDef("polls")!;
 const colorsDef = getExtraKindDef("colors")!;
 const packsDef = getExtraKindDef("packs")!;
-const articlesDef = getExtraKindDef("articles")!;
 const decksDef = getExtraKindDef("decks")!;
 const highlightsDef = getExtraKindDef("highlights")!;
 const torrentsDef = getExtraKindDef("torrents")!;
@@ -233,17 +233,7 @@ export function AppRouter() {
             <Route path="/webxdc" element={<WebxdcFeedPage />} />
             <Route path="/articles/new" element={<ArticleEditorPage />} />
             <Route path="/articles/edit/:slug" element={<ArticleEditorPage />} />
-            <Route
-              path="/articles"
-              element={
-                <KindFeedPage
-                  kind={articlesDef.kind}
-                  title={articlesDef.label}
-                  icon={sidebarItemIcon("articles", "size-5")}
-                  fabHref="/articles/new"
-                />
-              }
-            />
+            <Route path="/articles" element={<ArticlesPage />} />
             <Route
               path="/highlights"
               element={
