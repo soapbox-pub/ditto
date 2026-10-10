@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { FormattedMessage } from "react-intl";
 import { useGoBack } from "@/hooks/useGoBack";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
@@ -148,6 +149,7 @@ import { AppHandlerDetailPage } from "@/pages/AppHandlerDetailPage";
 import { ExternalContentView } from "@/pages/ExternalContentPage";
 import { useAppContext } from "@/hooks/useAppContext";
 import { type AddrCoords, useAddrEvent, useEvent } from "@/hooks/useEvent";
+import { useAncestorChain } from "@/hooks/useAncestorChain";
 import { useEventDeletion } from "@/hooks/useEventDeletion";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { formatNumber } from "@/lib/formatNumber";
@@ -252,7 +254,7 @@ import { tryNeventEncode, tryNaddrEncode } from "@/lib/safeNip19";
 import { isNsiteKind } from "@/lib/nsiteSubdomain";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { parseAddr } from "@/lib/parseAddr";
-import { getParentEventId, getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
+import { getParentEventId, getParentEventHints, isReplyEvent, type ParentEventHints } from "@/lib/nostrEvents";
 import { shareOrCopy } from "@/lib/share";
 import { parseProfileImeta } from "@/lib/profileImeta";
 import { cn } from "@/lib/utils";
@@ -1543,10 +1545,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   // Zaps that carry a comment surface inline as replies under the post
   // (Lightning kind 9735 + verified on-chain kind 8333).
-  const { data: lightningZapReplies } = useZapReplies(event);
+  const { data: lightningZapReplies, isLoading: zapRepliesLoading } = useZapReplies(event);
   const { zaps: onchainZaps } = useOnchainZaps(event);
 
-  const repliesLoading = isKind1 ? kind1RepliesLoading : commentsLoading;
+  // Wait for zap comments too, so they don't land in the middle of a reply
+  // list that's already on screen.
+  const repliesLoading = (isKind1 ? kind1RepliesLoading : commentsLoading) || zapRepliesLoading;
 
   const zapReplyNodes = useMemo((): ReplyNode[] => {
     const nodes: ReplyNode[] = [];
@@ -1741,6 +1745,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     [event, isTextNote, isReaction, isRepost, isZap, isOnchainZap, isPollVote],
   );
   const parentEventId = parentHints?.id;
+  // The thread root (NIP-10 `root` e-tag or NIP-22 `E` tag), so the ancestor
+  // chain can fetch the whole thread in one request.
+  const threadRootId = useMemo(
+    () => (event.tags.find(([n, , , marker]) => n === "e" && marker === "root") ?? event.tags.find(([n]) => n === "E"))?.[1],
+    [event],
+  );
 
   // For kind 1111 comments on external content, extract the I tag for the parent preview
   const externalIdentifier = useMemo(() => {
@@ -1831,9 +1841,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     communityRootAddr,
   ]);
 
-  // Keep the focused post pinned to top while ancestor content loads above it.
-  // A ResizeObserver on the ancestor container re-scrolls on every layout shift
-  // (image loads, skeleton→content swaps) for the first few seconds.
+  // Keep the focused post pinned while ancestor content loads above it.
   const focusedPostRef = useRef<HTMLElement>(null);
   const ancestorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -1856,16 +1864,30 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const ancestor = ancestorRef.current;
     if (!ancestor) return () => clearTimeout(pulseTimer);
 
+    // Scroll anchoring for the post: when the ancestors (or their media) above
+    // it grow, scroll by exactly that much, so whatever the reader is looking
+    // at stays put — without undoing their own scrolling. The browser's
+    // anchoring is off here so the shift isn't corrected twice; it gives up
+    // anyway when the chain replaces its spinner or the page is at the top,
+    // and WKWebView has none.
+    const root = document.documentElement;
+    const prevOverflowAnchor = root.style.overflowAnchor;
+    root.style.overflowAnchor = "none";
+    let lastHeight = ancestor.getBoundingClientRect().height;
     const observer = new ResizeObserver(() => {
-      post.scrollIntoView({ block: "start" });
+      const height = ancestor.getBoundingClientRect().height;
+      const shift = height - lastHeight;
+      lastHeight = height;
+      // Only when the post (or what's below it) was on screen; a reader up in
+      // the ancestors may be looking above the change.
+      if (Math.abs(shift) >= 1 && post.getBoundingClientRect().top - shift < window.innerHeight) {
+        window.scrollBy(0, shift);
+      }
     });
     observer.observe(ancestor);
-
-    // Stop observing after a few seconds — ancestors should be settled by then
-    const timer = setTimeout(() => observer.disconnect(), 5000);
     return () => {
       observer.disconnect();
-      clearTimeout(timer);
+      root.style.overflowAnchor = prevOverflowAnchor;
       clearTimeout(pulseTimer);
     };
   }, [parentEventId]);
@@ -2006,12 +2028,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       {bookIsbn && <ExternalContentPreview identifier={`isbn:${bookIsbn}`} />}
 
       {/* Ancestor thread chain if this is a reply */}
-      {parentEventId && (
+      {parentHints && (
         <div ref={ancestorRef}>
           <AncestorThread
-            eventId={parentEventId}
-            relays={parentHints?.relayHint ? [parentHints.relayHint] : undefined}
-            authorHint={parentHints?.authorHint}
+            parent={parentHints}
+            rootId={threadRootId}
             collapseAfter={isReaction || isRepost || isZap || isOnchainZap || isPollVote ? 0 : undefined}
           />
         </div>
@@ -2996,33 +3017,28 @@ function AddrAncestor({ addr, relays }: { addr: { kind: number; pubkey: string; 
   return <NoteCard event={event} threaded />;
 }
 
+/** Cap on ancestors walked above a reply, against runaway chains. */
+const MAX_ANCESTOR_DEPTH = 20;
+
 /**
- * Renders the full ancestor chain above the focused event.
- * Recursively fetches parent -> grandparent -> ... -> root, then renders
- * them top-down with thread connector lines.
+ * Renders the full ancestor chain above the focused event, root first. The
+ * chain loads in one go behind a single spinner row, so posts don't appear
+ * above the reader one at a time.
  */
 function AncestorThread({
-  eventId,
-  relays,
-  authorHint,
-  depth = 0,
+  parent,
+  rootId,
   collapseAfter,
 }: {
-  eventId: string;
-  relays?: string[];
-  authorHint?: string;
-  depth?: number;
+  parent: ParentEventHints;
+  rootId?: string;
+  /** Show this many ancestors above the parent before collapsing the rest. */
   collapseAfter?: number;
 }) {
-  const { data: event, isLoading } = useEvent(eventId, relays, authorHint);
   const [expanded, setExpanded] = useState(false);
-
-  // Determine this ancestor's own parent, including relay and author hints
-  const parentHints = useMemo(
-    () => (event ? getParentEventHints(event) : undefined),
-    [event],
-  );
-  const parentId = parentHints?.id;
+  const maxLevels = collapseAfter !== undefined && !expanded ? collapseAfter + 1 : MAX_ANCESTOR_DEPTH;
+  const { data: chain } = useAncestorChain(parent, rootId, maxLevels);
+  const top = chain?.events[0];
 
   // Kind 1111 comments at the top of the chain (no lowercase-e parent) sit
   // directly on their root. When that root is an addressable event, pull it
@@ -3031,94 +3047,61 @@ function AncestorThread({
   // communities are excluded — they get dedicated preview banners rendered
   // by PostDetailContent instead.
   const addrRootRef = useMemo(() => {
-    if (!event || event.kind !== 1111 || parentId) return undefined;
-    const aTagFull = event.tags.find(([n]) => n === "A") ??
-      event.tags.find(([n]) => n === "a");
+    if (!top || top.kind !== 1111 || chain?.missing || chain?.more || getParentEventHints(top)) return undefined;
+    const aTagFull = top.tags.find(([n]) => n === "A") ??
+      top.tags.find(([n]) => n === "a");
     const parsed = parseAddr(aTagFull?.[1]);
     if (!parsed || parsed.kind === 0 || parsed.kind === 34550) return undefined;
     return { addr: parsed, relayHint: aTagFull?.[2] || undefined };
-  }, [event, parentId]);
+  }, [top, chain?.missing, chain?.more]);
 
-  // Cap recursion to avoid runaway chains
-  const MAX_DEPTH = 20;
-
-  // When collapseAfter is set and we've reached the limit, collapse remaining ancestors
-  const shouldCollapse =
-    collapseAfter !== undefined &&
-    depth >= collapseAfter &&
-    parentId &&
-    !expanded;
-
-  if (isLoading) {
+  if (!chain) {
     return (
-      <div className="px-4 pt-3 pb-0">
-        <div className="flex gap-3">
-          <div className="flex flex-col items-center">
-            <Skeleton className="size-10 rounded-full shrink-0" />
-            <div className="w-0.5 flex-1 mt-2 bg-foreground/20" />
-          </div>
-          <div className="flex-1 min-w-0 pb-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-3 w-16" />
-            </div>
-            <div className="space-y-1.5">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </div>
-          </div>
+      <div className="flex items-center gap-3 px-4 py-2" role="status">
+        <div className="flex w-10 justify-center">
+          <Loader2 className="size-4 animate-spin text-muted-foreground" />
         </div>
+        <span className="text-sm text-muted-foreground">
+          <FormattedMessage id="postDetail.loadingEarlierPosts" defaultMessage="Loading earlier posts…" />
+        </span>
       </div>
     );
   }
 
-  if (!event) {
-    const nevent = tryNeventEncode({
-      id: eventId,
-      relays,
-      author: authorHint,
-    });
-    return <MissingAncestor to={nevent ? `/${nevent}` : undefined} />;
-  }
+  const missing = chain.missing;
+  const missingNevent = missing
+    ? tryNeventEncode({ id: missing.id, relays: missing.relayHint ? [missing.relayHint] : undefined, author: missing.authorHint })
+    : undefined;
 
   return (
     <>
-      {/* Addressable root above the top-most comment of the chain */}
       {addrRootRef && (
         <AddrAncestor
           addr={addrRootRef.addr}
           relays={addrRootRef.relayHint ? [addrRootRef.relayHint] : undefined}
         />
       )}
-      {/* Render this event's parent first (if any), so ancestors appear top-down */}
-      {parentId &&
-        depth < MAX_DEPTH &&
-        (shouldCollapse ? (
-          <button
-            onClick={() => setExpanded(true)}
-            className="flex items-center gap-3 px-4 py-2 w-full hover:bg-secondary/30 transition-colors"
-          >
-            <div className="flex flex-col items-center w-10">
-              <div className="w-0.5 h-2 bg-foreground/20 rounded-full" />
-              <div className="size-1.5 rounded-full bg-foreground/30 my-0.5" />
-              <div className="size-1.5 rounded-full bg-foreground/20 my-0.5" />
-              <div className="size-1.5 rounded-full bg-foreground/10 my-0.5" />
-              <div className="w-0.5 h-2 bg-foreground/20 rounded-full" />
-            </div>
-            <span className="text-sm text-primary font-medium">
-              Show earlier posts
-            </span>
-          </button>
-        ) : (
-          <AncestorThread
-            eventId={parentId}
-            relays={parentHints?.relayHint ? [parentHints.relayHint] : undefined}
-            authorHint={parentHints?.authorHint}
-            depth={depth + 1}
-            collapseAfter={collapseAfter}
-          />
-        ))}
-      <NoteCard event={event} threaded />
+      {missing && <MissingAncestor to={missingNevent ? `/${missingNevent}` : undefined} />}
+      {chain.more && !expanded && (
+        <button
+          onClick={() => setExpanded(true)}
+          className="flex items-center gap-3 px-4 py-2 w-full hover:bg-secondary/30 transition-colors"
+        >
+          <div className="flex flex-col items-center w-10">
+            <div className="w-0.5 h-2 bg-foreground/20 rounded-full" />
+            <div className="size-1.5 rounded-full bg-foreground/30 my-0.5" />
+            <div className="size-1.5 rounded-full bg-foreground/20 my-0.5" />
+            <div className="size-1.5 rounded-full bg-foreground/10 my-0.5" />
+            <div className="w-0.5 h-2 bg-foreground/20 rounded-full" />
+          </div>
+          <span className="text-sm text-primary font-medium">
+            <FormattedMessage id="postDetail.showEarlierPosts" defaultMessage="Show earlier posts" />
+          </span>
+        </button>
+      )}
+      {chain.events.map((ancestor) => (
+        <NoteCard key={ancestor.id} event={ancestor} threaded />
+      ))}
     </>
   );
 }
