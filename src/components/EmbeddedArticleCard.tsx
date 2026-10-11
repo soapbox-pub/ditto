@@ -7,11 +7,13 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { ExternalSourceLink } from '@/components/ExternalSourceLink';
+import { ImetaImage } from '@/components/ImetaImage';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useOpenPost } from '@/hooks/useOpenPost';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { formatReadingTime } from '@/lib/articleHelpers';
 import { getAvatarShape } from '@/lib/avatarShape';
+import { parseImetaMap, type ImetaEntry } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
@@ -20,12 +22,15 @@ function extractArticleMeta(event: NostrEvent): {
   title?: string;
   summary?: string;
   image?: string;
+  imageImeta?: ImetaEntry;
 } {
   const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
+  const rawImage = getTag('image');
   return {
     title: getTag('title'),
     summary: getTag('summary'),
-    image: sanitizeUrl(getTag('image')),
+    image: sanitizeUrl(rawImage),
+    imageImeta: rawImage ? parseImetaMap(event.tags).get(rawImage) : undefined,
   };
 }
 
@@ -55,7 +60,7 @@ export function EmbeddedArticleCard({ event, className, disableHoverCards, hideA
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const avatarShape = getAvatarShape(metadata);
 
-  const { title, summary, image } = useMemo(() => extractArticleMeta(event), [event]);
+  const { title, summary, image, imageImeta } = useMemo(() => extractArticleMeta(event), [event]);
   const readingTime = useMemo(() => formatReadingTime(event.content), [event]);
 
   const naddrId = useMemo(() => {
@@ -92,15 +97,11 @@ export function EmbeddedArticleCard({ event, className, disableHoverCards, hideA
       {/* Cover image */}
       {image && (
         <div className="w-full overflow-hidden bg-muted">
-          <img
+          <ImetaImage
             src={image}
+            imeta={imageImeta}
             alt=""
-            loading="lazy"
-            decoding="async"
             className="w-full h-[180px] object-cover"
-            onError={(e) => {
-              (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
-            }}
           />
         </div>
       )}

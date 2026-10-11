@@ -4,9 +4,12 @@ import { retextSmartypants } from './articleSmartypants';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Clock } from 'lucide-react';
 
+import { ImetaImage } from '@/components/ImetaImage';
 import { buildMarkdownComponents } from '@/components/markdownComponents';
 import { formatReadingTime } from '@/lib/articleHelpers';
 import { highlightSourceAttrs } from '@/lib/highlightSource';
+import { parseImetaMap } from '@/lib/imeta';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /** Gets a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -24,7 +27,9 @@ interface ArticleContentProps {
 export function ArticleContent({ event, preview, className }: ArticleContentProps) {
   const title = getTag(event.tags, 'title');
   const summary = getTag(event.tags, 'summary');
-  const image = getTag(event.tags, 'image');
+  const rawImage = getTag(event.tags, 'image');
+  const image = sanitizeUrl(rawImage);
+  const imageImeta = rawImage ? parseImetaMap(event.tags).get(rawImage) : undefined;
   const hashtags = event.tags.filter(([n]) => n === 't').map(([, v]) => v);
   const readingTime = formatReadingTime(event.content);
 
@@ -35,11 +40,11 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
           <h3 dir="auto" className="text-base font-bold leading-snug">{title}</h3>
         )}
         {image && (
-          <img
+          <ImetaImage
             src={image}
+            imeta={imageImeta}
             alt={title ?? 'Article image'}
             className="w-full rounded-lg object-cover max-h-64 mt-2"
-            decoding="async"
           />
         )}
         {summary ? (
@@ -79,11 +84,12 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
         </p>
       )}
       {image && (
-        <img
+        <ImetaImage
           src={image}
+          imeta={imageImeta}
           alt={title ?? 'Article image'}
           className="w-full rounded-xl object-cover max-h-96 mb-6"
-          decoding="async"
+          loading="eager"
         />
       )}
       <div dir="auto" {...highlightSourceAttrs(event)} className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-[13px] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:font-normal prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border prose-th:text-foreground">

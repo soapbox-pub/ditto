@@ -2,8 +2,14 @@ import { Children, createElement, type ReactNode } from 'react';
 import type { Components } from 'react-markdown';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { ImetaImage } from '@/components/ImetaImage';
 import { MarkdownLink } from '@/components/MarkdownLink';
 import { NoteContent } from '@/components/NoteContent';
+import { VideoFileCard } from '@/components/VideoFileCard';
+import { VideoPlayer } from '@/components/VideoPlayer';
+import { parseImetaMap, type ImetaEntry } from '@/lib/imeta';
+import { isVideoUrl } from '@/lib/mediaTypeDetection';
+import { isUnplayableVideo } from '@/lib/mediaUrls';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
@@ -53,12 +59,53 @@ function enrichChildren(
 }
 
 /**
+ * Render a markdown image (`![alt](url)`). The URL may point at a video —
+ * long-form writers embed clips with image syntax since markdown has nothing
+ * else — so it renders as a player when its imeta or extension says so.
+ */
+function MarkdownMedia({ src, alt, imeta, rest }: {
+  src: string;
+  alt?: string;
+  imeta?: ImetaEntry;
+  rest: Record<string, unknown>;
+}) {
+  const mime = imeta?.mime?.toLowerCase();
+  const isVideo = mime ? mime.startsWith('video/') : isVideoUrl(src);
+
+  if (isVideo) {
+    if (isUnplayableVideo(src, mime)) {
+      const size = imeta?.size ? Number(imeta.size) : undefined;
+      return (
+        <div className="not-prose my-4">
+          <VideoFileCard url={src} mime={mime} size={size && Number.isFinite(size) ? size : undefined} />
+        </div>
+      );
+    }
+    return (
+      <div className="not-prose my-4 overflow-hidden rounded-lg">
+        <VideoPlayer
+          src={src}
+          poster={imeta?.thumbnail}
+          dim={imeta?.dim}
+          blurhash={imeta?.blurhash}
+          title={alt || imeta?.alt}
+        />
+      </div>
+    );
+  }
+
+  return <ImetaImage {...rest} src={src} alt={alt || imeta?.alt || ''} imeta={imeta} />;
+}
+
+/**
  * Build react-markdown component overrides that enrich text leaves with
  * `NoteContent` (Nostr URI embeds, mentions, hashtags, links, custom emoji)
  * and sanitize link/image URLs. Shared by article rendering and other
  * markdown-content kinds (NIP-34 issues, PRs, status comments).
  */
 export function buildMarkdownComponents(event: NostrEvent): Components {
+  const imetaMap = parseImetaMap(event.tags);
+
   // Wrap a text-bearing block/inline element so its string leaves are enriched.
   // Uses `createElement` to sidestep TS widening issues when spreading
   // unknown rehype-passed props onto a generic intrinsic tag.
@@ -102,7 +149,9 @@ export function buildMarkdownComponents(event: NostrEvent): Components {
     img: ({ src, alt, node: _node, ...rest }) => {
       const safe = typeof src === 'string' ? sanitizeUrl(src) : undefined;
       if (!safe) return null;
-      return <img {...rest} src={safe} alt={alt ?? ''} loading="lazy" decoding="async" />;
+      // imeta URLs are matched as written; markdown parsing may have normalised ours.
+      const imeta = imetaMap.get(src as string) ?? imetaMap.get(safe);
+      return <MarkdownMedia src={safe} alt={alt} imeta={imeta} rest={rest} />;
     },
   } as Components;
 }
