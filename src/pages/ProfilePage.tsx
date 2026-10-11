@@ -1087,13 +1087,16 @@ function ProfileImageLightbox({ imageUrl, imeta, onClose }: { imageUrl: string; 
 
 // ----- Main Component -----
 
-const CORE_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Badges', 'Likes', 'Wall'];
-const DEFAULT_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Likes', 'Wall'];
+const CORE_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Articles', 'Badges', 'Likes', 'Wall'];
+const DEFAULT_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Articles', 'Likes', 'Wall'];
+
+// Stable empty vars list for core tabs rendered through ProfileSavedFeedContent.
+const NO_TAB_VARS: TabVarDef[] = [];
 
 // Map from canonical label → internal tab id for core tabs
 const CORE_TAB_IDS: Record<string, string> = {
   'Feed': 'posts', 'Posts & replies': 'replies',
-  'Media': 'media', 'Badges': 'badges', 'Likes': 'likes', 'Wall': 'wall',
+  'Media': 'media', 'Articles': 'articles', 'Badges': 'badges', 'Likes': 'likes', 'Wall': 'wall',
 };
 
 // Reverse of CORE_TAB_IDS: internal tab id → canonical label. Used to derive the
@@ -1527,10 +1530,16 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
     'Feed': { kinds: [1, 6], authors: [pubkey] },
     'Posts & replies': { authors: [pubkey] },
     'Media': { kinds: [1], authors: [pubkey] },
+    'Articles': { kinds: [30023], authors: [pubkey] },
     'Badges': { kinds: [10008, 30008], authors: [pubkey] },
     'Likes': { kinds: [7], authors: [pubkey] },
     'Wall': { kinds: [1111], '#A': [`0:${pubkey}:`] },
   } : {};
+
+  const articlesFeed = useMemo<ProfileTab>(
+    () => ({ label: 'Articles', filter: { kinds: [30023], authors: pubkey ? [pubkey] : [] } }),
+    [pubkey],
+  );
 
   const handleSaveTabEdit = async () => {
     // Publish ALL tabs in order — core tabs get canonical filters,
@@ -1572,7 +1581,7 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
 
   // Drop active tab if it was deleted
   useEffect(() => {
-    const isCoreTab = ['posts', 'replies', 'media', 'badges', 'likes', 'wall'].includes(activeTab);
+    const isCoreTab = ['posts', 'replies', 'media', 'articles', 'badges', 'likes', 'wall'].includes(activeTab);
     if (!isCoreTab && !profileSavedTabs.find((t) => t.label === activeTab)) {
       selectTab(firstTabId);
     }
@@ -3045,8 +3054,18 @@ type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
           <ProfileBadgesTab pubkey={pubkey} displayName={displayName} />
         )}
 
+        {/* Articles tab — the profile's NIP-23 long-form posts */}
+        {hasTabs && activeTab === 'articles' && pubkey && (
+          <ProfileSavedFeedContent
+            feed={articlesFeed}
+            vars={NO_TAB_VARS}
+            ownerPubkey={pubkey}
+            emptyMessage="No articles yet."
+          />
+        )}
+
         {/* Custom saved-feed tab content */}
-        {hasTabs && !isCoreProfileTab && profileSavedTabs.find((t) => t.label === activeTab) && pubkey && (
+        {hasTabs && !isCoreProfileTab && activeTab !== 'articles' && profileSavedTabs.find((t) => t.label === activeTab) && pubkey && (
           <ProfileSavedFeedContent
             feed={profileSavedTabs.find((t) => t.label === activeTab)!}
             vars={profileVars}
@@ -3527,10 +3546,11 @@ function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName
 
 // ─── Profile Saved Feed Tab ───────────────────────────────────────────────────
 
-function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
+function ProfileSavedFeedContent({ feed, vars, ownerPubkey, emptyMessage }: {
   feed: ProfileTab;
   vars: TabVarDef[];
   ownerPubkey: string;
+  emptyMessage?: string;
 }) {
   const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(feed.filter, vars, ownerPubkey);
 
@@ -3590,7 +3610,7 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey }: {
   if (items.length === 0) {
     return (
       <div className="py-12 text-center text-muted-foreground text-sm">
-        No posts found for "{feed.label}".
+        {emptyMessage ?? `No posts found for "${feed.label}".`}
       </div>
     );
   }
