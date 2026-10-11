@@ -1085,170 +1085,6 @@ function ProfileImageLightbox({ imageUrl, imeta, onClose }: { imageUrl: string; 
   );
 }
 
-// ----- Main Component -----
-
-const CORE_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Articles', 'Badges', 'Likes', 'Wall'];
-const DEFAULT_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Articles', 'Likes', 'Wall'];
-
-// Stable empty vars list for core tabs rendered through ProfileSavedFeedContent.
-const NO_TAB_VARS: TabVarDef[] = [];
-
-// Map from canonical label → internal tab id for core tabs
-const CORE_TAB_IDS: Record<string, string> = {
-  'Feed': 'posts', 'Posts & replies': 'replies',
-  'Media': 'media', 'Articles': 'articles', 'Badges': 'badges', 'Likes': 'likes', 'Wall': 'wall',
-};
-
-// Reverse of CORE_TAB_IDS: internal tab id → canonical label. Used to derive the
-// shareable URL slug for the active core tab (custom tabs use their label as-is).
-const CORE_ID_TO_LABEL: Record<string, string> = Object.fromEntries(
-  Object.entries(CORE_TAB_IDS).map(([label, id]) => [id, label]),
-);
-
-// Turn a tab label into a lowercase, URL-friendly slug for the shareable hash,
-// e.g. 'Posts & replies' → 'posts-replies', 'Cool Stuff' → 'cool-stuff'. Unicode
-// letters/numbers are preserved (lowercased) so non-Latin labels still slug.
-const slugifyTabLabel = (label: string): string =>
-  label
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, '-')
-    .replace(/^-+|-+$/g, '');
-
-/**
- * Commit a cheap static skeleton first, then mount the heavy body from an
- * effect. The lazy route reveal is an interruptible concurrent render, and on
- * slow devices query-cache updates restart it faster than a full pass over
- * this tree can finish — livelocking the route on its Suspense fallback. The
- * effect-driven render is sync priority and can't be restarted.
- */
-export function ProfilePage() {
-  const [bodyMounted, setBodyMounted] = useState(false);
-
-  useEffect(() => {
-    setBodyMounted(true);
-  }, []);
-
-  if (!bodyMounted) {
-    return (
-      <main className="flex-1 min-w-0 relative">
-        <div className="h-36 md:h-48 bg-secondary relative">
-          <Skeleton className="w-full h-full rounded-none" />
-        </div>
-        <div className="px-4 pb-4">
-          <div className="relative -mt-12 mb-3">
-            <Skeleton className="size-24 rounded-full border-4 border-background" />
-          </div>
-          <div className="space-y-2">
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-4 w-64" />
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  return <ProfilePageInner />;
-}
-
-function ProfilePageInner() {
-  const { config } = useAppContext();
-  const params = useParams();
-  const npub = params.npub ?? params.nip19;
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { nostr } = useNostr();
-  const { user } = useCurrentUser();
-  const { toast } = useToast();
-  const { isMuted: isMutedEvent } = useMuteFilter();
-  const queryClient = useQueryClient();
-
-  const [activeTab, setActiveTab] = useState<CoreProfileTab | string>('posts');
-  const [sidebarMediaUrl, setSidebarMediaUrl] = useState<string | null>(null);
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
-  // Hearts sprinkle over the header when this profile is added to the Love List.
-  const [lovedCelebrating, setLovedCelebrating] = useState(false);
-  // NIP-24 birthday — mutes the looping jingle while viewing a birthday profile.
-  const [jingleMuted, setJingleMuted] = useState(false);
-  // NIP-24 birthday — composer prefilled with a birthday wish mentioning this profile.
-  const [birthdayComposeOpen, setBirthdayComposeOpen] = useState(false);
-  const [followQROpen, setFollowQROpen] = useState(false);
-  const [followersModalOpen, setFollowersModalOpen] = useState(false);
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-  // Sprinkle hearts over the header for a moment when a profile is loved.
-  // prefers-reduced-motion callers skip it (the overlay is also hidden by CSS
-  // as defense-in-depth).
-  const handleLoved = useCallback(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    setLovedCelebrating(true);
-  }, []);
-  useEffect(() => {
-    if (!lovedCelebrating) return;
-    const timeout = setTimeout(() => setLovedCelebrating(false), CELEBRATION_DURATION_MS);
-    return () => clearTimeout(timeout);
-  }, [lovedCelebrating]);
-  // Determine if the URL param is a NIP-05 identifier (contains @ or is a domain-like string)
-  const isNip05Param = useMemo(() => {
-    if (!npub) return false;
-    // If it contains @, it's a NIP-05 identifier (e.g., user@domain.com)
-    if (npub.includes('@')) return true;
-    // If it contains a dot and doesn't start with npub1/nprofile1, it's a domain (e.g., fiatjaf.com)
-    if (npub.includes('.') && !npub.startsWith('npub1') && !npub.startsWith('nprofile1')) return true;
-    return false;
-  }, [npub]);
-
-  // Resolve NIP-05 identifier to pubkey if needed.
-  // Use `isPending` (not `isLoading`) so the skeleton shows during the initial
-  // React Query render where fetchStatus is still 'idle' before the first fetch
-  // fires — isLoading (= isPending && isFetching) would be false in that window,
-  // incorrectly triggering the "User not found" branch on a hard refresh.
-  const { data: nip05Pubkey, isPending: nip05Loading } = useNip05Resolve(isNip05Param ? npub : undefined);
-
-  // Determine pubkey: from NIP-05 resolution, NIP-19 decoding, raw hex, or logged-in user
-  const pubkey = useMemo(() => {
-    if (npub) {
-      // If it's a NIP-05 identifier, use the resolved pubkey
-      if (isNip05Param) {
-        return nip05Pubkey ?? undefined;
-      }
-      // Raw 64-char hex pubkey (NIP19Page routes these here when the relay
-      // resolves the hex to a kind-0 author)
-      if (isNostrId(npub)) {
-        return npub;
-      }
-      // Otherwise try to decode as NIP-19
-      try {
-        const decoded = nip19.decode(npub);
-        if (decoded.type === 'npub') return decoded.data;
-        if (decoded.type === 'nprofile') return decoded.data.pubkey;
-      } catch {
-        return undefined;
-      }
-    }
-    return user?.pubkey;
-  }, [npub, user, isNip05Param, nip05Pubkey]);
-
-  // Custom profile tabs from kind 16769
-  const profileTabsQuery = useProfileTabs(pubkey);
-
-  // Extract tabs and vars from the kind 16769 data
-  const profileTabsData = useMemo<ProfileTabsData | null>(() => {
-    if (!profileTabsQuery.isFetched) return null;
-    return profileTabsQuery.data ?? null;
-  }, [profileTabsQuery.data, profileTabsQuery.isFetched]);
-
-  const profileSavedTabs = useMemo<ProfileTab[]>(() => {
-    return profileTabsData?.tabs ?? [];
-  }, [profileTabsData]);
-
-  const profileVars = useMemo(() => profileTabsData?.vars ?? [], [profileTabsData]);
-
-  const { publishProfileTabs, isPending: isPublishingTabs } = usePublishProfileTabs();
-
-  // Tab edit mode (inline reorder/remove/add)
-  const [tabEditMode, setTabEditMode] = useState(false);
-
-  // All tabs as a flat ordered list for the drag UI — core tabs have isCore=true and can't be removed
 // ----- Followers List Modal (paginated via kind:3 #p queries) -----
 
 const FOLLOWERS_PAGE_SIZE = 20;
@@ -1427,7 +1263,170 @@ function FollowersListModal({ pubkey, open, onOpenChange, displayName }: Followe
   );
 }
 
-type EditableTab = { label: string; isCore: boolean; tab?: ProfileTab };
+// ----- Main Component -----
+
+const CORE_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Articles', 'Badges', 'Likes', 'Wall'];
+const DEFAULT_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Articles', 'Likes', 'Wall'];
+
+// Stable empty vars list for core tabs rendered through ProfileSavedFeedContent.
+const NO_TAB_VARS: TabVarDef[] = [];
+
+// Map from canonical label → internal tab id for core tabs
+const CORE_TAB_IDS: Record<string, string> = {
+  'Feed': 'posts', 'Posts & replies': 'replies',
+  'Media': 'media', 'Articles': 'articles', 'Badges': 'badges', 'Likes': 'likes', 'Wall': 'wall',
+};
+
+// Reverse of CORE_TAB_IDS: internal tab id → canonical label. Used to derive the
+// shareable URL slug for the active core tab (custom tabs use their label as-is).
+const CORE_ID_TO_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(CORE_TAB_IDS).map(([label, id]) => [id, label]),
+);
+
+// Turn a tab label into a lowercase, URL-friendly slug for the shareable hash,
+// e.g. 'Posts & replies' → 'posts-replies', 'Cool Stuff' → 'cool-stuff'. Unicode
+// letters/numbers are preserved (lowercased) so non-Latin labels still slug.
+const slugifyTabLabel = (label: string): string =>
+  label
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '');
+
+/**
+ * Commit a cheap static skeleton first, then mount the heavy body from an
+ * effect. The lazy route reveal is an interruptible concurrent render, and on
+ * slow devices query-cache updates restart it faster than a full pass over
+ * this tree can finish — livelocking the route on its Suspense fallback. The
+ * effect-driven render is sync priority and can't be restarted.
+ */
+export function ProfilePage() {
+  const [bodyMounted, setBodyMounted] = useState(false);
+
+  useEffect(() => {
+    setBodyMounted(true);
+  }, []);
+
+  if (!bodyMounted) {
+    return (
+      <main className="flex-1 min-w-0 relative">
+        <div className="h-36 md:h-48 bg-secondary relative">
+          <Skeleton className="w-full h-full rounded-none" />
+        </div>
+        <div className="px-4 pb-4">
+          <div className="relative -mt-12 mb-3">
+            <Skeleton className="size-24 rounded-full border-4 border-background" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  return <ProfilePageInner />;
+}
+
+function ProfilePageInner() {
+  const { config } = useAppContext();
+  const params = useParams();
+  const npub = params.npub ?? params.nip19;
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { nostr } = useNostr();
+  const { user } = useCurrentUser();
+  const { toast } = useToast();
+  const { isMuted: isMutedEvent } = useMuteFilter();
+  const queryClient = useQueryClient();
+
+  const [activeTab, setActiveTab] = useState<CoreProfileTab | string>('posts');
+  const [sidebarMediaUrl, setSidebarMediaUrl] = useState<string | null>(null);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  // Hearts sprinkle over the header when this profile is added to the Love List.
+  const [lovedCelebrating, setLovedCelebrating] = useState(false);
+  // NIP-24 birthday — mutes the looping jingle while viewing a birthday profile.
+  const [jingleMuted, setJingleMuted] = useState(false);
+  // NIP-24 birthday — composer prefilled with a birthday wish mentioning this profile.
+  const [birthdayComposeOpen, setBirthdayComposeOpen] = useState(false);
+  const [followQROpen, setFollowQROpen] = useState(false);
+  const [followersModalOpen, setFollowersModalOpen] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  // Sprinkle hearts over the header for a moment when a profile is loved.
+  // prefers-reduced-motion callers skip it (the overlay is also hidden by CSS
+  // as defense-in-depth).
+  const handleLoved = useCallback(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    setLovedCelebrating(true);
+  }, []);
+  useEffect(() => {
+    if (!lovedCelebrating) return;
+    const timeout = setTimeout(() => setLovedCelebrating(false), CELEBRATION_DURATION_MS);
+    return () => clearTimeout(timeout);
+  }, [lovedCelebrating]);
+  // Determine if the URL param is a NIP-05 identifier (contains @ or is a domain-like string)
+  const isNip05Param = useMemo(() => {
+    if (!npub) return false;
+    // If it contains @, it's a NIP-05 identifier (e.g., user@domain.com)
+    if (npub.includes('@')) return true;
+    // If it contains a dot and doesn't start with npub1/nprofile1, it's a domain (e.g., fiatjaf.com)
+    if (npub.includes('.') && !npub.startsWith('npub1') && !npub.startsWith('nprofile1')) return true;
+    return false;
+  }, [npub]);
+
+  // Resolve NIP-05 identifier to pubkey if needed.
+  // Use `isPending` (not `isLoading`) so the skeleton shows during the initial
+  // React Query render where fetchStatus is still 'idle' before the first fetch
+  // fires — isLoading (= isPending && isFetching) would be false in that window,
+  // incorrectly triggering the "User not found" branch on a hard refresh.
+  const { data: nip05Pubkey, isPending: nip05Loading } = useNip05Resolve(isNip05Param ? npub : undefined);
+
+  // Determine pubkey: from NIP-05 resolution, NIP-19 decoding, raw hex, or logged-in user
+  const pubkey = useMemo(() => {
+    if (npub) {
+      // If it's a NIP-05 identifier, use the resolved pubkey
+      if (isNip05Param) {
+        return nip05Pubkey ?? undefined;
+      }
+      // Raw 64-char hex pubkey (NIP19Page routes these here when the relay
+      // resolves the hex to a kind-0 author)
+      if (isNostrId(npub)) {
+        return npub;
+      }
+      // Otherwise try to decode as NIP-19
+      try {
+        const decoded = nip19.decode(npub);
+        if (decoded.type === 'npub') return decoded.data;
+        if (decoded.type === 'nprofile') return decoded.data.pubkey;
+      } catch {
+        return undefined;
+      }
+    }
+    return user?.pubkey;
+  }, [npub, user, isNip05Param, nip05Pubkey]);
+
+  // Custom profile tabs from kind 16769
+  const profileTabsQuery = useProfileTabs(pubkey);
+
+  // Extract tabs and vars from the kind 16769 data
+  const profileTabsData = useMemo<ProfileTabsData | null>(() => {
+    if (!profileTabsQuery.isFetched) return null;
+    return profileTabsQuery.data ?? null;
+  }, [profileTabsQuery.data, profileTabsQuery.isFetched]);
+
+  const profileSavedTabs = useMemo<ProfileTab[]>(() => {
+    return profileTabsData?.tabs ?? [];
+  }, [profileTabsData]);
+
+  const profileVars = useMemo(() => profileTabsData?.vars ?? [], [profileTabsData]);
+
+  const { publishProfileTabs, isPending: isPublishingTabs } = usePublishProfileTabs();
+
+  // Tab edit mode (inline reorder/remove/add)
+  const [tabEditMode, setTabEditMode] = useState(false);
+
+  // All tabs as a flat ordered list for the drag UI — core tabs have isCore=true and can't be removed
   const [localTabs, setLocalTabs] = useState<EditableTab[]>([]);
   const [tabModalOpen, setTabModalOpen] = useState(false);
   const [editingTab, setEditingTab] = useState<ProfileTab | undefined>(undefined);
