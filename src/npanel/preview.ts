@@ -18,6 +18,11 @@
  * or status change is about, and the profiles of the people its title names.
  * A bird detection gets the bird's picture from Wikipedia (`species.ts`), a
  * book review the book's title and cover from Open Library (`books.ts`).
+ *
+ * A profile's page links to their newest posts, so a crawler can find them.
+ * Every page names its canonical URL — a profile's npub, an event's address
+ * as the app links it — so `/npub1…`, `/nprofile1…` and `/name@domain` are
+ * one page to a search engine, as are `/note1…` and `/nevent1…`.
  */
 
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
@@ -26,6 +31,7 @@ import * as nip19 from 'nostr-tools/nip19';
 
 import { getAvatarShape } from '@/lib/avatarShape';
 import { getColors } from '@/lib/colorMomentUtils';
+import { encodeEventAddress } from '@/lib/encodeEvent';
 import { ACTIVE_THEME_KIND, parseActiveProfileTheme, parseThemeDefinition, THEME_DEFINITION_KIND } from '@/lib/themeEvent';
 
 import { blobbiPicture } from './blobbi';
@@ -46,6 +52,11 @@ const BIRD_DETECTION_KIND = 2473;
 const BOOK_REVIEW_KIND = 31985;
 const BLOBBI_KIND = 31124;
 
+/** What a profile's page lists of their posts: notes, pictures, videos and articles. */
+const POST_KINDS = [1, 20, 21, 22, 30023];
+/** How many: npanel lets a preview have 50 events in all. */
+const MAX_POSTS = 20;
+
 export default {
   /**
    * The pages previewed, as URLPattern pathnames: one segment that is a NIP-19
@@ -60,17 +71,23 @@ export default {
 
   async preview(request: Request, { nostr, signal }: Context): Promise<Preview | null> {
     const url = new URL(request.url);
-    const page: Page = { url: url.href, origin: url.origin, appName: appName() };
     const segment = decodeURIComponent(url.pathname.slice(1)).replace(/^@/, '').replace(/\/$/, '');
     const first = async (filter: NostrFilter) => (await nostr.query([{ ...filter, limit: 1 }], { signal }))[0];
 
     const found = await subject(segment, first);
     if (!found) return null;
     const { event } = found;
+    // A profile is at its npub, and an event at the address the app links
+    // it by, whichever of the paths that show it was asked for.
+    const path = event.kind === 0 ? nip19.npubEncode(event.pubkey) : encodeEventAddress(event);
+    const page: Page = { url: `${url.origin}/${path}`, origin: url.origin, appName: appName() };
 
     if (event.kind === 0) {
-      const theme = await first({ kinds: [ACTIVE_THEME_KIND], authors: [event.pubkey] });
-      return profile(event, theme, page);
+      const [theme, posts] = await Promise.all([
+        first({ kinds: [ACTIVE_THEME_KIND], authors: [event.pubkey] }),
+        nostr.query([{ kinds: POST_KINDS, authors: [event.pubkey], limit: MAX_POSTS }], { signal }),
+      ]);
+      return profile(event, theme, posts, page);
     }
 
     // At once: the event it's about, for a kind whose preview is made of one
@@ -140,9 +157,9 @@ export default {
 };
 
 /** A profile's preview: its avatar, cut to its shape, drawn on its theme, or on the default colours if it has none. */
-function profile(event: NostrEvent, theme: NostrEvent | undefined, page: Page): Preview {
+function profile(event: NostrEvent, theme: NostrEvent | undefined, posts: NostrEvent[], page: Page): Preview {
   const profile = readProfile(event, event.pubkey);
-  const preview = profilePreview(profile, page);
+  const preview = profilePreview(profile, page, posts);
   const shape = getAvatarShape(profile.fields);
   const active = theme ? parseActiveProfileTheme(theme) : null;
   return {

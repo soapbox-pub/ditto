@@ -7,12 +7,16 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import * as nip19 from 'nostr-tools/nip19';
 
+import { encodeEventAddress } from '@/lib/encodeEvent';
+
 import { escape, renderMarkdown, renderText, safeUrl } from './html';
-import { clamp, contentSource, contentText, date, MAX_CONTENT, parseObject, type Audio, type Parts, shortNpub, truncate, type Video, withoutEmoji } from './kinds';
+import { clamp, contentSource, contentText, date, MAX_CONTENT, parseObject, read, type Audio, type Parts, shortNpub, truncate, type Video, withoutEmoji } from './kinds';
 
 const MAX_TITLE = 200;
 const MAX_DESCRIPTION = 200;
 const MAX_NAME = 100;
+/** The longest a post's line in a profile's list of them is. */
+const MAX_LISTED = 140;
 
 /** What `preview()` returns to npanel. */
 export interface Preview {
@@ -25,11 +29,14 @@ export interface Preview {
   video?: { url: string; type: string; width?: number; height?: number };
   audio?: { url: string; type: string };
   published?: number;
+  /** The one URL of the several that show the same thing. */
+  canonical?: string;
   jsonLd?: Record<string, unknown>;
 }
 
 /** Where the page is, and what the app serving it is called. */
 export interface Page {
+  /** The page's canonical URL, which may not be the one asked for. */
   url: string;
   origin: string;
   appName: string;
@@ -76,8 +83,13 @@ function person(profile: Profile, page: Page): Record<string, unknown> {
   return withoutNulls({ '@type': 'Person', name: displayName(profile), identifier: npub, url: `${page.origin}/${npub}`, image: profile.picture });
 }
 
-/** A profile's preview, from its kind 0. Its image is the avatar, small, unless the caller draws one. */
-export function profilePreview(profile: Profile, page: Page): Preview {
+/**
+ * A profile's preview, from its kind 0, with links to their newest posts: a
+ * crawler that finds a profile finds their posts from it, and from each of
+ * those the profiles it mentions. Its image is the avatar, small, unless the
+ * caller draws one.
+ */
+export function profilePreview(profile: Profile, page: Page, posts: NostrEvent[] = []): Preview {
   const name = displayName(profile);
   let body = `<article>\n<header>\n<h1>${escape(name)}</h1>\n`;
   if (profile.nip05) body += `<p>${escape(profile.nip05.replace(/^_@/, ''))}</p>\n`;
@@ -85,6 +97,8 @@ export function profilePreview(profile: Profile, page: Page): Preview {
   if (profile.picture) body += `<p><img src="${escape(profile.picture)}" alt="${escape(name)}"></p>\n`;
   if (profile.about) body += renderText(profile.about);
   if (profile.website) body += `<p><a href="${escape(profile.website)}" rel="me nofollow ugc">${escape(profile.website)}</a></p>\n`;
+  const listed = posts.filter((post) => post.pubkey === profile.pubkey).map(listItem);
+  if (listed.length) body += `<section>\n<h2>Posts</h2>\n<ul>\n${listed.join('')}</ul>\n</section>\n`;
   body += '</article>\n';
 
   const description = profile.about ? describe(profile.about) : undefined;
@@ -95,6 +109,7 @@ export function profilePreview(profile: Profile, page: Page): Preview {
     image: profile.picture,
     twitter: 'summary',
     type: 'profile',
+    canonical: page.url,
     jsonLd: withoutNulls({ '@context': 'https://schema.org', '@type': 'ProfilePage', url: page.url, mainEntity: withoutNulls({ ...person(profile, page), description }) }),
   };
 }
@@ -157,6 +172,7 @@ export function eventPreview(kind: number, parts: Parts, profile: Profile, page:
     video: parts.video,
     audio: parts.audio,
     published: parts.published,
+    canonical: page.url,
     jsonLd: withoutNulls({
       '@context': 'https://schema.org',
       '@type': style === 'article' ? 'Article' : 'SocialMediaPosting',
@@ -171,6 +187,14 @@ export function eventPreview(kind: number, parts: Parts, profile: Profile, page:
       author: person(profile, page),
     }),
   };
+}
+
+/** A post in a profile's list: what it says, linked to its page, and when. */
+function listItem(event: NostrEvent): string {
+  const parts = read(event);
+  const words = parts && (parts.title ?? mapText(parts.summary ?? contentText(parts.content) ?? parts.fallback, (text) => withoutEmoji(text, event.tags)));
+  const text = (words && clamp(words, MAX_LISTED)) || 'A post';
+  return `<li><a href="/${encodeEventAddress(event)}">${escape(text)}</a> · ${time(event.created_at)}</li>\n`;
 }
 
 function mapText(text: string | undefined, fn: (text: string) => string): string | undefined {
