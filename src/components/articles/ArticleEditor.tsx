@@ -40,7 +40,9 @@ import { useDrafts } from '@/hooks/useDrafts';
 import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { saveDraft as saveLocalDraft, deleteDraftBySlug } from '@/lib/localDrafts';
-import type { ArticleFields } from '@/lib/articleHelpers';
+import { articleImetaTags, upsertImetaTag, type ArticleFields } from '@/lib/articleHelpers';
+import { readFileMeta } from '@/lib/fileMetadata';
+import { bestMime } from '@/lib/mediaUrls';
 import { MilkdownEditor } from './MilkdownEditor';
 
 export type ArticleData = ArticleFields;
@@ -82,6 +84,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     image: initialData?.image || '',
     tags: initialData?.tags || [],
     slug: initialData?.slug || '',
+    imeta: initialData?.imeta ?? [],
   });
 
   // Keep a ref to the latest article data so the auto-save timer doesn't
@@ -207,7 +210,25 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   const handleImageUpload = useCallback(
     async (file: File) => {
       try {
-        const [[, url]] = await uploadFile(file);
+        const dot = file.name.lastIndexOf('.');
+        const mime = bestMime(file.type, dot > 0 ? file.name.slice(dot + 1).toLowerCase() : '');
+
+        // Measure the image (dim, blurhash) while it uploads, so readers can
+        // reserve its space and show a placeholder before it loads.
+        const [tags, meta] = await Promise.all([
+          uploadFile(file),
+          readFileMeta(file, mime),
+        ]);
+        const [[, url]] = tags;
+
+        // Anything the server already said about the blob wins.
+        const fields = new Map(tags.map(([name, value]) => [name, value]));
+        for (const [name, value] of meta.fields) {
+          if (!fields.has(name)) fields.set(name, value);
+        }
+        const imetaTag = ['imeta', ...[...fields].map(([name, value]) => `${name} ${value}`)];
+        setArticle((prev) => ({ ...prev, imeta: upsertImetaTag(prev.imeta, imetaTag) }));
+
         return url;
       } catch (error) {
         console.error('Upload failed:', error);
@@ -270,6 +291,8 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     article.tags.forEach((tag) => {
       tags.push(['t', tag]);
     });
+
+    tags.push(...articleImetaTags(article));
 
     publishEvent(
       {

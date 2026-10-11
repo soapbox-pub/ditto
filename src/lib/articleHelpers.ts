@@ -14,6 +14,37 @@ export interface ArticleFields {
   image: string;
   tags: string[];
   slug: string;
+  /** NIP-92 `imeta` tags for media the article uses (uploads, or carried over from the event being edited). */
+  imeta?: string[][];
+}
+
+/** The URL an `imeta` tag describes. */
+function imetaUrl(tag: string[]): string | undefined {
+  return tag.find((field) => field.startsWith('url '))?.slice(4);
+}
+
+/**
+ * The `imeta` tags worth publishing with an article: one per URL, for media
+ * still referenced in its content or used as its header image. Drops tags for
+ * images that were uploaded and later deleted from the text.
+ */
+export function articleImetaTags(article: Pick<ArticleFields, 'content' | 'image' | 'imeta'>): string[][] {
+  const seen = new Set<string>();
+  const tags: string[][] = [];
+  for (const tag of article.imeta ?? []) {
+    const url = imetaUrl(tag);
+    if (!url || seen.has(url)) continue;
+    if (url !== article.image && !article.content.includes(url)) continue;
+    seen.add(url);
+    tags.push(tag);
+  }
+  return tags;
+}
+
+/** Add or replace the `imeta` tag for a URL. */
+export function upsertImetaTag(imeta: string[][] | undefined, tag: string[]): string[][] {
+  const url = imetaUrl(tag);
+  return [...(imeta ?? []).filter((t) => imetaUrl(t) !== url), tag];
 }
 
 /**
@@ -34,6 +65,7 @@ export function parseArticleEvent(event: NostrEvent): ArticleFields & { publishe
     image: getTag('image'),
     tags: getTags('t'),
     slug: getTag('d'),
+    imeta: event.tags.filter(([name]) => name === 'imeta'),
     publishedAt,
   };
 }

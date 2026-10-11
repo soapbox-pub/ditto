@@ -56,6 +56,7 @@ export function ArticleEditorPage() {
               image: getTag('image'),
               tags: getTags('t'),
               slug: getTag('d'),
+              imeta: tags.filter(t => t[0] === 'imeta'),
             });
             setLoading(false);
             return;
@@ -76,6 +77,7 @@ export function ArticleEditorPage() {
           image: draft.image,
           tags: draft.tags,
           slug: draft.slug,
+          imeta: draft.imeta,
         });
       }
       setLoading(false);

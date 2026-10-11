@@ -4,7 +4,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
-import { type ArticleFields } from '@/lib/articleHelpers';
+import { articleImetaTags, type ArticleFields } from '@/lib/articleHelpers';
 
 /** Kind 31234 — NIP-37 Draft Wrap. */
 const DRAFT_WRAP_KIND = 31234;
@@ -29,6 +29,7 @@ function buildInnerDraftEvent(draft: DraftData): Record<string, unknown> {
   if (draft.summary) tags.push(['summary', draft.summary]);
   if (draft.image) tags.push(['image', draft.image]);
   draft.tags.forEach(tag => tags.push(['t', tag]));
+  tags.push(...articleImetaTags(draft));
 
   return {
     kind: ARTICLE_KIND,
@@ -52,6 +53,7 @@ function parseDraftPayload(inner: Record<string, unknown>, wrapEvent: NostrEvent
     image: getTag('image'),
     tags: getTags('t'),
     slug: getTag('d'),
+    imeta: tags.filter(t => t[0] === 'imeta'),
     updatedAt: wrapEvent.created_at * 1000,
   };
 }
