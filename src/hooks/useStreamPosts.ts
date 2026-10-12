@@ -31,8 +31,8 @@ interface StreamPostsOptions {
    * Each entry accepts raw hex or npub-encoded pubkeys.
    */
   authorPubkeys?: string[];
-  /** NIP-50 sort preference. 'recent' (default) sends an explicit `sort:recent` term when a search string is present, since NIP-50 relays otherwise rank by relevance. */
-  sort?: 'recent' | 'hot' | 'trending';
+  /** NIP-50 sort preference. 'new' (default) sends an explicit `sort:new` term when a search string is present, since NIP-50 relays otherwise rank by relevance. */
+  sort?: 'new' | 'hot' | 'trending';
   /**
    * When set, limits results to events published with one of these `client`
    * tag values (NIP-89). Used by the "Only Ditto users" search filter.
@@ -307,7 +307,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     } else if (options.sort === 'trending') {
       searchParts.push('sort:trending');
     } else if (searchParts.length > 0) {
-      searchParts.push('sort:recent');
+      searchParts.push('sort:new');
     }
 
     const searchFilter: NostrFilter = { ...streamFilter };

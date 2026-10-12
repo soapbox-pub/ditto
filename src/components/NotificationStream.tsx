@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQueryClient } from '@tanstack/react-query';
+import type { NostrEvent } from '@nostrify/nostrify';
 
+import { useAppContext } from '@/hooks/useAppContext';
 import { useBackgroundQuiet } from '@/hooks/useBackgroundQuiet';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { createLiveCursor } from '@/lib/backgroundQuiet';
@@ -28,12 +30,18 @@ const INVALIDATE_DEBOUNCE_MS = 1_500;
  * this stream can subscribe broadly (all kinds, no authors filter) without
  * resubscribing whenever preferences change.
  *
+ * The same REQ also watches the user's encrypted settings event (kind 30078),
+ * so a read cursor advanced on another device clears the unread state here
+ * without waiting for a refresh. A newer version replaces the cached
+ * `encryptedSettings` event, and everything derived from it follows.
+ *
  * Relay reconnects are handled by the pool (NRelay1 re-sends REQs on reopen
  * with the original `since`, backfilling anything missed while offline).
  */
 export function NotificationStream(): null {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const queryClient = useQueryClient();
   // Backgrounded the WebView holds no REQ: the native service (or push)
   // watches instead, and resuming refetches what arrived.
@@ -52,6 +60,12 @@ export function NotificationStream(): null {
 
     const ac = new AbortController();
     const since = Math.floor(Date.now() / 1000);
+    const settingsKey = ['encryptedSettings', user.pubkey];
+    const settingsD = `${config.appId}/metadata`;
+    // Start just past the settings version already held, so one written
+    // while this device was backgrounded or offline comes in too.
+    const heldSettings = queryClient.getQueryData<NostrEvent | null>(settingsKey);
+    const settingsSince = heldSettings ? heldSettings.created_at + 1 : since;
     let debounce: ReturnType<typeof setTimeout> | undefined;
     const invalidate = () => {
       debounce = undefined;
@@ -62,15 +76,34 @@ export function NotificationStream(): null {
     (async () => {
       try {
         for await (const msg of nostr.req(
-          [{
-            kinds: [...ALL_NOTIFICATION_KINDS],
-            '#p': [user.pubkey],
-            since,
-          }],
+          [
+            {
+              kinds: [...ALL_NOTIFICATION_KINDS],
+              '#p': [user.pubkey],
+              since,
+            },
+            {
+              kinds: [30078],
+              authors: [user.pubkey],
+              '#d': [settingsD],
+              since: settingsSince,
+            },
+          ],
           { signal: ac.signal },
         )) {
           if (msg[0] === 'EVENT') {
             const ev = msg[2];
+            // Settings written by another device (or this one, echoed back).
+            // Keep whichever version is newest.
+            if (ev.kind === 30078) {
+              const isSettings = ev.pubkey === user.pubkey
+                && ev.tags.some(([name, value]) => name === 'd' && value === settingsD);
+              const held = queryClient.getQueryData<NostrEvent | null>(settingsKey);
+              if (isSettings && (!held || ev.created_at > held.created_at)) {
+                queryClient.setQueryData(settingsKey, ev);
+              }
+              continue;
+            }
             // Ignore own events
             if (ev.pubkey === user.pubkey) continue;
             // New notification arrived — invalidate both the full list and the
@@ -87,7 +120,7 @@ export function NotificationStream(): null {
       ac.abort();
       clearTimeout(debounce);
     };
-  }, [nostr, user, queryClient, quiet]);
+  }, [nostr, user, queryClient, quiet, config.appId]);
 
   return null;
 }

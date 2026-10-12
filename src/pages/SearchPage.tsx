@@ -86,7 +86,7 @@ function parseTab(value: string | null): TabType {
 const VALID_AUTHOR_SCOPES = ['anyone', 'follows', 'people'] as const;
 type AuthorScope = typeof VALID_AUTHOR_SCOPES[number];
 
-const VALID_SORTS = ['recent', 'hot', 'trending'] as const;
+const VALID_SORTS = ['new', 'hot', 'trending'] as const;
 type SortPref = typeof VALID_SORTS[number];
 
 const DEFAULT_FILTERS = {
@@ -98,7 +98,7 @@ const DEFAULT_FILTERS = {
   kindFilter: 'all',
   customKindText: '',
   authorScope: 'anyone' as AuthorScope,
-  sort: 'recent' as SortPref,
+  sort: 'new' as SortPref,
 };
 
 /** Parse a boolean from a URL param, returning defaultVal if absent/invalid. */
@@ -312,7 +312,7 @@ export function SearchPage() {
     if (mediaType !== 'all') labels.push({ images: 'Images', videos: 'Videos', vines: 'Shorts', none: 'No media' }[mediaType] ?? mediaType);
     if (language !== 'global') labels.push(language.toUpperCase());
     if (platform !== 'nostr') labels.push({ activitypub: 'Mastodon', atproto: 'Bluesky' }[platform] ?? platform);
-    if (sort !== 'recent') labels.push(sort === 'hot' ? 'Hot' : 'Trending');
+    if (sort !== 'new') labels.push(sort === 'hot' ? 'Hot' : 'Trending');
     if (kindFilter !== 'all' && kindFilter !== 'custom') {
       const kindValues = kindFilter.split(',').filter(Boolean);
       if (kindValues.length === 1) {
@@ -700,7 +700,7 @@ export function SearchPage() {
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sort</span>
                   <div className="flex rounded-lg border border-border overflow-hidden">
                     {([
-                      ['recent', 'Recent', Clock],
+                      ['new', 'New', Clock],
                       ['hot', 'Hot', Flame],
                       ['trending', 'Trending', TrendingUp],
                     ] as const).map(([s, label, Icon]) => (
