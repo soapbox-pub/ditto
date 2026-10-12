@@ -43,6 +43,7 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import pub.ditto.app.relayfleet.Keepalive;
 import pub.ditto.app.relayfleet.NetworkSettle;
 
+import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -467,6 +468,13 @@ public class NotificationRelayService extends Service {
     }
 
     @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        // Avatars are re-fetched on demand; the service's own state is small.
+        if (level >= TRIM_MEMORY_RUNNING_LOW && poller != null) poller.trimMemory();
+    }
+
+    @Override
     public IBinder onBind(Intent intent) {
         return null;
     }
@@ -566,7 +574,7 @@ public class NotificationRelayService extends Service {
                 if (filters == null || relays == null) continue;
                 for (int r = 0; r < relays.length(); r++) {
                     String url = relays.optString(r);
-                    if (url.isEmpty()) continue;
+                    if (!isRelayUrl(url)) continue;
                     List<JSONObject> list = relayFilters.get(url);
                     if (list == null) {
                         list = new ArrayList<>();
@@ -601,6 +609,7 @@ public class NotificationRelayService extends Service {
             filter.put("#p", new JSONArray().put(userPubkey));
             if (!authors.isEmpty()) filter.put("authors", new JSONArray(authors));
             for (String url : new LinkedHashSet<>(relays)) {
+                if (!isRelayUrl(url)) continue;
                 List<JSONObject> list = new ArrayList<>();
                 list.add(filter);
                 relayFilters.put(url, list);
@@ -1149,6 +1158,19 @@ public class NotificationRelayService extends Service {
             }
         }
         return FailureKind.TRANSIENT;
+    }
+
+    /**
+     * Whether {@code url} is a ws(s) URL OkHttp can dial. Its URL builder
+     * throws on anything else, and it runs on the service's thread inside
+     * connect(), so one malformed entry would take down every relay. Ported
+     * from Armada.
+     */
+    static boolean isRelayUrl(String url) {
+        if (url == null) return false;
+        if (url.regionMatches(true, 0, "wss://", 0, 6)) return HttpUrl.parse("https://" + url.substring(6)) != null;
+        if (url.regionMatches(true, 0, "ws://", 0, 5)) return HttpUrl.parse("http://" + url.substring(5)) != null;
+        return false;
     }
 
     /** A stable string for a relay's filter list, to detect a changed REQ. */

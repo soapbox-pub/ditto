@@ -16,6 +16,7 @@ import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
+import android.util.LruCache;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.Person;
@@ -25,10 +26,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import okhttp3.Call;
@@ -36,6 +35,9 @@ import okhttp3.Callback;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
+
+import okio.BufferedSource;
 
 /**
  * Builds and dispatches rich Android notifications for Nostr events.
@@ -91,8 +93,25 @@ public class NostrPoller {
     /** The service's confinement thread; avatar results hop back to it. */
     private final Handler handler;
 
-    /** picture URL → circle-cropped bitmap, decoded once per service lifetime. */
-    private final Map<String, Bitmap> avatarCache = new HashMap<>();
+    /** Longest avatar response read; a bigger one is skipped, not downloaded. */
+    static final long MAX_AVATAR_BODY_BYTES = 2L * 1024 * 1024;
+
+    /**
+     * picture URL → circle-cropped bitmap, bounded by decoded size (each is
+     * {@link #AVATAR_PX}², 64 KB) and cleared under memory pressure. An
+     * unbounded map grew for as long as the service ran, which can be days.
+     */
+    private final LruCache<String, Bitmap> avatarCache = new LruCache<String, Bitmap>(4 * 1024 * 1024) {
+        @Override
+        protected int sizeOf(String key, Bitmap value) {
+            return value.getByteCount();
+        }
+    };
+
+    /** Drop decoded avatars; called when the system is low on memory. */
+    void trimMemory() {
+        avatarCache.evictAll();
+    }
 
     /** One message line in the combined notification. */
     private static final class Entry {
@@ -535,7 +554,11 @@ public class NostrPoller {
                     Bitmap result = null;
                     try {
                         if (response.isSuccessful() && response.body() != null) {
-                            byte[] bytes = response.body().bytes();
+                            byte[] bytes = readCapped(response.body(), MAX_AVATAR_BODY_BYTES);
+                            if (bytes == null) {
+                                ServiceProfiler.count("avatar.too large");
+                                return;
+                            }
                             if (ServiceProfiler.ON) {
                                 ServiceProfiler.elapsed("avatar.fetch roundtrip", fetchStart);
                                 ServiceProfiler.units("avatar.bytes", bytes.length);
@@ -565,6 +588,18 @@ public class NostrPoller {
             // Malformed URL etc.
             cb.onBitmap(null);
         }
+    }
+
+    /**
+     * The body, or null when it is (or declares itself) larger than {@code cap}:
+     * an avatar URL can point at anything, and the whole body was read into
+     * memory before decoding.
+     */
+    static byte[] readCapped(ResponseBody body, long cap) throws java.io.IOException {
+        if (body.contentLength() > cap) return null;
+        BufferedSource source = body.source();
+        if (source.request(cap + 1)) return null;
+        return source.readByteArray();
     }
 
     /**
