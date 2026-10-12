@@ -196,7 +196,7 @@ function StreamCard({ event }: { event: NostrEvent }) {
               )}
               <span className="flex items-center gap-1">
                 <Clock className="size-3" />
-                {timeAgo(event.created_at)}
+                {timeAgo(event.created_at, intl)}
               </span>
             </div>
           </div>

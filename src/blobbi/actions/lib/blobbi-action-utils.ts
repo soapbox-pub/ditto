@@ -1,5 +1,6 @@
 // src/blobbi/actions/lib/blobbi-action-utils.ts
 
+import { defineMessage, defineMessages, type MessageDescriptor } from 'react-intl';
 import { STAT_MIN, STAT_MAX, type BlobbiCompanion, type BlobbiStage, type BlobbiStats } from '@blobbi-kit/core/blobbi';
 import type { ItemEffect, ShopItemCategory } from '@blobbi-kit/core/types/shop';
 import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
@@ -23,33 +24,40 @@ export const ACTION_TO_ITEM_TYPE: Record<InventoryAction, ShopItemCategory> = {
   boost: 'energy',
 };
 
+/** Display metadata for a care action. */
+export interface ActionMetadata {
+  label: MessageDescriptor;
+  description: MessageDescriptor;
+  icon: string;
+}
+
 /**
  * Action metadata for UI display (item-based care actions)
  */
-export const ACTION_METADATA: Record<InventoryAction, { label: string; description: string; icon: string }> = {
+export const ACTION_METADATA: Record<InventoryAction, ActionMetadata> = {
   feed: {
-    label: 'Feed',
-    description: 'Feed your Blobbi',
+    label: defineMessage({ id: 'blobbi.activity.action.feed', defaultMessage: 'Feed' }),
+    description: defineMessage({ id: 'blobbiAction.feed.description', defaultMessage: 'Feed your Blobbi' }),
     icon: '🍎',
   },
   play: {
-    label: 'Play',
-    description: 'Play with your Blobbi',
+    label: defineMessage({ id: 'blobbi.activity.action.play', defaultMessage: 'Play' }),
+    description: defineMessage({ id: 'blobbiAction.play.description', defaultMessage: 'Play with your Blobbi' }),
     icon: '⚽',
   },
   clean: {
-    label: 'Clean',
-    description: 'Clean your Blobbi',
+    label: defineMessage({ id: 'blobbi.activity.action.clean', defaultMessage: 'Clean' }),
+    description: defineMessage({ id: 'blobbiAction.clean.description', defaultMessage: 'Clean your Blobbi' }),
     icon: '🧼',
   },
   medicine: {
-    label: 'Medicine',
-    description: 'Heal your Blobbi',
+    label: defineMessage({ id: 'blobbi.activity.action.medicate', defaultMessage: 'Medicine' }),
+    description: defineMessage({ id: 'blobbiAction.medicine.description', defaultMessage: 'Heal your Blobbi' }),
     icon: '💊',
   },
   boost: {
-    label: 'Boost',
-    description: 'Recharge your Blobbi\'s energy',
+    label: defineMessage({ id: 'blobbi.activity.action.boost', defaultMessage: 'Boost' }),
+    description: defineMessage({ id: 'blobbiAction.boost.description', defaultMessage: 'Recharge your Blobbi\'s energy' }),
     icon: '⚡',
   },
 };
@@ -57,15 +65,15 @@ export const ACTION_METADATA: Record<InventoryAction, { label: string; descripti
 /**
  * Action metadata for direct actions (no item required)
  */
-export const DIRECT_ACTION_METADATA: Record<DirectAction, { label: string; description: string; icon: string }> = {
+export const DIRECT_ACTION_METADATA: Record<DirectAction, ActionMetadata> = {
   play_music: {
-    label: 'Play Music',
-    description: 'Play music for your Blobbi',
+    label: defineMessage({ id: 'playMusic.title', defaultMessage: 'Play Music' }),
+    description: defineMessage({ id: 'blobbiAction.playMusic.description', defaultMessage: 'Play music for your Blobbi' }),
     icon: '🎵',
   },
   sing: {
-    label: 'Sing',
-    description: 'Sing to your Blobbi',
+    label: defineMessage({ id: 'blobbiRoom.dock.sing', defaultMessage: 'Sing' }),
+    description: defineMessage({ id: 'blobbiAction.sing.description', defaultMessage: 'Sing to your Blobbi' }),
     icon: '🎤',
   },
 };
@@ -73,10 +81,29 @@ export const DIRECT_ACTION_METADATA: Record<DirectAction, { label: string; descr
 /**
  * Combined action metadata for all action types
  */
-export const ALL_ACTION_METADATA: Record<BlobbiAction, { label: string; description: string; icon: string }> = {
+export const ALL_ACTION_METADATA: Record<BlobbiAction, ActionMetadata> = {
   ...ACTION_METADATA,
   ...DIRECT_ACTION_METADATA,
 };
+
+/**
+ * Error messages shown (via toast) when a care action can't be performed.
+ * Shared by the inventory-item and companion item-use hooks.
+ */
+export const ACTION_ERROR_MESSAGES = defineMessages({
+  notLoggedInItems: { id: 'blobbiAction.error.notLoggedInItems', defaultMessage: 'You must be logged in to use items' },
+  notLoggedInActions: { id: 'blobbiAction.error.notLoggedInActions', defaultMessage: 'You must be logged in to perform actions' },
+  noCompanion: { id: 'blobbiAction.error.noCompanion', defaultMessage: 'No companion selected' },
+  profileNotFound: { id: 'blobbiAction.error.profileNotFound', defaultMessage: 'Profile not found' },
+  cannotUseItem: { id: 'blobbiAction.error.cannotUseItem', defaultMessage: 'This companion cannot use this item' },
+  itemNotInCatalog: { id: 'blobbiAction.error.itemNotInCatalog', defaultMessage: 'Item not found in catalog' },
+  itemNoEffect: { id: 'blobbiAction.error.itemNoEffect', defaultMessage: 'This item has no effect' },
+  medicineNoEffectEgg: { id: 'blobbiAction.error.medicineNoEffectEgg', defaultMessage: 'This medicine has no effect on eggs' },
+  noCleaningEffectEgg: { id: 'blobbiAction.error.noCleaningEffectEgg', defaultMessage: 'This item has no cleaning effect on eggs' },
+  prepareFailed: { id: 'blobbiAction.error.prepareFailed', defaultMessage: 'Failed to prepare companion for action' },
+  notEnoughEnergy: { id: 'blobbiAction.error.notEnoughEnergy', defaultMessage: 'Your Blobbi needs at least {energyCost} energy to play with this toy (current: {currentEnergy})' },
+  playNoEffect: { id: 'blobbiAction.error.playNoEffect', defaultMessage: 'Playing would have no effect - your Blobbi is already at maximum happiness and has no energy to spend' },
+});
 
 // ─── Stat Helpers ─────────────────────────────────────────────────────────────
 // STAT_MIN and STAT_MAX are imported from @/lib/blobbi (single source of truth)
@@ -145,7 +172,7 @@ export const SHELL_REPAIR_KIT_ID = 'med_shell_repair';
  */
 export interface ItemUsabilityResult {
   canUse: boolean;
-  reason?: string;
+  reason?: MessageDescriptor;
 }
 
 /**
@@ -168,7 +195,7 @@ export function canUseItemForStage(
 ): ItemUsabilityResult {
   const shopItem = getShopItemById(itemId);
   if (!shopItem) {
-    return { canUse: false, reason: 'Item not found' };
+    return { canUse: false, reason: defineMessage({ id: 'blobbiAction.reason.itemNotFound', defaultMessage: 'Item not found' }) };
   }
 
   const isEgg = stage === 'egg';
@@ -176,7 +203,7 @@ export function canUseItemForStage(
   // Shell Repair Kit special case: only for eggs
   if (itemId === SHELL_REPAIR_KIT_ID) {
     if (!isEgg) {
-      return { canUse: false, reason: 'Only usable for eggs' };
+      return { canUse: false, reason: defineMessage({ id: 'blobbiAction.reason.eggsOnly', defaultMessage: 'Only usable for eggs' }) };
     }
     return { canUse: true };
   }
@@ -184,7 +211,7 @@ export function canUseItemForStage(
   // Food items: not usable by eggs
   if (shopItem.type === 'food') {
     if (isEgg) {
-      return { canUse: false, reason: 'Eggs cannot eat food' };
+      return { canUse: false, reason: defineMessage({ id: 'blobbiAction.reason.eggsNoFood', defaultMessage: 'Eggs cannot eat food' }) };
     }
     return { canUse: true };
   }
@@ -192,7 +219,7 @@ export function canUseItemForStage(
   // Toy items: not usable by eggs
   if (shopItem.type === 'toy') {
     if (isEgg) {
-      return { canUse: false, reason: 'Eggs cannot use toys' };
+      return { canUse: false, reason: defineMessage({ id: 'blobbiAction.reason.eggsNoToys', defaultMessage: 'Eggs cannot use toys' }) };
     }
     return { canUse: true };
   }
@@ -200,7 +227,7 @@ export function canUseItemForStage(
   // Medicine items (except Shell Repair Kit): check for health effect
   if (shopItem.type === 'medicine') {
     if (!hasMedicineEffectForEgg(shopItem.effect)) {
-      return { canUse: false, reason: 'This medicine has no effect' };
+      return { canUse: false, reason: defineMessage({ id: 'blobbiAction.reason.medicineNoEffect', defaultMessage: 'This medicine has no effect' }) };
     }
     return { canUse: true };
   }
@@ -208,7 +235,7 @@ export function canUseItemForStage(
   // Hygiene items: all stages can use
   if (shopItem.type === 'hygiene') {
     if (!hasHygieneEffectForEgg(shopItem.effect) && !hasHappinessEffectForEgg(shopItem.effect)) {
-      return { canUse: false, reason: 'This item has no cleaning effect' };
+      return { canUse: false, reason: defineMessage({ id: 'blobbiAction.reason.noCleaningEffect', defaultMessage: 'This item has no cleaning effect' }) };
     }
     return { canUse: true };
   }
@@ -216,7 +243,7 @@ export function canUseItemForStage(
   // Energy items: not usable by eggs (egg energy is fixed at 100)
   if (shopItem.type === 'energy') {
     if (isEgg) {
-      return { canUse: false, reason: 'Eggs do not need energy boosts' };
+      return { canUse: false, reason: defineMessage({ id: 'blobbiAction.reason.eggsNoEnergy', defaultMessage: 'Eggs do not need energy boosts' }) };
     }
     return { canUse: true };
   }
@@ -341,12 +368,12 @@ export function isActionVisibleForStage(stage: 'egg' | 'baby' | 'adult', action:
 /**
  * Get a user-friendly message explaining why an action can't be used.
  */
-export function getStageRestrictionMessage(companion: BlobbiCompanion, action?: InventoryAction): string | null {
+export function getStageRestrictionMessage(companion: BlobbiCompanion, action?: InventoryAction): MessageDescriptor | null {
   if (companion.stage === 'egg') {
     if (action && EGG_ALLOWED_INVENTORY_ACTIONS.includes(action)) {
       return null; // Medicine and clean are allowed for eggs
     }
-    return 'Eggs cannot use this item. Wait for your Blobbi to hatch!';
+    return defineMessage({ id: 'blobbiAction.reason.eggRestriction', defaultMessage: 'Eggs cannot use this item. Wait for your Blobbi to hatch!' });
   }
   return null;
 }

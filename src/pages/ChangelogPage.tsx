@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Bug, FlaskConical, Minus, Package, Plus, RefreshCw, ScrollText, ShieldAlert } from 'lucide-react';
-import { defineMessage, FormattedMessage, type MessageDescriptor, useIntl } from 'react-intl';
+import { defineMessage, FormattedMessage, type MessageDescriptor, useIntl, type IntlShape } from 'react-intl';
 
 import { PageHeader } from '@/components/PageHeader';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,10 +24,10 @@ const CATEGORY_STYLES: Record<ChangelogCategory, { icon: typeof Plus; colorClass
 };
 
 /** Format "2026-03-26" as a readable date string. */
-function formatDate(raw: string): string {
+function formatDate(raw: string, intl: IntlShape): string {
   const date = new Date(raw + 'T00:00:00');
   if (isNaN(date.getTime())) return raw;
-  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  return intl.formatDate(date, { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 const commitSha = import.meta.env.COMMIT_SHA;
@@ -106,6 +106,7 @@ export function ChangelogPage() {
 
 /** Hero treatment for the most recent release — no card, centered version + date. */
 function LatestRelease({ entry }: { entry: ChangelogEntry }) {
+  const intl = useIntl();
   const contentRef = useRef<HTMLUListElement>(null);
   const [overflows, setOverflows] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -138,7 +139,7 @@ function LatestRelease({ entry }: { entry: ChangelogEntry }) {
         rel="noopener noreferrer"
         className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mt-1"
       >
-        {formatDate(entry.date)}
+        {formatDate(entry.date, intl)}
       </a>
 
       {/* Items */}
@@ -196,6 +197,7 @@ const ENTRY_MAX_HEIGHT = 240; // px — entries taller than this get a "Read mor
 
 /** A single changelog release card with truncation for long entries. */
 function ChangelogEntryCard({ entry }: { entry: ChangelogEntry }) {
+  const intl = useIntl();
   const contentRef = useRef<HTMLUListElement>(null);
   const [overflows, setOverflows] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -229,7 +231,7 @@ function ChangelogEntryCard({ entry }: { entry: ChangelogEntry }) {
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto"
         >
-          <span>{formatDate(entry.date)}</span>
+          <span>{formatDate(entry.date, intl)}</span>
         </a>
       </div>
 
@@ -285,6 +287,7 @@ function ChangelogEntryCard({ entry }: { entry: ChangelogEntry }) {
 
 /** Banner shown at the top of the changelog for untagged (pre-release) builds. */
 function PreReleaseBanner({ latestVersion }: { latestVersion: string }) {
+  const intl = useIntl();
   return (
     <div className="rounded-2xl border border-dashed border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 space-y-1.5">
       <div className="flex items-center gap-2">
@@ -299,7 +302,7 @@ function PreReleaseBanner({ latestVersion }: { latestVersion: string }) {
             rel="noopener noreferrer"
             className="ml-auto text-[11px] text-amber-600/70 dark:text-amber-400/70 hover:text-amber-800 dark:hover:text-amber-300 transition-colors"
           >
-            {formatDate(buildDate.split('T')[0])}
+            {formatDate(buildDate.split('T')[0], intl)}
           </a>
         )}
       </div>

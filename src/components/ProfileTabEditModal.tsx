@@ -131,7 +131,7 @@ export function ProfileTabEditModal({
   isPending = false,
 }: ProfileTabEditModalProps) {
   const intl = useIntl();
-  const kindOptions = useMemo(() => buildKindOptions(), []);
+  const kindOptions = useMemo(() => buildKindOptions(intl), [intl]);
   const scopeOptions = useMemo<ScopeOption<ProfileAuthorScope>[]>(
     () => PROFILE_SCOPE_ICONS.map(({ value, icon }) => ({ value, icon, label: intl.formatMessage(scopeMessages[value]) })),
     [intl],

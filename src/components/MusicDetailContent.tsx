@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { useGoBack } from '@/hooks/useGoBack';
 import { ArrowLeft, Play, Pause, Music, ListMusic, Disc3, Zap, Clock, Calendar, Tag, Loader2 } from 'lucide-react';
@@ -43,8 +43,8 @@ import { MusicTrackRowSkeleton } from '@/components/music/MusicTrackRow';
 
 
 /** Format a full date. */
-function formatFullDate(ts: number): string {
-  return new Date(ts * 1000).toLocaleDateString(undefined, {
+function formatFullDate(ts: number, intl: IntlShape): string {
+  return intl.formatDate(new Date(ts * 1000), {
     year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
   });
 }
@@ -250,7 +250,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
 
       {/* Date + client */}
       <div className="px-4 mt-3 text-xs text-muted-foreground">
-        {formatFullDate(event.created_at)}
+        {formatFullDate(event.created_at, intl)}
       </div>
 
       {/* Interactions tabs */}
@@ -349,6 +349,7 @@ function PlaylistDescription({ text }: { text: string }) {
 // ── Playlist detail ───────────────────────────────────────────────────────────
 
 function PlaylistDetail({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const goBack = useGoBack();
   const player = useAudioPlayer();
   const parsed = useMemo(() => parseMusicPlaylist(event), [event]);
@@ -507,7 +508,7 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
       )}
 
       <div className="px-4 mt-3 text-xs text-muted-foreground">
-        {formatFullDate(event.created_at)}
+        {formatFullDate(event.created_at, intl)}
       </div>
 
       {/* Track list */}

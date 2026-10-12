@@ -686,7 +686,7 @@ function EmbeddedBadgeAwardCard({ event, className, disableHoverCards }: { event
               }}
             />
             <span className="text-xs text-muted-foreground shrink-0">
-              · {timeAgo(event.created_at)}
+              · {timeAgo(event.created_at, intl)}
             </span>
           </div>
           <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -793,7 +793,7 @@ function EmbeddedZapCard({ event, className, disableHoverCards }: { event: Nostr
               }}
             />
             <span className="text-xs text-muted-foreground shrink-0">
-              · {timeAgo(event.created_at)}
+              · {timeAgo(event.created_at, intl)}
             </span>
           </div>
           {message && (
@@ -942,7 +942,7 @@ function EmbeddedOnchainZapCard({ event, className, disableHoverCards }: { event
               <span className="text-[11px] text-muted-foreground shrink-0">· <FormattedMessage id="embeddedNote.verifying" defaultMessage="verifying…" /></span>
             ) : null}
             <span className="text-xs text-muted-foreground shrink-0">
-              · {timeAgo(event.created_at)}
+              · {timeAgo(event.created_at, intl)}
             </span>
           </div>
           {message && (
@@ -968,6 +968,7 @@ function EmbeddedNoteCard({
   disableHoverCards?: boolean;
   highlightText?: string;
 }) {
+  const intl = useIntl();
   const { config } = useAppContext();
   const author = useAuthor(event.pubkey);
 
@@ -1048,10 +1049,10 @@ function EmbeddedNoteCard({
 
   // Kind label for non-text-note kinds
   const kindMeta = useMemo(() => {
-    const label = getKindLabel(event.kind);
+    const label = getKindLabel(intl, event.kind);
     if (!label) return undefined;
     return { label, Icon: getKindIcon(event.kind) };
-  }, [event.kind]);
+  }, [intl, event.kind]);
 
   // Tag-based fallback metadata for non-content kinds (articles, custom
   // kinds, etc.) and for text notes that happen to have empty content.
@@ -1350,6 +1351,7 @@ function EmbeddedVanishCardWrapper({
   event: { id: string; pubkey: string; content: string; created_at: number; tags: string[][] };
   className?: string;
 }) {
+  const intl = useIntl();
   const navigate = useNavigate();
   const neventId = useMemo(
     () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
@@ -1375,7 +1377,7 @@ function EmbeddedVanishCardWrapper({
     >
       <VanishCardCompact
         event={event}
-        timestamp={timeAgo(event.created_at)}
+        timestamp={timeAgo(event.created_at, intl)}
         className="rounded-2xl group-hover:border-red-500/50 transition-colors"
       />
     </div>

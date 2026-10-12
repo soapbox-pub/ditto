@@ -944,7 +944,7 @@ function ZapRecipientCard({
                 <Nip05Badge nip05={recipientNip05} pubkey={recipientPubkey} />
               )}
               {recipientNip05 && recipientNip05Verified && <span className="shrink-0">·</span>}
-              <span className="shrink-0 whitespace-nowrap">{timeAgo(timestamp)}</span>
+              <span className="shrink-0 whitespace-nowrap">{timeAgo(timestamp, intl)}</span>
             </div>
           </div>
         )}

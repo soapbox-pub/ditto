@@ -1,5 +1,6 @@
 import type { NostrEvent, NostrSigner } from '@nostrify/types';
-import { createElement } from 'react';
+import { createElement, type ReactNode } from 'react';
+import { defineMessages, FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from 'react-intl';
 import { toast } from '@/hooks/useToast';
 import { NudgeToastContent } from '@/components/SignerToastContent';
 import { type BtcSigner, hasBtcSigning } from '@/lib/bitcoin-signers';
@@ -31,37 +32,66 @@ type OpType = 'sign' | 'encrypt' | 'decrypt';
  * Context-specific overrides for nudge toast descriptions.
  * Falls back to the central kind label registry for kinds not listed here.
  */
-const NUDGE_OVERRIDES: Record<number, string> = {
-  0: 'profile update',
-  1: 'post',
-  3: 'contact list update',
-  11: 'post',
-  8333: 'Bitcoin zap',
-  4932: 'webxdc sync',
-  10000: 'mute list update',
-  10001: 'pinned notes update',
-  10002: 'relay list update',
-  10003: 'bookmarks update',
-  10015: 'interests update',
-  10030: 'emoji list update',
-  20932: 'webxdc sync',
-  24242: 'file upload auth',
-  30000: 'user list update',
-  30078: 'app settings',
-  30315: 'status update',
-  31925: 'event RSVP',
-  39089: 'follow pack update',
-};
+const NUDGE_OVERRIDES: Record<number, MessageDescriptor> = defineMessages({
+  0: { id: 'signerNudge.subject.profileUpdate', defaultMessage: 'profile update' },
+  1: { id: 'signerNudge.subject.post', defaultMessage: 'post' },
+  3: { id: 'signerNudge.subject.contactListUpdate', defaultMessage: 'contact list update' },
+  11: { id: 'signerNudge.subject.post', defaultMessage: 'post' },
+  8333: { id: 'signerNudge.subject.bitcoinZap', defaultMessage: 'Bitcoin zap' },
+  4932: { id: 'signerNudge.subject.webxdcSync', defaultMessage: 'webxdc sync' },
+  10000: { id: 'signerNudge.subject.muteListUpdate', defaultMessage: 'mute list update' },
+  10001: { id: 'signerNudge.subject.pinnedNotesUpdate', defaultMessage: 'pinned notes update' },
+  10002: { id: 'signerNudge.subject.relayListUpdate', defaultMessage: 'relay list update' },
+  10003: { id: 'signerNudge.subject.bookmarksUpdate', defaultMessage: 'bookmarks update' },
+  10015: { id: 'signerNudge.subject.interestsUpdate', defaultMessage: 'interests update' },
+  10030: { id: 'signerNudge.subject.emojiListUpdate', defaultMessage: 'emoji list update' },
+  20932: { id: 'signerNudge.subject.webxdcSync', defaultMessage: 'webxdc sync' },
+  24242: { id: 'signerNudge.subject.fileUploadAuth', defaultMessage: 'file upload auth' },
+  30000: { id: 'signerNudge.subject.userListUpdate', defaultMessage: 'user list update' },
+  30078: { id: 'signerNudge.subject.appSettings', defaultMessage: 'app settings' },
+  30315: { id: 'signerNudge.subject.statusUpdate', defaultMessage: 'status update' },
+  31925: { id: 'signerNudge.subject.eventRsvp', defaultMessage: 'event RSVP' },
+  39089: { id: 'signerNudge.subject.followPackUpdate', defaultMessage: 'follow pack update' },
+});
 
-function labelForOp(kind: number | undefined, opType: OpType): string {
+const opMessages = defineMessages({
+  encrypt: { id: 'signerNudge.subject.encryption', defaultMessage: 'encryption' },
+  decrypt: { id: 'signerNudge.subject.decryption', defaultMessage: 'decryption' },
+  sign: { id: 'signerNudge.subject.signing', defaultMessage: 'signing' },
+});
+
+const toastMessages = defineMessages({
+  approve: { id: 'signerNudge.approveTitle', defaultMessage: 'Approve {subject}' },
+  relayUnreachable: { id: 'signerNudge.relayUnreachable', defaultMessage: 'Signer relay unreachable' },
+  relayUnreachableDescription: { id: 'signerNudge.relayUnreachableDescription', defaultMessage: 'Check your connection and try again.' },
+  autoApproveHint: { id: 'signerNudge.autoApproveHint', defaultMessage: 'Set to auto-approve for a smoother experience.' },
+  approveInApp: { id: 'signerNudge.approveInApp', defaultMessage: 'Approve the request in your signer app.' },
+});
+
+const successMessages = defineMessages({
+  encrypt: { id: 'signerNudge.approved.encryption', defaultMessage: 'Encryption approved' },
+  decrypt: { id: 'signerNudge.approved.decryption', defaultMessage: 'Decryption approved' },
+  sign: { id: 'signerNudge.approved.signing', defaultMessage: 'Signing approved' },
+});
+
+function labelForOp(intl: IntlShape, kind: number | undefined, opType: OpType): string {
   if (kind !== undefined) {
-    if (NUDGE_OVERRIDES[kind]) return NUDGE_OVERRIDES[kind];
-    const central = getKindLabel(kind, '');
-    if (central) return central.toLowerCase();
+    if (NUDGE_OVERRIDES[kind]) return intl.formatMessage(NUDGE_OVERRIDES[kind]);
+    const central = getKindLabel(intl, kind, '');
+    // Kind labels are title case; English reads better lowercased mid-sentence,
+    // but other languages (German nouns) must keep their casing.
+    if (central) return intl.locale.startsWith('en') ? central.toLowerCase() : central;
   }
-  if (opType === 'encrypt') return 'encryption';
-  if (opType === 'decrypt') return 'decryption';
-  return 'signing';
+  return intl.formatMessage(opMessages[opType]);
+}
+
+/**
+ * Nudge toast title. A component (rather than a string) because the toast is
+ * raised outside React and needs the active locale to name the operation.
+ */
+function NudgeToastTitle({ kind, opType }: { kind: number | undefined; opType: OpType }) {
+  const intl = useIntl();
+  return intl.formatMessage(toastMessages.approve, { subject: labelForOp(intl, kind, opType) });
 }
 
 // ---------------------------------------------------------------------------
@@ -102,7 +132,6 @@ function showNudgeToast(opts: {
   const { kind, opType, isBunkerConnected, onCancel } = opts;
   const android = isAndroid();
   const relayOk = isBunkerConnected ? isBunkerConnected() : true;
-  const subject = labelForOp(kind, opType);
 
   // Throttle: if a nudge was shown recently, return a no-op dismiss handle
   // to avoid a storm of rapidly replacing toasts on unstable connections.
@@ -112,18 +141,18 @@ function showNudgeToast(opts: {
   }
   lastNudgeShownAt = now;
 
-  let title: string;
-  let descriptionText: string;
+  let title: ReactNode;
+  let descriptionText: ReactNode;
 
   if (!relayOk) {
-    title = 'Signer relay unreachable';
-    descriptionText = 'Check your connection and try again.';
+    title = createElement(FormattedMessage, toastMessages.relayUnreachable);
+    descriptionText = createElement(FormattedMessage, toastMessages.relayUnreachableDescription);
   } else if (android) {
-    title = `Approve ${subject}`;
-    descriptionText = 'Set to auto-approve for a smoother experience.';
+    title = createElement(NudgeToastTitle, { kind, opType });
+    descriptionText = createElement(FormattedMessage, toastMessages.autoApproveHint);
   } else {
-    title = `Approve ${subject}`;
-    descriptionText = 'Approve the request in your signer app.';
+    title = createElement(NudgeToastTitle, { kind, opType });
+    descriptionText = createElement(FormattedMessage, toastMessages.approveInApp);
   }
 
   // We need to capture the dismiss function so the onCancel callback inside
@@ -147,8 +176,7 @@ function showNudgeToast(opts: {
 }
 
 function showSuccessToast(opType: OpType): void {
-  const verb = opType === 'encrypt' ? 'Encryption' : opType === 'decrypt' ? 'Decryption' : 'Signing';
-  toast({ title: `${verb} approved`, duration: 3000, variant: 'success' });
+  toast({ title: createElement(FormattedMessage, successMessages[opType]), duration: 3000, variant: 'success' });
 }
 
 

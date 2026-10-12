@@ -1,5 +1,13 @@
 import { Footprints, Loader2 } from 'lucide-react';
+import { defineMessages, FormattedMessage } from 'react-intl';
 import { cn } from '@/lib/utils';
+
+const AWAY_MESSAGES = defineMessages({
+  bringHomeShort: { id: 'blobbiAway.bringHome', defaultMessage: 'Bring home' },
+  exploringShort: { id: 'blobbiAway.exploring', defaultMessage: 'Out exploring with you' },
+  bringHome: { id: 'blobbiRoom.hero.bringHome', defaultMessage: 'Bring {name} home' },
+  exploring: { id: 'blobbiRoom.hero.exploring', defaultMessage: '{name} is out exploring right now.' },
+});
 
 const SIZE_PRESETS = {
   sm: {
@@ -9,8 +17,8 @@ const SIZE_PRESETS = {
     description: 'text-xs text-muted-foreground',
     button: 'flex items-center gap-2 px-4 py-2 rounded-full text-white text-xs font-semibold transition-all hover:-translate-y-0.5 hover:scale-105 active:scale-95',
     buttonIcon: 'size-3.5',
-    buttonLabel: (_name: string) => 'Bring home',
-    descriptionText: (_name: string) => 'Out exploring with you',
+    buttonLabel: AWAY_MESSAGES.bringHomeShort,
+    descriptionText: AWAY_MESSAGES.exploringShort,
   },
   md: {
     wrapper: 'flex flex-col items-center justify-center gap-6 text-center',
@@ -19,8 +27,8 @@ const SIZE_PRESETS = {
     description: 'text-muted-foreground text-sm',
     button: 'flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-full text-white font-semibold transition-all duration-300 ease-out hover:-translate-y-0.5 hover:scale-105 hover:brightness-110 active:scale-95',
     buttonIcon: 'size-5',
-    buttonLabel: (name: string) => `Bring ${name} home`,
-    descriptionText: (name: string) => `${name} is out exploring right now.`,
+    buttonLabel: AWAY_MESSAGES.bringHome,
+    descriptionText: AWAY_MESSAGES.exploring,
   },
 } as const;
 
@@ -43,7 +51,7 @@ export function BlobbiAwayState({ name, size = 'md', isUpdating, onBringHome }: 
     <div className={preset.wrapper}>
       <Footprints className={preset.icon} />
       {size === 'sm' && <span className={preset.name}>{name}</span>}
-      <p className={preset.description}>{preset.descriptionText(name)}</p>
+      <p className={preset.description}><FormattedMessage {...preset.descriptionText} values={{ name }} /></p>
       <button
         onClick={onBringHome}
         disabled={isUpdating}
@@ -53,7 +61,7 @@ export function BlobbiAwayState({ name, size = 'md', isUpdating, onBringHome }: 
         {isUpdating
           ? <Loader2 className={cn(preset.buttonIcon, 'animate-spin')} />
           : <Footprints className={preset.buttonIcon} />}
-        <span>{preset.buttonLabel(name)}</span>
+        <span><FormattedMessage {...preset.buttonLabel} values={{ name }} /></span>
       </button>
     </div>
   );

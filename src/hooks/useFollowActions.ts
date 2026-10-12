@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useIntl } from 'react-intl';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
@@ -86,6 +87,7 @@ export interface UseFollowActionsReturn {
  * 4. Preserves the `content` field (some clients store relay hints there).
  */
 export function useFollowActions(): UseFollowActionsReturn {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -119,11 +121,11 @@ export function useFollowActions(): UseFollowActionsReturn {
     // already rendered follows for this user — the reads went backwards, and
     // publishing now would drop every one of them.
     if (known && known.pubkeys.length > 0) {
-      throw new Error('Your follow list is still loading. Please try again in a moment.');
+      throw new Error(intl.formatMessage({ id: 'followActions.error.stillLoading', defaultMessage: 'Your follow list is still loading. Please try again in a moment.' }));
     }
 
     return null;
-  }, [nostr, user, queryClient, store]);
+  }, [nostr, user, queryClient, store, intl]);
 
   const mutateFollowList = useCallback(
     async (targetPubkey: string, action: 'follow' | 'unfollow') => {

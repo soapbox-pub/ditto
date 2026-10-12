@@ -139,7 +139,7 @@ export function WeatherStationCard({ value, compact = false }: WeatherStationCar
         <FormattedMessage
           id="weatherStation.updated"
           defaultMessage="Updated {time} ago"
-          values={{ time: timeAgo(data.observedAt) }}
+          values={{ time: timeAgo(data.observedAt, intl) }}
         />
       </p>
 

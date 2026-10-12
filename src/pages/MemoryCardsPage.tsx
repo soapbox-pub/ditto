@@ -340,7 +340,7 @@ function UploadCardDialog({
     const id = cardId.trim();
     const err = validateCardId(id);
     if (err) {
-      toast({ title: err, variant: 'destructive' });
+      toast({ title: intl.formatMessage(err), variant: 'destructive' });
       return;
     }
     setBusy(true);
@@ -365,7 +365,7 @@ function UploadCardDialog({
     } catch (e) {
       toast({
         title: intl.formatMessage({ id: 'memoryCards.upload.failed', defaultMessage: 'Upload failed' }),
-        description: String(e),
+        description: e instanceof Error ? e.message : String(e),
         variant: 'destructive',
       });
     } finally {
@@ -635,7 +635,7 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
     } catch (e) {
       toast({
         title: intl.formatMessage({ id: 'memoryCards.download.failed', defaultMessage: 'Download failed' }),
-        description: String(e),
+        description: e instanceof Error ? e.message : String(e),
         variant: 'destructive',
       });
     }
@@ -647,7 +647,7 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
     } catch (e) {
       toast({
         title: intl.formatMessage({ id: 'memoryCards.download.failed', defaultMessage: 'Download failed' }),
-        description: String(e),
+        description: e instanceof Error ? e.message : String(e),
         variant: 'destructive',
       });
     }
@@ -804,7 +804,7 @@ function CopyBlockDialog({
     const id = cardId.trim();
     const err = validateCardId(id);
     if (err) {
-      toast({ title: err, variant: 'destructive' });
+      toast({ title: intl.formatMessage(err), variant: 'destructive' });
       return;
     }
     setBusy(true);
@@ -823,7 +823,7 @@ function CopyBlockDialog({
     } catch (e) {
       toast({
         title: intl.formatMessage({ id: 'memoryCards.copy.failed', defaultMessage: 'Copy failed' }),
-        description: String(e),
+        description: e instanceof Error ? e.message : String(e),
         variant: 'destructive',
       });
     } finally {
@@ -914,7 +914,7 @@ function CloneCardDialog({
     const id = cardId.trim();
     const err = validateCardId(id);
     if (err) {
-      toast({ title: err, variant: 'destructive' });
+      toast({ title: intl.formatMessage(err), variant: 'destructive' });
       return;
     }
     setBusy(true);
@@ -936,7 +936,7 @@ function CloneCardDialog({
     } catch (e) {
       toast({
         title: intl.formatMessage({ id: 'memoryCards.clone.failed', defaultMessage: 'Clone failed' }),
-        description: String(e),
+        description: e instanceof Error ? e.message : String(e),
         variant: 'destructive',
       });
     } finally {

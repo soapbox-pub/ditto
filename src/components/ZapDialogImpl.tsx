@@ -171,8 +171,8 @@ const LightningZapContent = forwardRef<HTMLDivElement, LightningZapContentProps>
   // In USD mode `amountSats` is 0 until the BTC price lands, so fall back to
   // echoing the raw input ("$0.10") rather than rendering an empty label.
   const amountDisplay = amountSats > 0
-    ? formatMoneyAmount(amountSats, currency, btcPrice)
-    : formatAmountInput(amount, currency);
+    ? formatMoneyAmount(amountSats, currency, btcPrice, intl.locale)
+    : formatAmountInput(amount, currency, intl.locale);
 
   if (invoice) {
     return (

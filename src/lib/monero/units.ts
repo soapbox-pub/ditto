@@ -85,9 +85,9 @@ export function fiatToAtomic(fiat: number, xmrPrice: number): bigint {
   return parseXMR(xmr.toFixed(XMR_DECIMALS)) ?? 0n;
 }
 
-/** Format an atomic-unit amount as a localized fiat string. */
-export function atomicToUSD(atomicUnits: bigint, xmrPrice: number): string {
-  return atomicToFiat(atomicUnits, xmrPrice).toLocaleString('en-US', {
+/** Format an atomic-unit amount as a USD string for `locale` (e.g. `intl.locale`). */
+export function atomicToUSD(atomicUnits: bigint, xmrPrice: number, locale: string): string {
+  return atomicToFiat(atomicUnits, xmrPrice).toLocaleString(locale, {
     style: 'currency',
     currency: 'USD',
   });
@@ -137,9 +137,10 @@ export function formatMoneroAmount(
   atomicUnits: bigint,
   unit: MoneroDisplayUnit,
   xmrPrice: number | undefined,
+  locale: string,
 ): string {
   if (unit === 'usd' && xmrPrice && Number.isFinite(xmrPrice) && xmrPrice > 0) {
-    return atomicToUSD(atomicUnits, xmrPrice);
+    return atomicToUSD(atomicUnits, xmrPrice, locale);
   }
   return `${formatXMR(atomicUnits)} XMR`;
 }
@@ -155,11 +156,17 @@ export function formatMoneroAmount(
 export function formatMoneroAmountInput(
   value: number | string,
   unit: MoneroDisplayUnit,
+  locale: string,
 ): string {
   const amount = typeof value === 'string' ? parseFloat(value) : value;
   if (!Number.isFinite(amount) || amount <= 0) return '';
   if (unit === 'xmr') return `${amount} XMR`;
-  return amount < 1 ? `$${amount.toFixed(2)}` : `$${amount}`;
+  return amount.toLocaleString(locale, {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: amount < 1 ? 2 : 0,
+    maximumFractionDigits: amount < 1 ? 2 : 20,
+  });
 }
 
 /**

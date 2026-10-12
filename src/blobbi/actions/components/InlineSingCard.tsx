@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import { useAudioPlayback } from '../hooks/useAudioPlayback';
-import { getRandomLyrics, type LyricsEntry } from '../lib/blobbi-random-lyrics';
+import { formatLyrics, getRandomLyrics, type LyricsEntry } from '../lib/blobbi-random-lyrics';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -332,7 +332,7 @@ export function InlineSingCard({
         {showLyrics && currentLyrics && (
           <div className="px-3 pt-3 pb-2 border-b border-border/50">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">{currentLyrics.title}</span>
+              <span className="text-sm font-medium"><FormattedMessage {...currentLyrics.title} /></span>
               <Button
                 size="icon"
                 variant="ghost"
@@ -343,7 +343,7 @@ export function InlineSingCard({
               </Button>
             </div>
             <div className="p-3 rounded-lg bg-muted/50 text-sm leading-relaxed whitespace-pre-line max-h-32 overflow-y-auto">
-              {currentLyrics.lines.join('\n')}
+              {formatLyrics(intl, currentLyrics)}
             </div>
           </div>
         )}

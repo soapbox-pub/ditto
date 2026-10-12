@@ -63,7 +63,7 @@ export function EmbeddedArticleCard({ event, className, disableHoverCards, hideA
   const avatarShape = getAvatarShape(metadata);
 
   const { title, summary, image, imageImeta } = useMemo(() => extractArticleMeta(event), [event]);
-  const readingTime = useMemo(() => formatReadingTime(event.content), [event]);
+  const readingTime = useMemo(() => formatReadingTime(event.content, intl), [event, intl]);
 
   const naddrId = useMemo(() => {
     const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';

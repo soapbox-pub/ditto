@@ -581,7 +581,7 @@ function VoterRow({ vote, optionLabelMap, pollType, authorsMap }: VoterRowProps)
               {votedOptions.join(', ')}
             </span>
           )}
-          <span className="text-xs text-muted-foreground shrink-0">{timeAgo(vote.created_at)}</span>
+          <span className="text-xs text-muted-foreground shrink-0">{timeAgo(vote.created_at, intl)}</span>
         </div>
       </div>
 

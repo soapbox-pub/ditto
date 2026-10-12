@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FormattedMessage, defineMessages, type MessageDescriptor } from 'react-intl';
+import { FormattedMessage, defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -254,6 +254,7 @@ interface StationeryPickerProps {
 type Tab = 'presets' | 'colors' | 'themes';
 
 export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) {
+  const intl = useIntl();
   const [tab, setTab] = useState<Tab>('presets');
   const [scope, setScope] = useState<'everyone' | 'friends' | 'mine'>('everyone');
   const [infoOpen, setInfoOpen] = useState(false);
@@ -370,7 +371,7 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
                   <button
                     key={key}
                     onClick={() => onSelect(presetToStationery(key) ?? stationery)}
-                    title={preset.name}
+                    title={intl.formatMessage(preset.name)}
                     className="relative aspect-square rounded-2xl overflow-hidden transition-all hover:scale-105 active:scale-95"
                   >
                     <StationeryPreview

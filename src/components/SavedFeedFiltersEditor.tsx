@@ -690,7 +690,7 @@ export function SavedFeedFiltersEditor({
   kindOptions: kindOptionsProp,
 }: SavedFeedFiltersEditorProps) {
   const intl = useIntl();
-  const kindOptions = useMemo(() => kindOptionsProp ?? buildKindOptions(), [kindOptionsProp]);
+  const kindOptions = useMemo(() => kindOptionsProp ?? buildKindOptions(intl), [kindOptionsProp, intl]);
   const { lists } = useUserLists();
   const { data: followPacks = [] } = useFollowPacks();
 

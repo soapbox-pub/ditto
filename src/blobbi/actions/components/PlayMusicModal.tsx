@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import {
   getAllTracks,
   formatTrackDuration,
+  formatTrackTitle,
   type BlobbiTrack,
 } from '../lib/blobbi-track-catalog';
 
@@ -210,7 +211,7 @@ export function PlayMusicModal({
                   )}
                 </Button>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate text-sm">{selectedTrack.track.title}</p>
+                  <p className="font-medium truncate text-sm">{formatTrackTitle(intl, selectedTrack.track)}</p>
                   <p className="text-xs text-muted-foreground">
                     {isPlaying ? (
                       <FormattedMessage id="playMusic.nowPlaying" defaultMessage="Now playing..." />
@@ -269,6 +270,7 @@ interface TrackRowProps {
 }
 
 function TrackRow({ track, isSelected, onSelect }: TrackRowProps) {
+  const intl = useIntl();
   return (
     <button
       type="button"
@@ -292,7 +294,7 @@ function TrackRow({ track, isSelected, onSelect }: TrackRowProps) {
           )} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-medium truncate">{track.title}</p>
+          <p className="font-medium truncate">{formatTrackTitle(intl, track)}</p>
           <p className="text-sm text-muted-foreground">{track.artist}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

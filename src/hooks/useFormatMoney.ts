@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useIntl } from 'react-intl';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { fetchBtcPrice, satsToUSD } from '@/lib/bitcoinMoney';
@@ -50,6 +51,7 @@ export interface FormatMoneyResult {
  */
 export function useFormatMoney(): FormatMoneyResult {
   const { config } = useAppContext();
+  const intl = useIntl();
   const currency: CurrencyDisplay = config.currencyDisplay ?? 'usd';
 
   // On-demand price fetching. The query stays disabled until a caller actually
@@ -108,7 +110,7 @@ export function useFormatMoney(): FormatMoneyResult {
       // for a non-zero zap; show the cent value so the user sees that any zap
       // happened.
       if (currency === 'usd' && btcPrice && Number.isFinite(btcPrice) && btcPrice > 0) {
-        return satsToUSD(sats, btcPrice);
+        return satsToUSD(sats, btcPrice, intl.locale);
       }
 
       // Sats mode, or USD mode without a price → render sats.
@@ -117,7 +119,7 @@ export function useFormatMoney(): FormatMoneyResult {
       }
       return `${formatNumber(sats)} ${sats === 1 ? 'sat' : 'sats'}`;
     },
-    [currency, btcPrice],
+    [currency, btcPrice, intl.locale],
   );
 
   return { format, currency, btcPrice };

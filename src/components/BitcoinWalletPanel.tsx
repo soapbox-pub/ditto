@@ -83,7 +83,7 @@ export function BitcoinWalletPanel({ initialSendUri }: BitcoinWalletPanelProps =
       ) : addressData ? (
         <div className="flex flex-col items-center space-y-1">
           <span className="text-4xl font-bold tracking-tight">
-            {btcPrice ? satsToUSD(addressData.totalBalance, btcPrice) : '---'}
+            {btcPrice ? satsToUSD(addressData.totalBalance, btcPrice, intl.locale) : '---'}
           </span>
           <span className="text-sm text-muted-foreground">
             {formatBTC(addressData.totalBalance)} BTC
@@ -95,7 +95,7 @@ export function BitcoinWalletPanel({ initialSendUri }: BitcoinWalletPanelProps =
               {btcPrice
                 ? intl.formatMessage(
                   { id: 'bitcoinWallet.pendingAmount', defaultMessage: '{amount} pending' },
-                  { amount: satsToUSD(addressData.pendingBalance, btcPrice) },
+                  { amount: satsToUSD(addressData.pendingBalance, btcPrice, intl.locale) },
                 )
                 : intl.formatMessage({ id: 'bitcoinWallet.pending', defaultMessage: 'pending' })}
             </span>
@@ -234,7 +234,7 @@ function TxRow({ tx, btcPrice }: { tx: Transaction; btcPrice?: number }) {
           }`}
         >
           {isReceive ? '+' : '-'}
-          {btcPrice ? satsToUSD(tx.amount, btcPrice) : `${formatBTC(tx.amount)} BTC`}
+          {btcPrice ? satsToUSD(tx.amount, btcPrice, intl.locale) : `${formatBTC(tx.amount)} BTC`}
         </p>
         <p className="text-xs text-muted-foreground">{formatBTC(tx.amount)} BTC</p>
       </div>

@@ -11,7 +11,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { getEventFallbackText } from '@/lib/extraKinds';
-import { getKindLabel } from '@/lib/kindLabels';
+import { getKindLabel, KIND_LABELS } from '@/lib/kindLabels';
 import { encodeEventAddress } from '@/lib/encodeEvent';
 import { cn } from '@/lib/utils';
 
@@ -95,9 +95,9 @@ export function UnknownKindContent({ event, expanded = false, className }: Unkno
   const fallbackText = getEventFallbackText(event);
   // getKindLabel falls back to "Kind <n>" for kinds absent from the registry,
   // so this is always a meaningful noun phrase.
-  const label = getKindLabel(event.kind);
+  const label = getKindLabel(intl, event.kind);
   // Avoid a redundant "Kind 1234" chip when the label already *is* "Kind 1234".
-  const showKindChip = label !== `Kind ${event.kind}`;
+  const showKindChip = KIND_LABELS[event.kind] !== undefined;
 
   const nip19Id = encodeEventAddress(event);
   const jsonText = JSON.stringify(event, null, 2);

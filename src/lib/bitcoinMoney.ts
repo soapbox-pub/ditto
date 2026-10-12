@@ -25,9 +25,9 @@ export function formatBTC(sats: number): string {
   return satsToBTC(sats).replace(/\.?0+$/, '');
 }
 
-/** Format a satoshi amount with locale-aware thousand separators. */
-export function formatSats(sats: number): string {
-  return sats.toLocaleString();
+/** Format a satoshi amount with thousand separators for the given locale (e.g. `intl.locale`). */
+export function formatSats(sats: number, locale: string): string {
+  return sats.toLocaleString(locale);
 }
 
 /**
@@ -82,10 +82,10 @@ export function isLargeAmount(sats: number, btcPrice: number | undefined): boole
   return usd >= LARGE_AMOUNT_USD_THRESHOLD;
 }
 
-/** Convert satoshis to USD given a BTC price. */
-export function satsToUSD(sats: number, btcPrice: number): string {
+/** Convert satoshis to a USD display string given a BTC price, formatted for `locale` (e.g. `intl.locale`). */
+export function satsToUSD(sats: number, btcPrice: number, locale: string): string {
   const btc = sats / 100_000_000;
-  return (btc * btcPrice).toLocaleString('en-US', {
+  return (btc * btcPrice).toLocaleString(locale, {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
@@ -105,8 +105,8 @@ export function usdToSats(usd: number, btcPrice: number): number {
  * abbreviates. Payment surfaces show the precise amount being spent, so
  * `"21k sats"` would be the wrong level of detail on a send button.
  */
-export function formatSatsAmount(sats: number): string {
-  return `${formatSats(sats)} ${sats === 1 ? 'sat' : 'sats'}`;
+export function formatSatsAmount(sats: number, locale: string): string {
+  return `${formatSats(sats, locale)} ${sats === 1 ? 'sat' : 'sats'}`;
 }
 
 /**
@@ -118,11 +118,12 @@ export function formatMoneyAmount(
   sats: number,
   currency: CurrencyDisplay,
   btcPrice: number | undefined,
+  locale: string,
 ): string {
   if (currency === 'usd' && btcPrice && Number.isFinite(btcPrice) && btcPrice > 0) {
-    return satsToUSD(sats, btcPrice);
+    return satsToUSD(sats, btcPrice, locale);
   }
-  return formatSatsAmount(sats);
+  return formatSatsAmount(sats, locale);
 }
 
 /**
@@ -152,11 +153,16 @@ export function amountInputToSats(
  * and `amountInputToSats` still returns 0 — the send button can echo what the
  * user typed instead of going blank. Returns `""` for a blank or invalid value.
  */
-export function formatAmountInput(value: number | string, currency: CurrencyDisplay): string {
+export function formatAmountInput(value: number | string, currency: CurrencyDisplay, locale: string): string {
   const amount = typeof value === 'string' ? parseFloat(value) : value;
   if (!Number.isFinite(amount) || amount <= 0) return '';
-  if (currency === 'sats') return formatSatsAmount(Math.round(amount));
-  return amount < 1 ? `$${amount.toFixed(2)}` : `$${amount}`;
+  if (currency === 'sats') return formatSatsAmount(Math.round(amount), locale);
+  return amount.toLocaleString(locale, {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: amount < 1 ? 2 : 0,
+    maximumFractionDigits: amount < 1 ? 2 : 20,
+  });
 }
 
 /**

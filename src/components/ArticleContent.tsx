@@ -33,7 +33,7 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
   const image = sanitizeUrl(rawImage);
   const imageImeta = rawImage ? parseImetaMap(event.tags).get(rawImage) : undefined;
   const hashtags = event.tags.filter(([n]) => n === 't').map(([, v]) => v);
-  const readingTime = formatReadingTime(event.content);
+  const readingTime = formatReadingTime(event.content, intl);
 
   if (preview) {
     return (

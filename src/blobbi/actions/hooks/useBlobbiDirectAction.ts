@@ -1,6 +1,7 @@
 // src/blobbi/actions/hooks/useBlobbiDirectAction.ts
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useIntl } from 'react-intl';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -17,13 +18,14 @@ import {
   clampStat,
   applyStat,
   DIRECT_ACTION_METADATA,
+  ACTION_ERROR_MESSAGES,
   type DirectAction,
 } from '../lib/blobbi-action-utils';
 import { trackMultipleDailyMissionActions, trackEvolutionMissionTally, readEvolutionFromStorage } from '@blobbi-kit/react/lib/daily-mission-tracker';
 import type { DailyMissionAction } from '@blobbi-kit/react/lib/daily-missions';
 import { serializeEvolutionContent } from '@blobbi-kit/core/missions';
 import { getStreakTagUpdates } from '@blobbi-kit/react/lib/blobbi-streak';
-import { calculateActionXP, applyXPGain, formatXPGain } from '@blobbi-kit/react/lib/blobbi-xp';
+import { calculateActionXP, applyXPGain } from '@blobbi-kit/react/lib/blobbi-xp';
 import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@blobbi-kit/core/blobbi-interaction';
 
 // Import NostrEvent type
@@ -94,22 +96,23 @@ export function useBlobbiDirectAction({
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
+  const intl = useIntl();
 
   return useMutation({
     mutationFn: async ({ action }: DirectActionRequest): Promise<DirectActionResult> => {
       // ─── Validation ───
       if (!user?.pubkey) {
-        throw new Error('You must be logged in to perform actions');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.notLoggedInActions));
       }
 
       if (!companion) {
-        throw new Error('No companion selected');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.noCompanion));
       }
 
       // ─── Ensure Canonical Before Action ───
       const canonical = await ensureCanonicalBeforeAction();
       if (!canonical) {
-        throw new Error('Failed to prepare companion for action');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.prepareFailed));
       }
 
       // ─── Apply Accumulated Decay First ───
@@ -228,10 +231,15 @@ export function useBlobbiDirectAction({
     },
     onSuccess: ({ action, happinessChange, xpGained }) => {
       const actionMeta = DIRECT_ACTION_METADATA[action];
-      const xpText = formatXPGain(xpGained);
       toast({
-        title: `${actionMeta.label} complete!`,
-        description: `Your Blobbi's happiness increased by ${happinessChange}! ${xpText}`,
+        title: intl.formatMessage(
+          { id: 'blobbiAction.directAction.title', defaultMessage: '{action} complete!' },
+          { action: intl.formatMessage(actionMeta.label) },
+        ),
+        description: intl.formatMessage(
+          { id: 'blobbiAction.directAction.description', defaultMessage: "Your Blobbi's happiness increased by {happinessChange}! {xp, plural, =0 {} other {+# XP}}" },
+          { happinessChange, xp: Math.max(0, xpGained) },
+        ),
       });
 
       // Track daily mission progress
@@ -243,7 +251,7 @@ export function useBlobbiDirectAction({
     },
     onError: (error: Error) => {
       toast({
-        title: 'Action failed',
+        title: intl.formatMessage({ id: 'blobbiAction.actionFailed', defaultMessage: 'Action failed' }),
         description: error.message,
         variant: 'destructive',
       });

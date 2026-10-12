@@ -83,7 +83,7 @@ function getPromptTitle(prompt: NsitePromptState, intl: IntlShape): string {
     case 'signEvent':
       if (record && record !== 'unknown') return intl.formatMessage(messages.write, { label: formatNsiteRecord(record, intl) });
       return kind !== null
-        ? intl.formatMessage(messages.signKind, { label: getKindLabel(kind) })
+        ? intl.formatMessage(messages.signKind, { label: getKindLabel(intl, kind) })
         : intl.formatMessage(messages.signEvent);
     case 'nip04.encrypt':
       return intl.formatMessage(messages.nip04Encrypt);

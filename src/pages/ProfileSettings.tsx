@@ -7,7 +7,7 @@ import {
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useNostrLogin } from '@nostrify/react/login';
-import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
+import { defineMessage, FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 
 import { saveNsec } from '@/lib/credentialManager';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
@@ -1012,19 +1012,19 @@ export function ProfileSettings() {
 
 /** i18n key suffixes and English month names, in calendar order. */
 const MONTHS = [
-  { key: 'january', name: 'January' },
-  { key: 'february', name: 'February' },
-  { key: 'march', name: 'March' },
-  { key: 'april', name: 'April' },
-  { key: 'may', name: 'May' },
-  { key: 'june', name: 'June' },
-  { key: 'july', name: 'July' },
-  { key: 'august', name: 'August' },
-  { key: 'september', name: 'September' },
-  { key: 'october', name: 'October' },
-  { key: 'november', name: 'November' },
-  { key: 'december', name: 'December' },
-] as const;
+  defineMessage({ id: 'settings.profile.birthday.months.january', defaultMessage: 'January' }),
+  defineMessage({ id: 'settings.profile.birthday.months.february', defaultMessage: 'February' }),
+  defineMessage({ id: 'settings.profile.birthday.months.march', defaultMessage: 'March' }),
+  defineMessage({ id: 'settings.profile.birthday.months.april', defaultMessage: 'April' }),
+  defineMessage({ id: 'settings.profile.birthday.months.may', defaultMessage: 'May' }),
+  defineMessage({ id: 'settings.profile.birthday.months.june', defaultMessage: 'June' }),
+  defineMessage({ id: 'settings.profile.birthday.months.july', defaultMessage: 'July' }),
+  defineMessage({ id: 'settings.profile.birthday.months.august', defaultMessage: 'August' }),
+  defineMessage({ id: 'settings.profile.birthday.months.september', defaultMessage: 'September' }),
+  defineMessage({ id: 'settings.profile.birthday.months.october', defaultMessage: 'October' }),
+  defineMessage({ id: 'settings.profile.birthday.months.november', defaultMessage: 'November' }),
+  defineMessage({ id: 'settings.profile.birthday.months.december', defaultMessage: 'December' }),
+];
 
 /**
  * Standalone NIP-24 birthday editor.
@@ -1151,7 +1151,7 @@ function BirthdaySection() {
 
   const dayCount = daysInMonth(month);
 
-  const monthNames = MONTHS.map((m) => intl.formatMessage({ id: `settings.profile.birthday.months.${m.key}`, defaultMessage: m.name }));
+  const monthNames = MONTHS.map((m) => intl.formatMessage(m));
 
   return (
     <div className="space-y-3">

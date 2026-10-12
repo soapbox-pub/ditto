@@ -13,7 +13,7 @@ import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { isFullUrl, detectIdentifier, type IdentifierMatch } from '@/lib/nostrIdentifier';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getProfileUrl } from '@/lib/profileUrl';
-import { searchCountry, type CountryEntry } from '@/lib/countries';
+import { countryName, searchCountry, type CountryEntry } from '@/lib/countries';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { useQueryClient } from '@tanstack/react-query';
@@ -28,7 +28,7 @@ import { BlockedSearchNotice } from '@/components/BlockedSearchNotice';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { SearchEventResultItem } from '@/components/SearchEventResultItem';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
-import { searchSidebarItems, type SidebarItemDef } from '@/lib/sidebarItems';
+import { formatItemLabel, searchSidebarItems, type SidebarItemDef } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 
 interface ProfileSearchDropdownProps {
@@ -79,7 +79,7 @@ export function ProfileSearchDropdown({
   const countryMatch = hideCountry ? null : countryMatchRaw;
 
   // Nav item suggestions (local, synchronous)
-  const navItems = useMemo(() => searchSidebarItems(query), [query]);
+  const navItems = useMemo(() => searchSidebarItems(query, intl), [query, intl]);
 
   // URL detection — show "Comment on" option when query is a full URL
   const queryIsUrl = useMemo(() => isFullUrl(query), [query]);
@@ -560,7 +560,7 @@ function NavItem({
   onClick: (item: SidebarItemDef) => void;
 }) {
   const intl = useIntl();
-  const label = intl.formatMessage({ id: `nav.${item.id}`, defaultMessage: item.label });
+  const label = formatItemLabel(intl, item.id);
   const Icon = item.icon;
 
   return (
@@ -914,12 +914,12 @@ function CountryItem({
       onMouseDown={(e) => e.preventDefault()}
     >
       <div className="size-10 shrink-0 rounded-full bg-secondary flex items-center justify-center">
-        <span className="text-lg leading-none" role="img" aria-label={intl.formatMessage({ id: 'commentContext.flagOf', defaultMessage: 'Flag of {country}' }, { country: country.name })}>
+        <span className="text-lg leading-none" role="img" aria-label={intl.formatMessage({ id: 'commentContext.flagOf', defaultMessage: 'Flag of {country}' }, { country: countryName(intl, country.code) })}>
           {country.flag}
         </span>
       </div>
       <div className="flex-1 min-w-0">
-        <span className="font-semibold text-sm truncate">{country.name}</span>
+        <span className="font-semibold text-sm truncate">{countryName(intl, country.code)}</span>
         <div className="text-xs text-muted-foreground">{country.code}</div>
       </div>
     </button>

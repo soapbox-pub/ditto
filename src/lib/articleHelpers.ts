@@ -1,4 +1,5 @@
 import type { NostrEvent } from '@nostrify/nostrify';
+import type { IntlShape } from 'react-intl';
 
 /**
  * Addressable kinds that render with the long-form article preview layout:
@@ -96,8 +97,8 @@ export function getReadingTimeMinutes(content: string): number {
 }
 
 /** Format a reading-time estimate as a short human label, e.g. "5 min read". */
-export function formatReadingTime(content: string): string | undefined {
+export function formatReadingTime(content: string, intl: IntlShape): string | undefined {
   const minutes = getReadingTimeMinutes(content);
   if (minutes === 0) return undefined;
-  return `${minutes} min read`;
+  return intl.formatMessage({ id: 'articleEditor.readingTime', defaultMessage: '{count} min read' }, { count: minutes });
 }

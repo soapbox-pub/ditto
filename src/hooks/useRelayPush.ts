@@ -1,10 +1,11 @@
 import { useNostr } from '@nostrify/react';
 import { useCallback, useMemo, useState } from 'react';
+import { useIntl } from 'react-intl';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveRelays } from '@/lib/appRelays';
 import { getRelaySyncState, markPushed, pushedLookup, type RelayProgress } from '@/lib/dataTransfer';
-import { describeError, pushRelayEvents } from '@/lib/relayTransfer';
+import { describeCancelled, describeError, pushRelayEvents } from '@/lib/relayTransfer';
 
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -23,6 +24,7 @@ const MARK_FLUSH_EVERY = 200;
  * shows the error while the others carry on.
  */
 export function useRelayPush() {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { config } = useAppContext();
 
@@ -81,16 +83,16 @@ export function useRelayPush() {
           if (buffered.length) markPushed(pubkey, url, buffered);
 
           if (signal.aborted) {
-            patch(url, (prev) => ({ ...prev, phase: 'error', error: 'Cancelled' }));
+            patch(url, (prev) => ({ ...prev, phase: 'error', error: describeCancelled(intl) }));
             return;
           }
-          patch(url, (prev) => ({ ...prev, phase: 'error', error: describeError(error) }));
+          patch(url, (prev) => ({ ...prev, phase: 'error', error: describeError(error, intl) }));
         }
       };
 
       await Promise.all(writeRelayUrls.map(pushOne));
     },
-    [nostr, patch, writeRelayUrls],
+    [nostr, patch, writeRelayUrls, intl],
   );
 
   return { relays, push, reset };

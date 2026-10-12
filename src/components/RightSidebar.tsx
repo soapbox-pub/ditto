@@ -226,7 +226,7 @@ function HotPostCard({ event }: { event: NostrEvent }) {
             <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
           ) : displayName}
         </span>
-        <span className="text-xs text-muted-foreground shrink-0">· {timeAgo(event.created_at)}</span>
+        <span className="text-xs text-muted-foreground shrink-0">· {timeAgo(event.created_at, intl)}</span>
       </div>
       <p className="text-[13px] text-muted-foreground leading-snug line-clamp-2">{snippet}</p>
     </button>

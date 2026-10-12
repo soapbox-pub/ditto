@@ -1,10 +1,12 @@
 import { type ReactNode } from 'react';
+import { useIntl, type IntlShape } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { Heart, MessageCircle, Repeat2 } from 'lucide-react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatNumber } from '@/lib/formatNumber';
+import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useOpenPost } from '@/hooks/useOpenPost';
 
@@ -54,18 +56,8 @@ export interface ExternalPostData {
 }
 
 /** Format an ISO date string into a relative or short date. */
-function formatDate(iso: string): string {
-  const date = new Date(iso);
-  const now = Date.now();
-  const diffSec = Math.floor((now - date.getTime()) / 1000);
-
-  if (diffSec < 60) return `${diffSec}s`;
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m`;
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h`;
-  if (diffSec < 604800) return `${Math.floor(diffSec / 86400)}d`;
-  if (diffSec < 2592000) return `${Math.floor(diffSec / 604800)}w`;
-
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+function formatDate(iso: string, intl: IntlShape): string {
+  return timeAgo(Math.floor(new Date(iso).getTime() / 1000), intl);
 }
 
 interface ExternalPostCardProps {
@@ -82,6 +74,7 @@ interface ExternalPostCardProps {
  * Clicking the avatar or display name navigates to `/i/{profileUrl}`.
  */
 export function ExternalPostCard({ post, hideImage, className }: ExternalPostCardProps) {
+  const intl = useIntl();
   const navigate = useNavigate();
   const { onClick: openCard, onAuxClick: auxOpenCard } = useOpenPost(`/i/${encodeURIComponent(post.postUrl)}`);
 
@@ -187,7 +180,7 @@ export function ExternalPostCard({ post, hideImage, className }: ExternalPostCar
           </span>
 
           <span className="text-xs text-muted-foreground shrink-0">
-            · {formatDate(post.createdAt)}
+            · {formatDate(post.createdAt, intl)}
           </span>
         </div>
 

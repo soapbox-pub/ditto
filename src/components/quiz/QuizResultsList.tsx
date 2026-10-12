@@ -119,6 +119,7 @@ function ResultsHeading({ count }: { count?: number }) {
 
 /** One taker's result: avatar, name, outcome labels, age. */
 function ResultRow({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
@@ -156,7 +157,7 @@ function ResultRow({ event }: { event: NostrEvent }) {
           decoding="async"
         />
       )}
-      <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(event.created_at)}</span>
+      <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(event.created_at, intl)}</span>
     </>
   );
 

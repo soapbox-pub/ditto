@@ -59,7 +59,7 @@ function ListingDetail({ listing, className }: { listing: ParsedClassifiedListin
   const mainImage = selected && images.includes(selected) ? selected : images[0];
 
   const isSold = status === 'sold';
-  const priceLabel = price ? formatListingPrice(price) : undefined;
+  const priceLabel = price ? formatListingPrice(price, intl.locale) : undefined;
   const host = sourceUrl ? displayHost(sourceUrl) : undefined;
 
   return (
@@ -203,10 +203,11 @@ function ListingDetail({ listing, className }: { listing: ParsedClassifiedListin
  * not as an article.
  */
 function ListingFeedCard({ listing, className }: { listing: ParsedClassifiedListing; className?: string }) {
+  const intl = useIntl();
   const { title, images, price, status, location } = listing;
   const cover = images[0];
   const isSold = status === 'sold';
-  const priceLabel = price ? formatListingPrice(price) : undefined;
+  const priceLabel = price ? formatListingPrice(price, intl.locale) : undefined;
 
   return (
     <div

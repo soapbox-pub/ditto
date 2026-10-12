@@ -1,7 +1,7 @@
 import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { BookMarked, Loader2, Search, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FormattedMessage, useIntl } from "react-intl";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { defineMessage, FormattedMessage, useIntl } from "react-intl";
 import { useNavigate } from "react-router-dom";
 import { LazyFeedItem } from "@/components/LazyFeedItem";
 import { BookFeedItem, BookFeedItemSkeleton } from "@/components/BookFeedItem";
@@ -28,24 +28,25 @@ import type { ExtraKindDef } from "@/lib/extraKinds";
 
 type FeedTab = "follows" | "global";
 
+const booksDef: ExtraKindDef = {
+  kind: 31985,
+  id: "books",
+  label: defineMessage({ id: "books.title", defaultMessage: "Books" }),
+  description: defineMessage({ id: "books.description", defaultMessage: "Book reviews and discussions" }),
+  addressable: true,
+  section: "social",
+  blurb: defineMessage({
+    id: "books.blurb",
+    defaultMessage: "Discover book reviews, ratings, and discussions from the Nostr community. Track your reading and share your thoughts using the Bookstr protocol.",
+  }),
+  sites: [{ url: "https://bookstr.xyz/", name: "Bookstr" }],
+};
+
 export function BooksPage() {
   const intl = useIntl();
   const { config } = useAppContext();
   const booksLabel = intl.formatMessage({ id: "books.title", defaultMessage: "Books" });
 
-  const booksDef = useMemo<ExtraKindDef>(() => ({
-    kind: 31985,
-    id: "books",
-    label: booksLabel,
-    description: intl.formatMessage({ id: "books.description", defaultMessage: "Book reviews and discussions" }),
-    addressable: true,
-    section: "social",
-    blurb: intl.formatMessage({
-      id: "books.blurb",
-      defaultMessage: "Discover book reviews, ratings, and discussions from the Nostr community. Track your reading and share your thoughts using the Bookstr protocol.",
-    }),
-    sites: [{ url: "https://bookstr.xyz/", name: "Bookstr" }],
-  }), [intl, booksLabel]);
   const { user } = useCurrentUser();
 
   const [activeTab, setActiveTab] = useFeedTab<FeedTab>("books", [

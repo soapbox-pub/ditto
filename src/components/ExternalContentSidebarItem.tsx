@@ -54,11 +54,12 @@ function ExternalSidebarIcon({ id }: { id: string }) {
 }
 
 function ExternalSidebarLabel({ id }: { id: string }) {
+  const intl = useIntl();
   const content = useMemo(() => parseExternalUri(id), [id]);
   const isbn = content.type === 'isbn' ? content.value.replace('isbn:', '') : null;
   const { data: book } = useBookInfo(isbn);
 
-  const label = content.type === 'isbn' && book?.title ? book.title : headerLabel(content);
+  const label = content.type === 'isbn' && book?.title ? book.title : headerLabel(content, intl);
 
   return <span className="truncate">{label}</span>;
 }

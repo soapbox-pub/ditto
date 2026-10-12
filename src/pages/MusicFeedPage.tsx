@@ -12,6 +12,7 @@ export function MusicFeedPage() {
     <KindFeedPage
       kind={[36787, 34139]}
       title={intl.formatMessage({ id: 'musicFeed.title', defaultMessage: 'Music' })}
+      feedId="music"
       icon={sidebarItemIcon('music', 'size-5')}
       kindDef={musicDef}
       emptyMessage={intl.formatMessage({ id: 'musicFeed.empty', defaultMessage: 'No music yet. Check back soon!' })}

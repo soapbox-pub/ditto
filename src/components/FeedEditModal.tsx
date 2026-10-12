@@ -88,7 +88,7 @@ export function FeedEditModal({
     () => FEED_SCOPES.map((opt) => ({ ...opt, label: intl.formatMessage(scopeMessages[opt.value]) })),
     [intl],
   );
-  const kindOptions = useMemo(() => buildKindOptions(), []);
+  const kindOptions = useMemo(() => buildKindOptions(intl), [intl]);
   const { lists } = useUserLists();
   const { data: followPacks = [] } = useFollowPacks();
   const { user } = useCurrentUser();

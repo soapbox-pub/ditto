@@ -32,6 +32,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 
 import { cn } from '@/lib/utils';
+import { formatShopItemName } from '@/blobbi/shop/lib/blobbi-shop-items';
 import type { CompanionItem, CompanionMenuAction } from './types';
 import type { Position } from '../types/companion.types';
 
@@ -365,7 +366,7 @@ function ReleasedItem({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
       role={canInteract ? 'button' : undefined}
-      aria-label={canInteract ? intl.formatMessage({ id: 'hangingItems.landedItemLabel', defaultMessage: '{name} on ground. Click or drag to Blobbi to use.' }, { name: item.name }) : undefined}
+      aria-label={canInteract ? intl.formatMessage({ id: 'hangingItems.landedItemLabel', defaultMessage: '{name} on ground. Click or drag to Blobbi to use.' }, { name: formatShopItemName(intl, item) }) : undefined}
     >
       <span
         style={{ 
@@ -1100,8 +1101,8 @@ export function HangingItems({
                       marginLeft: (HANGING_CONFIG.circleSize / 2) * -1 + HANGING_CONFIG.lineWidth / 2,
                     }}
                     onClick={() => handleItemClick(item, itemX)}
-                    title={item.name}
-                    aria-label={intl.formatMessage({ id: 'hangingItems.hangingItemLabel', defaultMessage: '{name}. Click to release.' }, { name: item.name })}
+                    title={formatShopItemName(intl, item)}
+                    aria-label={intl.formatMessage({ id: 'hangingItems.hangingItemLabel', defaultMessage: '{name}. Click to release.' }, { name: formatShopItemName(intl, item) })}
                   >
                     {/* Item emoji */}
                     <span 

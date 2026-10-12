@@ -1,4 +1,5 @@
 import { useNostr } from '@nostrify/react';
+import { useIntl, type IntlShape } from 'react-intl';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAY } from '@/lib/appRelays';
@@ -40,14 +41,14 @@ function snapToHour(seconds: number): number {
  * Generate daily time buckets for the past N days, snapped to hour boundaries
  * for stable query keys. Returned oldest → newest.
  */
-function dailyBuckets(days: number): Array<{ since: number; until: number; label: string }> {
+function dailyBuckets(days: number, intl: IntlShape): Array<{ since: number; until: number; label: string }> {
   const now = snapToHour(Math.floor(Date.now() / 1000));
   const buckets: Array<{ since: number; until: number; label: string }> = [];
 
   for (let i = days - 1; i >= 0; i--) {
     const until = now - i * DAY;
     const since = until - DAY;
-    const label = new Date(until * 1000).toLocaleDateString('en-US', {
+    const label = intl.formatDate(new Date(until * 1000), {
       month: 'short',
       day: 'numeric',
     });
@@ -74,9 +75,10 @@ function dailyBuckets(days: number): Array<{ since: number; until: number; label
  */
 export function useClientMetrics(clientTags: string[]) {
   const { nostr } = useNostr();
+  const intl = useIntl();
 
   return useQuery({
-    queryKey: ['client-metrics', clientTags],
+    queryKey: ['client-metrics', clientTags, intl.locale],
     queryFn: async (c): Promise<ClientMetrics> => {
       const relay = nostr.relay(DITTO_RELAY);
       if (!relay.count) {
@@ -85,7 +87,7 @@ export function useClientMetrics(clientTags: string[]) {
 
       const clientFilter: Partial<NostrFilter> = { '#client': clientTags };
       const now = snapToHour(Math.floor(Date.now() / 1000));
-      const buckets = dailyBuckets(30);
+      const buckets = dailyBuckets(30, intl);
 
       const [mauResult, seriesResults] = await Promise.all([
         relay.count(

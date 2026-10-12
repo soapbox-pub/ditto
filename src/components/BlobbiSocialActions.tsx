@@ -45,7 +45,7 @@ import {
   hasHappinessEffectForEgg,
   type InventoryAction,
 } from '@/blobbi/actions/lib/blobbi-action-utils';
-import { getLiveShopItems, getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+import { getLiveShopItems, getShopItemById, formatShopItemName } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { ItemCarousel, type CarouselEntry } from '@/blobbi/rooms/components/ItemCarousel';
 import type { BlobbiStats } from '@blobbi-kit/core/blobbi';
 
@@ -285,11 +285,11 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
         if (activeAction === 'medicine' && !hasMedicineEffectForEgg(shopItem.effect)) continue;
         if (activeAction === 'clean' && !hasHygieneEffectForEgg(shopItem.effect) && !hasHappinessEffectForEgg(shopItem.effect)) continue;
       }
-      entries.push({ id: shopItem.id, icon: <span>{shopItem.icon}</span>, label: shopItem.name });
+      entries.push({ id: shopItem.id, icon: <span>{shopItem.icon}</span>, label: formatShopItemName(intl, shopItem) });
     }
 
     return entries;
-  }, [activeAction, companion]);
+  }, [activeAction, companion, intl]);
 
   // ── Guard ──
   if (!user || !companion) return null;
@@ -344,7 +344,7 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
                     )}
                   >
                     <span className="text-base leading-none">{meta.icon}</span>
-                    <span>{meta.label}</span>
+                    <span><FormattedMessage {...meta.label} /></span>
                   </button>
                 );
               })}
@@ -366,7 +366,7 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
               </button>
               <span className="text-sm font-medium ml-auto">
                 {activeAction && ACTION_METADATA[activeAction].icon}{' '}
-                {activeAction && ACTION_METADATA[activeAction].label}
+                {activeAction && <FormattedMessage {...ACTION_METADATA[activeAction].label} />}
               </span>
             </div>
             {carouselEntries.length > 0 ? (

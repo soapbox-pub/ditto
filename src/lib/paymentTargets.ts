@@ -21,6 +21,7 @@
  * @see https://github.com/ATXMJ/nips A3.md
  */
 import type { NostrEvent } from '@nostrify/nostrify';
+import { defineMessage, type MessageDescriptor } from 'react-intl';
 
 import { validateBitcoinAddress } from '@/lib/bitcoinAddress';
 import { isSilentPaymentAddress, validateSilentPaymentAddress } from '@/lib/silentPaymentsCore';
@@ -90,7 +91,7 @@ export interface PaymentMethodDef {
    */
   uri: (authority: string) => string | undefined;
   /** Placeholder shown in the editor input. */
-  placeholder: string;
+  placeholder: MessageDescriptor;
 }
 
 /** Loose lightning-address / LNURL shape check. */
@@ -147,7 +148,7 @@ export const PAYMENT_METHODS: Record<PaymentTargetType, PaymentMethodDef> = {
     kind: 'bitcoin',
     validate: isBitcoinAuthority,
     uri: () => undefined,
-    placeholder: 'bc1… or sp1…',
+    placeholder: defineMessage({ id: 'paymentTargets.placeholder.bitcoin', defaultMessage: 'bc1… or sp1…' }),
   },
   lightning: {
     type: 'lightning',
@@ -157,7 +158,7 @@ export const PAYMENT_METHODS: Record<PaymentTargetType, PaymentMethodDef> = {
     kind: 'lightning',
     validate: isLightningAuthority,
     uri: () => undefined,
-    placeholder: 'you@walletofsatoshi.com',
+    placeholder: defineMessage({ id: 'paymentTargets.placeholder.lightning', defaultMessage: 'you@walletofsatoshi.com' }),
   },
   monero: {
     type: 'monero',
@@ -169,7 +170,7 @@ export const PAYMENT_METHODS: Record<PaymentTargetType, PaymentMethodDef> = {
     // Still produces a `monero:` URI — the zap dialog falls back to the
     // generic QR/handoff pane for users who haven't set up a Monero wallet.
     uri: (a) => `monero:${a.trim()}`,
-    placeholder: '4… (Monero address)',
+    placeholder: defineMessage({ id: 'paymentTargets.placeholder.monero', defaultMessage: '4… (Monero address)' }),
   },
   ethereum: {
     type: 'ethereum',
@@ -179,7 +180,7 @@ export const PAYMENT_METHODS: Record<PaymentTargetType, PaymentMethodDef> = {
     kind: 'generic',
     validate: isEthereumAuthority,
     uri: (a) => `ethereum:${a.trim()}`,
-    placeholder: '0x… (Ethereum address)',
+    placeholder: defineMessage({ id: 'paymentTargets.placeholder.ethereum', defaultMessage: '0x… (Ethereum address)' }),
   },
   nano: {
     type: 'nano',
@@ -189,7 +190,7 @@ export const PAYMENT_METHODS: Record<PaymentTargetType, PaymentMethodDef> = {
     kind: 'generic',
     validate: isNanoAuthority,
     uri: (a) => `nano:${a.trim()}`,
-    placeholder: 'nano_… (Nano address)',
+    placeholder: defineMessage({ id: 'paymentTargets.placeholder.nano', defaultMessage: 'nano_… (Nano address)' }),
   },
   cashme: {
     type: 'cashme',
@@ -200,7 +201,7 @@ export const PAYMENT_METHODS: Record<PaymentTargetType, PaymentMethodDef> = {
     validate: isHandle,
     // Cash App $cashtags resolve at cash.app/$handle — no native scheme.
     uri: (a) => `https://cash.app/$${a.trim().replace(/^\$/, '')}`,
-    placeholder: '$cashtag',
+    placeholder: defineMessage({ id: 'paymentTargets.placeholder.cashme', defaultMessage: '$cashtag' }),
   },
   venmo: {
     type: 'venmo',
@@ -210,7 +211,7 @@ export const PAYMENT_METHODS: Record<PaymentTargetType, PaymentMethodDef> = {
     kind: 'generic',
     validate: isHandle,
     uri: (a) => `https://venmo.com/u/${a.trim().replace(/^@/, '')}`,
-    placeholder: '@username',
+    placeholder: defineMessage({ id: 'paymentTargets.placeholder.venmo', defaultMessage: '@username' }),
   },
   revolut: {
     type: 'revolut',
@@ -220,7 +221,7 @@ export const PAYMENT_METHODS: Record<PaymentTargetType, PaymentMethodDef> = {
     kind: 'generic',
     validate: isHandle,
     uri: (a) => `https://revolut.me/${a.trim().replace(/^@/, '')}`,
-    placeholder: 'username',
+    placeholder: defineMessage({ id: 'paymentTargets.placeholder.revolut', defaultMessage: 'username' }),
   },
 };
 

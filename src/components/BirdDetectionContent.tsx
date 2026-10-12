@@ -99,7 +99,7 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
 
   // When the user's own freeform note exists we show it above the
   // Wikipedia-derived summary. `content` can be empty per the NIP.
-  const timeStr = new Date(event.created_at * 1000).toLocaleTimeString([], {
+  const timeStr = intl.formatTime(new Date(event.created_at * 1000), {
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -178,7 +178,7 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
                   <FormattedMessage
                     id="birdDetection.heardAt"
                     defaultMessage="Heard at {time}."
-                    values={{ time: new Date(event.created_at * 1000).toLocaleString() }}
+                    values={{ time: intl.formatDate(new Date(event.created_at * 1000), { dateStyle: 'medium', timeStyle: 'short' }) }}
                   />
                 </p>
               )}

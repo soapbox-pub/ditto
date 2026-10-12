@@ -3,7 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { Check, Loader2, RotateCcw } from 'lucide-react';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 
 import {
   Dialog,
@@ -55,8 +55,8 @@ async function queryAllEvents(
 }
 
 /** Format a unix timestamp into a human-readable date string. */
-function formatDate(timestamp: number): string {
-  return new Date(timestamp * 1000).toLocaleDateString(undefined, {
+function formatDate(timestamp: number, intl: IntlShape): string {
+  return intl.formatDate(new Date(timestamp * 1000), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -184,7 +184,7 @@ function RecoveryContent({ event, onClose }: RecoveryContentProps) {
         title: intl.formatMessage({ id: 'eventRecovery.restored', defaultMessage: 'Event restored' }),
         description: intl.formatMessage(
           { id: 'muteRecovery.restoredDescription', defaultMessage: 'Successfully restored from {date}.' },
-          { date: formatDate(snapshot.created_at) },
+          { date: formatDate(snapshot.created_at, intl) },
         ),
       });
 

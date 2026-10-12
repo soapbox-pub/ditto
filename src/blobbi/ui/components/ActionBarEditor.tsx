@@ -8,6 +8,7 @@
  */
 
 import { useCallback } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import {
   ChevronUp,
   ChevronDown,
@@ -71,6 +72,7 @@ export function ActionBarEditor({
   preferences,
   onUpdate,
 }: ActionBarEditorProps) {
+  const intl = useIntl();
   const currentVisible = visibleCount(preferences);
   const atMax = currentVisible >= MAX_VISIBLE_SLOTS;
 
@@ -103,9 +105,13 @@ export function ActionBarEditor({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm w-[calc(100%-2rem)]">
         <DialogHeader>
-          <DialogTitle className="text-base">Edit Action Bar</DialogTitle>
+          <DialogTitle className="text-base"><FormattedMessage id="actionBarEditor.title" defaultMessage="Edit Action Bar" /></DialogTitle>
           <DialogDescription className="text-xs">
-            Choose up to {MAX_VISIBLE_SLOTS} items. Main Action and More are always shown.
+            <FormattedMessage
+              id="actionBarEditor.description"
+              defaultMessage="Choose up to {max} items. Main Action and More are always shown."
+              values={{ max: MAX_VISIBLE_SLOTS }}
+            />
           </DialogDescription>
         </DialogHeader>
 
@@ -129,7 +135,7 @@ export function ActionBarEditor({
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   {BAR_ITEM_ICONS[slot.id]}
                   <span className="text-sm font-medium truncate">
-                    {BAR_ITEM_LABELS[slot.id]}
+                    <FormattedMessage {...BAR_ITEM_LABELS[slot.id]} />
                   </span>
                 </div>
 
@@ -140,7 +146,9 @@ export function ActionBarEditor({
                     size="icon"
                     className={cn('size-7', slot.highlighted && 'text-amber-500')}
                     onClick={() => handleHighlight(slot.id)}
-                    title={slot.highlighted ? 'Remove highlight' : 'Highlight'}
+                    title={slot.highlighted
+                      ? intl.formatMessage({ id: 'actionBarEditor.removeHighlight', defaultMessage: 'Remove highlight' })
+                      : intl.formatMessage({ id: 'actionBarEditor.highlight', defaultMessage: 'Highlight' })}
                   >
                     <Star className={cn('size-3.5', slot.highlighted && 'fill-current')} />
                   </Button>
@@ -175,7 +183,9 @@ export function ActionBarEditor({
                   className="size-7"
                   disabled={!canTurnOn && !slot.visible}
                   onClick={() => handleToggle(slot.id)}
-                  title={slot.visible ? 'Hide' : 'Show'}
+                  title={slot.visible
+                    ? intl.formatMessage({ id: 'actionBarEditor.hide', defaultMessage: 'Hide' })
+                    : intl.formatMessage({ id: 'actionBarEditor.show', defaultMessage: 'Show' })}
                 >
                   {slot.visible ? (
                     <Eye className="size-3.5" />
@@ -191,7 +201,11 @@ export function ActionBarEditor({
         {/* Slot counter + reset */}
         <div className="flex items-center justify-between pt-1">
           <span className="text-xs text-muted-foreground">
-            {currentVisible}/{MAX_VISIBLE_SLOTS} slots used
+            <FormattedMessage
+              id="actionBarEditor.slotsUsed"
+              defaultMessage="{used}/{max} slots used"
+              values={{ used: currentVisible, max: MAX_VISIBLE_SLOTS }}
+            />
           </span>
           <Button
             variant="ghost"
@@ -199,7 +213,7 @@ export function ActionBarEditor({
             className="text-xs h-7"
             onClick={handleReset}
           >
-            Reset to default
+            <FormattedMessage id="actionBarEditor.reset" defaultMessage="Reset to default" />
           </Button>
         </div>
       </DialogContent>

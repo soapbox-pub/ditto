@@ -6,12 +6,7 @@ import { Earth, Search } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { Input } from '@/components/ui/input';
 import { useAppContext } from '@/hooks/useAppContext';
-import { COUNTRIES } from '@/lib/countries';
-
-/** Pre-sorted list of country entries for stable rendering. */
-const COUNTRY_LIST = Object.entries(COUNTRIES)
-  .map(([code, { name, flag }]) => ({ code, name, flag }))
-  .sort((a, b) => a.name.localeCompare(b.name));
+import { COUNTRIES, countryName } from '@/lib/countries';
 
 export function WorldPage() {
   const intl = useIntl();
@@ -23,13 +18,18 @@ export function WorldPage() {
     description: intl.formatMessage({ id: 'world.seoDescription', defaultMessage: 'Browse countries and join the conversation' }),
   });
 
+  /** Country entries with names in the active locale, sorted for stable rendering. */
+  const countryList = useMemo(() => Object.entries(COUNTRIES)
+    .map(([code, { flag }]) => ({ code, name: countryName(intl, code), flag }))
+    .sort((a, b) => a.name.localeCompare(b.name, intl.locale)), [intl]);
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return COUNTRY_LIST;
+    if (!search.trim()) return countryList;
     const q = search.trim().toLowerCase();
-    return COUNTRY_LIST.filter(
+    return countryList.filter(
       (c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q),
     );
-  }, [search]);
+  }, [search, countryList]);
 
   return (
     <main className="">

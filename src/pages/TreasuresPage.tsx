@@ -1,3 +1,5 @@
+import { useIntl } from 'react-intl';
+
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { getExtraKindDef, getPageKinds } from '@/lib/extraKinds';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
@@ -7,6 +9,7 @@ import { KindFeedPage } from './KindFeedPage';
 const treasuresDef = getExtraKindDef('treasures')!;
 
 export function TreasuresPage() {
+  const intl = useIntl();
   const { feedSettings } = useFeedSettings();
   const kinds = getPageKinds(treasuresDef, feedSettings);
 
@@ -18,7 +21,7 @@ export function TreasuresPage() {
       kindDef={treasuresDef}
       emptyMessage={
         kinds.length === 0
-          ? 'All treasure types are disabled. Enable treasures or found logs in Settings > Feed.'
+          ? intl.formatMessage({ id: 'treasuresPage.allDisabled', defaultMessage: 'All treasure types are disabled. Enable treasures or found logs in Settings > Feed.' })
           : undefined
       }
     />

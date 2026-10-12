@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -97,6 +98,7 @@ export function useCampaignZap(
   const { user } = useCurrentUser();
   const { canSignPsbt, signPsbt } = useBitcoinSigner();
   const { mutateAsync: publishEvent } = useNostrPublish();
+  const intl = useIntl();
   const { toast } = useToast();
   const { config } = useAppContext();
   const { esploraApis } = config;
@@ -107,35 +109,35 @@ export function useCampaignZap(
 
   const mutation = useMutation<CampaignZapResult, Error, CampaignZapArgs>({
     mutationFn: async ({ amountSats, comment = '', feeSpeed = 'halfHour' }) => {
-      if (!campaign) throw new Error('No campaign to donate to.');
-      if (!user) throw new Error('You must be logged in to donate.');
+      if (!campaign) throw new Error(intl.formatMessage({ id: 'campaignZap.error.noCampaign', defaultMessage: 'No campaign to donate to.' }));
+      if (!user) throw new Error(intl.formatMessage({ id: 'campaignZap.error.loginToDonate', defaultMessage: 'You must be logged in to donate.' }));
       if (!canSignPsbt || !signPsbt) {
         throw new Error(
           "Your login doesn't support sending Bitcoin.",
         );
       }
       if (!Number.isFinite(amountSats) || amountSats <= 0) {
-        throw new Error('Invalid amount.');
+        throw new Error(intl.formatMessage({ id: 'onchainZap.error.invalidAmount', defaultMessage: 'Invalid amount.' }));
       }
 
       // Per the plan, prefer the on-chain rail when both are declared.
       const useOnchain = !!campaign.wallets.onchain;
       const wallet = useOnchain ? campaign.wallets.onchain! : campaign.wallets.sp!;
-      if (!wallet) throw new Error('This campaign has no donatable endpoint.');
+      if (!wallet) throw new Error(intl.formatMessage({ id: 'campaignZap.error.noEndpoint', defaultMessage: 'This campaign has no donatable endpoint.' }));
 
       // Re-validate the on-chain address — campaign-parser-level validation
       // already ran, but a relay round-trip or local-cache corruption could
       // have mutated bytes since. SP endpoints have no checksum we can
       // verify here; the donor wallet fails the derivation if malformed.
       if (useOnchain && !validateBitcoinAddress(wallet.value)) {
-        throw new Error('Campaign wallet address failed validation.');
+        throw new Error(intl.formatMessage({ id: 'campaignZap.error.walletInvalid', defaultMessage: 'Campaign wallet address failed validation.' }));
       }
 
       setIsZapping(true);
       setProgress('building');
 
       const senderAddress = nostrPubkeyToBitcoinAddress(user.pubkey);
-      if (!senderAddress) throw new Error('Failed to derive sender Bitcoin address.');
+      if (!senderAddress) throw new Error(intl.formatMessage({ id: 'campaignZap.error.deriveSender', defaultMessage: 'Failed to derive sender Bitcoin address.' }));
 
       const [utxos, rates] = await Promise.all([
         fetchUTXOs(senderAddress, esploraApis),
@@ -143,16 +145,17 @@ export function useCampaignZap(
       ]);
 
       if (utxos.length === 0) {
-        throw new Error('Your Bitcoin wallet has no spendable funds.');
+        throw new Error(intl.formatMessage({ id: 'onchainZap.error.noFunds', defaultMessage: 'Your Bitcoin wallet has no spendable funds.' }));
       }
 
       const feeRate = feeRateForSpeed(rates, feeSpeed);
       const totalBalance = utxos.reduce((s, u) => s + u.value, 0);
       const estFee = estimateFee(utxos.length, 2, feeRate);
       if (amountSats + estFee > totalBalance) {
-        throw new Error(
-          `Insufficient funds. Need ~${(amountSats + estFee).toLocaleString()} sats, have ${totalBalance.toLocaleString()}.`,
-        );
+        throw new Error(intl.formatMessage(
+          { id: 'onchainZap.error.insufficientFunds', defaultMessage: 'Insufficient funds. Need ~{need} sats, have {have}.' },
+          { need: intl.formatNumber(amountSats + estFee), have: intl.formatNumber(totalBalance) },
+        ));
       }
 
       // Build PSBT per rail.
@@ -228,8 +231,11 @@ export function useCampaignZap(
         onSuccess(result);
       } else {
         toast({
-          title: 'Donation sent!',
-          description: `Broadcast txid ${result.txid.slice(0, 12)}… (fee ${result.fee.toLocaleString()} sats)`,
+          title: intl.formatMessage({ id: 'campaignZap.toast.sentTitle', defaultMessage: 'Donation sent!' }),
+          description: intl.formatMessage(
+            { id: 'onchainZap.toast.broadcast', defaultMessage: 'Broadcast txid {txid}… (fee {fee} sats)' },
+            { txid: result.txid.slice(0, 12), fee: intl.formatNumber(result.fee) },
+          ),
         });
       }
     },
@@ -239,7 +245,7 @@ export function useCampaignZap(
         return;
       }
       toast({
-        title: 'Donation failed',
+        title: intl.formatMessage({ id: 'campaignZap.toast.failedTitle', defaultMessage: 'Donation failed' }),
         description: err.message,
         variant: 'destructive',
       });

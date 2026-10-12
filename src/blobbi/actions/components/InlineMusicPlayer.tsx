@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 
 import { useAudioPlayback } from '../hooks/useAudioPlayback';
 import type { SelectedTrack } from './PlayMusicModal';
+import { formatTrackTitle } from '../lib/blobbi-track-catalog';
 
 // Re-export for external use
 export type { SelectedTrack } from './PlayMusicModal';
@@ -108,7 +109,7 @@ export function InlineMusicPlayer({
   }, [playbackState, selection.url, load, toggle]);
   
   // Track info
-  const trackTitle = selection.track.title;
+  const trackTitle = formatTrackTitle(intl, selection.track);
   const trackArtist = selection.track.artist;
   
   const isLoading = playbackState === 'loading' || isPublishing;

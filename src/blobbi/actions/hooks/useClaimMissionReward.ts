@@ -14,6 +14,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
+import { useIntl } from 'react-intl';
 
 import {
   useAwardDailyXp as useAwardDailyXpBase,
@@ -37,6 +38,7 @@ export function useAwardDailyXp(
   const { user } = useCurrentUser();
   const { mutateAsync: publish } = useNostrPublish();
   const queryClient = useQueryClient();
+  const intl = useIntl();
 
   return useAwardDailyXpBase({
     pubkey: user?.pubkey,
@@ -48,14 +50,17 @@ export function useAwardDailyXp(
       }
       if (xpAwarded > 0) {
         toast({
-          title: 'XP Earned!',
-          description: `You earned ${xpAwarded} XP from daily missions.`,
+          title: intl.formatMessage({ id: 'blobbiMissions.xpEarned.title', defaultMessage: 'XP Earned!' }),
+          description: intl.formatMessage(
+            { id: 'blobbiMissions.xpEarned.description', defaultMessage: 'You earned {xp} XP from daily missions.' },
+            { xp: xpAwarded },
+          ),
         });
       }
     },
     onError: (error: Error) => {
       toast({
-        title: 'Failed to Award XP',
+        title: intl.formatMessage({ id: 'blobbiMissions.xpAwardFailed', defaultMessage: 'Failed to Award XP' }),
         description: error.message,
         variant: 'destructive',
       });

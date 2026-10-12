@@ -1358,7 +1358,7 @@ function UrlCommentContext({ url, className }: { url: string; className?: string
 function CountryCommentContext({ identifier, className }: { identifier: string; className?: string }) {
   const intl = useIntl();
   const code = identifier.slice('iso3166:'.length);
-  const info = getCountryInfo(code);
+  const info = getCountryInfo(code, intl);
   const link = `/i/${encodeURIComponent(identifier)}`;
 
   const displayText = info

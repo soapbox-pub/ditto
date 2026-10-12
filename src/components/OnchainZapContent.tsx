@@ -351,8 +351,8 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
   // send button and confirmation label. Falls back to the raw input while the
   // price is still loading in USD mode.
   const totalDisplay = totalSats > 0
-    ? formatMoneyAmount(totalSats, currency, btcPrice)
-    : formatAmountInput(amount, currency);
+    ? formatMoneyAmount(totalSats, currency, btcPrice, intl.locale)
+    : formatAmountInput(amount, currency, intl.locale);
   const uniqueFeeSpeeds = useMemo(() => getUniqueFeeSpeeds(feeRates), [feeRates]);
 
   if (user && capability === 'unsupported') {
@@ -459,7 +459,7 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
                     defaultMessage="Fee {amount}"
                     values={{
                       amount: estimatedFeeSats > 0 && (currency === 'sats' || btcPrice)
-                        ? `≈ ${formatMoneyAmount(estimatedFeeSats, currency, btcPrice)}`
+                        ? `≈ ${formatMoneyAmount(estimatedFeeSats, currency, btcPrice, intl.locale)}`
                         : '…',
                     }}
                   />
@@ -493,7 +493,7 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
               <FormattedMessage
                 id="onchainZap.balance"
                 defaultMessage="Balance: {amount}"
-                values={{ amount: formatMoneyAmount(totalBalance, currency, btcPrice) }}
+                values={{ amount: formatMoneyAmount(totalBalance, currency, btcPrice, intl.locale) }}
               />
             </span>
           )}
@@ -701,7 +701,7 @@ function UnsupportedSignerQR({
         <div className="text-center text-sm">
           {!isSats && btcPrice && (
             <span className="font-medium">
-              {formatMoneyAmount(amountSats, 'usd', btcPrice)}
+              {formatMoneyAmount(amountSats, 'usd', btcPrice, intl.locale)}
             </span>
           )}
           <span className="text-muted-foreground">
@@ -709,7 +709,7 @@ function UnsupportedSignerQR({
             <FormattedMessage
               id="onchainZap.satsAmount"
               defaultMessage="{amount} sats"
-              values={{ amount: formatSats(amountSats) }}
+              values={{ amount: formatSats(amountSats, intl.locale) }}
             />
           </span>
         </div>

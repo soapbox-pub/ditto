@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Users, PartyPopper, UserCheck } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useIntl } from 'react-intl';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -8,7 +9,7 @@ import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAuthors } from '@/hooks/useAuthors';
 import { encodeEventAddress } from '@/lib/encodeEvent';
-import { parsePeopleList, getDisplayPubkeys } from '@/lib/packUtils';
+import { formatPeopleListTitle, parsePeopleList, getDisplayPubkeys } from '@/lib/packUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /** Max avatars shown in the embedded preview stack. */
@@ -36,13 +37,16 @@ export function EmbeddedPeopleListCard({ event, className, disableHoverCards }: 
   const author = useAuthor(needsAuthorMeta ? event.pubkey : '');
   const authorMetadata = needsAuthorMeta ? author.data?.metadata : undefined;
 
-  const { title, description, image, pubkeys, variant } = useMemo(
+  const intl = useIntl();
+  const parsed = useMemo(
     () => parsePeopleList(event, {
       authorMetadata,
       authorDisplayName: authorMetadata?.name || authorMetadata?.display_name,
     }),
     [event, authorMetadata],
   );
+  const { description, image, pubkeys, variant } = parsed;
+  const title = formatPeopleListTitle(intl, parsed);
 
   const nip19Id = useMemo(() => encodeEventAddress(event), [event]);
 
@@ -55,7 +59,7 @@ export function EmbeddedPeopleListCard({ event, className, disableHoverCards }: 
   const safeImage = useMemo(() => sanitizeUrl(image), [image]);
 
   const TitleIcon = variant === 'follow-list' ? UserCheck : variant === 'follow-set' ? Users : PartyPopper;
-  const memberLabel = pubkeys.length === 1 ? '1 member' : `${pubkeys.length} members`;
+  const memberLabel = intl.formatMessage({ id: 'teamSoapbox.memberCount', defaultMessage: '{count, plural, one {# member} other {# members}}' }, { count: pubkeys.length });
 
   return (
     <EmbeddedCardShell

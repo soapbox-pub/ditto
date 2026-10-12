@@ -1,5 +1,7 @@
 // src/blobbi/actions/lib/blobbi-track-catalog.ts
 
+import { defineMessages, type IntlShape, type MessageDescriptor } from 'react-intl';
+
 /**
  * Blobbi Track Catalog
  * 
@@ -93,6 +95,26 @@ export const BLOBBI_TRACK_CATALOG: BlobbiTrack[] = [
     tags: ['ambient', 'relaxing'],
   },
 ];
+
+/**
+ * Translated display titles for catalog tracks, keyed by track id.
+ * Tracks without an entry (non-English titles, custom tracks) show `title` as-is.
+ */
+const TRACK_TITLES: Record<string, MessageDescriptor> = defineMessages({
+  nap_in_the_meadow: { id: 'blobbiTracks.napInTheMeadow', defaultMessage: 'Nap in the Meadow' },
+  happy_kids: { id: 'blobbiTracks.happyKids', defaultMessage: 'Happy Kids' },
+  soft_piano: { id: 'blobbiTracks.softPiano', defaultMessage: 'Soft Piano' },
+  epic_sacred_light: { id: 'blobbiTracks.epicSacredLight', defaultMessage: 'Epic Sacred Light' },
+  split_memories: { id: 'blobbiTracks.splitMemories', defaultMessage: 'Split Memories' },
+});
+
+/**
+ * Localized display title for a track.
+ */
+export function formatTrackTitle(intl: IntlShape, track: { id: string; title: string }): string {
+  const message = TRACK_TITLES[track.id];
+  return message ? intl.formatMessage(message) : track.title;
+}
 
 /**
  * Get a track by ID from the catalog

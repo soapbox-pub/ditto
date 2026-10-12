@@ -1,4 +1,5 @@
 import type { NostrEvent } from '@nostrify/nostrify';
+import type { IntlShape } from 'react-intl';
 
 import { validateBitcoinAddress } from '@/lib/bitcoinAddress';
 import { getCountryInfo } from '@/lib/countries';
@@ -206,9 +207,9 @@ export function parseCampaign(event: NostrEvent): ParsedCampaign | null {
  * Human display for a campaign's country code, including the flag
  * emoji. Returns `undefined` when the campaign has no country tag.
  */
-export function getCampaignCountryLabel(campaign: ParsedCampaign): string | undefined {
+export function getCampaignCountryLabel(campaign: ParsedCampaign, intl: IntlShape): string | undefined {
   if (!campaign.countryCode) return undefined;
-  const info = getCountryInfo(campaign.countryCode);
+  const info = getCountryInfo(campaign.countryCode, intl);
   if (!info) return undefined;
   return `${info.flag} ${info.name}`;
 }
@@ -220,16 +221,34 @@ export function getCampaignCountryLabel(campaign: ParsedCampaign): string | unde
  */
 export function formatCampaignDeadline(
   unixSeconds: number | undefined,
+  intl: IntlShape,
 ): { label: string; isPast: boolean } | null {
   if (!unixSeconds) return null;
   const now = Math.floor(Date.now() / 1000);
   const diff = unixSeconds - now;
-  if (diff <= 0) return { label: 'Ended', isPast: true };
+  if (diff <= 0) {
+    return { label: intl.formatMessage({ id: 'campaign.deadline.ended', defaultMessage: 'Ended' }), isPast: true };
+  }
   const days = Math.ceil(diff / 86_400);
-  if (days <= 1) return { label: 'Ends today', isPast: false };
-  if (days < 30) return { label: `${days} days left`, isPast: false };
+  if (days <= 1) {
+    return { label: intl.formatMessage({ id: 'campaign.deadline.today', defaultMessage: 'Ends today' }), isPast: false };
+  }
+  if (days < 30) {
+    return {
+      label: intl.formatMessage({ id: 'campaign.deadline.daysLeft', defaultMessage: '{count} days left' }, { count: days }),
+      isPast: false,
+    };
+  }
   const months = Math.round(days / 30);
-  return { label: `${months} mo left`, isPast: false };
+  return {
+    label: intl.formatMessage({ id: 'campaign.deadline.monthsLeft', defaultMessage: '{count} mo left' }, { count: months }),
+    isPast: false,
+  };
+}
+
+/** Format whole US dollars in the app locale, e.g. `$1,234` in English. */
+function formatWholeUsd(usd: number, intl: IntlShape): string {
+  return intl.formatNumber(usd, { style: 'currency', currency: 'USD', maximumFractionDigits: 0, minimumFractionDigits: 0 });
 }
 
 /**
@@ -237,9 +256,9 @@ export function formatCampaignDeadline(
  * non-positive values; callers should usually omit the goal row in
  * that case rather than render `$0`.
  */
-export function formatUsdGoal(usd: number): string {
-  if (!Number.isFinite(usd) || usd <= 0) return '$0';
-  return `$${Math.floor(usd).toLocaleString()}`;
+export function formatUsdGoal(usd: number, intl: IntlShape): string {
+  if (!Number.isFinite(usd) || usd <= 0) return formatWholeUsd(0, intl);
+  return formatWholeUsd(Math.floor(usd), intl);
 }
 
 /**
@@ -257,13 +276,16 @@ export function satsToUsdNumber(sats: number, btcPrice: number | undefined): num
  * when a BTC price is available, falling back to a sats label
  * otherwise. Mirrors Agora's `formatCampaignAmount`.
  */
-export function formatCampaignRaised(sats: number, btcPrice: number | undefined): string {
-  if (sats <= 0) return '$0';
+export function formatCampaignRaised(sats: number, btcPrice: number | undefined, intl: IntlShape): string {
+  if (sats <= 0) return formatWholeUsd(0, intl);
   const usd = satsToUsdNumber(sats, btcPrice);
   if (usd !== undefined) {
-    if (usd >= 1) return `$${Math.round(usd).toLocaleString()}`;
+    if (usd >= 1) return formatWholeUsd(Math.round(usd), intl);
     // Tiny donations: keep two decimals so a $0.50 tip doesn't read $0.
-    return `$${usd.toFixed(2)}`;
+    return intl.formatNumber(usd, { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
-  return `${sats.toLocaleString()} sats`;
+  return intl.formatMessage(
+    { id: 'campaign.raisedSats', defaultMessage: '{amount} sats' },
+    { amount: intl.formatNumber(sats) },
+  );
 }

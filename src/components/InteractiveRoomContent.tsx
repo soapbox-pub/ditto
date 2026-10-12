@@ -185,7 +185,7 @@ export function InteractiveRoomContent({ event, expanded }: { event: NostrEvent;
           {showStartsAt && (
             <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
               <CalendarClock className="size-3 shrink-0" />
-              {startsAt!.toLocaleString(undefined, {
+              {intl.formatDate(startsAt!, {
                 dateStyle: "medium",
                 timeStyle: "short",
               })}

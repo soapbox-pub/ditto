@@ -17,10 +17,10 @@ interface ClientMetricsProps {
   clientTags: string[];
 }
 
-function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString();
+function formatNumber(n: number, locale: string): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}M`;
+  if (n >= 1_000) return `${(n / 1_000).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}K`;
+  return n.toLocaleString(locale);
 }
 
 /**
@@ -53,7 +53,7 @@ export function ClientMetrics({ clientTags }: ClientMetricsProps) {
               <Skeleton className="h-8 w-48" />
             ) : (
               <h2 className="text-2xl font-bold tracking-tight">
-                {formatNumber(data.mau)}{' '}
+                {formatNumber(data.mau, intl.locale)}{' '}
                 <span className="text-muted-foreground font-medium"><FormattedMessage id="clientMetrics.activeUsers" defaultMessage="Active Users" /></span>
               </h2>
             )}

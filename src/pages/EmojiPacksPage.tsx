@@ -53,7 +53,7 @@ export function EmojiPacksPage() {
   const [builderOpen, setBuilderOpen] = useState(false);
 
   useSeoMeta({
-    title: `${emojisDef.label} | ${config.appName}`,
+    title: `${intl.formatMessage(emojisDef.label)} | ${config.appName}`,
     description: intl.formatMessage({ id: 'emojiPacks.metaDescription', defaultMessage: 'Browse, collect, and create custom emoji packs' }),
   });
 
@@ -92,7 +92,7 @@ export function EmojiPacksPage() {
 
   return (
     <main>
-      <PageHeader title={emojisDef.label} icon={icon} backTo="/">
+      <PageHeader title={intl.formatMessage(emojisDef.label)} icon={icon} backTo="/">
         <KindInfoButton kindDef={emojisDef} icon={icon} />
       </PageHeader>
 

@@ -10,9 +10,10 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { useMemo } from "react";
+import { useIntl, type IntlShape } from "react-intl";
 import { nip19 } from "nostr-tools";
 import { EmbeddedCardShell } from "@/components/EmbeddedCardShell";
-import { getGitRepoRef, getGitTicketSubject, gitStatusVerb } from "@/lib/gitActivity";
+import { getGitRepoRef, getGitTicketSubject, gitLabel, gitStatusVerb } from "@/lib/gitActivity";
 
 interface KindMeta {
 	icon: ComponentType<{ className?: string }>;
@@ -25,24 +26,24 @@ interface KindMeta {
  * (an embed doesn't fetch the referenced ticket, so 1631 reads
  * "Resolved" rather than distinguishing merged/applied).
  */
-function kindMeta(kind: number): KindMeta {
+function kindMeta(kind: number, intl: IntlShape): KindMeta {
 	switch (kind) {
 		case 1617:
-			return { icon: FileText, label: "Patch", iconClassName: "text-orange-500 dark:text-orange-400" };
+			return { icon: FileText, label: intl.formatMessage({ id: "embeddedGitCard.patch", defaultMessage: "Patch" }), iconClassName: "text-orange-500 dark:text-orange-400" };
 		case 1618:
-			return { icon: GitPullRequest, label: "Pull request", iconClassName: "text-emerald-600 dark:text-emerald-400" };
+			return { icon: GitPullRequest, label: intl.formatMessage({ id: "embeddedGitCard.pullRequest", defaultMessage: "Pull request" }), iconClassName: "text-emerald-600 dark:text-emerald-400" };
 		case 1619:
-			return { icon: GitPullRequestArrow, label: "Pull request update", iconClassName: "text-emerald-600 dark:text-emerald-400" };
+			return { icon: GitPullRequestArrow, label: intl.formatMessage({ id: "embeddedGitCard.pullRequestUpdate", defaultMessage: "Pull request update" }), iconClassName: "text-emerald-600 dark:text-emerald-400" };
 		case 1621:
-			return { icon: CircleDot, label: "Issue", iconClassName: "text-green-600 dark:text-green-400" };
+			return { icon: CircleDot, label: intl.formatMessage({ id: "embeddedGitCard.issue", defaultMessage: "Issue" }), iconClassName: "text-green-600 dark:text-green-400" };
 		case 1630:
-			return { icon: CircleDot, label: gitStatusVerb(kind), iconClassName: "text-green-600 dark:text-green-400" };
+			return { icon: CircleDot, label: gitLabel(gitStatusVerb(kind), intl), iconClassName: "text-green-600 dark:text-green-400" };
 		case 1631:
-			return { icon: CircleCheck, label: gitStatusVerb(kind), iconClassName: "text-purple-600 dark:text-purple-400" };
+			return { icon: CircleCheck, label: gitLabel(gitStatusVerb(kind), intl), iconClassName: "text-purple-600 dark:text-purple-400" };
 		case 1632:
-			return { icon: CircleX, label: gitStatusVerb(kind), iconClassName: "text-red-600 dark:text-red-400" };
+			return { icon: CircleX, label: gitLabel(gitStatusVerb(kind), intl), iconClassName: "text-red-600 dark:text-red-400" };
 		default:
-			return { icon: CircleDashed, label: gitStatusVerb(kind), iconClassName: "text-muted-foreground" };
+			return { icon: CircleDashed, label: gitLabel(gitStatusVerb(kind), intl), iconClassName: "text-muted-foreground" };
 	}
 }
 
@@ -61,12 +62,13 @@ export function EmbeddedGitCard({
 	className?: string;
 	disableHoverCards?: boolean;
 }) {
+	const intl = useIntl();
 	const neventId = useMemo(
 		() => nip19.neventEncode({ id: event.id, author: event.pubkey }),
 		[event.id, event.pubkey],
 	);
 
-	const { icon: Icon, label, iconClassName } = kindMeta(event.kind);
+	const { icon: Icon, label, iconClassName } = kindMeta(event.kind, intl);
 	const repoName = getGitRepoRef(event)?.identifier;
 	const isStatus = event.kind >= 1630 && event.kind <= 1633;
 	// Status/PR-update events: content is a short comment (may be empty).

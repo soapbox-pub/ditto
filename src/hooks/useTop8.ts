@@ -1,5 +1,6 @@
 import { useNostr } from '@nostrify/react';
 import { useMemo } from 'react';
+import { useIntl } from 'react-intl';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from './useAppContext';
 import { useCurrentUser } from './useCurrentUser';
@@ -102,6 +103,7 @@ function setCachedTop8(appId: string, pubkey: string, pubkeys: string[]): void {
  * cycle (and its rollback) only exists once.
  */
 export function useTop8() {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
@@ -261,7 +263,7 @@ export function useTop8() {
     mutationFn: async (pubkey: string) => {
       const current = queryClient.getQueryData<Top8Data>(top8Key)?.pubkeys ?? [];
       if (current.includes(pubkey)) return writeTop8(current);
-      if (current.length >= TOP8_MAX) throw new Error('Your Top 8 is full');
+      if (current.length >= TOP8_MAX) throw new Error(intl.formatMessage({ id: 'top8.edit.fullTitle', defaultMessage: 'Your Top 8 is full' }));
       return writeTop8([...current, pubkey]);
     },
     onMutate: (pubkey: string) => {

@@ -6,7 +6,7 @@
  * inline in their own header row alongside back buttons, titles, etc.
  */
 
-import { useState, useRef, useEffect, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useMemo, type ReactNode } from 'react';
 import { Paintbrush } from 'lucide-react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { TabButton } from '@/components/TabButton';
@@ -15,6 +15,7 @@ import {
   FONT_OPTIONS,
   CLOSING_PRESETS,
   LINE_HEIGHT_RATIO,
+  formatFontLabel,
   type Stationery,
   type FrameStyle,
 } from '@/lib/letterTypes';
@@ -132,6 +133,13 @@ export function LetterEditor({
     signature, setSignature,
   } = state;
 
+  // Presets are inserted in the writer's locale. Keep a previously chosen
+  // closing selectable even if it isn't one of the current locale's presets.
+  const closingOptions = useMemo(() => {
+    const presets = CLOSING_PRESETS.map((preset) => intl.formatMessage(preset));
+    return closing && !presets.includes(closing) ? [closing, ...presets] : presets;
+  }, [intl, closing]);
+
   const internalCardRef = useRef<HTMLDivElement>(null);
   const cardRef = externalCardRef ?? internalCardRef;
   const [lineHeightPx, setLineHeightPx] = useState(0);
@@ -222,7 +230,7 @@ export function LetterEditor({
                 }`}
                 style={{ fontFamily: font.family }}
               >
-                {font.label}
+                {formatFontLabel(intl, font)}
               </button>
             ))}
           </div>
@@ -284,9 +292,9 @@ export function LetterEditor({
                     <SelectItem value="__none__">
                       <span className="text-muted-foreground italic"><FormattedMessage id="letterEditor.noClosing" defaultMessage="None" /></span>
                     </SelectItem>
-                    {CLOSING_PRESETS.map((preset) => (
-                      <SelectItem key={preset} value={preset}>
-                        {preset}
+                    {closingOptions.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
                       </SelectItem>
                     ))}
                   </SelectContent>

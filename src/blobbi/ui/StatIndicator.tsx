@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { AlertTriangle, Utensils, Gamepad2, Heart, Droplets, Zap } from 'lucide-react';
+import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 import { cn } from '@/lib/utils';
 import type { CareState } from '@blobbi-kit/core';
 
@@ -137,6 +138,15 @@ export function SegmentedRing({ filled, max, fillHex, strokeWidth, gapDeg }: Seg
   return <>{segments}</>;
 }
 
+/** Display names for stat keys (used in accessible labels). */
+const STAT_NAMES: Record<string, MessageDescriptor> = defineMessages({
+  hunger: { id: 'blobbiRoom.stat.hunger', defaultMessage: 'Hunger' },
+  happiness: { id: 'blobbiRoom.stat.happiness', defaultMessage: 'Happiness' },
+  health: { id: 'blobbiRoom.stat.health', defaultMessage: 'Health' },
+  hygiene: { id: 'blobbiRoom.stat.hygiene', defaultMessage: 'Hygiene' },
+  energy: { id: 'blobbiRoom.stat.energy', defaultMessage: 'Energy' },
+});
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export interface StatIndicatorProps {
@@ -165,6 +175,7 @@ export function StatIndicator({
   onClick,
   disabled,
 }: StatIndicatorProps) {
+  const intl = useIntl();
   const displayValue = value ?? 0;
 
   const showBadge = careState === 'attention' || careState === 'urgent';
@@ -241,7 +252,10 @@ export function StatIndicator({
           disabled && 'opacity-40 pointer-events-none',
         )}
         style={glowStyle}
-        aria-label={`${stat} ${displayValue}%`}
+        aria-label={intl.formatMessage(
+          { id: 'blobbiRoom.hud.stat', defaultMessage: '{stat} {percent}%' },
+          { stat: STAT_NAMES[stat] ? intl.formatMessage(STAT_NAMES[stat]) : stat, percent: displayValue },
+        )}
       >
         {inner}
       </button>

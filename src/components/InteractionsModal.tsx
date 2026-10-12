@@ -354,7 +354,7 @@ function RepostRow({ entry }: { entry: RepostEntry }) {
             <VerifiedNip05Text nip05={metadata.nip05} pubkey={entry.pubkey} className="text-xs text-muted-foreground truncate" />
           )}
         </div>
-        <span className="text-xs text-muted-foreground">{timeAgo(entry.createdAt)}</span>
+        <span className="text-xs text-muted-foreground">{timeAgo(entry.createdAt, intl)}</span>
       </div>
 
       <ChevronRight className="size-4 text-muted-foreground shrink-0" />
@@ -394,7 +394,7 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
             <VerifiedNip05Text nip05={metadata.nip05} pubkey={entry.pubkey} className="text-xs text-muted-foreground truncate" />
           )}
         </div>
-        <span className="text-xs text-muted-foreground">{timeAgo(entry.createdAt)}</span>
+        <span className="text-xs text-muted-foreground">{timeAgo(entry.createdAt, intl)}</span>
       </div>
 
       {/* Reaction emoji badge */}
@@ -528,7 +528,7 @@ function QuoteRow({ quote }: { quote: QuoteEntry }) {
         {quote.content && (
           <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{quote.content}</p>
         )}
-        <span className="text-xs text-muted-foreground">{timeAgo(quote.createdAt)}</span>
+        <span className="text-xs text-muted-foreground">{timeAgo(quote.createdAt, intl)}</span>
       </div>
     </Link>
   );

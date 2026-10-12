@@ -167,10 +167,10 @@ export function parseListingPrice(event: NostrEvent): ListingPrice | undefined {
  * codes and falls back to `<amount> <CURRENCY>` for anything it rejects (e.g.
  * `BTC`, which is not a standard ISO 4217 code).
  */
-export function formatListingPrice(price: ListingPrice): string {
+export function formatListingPrice(price: ListingPrice, locale: string): string {
   let base: string;
   try {
-    base = new Intl.NumberFormat(undefined, {
+    base = new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: price.currency,
       // Allow whole-number prices to render without forced cents.
@@ -178,7 +178,7 @@ export function formatListingPrice(price: ListingPrice): string {
     }).format(price.amount);
   } catch {
     // Non-ISO-4217 codes (BTC, ETH, …) throw — fall back to a plain label.
-    base = `${price.amount.toLocaleString()} ${price.currency}`;
+    base = `${price.amount.toLocaleString(locale)} ${price.currency}`;
   }
   return price.frequency ? `${base}/${price.frequency}` : base;
 }

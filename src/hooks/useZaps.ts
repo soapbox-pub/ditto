@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useIntl } from 'react-intl';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -30,6 +31,7 @@ export function useZaps(
    */
   lnAddressOverride?: string,
 ) {
+  const intl = useIntl();
   const { toast } = useToast();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
@@ -88,16 +90,21 @@ export function useZaps(
         onZapSuccess({ amountSats: paidSats });
       } else {
         toast({
-          title: 'Zap successful!',
-          description: `You sent ${paidSats} sats to the author.`,
+          title: intl.formatMessage({ id: 'zaps.toast.successTitle', defaultMessage: 'Zap successful!' }),
+          description: intl.formatMessage(
+            { id: 'zaps.toast.successWebln', defaultMessage: 'You sent {sats} sats to the author.' },
+            { sats: intl.formatNumber(paidSats) },
+          ),
         });
       }
     } catch (weblnError) {
       console.error('WebLN payment failed:', weblnError);
 
-      const errorMessage = weblnError instanceof Error ? weblnError.message : 'Unknown WebLN error';
+      const errorMessage = weblnError instanceof Error
+        ? weblnError.message
+        : intl.formatMessage({ id: 'zaps.toast.unknownWeblnError', defaultMessage: 'Unknown WebLN error' });
       toast({
-        title: 'WebLN payment failed',
+        title: intl.formatMessage({ id: 'zaps.toast.weblnFailed', defaultMessage: 'WebLN payment failed' }),
         description: errorMessage,
         variant: 'destructive',
       });
@@ -129,8 +136,8 @@ export function useZaps(
 
     if (!user) {
       toast({
-        title: 'Login required',
-        description: 'You must be logged in to send a zap.',
+        title: intl.formatMessage({ id: 'articleEditor.loginRequired', defaultMessage: 'Login required' }),
+        description: intl.formatMessage({ id: 'zaps.toast.loginRequired', defaultMessage: 'You must be logged in to send a zap.' }),
         variant: 'destructive',
       });
       setIsZapping(false);
@@ -139,8 +146,8 @@ export function useZaps(
 
     if (!target) {
       toast({
-        title: 'Event not found',
-        description: 'Could not find the event to zap.',
+        title: intl.formatMessage({ id: 'postDetail.eventNotFound', defaultMessage: 'Event not found' }),
+        description: intl.formatMessage({ id: 'zaps.toast.eventNotFound', defaultMessage: 'Could not find the event to zap.' }),
         variant: 'destructive',
       });
       setIsZapping(false);
@@ -150,8 +157,8 @@ export function useZaps(
     try {
       if (!author.data || !author.data?.metadata || !author.data?.event ) {
         toast({
-          title: 'Author not found',
-          description: 'Could not find the author of this item.',
+          title: intl.formatMessage({ id: 'zaps.toast.authorNotFoundTitle', defaultMessage: 'Author not found' }),
+          description: intl.formatMessage({ id: 'zaps.toast.authorNotFound', defaultMessage: 'Could not find the author of this item.' }),
           variant: 'destructive',
         });
         setIsZapping(false);
@@ -165,8 +172,8 @@ export function useZaps(
       const overrideTrimmed = lnAddressOverride?.trim();
       if (!lud06 && !lud16 && !overrideTrimmed) {
         toast({
-          title: 'Lightning address not found',
-          description: 'The author does not have a lightning address configured.',
+          title: intl.formatMessage({ id: 'zaps.toast.noLightningAddressTitle', defaultMessage: 'Lightning address not found' }),
+          description: intl.formatMessage({ id: 'zaps.toast.noLightningAddress', defaultMessage: 'The author does not have a lightning address configured.' }),
           variant: 'destructive',
         });
         setIsZapping(false);
@@ -186,10 +193,10 @@ export function useZaps(
         lnurlParams = await resolveLnurlPay(lnurlSource);
       } catch (endpointError) {
         toast({
-          title: 'Zap endpoint not found',
+          title: intl.formatMessage({ id: 'zaps.toast.endpointNotFoundTitle', defaultMessage: 'Zap endpoint not found' }),
           description: endpointError instanceof Error
             ? endpointError.message
-            : 'Could not find a zap endpoint for the author.',
+            : intl.formatMessage({ id: 'zaps.toast.endpointNotFound', defaultMessage: 'Could not find a zap endpoint for the author.' }),
           variant: 'destructive',
         });
         setIsZapping(false);
@@ -198,8 +205,8 @@ export function useZaps(
 
       if (!lnurlParams.allowsNostr || !lnurlParams.nostrPubkey) {
         toast({
-          title: 'Zaps not supported',
-          description: "This author's lightning address does not support zaps.",
+          title: intl.formatMessage({ id: 'zaps.toast.notSupportedTitle', defaultMessage: 'Zaps not supported' }),
+          description: intl.formatMessage({ id: 'zaps.toast.notSupported', defaultMessage: "This author's lightning address does not support zaps." }),
           variant: 'destructive',
         });
         setIsZapping(false);
@@ -219,10 +226,14 @@ export function useZaps(
       // outside that range can only produce an invoice we'd have to reject.
       if (zapAmount < lnurlParams.minSendable || zapAmount > lnurlParams.maxSendable) {
         toast({
-          title: 'Amount out of range',
-          description:
-            `This lightning address accepts between ${Math.ceil(lnurlParams.minSendable / 1000)} and ` +
-            `${Math.floor(lnurlParams.maxSendable / 1000)} sats.`,
+          title: intl.formatMessage({ id: 'zaps.toast.amountOutOfRangeTitle', defaultMessage: 'Amount out of range' }),
+          description: intl.formatMessage(
+            { id: 'zaps.toast.amountOutOfRange', defaultMessage: 'This lightning address accepts between {min} and {max} sats.' },
+            {
+              min: intl.formatNumber(Math.ceil(lnurlParams.minSendable / 1000)),
+              max: intl.formatNumber(Math.floor(lnurlParams.maxSendable / 1000)),
+            },
+          ),
           variant: 'destructive',
         });
         setIsZapping(false);
@@ -268,13 +279,14 @@ export function useZaps(
         }
 
         if (!res.ok) {
-          const fallbackReason = responseText.trim() || 'Unknown error';
+          const fallbackReason = responseText.trim()
+            || intl.formatMessage({ id: 'zaps.error.unknown', defaultMessage: 'Unknown error' });
           throw new Error(`HTTP ${res.status}: ${responseData.reason || fallbackReason}`);
         }
 
         const newInvoice = responseData.pr;
         if (!newInvoice || typeof newInvoice !== 'string') {
-          throw new Error('Lightning service did not return a valid invoice');
+          throw new Error(intl.formatMessage({ id: 'zaps.error.noInvoice', defaultMessage: 'Lightning service did not return a valid invoice' }));
         }
 
         // The endpoint that produced this invoice is chosen by the recipient,
@@ -318,8 +330,11 @@ export function useZaps(
               onZapSuccess({ amountSats: paidSats });
             } else {
               toast({
-                title: 'Zap successful!',
-                description: `You sent ${paidSats} sats via NWC to the author.`,
+                title: intl.formatMessage({ id: 'zaps.toast.successTitle', defaultMessage: 'Zap successful!' }),
+                description: intl.formatMessage(
+                  { id: 'zaps.toast.successNwc', defaultMessage: 'You sent {sats} sats via NWC to the author.' },
+                  { sats: intl.formatNumber(paidSats) },
+                ),
               });
             }
             return;
@@ -328,8 +343,8 @@ export function useZaps(
 
             if (nwcError instanceof NWCPaymentPendingError) {
               toast({
-                title: 'Zap pending',
-                description: 'Your wallet has not confirmed this zap yet, so it may still go through. Check your wallet before zapping again.',
+                title: intl.formatMessage({ id: 'zaps.toast.pendingTitle', defaultMessage: 'Zap pending' }),
+                description: intl.formatMessage({ id: 'zaps.toast.pending', defaultMessage: 'Your wallet has not confirmed this zap yet, so it may still go through. Check your wallet before zapping again.' }),
               });
               setIsZapping(false);
               return;
@@ -339,9 +354,11 @@ export function useZaps(
             // invoice to WebLN behind the user's back: WebLN is often the same
             // wallet (e.g. an extension connected over NWC), which rejects it
             // as a duplicate. Show the invoice and let the user choose.
-            const errorMessage = nwcError instanceof Error ? nwcError.message : 'Unknown NWC error';
+            const errorMessage = nwcError instanceof Error
+              ? nwcError.message
+              : intl.formatMessage({ id: 'zaps.toast.unknownNwcError', defaultMessage: 'Unknown NWC error' });
             toast({
-              title: 'NWC payment failed',
+              title: intl.formatMessage({ id: 'zaps.toast.nwcFailed', defaultMessage: 'NWC payment failed' }),
               description: errorMessage,
               variant: 'destructive',
             });
@@ -360,7 +377,7 @@ export function useZaps(
       } catch (err) {
         console.error('Zap error:', err);
         toast({
-          title: 'Zap failed',
+          title: intl.formatMessage({ id: 'onchainZap.error.zapFailed', defaultMessage: 'Zap failed' }),
           description: (err as Error).message,
           variant: 'destructive',
         });
@@ -369,7 +386,7 @@ export function useZaps(
     } catch (err) {
       console.error('Zap error:', err);
       toast({
-        title: 'Zap failed',
+        title: intl.formatMessage({ id: 'onchainZap.error.zapFailed', defaultMessage: 'Zap failed' }),
         description: (err as Error).message,
         variant: 'destructive',
       });

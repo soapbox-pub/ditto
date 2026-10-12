@@ -112,7 +112,7 @@ function PhotoCard({ event }: { event: NostrEvent }) {
               <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
             ) : displayName}
           </span>
-          <span className="text-xs text-muted-foreground shrink-0">&middot; {timeAgo(event.created_at)}</span>
+          <span className="text-xs text-muted-foreground shrink-0">&middot; {timeAgo(event.created_at, intl)}</span>
         </div>
         {caption && (
           <p className="text-[13px] text-muted-foreground leading-snug line-clamp-2">{caption}</p>

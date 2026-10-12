@@ -1,4 +1,5 @@
 import type { NostrEvent } from '@nostrify/nostrify';
+import { defineMessage, defineMessages, type IntlShape, type MessageDescriptor } from 'react-intl';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { sanitizeCssString } from '@/lib/fontLoader';
 
@@ -179,7 +180,7 @@ export type FrameStyle =
 
 export interface FramePreset {
   id: FrameStyle;
-  name: string;
+  name: MessageDescriptor;
   /** Emoji set for the border scatter */
   emojis?: string[];
   /** Default background color (before tint) */
@@ -187,16 +188,16 @@ export interface FramePreset {
 }
 
 export const FRAME_PRESETS: FramePreset[] = [
-  { id: 'none', name: 'None' },
-  { id: 'flowers', name: 'Flowers', emojis: ['🌸', '🌺', '🌼', '🌷', '🌻', '🌹'], bgColor: '#3a7a3a' },
-  { id: 'autumn', name: 'Autumn', emojis: ['🍂', '🍁', '🍃', '🌾', '🍄', '🌰'], bgColor: '#8b5e3c' },
-  { id: 'ocean', name: 'Ocean', emojis: ['🐚', '🌊', '🐠', '🐙', '🦀', '🐬'], bgColor: '#1a5276' },
-  { id: 'celestial', name: 'Celestial', emojis: ['🪐', '🌙', '⭐', '🌕', '☄️', '🔭'], bgColor: '#1a1a3e' },
-  { id: 'hearts', name: 'Hearts', emojis: ['❤️', '💕', '💗', '💖', '💝', '💘'], bgColor: '#8b2252' },
-  { id: 'garden', name: 'Garden', emojis: ['🦋', '🐝', '🌿', '🌱', '🐞', '🍀'], bgColor: '#2d5a27' },
-  { id: 'winter', name: 'Winter', emojis: ['❄️', '⛄', '🌨️', '🏔️', '🎿', '🧣'], bgColor: '#4a6d8c' },
-  { id: 'fruit', name: 'Fruit', emojis: ['🍊', '🍋', '🍓', '🍑', '🍒', '🫐'], bgColor: '#6b4226' },
-  { id: 'sparkle', name: 'Sparkle', emojis: ['✨', '💎', '🔮', '🪩', '⚡', '🌈'], bgColor: '#4a2d6b' },
+  { id: 'none', name: defineMessage({ id: 'letterFrame.none', defaultMessage: 'None' }) },
+  { id: 'flowers', name: defineMessage({ id: 'letterFrame.flowers', defaultMessage: 'Flowers' }), emojis: ['🌸', '🌺', '🌼', '🌷', '🌻', '🌹'], bgColor: '#3a7a3a' },
+  { id: 'autumn', name: defineMessage({ id: 'letterFrame.autumn', defaultMessage: 'Autumn' }), emojis: ['🍂', '🍁', '🍃', '🌾', '🍄', '🌰'], bgColor: '#8b5e3c' },
+  { id: 'ocean', name: defineMessage({ id: 'letterFrame.ocean', defaultMessage: 'Ocean' }), emojis: ['🐚', '🌊', '🐠', '🐙', '🦀', '🐬'], bgColor: '#1a5276' },
+  { id: 'celestial', name: defineMessage({ id: 'letterFrame.celestial', defaultMessage: 'Celestial' }), emojis: ['🪐', '🌙', '⭐', '🌕', '☄️', '🔭'], bgColor: '#1a1a3e' },
+  { id: 'hearts', name: defineMessage({ id: 'letterFrame.hearts', defaultMessage: 'Hearts' }), emojis: ['❤️', '💕', '💗', '💖', '💝', '💘'], bgColor: '#8b2252' },
+  { id: 'garden', name: defineMessage({ id: 'letterFrame.garden', defaultMessage: 'Garden' }), emojis: ['🦋', '🐝', '🌿', '🌱', '🐞', '🍀'], bgColor: '#2d5a27' },
+  { id: 'winter', name: defineMessage({ id: 'letterFrame.winter', defaultMessage: 'Winter' }), emojis: ['❄️', '⛄', '🌨️', '🏔️', '🎿', '🧣'], bgColor: '#4a6d8c' },
+  { id: 'fruit', name: defineMessage({ id: 'letterFrame.fruit', defaultMessage: 'Fruit' }), emojis: ['🍊', '🍋', '🍓', '🍑', '🍒', '🫐'], bgColor: '#6b4226' },
+  { id: 'sparkle', name: defineMessage({ id: 'letterFrame.sparkle', defaultMessage: 'Sparkle' }), emojis: ['✨', '💎', '🔮', '🪩', '⚡', '🌈'], bgColor: '#4a2d6b' },
 ];
 
 export interface Letter {
@@ -211,29 +212,33 @@ export interface Letter {
  * Built-in stationery presets — flat single color + optional emoji backsplash.
  * No gradients.
  */
-export const STATIONERY_PRESETS: Record<string, { name: string; color: string; emoji?: string }> = {
-  parchment: { name: 'Parchment', color: DEFAULT_STATIONERY_COLOR, emoji: undefined },
-  meadow:    { name: 'Meadow',    color: '#C8E6C9', emoji: '🌿' },
-  twilight:  { name: 'Twilight',  color: '#E1BEE7', emoji: '🌙' },
-  ocean:     { name: 'Ocean',     color: '#B3E5FC', emoji: '🌊' },
-  blossom:   { name: 'Blossom',   color: '#FCE4EC', emoji: '🌸' },
-  forest:    { name: 'Forest',    color: '#DCEDC8', emoji: '🌲' },
-  butter:    { name: 'Butter',    color: '#FFF9C4', emoji: '🌻' },
-  peach:     { name: 'Peach',     color: '#FFE0CC', emoji: '🍑' },
-  mint:      { name: 'Mint',      color: '#E0F2E9', emoji: '🍃' },
-  lavender:  { name: 'Lavender',  color: '#EDE7F6', emoji: '💜' },
+export const STATIONERY_PRESETS: Record<string, { name: MessageDescriptor; color: string; emoji?: string }> = {
+  parchment: { name: defineMessage({ id: 'letterStationery.parchment', defaultMessage: 'Parchment' }), color: DEFAULT_STATIONERY_COLOR, emoji: undefined },
+  meadow: { name: defineMessage({ id: 'letterStationery.meadow', defaultMessage: 'Meadow' }), color: '#C8E6C9', emoji: '🌿' },
+  twilight: { name: defineMessage({ id: 'letterStationery.twilight', defaultMessage: 'Twilight' }), color: '#E1BEE7', emoji: '🌙' },
+  ocean: { name: defineMessage({ id: 'letterStationery.ocean', defaultMessage: 'Ocean' }), color: '#B3E5FC', emoji: '🌊' },
+  blossom: { name: defineMessage({ id: 'letterStationery.blossom', defaultMessage: 'Blossom' }), color: '#FCE4EC', emoji: '🌸' },
+  forest: { name: defineMessage({ id: 'letterStationery.forest', defaultMessage: 'Forest' }), color: '#DCEDC8', emoji: '🌲' },
+  butter: { name: defineMessage({ id: 'letterStationery.butter', defaultMessage: 'Butter' }), color: '#FFF9C4', emoji: '🌻' },
+  peach: { name: defineMessage({ id: 'letterStationery.peach', defaultMessage: 'Peach' }), color: '#FFE0CC', emoji: '🍑' },
+  mint: { name: defineMessage({ id: 'letterStationery.mint', defaultMessage: 'Mint' }), color: '#E0F2E9', emoji: '🍃' },
+  lavender: { name: defineMessage({ id: 'letterStationery.lavender', defaultMessage: 'Lavender' }), color: '#EDE7F6', emoji: '💜' },
 };
 
-export const CLOSING_PRESETS = [
-  'With Love,',
-  'Warmly,',
-  'Yours Truly,',
-  'XO,',
-  'Until Next Time,',
-  'Thinking of You,',
-  'Forever Yours,',
-  'With Gratitude,',
-];
+/**
+ * Closing-line presets. The closing is written into the letter itself, so the
+ * chosen preset is formatted in the sender's locale and stored as plain text.
+ */
+export const CLOSING_PRESETS: MessageDescriptor[] = Object.values(defineMessages({
+  withLove: { id: 'letterClosing.withLove', defaultMessage: 'With Love,' },
+  warmly: { id: 'composeLetter.defaultClosing', defaultMessage: 'Warmly,' },
+  yoursTruly: { id: 'letterClosing.yoursTruly', defaultMessage: 'Yours Truly,' },
+  xo: { id: 'letterClosing.xo', defaultMessage: 'XO,' },
+  untilNextTime: { id: 'letterClosing.untilNextTime', defaultMessage: 'Until Next Time,' },
+  thinkingOfYou: { id: 'letterClosing.thinkingOfYou', defaultMessage: 'Thinking of You,' },
+  foreverYours: { id: 'letterClosing.foreverYours', defaultMessage: 'Forever Yours,' },
+  withGratitude: { id: 'letterClosing.withGratitude', defaultMessage: 'With Gratitude,' },
+}));
 
 export const FONT_OPTIONS = [
   { value: 'fredoka',     label: 'Fredoka',     family: 'Fredoka Variable, Fredoka, sans-serif' },
@@ -248,6 +253,20 @@ export const FONT_OPTIONS = [
   { value: 'pixel',      label: 'Pixel',      family: 'Silkscreen, monospace' },
   { value: 'mono',       label: 'Mono',       family: 'ui-monospace, monospace' },
 ];
+
+/** Translated labels for fonts with descriptive (non-brand) names. */
+const FONT_LABELS: Record<string, MessageDescriptor> = defineMessages({
+  marker: { id: 'letterFont.marker', defaultMessage: 'Marker' },
+  typewriter: { id: 'letterFont.typewriter', defaultMessage: 'Typewriter' },
+  pixel: { id: 'letterFont.pixel', defaultMessage: 'Pixel' },
+  mono: { id: 'letterFont.mono', defaultMessage: 'Mono' },
+});
+
+/** Display label for a font option (font brand names are shown as-is). */
+export function formatFontLabel(intl: IntlShape, font: { value: string; label: string }): string {
+  const message = FONT_LABELS[font.value];
+  return message ? intl.formatMessage(message) : font.label;
+}
 
 /**
  * Serializable stationery for localStorage persistence.

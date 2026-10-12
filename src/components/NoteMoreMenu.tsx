@@ -132,6 +132,7 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
   // toggle. Kind 1 posts are the baseline feed content and aren't hideable from
   // here; kinds with no feed toggle (overlays, sidebar-only) get no item.
   const feedKind = event.kind === 1 ? undefined : getFeedKindInfo(event.kind);
+  const feedKindLabel = feedKind ? intl.formatMessage(feedKind.label) : undefined;
 
   // Bookmark / pin / mute mutations live in the PARENT — which stays mounted
   // while the menu Content unmounts on close. In TanStack Query v5, callbacks
@@ -238,7 +239,7 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
 
   const handleHideFromFeed = () => {
     if (!feedKind) return;
-    const { feedKey, label } = feedKind;
+    const { feedKey } = feedKind;
     updateFeedSettings({ [feedKey]: false });
     if (user) {
       updateSettings
@@ -249,7 +250,7 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
     toast({
       title: intl.formatMessage(
         { id: 'note.moreMenu.hideFromFeed.toast', defaultMessage: "You won't see {type} in your feed anymore" },
-        { type: label },
+        { type: feedKindLabel },
       ),
     });
   };
@@ -294,7 +295,7 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
             onOpenChange(false);
             setTimeout(() => setRecoveryOpen(true), 150);
           }}
-          hideFromFeedType={feedKind?.label}
+          hideFromFeedType={feedKindLabel}
           onHideFromFeed={() => {
             onOpenChange(false);
             setTimeout(() => setHideConfirmOpen(true), 150);
@@ -338,14 +339,14 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
                 <FormattedMessage
                   id="note.moreMenu.hideFromFeed.title"
                   defaultMessage="Stop showing {type}?"
-                  values={{ type: feedKind.label }}
+                  values={{ type: feedKindLabel }}
                 />
               </AlertDialogTitle>
               <AlertDialogDescription>
                 <FormattedMessage
                   id="note.moreMenu.hideFromFeed.description"
                   defaultMessage="{type} will no longer appear anywhere in your feeds, not just this one. You can turn them back on anytime in Settings → Home Feed."
-                  values={{ type: feedKind.label }}
+                  values={{ type: feedKindLabel }}
                 />
               </AlertDialogDescription>
             </AlertDialogHeader>

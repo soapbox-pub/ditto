@@ -18,6 +18,7 @@ import { StationeryBackground } from './StationeryBackground';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { LetterStickers } from './LetterStickers';
 import { formatDistanceToNow } from 'date-fns';
+import { getDateFnsLocale } from '@/lib/dateFnsLocale';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -100,7 +101,7 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
   const effectiveFrame = effectiveStationery?.frame;
   const effectiveFrameTint = effectiveStationery?.frameTint;
 
-  const timeAgo = formatDistanceToNow(new Date(letter.timestamp * 1000), { addSuffix: true });
+  const timeAgo = formatDistanceToNow(new Date(letter.timestamp * 1000), { addSuffix: true, locale: getDateFnsLocale(intl.locale) });
 
   const { text: textColor, faint: faintColor, line: lineColor } = useStationeryColors(effectiveStationery);
   // Sanitize event-sourced font family before CSS interpolation (M-6).

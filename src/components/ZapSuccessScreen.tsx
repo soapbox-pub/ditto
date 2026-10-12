@@ -61,8 +61,8 @@ export function ZapSuccessScreen({
   // Amount in the user's preferred display currency, falling back to sats
   // when USD is preferred but the price is unavailable.
   const amountDisplay = useMemo(
-    () => formatMoneyAmount(amountSats, currency, btcPrice),
-    [amountSats, currency, btcPrice],
+    () => formatMoneyAmount(amountSats, currency, btcPrice, intl.locale),
+    [amountSats, currency, btcPrice, intl.locale],
   );
 
   // Sparkle burst positions: 8 particles radiating outward from the

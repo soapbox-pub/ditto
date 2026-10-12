@@ -14,6 +14,7 @@
 
 import { sha256 } from '@noble/hashes/sha256';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { defineMessages, type MessageDescriptor } from 'react-intl';
 
 /** Size of a single PS1 memory-card block, in bytes. */
 export const BLOCK_SIZE = 8192;
@@ -254,15 +255,24 @@ export function reTagBlock(
   return tags;
 }
 
+const cardIdMessages = defineMessages({
+  empty: { id: 'memoryCards.cardId.empty', defaultMessage: 'Enter a card id.' },
+  spaces: { id: 'memoryCards.cardId.spaces', defaultMessage: 'Card id must not contain spaces.' },
+  blockSuffix: {
+    id: 'memoryCards.cardId.blockSuffix',
+    defaultMessage: "Card id must not end with -'<number>' (that is the block suffix).",
+  },
+});
+
 /**
  * Validate a user-entered card id against the kind-38192 rules (no spaces, and it
  * must not end with `-<digits>`, which is the block-index suffix of the `d`
- * tag). Returns an error message, or `null` if valid.
+ * tag). Returns an error message descriptor, or `null` if valid.
  */
-export function validateCardId(v: string): string | null {
-  if (!v) return 'Enter a card id.';
-  if (/\s/.test(v)) return 'Card id must not contain spaces.';
-  if (/-\d+$/.test(v)) return 'Card id must not end with -<number> (that is the block suffix).';
+export function validateCardId(v: string): MessageDescriptor | null {
+  if (!v) return cardIdMessages.empty;
+  if (/\s/.test(v)) return cardIdMessages.spaces;
+  if (/-\d+$/.test(v)) return cardIdMessages.blockSuffix;
   return null;
 }
 

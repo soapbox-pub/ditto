@@ -1,4 +1,5 @@
 import type { NostrEvent } from '@nostrify/nostrify';
+import { defineMessages, type IntlShape } from 'react-intl';
 import { isNostrId } from '@/lib/nostrId';
 import { tryNaddrEncode } from '@/lib/safeNip19';
 
@@ -114,6 +115,39 @@ export function gitStatusVerb(statusKind: number, rootKind?: number): string {
     case 1632: return 'closed';
     case 1633: return 'draft';
     default: return 'updated';
+  }
+}
+
+const gitLabelMessages = defineMessages({
+  reopened: { id: 'gitActivity.status.reopened', defaultMessage: 'reopened' },
+  applied: { id: 'gitActivity.status.applied', defaultMessage: 'applied' },
+  merged: { id: 'gitActivity.status.merged', defaultMessage: 'merged' },
+  resolved: { id: 'gitActivity.status.resolved', defaultMessage: 'resolved' },
+  closed: { id: 'gitActivity.status.closed', defaultMessage: 'closed' },
+  draft: { id: 'gitActivity.status.draft', defaultMessage: 'draft' },
+  updated: { id: 'gitActivity.status.updated', defaultMessage: 'updated' },
+  patch: { id: 'gitActivity.noun.patch', defaultMessage: 'patch' },
+  pullRequest: { id: 'gitActivity.noun.pullRequest', defaultMessage: 'pull request' },
+  issue: { id: 'gitActivity.noun.issue', defaultMessage: 'issue' },
+});
+
+/**
+ * Translated display label for a token returned by `gitStatusVerb` or
+ * `gitTicketNoun`. The tokens themselves stay English because callers use
+ * them as ICU select keys.
+ */
+export function gitLabel(token: string, intl: IntlShape): string {
+  switch (token) {
+    case 'reopened': return intl.formatMessage(gitLabelMessages.reopened);
+    case 'applied': return intl.formatMessage(gitLabelMessages.applied);
+    case 'merged': return intl.formatMessage(gitLabelMessages.merged);
+    case 'resolved': return intl.formatMessage(gitLabelMessages.resolved);
+    case 'closed': return intl.formatMessage(gitLabelMessages.closed);
+    case 'draft': return intl.formatMessage(gitLabelMessages.draft);
+    case 'patch': return intl.formatMessage(gitLabelMessages.patch);
+    case 'pull request': return intl.formatMessage(gitLabelMessages.pullRequest);
+    case 'issue': return intl.formatMessage(gitLabelMessages.issue);
+    default: return intl.formatMessage(gitLabelMessages.updated);
   }
 }
 

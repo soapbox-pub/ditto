@@ -33,7 +33,7 @@ export function LetterPreferencesSection() {
   // Track whether any user-driven change has happened so we don't persist on mount
   const mountedRef = useRef(false);
 
-  const [closing, setClosing] = useState(() => prefs.closing ?? 'Warmly,');
+  const [closing, setClosing] = useState(() => prefs.closing ?? intl.formatMessage({ id: 'composeLetter.defaultClosing', defaultMessage: 'Warmly,' }));
   const [signature, setSignature] = useState(() => prefs.signature ?? '');
   const [selectedFont, setSelectedFont] = useState(
     () => FONT_OPTIONS.find((f) => f.value === prefs.font) ?? FONT_OPTIONS[0],

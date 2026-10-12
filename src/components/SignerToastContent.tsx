@@ -15,7 +15,7 @@ export function NudgeToastContent({
   relayOk,
   onCancel,
 }: {
-  description: string;
+  description: ReactNode;
   android: boolean;
   relayOk: boolean;
   onCancel: () => void;

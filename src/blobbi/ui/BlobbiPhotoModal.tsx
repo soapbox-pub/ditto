@@ -7,6 +7,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { toPng } from 'html-to-image';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Download, Share2, Loader2, X } from 'lucide-react';
 
 import { BlobbiPolaroidCard } from './BlobbiPolaroidCard';
@@ -48,6 +49,7 @@ export function BlobbiPhotoModal({
   const { user } = useCurrentUser();
   const { mutateAsync: uploadFile } = useUploadFile();
   const { mutateAsync: createEvent } = useNostrPublish();
+  const intl = useIntl();
 
   const generateImage = useCallback(async (): Promise<string | null> => {
     if (!polaroidRef.current) return null;
@@ -60,10 +62,10 @@ export function BlobbiPhotoModal({
       });
     } catch (error) {
       console.error('[BlobbiPhoto] Failed to generate image:', error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to capture photo.' });
+      toast({ variant: 'destructive', title: intl.formatMessage({ id: 'blobbiPhoto.error', defaultMessage: 'Error' }), description: intl.formatMessage({ id: 'blobbiPhoto.captureFailed', defaultMessage: 'Failed to capture photo.' }) });
       return null;
     }
-  }, []);
+  }, [intl]);
 
   const handleDownload = useCallback(async () => {
     setIsDownloading(true);
@@ -75,14 +77,14 @@ export function BlobbiPhotoModal({
       const bytes = new Uint8Array(await dataUrlToFile(dataUrl, filename).arrayBuffer());
       await downloadBinaryFile(filename, bytes);
 
-      toast({ title: 'Photo saved!' });
+      toast({ title: intl.formatMessage({ id: 'blobbiPhoto.saved', defaultMessage: 'Photo saved!' }) });
     } catch (error) {
       console.error('[BlobbiPhoto] Failed to save photo:', error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to save photo.' });
+      toast({ variant: 'destructive', title: intl.formatMessage({ id: 'blobbiPhoto.error', defaultMessage: 'Error' }), description: intl.formatMessage({ id: 'blobbiPhoto.saveFailed', defaultMessage: 'Failed to save photo.' }) });
     } finally {
       setIsDownloading(false);
     }
-  }, [generateImage, companion.name]);
+  }, [generateImage, companion.name, intl]);
 
   const handleShare = useCallback(async () => {
     if (!user) return;
@@ -96,7 +98,7 @@ export function BlobbiPhotoModal({
       const tags = await uploadFile(file);
 
       const urlTag = tags.find((tag) => tag[0] === 'url');
-      if (!urlTag?.[1]) throw new Error('Upload succeeded but no URL returned');
+      if (!urlTag?.[1]) throw new Error(intl.formatMessage({ id: 'blobbiPhoto.noUrl', defaultMessage: 'Upload succeeded but no URL returned' }));
       const url = urlTag[1];
 
       const imetaFields = tags.map((tag) => `${tag[0]} ${tag[1]}`);
@@ -106,15 +108,22 @@ export function BlobbiPhotoModal({
         tags: [['imeta', ...imetaFields]],
       });
 
-      toast({ title: 'Posted!', description: 'Your Blobbi photo has been shared.' });
+      toast({
+        title: intl.formatMessage({ id: 'compose.toast.posted', defaultMessage: 'Posted!' }),
+        description: intl.formatMessage({ id: 'blobbiPhoto.shared', defaultMessage: 'Your Blobbi photo has been shared.' }),
+      });
       onOpenChange(false);
     } catch (error) {
       console.error('[BlobbiPhoto] Failed to share:', error);
-      toast({ variant: 'destructive', title: 'Failed to post', description: error instanceof Error ? error.message : 'Please try again.' });
+      toast({
+        variant: 'destructive',
+        title: intl.formatMessage({ id: 'blobbiPhoto.postFailed', defaultMessage: 'Failed to post' }),
+        description: error instanceof Error ? error.message : intl.formatMessage({ id: 'blobbiPhoto.tryAgain', defaultMessage: 'Please try again.' }),
+      });
     } finally {
       setIsSharing(false);
     }
-  }, [user, generateImage, companion.name, uploadFile, createEvent, onOpenChange]);
+  }, [user, generateImage, companion.name, uploadFile, createEvent, onOpenChange, intl]);
 
   if (!open) return null;
 
@@ -161,7 +170,7 @@ export function BlobbiPhotoModal({
           }}>
             {isDownloading ? <Loader2 className="size-6 animate-spin" /> : <Download className="size-6" />}
           </div>
-          <span className="text-xs font-medium text-muted-foreground">Save</span>
+          <span className="text-xs font-medium text-muted-foreground"><FormattedMessage id="common.save" defaultMessage="Save" /></span>
         </button>
 
         {user && (
@@ -179,7 +188,7 @@ export function BlobbiPhotoModal({
             }}>
               {isSharing ? <Loader2 className="size-6 animate-spin" /> : <Share2 className="size-6" />}
             </div>
-            <span className="text-xs font-medium text-muted-foreground">Post</span>
+            <span className="text-xs font-medium text-muted-foreground"><FormattedMessage id="blobbiPhoto.post" defaultMessage="Post" /></span>
           </button>
         )}
       </div>

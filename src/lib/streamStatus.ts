@@ -1,4 +1,5 @@
 import type { NostrEvent } from '@nostrify/nostrify';
+import { defineMessages, type IntlShape } from 'react-intl';
 
 /**
  * Staleness threshold in seconds.
@@ -31,30 +32,40 @@ export function getEffectiveStreamStatus(event: NostrEvent): string {
   return status;
 }
 
-/** Badge label + Tailwind classes for a live-stream status. */
-export function getStreamStatusConfig(status: string | undefined): {
+const statusMessages = defineMessages({
+  live: { id: 'streams.status.live', defaultMessage: 'LIVE' },
+  ended: { id: 'streams.status.ended', defaultMessage: 'ENDED' },
+  planned: { id: 'streams.status.planned', defaultMessage: 'PLANNED' },
+  unknown: { id: 'streams.status.unknown', defaultMessage: 'UNKNOWN' },
+});
+
+/**
+ * Badge label + Tailwind classes for a live-stream status. Unknown statuses
+ * keep their raw (uppercased) value from the event.
+ */
+export function getStreamStatusConfig(status: string | undefined, intl: IntlShape): {
   label: string;
   className: string;
 } {
   switch (status) {
     case 'live':
       return {
-        label: 'LIVE',
+        label: intl.formatMessage(statusMessages.live),
         className: 'bg-red-600 hover:bg-red-600 text-white border-red-600',
       };
     case 'ended':
       return {
-        label: 'ENDED',
+        label: intl.formatMessage(statusMessages.ended),
         className: 'bg-muted text-muted-foreground border-border',
       };
     case 'planned':
       return {
-        label: 'PLANNED',
+        label: intl.formatMessage(statusMessages.planned),
         className: 'bg-blue-600/90 hover:bg-blue-600/90 text-white border-blue-600',
       };
     default:
       return {
-        label: status?.toUpperCase() || 'UNKNOWN',
+        label: status?.toUpperCase() || intl.formatMessage(statusMessages.unknown),
         className: 'bg-muted text-muted-foreground border-border',
       };
   }

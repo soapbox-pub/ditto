@@ -10,7 +10,7 @@ import { type SearchProfile } from '@/hooks/useSearchProfiles';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { isFullUrl, detectIdentifier, type IdentifierMatch } from '@/lib/nostrIdentifier';
 import { getProfileUrl } from '@/lib/profileUrl';
-import { searchCountry, type CountryEntry } from '@/lib/countries';
+import { countryName, searchCountry, type CountryEntry } from '@/lib/countries';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { useQueryClient } from '@tanstack/react-query';
@@ -26,7 +26,7 @@ import { BlockedSearchNotice } from '@/components/BlockedSearchNotice';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { SearchEventResultItem } from '@/components/SearchEventResultItem';
 import { WikipediaIcon } from '@/components/icons/WikipediaIcon';
-import { searchSidebarItems, type SidebarItemDef } from '@/lib/sidebarItems';
+import { formatItemLabel, searchSidebarItems, type SidebarItemDef } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 
 interface MobileSearchSheetProps {
@@ -58,7 +58,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
   const countryMatch = useMemo(() => searchCountry(query), [query]);
 
   // Nav item suggestions (local, synchronous)
-  const navItems = useMemo(() => searchSidebarItems(query), [query]);
+  const navItems = useMemo(() => searchSidebarItems(query, intl), [query, intl]);
 
   // URL detection — show "Comment on" option when query is a full URL
   const queryIsUrl = useMemo(() => isFullUrl(query), [query]);
@@ -400,6 +400,7 @@ function MobileNavItem({
   isSelected: boolean;
   onClick: (item: SidebarItemDef) => void;
 }) {
+  const intl = useIntl();
   const Icon = item.icon;
 
   return (
@@ -417,7 +418,7 @@ function MobileNavItem({
       <div className="size-9 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
         <Icon className="size-3.5 text-primary" />
       </div>
-      <span className="font-semibold text-sm truncate">{item.label}</span>
+      <span className="font-semibold text-sm truncate">{formatItemLabel(intl, item.id)}</span>
     </button>
   );
 }
@@ -731,12 +732,12 @@ function SearchCountryItem({
       onMouseDown={(e) => e.preventDefault()}
     >
       <div className="size-9 shrink-0 rounded-full bg-secondary flex items-center justify-center">
-        <span className="text-lg leading-none" role="img" aria-label={intl.formatMessage({ id: 'mobileSearch.flagOf', defaultMessage: 'Flag of {country}' }, { country: country.name })}>
+        <span className="text-lg leading-none" role="img" aria-label={intl.formatMessage({ id: 'mobileSearch.flagOf', defaultMessage: 'Flag of {country}' }, { country: countryName(intl, country.code) })}>
           {country.flag}
         </span>
       </div>
       <div className="flex-1 min-w-0">
-        <span className="font-semibold text-sm truncate">{country.name}</span>
+        <span className="font-semibold text-sm truncate">{countryName(intl, country.code)}</span>
         <div className="text-xs text-muted-foreground">{country.code}</div>
       </div>
     </button>

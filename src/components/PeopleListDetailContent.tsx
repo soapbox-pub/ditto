@@ -75,7 +75,7 @@ import { usePinnedList } from '@/hooks/usePinnedList';
 
 import { feedItemKey, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
-import { getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
+import { formatPeopleListTitle, getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 type Tab = 'feed' | 'members' | 'comments';
@@ -360,10 +360,11 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
         pubkeys: top8Pubkeys(event),
       };
     }
-    return parsePeopleList(event, {
+    const parsed = parsePeopleList(event, {
       authorMetadata,
       authorDisplayName: authorName,
     });
+    return { ...parsed, title: formatPeopleListTitle(intl, parsed) };
   }, [event, isLoveList, isTop8, authorMetadata, authorName, intl]);
   // Reversed for kind 3 follow lists so newest follows show first; identity
   // for curated kinds. Used only for display — mutations and filters continue

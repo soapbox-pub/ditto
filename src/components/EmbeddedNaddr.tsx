@@ -479,7 +479,7 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
             </>
           )}
           <span className="text-xs text-muted-foreground shrink-0">
-            · {timeAgo(event.created_at)}
+            · {timeAgo(event.created_at, intl)}
           </span>
         </div>
 
@@ -520,6 +520,7 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
 }
 
 function EmbeddedNaddrCard({ event, className, disableHoverCards, sourceUrl }: { event: NostrEvent; className?: string; disableHoverCards?: boolean; sourceUrl?: string }) {
+  const intl = useIntl();
   const naddrId = useMemo(() => {
     const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
     return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
@@ -531,7 +532,7 @@ function EmbeddedNaddrCard({ event, className, disableHoverCards, sourceUrl }: {
   // content rendering. Unknown kinds never do — we can't assume arbitrary
   // content is safe user-facing text, so we fall back to a NIP-31 `alt`
   // preview or a tombstone.
-  const kindLabel = getKindLabel(event.kind);
+  const kindLabel = getKindLabel(intl, event.kind);
   const isKnownKind = kindLabel !== undefined;
 
   const { title, description } = useMemo(
@@ -833,7 +834,7 @@ function EmbeddedStreamCard({
   const imageUrl = sanitizeUrl(getTag('image'));
   const currentParticipants = getTag('current_participants');
   const status = getEffectiveStreamStatus(event);
-  const statusConfig = getStreamStatusConfig(status);
+  const statusConfig = getStreamStatusConfig(status, intl);
 
   const naddrId = useMemo(() => {
     const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';

@@ -12,6 +12,7 @@
  */
 
 import { forwardRef } from 'react';
+import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 
 import { BlobbiStageVisual } from './BlobbiStageVisual';
 import { cn } from '@/lib/utils';
@@ -47,6 +48,13 @@ const PHOTO_HEIGHT = CARD_HEIGHT - FRAME_PADDING_TOP - FRAME_PADDING_BOTTOM;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+/** Display labels for the stage badge. */
+const STAGE_LABELS: Record<string, MessageDescriptor> = defineMessages({
+  egg: { id: 'blobbiStage.egg', defaultMessage: 'Egg' },
+  baby: { id: 'blobbiStage.baby', defaultMessage: 'Baby' },
+  adult: { id: 'blobbiStage.adult', defaultMessage: 'Adult' },
+});
+
 /**
  * Polaroid-style card for Blobbi photos.
  *
@@ -55,8 +63,12 @@ const PHOTO_HEIGHT = CARD_HEIGHT - FRAME_PADDING_TOP - FRAME_PADDING_BOTTOM;
  */
 export const BlobbiPolaroidCard = forwardRef<HTMLDivElement, BlobbiPolaroidCardProps>(
   function BlobbiPolaroidCard({ companion, caption, showStage = false, className }, ref) {
+    const intl = useIntl();
     const displayCaption = caption ?? companion.name;
-    const stageLabel = companion.stage.charAt(0).toUpperCase() + companion.stage.slice(1);
+    const stageMessage = STAGE_LABELS[companion.stage];
+    const stageLabel = stageMessage
+      ? intl.formatMessage(stageMessage)
+      : companion.stage.charAt(0).toUpperCase() + companion.stage.slice(1);
 
     return (
       <div
@@ -168,7 +180,7 @@ export const BlobbiPolaroidCard = forwardRef<HTMLDivElement, BlobbiPolaroidCardP
               whiteSpace: 'nowrap',
             }}
           >
-            {new Date().toLocaleDateString('en-US', {
+            {intl.formatDate(new Date(), {
               month: 'short',
               day: 'numeric',
               year: 'numeric',

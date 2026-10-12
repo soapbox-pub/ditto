@@ -12,7 +12,7 @@
  */
 
 import { useMemo } from 'react';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { Link } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useQuery } from '@tanstack/react-query';
@@ -49,8 +49,8 @@ export function PublicationContent({ event, className }: PublicationContentProps
 }
 
 /** Format an original-publication timestamp. */
-function formatPublishedDate(ts: number, withDay = true): string {
-  return new Date(ts * 1000).toLocaleDateString(undefined, {
+function formatPublishedDate(ts: number, intl: IntlShape, withDay = true): string {
+  return intl.formatDate(new Date(ts * 1000), {
     year: 'numeric',
     month: 'long',
     ...(withDay ? { day: 'numeric' } : {}),
@@ -113,7 +113,7 @@ function PublicationFileContent({ event, className }: PublicationContentProps) {
             {pub.publishedAt && (
               <span className="flex items-center gap-1">
                 <Calendar className="size-3.5" aria-hidden="true" />
-                {formatPublishedDate(pub.publishedAt, isIssue)}
+                {formatPublishedDate(pub.publishedAt, intl, isIssue)}
               </span>
             )}
             {pub.language && (

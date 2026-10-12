@@ -300,7 +300,7 @@ export function SearchPage() {
     [onlyDitto, config.clientName, config.appName],
   );
 
-  const kindOptions = useMemo(() => buildKindOptions(), []);
+  const kindOptions = useMemo(() => buildKindOptions(intl), [intl]);
 
   // All kind numbers available in the picker — used as the "all kinds" default.
   const allKindNumbers = useMemo(() => kindOptions.map((o) => Number(o.value)), [kindOptions]);

@@ -183,7 +183,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
               </div>
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 <span className="shrink-0 hover:underline whitespace-nowrap">
-                  {timeAgo(event.created_at)}
+                  {timeAgo(event.created_at, intl)}
                 </span>
               </div>
             </div>

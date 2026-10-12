@@ -114,7 +114,7 @@ export function FollowUpdateCard({
           openPost();
         }}
       >
-        {timeAgo(event.created_at)}
+        {timeAgo(event.created_at, intl)}
       </Link>
     </div>
   );

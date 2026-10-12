@@ -8,7 +8,7 @@ import {
 	GitMerge,
 } from "lucide-react";
 import type { ComponentType } from "react";
-import { FormattedMessage } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 import { Link } from "react-router-dom";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
@@ -24,6 +24,7 @@ import {
 	getGitRepoRef,
 	getGitRootRef,
 	getGitTicketSubject,
+	gitLabel,
 	gitStatusVerb,
 	gitTicketNoun,
 } from "@/lib/gitActivity";
@@ -90,6 +91,7 @@ function TicketAuthorByline({ pubkey }: { pubkey: string }) {
  * applied for patches, merged for PRs) and to show its subject and author.
  */
 export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
+	const intl = useIntl();
 	const rootRef = getGitRootRef(event);
 	const repoRef = getGitRepoRef(event);
 	const repoName = repoRef?.identifier ?? "";
@@ -154,11 +156,11 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 							className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize shrink-0 ${badgeClass}`}
 						>
 							<StatusIcon className="size-3" />
-							{verb}
+							{gitLabel(verb, intl)}
 						</span>
 						{noun && (
 							<span className="text-xs text-muted-foreground">
-								{noun}
+								{gitLabel(noun, intl)}
 								{root && <TicketAuthorByline pubkey={root.pubkey} />}
 							</span>
 						)}

@@ -2841,7 +2841,7 @@ function ProfilePageInner() {
             </span>
             <span className="my-3 h-px w-12 bg-border" aria-hidden="true" />
             <span className="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
-              {new Date(2000, birthday.month - 1, 1).toLocaleDateString(undefined, { month: 'long' })}
+              {intl.formatDate(new Date(2000, birthday.month - 1, 1), { month: 'long' })}
             </span>
             <span className="mt-1 text-5xl font-extrabold leading-none tabular-nums">
               {birthday.day}

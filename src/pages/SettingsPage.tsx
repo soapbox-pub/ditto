@@ -211,7 +211,7 @@ export function SettingsPage() {
 
       {/* Version footer */}
       <Link to="/changelog" className="block text-center text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors select-none pt-1 pb-2">
-        v{import.meta.env.VERSION}{import.meta.env.COMMIT_TAG ? '' : '+'} ({new Date(import.meta.env.BUILD_DATE).toLocaleDateString()})
+        v{import.meta.env.VERSION}{import.meta.env.COMMIT_TAG ? '' : '+'} ({intl.formatDate(new Date(import.meta.env.BUILD_DATE))})
       </Link>
 
       {/* Magic sigil — appears after 2 min inactivity, only when magic is locked */}

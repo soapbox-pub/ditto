@@ -210,7 +210,7 @@ function shellTitleForKind(intl: IntlShape, kind?: number): string {
   if (kind === BADGE_PROFILE_KIND_NEW) return intl.formatMessage({ id: 'postDetail.title.badgeCollection', defaultMessage: 'Badge Collection' });
   // Fall back to the central registry
   const label = KIND_LABELS[kind];
-  if (label) return label;
+  if (label) return intl.formatMessage(label);
   return intl.formatMessage({ id: 'postDetail.title.default', defaultMessage: 'Post Details' });
 }
 
@@ -760,8 +760,10 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
 /** Human noun for a deleted event's kind, suitable mid-sentence ("this short text note"). */
 function deletedKindNoun(kind: number | undefined, intl: IntlShape): string {
   if (kind === undefined) return intl.formatMessage({ id: 'postDetail.eventNoun', defaultMessage: 'event' });
-  const label = getKindLabel(kind);
-  // Lowercase the first letter unless the label starts with an acronym ("DM relay list").
+  const label = getKindLabel(intl, kind);
+  // English labels are sentence-case nouns, so lowercase the first letter
+  // unless it starts an acronym ("DM relay list"). German nouns stay capitalized.
+  if (!intl.locale.startsWith('en')) return label;
   return /^[A-Z][a-z]/.test(label)
     ? label.charAt(0).toLowerCase() + label.slice(1)
     : label;
@@ -1240,6 +1242,15 @@ function BookReviewRating({ event }: { event: NostrEvent }) {
   );
 }
 
+
+/** Linked noun inside a translated action header, e.g. the "nsite" in "deployed an nsite". */
+function ActionNounLink({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <Link to={to} className="hover:underline" onClick={(e) => e.stopPropagation()}>
+      {children}
+    </Link>
+  );
+}
 
 function PostDetailContent({ event }: { event: NostrEvent }) {
   const intl = useIntl();
@@ -2676,28 +2687,56 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           {celebrating && celebration && <CelebrationOverlay variant={celebration} />}
           {/* Kind action header for app handlers */}
           {isAppHandler && (
-            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published an app", updated: "updated an app", fallback: "published an app" })} />
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, {
+              created: intl.formatMessage({ id: "noteCard.header.app.published", defaultMessage: "published an app" }),
+              updated: intl.formatMessage({ id: "noteCard.header.app.updated", defaultMessage: "updated an app" }),
+              fallback: intl.formatMessage({ id: "noteCard.header.app.published", defaultMessage: "published an app" }),
+            })} />
           )}
           {isSoftwareApp && (
-            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published a software app", updated: "updated a software app", fallback: "published a software app" })} />
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, {
+              created: intl.formatMessage({ id: "noteCard.header.softwareApp.published", defaultMessage: "published a software app" }),
+              updated: intl.formatMessage({ id: "noteCard.header.softwareApp.updated", defaultMessage: "updated a software app" }),
+              fallback: intl.formatMessage({ id: "noteCard.header.softwareApp.published", defaultMessage: "published a software app" }),
+            })} />
           )}
           {isSoftwareRelease && (
-            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published a software release", updated: "updated a software release", fallback: "published a software release" })} />
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, {
+              created: intl.formatMessage({ id: "noteCard.header.softwareRelease.published", defaultMessage: "published a software release" }),
+              updated: intl.formatMessage({ id: "noteCard.header.softwareRelease.updated", defaultMessage: "updated a software release" }),
+              fallback: intl.formatMessage({ id: "noteCard.header.softwareRelease.published", defaultMessage: "published a software release" }),
+            })} />
           )}
           {isSoftwareAsset && (
-            <EventActionHeader pubkey={event.pubkey} icon={Package} action="published a software asset" />
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action={intl.formatMessage({ id: "noteCard.header.softwareAsset", defaultMessage: "published a software asset" })} />
           )}
           {isNsite && (
-            <EventActionHeader pubkey={event.pubkey} icon={Rocket} action={publishedAtAction(event, { created: "deployed an", updated: "redeployed an", fallback: "deployed an" })} noun="nsite" nounRoute="/development" />
+            <EventActionHeader pubkey={event.pubkey} icon={Rocket} action={publishedAtAction(event, {
+              created: "created",
+              updated: "updated",
+              fallback: "created",
+            }) === "updated" ? (
+              <FormattedMessage id="noteCard.header.nsite.redeployed" defaultMessage="redeployed an <noun>nsite</noun>" values={{ noun: (chunks) => <ActionNounLink to="/development">{chunks}</ActionNounLink> }} />
+            ) : (
+              <FormattedMessage id="noteCard.header.nsite.deployed" defaultMessage="deployed an <noun>nsite</noun>" values={{ noun: (chunks) => <ActionNounLink to="/development">{chunks}</ActionNounLink> }} />
+            )} />
           )}
           {isBirdDetection && (
-            <EventActionHeader pubkey={event.pubkey} icon={Bird} action="heard a" noun="bird" />
+            <EventActionHeader pubkey={event.pubkey} icon={Bird} action={<FormattedMessage id="noteCard.header.bird" defaultMessage="heard a <noun>bird</noun>" values={{ noun: (chunks) => <>{chunks}</> }} />} />
           )}
           {isConstellation && (
-            <EventActionHeader pubkey={event.pubkey} icon={Stars} action={publishedAtAction(event, { created: "drew a", updated: "redrew a", fallback: "drew a" })} noun="constellation" />
+            <EventActionHeader pubkey={event.pubkey} icon={Stars} action={publishedAtAction(event, {
+              created: "created",
+              updated: "updated",
+              fallback: "created",
+            }) === "updated" ? (
+              <FormattedMessage id="noteCard.header.constellation.redrew" defaultMessage="redrew a <noun>constellation</noun>" values={{ noun: (chunks) => <>{chunks}</> }} />
+            ) : (
+              <FormattedMessage id="noteCard.header.constellation.drew" defaultMessage="drew a <noun>constellation</noun>" values={{ noun: (chunks) => <>{chunks}</> }} />
+            )} />
           )}
           {isFoundLog && (
-            <EventActionHeader pubkey={event.pubkey} icon={ChestIcon} action="found a" noun="treasure" nounRoute="/treasures" />
+            <EventActionHeader pubkey={event.pubkey} icon={ChestIcon} action={<FormattedMessage id="noteCard.header.treasure.found" defaultMessage="found a <noun>treasure</noun>" values={{ noun: (chunks) => <ActionNounLink to="/treasures">{chunks}</ActionNounLink> }} />} />
           )}
 
           {/* Author row */}

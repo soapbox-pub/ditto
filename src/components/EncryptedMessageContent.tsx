@@ -213,7 +213,7 @@ export function EncryptedMessageCompact({ event, className }: EncryptedMessageCo
           )}
 
           <span className="text-xs text-muted-foreground shrink-0">
-            · {timeAgo(event.created_at)}
+            · {timeAgo(event.created_at, intl)}
           </span>
         </div>
 

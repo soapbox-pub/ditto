@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter, NostrMetadata } from '@nostrify/nostrify';
 
@@ -64,8 +64,8 @@ function parseMetadata(content: string): NostrMetadata | undefined {
 }
 
 /** Format a unix timestamp into a human-readable date string. */
-function formatDate(timestamp: number): string {
-  return new Date(timestamp * 1000).toLocaleDateString(undefined, {
+function formatDate(timestamp: number, intl: IntlShape): string {
+  return intl.formatDate(new Date(timestamp * 1000), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -152,7 +152,7 @@ function ProfileSnapshotCard({
             <div className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{metadata.about}</div>
           )}
           <div className="text-[11px] text-muted-foreground/70 pt-0.5">
-            {formatDate(event.created_at)}
+            {formatDate(event.created_at, intl)}
           </div>
         </div>
       </div>
@@ -251,7 +251,7 @@ function ThemeSnapshotCard({
       <div className="px-4 py-3 min-w-0">
         <div className="text-sm font-medium truncate">{title}</div>
         <div className="text-[11px] text-muted-foreground/70">
-          {formatDate(event.created_at)}
+          {formatDate(event.created_at, intl)}
         </div>
       </div>
     </div>
@@ -271,6 +271,7 @@ function FollowsSnapshotCard({
   onRestore: () => void;
   isRestoring: boolean;
 }) {
+  const intl = useIntl();
   // Reverse so newest follows (appended to the end of the tag list) appear first.
   const followedPubkeys = useMemo(
     () =>
@@ -327,7 +328,7 @@ function FollowsSnapshotCard({
       )}
 
       <div className="text-[11px] text-muted-foreground/70 mt-2">
-        {formatDate(event.created_at)}
+        {formatDate(event.created_at, intl)}
       </div>
     </div>
   );
@@ -409,7 +410,7 @@ function ProfileHistoryTab({ onClose }: { onClose: () => void }) {
         title: intl.formatMessage({ id: 'profileRecovery.profileRestored', defaultMessage: 'Profile restored' }),
         description: intl.formatMessage(
           { id: 'profileRecovery.restoredFrom', defaultMessage: 'Successfully restored from {date}.' },
-          { date: formatDate(event.created_at) },
+          { date: formatDate(event.created_at, intl) },
         ),
       });
 
@@ -509,7 +510,7 @@ function ThemeHistoryTab({ onClose }: { onClose: () => void }) {
         title: intl.formatMessage({ id: 'profileRecovery.themeRestored', defaultMessage: 'Theme restored' }),
         description: intl.formatMessage(
           { id: 'profileRecovery.restoredFrom', defaultMessage: 'Successfully restored from {date}.' },
-          { date: formatDate(event.created_at) },
+          { date: formatDate(event.created_at, intl) },
         ),
       });
 
@@ -607,7 +608,7 @@ function FollowsHistoryTab({ onClose }: { onClose: () => void }) {
         title: intl.formatMessage({ id: 'profileRecovery.followsRestored', defaultMessage: 'Follow list restored' }),
         description: intl.formatMessage(
           { id: 'profileRecovery.restoredFrom', defaultMessage: 'Successfully restored from {date}.' },
-          { date: formatDate(event.created_at) },
+          { date: formatDate(event.created_at, intl) },
         ),
       });
 

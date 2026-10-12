@@ -8,6 +8,7 @@
  * - Blobbi reactions to items
  */
 
+import { defineMessage, type MessageDescriptor } from 'react-intl';
 import type { ShopItemCategory, ItemEffect } from '@blobbi-kit/core/types/shop';
 
 // ─── Menu Actions ─────────────────────────────────────────────────────────────
@@ -28,7 +29,7 @@ export type CompanionMenuAction =
  */
 export interface MenuActionConfig {
   id: CompanionMenuAction;
-  label: string;
+  label: MessageDescriptor;
   emoji: string;
   /** Which item category this action uses (null for non-item actions like sleep) */
   itemCategory: ShopItemCategory | null;
@@ -38,11 +39,11 @@ export interface MenuActionConfig {
  * All available menu actions with their configuration.
  */
 export const MENU_ACTIONS: MenuActionConfig[] = [
-  { id: 'feed', label: 'Feed', emoji: '🍎', itemCategory: 'food' },
-  { id: 'play', label: 'Play', emoji: '⚽', itemCategory: 'toy' },
-  { id: 'medicine', label: 'Medicine', emoji: '💊', itemCategory: 'medicine' },
-  { id: 'clean', label: 'Clean', emoji: '🧼', itemCategory: 'hygiene' },
-  { id: 'sleep', label: 'Sleep', emoji: '😴', itemCategory: null },
+  { id: 'feed', label: defineMessage({ id: 'blobbi.activity.action.feed', defaultMessage: 'Feed' }), emoji: '🍎', itemCategory: 'food' },
+  { id: 'play', label: defineMessage({ id: 'blobbi.activity.action.play', defaultMessage: 'Play' }), emoji: '⚽', itemCategory: 'toy' },
+  { id: 'medicine', label: defineMessage({ id: 'blobbi.activity.action.medicate', defaultMessage: 'Medicine' }), emoji: '💊', itemCategory: 'medicine' },
+  { id: 'clean', label: defineMessage({ id: 'blobbi.activity.action.clean', defaultMessage: 'Clean' }), emoji: '🧼', itemCategory: 'hygiene' },
+  { id: 'sleep', label: defineMessage({ id: 'blobbiRoom.dock.sleep', defaultMessage: 'Sleep' }), emoji: '😴', itemCategory: null },
 ];
 
 /**

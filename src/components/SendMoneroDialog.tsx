@@ -228,7 +228,7 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
   // In USD mode the amount is 0 until the price lands, so fall back to echoing
   // the raw input ("$5") rather than putting a "0" on the send button.
   const totalDisplay =
-    total > 0n ? formatMoneroAmount(total, unit, xmrPrice) : formatMoneroAmountInput(amountInput, unit);
+    total > 0n ? formatMoneroAmount(total, unit, xmrPrice, intl.locale) : formatMoneroAmountInput(amountInput, unit, intl.locale);
 
   /**
    * The same total in XMR, always stated on the confirming tap.
@@ -238,7 +238,7 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
    * number is wrong the user can't tell from a dollar sign — so the
    * confirmation says what actually leaves the wallet.
    */
-  const totalXmrDisplay = unit === 'usd' && total > 0n ? formatMoneroAmount(total, 'xmr', xmrPrice) : null;
+  const totalXmrDisplay = unit === 'usd' && total > 0n ? formatMoneroAmount(total, 'xmr', xmrPrice, intl.locale) : null;
 
   const syncing = phase === 'loading' || phase === 'opening' || phase === 'syncing';
   const awaitingPrice = unit === 'usd' && !xmrPrice;
@@ -324,7 +324,7 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
       void refreshState();
       toast({
         title: intl.formatMessage({ id: 'monero.send.sent.title', defaultMessage: 'Monero sent' }),
-        description: formatMoneroAmount(prepared.amount, 'xmr', xmrPrice),
+        description: formatMoneroAmount(prepared.amount, 'xmr', xmrPrice, intl.locale),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to broadcast the transaction');
@@ -471,9 +471,9 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
                         <FormattedMessage id="monero.send.confirm.amount" defaultMessage="Amount" />
                       </dt>
                       <dd className="font-medium text-right">
-                        {formatMoneroAmount(prepared.amount, 'xmr', xmrPrice)}
+                        {formatMoneroAmount(prepared.amount, 'xmr', xmrPrice, intl.locale)}
                         {unit === 'usd' && xmrPrice
-                          ? ` · ${formatMoneroAmount(prepared.amount, 'usd', xmrPrice)}`
+                          ? ` · ${formatMoneroAmount(prepared.amount, 'usd', xmrPrice, intl.locale)}`
                           : ''}
                       </dd>
                     </div>
@@ -481,7 +481,7 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
                       <dt className="text-muted-foreground">
                         <FormattedMessage id="monero.send.confirm.fee" defaultMessage="Network fee" />
                       </dt>
-                      <dd className="text-right">{formatMoneroAmount(prepared.fee, 'xmr', xmrPrice)}</dd>
+                      <dd className="text-right">{formatMoneroAmount(prepared.fee, 'xmr', xmrPrice, intl.locale)}</dd>
                     </div>
                     <div className="flex justify-between gap-3">
                       <dt className="text-muted-foreground">
@@ -592,7 +592,7 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
                     <FormattedMessage
                       id="monero.send.max"
                       defaultMessage="Max {amount}"
-                      values={{ amount: formatMoneroAmount(unlockedBalance, unit, xmrPrice) }}
+                      values={{ amount: formatMoneroAmount(unlockedBalance, unit, xmrPrice, intl.locale) }}
                     />
                   </button>
                 </div>
@@ -1296,11 +1296,11 @@ function SendSuccess({ txHash, amount, unit, xmrPrice, onClose }: SendSuccessPro
           <FormattedMessage id="monero.send.success.heading" defaultMessage="Monero sent" />
         </h2>
         <div className="text-4xl font-bold tabular-nums bg-gradient-to-br from-orange-500 to-orange-600 bg-clip-text text-transparent">
-          {formatMoneroAmount(amount, 'xmr', xmrPrice)}
+          {formatMoneroAmount(amount, 'xmr', xmrPrice, intl.locale)}
         </div>
         {unit === 'usd' && xmrPrice && (
           <div className="text-sm text-muted-foreground">
-            {formatMoneroAmount(amount, 'usd', xmrPrice)}
+            {formatMoneroAmount(amount, 'usd', xmrPrice, intl.locale)}
           </div>
         )}
       </div>

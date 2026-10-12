@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { useGoBack } from '@/hooks/useGoBack';
 import { ArrowLeft, Play, Pause, Podcast, Zap, Clock, Loader2 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
@@ -39,8 +39,8 @@ import { useTrackLoadState } from '@/hooks/useTrackLoadState';
 import { parsePodcastEpisode, parsePodcastTrailer, episodeToAudioTrack, trailerToAudioTrack } from '@/lib/podcastHelpers';
 
 /** Format a full date. */
-function formatFullDate(ts: number): string {
-  return new Date(ts * 1000).toLocaleDateString(undefined, {
+function formatFullDate(ts: number, intl: IntlShape): string {
+  return intl.formatDate(new Date(ts * 1000), {
     year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
   });
 }
@@ -250,7 +250,7 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
 
       {/* Date */}
       <div className="px-4 mt-3 text-xs text-muted-foreground">
-        {formatFullDate(parsed?.pubdate ?? event.created_at)}
+        {formatFullDate(parsed?.pubdate ?? event.created_at, intl)}
       </div>
 
       {/* Interactions tabs */}
@@ -416,7 +416,7 @@ function TrailerDetail({ event }: { event: NostrEvent }) {
 
       {/* Date */}
       <div className="px-4 mt-3 text-xs text-muted-foreground">
-        {formatFullDate(event.created_at)}
+        {formatFullDate(event.created_at, intl)}
       </div>
     </main>
   );

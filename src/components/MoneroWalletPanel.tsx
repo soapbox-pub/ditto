@@ -192,7 +192,7 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
       {/* Balance */}
       <div className="flex flex-col items-center space-y-1">
         <span className="text-4xl font-bold tracking-tight">
-          {xmrPrice ? atomicToUSD(balance, xmrPrice) : `${formatXMR(balance)} XMR`}
+          {xmrPrice ? atomicToUSD(balance, xmrPrice, intl.locale) : `${formatXMR(balance)} XMR`}
         </span>
         <span className="text-sm text-muted-foreground">{formatXMR(balance)} XMR</span>
 
@@ -265,8 +265,8 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
                 id="monero.panel.scanning"
                 defaultMessage="Scanning block {height} of {end}"
                 values={{
-                  height: progress.height.toLocaleString(),
-                  end: progress.endHeight.toLocaleString(),
+                  height: intl.formatNumber(progress.height),
+                  end: intl.formatNumber(progress.endHeight),
                 }}
               />
             ) : (
@@ -290,7 +290,7 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
           <FormattedMessage
             id="monero.panel.behind"
             defaultMessage="{blocks} blocks behind"
-            values={{ blocks: blocksBehind.toLocaleString() }}
+            values={{ blocks: intl.formatNumber(blocksBehind) }}
           />
         </p>
       )}
@@ -439,7 +439,7 @@ function MoneroTxRow({ tx, xmrPrice }: { tx: MoneroTxSummary; xmrPrice?: number 
           }`}
         >
           {isReceive ? '+' : '-'}
-          {xmrPrice ? atomicToUSD(amount, xmrPrice) : `${formatXMR(amount)} XMR`}
+          {xmrPrice ? atomicToUSD(amount, xmrPrice, intl.locale) : `${formatXMR(amount)} XMR`}
         </p>
         <p className="text-xs text-muted-foreground">{formatXMR(amount)} XMR</p>
       </div>

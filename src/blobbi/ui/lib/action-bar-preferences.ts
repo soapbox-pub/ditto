@@ -15,6 +15,8 @@
  * later migrate to a Nostr event tag.
  */
 
+import { defineMessages, type MessageDescriptor } from 'react-intl';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 /** Identifiers for customizable bottom-bar items */
@@ -51,13 +53,13 @@ export const STORAGE_KEY = 'blobbi:action-bar-prefs';
 export const MISSION_CARD_STORAGE_KEY = 'blobbi:mission-card-visible';
 
 /** Human-readable labels */
-export const BAR_ITEM_LABELS: Record<BarItemId, string> = {
-  blobbies: 'Blobbies',
-  missions: 'Missions',
-  items: 'Items',
-  take_photo: 'Take Photo',
-  set_companion: 'Companion',
-};
+export const BAR_ITEM_LABELS: Record<BarItemId, MessageDescriptor> = defineMessages({
+  blobbies: { id: 'actionBar.item.blobbies', defaultMessage: 'Blobbies' },
+  missions: { id: 'actionBar.item.missions', defaultMessage: 'Missions' },
+  items: { id: 'actionBar.item.items', defaultMessage: 'Items' },
+  take_photo: { id: 'actionBar.item.takePhoto', defaultMessage: 'Take Photo' },
+  set_companion: { id: 'actionBar.item.companion', defaultMessage: 'Companion' },
+});
 
 /** Default preferences: only Blobbies visible, others hidden */
 export const DEFAULT_PREFERENCES: ActionBarPreferences = {

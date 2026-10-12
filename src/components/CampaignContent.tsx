@@ -60,6 +60,7 @@ interface CampaignContentProps {
  * fail parse and render `null`, letting the feed quietly skip them.
  */
 export function CampaignContent({ event, expanded = false, className }: CampaignContentProps) {
+  const intl = useIntl();
   const campaign = useMemo(() => parseCampaign(event), [event]);
   // Hook must run unconditionally; passes `undefined` (and short-circuits)
   // when the event didn't parse as a valid campaign.
@@ -68,8 +69,8 @@ export function CampaignContent({ event, expanded = false, className }: Campaign
   if (!campaign) return null;
 
   const banner = sanitizeUrl(campaign.banner);
-  const deadline = formatCampaignDeadline(campaign.deadline);
-  const country = getCampaignCountryLabel(campaign);
+  const deadline = formatCampaignDeadline(campaign.deadline, intl);
+  const country = getCampaignCountryLabel(campaign, intl);
 
   const isSilentPaymentOnly = !campaign.wallets.onchain;
 
@@ -146,7 +147,7 @@ export function CampaignContent({ event, expanded = false, className }: Campaign
             </div>
             {campaign.goalUsd && campaign.goalUsd > 0 && (
               <div className="text-xs text-muted-foreground">
-                <FormattedMessage id="campaign.target" defaultMessage="Target: {amount}" values={{ amount: formatUsdGoal(campaign.goalUsd) }} />
+                <FormattedMessage id="campaign.target" defaultMessage="Target: {amount}" values={{ amount: formatUsdGoal(campaign.goalUsd, intl) }} />
               </div>
             )}
           </div>
@@ -410,6 +411,7 @@ function CampaignProgress({
   goalUsd?: number;
   btcPrice: number | undefined;
 }) {
+  const intl = useIntl();
   const hasGoal = !!goalUsd && goalUsd > 0;
   const raisedUsd = satsToUsdNumber(raisedSats, btcPrice);
   const pct = hasGoal && raisedUsd !== undefined
@@ -421,7 +423,7 @@ function CampaignProgress({
       {hasGoal && <Progress value={pct} className="h-2" />}
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-semibold">
-          {formatCampaignRaised(raisedSats, btcPrice)}
+          {formatCampaignRaised(raisedSats, btcPrice, intl)}
           {!hasGoal && (
             <span className="ml-1 font-normal text-muted-foreground"><FormattedMessage id="campaign.raised" defaultMessage="raised" /></span>
           )}
@@ -429,7 +431,7 @@ function CampaignProgress({
         {hasGoal && (
           <span className="inline-flex items-center gap-1.5 text-muted-foreground">
             <Target className="size-3.5" />
-            <FormattedMessage id="campaign.ofGoal" defaultMessage="of {amount} goal" values={{ amount: formatUsdGoal(goalUsd!) }} />
+            <FormattedMessage id="campaign.ofGoal" defaultMessage="of {amount} goal" values={{ amount: formatUsdGoal(goalUsd!, intl) }} />
           </span>
         )}
       </div>

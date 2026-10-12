@@ -242,9 +242,9 @@ export function ExternalContentView({ uri, focusedEventId }: ExternalContentView
 
   const resolvedTitle = wikiSummary?.title ?? scryfallCard?.name ?? linkPreview?.title;
 
-  const pageTitle = resolvedTitle ?? (content ? headerLabel(content) : intl.formatMessage({ id: 'externalContentPage.title', defaultMessage: 'External Content' }));
+  const pageTitle = resolvedTitle ?? (content ? headerLabel(content, intl) : intl.formatMessage({ id: 'externalContentPage.title', defaultMessage: 'External Content' }));
 
-  useSeoMeta({ title: content ? (resolvedTitle ? `${resolvedTitle} | ${config.appName}` : seoTitle(content, config.appName)) : intl.formatMessage({ id: 'externalContentPage.seoTitle', defaultMessage: 'External Content | {appName}' }, { appName: config.appName }) });
+  useSeoMeta({ title: content ? (resolvedTitle ? `${resolvedTitle} | ${config.appName}` : seoTitle(content, config.appName, intl)) : intl.formatMessage({ id: 'externalContentPage.seoTitle', defaultMessage: 'External Content | {appName}' }, { appName: config.appName }) });
 
   // Build the NIP-73 identifier for comments.
   // For URLs, a URL object is used. For others (isbn:, iso3166:, etc.) the raw identifier
@@ -541,6 +541,7 @@ function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading, f
 // ---------------------------------------------------------------------------
 
 function BookReviewCard({ event, review }: { event: NostrEvent; review: BookReview }) {
+  const intl = useIntl();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
@@ -579,7 +580,7 @@ function BookReviewCard({ event, review }: { event: NostrEvent; review: BookRevi
                   {displayName}
                 </Link>
               </ProfileHoverCard>
-              <p className="text-xs text-muted-foreground">{timeAgo(event.created_at)}</p>
+              <p className="text-xs text-muted-foreground">{timeAgo(event.created_at, intl)}</p>
             </div>
 
             {/* Star rating */}

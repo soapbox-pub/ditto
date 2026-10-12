@@ -1,5 +1,6 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import type { NRelay } from '@nostrify/types';
+import type { IntlShape } from 'react-intl';
 
 /**
  * Low-level relay I/O for bulk account transfers.
@@ -141,16 +142,34 @@ export async function pushRelayEvents(
 
     const remaining = events.length - (i + chunk.length);
     if (!totalAccepted && rejected === chunk.length && remaining > 0) {
-      throw firstReason instanceof Error ? firstReason : new Error(String(firstReason ?? 'Relay rejected the events'));
+      throw firstReason instanceof Error
+        ? firstReason
+        : firstReason != null ? new Error(String(firstReason)) : new RelayRejectedError();
     }
 
     onChunk(accepted, rejected);
   }
 }
 
+/** Thrown when a relay rejects a whole chunk without giving a reason. */
+export class RelayRejectedError extends Error {
+  constructor() {
+    super('Relay rejected the events');
+    this.name = 'RelayRejectedError';
+  }
+}
+
 /** Short, human-readable failure text for a relay row. */
-export function describeError(error: unknown): string {
+export function describeError(error: unknown, intl: IntlShape): string {
+  if (error instanceof RelayRejectedError) {
+    return intl.formatMessage({ id: 'relayTransfer.rejected', defaultMessage: 'Relay rejected the events' });
+  }
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;
-  return 'Unknown error';
+  return intl.formatMessage({ id: 'relayTransfer.unknownError', defaultMessage: 'Unknown error' });
+}
+
+/** Label for a relay row whose transfer the user cancelled. */
+export function describeCancelled(intl: IntlShape): string {
+  return intl.formatMessage({ id: 'relayTransfer.cancelled', defaultMessage: 'Cancelled' });
 }

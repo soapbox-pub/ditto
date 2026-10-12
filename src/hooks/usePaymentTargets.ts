@@ -1,5 +1,6 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useIntl } from 'react-intl';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -56,6 +57,7 @@ export function usePaymentTargets(pubkey: string | undefined) {
  * and any unrelated content the event may carry.
  */
 export function useUpdatePaymentTargets() {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -63,7 +65,7 @@ export function useUpdatePaymentTargets() {
 
   return useMutation({
     mutationFn: async (targets: PaymentTarget[]) => {
-      if (!user) throw new Error('You must be logged in.');
+      if (!user) throw new Error(intl.formatMessage({ id: 'onchainZap.error.notLoggedIn', defaultMessage: 'You must be logged in.' }));
 
       const prev = await fetchFreshEvent(nostr, {
         kinds: [PAYMENT_TARGETS_KIND],
@@ -128,6 +130,7 @@ export type EnsureTargetResult =
  * silently.
  */
 export function useEnsurePaymentTarget() {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -141,11 +144,14 @@ export function useEnsurePaymentTarget() {
       type: PaymentTargetType;
       authority: string;
     }): Promise<EnsureTargetResult> => {
-      if (!user) throw new Error('You must be logged in.');
+      if (!user) throw new Error(intl.formatMessage({ id: 'onchainZap.error.notLoggedIn', defaultMessage: 'You must be logged in.' }));
 
       const value = authority.trim();
       if (!PAYMENT_METHODS[type].validate(value)) {
-        throw new Error(`Invalid ${PAYMENT_METHODS[type].label} address`);
+        throw new Error(intl.formatMessage(
+          { id: 'paymentTargets.invalidAddress.title', defaultMessage: 'Invalid {method} address' },
+          { method: PAYMENT_METHODS[type].label },
+        ));
       }
 
       // Always read fresh: this is a replaceable event that other clients (and

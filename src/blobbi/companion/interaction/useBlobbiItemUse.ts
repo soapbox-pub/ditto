@@ -19,6 +19,7 @@
 
 import { useCallback, useRef, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useIntl } from 'react-intl';
 import { useNostr } from '@nostrify/react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -36,7 +37,7 @@ import {
   buildBlobbiAddress,
 } from '@blobbi-kit/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi-kit/core/blobbi-decay';
-import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+import { formatShopItemName, getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import {
   applyItemEffects,
   canUseAction,
@@ -48,6 +49,7 @@ import {
   hasHygieneEffectForEgg,
   type InventoryAction,
   ACTION_METADATA,
+  ACTION_ERROR_MESSAGES,
 } from '@/blobbi/actions/lib/blobbi-action-utils';
 import { trackEvolutionMissionTally, readEvolutionFromStorage, trackInventoryDailyActions } from '@blobbi-kit/react/lib/daily-mission-tracker';
 import { serializeEvolutionContent } from '@blobbi-kit/core/missions';
@@ -119,6 +121,7 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
+  const intl = useIntl();
   
   // Fetch profile if not provided
   const { profile: fetchedProfile } = useBlobbonautProfile();
@@ -240,51 +243,55 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
     }): Promise<{ statsChanged: Record<string, number> }> => {
       // ─── Validation ───
       if (!user?.pubkey) {
-        throw new Error('You must be logged in to use items');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.notLoggedInItems));
       }
       
       if (!profile) {
-        throw new Error('Profile not found');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.profileNotFound));
       }
       
       // Fetch fresh companion data
       const companion = await fetchCurrentCompanion();
       
       if (!companion) {
-        throw new Error('No companion selected');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.noCompanion));
       }
       
       // Check stage restrictions
       if (!canUseAction(companion, action)) {
         const message = getStageRestrictionMessage(companion, action);
-        throw new Error(message ?? 'This companion cannot use this item');
+        throw new Error(intl.formatMessage(message ?? ACTION_ERROR_MESSAGES.cannotUseItem));
       }
       
       // Validate item exists in shop catalog
       const shopItem = getShopItemById(itemId);
       if (!shopItem) {
-        throw new Error('Item not found in catalog');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.itemNotInCatalog));
       }
       
       // Validate item can be used by this companion's stage
       // This catches egg-only items (like Shell Repair Kit) being used by baby/adult companions
       const itemUsability = canUseItemForStage(itemId, companion.stage);
       if (!itemUsability.canUse) {
-        throw new Error(itemUsability.reason ?? 'This item cannot be used by this companion');
+        throw new Error(
+          itemUsability.reason
+            ? intl.formatMessage(itemUsability.reason)
+            : intl.formatMessage({ id: 'blobbiAction.error.itemNotForCompanion', defaultMessage: 'This item cannot be used by this companion' }),
+        );
       }
       
       // Validate item has effects
       if (!shopItem.effect) {
-        throw new Error('This item has no effect');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.itemNoEffect));
       }
       
       // For eggs, validate that items have applicable effects
       const isEgg = companion.stage === 'egg';
       if (isEgg && action === 'medicine' && !hasMedicineEffectForEgg(shopItem.effect)) {
-        throw new Error('This medicine has no effect on eggs');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.medicineNoEffectEgg));
       }
       if (isEgg && action === 'clean' && !hasHygieneEffectForEgg(shopItem.effect)) {
-        throw new Error('This item has no cleaning effect on eggs');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.noCleaningEffectEgg));
       }
       
       // ─── Apply Accumulated Decay First ───
@@ -422,8 +429,16 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
       const actionMeta = ACTION_METADATA[action];
       
       toast({
-        title: `${actionMeta.label} successful!`,
-        description: `Used ${shopItem?.name ?? 'item'} on your Blobbi.`,
+        title: intl.formatMessage(
+          { id: 'blobbiAction.itemUsed.title', defaultMessage: '{action} successful!' },
+          { action: intl.formatMessage(actionMeta.label) },
+        ),
+        description: shopItem
+          ? intl.formatMessage(
+            { id: 'blobbiAction.itemUsedOn', defaultMessage: 'Used {itemName} on your Blobbi.' },
+            { itemName: formatShopItemName(intl, shopItem) },
+          )
+          : intl.formatMessage({ id: 'blobbiAction.genericItemUsedOn', defaultMessage: 'Used item on your Blobbi.' }),
       });
       
       // Track daily mission progress
@@ -434,7 +449,7 @@ export function useBlobbiItemUse(options: UseBlobbiItemUseOptions = {}): UseBlob
     },
     onError: (error: Error, { itemId }) => {
       toast({
-        title: 'Failed to use item',
+        title: intl.formatMessage({ id: 'blobbiAction.itemUseFailed', defaultMessage: 'Failed to use item' }),
         description: error.message,
         variant: 'destructive',
       });

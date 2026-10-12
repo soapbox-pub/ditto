@@ -1,4 +1,5 @@
 import type { NostrEvent } from '@nostrify/nostrify';
+import type { IntlShape } from 'react-intl';
 
 import { isNostrId } from '@/lib/nostrId';
 import { parseAddr, type ParsedAddr } from '@/lib/parseAddr';
@@ -43,9 +44,9 @@ function parseTimestamp(value: string | undefined): number | undefined {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
 }
 
-/** Format a unix-seconds timestamp as a short local date. */
-function formatDate(ts: number): string {
-  return new Date(ts * 1000).toLocaleDateString(undefined, {
+/** Format a unix-seconds timestamp as a short date in the app locale. */
+function formatDate(ts: number, intl: IntlShape): string {
+  return intl.formatDate(new Date(ts * 1000), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -53,12 +54,29 @@ function formatDate(ts: number): string {
 }
 
 /** Human-readable validity window from optional `valid_from` / `valid_to`. */
-export function attestationValidityText(validFrom?: number, validTo?: number): string | undefined {
+export function attestationValidityText(
+  intl: IntlShape,
+  validFrom?: number,
+  validTo?: number,
+): string | undefined {
   if (validFrom !== undefined && validTo !== undefined) {
-    return `Valid ${formatDate(validFrom)} – ${formatDate(validTo)}`;
+    return intl.formatMessage(
+      { id: 'attestation.validRange', defaultMessage: 'Valid {from} – {to}' },
+      { from: formatDate(validFrom, intl), to: formatDate(validTo, intl) },
+    );
   }
-  if (validFrom !== undefined) return `Valid from ${formatDate(validFrom)}`;
-  if (validTo !== undefined) return `Valid until ${formatDate(validTo)}`;
+  if (validFrom !== undefined) {
+    return intl.formatMessage(
+      { id: 'attestation.validFrom', defaultMessage: 'Valid from {date}' },
+      { date: formatDate(validFrom, intl) },
+    );
+  }
+  if (validTo !== undefined) {
+    return intl.formatMessage(
+      { id: 'attestation.validUntil', defaultMessage: 'Valid until {date}' },
+      { date: formatDate(validTo, intl) },
+    );
+  }
   return undefined;
 }
 

@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -40,11 +41,12 @@ export function EmbeddedCardShell({
   disableHoverCards,
   children,
 }: EmbeddedCardShellProps) {
+  const intl = useIntl();
   const { onClick: openCard, onAuxClick: auxOpenCard } = useOpenPost(`/${navigateTo}`);
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(pubkey, metadata);
 
   return (
@@ -112,7 +114,7 @@ export function EmbeddedCardShell({
           )}
 
           <span className="text-xs text-muted-foreground shrink-0">
-            · {timeAgo(createdAt)}
+            · {timeAgo(createdAt, intl)}
           </span>
         </div>
 

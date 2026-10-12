@@ -53,7 +53,7 @@ import {
   User,
   Zap,
 } from "lucide-react";
-import { useIntl } from "react-intl";
+import { defineMessages, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
 import { PlanetIcon } from "@/components/icons/PlanetIcon";
@@ -150,6 +150,55 @@ export interface SidebarItemDef {
   /** Grouping used to organize the "More..." menu. */
   section: SidebarSection;
 }
+
+/**
+ * Translatable labels for every sidebar item, keyed by item ID. Kept as static
+ * descriptors so `npm run i18n:extract` can see them.
+ */
+const SIDEBAR_ITEM_LABELS: Record<string, MessageDescriptor> = defineMessages({
+  feed: { id: "nav.feed", defaultMessage: "Feed" },
+  notifications: { id: "nav.notifications", defaultMessage: "Notifications" },
+  search: { id: "nav.search", defaultMessage: "Search" },
+  trends: { id: "nav.trends", defaultMessage: "Trends" },
+  bookmarks: { id: "nav.bookmarks", defaultMessage: "Bookmarks" },
+  "top-8": { id: "nav.top-8", defaultMessage: "Top 8" },
+  profile: { id: "nav.profile", defaultMessage: "Profile" },
+  lists: { id: "nav.lists", defaultMessage: "Lists" },
+  settings: { id: "nav.settings", defaultMessage: "Settings" },
+  wallet: { id: "nav.wallet", defaultMessage: "Wallet" },
+  changelog: { id: "nav.changelog", defaultMessage: "Changelog" },
+  letters: { id: "nav.letters", defaultMessage: "Letters" },
+  "ai-chat": { id: "nav.ai-chat", defaultMessage: "AI Chat" },
+  blobbi: { id: "nav.blobbi", defaultMessage: "Blobbi" },
+  help: { id: "nav.help", defaultMessage: "Help" },
+  events: { id: "nav.events", defaultMessage: "Events" },
+  photos: { id: "nav.photos", defaultMessage: "Photos" },
+  videos: { id: "nav.videos", defaultMessage: "Videos" },
+  articles: { id: "nav.articles", defaultMessage: "Articles" },
+  highlights: { id: "nav.highlights", defaultMessage: "Highlights" },
+  books: { id: "nav.books", defaultMessage: "Books" },
+  vines: { id: "nav.vines", defaultMessage: "Shorts" },
+  music: { id: "nav.music", defaultMessage: "Music" },
+  podcasts: { id: "nav.podcasts", defaultMessage: "Podcasts" },
+  torrents: { id: "nav.torrents", defaultMessage: "Torrents" },
+  webxdc: { id: "nav.webxdc", defaultMessage: "Webxdc" },
+  themes: { id: "nav.themes", defaultMessage: "Themes" },
+  polls: { id: "nav.polls", defaultMessage: "Polls" },
+  packs: { id: "nav.packs", defaultMessage: "Follow Packs" },
+  colors: { id: "nav.colors", defaultMessage: "Color Moments" },
+  decks: { id: "nav.decks", defaultMessage: "Magic Decks" },
+  tarot: { id: "nav.tarot", defaultMessage: "Tarot" },
+  treasures: { id: "nav.treasures", defaultMessage: "Treasures" },
+  quizzes: { id: "nav.quizzes", defaultMessage: "Quizzes" },
+  cards: { id: "nav.cards", defaultMessage: "Memory Cards" },
+  emojis: { id: "nav.emojis", defaultMessage: "Emojis" },
+  development: { id: "nav.development", defaultMessage: "Development" },
+  badges: { id: "nav.badges", defaultMessage: "Badges" },
+  world: { id: "nav.world", defaultMessage: "World" },
+  archive: { id: "nav.archive", defaultMessage: "Archive" },
+  wikipedia: { id: "nav.wikipedia", defaultMessage: "Wikipedia" },
+  bluesky: { id: "nav.bluesky", defaultMessage: "Bluesky" },
+});
 
 // ── Registry ──────────────────────────────────────────────────────────────────
 
@@ -324,14 +373,20 @@ export function itemLabel(id: string): string {
 
 /**
  * Translated display label for a sidebar item ID, for use in components.
- * Looks up `nav.<id>` in the active locale and falls back to the registry's
- * English label when the key is missing. Non-registry IDs (URIs, dividers)
- * pass through untranslated.
+ * Non-registry IDs (URIs, dividers) pass through untranslated.
  */
 export function useItemLabel(id: string): string {
   const intl = useIntl();
-  const fallback = SIDEBAR_ITEM_MAP.get(id)?.label;
-  return fallback ? intl.formatMessage({ id: `nav.${id}`, defaultMessage: fallback }) : id;
+  return formatItemLabel(intl, id);
+}
+
+/**
+ * Translated display label for a sidebar item ID, for use outside of hooks.
+ * Non-registry IDs (URIs, dividers) pass through untranslated.
+ */
+export function formatItemLabel(intl: IntlShape, id: string): string {
+  const message = SIDEBAR_ITEM_LABELS[id];
+  return message ? intl.formatMessage(message) : itemLabel(id);
 }
 
 /** Lookup navigation path for a sidebar item ID. */
@@ -350,10 +405,11 @@ export function itemPath(
  * full label or of any word within the label (e.g. "arch" matches "Archive"
  * and "Internet Archive" but not "Search"). Whole-label prefix matches are
  * sorted before word-boundary matches. Auth-requiring items are excluded
- * when the user is not logged in.
+ * when the user is not logged in. Pass `intl` to match translated labels.
  */
 export function searchSidebarItems(
   query: string,
+  intl?: IntlShape,
 ): SidebarItemDef[] {
   const q = query.trim().toLowerCase();
   if (q.length === 0) return [];
@@ -362,7 +418,7 @@ export function searchSidebarItems(
   const wordMatches: SidebarItemDef[] = [];
 
   for (const item of SIDEBAR_ITEMS) {
-    const label = item.label.toLowerCase();
+    const label = (intl ? formatItemLabel(intl, item.id) : item.label).toLowerCase();
     if (label.startsWith(q)) {
       prefixMatches.push(item);
     } else {

@@ -54,7 +54,7 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
     { label: intl.formatMessage({ id: 'themeUpdateCard.swatch.background', defaultMessage: 'Background' }), hex: hexColors.background },
   ];
 
-  const relativeTime = timeAgo(event.created_at);
+  const relativeTime = timeAgo(event.created_at, intl);
 
   return (
     <div className="px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors">

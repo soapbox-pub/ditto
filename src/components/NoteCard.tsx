@@ -979,7 +979,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
             openPost();
           }}
         >
-          {timeAgo(event.created_at)}
+          {timeAgo(event.created_at, intl)}
         </Link>
       </div>
     </div>
@@ -1191,7 +1191,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
             </div>
             <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
               {wrapperHeader}
-              <VanishCardCompact event={event} timestamp={timeAgo(event.created_at)} />
+              <VanishCardCompact event={event} timestamp={timeAgo(event.created_at, intl)} />
               {!compact && (
                 <>
                   {actionButtons}
@@ -1313,7 +1313,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
                 <Nip05Badge nip05={zapSenderNip05} pubkey={zapSenderPubkey} />
               )}
               {zapSenderNip05 && zapSenderNip05Verified && <span className="shrink-0">·</span>}
-              <span className="shrink-0 whitespace-nowrap">{timeAgo(event.created_at)}</span>
+              <span className="shrink-0 whitespace-nowrap">{timeAgo(event.created_at, intl)}</span>
             </div>
           </div>
         </div>
@@ -1433,7 +1433,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
                 )}
                 {recipientNip05 && recipientNip05Verified && <span className="shrink-0">·</span>}
                 <span className="shrink-0 hover:underline whitespace-nowrap">
-                  {timeAgo(event.created_at)}
+                  {timeAgo(event.created_at, intl)}
                 </span>
               </div>
             </div>
@@ -1491,7 +1491,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         }
         actorRow={
           <ActorRow pubkey={event.pubkey} profileUrl={profileUrl} avatarShape={avatarShape} picture={metadata?.picture} pictureImeta={author.data?.imeta?.picture}
-            displayName={displayName} authorEvent={author.data?.event} isLoading={author.isLoading} label={intl.formatMessage({ id: "noteCard.actor.reacted", defaultMessage: "reacted" })} timestampLabel={timeAgo(event.created_at)} />
+            displayName={displayName} authorEvent={author.data?.event} isLoading={author.isLoading} label={intl.formatMessage({ id: "noteCard.actor.reacted", defaultMessage: "reacted" })} timestampLabel={timeAgo(event.created_at, intl)} />
         }
         threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
         className={className} onClick={handleCardClick} onAuxClick={handleAuxClick}
@@ -1512,7 +1512,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         }
         actorRow={
           <ActorRow pubkey={event.pubkey} profileUrl={profileUrl} avatarShape={avatarShape} picture={metadata?.picture} pictureImeta={author.data?.imeta?.picture}
-            displayName={displayName} authorEvent={author.data?.event} isLoading={author.isLoading} label={intl.formatMessage({ id: "noteCard.actor.reposted", defaultMessage: "reposted" })} timestampLabel={timeAgo(event.created_at)} />
+            displayName={displayName} authorEvent={author.data?.event} isLoading={author.isLoading} label={intl.formatMessage({ id: "noteCard.actor.reposted", defaultMessage: "reposted" })} timestampLabel={timeAgo(event.created_at, intl)} />
         }
         threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
         className={className} onClick={handleCardClick} onAuxClick={handleAuxClick}
@@ -1553,7 +1553,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
             label={isMultiRecipientOnchainZap
               ? intl.formatMessage({ id: "noteCard.actor.zappedPeople", defaultMessage: "zapped {count, plural, one {# person} other {# people}}" }, { count: zapRecipients.length })
               : intl.formatMessage({ id: "noteCard.actor.zapped", defaultMessage: "zapped" })}
-            timestampLabel={timeAgo(event.created_at)}
+            timestampLabel={timeAgo(event.created_at, intl)}
             extra={zapAmountSats > 0 ? (
               <span className="text-sm font-semibold text-amber-500 shrink-0">
                 {formatMoney(zapAmountSats)}
@@ -1600,7 +1600,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
             <span className="text-sm text-muted-foreground shrink-0">
               <FormattedMessage id="noteCard.actor.voted" defaultMessage="voted" />
             </span>
-            <span className="text-xs text-muted-foreground ml-auto shrink-0">{timeAgo(event.created_at)}</span>
+            <span className="text-xs text-muted-foreground ml-auto shrink-0">{timeAgo(event.created_at, intl)}</span>
           </div>
         }
         threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
@@ -2111,7 +2111,7 @@ function StreamContent({ event }: { event: NostrEvent }) {
   const streamingUrl = getTag(event.tags, "streaming");
   const status = getEffectiveStreamStatus(event);
   const currentParticipants = getTag(event.tags, "current_participants");
-  const statusConfig = getStreamStatusConfig(status);
+  const statusConfig = getStreamStatusConfig(status, intl);
 
   const isLive = status === "live" && !!streamingUrl;
 

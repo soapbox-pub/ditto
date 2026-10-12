@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { nip19 } from 'nostr-tools';
 import { ShieldCheck } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { FormattedMessage } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
 import { AttestationStatePill } from '@/components/AttestationContent';
@@ -25,6 +25,7 @@ export function EmbeddedAttestationCard({
   className?: string;
   disableHoverCards?: boolean;
 }) {
+  const intl = useIntl();
   const attestation = useMemo(() => parseAttestation(event), [event]);
 
   // Addressable kind — always navigate via naddr so the detail page can
@@ -35,7 +36,7 @@ export function EmbeddedAttestationCard({
   }, [event]);
 
   const validity = attestation
-    ? attestationValidityText(attestation.validFrom, attestation.validTo)
+    ? attestationValidityText(intl, attestation.validFrom, attestation.validTo)
     : undefined;
 
   return (

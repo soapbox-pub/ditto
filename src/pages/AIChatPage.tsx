@@ -201,7 +201,7 @@ export function AIChatPage() {
   const { config } = useAppContext();
   const intl = useIntl();
   const { user } = useCurrentUser();
-  const { sendChatMessage, getAvailableModels, isLoading: apiLoading, error: apiError, retryAfter, clearError } = useShakespeare();
+  const { sendChatMessage, getAvailableModels, isLoading: apiLoading, error: apiError, isOutOfCredits, retryAfter, clearError } = useShakespeare();
   const hasCredits = useShakespeareCredits();
   const { executeToolCall } = useToolExecutor();
 
@@ -498,7 +498,7 @@ export function AIChatPage() {
                     />
                   )}
                 />
-              ) : apiError.includes('run out of credits') ? (
+              ) : isOutOfCredits ? (
                 <DorkErrorBanner
                   face=">[o_o]<"
                   heading={intl.formatMessage({ id: 'aiChat.noCredits.heading', defaultMessage: "You've run out of credits!" })}

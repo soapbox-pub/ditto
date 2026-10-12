@@ -1,4 +1,5 @@
 import { useMemo, Fragment } from 'react';
+import { useIntl } from 'react-intl';
 
 import {
   Accordion,
@@ -88,10 +89,11 @@ interface HelpFAQSectionProps {
  * <HelpFAQSection items={['what-are-relays', 'what-are-blossom']} hideHeadings />
  */
 export function HelpFAQSection({ categories, items, hideHeadings, className }: HelpFAQSectionProps) {
+  const intl = useIntl();
   const { config } = useAppContext();
 
   const filteredCategories = useMemo(() => {
-    let cats: FAQCategory[] = getFAQCategories(config.appName);
+    let cats: FAQCategory[] = getFAQCategories(intl, config.appName);
 
     // Filter to specific categories
     if (categories) {
@@ -109,7 +111,7 @@ export function HelpFAQSection({ categories, items, hideHeadings, className }: H
     }
 
     return cats;
-  }, [categories, items, config.appName]);
+  }, [categories, items, config.appName, intl]);
 
   if (filteredCategories.length === 0) return null;
 

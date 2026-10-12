@@ -197,7 +197,7 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
               <ThemeSwatch
                 key={id}
                 colors={preset.colors}
-                label={preset.label}
+                label={intl.formatMessage(preset.label)}
                 emoji={preset.emoji}
                 backgroundUrl={preset.background?.url}
                 isActive={activePresetId === id}

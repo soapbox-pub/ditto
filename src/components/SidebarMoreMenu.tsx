@@ -5,7 +5,7 @@ import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { sidebarItemIcon, itemPath, SIDEBAR_SECTION_ORDER, type SidebarSection } from '@/lib/sidebarItems';
+import { sidebarItemIcon, itemPath, formatItemLabel, SIDEBAR_SECTION_ORDER, type SidebarSection } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
 import type { HiddenSidebarItem } from '@/hooks/useFeedSettings';
 import { nip19 } from 'nostr-tools';
@@ -120,7 +120,7 @@ function SectionHeader({ section, first }: { section: SidebarSection; first?: bo
 
 function ItemRow({ item, onAdd, onClose }: { item: HiddenSidebarItem; onAdd: (id: string) => void; onClose: () => void }) {
   const intl = useIntl();
-  const label = intl.formatMessage({ id: `nav.${item.id}`, defaultMessage: item.label });
+  const label = formatItemLabel(intl, item.id);
   return (
     <div className="flex items-center">
       <button
@@ -153,7 +153,7 @@ export function SidebarMoreMenu({
   const [linkError, setLinkError] = useState('');
 
   /** Translated label for a hidden item, so menus and filtering match the UI language. */
-  const labelOf = useCallback((item: HiddenSidebarItem) => intl.formatMessage({ id: `nav.${item.id}`, defaultMessage: item.label }), [intl]);
+  const labelOf = useCallback((item: HiddenSidebarItem) => formatItemLabel(intl, item.id), [intl]);
 
   const filtered = hiddenItems.filter((item) => labelOf(item).toLowerCase().includes(query.toLowerCase()));
   const addFiltered = hiddenItems.filter((item) => labelOf(item).toLowerCase().includes(addQuery.toLowerCase()));

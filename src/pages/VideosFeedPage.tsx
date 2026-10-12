@@ -324,7 +324,7 @@ function VideoGridCard({ event }: { event: NostrEvent }) {
               </Link>
             )}
             <p className="text-[11px] text-muted-foreground">
-              {timeAgo(event.created_at)}
+              {timeAgo(event.created_at, intl)}
             </p>
           </div>
         </div>

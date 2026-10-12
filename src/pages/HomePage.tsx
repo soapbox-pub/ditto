@@ -98,6 +98,7 @@ export function HomePage() {
       <LazyKindFeedPage
         kind={getSectionKinds('development')}
         title={intl.formatMessage({ id: 'homePage.development', defaultMessage: 'Development' })}
+        feedId="development"
         icon={sidebarItemIcon('development', 'size-5')}
         showFAB={false}
       />

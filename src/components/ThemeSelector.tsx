@@ -200,7 +200,7 @@ export function ThemeGrid({
 
   const presetOptions = Object.entries(themePresets).map(([id, preset]) => ({
     id,
-    label: preset.label,
+    label: intl.formatMessage(preset.label),
     colors: preset.colors,
     font: preset.font,
     titleFont: preset.titleFont,
@@ -671,7 +671,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
 
   const presetOptions = Object.entries(themePresets).map(([id, preset]) => ({
     id,
-    label: preset.label,
+    label: intl.formatMessage(preset.label),
     colors: preset.colors,
     font: preset.font,
     titleFont: preset.titleFont,

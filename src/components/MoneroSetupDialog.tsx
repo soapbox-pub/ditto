@@ -124,10 +124,10 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
       const created = await createWallet();
       setStep({ name: 'backup', ...created });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create wallet');
+      setError(err instanceof Error ? err.message : intl.formatMessage({ id: 'monero.setup.createFailed', defaultMessage: 'Failed to create wallet' }));
       setStep({ name: 'choose' });
     }
-  }, [pubkey]);
+  }, [pubkey, intl]);
 
   /**
    * Advertise the wallet's address as a NIP-A3 Monero payment target, unless
@@ -219,7 +219,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
         handleAlreadyExists();
         return;
       }
-      setError(err instanceof Error ? err.message : 'Failed to save wallet');
+      setError(err instanceof Error ? err.message : intl.formatMessage({ id: 'monero.setup.saveFailed', defaultMessage: 'Failed to save wallet' }));
     }
   }, [
     step,
@@ -306,7 +306,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
         handleAlreadyExists();
         return;
       }
-      setError(err instanceof Error ? err.message : 'Failed to restore wallet');
+      setError(err instanceof Error ? err.message : intl.formatMessage({ id: 'monero.setup.restoreFailed', defaultMessage: 'Failed to restore wallet' }));
       setStep({ name: 'restore' });
     }
   }, [

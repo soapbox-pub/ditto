@@ -112,7 +112,7 @@ export function AmountField({
   const display = !hasValidAmount
     ? '0'
     : currency === 'sats'
-      ? formatSats(Math.round(numeric))
+      ? formatSats(Math.round(numeric), intl.locale)
       : currency === 'xmr'
         ? String(numeric)
         : numeric < 1

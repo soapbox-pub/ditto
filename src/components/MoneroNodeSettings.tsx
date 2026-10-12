@@ -203,7 +203,7 @@ export function MoneroNodeSettings() {
                               defaultMessage="{ms}ms · height {height}"
                               values={{
                                 ms: probe.responseMs ?? 0,
-                                height: (probe.height ?? 0).toLocaleString(),
+                                height: intl.formatNumber(probe.height ?? 0),
                               }}
                             />
                           </>

@@ -1,37 +1,43 @@
 import { useQuery } from '@tanstack/react-query';
+import { defineMessage, type MessageDescriptor } from 'react-intl';
 
 import { getCoordinates } from '@/lib/coordinates';
 
 /** WMO weather interpretation codes → descriptions and icons. */
-const WMO_CODES: Record<number, { description: string; icon: string }> = {
-  0: { description: 'Clear sky', icon: '☀️' },
-  1: { description: 'Mainly clear', icon: '🌤️' },
-  2: { description: 'Partly cloudy', icon: '⛅' },
-  3: { description: 'Overcast', icon: '☁️' },
-  45: { description: 'Foggy', icon: '🌫️' },
-  48: { description: 'Depositing rime fog', icon: '🌫️' },
-  51: { description: 'Light drizzle', icon: '🌦️' },
-  53: { description: 'Moderate drizzle', icon: '🌦️' },
-  55: { description: 'Dense drizzle', icon: '🌧️' },
-  56: { description: 'Light freezing drizzle', icon: '🌧️' },
-  57: { description: 'Dense freezing drizzle', icon: '🌧️' },
-  61: { description: 'Slight rain', icon: '🌦️' },
-  63: { description: 'Moderate rain', icon: '🌧️' },
-  65: { description: 'Heavy rain', icon: '🌧️' },
-  66: { description: 'Light freezing rain', icon: '🌧️' },
-  67: { description: 'Heavy freezing rain', icon: '🌧️' },
-  71: { description: 'Slight snowfall', icon: '🌨️' },
-  73: { description: 'Moderate snowfall', icon: '🌨️' },
-  75: { description: 'Heavy snowfall', icon: '❄️' },
-  77: { description: 'Snow grains', icon: '❄️' },
-  80: { description: 'Slight rain showers', icon: '🌦️' },
-  81: { description: 'Moderate rain showers', icon: '🌧️' },
-  82: { description: 'Violent rain showers', icon: '🌧️' },
-  85: { description: 'Slight snow showers', icon: '🌨️' },
-  86: { description: 'Heavy snow showers', icon: '❄️' },
-  95: { description: 'Thunderstorm', icon: '⛈️' },
-  96: { description: 'Thunderstorm with slight hail', icon: '⛈️' },
-  99: { description: 'Thunderstorm with heavy hail', icon: '⛈️' },
+const WMO_CODES: Record<number, { description: MessageDescriptor; icon: string }> = {
+  0: { description: defineMessage({ id: 'weather.wmo.clearSky', defaultMessage: 'Clear sky' }), icon: '☀️' },
+  1: { description: defineMessage({ id: 'weather.wmo.mainlyClear', defaultMessage: 'Mainly clear' }), icon: '🌤️' },
+  2: { description: defineMessage({ id: 'weather.wmo.partlyCloudy', defaultMessage: 'Partly cloudy' }), icon: '⛅' },
+  3: { description: defineMessage({ id: 'weather.wmo.overcast', defaultMessage: 'Overcast' }), icon: '☁️' },
+  45: { description: defineMessage({ id: 'weather.wmo.foggy', defaultMessage: 'Foggy' }), icon: '🌫️' },
+  48: { description: defineMessage({ id: 'weather.wmo.depositingRimeFog', defaultMessage: 'Depositing rime fog' }), icon: '🌫️' },
+  51: { description: defineMessage({ id: 'weather.wmo.lightDrizzle', defaultMessage: 'Light drizzle' }), icon: '🌦️' },
+  53: { description: defineMessage({ id: 'weather.wmo.moderateDrizzle', defaultMessage: 'Moderate drizzle' }), icon: '🌦️' },
+  55: { description: defineMessage({ id: 'weather.wmo.denseDrizzle', defaultMessage: 'Dense drizzle' }), icon: '🌧️' },
+  56: { description: defineMessage({ id: 'weather.wmo.lightFreezingDrizzle', defaultMessage: 'Light freezing drizzle' }), icon: '🌧️' },
+  57: { description: defineMessage({ id: 'weather.wmo.denseFreezingDrizzle', defaultMessage: 'Dense freezing drizzle' }), icon: '🌧️' },
+  61: { description: defineMessage({ id: 'weather.wmo.slightRain', defaultMessage: 'Slight rain' }), icon: '🌦️' },
+  63: { description: defineMessage({ id: 'weather.wmo.moderateRain', defaultMessage: 'Moderate rain' }), icon: '🌧️' },
+  65: { description: defineMessage({ id: 'weather.wmo.heavyRain', defaultMessage: 'Heavy rain' }), icon: '🌧️' },
+  66: { description: defineMessage({ id: 'weather.wmo.lightFreezingRain', defaultMessage: 'Light freezing rain' }), icon: '🌧️' },
+  67: { description: defineMessage({ id: 'weather.wmo.heavyFreezingRain', defaultMessage: 'Heavy freezing rain' }), icon: '🌧️' },
+  71: { description: defineMessage({ id: 'weather.wmo.slightSnowfall', defaultMessage: 'Slight snowfall' }), icon: '🌨️' },
+  73: { description: defineMessage({ id: 'weather.wmo.moderateSnowfall', defaultMessage: 'Moderate snowfall' }), icon: '🌨️' },
+  75: { description: defineMessage({ id: 'weather.wmo.heavySnowfall', defaultMessage: 'Heavy snowfall' }), icon: '❄️' },
+  77: { description: defineMessage({ id: 'weather.wmo.snowGrains', defaultMessage: 'Snow grains' }), icon: '❄️' },
+  80: { description: defineMessage({ id: 'weather.wmo.slightRainShowers', defaultMessage: 'Slight rain showers' }), icon: '🌦️' },
+  81: { description: defineMessage({ id: 'weather.wmo.moderateRainShowers', defaultMessage: 'Moderate rain showers' }), icon: '🌧️' },
+  82: { description: defineMessage({ id: 'weather.wmo.violentRainShowers', defaultMessage: 'Violent rain showers' }), icon: '🌧️' },
+  85: { description: defineMessage({ id: 'weather.wmo.slightSnowShowers', defaultMessage: 'Slight snow showers' }), icon: '🌨️' },
+  86: { description: defineMessage({ id: 'weather.wmo.heavySnowShowers', defaultMessage: 'Heavy snow showers' }), icon: '❄️' },
+  95: { description: defineMessage({ id: 'weather.wmo.thunderstorm', defaultMessage: 'Thunderstorm' }), icon: '⛈️' },
+  96: { description: defineMessage({ id: 'weather.wmo.thunderstormWithSlightHail', defaultMessage: 'Thunderstorm with slight hail' }), icon: '⛈️' },
+  99: { description: defineMessage({ id: 'weather.wmo.thunderstormWithHeavyHail', defaultMessage: 'Thunderstorm with heavy hail' }), icon: '⛈️' },
+};
+
+const UNKNOWN_WMO = {
+  description: defineMessage({ id: 'weather.wmo.unknown', defaultMessage: 'Unknown' }),
+  icon: '🌡️',
 };
 
 export type PrecipitationType = 'rain' | 'snow' | null;
@@ -65,8 +71,8 @@ export interface WeatherData {
   windSpeed: number;
   /** WMO weather code. */
   weatherCode: number;
-  /** Human-readable weather description. */
-  description: string;
+  /** Weather description, formatted for display with `intl.formatMessage`. */
+  description: MessageDescriptor;
   /** Weather emoji icon. */
   icon: string;
   /** Whether it's currently daytime. */
@@ -100,7 +106,7 @@ async function fetchWeather(
     if (!current) return null;
 
     const code = current.weather_code ?? 0;
-    const wmo = WMO_CODES[code] ?? { description: 'Unknown', icon: '🌡️' };
+    const wmo = WMO_CODES[code] ?? UNKNOWN_WMO;
 
     return {
       temperature: Math.round(current.temperature_2m),

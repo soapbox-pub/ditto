@@ -12,7 +12,13 @@ import { useProjectedBlobbiState } from '@blobbi-kit/react/hooks/useProjectedBlo
 import { useBlobbiInteractions } from '@blobbi-kit/react/hooks/useBlobbiInteractions';
 import { useBlobbiActivityHistory } from '@blobbi-kit/react/hooks/useBlobbiActivityHistory';
 import { useCanonicalSync } from '@blobbi-kit/react/hooks/useCanonicalSync';
-import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+import { formatShopItemName, getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+import {
+  formatDailyMissionDescription,
+  formatDailyMissionTitle,
+  formatTaskDescription,
+  formatTaskName,
+} from '@/blobbi/actions/lib/blobbi-mission-text';
 import { timeAgo } from '@/lib/timeAgo';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
@@ -2138,7 +2144,7 @@ function BlobbiDashboard({
   const kitchenItems = useMemo<CarouselEntry[]>(() => [
     ...foodItems,
     ...getLiveShopItems().filter(i => i.id === 'nrg_drink'),
-  ].map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name })), [foodItems]);
+  ].map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: formatShopItemName(intl, i) })), [foodItems, intl]);
 
   const itemDragHandlers = useItemDragHandlers(roomDrag);
 
@@ -2376,7 +2382,7 @@ function BlobbiDashboard({
                     )}
                   >
                     <span className="text-4xl leading-none">{item.icon}</span>
-                    <span className="text-[11px] font-medium text-foreground/80">{item.name}</span>
+                    <span className="text-[11px] font-medium text-foreground/80">{formatShopItemName(intl, item)}</span>
                     <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
                       {item.statChanges.map((change) => {
                         const Icon = STAT_ICON[change.stat];
@@ -2760,7 +2766,7 @@ function HomeBar(props: RoomBottomBarProps) {
   const intl = useIntl();
   const focus = useCarouselFocus(props);
   const items = useMemo<CarouselEntry[]>(() => [
-    ...getLiveShopItems().filter(i => i.type === 'toy').map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name })),
+    ...getLiveShopItems().filter(i => i.type === 'toy').map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: formatShopItemName(intl, i) })),
     ...HOME_ACTIONS.map(a => ({ ...a, label: intl.formatMessage(a.label) })),
   ], [intl]);
 
@@ -2830,9 +2836,9 @@ function CareBar(props: RoomBottomBarProps) {
   const intl = useIntl();
   const shop = useMemo(() => getLiveShopItems(), []);
   const items = useMemo<CarouselEntry[]>(() => [
-    ...shop.filter(i => i.type === 'hygiene' && i.id !== 'hyg_towel').map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name, meta: 'hygiene' })),
-    ...shop.filter(i => i.type === 'medicine').map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name, meta: 'medicine' })),
-  ], [shop]);
+    ...shop.filter(i => i.type === 'hygiene' && i.id !== 'hyg_towel').map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: formatShopItemName(intl, i), meta: 'hygiene' })),
+    ...shop.filter(i => i.type === 'medicine').map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: formatShopItemName(intl, i), meta: 'medicine' })),
+  ], [shop, intl]);
   const focus = useCarouselFocus(props);
   const focused = items.find(e => e.id === focus[0]) ?? items[0];
   const isHygieneFocused = (focused?.meta ?? 'hygiene') === 'hygiene';
@@ -2855,7 +2861,7 @@ function CareBar(props: RoomBottomBarProps) {
       ) : treat && (
         <RoomActionButton
           icon={<Candy />}
-          label={treat.name}
+          label={formatShopItemName(intl, treat)}
           color="text-pink-400"
           glowHex="#f472b6"
           onClick={() => applyItem(treat.id)}
@@ -2973,6 +2979,7 @@ function MissionsTabContent({
   const allCompleted = isIncubating ? hatchTasks.allCompleted : evolveTasks.allCompleted;
   const isLoading = isIncubating ? hatchTasks.isLoading : evolveTasks.isLoading;
   const navigate = useNavigate();
+  const intl = useIntl();
 
   const completedCount = tasks.filter(t => t.completed).length;
   const totalCount = tasks.length;
@@ -3053,8 +3060,8 @@ function MissionsTabContent({
                 >
                   <QuestTaskIcon taskId={task.id} completed={task.completed} />
                   <div className="flex-1 min-w-0">
-                    <p className={cn('text-sm font-medium leading-tight', task.completed && 'text-muted-foreground line-through')}>{task.name}</p>
-                    <p className="text-[10px] text-muted-foreground leading-snug mt-0.5 line-clamp-1">{task.description}</p>
+                    <p className={cn('text-sm font-medium leading-tight', task.completed && 'text-muted-foreground line-through')}>{formatTaskName(intl, task)}</p>
+                    <p className="text-[10px] text-muted-foreground leading-snug mt-0.5 line-clamp-1">{formatTaskDescription(intl, task)}</p>
                   </div>
                   {task.required > 1 && !task.completed && (
                     <span className="text-[10px] tabular-nums font-medium text-muted-foreground shrink-0">{task.current}/{task.required}</span>
@@ -3169,8 +3176,8 @@ function MissionsTabContent({
               >
                 <DailyMissionIcon action={mission.action} complete={mission.complete} />
                 <div className="flex-1 min-w-0">
-                  <p className={cn('text-sm font-medium leading-tight', mission.complete && 'text-muted-foreground')}>{mission.title}</p>
-                  <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{mission.description}</p>
+                  <p className={cn('text-sm font-medium leading-tight', mission.complete && 'text-muted-foreground')}>{formatDailyMissionTitle(intl, mission)}</p>
+                  <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{formatDailyMissionDescription(intl, mission)}</p>
                 </div>
                 {!mission.complete && (
                   <span className="text-[10px] tabular-nums font-medium text-muted-foreground shrink-0">{mission.progress}/{mission.target}</span>
@@ -3548,12 +3555,12 @@ function ActivityTabContent({ companion, projectedStats, socialOpen, onToggleSoc
                   <span className="font-medium">{actionInfo ? intl.formatMessage(actionInfo.label) : ix.action}</span>
                   {item && (
                     <span className="text-muted-foreground truncate max-w-[7rem]">
-                      {item.icon} {item.name}
+                      {item.icon} {formatShopItemName(intl, item)}
                     </span>
                   )}
                   <span className="ml-auto flex items-center gap-1.5 shrink-0 text-xs text-muted-foreground">
                     <CaretakerLink pubkey={ix.authorPubkey} />
-                    <span>{timeAgo(ix.createdAt)}</span>
+                    <span>{timeAgo(ix.createdAt, intl)}</span>
                   </span>
                 </div>
               );
@@ -3676,10 +3683,20 @@ function DashboardLoadingState() {
 // ─── Crumb Burst (chewing feedback particles) ────────────────────────────────
 
 /** Reward words — one is picked at random on each feed. */
-const REWARD_WORDS = [
-  'nhom!', 'nom nom!', 'yum!', 'yum yum!', 'mmm~',
-  'munch!', 'cronch!', 'tasty!', 'hehe!', '\u2661',
-] as const;
+const REWARD_WORDS: ReadonlyArray<MessageDescriptor | string> = [
+  ...Object.values(defineMessages({
+    nhom: { id: 'blobbi.reward.nhom', defaultMessage: 'nhom!' },
+    nomNom: { id: 'blobbi.reward.nomNom', defaultMessage: 'nom nom!' },
+    yum: { id: 'blobbi.reward.yum', defaultMessage: 'yum!' },
+    yumYum: { id: 'blobbi.reward.yumYum', defaultMessage: 'yum yum!' },
+    mmm: { id: 'blobbi.reward.mmm', defaultMessage: 'mmm~' },
+    munch: { id: 'blobbi.reward.munch', defaultMessage: 'munch!' },
+    cronch: { id: 'blobbi.reward.cronch', defaultMessage: 'cronch!' },
+    tasty: { id: 'blobbi.reward.tasty', defaultMessage: 'tasty!' },
+    hehe: { id: 'blobbi.reward.hehe', defaultMessage: 'hehe!' },
+  })),
+  '\u2661',
+];
 
 /**
  * Crumb particle configs — 12 small dots that spawn from a compact
@@ -3728,6 +3745,7 @@ function CrumbBurst({ crumbX, crumbY, rewardX, rewardY }: {
   crumbX: number; crumbY: number;
   rewardX: number; rewardY: number;
 }) {
+  const intl = useIntl();
   // Pick a stable random word for this burst instance.
   const [word] = useState(() => REWARD_WORDS[Math.floor(Math.random() * REWARD_WORDS.length)]);
 
@@ -3762,7 +3780,7 @@ function CrumbBurst({ crumbX, crumbY, rewardX, rewardY }: {
         style={{ left: rewardX, top: rewardY, transform: 'translate(-50%, 0)' }}
         aria-hidden="true"
       >
-        {word}
+        {typeof word === 'string' ? word : intl.formatMessage(word)}
       </span>
     </>
   );

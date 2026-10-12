@@ -121,7 +121,7 @@ export function DataSettingsPage() {
   const replacingRecords = importState.parsed?.unsigned.filter((record) => replacesExistingData(record.kind)) ?? [];
   const replacingKinds = [...new Set(replacingRecords.map((record) => record.kind))]
     .sort((a, b) => a - b)
-    .map((kind) => getKindLabel(kind));
+    .map((kind) => getKindLabel(intl, kind));
 
   async function handleDownload() {
     try {
@@ -554,7 +554,7 @@ export function DataSettingsPage() {
                       </span>
                       {issue.eventKind !== undefined && (
                         <span className="text-[11px] text-muted-foreground">
-                          {KIND_LABELS[issue.eventKind] ?? intl.formatMessage(
+                          {KIND_LABELS[issue.eventKind] ? intl.formatMessage(KIND_LABELS[issue.eventKind]) : intl.formatMessage(
                             { id: 'settings.data.issueKind', defaultMessage: 'Kind {kind}' },
                             { kind: issue.eventKind },
                           )}

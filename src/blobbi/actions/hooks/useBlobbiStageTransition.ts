@@ -18,6 +18,7 @@
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toast } from '@/hooks/useToast';
+import { useIntl } from 'react-intl';
 
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { BlobbiCompanion, BlobbonautProfile } from '@blobbi-kit/core/blobbi';
@@ -64,6 +65,7 @@ export function useBlobbiEvolve({
 }: UseBlobbiStageTransitionParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publish } = useNostrPublish();
+  const intl = useIntl();
 
   return useBlobbiEvolveBase({
     companion,
@@ -74,7 +76,7 @@ export function useBlobbiEvolve({
     updateCompanionEvent,
     onError: (error: Error) => {
       toast({
-        title: 'Failed to evolve',
+        title: intl.formatMessage({ id: 'blobbiEvolution.evolveFailed', defaultMessage: 'Failed to evolve' }),
         description: error.message,
         variant: 'destructive',
       });

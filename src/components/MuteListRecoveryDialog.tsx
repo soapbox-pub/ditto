@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter, NostrSigner } from '@nostrify/nostrify';
@@ -49,8 +49,8 @@ interface MuteListRecoveryDialogProps {
 }
 
 /** Format a unix timestamp into a human-readable date string. */
-function formatDate(timestamp: number): string {
-  return new Date(timestamp * 1000).toLocaleDateString(undefined, {
+function formatDate(timestamp: number, intl: IntlShape): string {
+  return intl.formatDate(new Date(timestamp * 1000), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -170,6 +170,7 @@ function MuteSnapshotCard({
   onRestore: () => void;
   isRestoring: boolean;
 }) {
+  const intl = useIntl();
   const parts: string[] = [];
   if (summary.pubkeys > 0) parts.push(`${summary.pubkeys} ${summary.pubkeys === 1 ? 'user' : 'users'}`);
   if (summary.hashtags > 0) parts.push(`${summary.hashtags} ${summary.hashtags === 1 ? 'hashtag' : 'hashtags'}`);
@@ -199,7 +200,7 @@ function MuteSnapshotCard({
 
         <div className="min-w-0 flex-1 space-y-1">
           <div className="font-semibold text-sm">
-            <FormattedMessage id="muteRecovery.mutedItems" defaultMessage={"{count, plural, one {{formatted} muted item} other {{formatted} muted items}}"} values={{ count: summary.total, formatted: summary.total.toLocaleString() }} />
+            <FormattedMessage id="muteRecovery.mutedItems" defaultMessage={"{count, plural, one {{formatted} muted item} other {{formatted} muted items}}"} values={{ count: summary.total, formatted: intl.formatNumber(summary.total) }} />
           </div>
 
           {parts.length > 0 && (
@@ -239,7 +240,7 @@ function MuteSnapshotCard({
           )}
 
           <div className="text-[11px] text-muted-foreground/70 pt-0.5">
-            {formatDate(event.created_at)}
+            {formatDate(event.created_at, intl)}
           </div>
         </div>
       </div>
@@ -380,7 +381,7 @@ function MuteHistoryContent({ onClose }: { onClose: () => void }) {
 
       toast({
         title: intl.formatMessage({ id: 'muteRecovery.restored', defaultMessage: "Mute list restored" }),
-        description: intl.formatMessage({ id: 'muteRecovery.restoredDescription', defaultMessage: "Successfully restored from {date}." }, { date: formatDate(event.created_at) }),
+        description: intl.formatMessage({ id: 'muteRecovery.restoredDescription', defaultMessage: "Successfully restored from {date}." }, { date: formatDate(event.created_at, intl) }),
       });
 
       queryClient.invalidateQueries({ queryKey: ['mute-recovery', 'kind10000', pubkey] });

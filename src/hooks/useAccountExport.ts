@@ -1,6 +1,7 @@
 import { useNostr } from '@nostrify/react';
 import { nip19 } from 'nostr-tools';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useIntl } from 'react-intl';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -17,7 +18,7 @@ import {
 } from '@/lib/dataTransfer';
 import { downloadTextFile } from '@/lib/downloadFile';
 import { readLocalEvents } from '@/lib/localEvents';
-import { countRelayEvents, describeError, pullRelayEvents } from '@/lib/relayTransfer';
+import { countRelayEvents, describeCancelled, describeError, pullRelayEvents } from '@/lib/relayTransfer';
 
 export type ExportStatus = 'idle' | 'running' | 'done' | 'error';
 
@@ -43,6 +44,7 @@ const INITIAL: ExportState = { status: 'idle', relays: [], fetched: 0 };
  * history, which is what you want after adding a relay that holds older events.
  */
 export function useAccountExport() {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { store } = useNostrStorage();
   const { user } = useCurrentUser();
@@ -126,7 +128,7 @@ export function useAccountExport() {
           // older ones — saving `newest` here would make every future
           // incremental pull skip straight past the gap.
           if (signal.aborted) {
-            patch(url, (prev) => ({ ...prev, phase: 'error', error: 'Cancelled' }));
+            patch(url, (prev) => ({ ...prev, phase: 'error', error: describeCancelled(intl) }));
             return;
           }
 
@@ -139,10 +141,10 @@ export function useAccountExport() {
           patch(url, (prev) => ({ ...prev, phase: 'done' }));
         } catch (error) {
           if (signal.aborted) {
-            patch(url, (prev) => ({ ...prev, phase: 'error', error: 'Cancelled' }));
+            patch(url, (prev) => ({ ...prev, phase: 'error', error: describeCancelled(intl) }));
             return;
           }
-          patch(url, (prev) => ({ ...prev, phase: 'error', error: describeError(error) }));
+          patch(url, (prev) => ({ ...prev, phase: 'error', error: describeError(error, intl) }));
         }
       };
 
@@ -151,7 +153,7 @@ export function useAccountExport() {
       setState((prev) => ({ ...prev, status: signal.aborted ? 'idle' : 'done' }));
       await refreshLocalCount();
     },
-    [nostr, patch, refreshLocalCount, relayUrls, store, user],
+    [nostr, patch, refreshLocalCount, relayUrls, store, user, intl],
   );
 
   const download = useCallback(async () => {

@@ -30,10 +30,10 @@ function parseBolt11Amount(bolt11: string): number | null {
 }
 
 /** Format sats with thousands separator. */
-function formatSats(sats: number): string {
+function formatSats(sats: number, locale: string): string {
   if (sats < 1) return '<1';
   const rounded = Math.round(sats);
-  return rounded.toLocaleString();
+  return rounded.toLocaleString(locale);
 }
 
 /**
@@ -197,7 +197,7 @@ export function LightningInvoiceCard({ invoice, className }: LightningInvoiceCar
             </div>
             {amount !== null && (
               <div className="font-bold tracking-tight leading-none mt-1 whitespace-nowrap" style={{ fontSize: 'clamp(1.5rem, 8cqw, 2.5rem)' }}>
-                {formatSats(amount)}
+                {formatSats(amount, intl.locale)}
                 <span className="font-normal text-muted-foreground ml-1" style={{ fontSize: 'clamp(0.75rem, 3.5cqw, 1.125rem)' }}><FormattedMessage id="lightningInvoice.sats" defaultMessage="sats" /></span>
               </div>
             )}

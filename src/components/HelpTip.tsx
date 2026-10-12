@@ -66,7 +66,7 @@ interface HelpTipProps {
 export function HelpTip({ faqId, iconSize = 'size-4', className }: HelpTipProps) {
   const intl = useIntl();
   const { config } = useAppContext();
-  const item = getFAQItem(config.appName, faqId);
+  const item = getFAQItem(intl, config.appName, faqId);
   if (!item) return null;
 
   return (

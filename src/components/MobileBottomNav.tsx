@@ -13,7 +13,7 @@ import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutSnapshot } from '@/contexts/LayoutContext';
-import { getSidebarItem } from '@/lib/sidebarItems';
+import { formatItemLabel, getSidebarItem } from '@/lib/sidebarItems';
 import { ArcBackground, ARC_UP_OVERHANG_PX } from '@/components/ArcBackground';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
 
@@ -35,7 +35,7 @@ export function MobileBottomNav() {
   const intl = useIntl();
   const homeItem = getSidebarItem(config.homePage);
   const HomeIcon = homeItem?.icon ?? Home;
-  const homeLabel = homeItem ? intl.formatMessage({ id: `nav.${homeItem.id}`, defaultMessage: homeItem.label }) : intl.formatMessage({ id: 'nav.feed', defaultMessage: "Feed" });
+  const homeLabel = formatItemLabel(intl, homeItem?.id ?? 'feed');
   const homePath = homeItem?.path;
 
   const [searchOpen, setSearchOpen] = useState(false);

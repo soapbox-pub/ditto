@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
@@ -51,8 +51,8 @@ interface BadgeRecoveryDialogProps {
 }
 
 /** Format a unix timestamp into a human-readable date string. */
-function formatDate(timestamp: number): string {
-  return new Date(timestamp * 1000).toLocaleDateString(undefined, {
+function formatDate(timestamp: number, intl: IntlShape): string {
+  return intl.formatDate(new Date(timestamp * 1000), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -94,6 +94,7 @@ function BadgeSnapshotCard({
   isRestoring: boolean;
   badgeMap: Map<string, BadgeData>;
 }) {
+  const intl = useIntl();
   /** Show up to 5 badge thumbnails in the preview. */
   const previewRefs = summary.refs.slice(0, 5);
   const remaining = Math.max(0, summary.count - previewRefs.length);
@@ -153,7 +154,7 @@ function BadgeSnapshotCard({
           )}
 
           <div className="text-[11px] text-muted-foreground/70 pt-0.5">
-            {formatDate(event.created_at)}
+            {formatDate(event.created_at, intl)}
           </div>
         </div>
       </div>
@@ -324,7 +325,7 @@ function BadgeHistoryContent({ onClose }: { onClose: () => void }) {
         title: intl.formatMessage({ id: 'badgeRecovery.restored', defaultMessage: 'Badge list restored' }),
         description: intl.formatMessage(
           { id: 'badgeRecovery.restoredDescription', defaultMessage: 'Successfully restored from {date}.' },
-          { date: formatDate(event.created_at) },
+          { date: formatDate(event.created_at, intl) },
         ),
       });
 

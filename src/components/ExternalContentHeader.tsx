@@ -720,6 +720,7 @@ function WikipediaExtract({ extract, articleUrl }: { extract: string; articleUrl
 }
 
 function WeatherWidget({ code }: { code: string }) {
+  const intl = useIntl();
   const { data: weather, isLoading } = useWeather(code);
 
   if (isLoading) {
@@ -747,7 +748,7 @@ function WeatherWidget({ code }: { code: string }) {
       <div className="flex items-center gap-4">
         {/* Weather icon + temperature */}
         <div className="flex items-center gap-3">
-          <span className="text-4xl leading-none" role="img" aria-label={weather.description}>
+          <span className="text-4xl leading-none" role="img" aria-label={intl.formatMessage(weather.description)}>
             {weather.icon}
           </span>
           <div>
@@ -755,7 +756,7 @@ function WeatherWidget({ code }: { code: string }) {
               {weather.temperature}°C
             </p>
             <p className="text-xs text-muted-foreground">
-              {weather.description}
+              <FormattedMessage {...weather.description} />
             </p>
           </div>
         </div>
@@ -791,7 +792,7 @@ function WeatherWidget({ code }: { code: string }) {
 
 export function CountryContentHeader({ code }: { code: string }) {
   const intl = useIntl();
-  const info = getCountryInfo(code);
+  const info = getCountryInfo(code, intl);
   const wikiTitle = getWikipediaTitle(code);
   const { data: wiki, isLoading: wikiLoading } = useWikipediaSummary(wikiTitle);
 
@@ -1111,7 +1112,7 @@ function GathererCardPreview({ card, url, link }: { card: GathererCard; url: str
 
 function CountryPreview({ code, link }: { code: string; link: string }) {
   const intl = useIntl();
-  const info = getCountryInfo(code);
+  const info = getCountryInfo(code, intl);
 
   return (
     <Link
@@ -1324,11 +1325,11 @@ export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey
     [addr.kind],
   );
   const kindLabel = useMemo(() => {
-    if (kindDef) return kindDef.label;
+    if (kindDef) return intl.formatMessage(kindDef.label);
     const sub = EXTRA_KINDS.flatMap((d) => d.subKinds ?? []).find((s) => s.kind === addr.kind);
-    if (sub) return sub.label;
-    return getKindLabel(addr.kind);
-  }, [kindDef, addr.kind]);
+    if (sub) return intl.formatMessage(sub.label);
+    return getKindLabel(intl, addr.kind);
+  }, [intl, kindDef, addr.kind]);
 
   const KindIcon = useMemo(() => {
     if (kindDef?.id) return CONTENT_KIND_ICONS[kindDef.id] ?? FileText;

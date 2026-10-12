@@ -599,8 +599,8 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
   // Total (amount + fee) in the user's display currency for the send button and
   // confirmation label. Falls back to the raw input while a USD price loads.
   const totalDisplay = totalSats > 0
-    ? formatMoneyAmount(totalSats, currency, btcPrice)
-    : formatAmountInput(amount, currency);
+    ? formatMoneyAmount(totalSats, currency, btcPrice, intl.locale)
+    : formatAmountInput(amount, currency, intl.locale);
   const uniqueFeeSpeeds = useMemo(() => getUniqueFeeSpeeds(feeRates), [feeRates]);
   const isPending = sendMutation.isPending;
 
@@ -769,7 +769,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                             defaultMessage="Fee {amount}"
                             values={{
                               amount: estimatedFeeSats > 0 && (currency === 'sats' || btcPrice)
-                                ? `≈ ${formatMoneyAmount(estimatedFeeSats, currency, btcPrice)}`
+                                ? `≈ ${formatMoneyAmount(estimatedFeeSats, currency, btcPrice, intl.locale)}`
                                 : feeRatesLoading && feeSpeed !== 'custom'
                                   ? intl.formatMessage({ id: 'sendBitcoin.feeLoading', defaultMessage: 'loading…' })
                                   : feeRatesError && feeSpeed !== 'custom'
@@ -866,7 +866,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                       <FormattedMessage
                         id="sendBitcoin.balance"
                         defaultMessage="Balance: {amount}"
-                        values={{ amount: formatMoneyAmount(totalBalance, currency, btcPrice) }}
+                        values={{ amount: formatMoneyAmount(totalBalance, currency, btcPrice, intl.locale) }}
                       />
                     </span>
                   )}
@@ -1679,7 +1679,8 @@ interface RawAddressSuccessProps {
  * identity to attribute the send to.
  */
 function RawAddressSuccess({ txid, amountSats, currency, btcPrice, onClose }: RawAddressSuccessProps) {
-  const amountDisplay = formatMoneyAmount(amountSats, currency, btcPrice);
+  const intl = useIntl();
+  const amountDisplay = formatMoneyAmount(amountSats, currency, btcPrice, intl.locale);
 
   return (
     <div

@@ -129,8 +129,8 @@ export function MoneroZapContent({ method, target, onSuccess }: MoneroZapContent
   // the raw input ("$5") rather than putting a "0" on the send button.
   const totalDisplay =
     total > 0n
-      ? formatMoneroAmount(total, unit, xmrPrice)
-      : formatMoneroAmountInput(amountInput, unit);
+      ? formatMoneroAmount(total, unit, xmrPrice, intl.locale)
+      : formatMoneroAmountInput(amountInput, unit, intl.locale);
 
   /**
    * The same total in XMR, always shown alongside a USD figure.
@@ -140,7 +140,7 @@ export function MoneroZapContent({ method, target, onSuccess }: MoneroZapContent
    * that number is wrong the user has no way to notice from a dollar sign —
    * so the confirmation always states what actually leaves the wallet.
    */
-  const totalXmrDisplay = unit === 'usd' && total > 0n ? formatMoneroAmount(total, 'xmr', xmrPrice) : null;
+  const totalXmrDisplay = unit === 'usd' && total > 0n ? formatMoneroAmount(total, 'xmr', xmrPrice, intl.locale) : null;
 
   /** USD mode with no price yet — nothing can be converted, let alone sent. */
   const awaitingPrice = unit === 'usd' && !xmrPrice;
@@ -209,7 +209,7 @@ export function MoneroZapContent({ method, target, onSuccess }: MoneroZapContent
           id: 'monero.zap.sent.title',
           defaultMessage: 'Monero sent',
         }),
-        description: formatMoneroAmount(prepared.amount, unit, xmrPrice),
+        description: formatMoneroAmount(prepared.amount, unit, xmrPrice, intl.locale),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to broadcast the transaction');
@@ -294,8 +294,8 @@ export function MoneroZapContent({ method, target, onSuccess }: MoneroZapContent
               <FormattedMessage id="monero.zap.confirm.sending" defaultMessage="Sending" />
             </dt>
             <dd className="font-medium text-right">
-              {formatMoneroAmount(prepared.amount, 'xmr', xmrPrice)}
-              {unit === 'usd' && xmrPrice ? ` · ${formatMoneroAmount(prepared.amount, 'usd', xmrPrice)}` : ''}
+              {formatMoneroAmount(prepared.amount, 'xmr', xmrPrice, intl.locale)}
+              {unit === 'usd' && xmrPrice ? ` · ${formatMoneroAmount(prepared.amount, 'usd', xmrPrice, intl.locale)}` : ''}
             </dd>
           </div>
           <div className="flex justify-between gap-3">
@@ -374,7 +374,7 @@ export function MoneroZapContent({ method, target, onSuccess }: MoneroZapContent
               <FormattedMessage
                 id="monero.zap.fee"
                 defaultMessage="Fee {amount}"
-                values={{ amount: formatMoneroAmount(prepared.fee, 'xmr', xmrPrice) }}
+                values={{ amount: formatMoneroAmount(prepared.fee, 'xmr', xmrPrice, intl.locale) }}
               />
             ) : (
               <FormattedMessage
@@ -387,7 +387,7 @@ export function MoneroZapContent({ method, target, onSuccess }: MoneroZapContent
             <FormattedMessage
               id="monero.zap.spendable"
               defaultMessage="Spendable: {amount}"
-              values={{ amount: formatMoneroAmount(unlockedBalance, unit, xmrPrice) }}
+              values={{ amount: formatMoneroAmount(unlockedBalance, unit, xmrPrice, intl.locale) }}
             />
           </span>
         </div>
