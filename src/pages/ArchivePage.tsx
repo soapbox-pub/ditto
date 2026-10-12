@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { PageHeader } from '@/components/PageHeader';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
-import { Archive, ArrowLeft, Gamepad2, Film, Mic, Monitor, Sparkles, Play, ExternalLink, Clock, Search, X, Loader2 } from 'lucide-react';
+import { Archive, Gamepad2, Film, Mic, Monitor, Sparkles, Play, ExternalLink, Clock, Search, X, Loader2 } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -662,21 +663,12 @@ export function ArchivePage() {
   }, [activeCategory]);
 
   return (
-    <main className="pb-16 sidebar:pb-0">
-      {/* Header */}
-      <div className="flex items-center gap-4 px-4 pt-4 pb-2">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <div className="size-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-            <Archive className="size-4 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold leading-tight">Archive</h1>
-            <p className="text-xs text-muted-foreground">Treasures from the Internet Archive</p>
-          </div>
-        </div>
+    <main>
+      <PageHeader
+        title="Archive"
+        icon={<Archive className="size-5" />}
+        subtitle="Treasures from the Internet Archive"
+      >
         <a
           href="https://archive.org"
           target="_blank"
@@ -686,7 +678,7 @@ export function ArchivePage() {
         >
           <ExternalLink className="size-4" />
         </a>
-      </div>
+      </PageHeader>
 
       {/* Search bar */}
       <ArchiveSearchBar />

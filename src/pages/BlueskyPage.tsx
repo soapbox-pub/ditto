@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { PageHeader } from '@/components/PageHeader';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useInView } from '@/hooks/useInView';
 import {
-  ArrowLeft,
   ExternalLink,
   FlameKindling,
   Info,
@@ -529,21 +529,12 @@ export function BlueskyPage() {
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <main className="pb-16 sidebar:pb-0">
-      {/* Header */}
-      <div className="flex items-center gap-4 px-4 pt-4 pb-2">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <div className="size-8 rounded-lg bg-gradient-to-br from-sky-500/20 to-blue-500/10 flex items-center justify-center">
-            <BlueskyIcon className="size-4 text-sky-500 dark:text-sky-400" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold leading-tight">Bluesky</h1>
-            <p className="text-xs text-muted-foreground">Popular posts from the ATmosphere</p>
-          </div>
-        </div>
+    <main>
+      <PageHeader
+        title="Bluesky"
+        icon={<BlueskyIcon className="size-5" />}
+        subtitle="Popular posts from the ATmosphere"
+      >
         <div className="flex items-center gap-1">
           <Popover>
             <PopoverTrigger asChild>
@@ -578,7 +569,7 @@ export function BlueskyPage() {
             <ExternalLink className="size-4" />
           </a>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Search bar */}
       <BlueskySearchBar />

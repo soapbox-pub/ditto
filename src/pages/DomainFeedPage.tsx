@@ -102,19 +102,11 @@ export function DomainFeedPage() {
       <main className="">
         <PageHeader
           onBack={goBack}
-          titleContent={
-            <div className="flex items-center gap-2 min-w-0">
-              <ExternalFavicon url={domain ? `https://${domain}` : undefined} size={20} />
-              <div className="min-w-0">
-                <h1 className="text-lg font-bold truncate leading-tight">{domain}</h1>
-                {pubkeys && pubkeys.length > 0 && (
-                  <p className="text-xs text-muted-foreground leading-tight">
-                    {pubkeys.length} user{pubkeys.length !== 1 ? 's' : ''}
-                  </p>
-                )}
-              </div>
-            </div>
-          }
+          title={domain}
+          icon={<ExternalFavicon url={domain ? `https://${domain}` : undefined} size={20} />}
+          subtitle={pubkeys && pubkeys.length > 0
+            ? `${pubkeys.length} user${pubkeys.length !== 1 ? 's' : ''}`
+            : undefined}
         />
 
         <PullToRefresh onRefresh={handleRefresh}>

@@ -626,7 +626,7 @@ function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
   return (
     <div>
       <NoteCard event={event} />
-      <div className="pb-16 sidebar:pb-0">
+      <div>
         {commentsLoading ? (
           <div className="divide-y divide-border">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -2933,7 +2933,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       )}
 
       {/* Replies */}
-      <div className="pb-16 sidebar:pb-0">
+      <div>
         {repliesLoading ? (
           <div className="divide-y divide-border">
             {Array.from({ length: 3 }).map((_, i) => (

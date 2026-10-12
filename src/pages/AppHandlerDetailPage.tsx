@@ -81,7 +81,7 @@ export function AppHandlerDetailPage({ event }: { event: NostrEvent }) {
       </SubHeaderBar>
       <div style={{ height: ARC_OVERHANG_PX }} />
 
-      <div className="pb-16 sidebar:pb-0">
+      <div>
         {activeTab === 'feed' ? (
           <AppHandlerFeedTab addr={addr} />
         ) : (

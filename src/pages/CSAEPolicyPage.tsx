@@ -15,7 +15,7 @@ export function CSAEPolicyPage() {
   });
 
   return (
-    <main className="min-h-screen pb-16 sidebar:pb-0">
+    <main className="min-h-screen">
       {/* Page header */}
       <PageHeader title="Child Safety Policy" icon={<ShieldAlert className="size-5" />} backTo="/" />
 

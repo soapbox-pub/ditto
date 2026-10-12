@@ -89,7 +89,7 @@ export function ThemesPage() {
     activeTab !== "my-themes" && (isPending || (isLoading && !rawData));
 
   return (
-    <main className="pb-16 sidebar:pb-0">
+    <main>
       <PageHeader title="Themes" icon={<Sparkles className="size-5" />} />
 
       {/* Tabs */}

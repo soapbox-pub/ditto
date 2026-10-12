@@ -15,7 +15,7 @@ export function PrivacyPolicyPage() {
   });
 
   return (
-    <main className="min-h-screen pb-16 sidebar:pb-0">
+    <main className="min-h-screen">
       {/* Page header */}
       <PageHeader title="Privacy Policy" icon={<Shield className="size-5" />} backTo="/" />
 

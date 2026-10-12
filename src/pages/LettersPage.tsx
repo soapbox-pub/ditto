@@ -73,7 +73,7 @@ export function LettersPage() {
 
   if (!user) {
     return (
-      <main className="min-h-screen pb-16 sidebar:pb-0">
+      <main className="min-h-screen">
         <PageHeader title="Letters" icon={<MailboxIcon className="size-5" />} backTo="/" />
         <div className="flex flex-col items-center justify-center py-24 gap-6 px-6 text-center">
           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
@@ -95,7 +95,7 @@ export function LettersPage() {
   const isLoading = tab === 'inbox' ? inboxLoading : sentLoading;
 
   return (
-    <main className="relative min-h-screen pb-16 sidebar:pb-0">
+    <main className="relative min-h-screen">
       <PageHeader title="Letters" icon={<MailboxIcon className="size-5" />} backTo="/" alwaysShowBack>
         <button
           onClick={() => navigate('/settings/letters')}

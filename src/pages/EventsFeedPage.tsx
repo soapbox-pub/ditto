@@ -8,6 +8,7 @@ import { KindInfoButton } from "@/components/KindInfoButton";
 import { NoteCard } from "@/components/NoteCard";
 import { PageHeader } from "@/components/PageHeader";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
 import { SubHeaderBar } from "@/components/SubHeaderBar";
 import { TabButton } from "@/components/TabButton";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -100,7 +101,7 @@ export function EventsFeedPage() {
   const showSkeleton = isPending || (isLoading && !rawData);
 
   return (
-    <main className="max-w-2xl mx-auto">
+    <main>
       <PageHeader title="Events" icon={<CalendarDays className="size-5" />}>
         <KindInfoButton
           kindDef={eventsDef}
@@ -123,6 +124,9 @@ export function EventsFeedPage() {
           />
         </SubHeaderBar>
       )}
+
+      {/* Arc overhang spacer (matches Feed.tsx) */}
+      {user && <div style={{ height: ARC_OVERHANG_PX }} />}
 
       <PullToRefresh onRefresh={handleRefresh}>
         {showSkeleton ? (

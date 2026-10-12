@@ -89,7 +89,7 @@ export function EmojiPacksPage() {
   const icon = sidebarItemIcon('emojis', 'size-5');
 
   return (
-    <main className="pb-16 sidebar:pb-0">
+    <main>
       <PageHeader title={emojisDef.label} icon={icon} backTo="/">
         <KindInfoButton kindDef={emojisDef} icon={icon} />
       </PageHeader>

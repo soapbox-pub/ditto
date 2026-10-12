@@ -60,7 +60,7 @@ export function ClientFeedPage() {
         <>
           <PageHeader
             title={title}
-            icon={<span className="text-muted-foreground shrink-0"><Monitor className="size-5" /></span>}
+            icon={<Monitor className="size-5" />}
             backTo="/"
           />
           <ClientMetrics clientTags={clientTags} />

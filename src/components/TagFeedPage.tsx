@@ -137,7 +137,7 @@ export function TagFeedPage({
     <main className="">
       <PageHeader
         title={title}
-        icon={icon ? <span className="text-muted-foreground shrink-0">{icon}</span> : undefined}
+        icon={icon}
       >
         {followable && user && tag && (
           <Button

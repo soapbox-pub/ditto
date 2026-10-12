@@ -18,7 +18,7 @@ export function HelpPage() {
   });
 
   return (
-    <main className="min-h-screen pb-16 sidebar:pb-0">
+    <main className="min-h-screen">
       <PageHeader title="Help" icon={<HelpCircle className="size-5" />} />
 
       {/* Team Soapbox follow pack */}

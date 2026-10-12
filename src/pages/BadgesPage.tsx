@@ -34,6 +34,7 @@ import { NoteCard } from "@/components/NoteCard";
 import { PageHeader } from "@/components/PageHeader";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { SortableList, SortableItem } from "@/components/SortableList";
+import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
 import { SubHeaderBar } from "@/components/SubHeaderBar";
 import { TabButton } from "@/components/TabButton";
 import {
@@ -152,7 +153,7 @@ export function BadgesPage() {
   });
 
   return (
-    <main className="pb-16 sidebar:pb-0">
+    <main>
       <PageHeader title="Badges" icon={<Award className="size-5" />} />
 
       {/* Follows / My Badges tabs */}
@@ -181,7 +182,7 @@ export function BadgesPage() {
       )}
 
       {/* Arc overhang spacer (matches Feed.tsx) */}
-      {user && <div style={{ height: 20 }} />}
+      {user && <div style={{ height: ARC_OVERHANG_PX }} />}
 
       {/* Tab content */}
       {activeTab === "mine" ? (

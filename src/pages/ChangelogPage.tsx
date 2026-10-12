@@ -60,7 +60,7 @@ export function ChangelogPage() {
   const latestVersion = entries[0]?.version;
 
   return (
-    <main className="min-h-screen pb-16 sidebar:pb-0">
+    <main className="min-h-screen">
       <PageHeader title="Changelog" icon={<ScrollText className="size-5" />} backTo="/settings" />
 
       <div className="px-4 pt-3 pb-8 space-y-4">

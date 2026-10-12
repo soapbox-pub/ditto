@@ -7,6 +7,8 @@ interface PageHeaderProps {
   title?: string;
   /** Icon rendered before the title (ignored when `titleContent` is provided). */
   icon?: React.ReactNode;
+  /** Secondary line rendered under the title (ignored when `titleContent` is provided). */
+  subtitle?: React.ReactNode;
   /** Fully custom title area — replaces the default icon + h1 when set. */
   titleContent?: React.ReactNode;
   /** Where the back arrow navigates to (default: "/"). Ignored when `onBack` is set. */
@@ -27,7 +29,7 @@ interface PageHeaderProps {
  * Used by kind-feed pages, bookmarks, help, trends, and other sub-pages
  * to provide a consistent header layout.
  */
-export function PageHeader({ title, icon, titleContent, backTo = '/', onBack, alwaysShowBack, children, className }: PageHeaderProps) {
+export function PageHeader({ title, icon, subtitle, titleContent, backTo = '/', onBack, alwaysShowBack, children, className }: PageHeaderProps) {
   const backButtonClass = cn('p-2 -ml-2 rounded-full hover:bg-secondary transition-colors', !alwaysShowBack && 'sidebar:hidden');
 
   return (
@@ -37,14 +39,17 @@ export function PageHeader({ title, icon, titleContent, backTo = '/', onBack, al
           <ArrowLeft className="size-5" />
         </button>
       ) : (
-        <Link to={backTo} className={backButtonClass}>
+        <Link to={backTo} className={backButtonClass} aria-label="Go back">
           <ArrowLeft className="size-5" />
         </Link>
       )}
       {titleContent ?? (
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {icon}
-          <h1 className="text-xl font-bold truncate">{title}</h1>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold truncate">{title}</h1>
+            {subtitle && <p className="text-sm text-muted-foreground truncate">{subtitle}</p>}
+          </div>
         </div>
       )}
       {children}

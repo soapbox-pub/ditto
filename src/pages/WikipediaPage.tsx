@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { PageHeader } from '@/components/PageHeader';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import {
-  ArrowLeft,
   BookOpen,
   Calendar,
   ExternalLink,
@@ -646,21 +646,12 @@ export function WikipediaPage() {
   }, [feed?.news]);
 
   return (
-    <main className="pb-16 sidebar:pb-0">
-      {/* Header */}
-      <div className="flex items-center gap-4 px-4 pt-4 pb-2">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <div className="size-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-500/10 flex items-center justify-center">
-            <WikipediaIcon className="size-4 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold leading-tight">Wikipedia</h1>
-            <p className="text-xs text-muted-foreground">Today&apos;s featured content</p>
-          </div>
-        </div>
+    <main>
+      <PageHeader
+        title="Wikipedia"
+        icon={<WikipediaIcon className="size-5" />}
+        subtitle="Today's featured content"
+      >
         <a
           href={wikiHomeUrl}
           target="_blank"
@@ -670,7 +661,7 @@ export function WikipediaPage() {
         >
           <ExternalLink className="size-4" />
         </a>
-      </div>
+      </PageHeader>
 
       {/* Search bar */}
       <WikipediaSearchBar />

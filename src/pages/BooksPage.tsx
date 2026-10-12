@@ -8,6 +8,7 @@ import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
 import { PageHeader } from "@/components/PageHeader";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
 import { SubHeaderBar } from "@/components/SubHeaderBar";
 import { TabButton } from "@/components/TabButton";
 import { Input } from "@/components/ui/input";
@@ -83,11 +84,11 @@ export function BooksPage() {
   const showSkeleton = isPending || (isLoading && !rawData);
 
   return (
-    <main className="pb-16 sidebar:pb-0">
+    <main>
       <PageHeader title="Books" icon={<BookMarked className="size-5" />}>
         <KindInfoButton
           kindDef={booksDef}
-          icon={<BookMarked className="size-10" />}
+          icon={<BookMarked className="size-5" />}
         />
       </PageHeader>
 
@@ -106,6 +107,9 @@ export function BooksPage() {
           />
         </SubHeaderBar>
       )}
+
+      {/* Arc overhang spacer (matches Feed.tsx) */}
+      {user && <div style={{ height: ARC_OVERHANG_PX }} />}
 
       {/* Book search bar */}
       <BookSearchBar />

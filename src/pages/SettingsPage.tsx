@@ -135,7 +135,7 @@ export function SettingsPage() {
   }
 
   return (
-    <main className="relative min-h-screen pb-16 sidebar:pb-0">
+    <main className="relative min-h-screen">
       {/* Page header */}
       <PageHeader title={intl.formatMessage({ id: 'settings.title', defaultMessage: "Settings" })} icon={<Settings className="size-5" />} backTo="/" />
 
