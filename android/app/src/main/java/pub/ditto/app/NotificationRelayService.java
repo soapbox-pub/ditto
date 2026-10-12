@@ -16,6 +16,7 @@ import android.net.NetworkRequest;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.SystemClock;
 import android.os.HandlerThread;
 import android.util.Log;
 
@@ -38,6 +39,8 @@ import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLPeerUnverifiedException;
+
+import pub.ditto.app.relayfleet.NetworkSettle;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -63,7 +66,10 @@ import okhttp3.WebSocketListener;
  *   at least ten minutes, that retrying can't fix (DNS, refused/TLS, HTTP
  *   error, auth wall) until the network returns, the config changes, or the
  *   app comes forward.
- * - A network callback reconnects immediately when connectivity returns.
+ * - A network callback reconnects when connectivity returns, once the
+ *   network has been quiet for {@link NetworkSettle#SETTLE_MS} (a burst of
+ *   changes at the edge of Wi-Fi costs one reconnect, not one per change)
+ *   and the default network has validated (or a grace period has passed).
  * - Config changes (login/logout/relay or preference changes) reach the
  *   service via a SharedPreferences listener. Open sockets are kept and
  *   re-REQ'd only if their filters changed; an account switch starts over.
@@ -228,6 +234,22 @@ public class NotificationRelayService extends Service {
     private final Map<String, Profile> bestProfile = new HashMap<>();
 
     private ConnectivityManager.NetworkCallback networkCallback;
+    // When the network last changed (elapsedRealtime, handler thread). Connects
+    // wait for NetworkSettle.SETTLE_MS of quiet after it, so a burst of changes
+    // costs one reconnect per relay instead of one per change.
+    private long lastNetworkChangeAt = 0;
+    // Registration replays onAvailable for networks already up; only one after
+    // a loss is a change.
+    private boolean sawNetworkLoss = false;
+    // When the default network was first seen unvalidated (elapsedRealtime), 0
+    // while it is validated.
+    private long unvalidatedSince = 0;
+
+    // Minimum spacing between connectivity-driven re-arms of a quarantined
+    // relay. A flapping network fires an edge every few seconds, and each
+    // re-arm is another round of doomed handshakes; an edge inside the spacing
+    // defers the re-arm to its end rather than dropping it. Ported from Armada.
+    private static final long CONNECTIVITY_REARM_SPACING_MS = 2 * 60 * 1_000;
     private SharedPreferences.OnSharedPreferenceChangeListener configListener;
     private final Runnable reloadConfigRunnable = this::loadConfigAndReconnect;
 
@@ -318,7 +340,7 @@ public class NotificationRelayService extends Service {
         if (svc == null) return;
         svc.handler.post(() -> {
             for (RelayConnection rc : svc.connections) {
-                if (rc.quarantined) rc.onFleetEdge();
+                if (rc.quarantined) rc.onFleetEdge(false);
             }
         });
     }
@@ -453,7 +475,7 @@ public class NotificationRelayService extends Service {
             connections.add(rc);
             if (rc.quarantined) {
                 ServiceProfiler.count("config.reload unquarantine");
-                rc.onFleetEdge();
+                rc.onFleetEdge(false);
             } else if (rc.socketOpen && rc.ws != null
                     && !filterSignature(relayFilters.get(url)).equals(rc.reqSignature)) {
                 ServiceProfiler.count("config.reload re-REQ");
@@ -636,6 +658,10 @@ public class NotificationRelayService extends Service {
         // Single pending reconnect, cancellable — prevents a queued reconnect
         // and the network callback from racing to open duplicate sockets.
         final Runnable reconnectRunnable = this::connect;
+        // A connectivity re-arm deferred to the end of its spacing (see onFleetEdge).
+        final Runnable rearmRunnable = () -> onFleetEdge(false);
+        // Earliest a connectivity edge may re-arm this relay again (elapsedRealtime).
+        long nextRearmAt = 0;
 
         // Live notification subscription.
         final String subMain = "dn-" + Long.toHexString(System.nanoTime());
@@ -660,6 +686,16 @@ public class NotificationRelayService extends Service {
             // first — leaked sockets keep pinging and re-failing forever.
             retryPending = false;
             if (closed || quarantined || ws != null || !isNetworkAvailable()) return;
+            long settle = Math.max(
+                    NetworkSettle.delayMs(SystemClock.elapsedRealtime(), lastNetworkChangeAt, NetworkSettle.SETTLE_MS),
+                    unvalidatedDelayMs());
+            if (settle > 0) {
+                if (ServiceProfiler.ON) ServiceProfiler.units("socket.connect held ms", settle);
+                handler.removeCallbacks(reconnectRunnable);
+                handler.postDelayed(reconnectRunnable, settle);
+                retryPending = true;
+                return;
+            }
             connectAttemptAt = System.currentTimeMillis();
             if (ServiceProfiler.ON) {
                 ServiceProfiler.count("socket.connect");
@@ -888,6 +924,7 @@ public class NotificationRelayService extends Service {
             retryPending = false;
             socketOpen = false;
             handler.removeCallbacks(reconnectRunnable);
+            handler.removeCallbacks(rearmRunnable);
             if (ws != null) {
                 try { ws.close(1000, "service reconfigured"); } catch (Exception ignored) {}
                 ws = null;
@@ -897,10 +934,21 @@ public class NotificationRelayService extends Service {
         /**
          * Something changed that could change the outcome — connectivity
          * returned, the config was rebuilt, or the app came forward. Clear any
-         * quarantine and backoff, and connect now if there's no socket.
+         * quarantine and backoff, and connect if there's no socket (after the
+         * network settles; see connect). A connectivity edge re-arms a
+         * quarantined relay at most once per
+         * {@link #CONNECTIVITY_REARM_SPACING_MS}; one inside the spacing is
+         * deferred to its end.
          */
-        void onFleetEdge() {
+        void onFleetEdge(boolean connectivity) {
             if (closed) return;
+            long now = SystemClock.elapsedRealtime();
+            handler.removeCallbacks(rearmRunnable);
+            if (quarantined && connectivity && now < nextRearmAt) {
+                handler.postDelayed(rearmRunnable, nextRearmAt - now);
+                return;
+            }
+            nextRearmAt = now + CONNECTIVITY_REARM_SPACING_MS;
             quarantined = false;
             consecutivePermanent = 0;
             firstPermanentAt = 0;
@@ -1426,8 +1474,24 @@ public class NotificationRelayService extends Service {
                 Log.d(TAG, "Network available, reconnecting");
                 ServiceProfiler.count("network.available");
                 handler.post(() -> {
+                    if (sawNetworkLoss) lastNetworkChangeAt = SystemClock.elapsedRealtime();
                     for (RelayConnection rc : connections) {
-                        rc.onFleetEdge();
+                        rc.onFleetEdge(true);
+                    }
+                });
+            }
+
+            @Override
+            public void onCapabilitiesChanged(Network network, NetworkCapabilities caps) {
+                if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) return;
+                if (!network.equals(cm.getActiveNetwork())) return;
+                handler.post(() -> {
+                    // The default network just validated: connects held for it go now.
+                    if (unvalidatedSince == 0) return;
+                    unvalidatedSince = 0;
+                    ServiceProfiler.count("network.validated");
+                    for (RelayConnection rc : connections) {
+                        rc.onFleetEdge(true);
                     }
                 });
             }
@@ -1436,6 +1500,10 @@ public class NotificationRelayService extends Service {
             public void onLost(Network network) {
                 Log.d(TAG, "Network lost");
                 ServiceProfiler.count("network.lost");
+                handler.post(() -> {
+                    sawNetworkLoss = true;
+                    lastNetworkChangeAt = SystemClock.elapsedRealtime();
+                });
             }
         };
 
@@ -1448,6 +1516,24 @@ public class NotificationRelayService extends Service {
         if (cm != null) {
             try { cm.unregisterNetworkCallback(networkCallback); } catch (Exception ignored) {}
         }
+    }
+
+    /**
+     * How long a connect must wait for the default network to validate, or 0.
+     * See {@link NetworkSettle#UNVALIDATED_GRACE_MS}; handler thread.
+     */
+    private long unvalidatedDelayMs() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return 0;
+        NetworkCapabilities caps = cm.getNetworkCapabilities(cm.getActiveNetwork());
+        boolean validated = caps == null || caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+        long now = SystemClock.elapsedRealtime();
+        if (validated) {
+            unvalidatedSince = 0;
+            return 0;
+        }
+        if (unvalidatedSince == 0) unvalidatedSince = now;
+        return NetworkSettle.unvalidatedDelayMs(false, now, unvalidatedSince, NetworkSettle.UNVALIDATED_GRACE_MS);
     }
 
     private boolean isNetworkAvailable() {
