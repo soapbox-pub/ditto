@@ -730,6 +730,15 @@ public class NotificationRelayService extends Service {
         // Single pending reconnect, cancellable — prevents a queued reconnect
         // and the network callback from racing to open duplicate sockets.
         final Runnable reconnectRunnable = this::connect;
+        // Re-sends the main REQ after the relay CLOSED it (see scheduleResubscribe).
+        final Runnable resubscribeRunnable = () -> {
+            if (!closed && socketOpen && ws != null) {
+                ServiceProfiler.count("sub.resubscribe");
+                sendMainReq(ws);
+            }
+        };
+        // Delay before the next resubscribe; doubles per CLOSED, reset per session.
+        long subRetryBackoffMs = INITIAL_BACKOFF_MS;
         // A connectivity re-arm deferred to the end of its spacing (see onFleetEdge).
         final Runnable rearmRunnable = () -> onFleetEdge(false);
         // Earliest a connectivity edge may re-arm this relay again (elapsedRealtime).
@@ -793,6 +802,7 @@ public class NotificationRelayService extends Service {
                     handler.post(() -> {
                         if (closed || webSocket != ws) return;
                         socketOpen = true;
+                        subRetryBackoffMs = INITIAL_BACKOFF_MS;
                         sendMainReq(webSocket);
                     });
                 }
@@ -958,6 +968,8 @@ public class NotificationRelayService extends Service {
             boolean wasOpen = socketOpen;
             socketOpen = false;
             ws = null;
+            // A resubscribe belonged to the session that just ended.
+            handler.removeCallbacks(resubscribeRunnable);
             learnIdleDrop(wasOpen);
             long uptime = wasOpen && connectAttemptAt > 0
                     ? System.currentTimeMillis() - connectAttemptAt : 0;
@@ -994,6 +1006,21 @@ public class NotificationRelayService extends Service {
             backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
             handler.postDelayed(reconnectRunnable, delay);
             retryPending = true;
+        }
+
+        /**
+         * The relay CLOSED the main subscription for a reason other than
+         * auth-required (a restart, a rate limit, an error). The socket stays
+         * open, so nothing would ever re-send it: notifications from this relay
+         * just stopped until the socket happened to reconnect. Re-send it after
+         * a delay that doubles per CLOSED (1s → 5 min), so a relay that keeps
+         * refusing it is never hammered. Ported from Armada.
+         */
+        void scheduleResubscribe() {
+            if (closed || ws == null) return;
+            handler.removeCallbacks(resubscribeRunnable);
+            handler.postDelayed(resubscribeRunnable, subRetryBackoffMs);
+            subRetryBackoffMs = Math.min(subRetryBackoffMs * 2, MAX_BACKOFF_MS);
         }
 
         /**
@@ -1059,6 +1086,7 @@ public class NotificationRelayService extends Service {
             socketOpen = false;
             handler.removeCallbacks(reconnectRunnable);
             handler.removeCallbacks(rearmRunnable);
+            handler.removeCallbacks(resubscribeRunnable);
             if (ws != null) {
                 try { ws.close(1000, "service reconfigured"); } catch (Exception ignored) {}
                 ws = null;
@@ -1255,8 +1283,11 @@ public class NotificationRelayService extends Service {
                 String sub = msg.optString(1);
                 String reason = msg.optString(2);
                 Log.w(TAG, "CLOSED from " + rc.relayUrl + " sub=" + sub + " reason=" + reason);
-                if (rc.subMain.equals(sub) && reason.startsWith("auth-required")) {
+                if (!rc.subMain.equals(sub)) return;
+                if (reason.startsWith("auth-required")) {
                     rc.onMainWalled();
+                } else {
+                    rc.scheduleResubscribe();
                 }
                 return;
             }
