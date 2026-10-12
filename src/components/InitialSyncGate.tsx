@@ -48,6 +48,7 @@ import { completeProfileImetaTags } from "@/lib/computeProfileImeta";
 import type { ImetaEntry } from "@/lib/imeta";
 import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
 import { isAnimatedImage, METADATA_SCAN_BYTES } from "@/lib/imageMetadata";
+import { isGifBytes } from "@/lib/runGifCrop";
 import { getActivePubkey, subscribeActivePubkey } from "@/lib/activeAccount";
 import {
   beginSignupThemeCapture,
@@ -716,11 +717,10 @@ function ProfileStep({
       e.target.value = "";
       const field = pendingField.current;
 
-      // Animated images (GIF, APNG, animated WebP) can't survive the crop
-      // dialog's canvas round-trip, which flattens them to a single frame.
-      // Upload them byte-for-byte instead of silently killing the animation.
+      // GIFs are cropped frame by frame. Other animated images (APNG, animated
+      // WebP) would be flattened by the crop canvas; upload them as-is.
       const head = new Uint8Array(await file.slice(0, METADATA_SCAN_BYTES).arrayBuffer());
-      if (isAnimatedImage(file.type, head)) {
+      if (!isGifBytes(head) && isAnimatedImage(file.type, head)) {
         await uploadImage(file, field);
         return;
       }
@@ -740,7 +740,8 @@ function ProfileStep({
       const { field, imageSrc } = cropState;
       URL.revokeObjectURL(imageSrc);
       setCropState(null);
-      const file = new File([blob], `${field}.jpg`, { type: "image/jpeg" });
+      const gif = blob.type === "image/gif";
+      const file = new File([blob], `${field}.${gif ? "gif" : "jpg"}`, { type: gif ? "image/gif" : "image/jpeg" });
       await uploadImage(file, field);
     },
     [cropState, uploadImage],

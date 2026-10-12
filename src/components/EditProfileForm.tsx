@@ -36,6 +36,7 @@ import { IntroImage } from '@/components/IntroImage';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { isValidAvatarShape } from '@/lib/avatarShape';
 import { isAnimatedImage, METADATA_SCAN_BYTES } from '@/lib/imageMetadata';
+import { isGifBytes } from '@/lib/runGifCrop';
 
 // Extended form schema that includes custom fields and avatar shape
 const formSchema = n.metadata().extend({
@@ -187,11 +188,10 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
 
   // Open crop dialog when user picks a file
   const openCropDialog = async (file: File, field: 'picture' | 'banner') => {
-    // Animated images (GIF, APNG, animated WebP) can't survive the crop
-    // dialog's canvas round-trip, which flattens them to a single frame. Upload
-    // them byte-for-byte instead of silently killing the animation.
+    // GIFs are cropped frame by frame. Other animated images (APNG, animated
+    // WebP) would be flattened by the crop canvas; upload them as-is.
     const head = new Uint8Array(await file.slice(0, METADATA_SCAN_BYTES).arrayBuffer());
-    if (isAnimatedImage(file.type, head)) {
+    if (!isGifBytes(head) && isAnimatedImage(file.type, head)) {
       await uploadImage(file, field);
       return;
     }
@@ -213,7 +213,8 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
     setCropState(null);
     URL.revokeObjectURL(imageSrc);
 
-    const file = new File([blob], `${field}.jpg`, { type: 'image/jpeg' });
+    const gif = blob.type === 'image/gif';
+    const file = new File([blob], `${field}.${gif ? 'gif' : 'jpg'}`, { type: gif ? 'image/gif' : 'image/jpeg' });
     await uploadImage(file, field);
   };
 

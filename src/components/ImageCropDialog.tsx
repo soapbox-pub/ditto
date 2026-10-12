@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { isGifBytes, runGifCrop } from '@/lib/runGifCrop';
 
 interface ImageCropDialogProps {
   open: boolean;
@@ -17,7 +18,11 @@ interface ImageCropDialogProps {
 }
 
 async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> {
-  const image = await createImageBitmap(await (await fetch(imageSrc)).blob());
+  const source = await (await fetch(imageSrc)).blob();
+  if (isGifBytes(new Uint8Array(await source.slice(0, 4).arrayBuffer()))) {
+    return (await runGifCrop(source, pixelCrop)) ?? source;
+  }
+  const image = await createImageBitmap(source);
   const canvas = document.createElement('canvas');
   canvas.width = pixelCrop.width;
   canvas.height = pixelCrop.height;
