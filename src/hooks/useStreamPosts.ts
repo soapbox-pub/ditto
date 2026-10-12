@@ -8,6 +8,9 @@ import { isRepostKind } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAYS } from '@/lib/appRelays';
+import { fetchFeedPage, type FeedCursor } from '@/lib/feedPager';
+import { routeReadRelays } from '@/lib/reqRoutes';
+import { withoutBlockedRelays } from '@/lib/relayPolicy';
 import { nip19 } from 'nostr-tools';
 import { isNostrId } from '@/lib/nostrId';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
@@ -221,7 +224,20 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const isFetchingRef = useRef(false);
   const [hasNextPage, setHasNextPage] = useState(true);
-  const oldestTimestampRef = useRef<number | null>(null);
+  // Per-relay cursors, so a relay that reaches back further than another
+  // in a page doesn't page past what the other still holds.
+  const pageCursorRef = useRef<FeedCursor | undefined>(undefined);
+
+  /** Fetch a page of a search filter from the search relays. */
+  const fetchSearchPage = useCallback((filter: NostrFilter, cursor: FeedCursor | undefined, signal?: AbortSignal) => {
+    return fetchFeedPage({
+      relays: withoutBlockedRelays(routeReadRelays([filter], [])),
+      relay: (url) => nostr.relay(url),
+      filter: { ...filter, limit: PAGE_SIZE },
+      cursor,
+      signal,
+    });
+  }, [nostr]);
 
   // Event map and known IDs — persist across initial fetch, stream, and
   // pagination. `allEvents` is always rebuilt from the map.
@@ -447,7 +463,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     setIsLoading(true);
     setHasNextPage(true);
     isFetchingRef.current = false;
-    oldestTimestampRef.current = null;
+    pageCursorRef.current = undefined;
     initialLoadDoneRef.current = false;
     streamBufferRef.current = [];
     setStreamBufferCount(0);
@@ -466,31 +482,17 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
     const { searchFilter } = paginationFilter;
 
-    // 1. Fetch initial batch with search filters (uses pool, reuses existing connections)
+    // 1. Fetch the first page with the search filter.
     (async () => {
       try {
-        const events = await nostr.query(
-          [{ ...searchFilter, limit: PAGE_SIZE }],
-          { signal: ac.signal },
-        );
-        for (const event of events) {
+        const page = await fetchSearchPage(searchFilter, undefined, ac.signal);
+        if (!alive) return;
+        for (const event of page.events) {
           ingestEvent(event, false);
         }
         flushEventMap();
-        // Track oldest timestamp for pagination
-        if (events.length > 0) {
-          const oldest = Math.min(...events.map((e) => e.created_at));
-          oldestTimestampRef.current = oldest;
-        }
-        // Only stop when the relay returns no events at all. We can't use
-        // `events.length < PAGE_SIZE` here: NIP-50 search relays routinely
-        // return fewer than the requested limit per page even when older
-        // results exist, and many of these raw events get dropped by
-        // client-side filtering (mute/content/search/media), so the raw count
-        // is not a reliable signal that we've reached the end.
-        if (events.length === 0) {
-          setHasNextPage(false);
-        }
+        pageCursorRef.current = page.cursor;
+        if (!page.cursor) setHasNextPage(false);
       } catch {
         // abort expected
       }
@@ -558,37 +560,27 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
   /** Fetch the next page of older results. */
   const fetchNextPage = useCallback(async () => {
-    if (isFetchingRef.current || !hasNextPage || oldestTimestampRef.current === null) return;
+    const cursor = pageCursorRef.current;
+    if (isFetchingRef.current || !hasNextPage || !cursor) return;
     isFetchingRef.current = true;
     setIsFetchingNextPage(true);
     try {
-      const { searchFilter } = paginationFilter;
-      const prevOldest = oldestTimestampRef.current;
-      const events = await nostr.query(
-        [{ ...searchFilter, until: prevOldest - 1, limit: PAGE_SIZE }],
-      );
-      for (const event of events) {
+      const page = await fetchSearchPage(paginationFilter.searchFilter, cursor);
+      // A new search started meanwhile; this page belongs to the old one.
+      if (pageCursorRef.current !== cursor) return;
+      for (const event of page.events) {
         ingestEvent(event, false);
       }
       flushEventMap();
-      if (events.length > 0) {
-        const oldest = Math.min(...events.map((e) => e.created_at));
-        oldestTimestampRef.current = oldest;
-      }
-      // Stop only when the relay returns nothing, or when the cursor can't
-      // advance past the previous oldest timestamp (the relay ignored `until`
-      // or returned the same tail) — otherwise we'd loop re-fetching the same
-      // page forever. We deliberately do NOT stop on `events.length < PAGE_SIZE`
-      // because search relays under-fill pages while older results remain.
-      if (events.length === 0 || oldestTimestampRef.current >= prevOldest) {
-        setHasNextPage(false);
-      }    } catch {
+      pageCursorRef.current = page.cursor;
+      if (!page.cursor) setHasNextPage(false);
+    } catch {
       // Transient failure — leave hasNextPage true so the user can retry
     } finally {
       isFetchingRef.current = false;
       setIsFetchingNextPage(false);
     }
-  }, [hasNextPage, paginationFilter, nostr, ingestEvent, flushEventMap]);
+  }, [hasNextPage, paginationFilter, fetchSearchPage, ingestEvent, flushEventMap]);
 
   // Flush buffered streamed events into the main list (called by UI when user wants to see new posts)
   const flushStreamBuffer = doFlush;
