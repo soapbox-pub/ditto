@@ -746,6 +746,9 @@ public class NotificationRelayService extends Service {
         // batched so a reconnect after hours offline doesn't buzz N times.
         final List<JSONObject> backfill = new ArrayList<>();
         boolean mainEosed = false;
+        // Newest created_at among backfill copies dropped as already handled
+        // (see dropSeenEventFrame); applied to the cursor at EOSE with the rest.
+        long backfillHigh = -1;
 
         RelayConnection(String relayUrl) {
             this.relayUrl = relayUrl;
@@ -778,6 +781,7 @@ public class NotificationRelayService extends Service {
             mainWalled = false;
             deliveredAnything = false;
             backfill.clear();
+            backfillHigh = -1;
             Request request = new Request.Builder().url(relayUrl).build();
             ws = httpClient.newWebSocket(request, new WebSocketListener() {
                 @Override
@@ -854,6 +858,7 @@ public class NotificationRelayService extends Service {
                 // one): its backfill buffers again until the new EOSE.
                 mainEosed = false;
                 backfill.clear();
+                backfillHigh = -1;
                 long lastSeen = relayCursor(relayUrl);
 
                 List<JSONObject> filters = relayFilters.get(relayUrl);
@@ -1134,7 +1139,76 @@ public class NotificationRelayService extends Service {
 
     // ── Relay message routing ─────────────────────────────────────────────────
 
+    /**
+     * The main subscription re-delivering an event the service already
+     * handled or is holding is dropped before its frame is parsed. Every event
+     * arrives once per relay, so with N relays all but one copy was a full
+     * parse for nothing. The bookkeeping a delivery implies still happens: the
+     * relay counts as delivering, and its cursor moves past the event.
+     */
+    private boolean dropSeenEventFrame(String text, RelayConnection rc) {
+        FrameHead head = FrameHead.of(text);
+        if (head == null || !rc.subMain.equals(head.sub)) return false;
+        List<String> heldBy = stasisHeldBy.get(head.id);
+        if (heldBy == null && !notifiedIds.contains(head.id)) return false;
+        rc.deliveredAnything = true;
+        if (heldBy != null) {
+            if (!heldBy.contains(rc.relayUrl)) heldBy.add(rc.relayUrl);
+        } else if (!rc.mainEosed) {
+            rc.backfillHigh = Math.max(rc.backfillHigh, head.createdAt);
+        } else {
+            advanceRelayCursor(rc.relayUrl, head.createdAt);
+        }
+        ServiceProfiler.count("event.drop seen before parse");
+        return true;
+    }
+
+    /**
+     * The subscription id, event id and created_at of an
+     * {@code ["EVENT", sub, {…}]} frame, read without parsing it; null for any
+     * other frame or anything unexpected. The event's own {@code "id":"} and
+     * {@code "created_at":} are the first occurrences of those sequences: a
+     * quote inside any JSON string is escaped, so none can spell them.
+     * Ported from Armada.
+     */
+    static final class FrameHead {
+        final String sub;
+        final String id;
+        /** -1 when the frame doesn't carry a readable one. */
+        final long createdAt;
+
+        private FrameHead(String sub, String id, long createdAt) {
+            this.sub = sub;
+            this.id = id;
+            this.createdAt = createdAt;
+        }
+
+        static FrameHead of(String text) {
+            if (!text.startsWith("[\"EVENT\"")) return null;
+            int s0 = text.indexOf('"', 8);
+            if (s0 < 0) return null;
+            int s1 = text.indexOf('"', s0 + 1);
+            if (s1 < 0) return null;
+            int at = text.indexOf("\"id\":\"", s1 + 1);
+            if (at < 0 || at + 70 >= text.length()) return null;
+            String id = text.substring(at + 6, at + 70);
+            if (text.charAt(at + 70) != '"' || !id.matches("[0-9a-f]{64}")) return null;
+            return new FrameHead(text.substring(s0 + 1, s1), id, createdAt(text, s1 + 1));
+        }
+
+        private static long createdAt(String text, int from) {
+            int at = text.indexOf("\"created_at\":", from);
+            if (at < 0) return -1;
+            int i = at + 13;
+            int end = i;
+            while (end < text.length() && end - i < 12 && text.charAt(end) >= '0' && text.charAt(end) <= '9') end++;
+            if (end == i) return -1;
+            return Long.parseLong(text.substring(i, end));
+        }
+    }
+
     private void onRelayMessage(String text, RelayConnection rc) {
+        if (dropSeenEventFrame(text, rc)) return;
         try {
             JSONArray msg = new JSONArray(text);
             String type = msg.optString(0);
@@ -1152,6 +1226,10 @@ public class NotificationRelayService extends Service {
                 String sub = msg.optString(1);
                 if (rc.subMain.equals(sub)) {
                     rc.mainEosed = true;
+                    if (rc.backfillHigh >= 0) {
+                        advanceRelayCursor(rc.relayUrl, rc.backfillHigh);
+                        rc.backfillHigh = -1;
+                    }
                     if (!rc.backfill.isEmpty()) {
                         List<JSONObject> batch = new ArrayList<>(rc.backfill);
                         rc.backfill.clear();
