@@ -1,0 +1,337 @@
+/*
+ * The 404: a long night, a black cube over Saturn.
+ *
+ * The night is its own and ignores the theme, like Dreamith's nightfall. Two
+ * copies of the same starfield drift against each other so the sky has depth.
+ * Saturn sits low, its lower part past the edge of the screen, and almost
+ * entirely in its own night: a hole in the stars you make out by the thin
+ * edge of day on one shoulder and the rings around it. The cube is blacker
+ * than the sky and shows itself by the stars it hides. Nothing moves under
+ * prefers-reduced-motion.
+ */
+
+.lost {
+  --sky: #020308;
+  --ink: #e9ecf8;
+  --cube: 7rem;
+  --planet: clamp(22rem, 110cqw, 46rem);
+
+  position: relative;
+  isolation: isolate;
+  container-type: inline-size;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding:
+    calc(10vh + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)))
+    1.5rem
+    calc(16vh + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  background: var(--sky);
+  color: var(--ink);
+  animation: lost-fade 2.5s ease-out both;
+}
+
+@media (min-width: 640px) {
+  .lost { --cube: 9rem; }
+}
+
+@media (min-width: 900px) {
+  .lost { --planet: clamp(26rem, 118cqw, 48rem); }
+}
+
+@keyframes lost-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Sky ─────────────────────────────────────────────────────────────── */
+
+.lost-sky {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Two starfields, one mirrored, drifting in opposite directions so the near
+   stars slide over the far ones. Oversized so the edges never show. */
+.lost-stars {
+  position: absolute;
+  inset: -6%;
+  background: url("../assets/night-sky.webp") center / cover no-repeat;
+  /* The photo's blue haze goes to black; only the stars survive the contrast. */
+  filter: contrast(1.6) brightness(0.8);
+  mix-blend-mode: screen;
+  animation: lost-drift 240s ease-in-out infinite alternate;
+}
+
+.lost-stars.far {
+  opacity: 0.4;
+  transform: scaleX(-1);
+  animation: lost-drift-far 360s ease-in-out infinite alternate;
+}
+
+@keyframes lost-drift {
+  from { translate: -2% 1%; }
+  to { translate: 2% -1%; }
+}
+
+@keyframes lost-drift-far {
+  from { translate: 1.5% -1%; }
+  to { translate: -1.5% 1%; }
+}
+
+/* A few stars breathe: soft points, no crosses. */
+.lost-twinkle {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: calc(var(--s) * 0.35rem);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, #fff, #dfe7ff 35%, #b9caff33 70%, transparent);
+  animation: lost-twinkle var(--t) ease-in-out var(--d) infinite;
+}
+
+@keyframes lost-twinkle {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.25; }
+}
+
+/* ── Saturn ──────────────────────────────────────────────────────────── */
+
+/* Below and to the right of the words. The ring is one disc tipped toward
+   us, split into a far half behind the planet and a near half in front. */
+.lost-saturn {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: var(--planet);
+  height: var(--planet);
+  translate: -32% -74%;
+  z-index: -1;
+  pointer-events: none;
+  perspective: 1400px;
+}
+
+@media (min-width: 900px) {
+  .lost-saturn { translate: -22% -68%; }
+}
+
+/* The sun is far off to the upper left and reaches a sliver of the limb and
+   nothing more. The body is darker than the sky. */
+.lost-planet {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 24%, #0b0d1e 0, #050610 10%, #020309 24%, #010205 45%, #000 100%);
+  box-shadow:
+    inset 4px 6px 14px -9px rgba(223, 231, 255, 0.42),
+    inset 14px 18px 70px -40px rgba(159, 180, 255, 0.14),
+    0 0 160px 40px rgba(1, 2, 5, 0.98);
+}
+
+/* The terminator: the dark comes in over everything but the lit shoulder. */
+.lost-planet::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 28% 20%, transparent 18%, rgba(0, 0, 2, 0.7) 32%, rgba(0, 0, 2, 0.95) 50%, #000 70%);
+}
+
+.lost-rings {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 236%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  transform: rotateZ(-18deg) rotateX(76deg);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle,
+      transparent 0 44%,
+      rgba(201, 178, 131, 0.22) 44.4% 46%,
+      rgba(159, 180, 255, 0.13) 46% 48.5%,
+      rgba(201, 178, 131, 0.26) 48.5% 50.5%,
+      transparent 50.5% 51.5%,
+      rgba(159, 180, 255, 0.16) 51.5% 54%,
+      rgba(201, 178, 131, 0.19) 54% 56.5%,
+      rgba(233, 236, 248, 0.07) 56.5% 58.5%,
+      transparent 58.5%);
+  /* The right of the ring runs into the planet's shadow and goes out. */
+  -webkit-mask-image: linear-gradient(to right, #000 48%, rgba(0, 0, 0, 0.55) 68%, rgba(0, 0, 0, 0.18) 100%);
+  mask-image: linear-gradient(to right, #000 48%, rgba(0, 0, 0, 0.55) 68%, rgba(0, 0, 0, 0.18) 100%);
+}
+
+.lost-rings.far {
+  z-index: 0;
+  clip-path: inset(0 0 50% 0);
+  opacity: 0.5;
+}
+
+.lost-rings.near {
+  z-index: 2;
+  clip-path: inset(50% 0 0 0);
+}
+
+/* ── The cube ────────────────────────────────────────────────────────── */
+
+/* The seat fades the cube in and takes the click. It is a separate element
+   because a fading (opacity < 1) element flattens its 3D children. */
+.lost-cube-seat {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  width: var(--cube);
+  height: var(--cube);
+  margin: calc(var(--cube) / -2) 0 0 calc(var(--cube) / -2);
+  z-index: 1;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 1rem;
+  animation: lost-settle 5s ease-out 0.4s both;
+}
+
+.lost-cube-seat:focus-visible {
+  outline: 2px solid #9fb4ff;
+  outline-offset: 18px;
+}
+
+@keyframes lost-settle {
+  from { opacity: 0; translate: 0 1.5rem; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+/* Tipped toward us and turning slowly. */
+.lost-cube {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  animation: lost-turn 90s linear infinite;
+}
+
+@keyframes lost-turn {
+  from { transform: perspective(1100px) rotateX(-22deg) rotateY(0deg); }
+  to { transform: perspective(1100px) rotateX(-22deg) rotateY(360deg); }
+}
+
+/* Faces: blacker than the sky, a hairline of starlight on the edges. */
+.lost-cube i {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(155deg, #0a0c19 0%, #040509 60%, #020205 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(159, 180, 255, 0.16),
+    inset 0 0 22px rgba(159, 180, 255, 0.05);
+  backface-visibility: hidden;
+}
+
+.lost-cube i:nth-child(1) { transform: rotateY(0deg) translateZ(calc(var(--cube) / 2)); }
+.lost-cube i:nth-child(2) { transform: rotateY(90deg) translateZ(calc(var(--cube) / 2)); }
+.lost-cube i:nth-child(3) { transform: rotateY(180deg) translateZ(calc(var(--cube) / 2)); }
+.lost-cube i:nth-child(4) { transform: rotateY(-90deg) translateZ(calc(var(--cube) / 2)); }
+.lost-cube i:nth-child(5) { transform: rotateX(90deg) translateZ(calc(var(--cube) / 2)); }
+.lost-cube i:nth-child(6) { transform: rotateX(-90deg) translateZ(calc(var(--cube) / 2)); }
+
+/* Touched: light leaks along the seams, swells, and is taken back. */
+.lost-cube-seat.lit .lost-cube i {
+  animation: lost-seam 2.6s ease-in-out both;
+}
+
+@keyframes lost-seam {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 0 1px rgba(159, 180, 255, 0.16),
+      inset 0 0 22px rgba(159, 180, 255, 0.05);
+  }
+  35% {
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 244, 214, 0.95),
+      inset 0 0 26px rgba(231, 201, 131, 0.35),
+      0 0 34px 2px rgba(231, 201, 131, 0.45);
+  }
+}
+
+/* ── Words ───────────────────────────────────────────────────────────── */
+
+.lost-words {
+  position: relative;
+  z-index: 3;
+  margin-top: calc(30vh + var(--cube) / 2);
+  text-align: center;
+  text-shadow: 0 0 1.4em var(--sky), 0 0 0.5em #02030899;
+}
+
+.lost-title {
+  font-family: "Playfair Display Variable", "Playfair Display", Georgia, serif;
+  font-weight: 500;
+  font-size: clamp(2.4rem, 11cqw, 3.4rem);
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  animation: lost-title-up 4s ease-out 1.2s both;
+}
+
+@keyframes lost-title-up {
+  from { opacity: 0; filter: blur(3px); scale: 0.985; }
+  to { opacity: 1; filter: blur(0); scale: 1; }
+}
+
+.lost-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 2.5rem;
+  min-height: 44px;
+  padding: 0.7rem 1.7rem;
+  border-radius: 999px;
+  border: 1.5px solid rgba(233, 236, 248, 0.55);
+  color: var(--ink);
+  font-weight: 700;
+  line-height: 1.2;
+  text-shadow: none;
+  transition: transform 0.25s ease, background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  animation: lost-title-up 3s ease-out 4s both;
+}
+
+.lost-pill:hover {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--sky);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 40px rgba(159, 180, 255, 0.2);
+}
+
+.lost-pill:active {
+  transform: translateY(0);
+}
+
+.lost-pill:focus-visible {
+  outline: 2px solid #9fb4ff;
+  outline-offset: 4px;
+}
+
+/* ── Stillness ───────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .lost,
+  .lost *,
+  .lost *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .lost-cube { transform: perspective(1100px) rotateX(-22deg) rotateY(34deg); }
+  .lost-pill:hover { transform: none; }
+}
