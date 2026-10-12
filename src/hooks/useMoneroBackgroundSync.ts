@@ -144,7 +144,9 @@ export function useMoneroBackgroundSync(): void {
     let session: MoneroSession | null = null;
     let detachListener: (() => Promise<void>) | null = null;
     let checkpoint: ReturnType<typeof setInterval> | undefined;
-    // The first catch-up is done and wallet2 was set polling; from then on
+    /** The catch-up in progress, aborted when the app goes quiet (see catchUp). */
+    let catchingUp: AbortController | null = null;
+    // The first catch-up reached the tip; from then on wallet2 polls, and
     // `polling` tracks whether it still is (see applyQuiet).
     let ready = false;
     let polling = false;
@@ -201,27 +203,44 @@ export function useMoneroBackgroundSync(): void {
         detachListener = await watchBalances(session, () => {
           void checkpointCache();
         });
-
-        // The first catch-up. Progress isn't reported anywhere — no UI is
-        // watching — but this is what writes the cache after a cold start, so
-        // opening the wallet page doesn't start a scan from wherever the last
-        // visit left off.
-        await syncWallet(session);
-        if (cancelled) return;
-
-        await startBackgroundSync(session, SYNC_PERIOD_MS);
-        if (cancelled) return;
-        ready = true;
-        polling = true;
-        // Went quiet during the catch-up: stop again right away.
-        applyQuiet();
-
-        checkpoint = setInterval(() => void checkpointCache(), CHECKPOINT_MS);
       } catch (error) {
         // Nothing is rendering this. A background sync that can't reach a node
         // is not worth interrupting the user over — the wallet page surfaces
         // the same failure with a Retry button when they go looking.
         console.warn('Monero background sync failed:', error);
+        return;
+      }
+
+      if (!isBackgroundQuiet()) void catchUp();
+    };
+
+    /**
+     * The first catch-up. Progress isn't reported anywhere — no UI is watching
+     * — but this is what writes the cache after a cold start, so opening the
+     * wallet page doesn't start a scan from wherever the last visit left off.
+     *
+     * Going quiet aborts it. A scan far behind the tip runs for many minutes,
+     * downloading every block since the last one cached, and in a process the
+     * notification service keeps alive it went on all night; `syncWallet`
+     * saves how far it got, and coming back resumes from there.
+     */
+    const catchUp = async () => {
+      if (!session || cancelled || ready || catchingUp) return;
+      const controller = new AbortController();
+      catchingUp = controller;
+      try {
+        await syncWallet(session, { signal: controller.signal });
+        if (cancelled) return;
+        ready = true;
+        checkpoint = setInterval(() => void checkpointCache(), CHECKPOINT_MS);
+        // Start polling, unless the app went quiet just as the scan finished.
+        applyQuiet();
+      } catch (error) {
+        if (!controller.signal.aborted) console.warn('Monero background sync failed:', error);
+      } finally {
+        catchingUp = null;
+        // Came back while the aborted scan was still winding down.
+        if (controller.signal.aborted && !cancelled && !isBackgroundQuiet()) void catchUp();
       }
     };
 
@@ -231,10 +250,16 @@ export function useMoneroBackgroundSync(): void {
      * foreground service keeps alive, otherwise polled every 30s all night — and
      * picks up from its last height on resume. Stops and starts run one at a
      * time, each against the quiet state when its turn comes, so a quick
-     * flip back can't start polling while the stop is still in flight.
+     * flip back can't start polling while the stop is still in flight. Before
+     * the first catch-up has finished, quiet aborts it and resuming restarts it.
      */
     const applyQuiet = () => {
-      if (!session || cancelled || !ready) return;
+      if (!session || cancelled) return;
+      if (!ready) {
+        if (isBackgroundQuiet()) catchingUp?.abort();
+        else void catchUp();
+        return;
+      }
       const current = session;
       transition = transition.then(async () => {
         if (cancelled) return;
@@ -262,6 +287,7 @@ export function useMoneroBackgroundSync(): void {
 
     return () => {
       cancelled = true;
+      catchingUp?.abort();
       unsubscribeQuiet();
       clearTimeout(startupTimer);
       clearInterval(checkpoint);

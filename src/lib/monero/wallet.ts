@@ -425,6 +425,18 @@ export async function persistCache(session: MoneroSession): Promise<void> {
 }
 
 /**
+ * How long one slice of a sync runs before it is stopped so the cache can be
+ * saved (see {@link syncWallet}).
+ */
+const SYNC_SLICE_MS = 2 * 60 * 1000;
+
+/**
+ * Sessions wallet2 is polling, by period, so a sliced sync can restart the
+ * polling its `stopSyncing()` calls also stop.
+ */
+const pollingPeriods = new WeakMap<MoneroSession, number>();
+
+/**
  * Sync a wallet to the chain tip, reporting progress.
  *
  * This is the slow operation in the whole feature. `monero-ts` runs
@@ -433,7 +445,17 @@ export async function persistCache(session: MoneroSession): Promise<void> {
  * callback exists so the UI can say so honestly instead of showing an
  * indeterminate spinner.
  *
- * The cache is persisted afterwards so the next open resumes from here.
+ * ## Sliced, so progress survives
+ *
+ * The cache can't be read while wallet2 is scanning (`getData()` queues behind
+ * the sync), so one long sync saved nothing until it reached the tip. A scan
+ * cut short — the app killed, a reload — threw all of it away, and the next
+ * open downloaded the same blocks again. So the sync is stopped every
+ * {@link SYNC_SLICE_MS}, the cache is saved, and the next slice continues from
+ * the height wallet2 reached.
+ *
+ * Aborting `signal` stops the scan at once; the progress so far is saved
+ * before the abort is thrown.
  */
 export async function syncWallet(
   session: MoneroSession,
@@ -452,17 +474,47 @@ export async function syncWallet(
     }
   })();
 
+  signal?.throwIfAborted();
+
+  // stopSyncing() interrupts the running scan, but stops wallet2's polling too.
+  let stopping = false;
+  const stop = () => {
+    stopping = true;
+    void wallet.stopSyncing().catch(() => {
+      // Already closed; the sync below rejects on its own.
+    });
+  };
+  signal?.addEventListener('abort', stop);
+
   await wallet.addListener(listener);
   try {
-    await wallet.sync(listener);
-    signal?.throwIfAborted();
-    const state = await readState(session);
-    await persistCache(session);
-    return state;
+    for (;;) {
+      stopping = false;
+      const slice = setTimeout(stop, SYNC_SLICE_MS);
+      try {
+        await wallet.sync();
+      } catch (error) {
+        if (!stopping) throw error;
+      } finally {
+        clearTimeout(slice);
+      }
+      await persistCache(session);
+      signal?.throwIfAborted();
+      if (!stopping || (await wallet.isSynced())) break;
+    }
+    return await readState(session);
   } finally {
+    signal?.removeEventListener('abort', stop);
     await wallet.removeListener(listener).catch(() => {
       // Listener already detached — the wallet may have been closed under us.
     });
+    // A slice's stop also halted the polling a caller had started; restart it.
+    const period = pollingPeriods.get(session);
+    if (stopping && period !== undefined) {
+      await wallet.startSyncing(period).catch(() => {
+        // Closed under us; nothing to restart.
+      });
+    }
   }
 }
 
@@ -475,6 +527,7 @@ export async function syncWallet(
  */
 export async function startBackgroundSync(session: MoneroSession, periodMs = 30_000): Promise<void> {
   await session.wallet.startSyncing(periodMs);
+  pollingPeriods.set(session, periodMs);
 }
 
 /**
@@ -512,6 +565,7 @@ export async function watchBalances(
 
 /** Stop background syncing. */
 export async function stopBackgroundSync(session: MoneroSession): Promise<void> {
+  pollingPeriods.delete(session);
   await session.wallet.stopSyncing().catch(() => {
     // Not syncing, or already closed.
   });
