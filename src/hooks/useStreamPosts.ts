@@ -54,6 +54,51 @@ function hasVideoImeta(event: NostrEvent): boolean {
   );
 }
 
+/** Tags whose values count as searchable text alongside `content`. */
+const SEARCHABLE_TAGS = ['title', 'summary', 'subject', 'alt', 't'];
+
+/** `key:value` NIP-50 extensions (language:en, sort:new, …) — not text terms. */
+const SEARCH_OPERATOR = /^-?[a-z_]+:\S*$/i;
+
+/** Match `term` as a whole word (or phrase), not as a fragment of a longer word. */
+function wordPattern(term: string): RegExp {
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+  return new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, 'iu');
+}
+
+/**
+ * Approximate the relay's word-based NIP-50 match for a streamed event: every
+ * term (or "quoted phrase") must appear as a whole word, `-term` must not, and
+ * `key:value` operators are ignored. A raw substring check let "art" match
+ * "start" and "nostr" match every `nostr:npub…` mention, so the new-posts pill
+ * counted events the search never actually returns.
+ */
+function matchesSearchQuery(event: NostrEvent, searchQuery: string): boolean {
+  const include: RegExp[] = [];
+  const exclude: RegExp[] = [];
+  for (const [, phrase, word] of searchQuery.matchAll(/"([^"]+)"|(\S+)/g)) {
+    if (phrase !== undefined) {
+      if (phrase.trim()) include.push(wordPattern(phrase.trim()));
+      continue;
+    }
+    if (SEARCH_OPERATOR.test(word)) continue;
+    const negated = word.startsWith('-') && word.length > 1;
+    // Strip edge punctuation so "bitcoin," or "#bitcoin" still match the word.
+    const term = (negated ? word.slice(1) : word).replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+    if (!term) continue;
+    (negated ? exclude : include).push(wordPattern(term));
+  }
+  if (include.length === 0 && exclude.length === 0) return true;
+
+  // Drop NIP-21 URIs so their `nostr:` scheme and bech32 noise can't match terms.
+  const text = [
+    event.content.replace(/nostr:[a-z0-9]+/gi, ' '),
+    ...event.tags.filter(([name]) => SEARCHABLE_TAGS.includes(name)).map(([, value]) => value ?? ''),
+  ].join('\n');
+
+  return include.every((re) => re.test(text)) && !exclude.some((re) => re.test(text));
+}
+
 /**
  * Client-side filtering for streaming events.
  * Initial query uses relay-level filters (NIP-50 search), but streaming
@@ -104,17 +149,7 @@ function filterEvent(
   // Client-side search — applied to all kinds for streamed events.
   // The initial batch uses relay-level NIP-50 search; streamed events have no
   // search filter at the relay, so we must enforce it here.
-  if (searchQuery.trim()) {
-    const lowerQuery = searchQuery.toLowerCase();
-    const lowerContent = event.content.toLowerCase();
-    // For non-text events also check the title/summary/subject tags
-    const searchableTags = ['title', 'summary', 'subject', 'alt'];
-    const tagText = searchableTags
-      .flatMap((name) => event.tags.filter(([t]) => t === name).map(([, v]) => v ?? ''))
-      .join(' ')
-      .toLowerCase();
-    if (!lowerContent.includes(lowerQuery) && !tagText.includes(lowerQuery)) return false;
-  }
+  if (!matchesSearchQuery(event, searchQuery)) return false;
 
   // Client-side media filtering (for streaming events only)
   if (options.mediaType !== 'all') {
@@ -140,6 +175,15 @@ function filterEvent(
   }
 
   return true;
+}
+
+/** Addressable events (30000-39999) dedupe by pubkey+kind+d; everything else by id. */
+function getDedupeKey(event: NostrEvent): string {
+  if (event.kind >= 30000 && event.kind < 40000) {
+    const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
+    return `${event.pubkey}:${event.kind}:${dTag}`;
+  }
+  return event.id;
 }
 
 /** Number of events to fetch per page. */
@@ -179,22 +223,41 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const [hasNextPage, setHasNextPage] = useState(true);
   const oldestTimestampRef = useRef<number | null>(null);
 
+  // Event map and known IDs — persist across initial fetch, stream, and
+  // pagination. `allEvents` is always rebuilt from the map.
+  const eventMapRef = useRef(new Map<string, NostrEvent>());
+  const knownIdsRef = useRef(new Set<string>());
+
+  /** Flush the event map into React state (sorted). Call once after a batch of mutations. */
+  const flushEventMap = useCallback(() => {
+    setAllEvents(Array.from(eventMapRef.current.values()).sort((a, b) => b.created_at - a.created_at));
+  }, []);
+
+  /** Store an event in the map, keeping the newest version of addressable events. Returns true if stored. */
+  const storeEvent = useCallback((event: NostrEvent, dedupeKey: string): boolean => {
+    const existing = eventMapRef.current.get(dedupeKey);
+    if (existing && (event.kind < 30000 || event.kind >= 40000 || existing.created_at >= event.created_at)) return false;
+    eventMapRef.current.set(dedupeKey, event);
+    return true;
+  }, []);
+
   /** Merge buffered events into the main list and mark them as flushed. */
   const doFlush = useCallback(() => {
     if (streamBufferRef.current.length === 0) return;
     const ids = new Set(streamBufferRef.current.map((e) => e.id));
-    setAllEvents((prev) => {
-      const merged = [...prev, ...streamBufferRef.current];
-      merged.sort((a, b) => b.created_at - a.created_at);
-      return merged;
-    });
+    // Into the map, not just `allEvents` — the next flushEventMap rebuilds
+    // `allEvents` from the map, which would otherwise drop these again.
+    for (const event of streamBufferRef.current) {
+      storeEvent(event, getDedupeKey(event));
+    }
+    flushEventMap();
     streamBufferRef.current = [];
     setStreamBufferCount(0);
     // Show highlight briefly then clear
     setFlushedIds(ids);
     clearTimeout(flushedTimerRef.current);
     flushedTimerRef.current = setTimeout(() => setFlushedIds(new Set()), 1500);
-  }, []);
+  }, [storeEvent, flushEventMap]);
 
   // Clean up timer on unmount
   useEffect(() => () => clearTimeout(flushedTimerRef.current), []);
@@ -331,28 +394,12 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; options.protocols via protocolsKey; kindsOverride via kindsOverrideKey; authorPubkeys via authorPubkeysKey
   }, [query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey, kindsOverrideKey, authorPubkeysKey, clientTagsKey, options.sort]);
 
-  // Shared ref for the event map and known IDs — persists across initial fetch + pagination
-  const eventMapRef = useRef(new Map<string, NostrEvent>());
-  const knownIdsRef = useRef(new Set<string>());
-
-  /** Flush the event map into React state (sorted). Call once after a batch of mutations. */
-  const flushEventMap = useCallback(() => {
-    setAllEvents(Array.from(eventMapRef.current.values()).sort((a, b) => b.created_at - a.created_at));
-  }, []);
-
   /** Ingest a single event into the event map / stream buffer. Returns true if the map was mutated. */
   const ingestEvent = useCallback((event: NostrEvent, isStreamed: boolean): boolean => {
     const now = Math.floor(Date.now() / 1000);
     if (event.created_at > now) return false;
 
-    // Dedupe key
-    let dedupeKey: string;
-    if (event.kind >= 30000 && event.kind < 40000) {
-      const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
-      dedupeKey = `${event.pubkey}:${event.kind}:${dTag}`;
-    } else {
-      dedupeKey = event.id;
-    }
+    const dedupeKey = getDedupeKey(event);
 
     // Buffer streamed events only when user is scrolled down to avoid scroll jumps.
     // The buffer count is committed to React state by the batched timer in
@@ -364,18 +411,10 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       return false;
     }
 
-    // Addressable events (30000-39999) dedupe by pubkey+kind+d
-    if (event.kind >= 30000 && event.kind < 40000) {
-      const existing = eventMapRef.current.get(dedupeKey);
-      if (existing && existing.created_at >= event.created_at) return false;
-      eventMapRef.current.set(dedupeKey, event);
-    } else {
-      if (eventMapRef.current.has(dedupeKey)) return false;
-      eventMapRef.current.set(dedupeKey, event);
-    }
+    if (!storeEvent(event, dedupeKey)) return false;
     knownIdsRef.current.add(dedupeKey);
     return true;
-  }, []);
+  }, [storeEvent]);
 
   // Batch streamed events into a single state commit per interval. Flushing
   // per event makes a busy relay re-sort the whole array and re-render the
