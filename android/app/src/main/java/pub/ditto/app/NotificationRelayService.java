@@ -232,9 +232,19 @@ public class NotificationRelayService extends Service {
     // (and folds) instead of deferring forever, and any held event alerts within
     // STASIS_MS of arriving.
     private final List<JSONObject> stasisBuffer = new ArrayList<>();
-    // Ids currently staged in stasisBuffer, so a duplicate cross-relay delivery
-    // is dropped before it splits one burst across two flush windows.
-    private final Set<String> stasisBufferIds = new HashSet<>();
+    // Ids currently staged in stasisBuffer → the relays that delivered them. A
+    // duplicate cross-relay delivery is dropped before it splits one burst
+    // across two flush windows, but its relay is remembered so that relay's
+    // cursor moves past the event when it flushes.
+    private final Map<String, List<String>> stasisHeldBy = new HashMap<>();
+
+    // Per relay, the newest created_at (unix seconds) that relay has delivered
+    // and the service has handled; its main REQ asks for events after it.
+    // Persisted per account in RELAY_CURSOR_PREFS. One shared cursor let relay
+    // A's events move it past what relay B had and hadn't sent yet, so B's
+    // reconnect skipped them. Handler thread.
+    private final Map<String, Long> relayCursors = new HashMap<>();
+    private static final String RELAY_CURSOR_PREFS = "ditto_relay_cursors";
     private boolean stasisScheduled = false;
     private final Runnable flushStasisRunnable = this::flushStasis;
 
@@ -500,6 +510,7 @@ public class NotificationRelayService extends Service {
         if (previousPubkey != null && !previousPubkey.equals(userPubkey)) {
             ServiceProfiler.count("config.reload account switch");
             closeAllConnections();
+            relayCursors.clear();
         }
 
         // Otherwise reuse what's already there. Tearing every socket down on
@@ -659,7 +670,7 @@ public class NotificationRelayService extends Service {
         handler.removeCallbacks(flushStasisRunnable);
         stasisScheduled = false;
         stasisBuffer.clear();
-        stasisBufferIds.clear();
+        stasisHeldBy.clear();
         // Fail any in-flight lookups so their notifications still fire.
         for (EventLookup lookup : new ArrayList<>(pendingEventLookups)) {
             completeEventLookup(lookup);
@@ -843,17 +854,7 @@ public class NotificationRelayService extends Service {
                 // one): its backfill buffers again until the new EOSE.
                 mainEosed = false;
                 backfill.clear();
-                long lastSeen = poller.getLastSeenTimestamp();
-                if (lastSeen == 0) {
-                    // Cold start seeds the cursor to NOW, not a rewind: a fresh
-                    // service (first launch, or after the persisted timestamp is
-                    // lost) must never dump pre-launch history the user has
-                    // already seen in-app. History is the WebView's job; this
-                    // service only announces what arrives from now forward.
-                    // Mirrors Armada's cold-start cursor (no backlog request).
-                    lastSeen = System.currentTimeMillis() / 1000;
-                    poller.setLastSeenTimestamp(lastSeen);
-                }
+                long lastSeen = relayCursor(relayUrl);
 
                 List<JSONObject> filters = relayFilters.get(relayUrl);
                 if (filters == null || filters.isEmpty()) return;
@@ -1154,6 +1155,12 @@ public class NotificationRelayService extends Service {
                     if (!rc.backfill.isEmpty()) {
                         List<JSONObject> batch = new ArrayList<>(rc.backfill);
                         rc.backfill.clear();
+                        // The replay arrives newest first, so the cursor moves
+                        // only now: a socket dropped mid-replay must not
+                        // reconnect past the older half it never delivered.
+                        for (JSONObject event : batch) {
+                            advanceRelayCursor(rc.relayUrl, event.optLong("created_at", -1));
+                        }
                         processBatch(batch);
                     }
                 } else if (sub.startsWith(rc.profilePrefix)) {
@@ -1211,7 +1218,7 @@ public class NotificationRelayService extends Service {
                     // Live singleton: hold non-followed senders in stasis so the
                     // crowd forms before any of the burst fires. Backfill (below)
                     // already arrives as a crowd, so it skips the hold.
-                    enqueueLiveEvent(event);
+                    enqueueLiveEvent(event, rc.relayUrl);
                 } else {
                     rc.backfill.add(event);
                 }
@@ -1230,21 +1237,34 @@ public class NotificationRelayService extends Service {
      * of the burst fires; the timer is armed by the FIRST held event and not
      * reset by later ones, so an unbroken stream still flushes on cadence.
      */
-    private void enqueueLiveEvent(JSONObject event) {
-        String sender = NostrPoller.getSenderPubkey(event);
-        if (sender.equals(userPubkey) || follows.contains(sender)) {
-            processBatch(java.util.Collections.singletonList(event));
-            return;
-        }
+    private void enqueueLiveEvent(JSONObject event, String relayUrl) {
         String id = event.optString("id");
+        if (id.isEmpty()) return;
+        long createdAt = event.optLong("created_at", -1);
         // Dedup before buffering: the same event is redelivered across relay
         // sockets, and holding N copies both wastes the flush and — worse — lets
         // a burst's copies straddle the flush boundary, splitting one crowd into
         // two sub-threshold windows that each fire unfolded. `notifiedIds` only
         // dedups at processBatch (too late), so guard on both it and the buffer.
-        if (id.isEmpty() || notifiedIds.contains(id) || stasisBufferIds.contains(id)) return;
+        if (notifiedIds.contains(id)) {
+            advanceRelayCursor(relayUrl, createdAt);
+            return;
+        }
+        List<String> heldBy = stasisHeldBy.get(id);
+        if (heldBy != null) {
+            if (!heldBy.contains(relayUrl)) heldBy.add(relayUrl);
+            return;
+        }
+        String sender = NostrPoller.getSenderPubkey(event);
+        if (sender.equals(userPubkey) || follows.contains(sender)) {
+            advanceRelayCursor(relayUrl, createdAt);
+            processBatch(java.util.Collections.singletonList(event));
+            return;
+        }
         stasisBuffer.add(event);
-        stasisBufferIds.add(id);
+        heldBy = new ArrayList<>();
+        heldBy.add(relayUrl);
+        stasisHeldBy.put(id, heldBy);
         if (!stasisScheduled) {
             stasisScheduled = true;
             handler.postDelayed(flushStasisRunnable, STASIS_MS);
@@ -1257,8 +1277,16 @@ public class NotificationRelayService extends Service {
         if (stasisBuffer.isEmpty()) return;
         if (ServiceProfiler.ON) ServiceProfiler.units("stasis.flush", stasisBuffer.size());
         List<JSONObject> batch = new ArrayList<>(stasisBuffer);
+        // Held events move their relays' cursors only now, so a service killed
+        // during the hold re-fetches them rather than skipping them.
+        for (JSONObject event : batch) {
+            List<String> heldBy = stasisHeldBy.get(event.optString("id"));
+            if (heldBy == null) continue;
+            long createdAt = event.optLong("created_at", -1);
+            for (String url : heldBy) advanceRelayCursor(url, createdAt);
+        }
         stasisBuffer.clear();
-        stasisBufferIds.clear();
+        stasisHeldBy.clear();
         processBatch(batch);
     }
 
@@ -1285,18 +1313,11 @@ public class NotificationRelayService extends Service {
         if (eventCache.size() > MAX_CACHED_EVENTS) eventCache.clear();
 
         List<JSONObject> candidates = new ArrayList<>();
-        long newestTs = poller.getLastSeenTimestamp();
-        long nowSec = System.currentTimeMillis() / 1000;
 
         for (JSONObject event : events) {
             String id = event.optString("id");
             if (id.isEmpty() || notifiedIds.contains(id)) continue;
             String sender = NostrPoller.getSenderPubkey(event);
-            long ts = event.optLong("created_at", 0);
-            // Clamp the cursor to `now` so a validly signed event carrying a
-            // far-future created_at can't jump last-seen forward and silently
-            // skip everything until then. Mirrors Armada's advanceInclusiveSince.
-            newestTs = advanceInclusiveSince(newestTs, ts, nowSec);
             if (sender.equals(userPubkey)) continue; // skip self-interactions
             // "Only from people I follow", re-checked here for when the follow
             // set was too big to send as the filters' `authors`.
@@ -1306,10 +1327,6 @@ public class NotificationRelayService extends Service {
             rememberBoundedId(notifiedIds, id, MAX_NOTIFIED_IDS);
             candidates.add(event);
         }
-
-        // Advance last-seen over everything (including self/dup events) so a
-        // reconnect doesn't re-fetch them.
-        poller.setLastSeenTimestamp(newestTs);
 
         if (candidates.isEmpty()) return;
         if (ServiceProfiler.ON) ServiceProfiler.units("batch.candidates", candidates.size());
@@ -1700,6 +1717,42 @@ public class NotificationRelayService extends Service {
         if (configListener == null) return;
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         prefs.unregisterOnSharedPreferenceChangeListener(configListener);
+    }
+
+    // ── Relay cursors ─────────────────────────────────────────────────────────
+
+    private String relayCursorKey(String relayUrl) {
+        return userPubkey + "|" + relayUrl;
+    }
+
+    /**
+     * The newest created_at {@code relayUrl} has delivered and the service has
+     * handled (see {@link #relayCursors}). A relay with no cursor of its own
+     * starts from the newest any relay has delivered (the cursor every relay
+     * shared before cursors were per relay), else from now: a fresh service
+     * must never dump pre-launch history the user has already seen in-app.
+     */
+    private long relayCursor(String relayUrl) {
+        Long cached = relayCursors.get(relayUrl);
+        if (cached != null) return cached;
+        long since = getSharedPreferences(RELAY_CURSOR_PREFS, Context.MODE_PRIVATE)
+                .getLong(relayCursorKey(relayUrl), 0);
+        if (since == 0) since = poller.getLastSeenTimestamp();
+        if (since == 0) since = System.currentTimeMillis() / 1000;
+        relayCursors.put(relayUrl, since);
+        return since;
+    }
+
+    /** {@code relayUrl} delivered an event the service has now handled. */
+    private void advanceRelayCursor(String relayUrl, long createdAtSec) {
+        long current = relayCursor(relayUrl);
+        long next = advanceInclusiveSince(current, createdAtSec, System.currentTimeMillis() / 1000);
+        if (next == current) return;
+        relayCursors.put(relayUrl, next);
+        getSharedPreferences(RELAY_CURSOR_PREFS, Context.MODE_PRIVATE).edit()
+                .putLong(relayCursorKey(relayUrl), next).apply();
+        // The shared cursor is where a relay new to the config starts.
+        if (next > poller.getLastSeenTimestamp()) poller.setLastSeenTimestamp(next);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
